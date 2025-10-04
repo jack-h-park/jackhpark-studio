@@ -18,7 +18,12 @@
 
 .notion-page {
   padding-bottom: calc(max(5vh, 32px)) !important;
-  line-height: 1.65;
+  line-height: 1.5;
+  margin: 0 auto;
+/* 
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem; */
 }
 
 .index-page {
@@ -53,10 +58,10 @@
   gap: 0.5rem;
 }
 
-.notion-gallery-grid {
+/* .notion-gallery-grid {
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  grid-gap: 6vmin;
-  gap: 6vmin;
+  grid-gap: 3vmin;
+  gap: 3vmin;
 }
 
 .notion-gallery-grid .notion-page-icon-inline {
@@ -75,7 +80,7 @@
 
 .notion-gallery-grid .notion-property-text {
   font-size: 14px;
-}
+} */
 
 .notion-collection-card {
   border-radius: 16px;
@@ -403,3 +408,16 @@
 .notion-equation.notion-equation-block{
   align-items: center;
 }
+
+/* 특정 데이터베이스(28299029c0b48122955acc4102667636) 안의 카드 클릭 비활성화 */
+.notion-block-28299029c0b48122955acc4102667636 .notion-collection-card {
+  pointer-events: none !important;
+}
+
+/* hover 효과 제거 (이미지 밝기, 테두리 변화 등) 
+.notion-block-28299029c0b48122955acc4102667636 .notion-collection-card:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+*/
