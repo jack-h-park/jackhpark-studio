@@ -121,6 +121,13 @@
   border-color: #777777;
 }
 
+.instagram .actionBgPane {
+  background: #e4405f;
+}
+.instagram:hover {
+  border-color: #e4405f;
+}
+
 .email .actionBgPane {
   background: #777;
 }

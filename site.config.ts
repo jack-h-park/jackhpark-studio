@@ -2,7 +2,7 @@ import { siteConfig } from './lib/site-config'
 
 export default siteConfig({
   // the site's root Notion page (required)
-  rootNotionPageId: '28299029c0b480f58023f9610d00f070',
+  rootNotionPageId: '28299029c0b481ce8999d425287d3db6', //28299029c0b481ce8999d425287d3db6 //28299029c0b4800aaa33df42d6b8caab
 
   // if you want to restrict pages to a single notion workspace (optional)
   // (this should be a Notion ID; see the docs for how to extract this)
@@ -19,9 +19,11 @@ export default siteConfig({
   // social usernames (optional)
   linkedin: 'jackhpark',
   github: 'jack-h-park',
+  instagram: 'jack_hw_park',
   // mastodon: '#', // optional mastodon profile URL, provides link verification
   // newsletter: '#', // optional newsletter URL
-  // youtube: '#', // optional youtube channel name or `channel/UCGbXXXXXXXXXXXXXXXXXXXXXX`
+  youtube: 'JackparkVideography', // optional youtube channel name or `channel/UCGbXXXXXXXXXXXXXXXXXXXXXX`
+  // twitter: '#',
 
   // default notion icon and cover images for site-wide consistency (optional)
   // page-specific values will override these site-wide defaults
