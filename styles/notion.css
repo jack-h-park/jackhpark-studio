@@ -178,9 +178,27 @@
   margin-right: auto;
 }
 
+
+
 .notion-title {
+  /* 원래 있던거 */
   display: block;
   text-align: center;
+
+  /* 제목 폰트 크기 조절하려고 내가 추가한거 */
+  font-size: 1.6rem !important; /* 기본은 약 2rem */
+  line-height: 1.2 !important;
+}
+
+/* 제목 위아래 여백 조절 */
+.notion-page-block .notion-title {
+  margin-top: 0.1em !important;  /* 기본은 약 1em */
+  margin-bottom: 0.1em !important;
+}
+
+/* 제목과 아이콘, 커버 이미지 간의 여백 줄이기 */
+.notion-page {
+  padding-top: 0.5em !important;
 }
 
 .notion-collection-row {
@@ -222,9 +240,10 @@
   }
 }
 
+/* 누가 넣은거지? */
 .notion-block-ab9a258d6cf444f3bb40dc2600feae91 .notion-page-link {
   justify-content: center;
-  padding: 2em;
+  padding: 50em;
 }
 
 .notion-code {
@@ -360,13 +379,23 @@
 }
 
 /* if you don't want rounded page icon images, remove this */
-.notion-page-icon-hero.notion-page-icon-image {
+/* .notion-page-icon-hero.notion-page-icon-image {
   border-radius: 50%;
   box-shadow: 0 8px 40px 0 rgb(0 0 0 / 21%);
 }
 .notion-page-icon-hero.notion-page-icon-image span,
 .notion-page-icon-hero.notion-page-icon-image img {
   border-radius: 50%;
+}  */
+
+/* 내가 전체다 추가 한거 */
+.notion-page-icon-hero {
+  display: flex;
+
+  transform: translateX(-120px);
+
+  /* 이걸 넣으면 아래 제목과 갑자기 벌어짐 */
+  /* position: relative;  */
 }
 
 .notion-header {
@@ -416,10 +445,10 @@
   align-items: center;
 }
 
-/* 특정 데이터베이스(28299029c0b48122955acc4102667636) 안의 카드 클릭 비활성화 */
-.notion-block-28299029c0b48122955acc4102667636 .notion-collection-card {
+/* Skill 나온 부분 데이터베이스(28299029c0b48122955acc4102667636) 안의 카드 클릭 비활성화 */
+/* .notion-block-28299029c0b48122955acc4102667636 .notion-collection-card {
   pointer-events: none !important;
-}
+} */
 
 /* hover 효과 제거 (이미지 밝기, 테두리 변화 등) 
 .notion-block-28299029c0b48122955acc4102667636 .notion-collection-card:hover {
@@ -428,3 +457,18 @@
   filter: none !important;
 }
 */
+
+/* 문단(텍스트 블록) 간 간격 줄이기 */
+.notion-text-block {
+  margin-bottom: 0.3em !important;
+}
+
+/* 문단 안 <p> 태그에도 여백이 있다면 함께 줄이기 */
+.notion-text-block > p {
+  margin-bottom: 0.3em !important;
+}
+
+/* 문단 사이 너무 좁게 보이면 약간만 띄우기 */
+.notion-text-block + .notion-text-block {
+  margin-top: 0.2em !important;
+}
