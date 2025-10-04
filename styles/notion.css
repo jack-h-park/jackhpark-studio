@@ -58,6 +58,7 @@
   gap: 0.5rem;
 }
 
+/* 아래는 전부 내가 주석처리한거 */
 /* .notion-gallery-grid {
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   grid-gap: 3vmin;
@@ -81,6 +82,12 @@
 .notion-gallery-grid .notion-property-text {
   font-size: 14px;
 } */
+
+/* 내가 넣은거 */
+.notion-page__title {
+  font-size: 1.2rem !important;
+  font-weight: 600;
+}
 
 .notion-collection-card {
   border-radius: 16px;
