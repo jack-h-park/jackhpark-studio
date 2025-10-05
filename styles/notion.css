@@ -437,7 +437,7 @@
 .notion-page-icon-hero {
   display: flex;
 
-  transform: translateX(-170px);
+  transform: translateX(-140px);
 
   /* 이걸 넣으면 아래 제목과 갑자기 벌어짐 */
   /* position: relative;  */
