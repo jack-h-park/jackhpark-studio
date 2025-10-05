@@ -3,19 +3,24 @@
   "short_name": "Starter Kit",
   "icons": [
     {
-      "src": "/jack-h-park-logo-simple-32.png",
+      "src": "/favicon-32x32.png",
       "type": "image/png",
       "sizes": "32x32"
     },
     {
-      "src": "/jack-h-park-logo-simple-128.png",
+      "src": "/apple-touch-icon.png",
       "type": "image/png",
-      "sizes": "128x128"
+      "sizes": "180x180"
     },
     {
-      "src": "/jack-h-park-logo-simple-192.png",
+      "src": "/android-chrome-192x192.png",
       "type": "image/png",
       "sizes": "192x192"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
     }
   ],
   "theme_color": "#000000",

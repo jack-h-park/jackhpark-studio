@@ -373,7 +373,54 @@
   padding: 0;
   margin: 0;
   border-radius: 0;
-  background: none !important;
+  background-image: none !important;
+} 
+
+/* 🌙 Notion dark mode background color tuning 
+ ChatGPT 통해서 내가 추가한거 */
+.dark-mode .notion-red_background {
+  background-color: rgba(255, 99, 99, 0.25) !important;
+  color: #ffb3b3 !important;
+}
+
+.dark-mode .notion-pink_background {
+  background-color: rgba(255, 182, 193, 0.25) !important;
+  color: #ffcce0 !important;
+}
+
+.dark-mode .notion-blue_background {
+  background-color: rgba(100, 149, 237, 0.2) !important;
+  color: #a8c9ff !important;
+}
+
+.dark-mode .notion-purple_background {
+  background-color: rgba(186, 85, 211, 0.2) !important;
+  color: #d8a6ff !important;
+}
+
+.dark-mode .notion-teal_background {
+  background-color: rgba(64, 224, 208, 0.2) !important;
+  color: #9ff2eb !important;
+}
+
+.dark-mode .notion-yellow_background {
+  background-color: rgba(255, 255, 100, 0.2) !important;
+  color: #fff6a6 !important;
+}
+
+.dark-mode .notion-orange_background {
+  background-color: rgba(255, 165, 0, 0.2) !important;
+  color: #ffd699 !important;
+}
+
+.dark-mode .notion-brown_background {
+  background-color: rgba(139, 69, 19, 0.2) !important;
+  color: #d2b48c !important;
+}
+
+.dark-mode .notion-gray_background {
+  background-color: rgba(200, 200, 200, 0.1) !important;
+  color: #e0e0e0 !important;
 }
 
 /* if you don't want rounded page icon images, remove this */
