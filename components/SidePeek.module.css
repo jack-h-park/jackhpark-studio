@@ -1,22 +1,93 @@
+/* ✅ 공통 오버레이 */
 .sidepeek-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: black;
-  opacity: 0.5;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
   z-index: 9998;
+  opacity: 0;
+  transition: opacity 0.25s ease;
 }
 
+/* ✅ 데스크탑 기본 패널 */
 .sidepeek-panel {
   position: fixed;
   top: 0;
   right: 0;
-  width: min(800px, 80vw);
   height: 100vh;
-  background: white;
-  box-shadow: -4px 0 16px rgba(0,0,0,0.2);
+  width: 480px;
+  background: #fff;
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.2);
   z-index: 9999;
   overflow-y: auto;
+  border-radius: 0;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+}
+
+/* ✅ 모바일 전체화면 버전 */
+.sidepeek-mobile {
+  width: 100vw !important;
+  height: 100vh;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.25);
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+}
+
+/* ✅ 모바일 상단 손잡이 (시각적 표시) */
+.sidepeek-mobile::before {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 5px;
+  border-radius: 2.5px;
+  background: rgba(0, 0, 0, 0.2);
+  margin: 12px auto;
+}
+
+/* ✅ 닫기 버튼 스타일 (모바일용만 표시됨) */
+.sidepeek-mobile button[aria-label='Close side panel'] {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10001;
+  font-size: 22px;
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.sidepeek-mobile button[aria-label='Close side panel']:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* ✅ 애니메이션 부드럽게 */
+.sidepeek-panel,
+.sidepeek-overlay {
+  will-change: transform, opacity;
+}
+
+/* ✅ 다크모드 대응 */
+.dark-mode .sidepeek-panel,
+.dark-mode .sidepeek-mobile {
+  background: #1a1a1a;
+  color: #f5f5f5;
+}
+
+.dark-mode .sidepeek-mobile::before {
+  background: rgba(255, 255, 255, 0.25);
 }

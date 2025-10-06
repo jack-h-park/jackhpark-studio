@@ -1,7 +1,12 @@
 import * as React from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import cs from 'classnames'
+import {
+  motion,
+  AnimatePresence,
+  useMotionValue,
+  useTransform
+} from 'framer-motion'
 import { createPortal } from 'react-dom'
+import cs from 'classnames'
 
 export interface SidePeekProps {
   isOpen: boolean
@@ -15,19 +20,54 @@ export const SidePeek: React.FC<SidePeekProps> = ({
   children
 }) => {
   const [mounted, setMounted] = React.useState(false)
+  const [isMobile, setIsMobile] = React.useState(false)
 
+  const y = useMotionValue(0)
+  const opacity = useTransform(y, [0, 150], [1, 0.3])
+
+  // ✅ 마운트 및 모바일 감지
   React.useEffect(() => {
     setMounted(true)
-    return () => setMounted(false)
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      setMounted(false)
+    }
   }, [])
 
-  if (!mounted) return null
+  // ✅ ESC 키로 닫기
+  React.useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    if (isOpen) window.addEventListener('keydown', handleEsc)
+    return () => window.removeEventListener('keydown', handleEsc)
+  }, [isOpen, onClose])
 
-  // createPortal 을 document.body 로 강제 지정
+  // ✅ 스크롤 잠금
+  React.useEffect(() => {
+    document.body.style.overflow = isOpen ? 'hidden' : ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isOpen])
+
+  if (!mounted || typeof window === 'undefined') return null
+
+  const panelWidth = isMobile ? '100%' : 480
+
+  // ✅ 모바일 스와이프 제스처 핸들러
+  const handleDragEnd = (_: any, info: any) => {
+    if (info.offset.y > 120) {
+      onClose()
+    }
+  }
+
   return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
+          {/* 오버레이 */}
           <motion.div
             className='sidepeek-overlay'
             style={{
@@ -35,99 +75,71 @@ export const SidePeek: React.FC<SidePeekProps> = ({
               inset: 0,
               background: 'rgba(0,0,0,0.4)',
               backdropFilter: 'blur(6px)',
-              zIndex: 9999
+              zIndex: 9999,
+              opacity
             }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
+
+          {/* 사이드 패널 */}
           <motion.div
-            className='sidepeek-panel'
+            className={cs(
+              'sidepeek-panel',
+              isMobile ? 'sidepeek-mobile' : 'sidepeek-desktop'
+            )}
             style={{
               position: 'fixed',
               top: 0,
               right: 0,
               bottom: 0,
-              width: 480,
+              width: panelWidth,
               background: 'white',
               zIndex: 10000,
-              boxShadow: '-10px 0 30px rgba(0,0,0,0.2)'
+              boxShadow: '-10px 0 30px rgba(0,0,0,0.2)',
+              overflowY: 'auto'
             }}
-            initial={{ x: 480 }}
-            animate={{ x: 0 }}
-            exit={{ x: 480 }}
+            drag={isMobile ? 'y' : false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            onDragEnd={isMobile ? handleDragEnd : undefined}
+            initial={{ x: panelWidth }}
+            animate={{ x: 0, y: 0 }}
+            exit={{ x: panelWidth }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
+            {/* 모바일 닫기 버튼 */}
+            {isMobile && (
+              <button
+                onClick={onClose}
+                style={{
+                  position: 'absolute',
+                  top: 10,
+                  right: 10,
+                  zIndex: 10001,
+                  fontSize: 22,
+                  border: 'none',
+                  background: 'rgba(0,0,0,0.5)',
+                  color: '#fff',
+                  borderRadius: '50%',
+                  width: 36,
+                  height: 36,
+                  cursor: 'pointer'
+                }}
+                aria-label='Close side panel'
+              >
+                ✕
+              </button>
+            )}
+
             {children}
           </motion.div>
         </>
       )}
     </AnimatePresence>,
-    // ✅ 반드시 document.body
-    typeof window !== 'undefined' ? document.body : null
+    document.body
   )
-  //   )
-
-  //   return (
-  //     <AnimatePresence>
-  //       {isOpen && (
-  //         <>
-  //           {/* ✅ 오버레이 (닫기용 배경) */}
-  //           <motion.div
-  //             key='overlay'
-  //             className='fixed inset-0 bg-black/40 backdrop-blur-sm z-[9998]'
-  //             initial={{ opacity: 0 }}
-  //             animate={{ opacity: 1 }}
-  //             exit={{ opacity: 0 }}
-  //             onClick={onClose}
-  //           />
-
-  //           {/* ✅ 사이드 패널 */}
-  //           <motion.div
-  //             key='sidepeek'
-  //             className={cs(
-  //               'fixed top-0 right-0 h-full w-[480px] bg-white dark:bg-neutral-900 shadow-2xl z-[9999]'
-  //             )}
-  //             initial={{ x: '100%' }}
-  //             animate={{ x: 0 }}
-  //             exit={{ x: '100%' }}
-  //             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-  //           >
-  //             {children}
-  //           </motion.div>
-  //         </>
-  //       )}
-  //     </AnimatePresence>
-
-  // dkfos아래는 더 옛날꺼
-  // <AnimatePresence>
-  //   {isOpen && (
-  //     <div className='fixed inset-0 z-[9999] flex justify-end'>
-  //       {/* 배경 오버레이 */}
-  //       <motion.div
-  //         className='fixed inset-0 bg-black/40 backdrop-blur-sm z-[9998]'
-  //         initial={{ opacity: 0 }}
-  //         animate={{ opacity: 1 }}
-  //         exit={{ opacity: 0 }}
-  //         onClick={onClose}
-  //       />
-
-  //       {/* 사이드 패널 */}
-  //       <motion.div
-  //         className={cs(
-  //           'fixed top-0 right-0 h-full w-[480px] bg-white dark:bg-neutral-900 shadow-2xl z-[9999]'
-  //         )}
-  //         initial={{ x: '100%' }}
-  //         animate={{ x: 0 }}
-  //         exit={{ x: '100%' }}
-  //         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-  //       >
-  //         {children}
-  //       </motion.div>
-  //     </div>
-  //   )}
-  // </AnimatePresence>
 }
 
 export default SidePeek
