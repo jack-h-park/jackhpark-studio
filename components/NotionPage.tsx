@@ -212,7 +212,7 @@ export function NotionPage({
 
   const [isPeekOpen, setIsPeekOpen] = React.useState(false)
   const [peekPageId, setPeekPageId] = React.useState<string | null>(null)
-  const [peekRecordMap, setPeekRecordMap] = useState<any>(null)
+  const [peekRecordMap, setPeekRecordMap] = useState<types.ExtendedRecordMap | null>(null)
 
   // lite mode is for oembed
   const isLiteMode = lite === 'true'
@@ -251,7 +251,7 @@ export function NotionPage({
   const pageAside = React.useMemo(
     () => (
       <PageAside
-        block={block!}
+ block={block!}
         recordMap={recordMap!}
         isBlogPost={isBlogPost}
       />
@@ -263,7 +263,7 @@ export function NotionPage({
 
   // const title = block ? getBlockTitle(block, recordMap) || site.name : site.name
   const title = block
-    ? getBlockTitle(block, recordMap) || site?.name || 'Untitled'
+    ? getBlockTitle(block, recordMap!) || site?.name || 'Untitled'
     : site?.name || 'Untitled'
 
   const canonicalPageUrl =
@@ -272,7 +272,7 @@ export function NotionPage({
       : getCanonicalPageUrl(site, recordMap)(pageId)
 
   const socialImage = mapImageUrl(
-    (block && getPageProperty<string>('Social Image', block, recordMap)) ||
+    (block && getPageProperty<string>('Social Image', block, recordMap!)) ||
       (block && (block as PageBlock).format?.page_cover) ||
       config.defaultPageCover,
     block || undefined
@@ -292,9 +292,12 @@ export function NotionPage({
         const res = await fetch(`/api/notion?id=${peekPageId}`)
         if (!res.ok) throw new Error('Failed to fetch peek page')
 
-        const data = await res.json()
-        console.log('[SidePeek] loaded page:', data)
-        setPeekRecordMap(data?.recordMap || null)
+        const data = (await res.json()) as {
+          recordMap: types.ExtendedRecordMap
+        }
+
+        console.log('[SidePeek] loaded page:', data.recordMap)
+        setPeekRecordMap(data.recordMap || null)
         setIsPeekOpen(true)
       } catch (err) {
         console.error('[SidePeek fetch error]', err)
@@ -385,7 +388,7 @@ export function NotionPage({
     isDev: config.isDev,
     title,
     pageId,
-    rootNotionPageId: site.rootNotionPageId,
+    rootNotionPageId: site?.rootNotionPageId,
     recordMap
   })
 
@@ -419,33 +422,35 @@ export function NotionPage({
 
           {/* {pageAside} */}
 
-          <NotionPageRenderer
-            recordMap={recordMap}
-            rootPageId={site.rootNotionPageId}
-            fullPage={!isLiteMode}
-            darkMode={isDarkMode}
-            components={components}
-            mapPageUrl={siteMapPageUrl}
-            mapImageUrl={mapImageUrl}
-            pageAside={pageAside}
-            footer={footer}
-            onOpenPeek={(pageId: string) => {
-              // ✅ 여기서 콜백 정의
-              setPeekPageId(pageId)
-              setIsPeekOpen(true)
-            }}
-          />
+          {recordMap && (
+            <NotionPageRenderer
+              recordMap={recordMap}
+              rootPageId={site?.rootNotionPageId}
+              fullPage={!isLiteMode}
+              darkMode={isDarkMode}
+              components={components}
+              mapPageUrl={siteMapPageUrl as any}
+              mapImageUrl={mapImageUrl as any}
+              pageAside={pageAside}
+              footer={footer}
+              onOpenPeek={(pageId: string) => {
+                // ✅ 여기서 콜백 정의
+                setPeekPageId(pageId)
+                setIsPeekOpen(true)
+              }}
+            />
+          )}
 
           <SidePeek isOpen={isPeekOpen} onClose={handleClosePeek}>
             {isPeekOpen && peekRecordMap ? (
               <NotionPageRenderer
-                recordMap={peekRecordMap || {}}
-                rootPageId={site.rootNotionPageId}
+                recordMap={peekRecordMap}
+                rootPageId={site?.rootNotionPageId}
                 fullPage={!isLiteMode}
                 darkMode={isDarkMode}
                 components={components}
-                mapPageUrl={siteMapPageUrl}
-                mapImageUrl={mapImageUrl}
+                mapPageUrl={siteMapPageUrl as any}
+                mapImageUrl={mapImageUrl as any}
               />
             ) : (
               <div className='text-white p-4'>로딩 중...</div>
