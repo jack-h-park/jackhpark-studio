@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useState } from 'react'
-
+import type { MapImageUrlFn } from 'react-notion-x'
 import type { NotionComponents } from 'react-notion-x'
 import dynamic from 'next/dynamic'
 import { SidePeek } from './SidePeek'
@@ -23,28 +23,13 @@ const NotionRenderer = dynamic(
 
 let modalInitialized = false
 
-if (typeof window !== 'undefined' && !modalInitialized) {
-  const el = document.querySelector('.notion-frame') || document.body
-  if (el) {
-    ReactModal.setAppElement(el)
-    modalInitialized = true
-  } else {
-    // notion-frame이 아직 없으면 DOM 로드 후 재시도
-    window.addEventListener('DOMContentLoaded', () => {
-      const fallback = document.querySelector('.notion-frame') || document.body
-      ReactModal.setAppElement(fallback)
-      modalInitialized = true
-    })
-  }
-}
-
 interface NotionPageRendererProps {
   recordMap: ExtendedRecordMap
   darkMode?: boolean
   fullPage?: boolean
   rootPageId?: string
   mapPageUrl?: (id: string) => string
-  mapImageUrl?: (url: string, block: any) => string
+  mapImageUrl?: MapImageUrlFn
   pageAside?: React.ReactNode
   footer?: React.ReactNode
   components?: Partial<NotionComponents> // ✅ components prop 추가
@@ -63,31 +48,24 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
   components: parentComponents, // ✅ prop 이름 변경
   onOpenPeek
 }) => {
-  if (typeof window !== 'undefined') {
-    try {
-      const frame = document.querySelector('.notion-frame')
-      if (frame) {
-        ReactModal.setAppElement(frame)
-      } else {
-        console.warn(
-          '⚠️ .notion-frame not found yet — delaying ReactModal setup'
-        )
-      }
-    } catch (err) {
-      console.error('ReactModal init error:', err)
-    }
-  }
-
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
     // DOM이 확실히 준비된 후에 mount
     const timer = requestAnimationFrame(() => setMounted(true))
+
+    if (typeof window !== 'undefined' && !modalInitialized) {
+      const el = document.querySelector('.notion-frame') || document.body
+      ReactModal.setAppElement(el as HTMLElement)
+      modalInitialized = true
+    }
+
     return () => cancelAnimationFrame(timer)
   }, [])
 
   // ✅ 부모 컴포넌트에서 받은 components와 PageLink 오버라이드를 병합
   const components = React.useMemo(() => ({
+    ...parentComponents,
     Code,
     Collection,
     Equation,
