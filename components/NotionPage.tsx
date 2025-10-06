@@ -212,7 +212,7 @@ export function NotionPage({
     return site ? mapPageUrl(site, recordMap!, searchParams) : undefined
   }, [site, recordMap, lite])
 
-  const keys = recordMap?.block ? Object.keys(recordMap.block) : []
+  const keys = recordMap?.block ? Object.keys(recordMap.block) : [] // prettier-ignore
   const blockId = keys[0]
   const block = recordMap?.block && blockId ? recordMap.block[blockId]?.value : null
 
