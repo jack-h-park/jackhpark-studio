@@ -21,6 +21,8 @@ export function PageHead({
 }) {
   const rssFeedUrl = `${config.host}/feed`
 
+  console.log('[Header] 렌더링됨')
+
   title = title ?? site?.name
   description = description ?? site?.description
 

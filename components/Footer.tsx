@@ -30,6 +30,8 @@ export function FooterImpl() {
     [toggleDarkMode]
   )
 
+  console.log('[Footer] 렌더링됨')
+
   React.useEffect(() => {
     setHasMounted(true)
   }, [])
@@ -37,7 +39,7 @@ export function FooterImpl() {
   return (
     <footer className={styles.footer}>
       <div className={styles.copyright}>
-        Copyright {currentYear} {config.author} 
+        Copyright {currentYear} {config.author}
       </div>
 
       <div className={styles.settings}>

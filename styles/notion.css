@@ -26,6 +26,10 @@
   padding: 2rem; */
 }
 
+.notion-page-has-cover {
+  padding-top: 70px !important;
+}
+
 .index-page {
   --notion-max-width: 900px;
 }
@@ -58,10 +62,77 @@
   gap: 0.5rem;
 }
 
-/* 내가 넣은거 */
-.notion-page__title {
+/* 아래는 전부 내가 넣은거 */
+/* .notion-page-title {
   font-size: 1.2rem !important;
-  font-weight: 600;
+  font-weight: 600; 
+} */
+
+
+
+
+/* ✅ 테이블 안에 한정된 page title 줄바꿈 허용 */
+.notion-table-view .notion-page-title-text {
+  white-space: normal !important;      /* nowrap → normal 로 강제 변경 */
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
+  text-overflow: unset !important;     /* ellipsis 제거 */
+  display: inline !important;          /* block 아님: 아이콘 정렬 유지 */
+  line-height: 1.4 !important;
+}
+
+/* ✅ 테이블 아이콘 설정 */
+.notion-table-view .notion-page-icon-inline {
+  width: 1.5em !important;
+  height: 1.5em !important;
+  margin-right: 6px !important;
+  flex-shrink: 0 !important;
+}
+
+
+
+/* ✅ 그 외 보조적 설정 -> 삭제할까 */
+.notion-table-view .notion-property-title {
+  display: flex !important;
+  align-items: center !important;
+  min-height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  line-height: 1.4;
+}
+
+.notion-table-view td {
+  vertical-align: middle !important;
+  padding: 2px 4px !important;
+}
+
+
+/* ✅ 테이블 전체 여백 초기화 */
+.notion-table,
+.notion-table-view {
+  margin-left: 0 !important;
+  padding-left: 16px !important; /* 왼쪽 여백 추가 */
+  padding-right: 16px !important; /* 오른쪽 여백도 균형 있게 */
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* ✅ 위아래 간격을 적당히 유지 */
+.notion-table,
+.notion-collection {
+  margin-top: 0 !important;
+  margin-bottom: 1.25rem !important;
+}
+
+/* ✅ 셀 내부 여백(Compact Table 스타일) */
+.notion-table td,
+.notion-table th {
+  padding: 0.4rem 0.6rem !important;
+}
+
+/* ✅ 헤더 텍스트 두께 살짝 줄이기 */
+.notion-table th {
+  font-weight: 500 !important;
 }
 
 /* 아래는 전부 내가 주석처리한거 */
@@ -189,15 +260,15 @@
 }
 
 /* 제목 위아래 여백 조절 */
-/* .notion-page-block .notion-title {
-  margin-top: 0.9em !important;  
+.notion-page-block .notion-title {
+  margin-top: 0.2em !important;  
   margin-bottom: 0.1em !important;
-} */
+}
 
 /* 제목과 아이콘, 커버 이미지 간의 여백 줄이기 */
-.notion-page {
-  padding-top: 1.2em !important;
-}
+/* .notion-page {
+  padding-top: 7.0em !important;
+} */
 
 .notion-collection-row {
   padding-bottom: 1em;
@@ -433,14 +504,18 @@
   border-radius: 50%;
 }  */
 
-/* 내가 전체다 추가 한거 */
+.notion-page[data-page-id="28299029c0b481ce8999d425287d3db6"] .notion-page-icon-hero {
+ transform: translateX(-140px); /* 예시 */
+  justify-content: center;
+}
+
+/* 내가 추가 한거 */
 .notion-page-icon-hero {
   display: flex;
 
-  transform: translateX(-140px);
-
   /* 이걸 넣으면 아래 제목과 갑자기 벌어짐 */
-  /* position: relative;  */
+ 
+ 
 }
 
 .notion-header {
@@ -516,4 +591,31 @@
 /* 문단 사이 너무 좁게 보이면 약간만 띄우기 */
 .notion-text-block + .notion-text-block {
   margin-top: 0.2em !important;
+}
+
+
+
+/* ▶︎ 아이콘 숨기기 */
+.notion-table-cell-place summary {
+  display: none !important;
+}
+
+/* 내부 콘텐츠 강제 표시 */
+.notion-table-cell-place details,
+.notion-table-cell-place details[open],
+.notion-table-cell-place details > div {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* 페이지 링크 스타일 */
+.notion-table-cell-place .notion-page-link {
+  text-decoration: none !important;
+  color: inherit !important;
+  display: inline-block !important;
+  font-weight: 500;
 }

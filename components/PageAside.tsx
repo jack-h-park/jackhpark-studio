@@ -15,8 +15,11 @@ export function PageAside({
   isBlogPost: boolean
 }) {
   if (!block) {
+    console.log('[PageAside] 렌더링되지 않음 - block 없음')
     return null
   }
+
+  console.log('[PageAside] 렌더링됨')
 
   // only display comments and page actions on blog post pages
   if (isBlogPost) {

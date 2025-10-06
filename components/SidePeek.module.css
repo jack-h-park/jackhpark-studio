@@ -1,0 +1,22 @@
+.sidepeek-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: black;
+  opacity: 0.5;
+  z-index: 9998;
+}
+
+.sidepeek-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(800px, 80vw);
+  height: 100vh;
+  background: white;
+  box-shadow: -4px 0 16px rgba(0,0,0,0.2);
+  z-index: 9999;
+  overflow-y: auto;
+}

@@ -1,0 +1,13 @@
+.notionContainer {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background: var(--bg, white);
+  color: var(--text, #111);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.dark-mode .notionContainer {
+  background: #1e1e1e;
+  color: #ddd;
+}

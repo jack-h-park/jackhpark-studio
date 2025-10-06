@@ -39,6 +39,8 @@ export function NotionPageHeader({
 }) {
   const { components, mapPageUrl } = useNotionContext()
 
+  console.log('[Real Header] 렌더링됨 =', block)
+
   if (navigationStyle === 'default') {
     return <Header block={block} />
   }

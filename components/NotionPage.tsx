@@ -1,3 +1,5 @@
+'use client'
+
 import cs from 'classnames'
 import dynamic from 'next/dynamic'
 import Image from 'next/legacy/image'
@@ -31,9 +33,23 @@ import { PageAside } from './PageAside'
 import { PageHead } from './PageHead'
 import styles from './styles.module.css'
 
+// import { NotionAPI } from 'notion-client'
+import NotionPageRenderer from './NotionPageRenderer'
+import SidePeek from './SidePeek'
+import { useState, useEffect } from 'react'
+import { resolveNotionPage } from '@/lib/resolve-notion-page'
+import { GitHubShareButton } from './GitHubShareButton'
+
 // -----------------------------------------------------------------------------
 // dynamic imports for optional components
 // -----------------------------------------------------------------------------
+
+interface MyPropertyValueProps {
+  schema: Record<string, any>
+  propertyId: string
+  data?: any
+  block?: any
+}
 
 const Code = dynamic(() =>
   import('react-notion-x/build/third-party/code').then(async (m) => {
@@ -159,6 +175,8 @@ const propertyDateValue = (
   { data, schema, pageHeader }: any,
   defaultFn: () => React.ReactNode
 ) => {
+  console.log('🤪 propertyDateValue called:', schema?.name, schema?.type)
+
   if (pageHeader && schema?.name?.toLowerCase() === 'published') {
     const publishDate = data?.[0]?.[1]?.[0]?.[1]?.start_date
 
@@ -173,7 +191,7 @@ const propertyDateValue = (
 }
 
 const propertyTextValue = (
-  { schema, pageHeader }: any,
+  { schema, pageHeader, data, block, value }: any,
   defaultFn: () => React.ReactNode
 ) => {
   if (pageHeader && schema?.name?.toLowerCase() === 'author') {
@@ -209,6 +227,21 @@ export function NotionPage({
     }),
     []
   )
+
+  // 🔍 디버깅용: schema 전체 구조 확인
+  React.useEffect(() => {
+    if (recordMap?.collection) {
+      Object.values(recordMap.collection).forEach((col: any) => {
+        const schema = col?.value?.schema
+        if (schema) {
+          console.log('🧩 Schema detected:')
+          Object.entries(schema).forEach(([key, val]: any) =>
+            console.log(`- ${val.name}: ${val.type}`)
+          )
+        }
+      })
+    }
+  }, [recordMap])
 
   // lite mode is for oembed
   const isLiteMode = lite === 'true'
@@ -288,8 +321,60 @@ export function NotionPage({
     getPageProperty<string>('Description', block, recordMap) ||
     config.description
 
-  return (
-    <>
+  //// Side Peek 기능 추가
+  // ---------------------------------------------------------------------
+  // 아래 코드를 NotionPage 컴포넌트 내부에 추가
+  // ✅ 사이드 피크 관련 상태
+  const [isPeekOpen, setIsPeekOpen] = React.useState(false)
+  const [peekPageId, setPeekPageId] = React.useState<string | null>(null)
+  const [peekRecordMap, setPeekRecordMap] = useState<any>(null)
+
+  useEffect(() => {
+    if (!peekPageId) return
+
+    console.log('[SidePeek] fetching page:', peekPageId)
+    fetch(`/api/notion?id=${peekPageId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch peek page')
+        return res.json()
+      })
+      .then((data) => {
+        console.log('[SidePeek] loaded page:', data)
+        setPeekRecordMap(data.recordMap)
+      })
+      .catch((err) => {
+        console.error('[SidePeek] fetch error:', err)
+        setPeekRecordMap(null)
+      })
+  }, [peekPageId])
+
+  ///////
+  // ✅ 클릭된 peekPageId가 변경될 때마다 해당 페이지 데이터 fetch
+  React.useEffect(() => {
+    console.log('peekPageId 변경됨:', peekPageId)
+    console.log('isPeekOpen 변경됨:', isPeekOpen)
+
+    if (!peekPageId) return
+
+    const fetchPeekPage = async () => {
+      try {
+        const res = await fetch(`/api/notion?id=${peekPageId}`)
+        //const res = await fetch(`/api/page?id=${peekPageId}`)
+        const data = await res.json()
+        setPeekRecordMap(data?.recordMap)
+        setIsPeekOpen(true)
+      } catch (err) {
+        console.error('[SidePeek fetch error]', err)
+      }
+    }
+
+    fetchPeekPage()
+  }, [peekPageId, isPeekOpen])
+
+  // ---------------------------------------------------------------------
+
+  const header = React.useMemo(
+    () => (
       <PageHead
         pageId={pageId}
         site={site}
@@ -299,11 +384,73 @@ export function NotionPage({
         url={canonicalPageUrl}
         isBlogPost={isBlogPost}
       />
+    ),
+    [
+      pageId,
+      site,
+      title,
+      socialDescription,
+      socialImage,
+      canonicalPageUrl,
+      isBlogPost
+    ]
+  )
+
+  console.log('[Render check]', { isPeekOpen, peekRecordMap })
+
+  // 함수 컴포넌트 내부 상단 어딘가에 추가
+  const handleClosePeek = () => {
+    setIsPeekOpen(false)
+    setPeekRecordMap(null) // 내부 NotionPageRenderer 제거
+    setPeekPageId(null)
+  }
+
+  return (
+    <>
+      {header}
 
       {isLiteMode && <BodyClassName className='notion-lite' />}
       {isDarkMode && <BodyClassName className='dark-mode' />}
 
-      <NotionRenderer
+      {/* {pageAside} */}
+
+      <NotionPageRenderer
+        recordMap={recordMap}
+        rootPageId={site.rootNotionPageId}
+        fullPage={!isLiteMode}
+        darkMode={isDarkMode}
+        components={components}
+        mapPageUrl={siteMapPageUrl}
+        mapImageUrl={mapImageUrl}
+        pageAside={pageAside}
+        footer={footer}
+        onOpenPeek={(pageId: string) => {
+          // ✅ 여기서 콜백 정의
+          setPeekPageId(pageId)
+          setIsPeekOpen(true)
+        }}
+      />
+
+      <SidePeek isOpen={isPeekOpen} onClose={handleClosePeek}>
+        {peekRecordMap ? (
+          <NotionPageRenderer
+            recordMap={peekRecordMap}
+            rootPageId={site.rootNotionPageId}
+            fullPage={!isLiteMode}
+            darkMode={isDarkMode}
+            components={components}
+            mapPageUrl={siteMapPageUrl}
+            mapImageUrl={mapImageUrl}
+          />
+        ) : (
+          <div className='text-white p-4'>로딩 중...</div>
+        )}
+      </SidePeek>
+
+      {/* {footer} */}
+
+      {/* 기존 */}
+      {/* <NotionRenderer
         bodyClassName={cs(
           styles.notion,
           pageId === site.rootNotionPageId && 'index-page'
@@ -326,9 +473,9 @@ export function NotionPage({
         searchNotion={config.isSearchEnabled ? searchNotion : undefined}
         pageAside={pageAside}
         footer={footer}
-      />
+      /> */}
 
-     {/* <GitHubShareButton /> */}
+      {/* <GitHubShareButton /> */}
     </>
   )
 }
