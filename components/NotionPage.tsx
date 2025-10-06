@@ -218,7 +218,7 @@ export function NotionPage({
   const isLiteMode = lite === 'true'
 
   const { isDarkMode } = useDarkMode()
-
+  
   const siteMapPageUrl = React.useMemo(() => {
     const params: any = {}
     if (lite) params.lite = lite
@@ -227,9 +227,10 @@ export function NotionPage({
     return site ? mapPageUrl(site, recordMap!, searchParams) : undefined
   }, [site, recordMap, lite])
 
-  const isLoading = !recordMap || !recordMap.block
-  const keys = isLoading ? [] : Object.keys(recordMap.block)
-  const block = isLoading ? null : recordMap.block?.[keys[0]]?.value
+  const keys = recordMap?.block ? Object.keys(recordMap.block) : []
+  const blockId = keys[0]
+  const block = recordMap?.block && blockId ? recordMap.block[blockId]?.value : null
+  const isLoading = !recordMap || !block
 
   const isBlogPost =
     block?.type === 'page' && block?.parent_table === 'collection'
