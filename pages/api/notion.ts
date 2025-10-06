@@ -16,16 +16,25 @@
 // }
 
 import { NotionAPI } from 'notion-client'
+import type { NextApiRequest, NextApiResponse } from 'next'
 
-export default async function handler(req, res) {
-  const { id } = req.query
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const id = req.query.id as string
+
+  if (!id) {
+    return res.status(400).json({ error: 'Missing id parameter' })
+  }
+
   const api = new NotionAPI()
 
   try {
     const recordMap = await api.getPage(id)
     res.status(200).json({ recordMap })
   } catch (err) {
-    console.error('Error fetching page:', err)
+    console.error(`Error fetching page for id "${id}":`, err)
     res.status(500).json({ error: 'Failed to load notion page' })
   }
 }
