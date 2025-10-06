@@ -1,17 +1,16 @@
 'use client'
 
-import cs from 'classnames'
 import dynamic from 'next/dynamic'
 import Image from 'next/legacy/image'
 import Link from 'next/link'
-import { useRouter } from 'next/router'
+//import { useRouter } from 'next/router'
 import { type PageBlock } from 'notion-types'
 import { formatDate, getBlockTitle, getPageProperty } from 'notion-utils'
 import * as React from 'react'
+import { useState } from 'react'
 import BodyClassName from 'react-body-classname'
 import {
   type NotionComponents,
-  NotionRenderer,
   useNotionContext
 } from 'react-notion-x'
 import { EmbeddedTweet, TweetNotFound, TweetSkeleton } from 'react-tweet'
@@ -21,35 +20,21 @@ import type * as types from '@/lib/types'
 import * as config from '@/lib/config'
 import { mapImageUrl } from '@/lib/map-image-url'
 import { getCanonicalPageUrl, mapPageUrl } from '@/lib/map-page-url'
-import { searchNotion } from '@/lib/search-notion'
 import { useDarkMode } from '@/lib/use-dark-mode'
 
 import { Footer } from './Footer'
 //import { GitHubShareButton } from './GitHubShareButton'
 import { Loading } from './Loading'
 import { NotionPageHeader } from './NotionPageHeader'
+import { NotionPageRenderer } from './NotionPageRenderer'
 import { Page404 } from './Page404'
 import { PageAside } from './PageAside'
 import { PageHead } from './PageHead'
-import styles from './styles.module.css'
-
-// import { NotionAPI } from 'notion-client'
-import NotionPageRenderer from './NotionPageRenderer'
-import SidePeek from './SidePeek'
-import { useState, useEffect } from 'react'
-import { resolveNotionPage } from '@/lib/resolve-notion-page'
-import { GitHubShareButton } from './GitHubShareButton'
+import { SidePeek } from './SidePeek'
 
 // -----------------------------------------------------------------------------
 // dynamic imports for optional components
 // -----------------------------------------------------------------------------
-
-interface MyPropertyValueProps {
-  schema: Record<string, any>
-  propertyId: string
-  data?: any
-  block?: any
-}
 
 const Code = dynamic(() =>
   import('react-notion-x/build/third-party/code').then(async (m) => {
@@ -191,7 +176,7 @@ const propertyDateValue = (
 }
 
 const propertyTextValue = (
-  { schema, pageHeader, data, block, value }: any,
+  { schema, pageHeader }: any,
   defaultFn: () => React.ReactNode
 ) => {
   if (pageHeader && schema?.name?.toLowerCase() === 'author') {
@@ -207,7 +192,7 @@ export function NotionPage({
   error,
   pageId
 }: types.PageProps) {
-  const router = useRouter()
+  //const router = useRouter()
   const lite = useSearchParam('lite')
 
   const [isPeekOpen, setIsPeekOpen] = React.useState(false)
@@ -230,13 +215,13 @@ export function NotionPage({
   const keys = recordMap?.block ? Object.keys(recordMap.block) : []
   const blockId = keys[0]
   const block = recordMap?.block && blockId ? recordMap.block[blockId]?.value : null
-  const isLoading = !recordMap || !block
+
 
   const isBlogPost =
     block?.type === 'page' && block?.parent_table === 'collection'
 
-  const showTableOfContents = !!isBlogPost
-  const minTableOfContentsItems = 3
+  // const showTableOfContents = !!isBlogPost
+  // const minTableOfContentsItems = 3
 
   // --- 상단 상태 추가 ---
   const [didFinishLoad, setDidFinishLoad] = React.useState(false)
@@ -311,7 +296,7 @@ export function NotionPage({
       }
     }
 
-    fetchPeekPage()
+    void fetchPeekPage()
   }, [peekPageId])
 
   const header = React.useMemo(
@@ -358,15 +343,15 @@ export function NotionPage({
   // 🔍 디버깅용: schema 전체 구조 확인
   React.useEffect(() => {
     if (recordMap?.collection) {
-      Object.values(recordMap.collection).forEach((col: any) => {
+      for (const col of Object.values(recordMap.collection)) {
         const schema = col?.value?.schema
         if (schema) {
           console.log('🧩 Schema detected:')
-          Object.entries(schema).forEach(([key, val]: any) =>
-            console.log(`- ${val.name}: ${val.type}`)
-          )
+          for (const [key, val] of Object.entries(schema)) {
+            console.log(`${key} - ${val.name}: ${val.type}`)
+          }
         }
-      })
+      }
     }
   }, [recordMap])
 

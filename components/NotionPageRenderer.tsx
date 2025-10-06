@@ -3,7 +3,6 @@ import { useState } from 'react'
 import type { MapImageUrlFn } from 'react-notion-x'
 import type { NotionComponents } from 'react-notion-x'
 import dynamic from 'next/dynamic'
-import { SidePeek } from './SidePeek'
 import type { ExtendedRecordMap } from 'notion-types'
 
 // ✅ react-notion-x 기본 컴포넌트 로드
@@ -143,4 +142,3 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
   )
 }
 
-export default NotionPageRenderer
