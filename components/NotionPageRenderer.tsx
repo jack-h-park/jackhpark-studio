@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useState } from 'react'
 
+import type { NotionComponents } from 'react-notion-x'
 import dynamic from 'next/dynamic'
 import { SidePeek } from './SidePeek'
 import type { ExtendedRecordMap } from 'notion-types'
@@ -46,6 +47,7 @@ interface NotionPageRendererProps {
   mapImageUrl?: (url: string, block: any) => string
   pageAside?: React.ReactNode
   footer?: React.ReactNode
+  components?: Partial<NotionComponents> // ✅ components prop 추가
   onOpenPeek?: (pageId: string) => void // ✅ 부모에서 전달받을 콜백
 }
 
@@ -58,6 +60,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
   mapImageUrl,
   pageAside,
   footer,
+  components: parentComponents, // ✅ prop 이름 변경
   onOpenPeek
 }) => {
   if (typeof window !== 'undefined') {
@@ -83,8 +86,8 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
     return () => cancelAnimationFrame(timer)
   }, [])
 
-  // ✅ react-notion-x 기본 컴포넌트 + PageLink만 오버라이드
-  const components = {
+  // ✅ 부모 컴포넌트에서 받은 components와 PageLink 오버라이드를 병합
+  const components = React.useMemo(() => ({
     Code,
     Collection,
     Equation,
@@ -140,33 +143,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
         </a>
       )
     }
-    // PageLink: ({ href, children, ...props }: any) => {
-    //   const isNotionLink =
-    //     href?.startsWith('/') || /^[a-f0-9]{32}$/.test(href.replace(/-/g, ''))
-
-    //   if (isNotionLink) {
-    //     return (
-    //       <a
-    //         {...props}
-    //         href={href}
-    //         onClick={(e) => {
-    //           e.preventDefault()
-    //           const pageId = href.replace(/\//g, '').replace(/-/g, '')
-    //           onOpenPeek?.(pageId) // ✅ 부모에서 전달된 콜백 호출
-    //         }}
-    //       >
-    //         {children}
-    //       </a>
-    //     )
-    //   }
-
-    //   return (
-    //     <a href={href} target='_blank' rel='noopener noreferrer' {...props}>
-    //       {children}
-    //     </a>
-    //   )
-    // }
-  }
+  }), [onOpenPeek, parentComponents])
 
   // ✅ NotionRenderer 반환
   return (

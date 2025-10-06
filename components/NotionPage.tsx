@@ -271,14 +271,19 @@ export function NotionPage({
       ? undefined
       : getCanonicalPageUrl(site, recordMap)(pageId)
 
-  const socialImage = mapImageUrl(
-    (block && getPageProperty<string>('Social Image', block, recordMap!)) ||
-      (block && (block as PageBlock).format?.page_cover) ||
-      config.defaultPageCover,
-    block || undefined
-  )
+  const socialImage =
+    block && recordMap
+      ? mapImageUrl(
+          getPageProperty<string>('Social Image', block, recordMap) ||
+            (block as PageBlock).format?.page_cover,
+          block
+        ) || mapImageUrl(config.defaultPageCover, block)
+      : config.defaultPageCover
+      
   const socialDescription =
-    getPageProperty<string>('Description', block, recordMap) ||
+    (block &&
+      recordMap &&
+      getPageProperty<string>('Description', block, recordMap)) ||
     config.description
 
   // ✅ peekPageId가 변경될 때만 실행
