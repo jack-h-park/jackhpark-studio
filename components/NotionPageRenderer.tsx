@@ -11,6 +11,7 @@ import { Collection } from 'react-notion-x/build/third-party/collection'
 import { Equation } from 'react-notion-x/build/third-party/equation'
 import { Pdf } from 'react-notion-x/build/third-party/pdf'
 import { Modal } from 'react-notion-x/build/third-party/modal'
+import ReactModal from 'react-modal'
 
 import { parsePageId } from 'notion-utils'
 
@@ -18,6 +19,23 @@ const NotionRenderer = dynamic(
   async () => (await import('react-notion-x')).NotionRenderer,
   { ssr: false }
 )
+
+let modalInitialized = false
+
+if (typeof window !== 'undefined' && !modalInitialized) {
+  const el = document.querySelector('.notion-frame') || document.body
+  if (el) {
+    ReactModal.setAppElement(el)
+    modalInitialized = true
+  } else {
+    // notion-frame이 아직 없으면 DOM 로드 후 재시도
+    window.addEventListener('DOMContentLoaded', () => {
+      const fallback = document.querySelector('.notion-frame') || document.body
+      ReactModal.setAppElement(fallback)
+      modalInitialized = true
+    })
+  }
+}
 
 interface NotionPageRendererProps {
   recordMap: ExtendedRecordMap
@@ -42,8 +60,21 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
   footer,
   onOpenPeek
 }) => {
-  //   const [isClient, setIsClient] = React.useState(false)
-  //   React.useEffect(() => setIsClient(true), [])
+  if (typeof window !== 'undefined') {
+    try {
+      const frame = document.querySelector('.notion-frame')
+      if (frame) {
+        ReactModal.setAppElement(frame)
+      } else {
+        console.warn(
+          '⚠️ .notion-frame not found yet — delaying ReactModal setup'
+        )
+      }
+    } catch (err) {
+      console.error('ReactModal init error:', err)
+    }
+  }
+
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {

@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 
 export interface SidePeekProps {
   isOpen: boolean
-  on<NotionPageRenderer: () => void
+  onClose: () => void
   children: React.ReactNode
 }
 

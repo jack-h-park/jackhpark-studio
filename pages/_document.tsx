@@ -19,6 +19,9 @@ export default class MyDocument extends Document {
           </Head>
 
           <body>
+            {/* react-notion-x가 찾는 포탈 루트 (항상 존재하도록 서버에서 미리 추가) */}
+            <div className='notion-frame' style={{ display: 'none' }} />
+
             <script
               dangerouslySetInnerHTML={{
                 __html: `

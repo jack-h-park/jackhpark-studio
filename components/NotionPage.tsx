@@ -210,6 +210,124 @@ export function NotionPage({
   const router = useRouter()
   const lite = useSearchParam('lite')
 
+  const [isPeekOpen, setIsPeekOpen] = React.useState(false)
+  const [peekPageId, setPeekPageId] = React.useState<string | null>(null)
+  const [peekRecordMap, setPeekRecordMap] = useState<any>(null)
+
+  // lite mode is for oembed
+  const isLiteMode = lite === 'true'
+
+  const { isDarkMode } = useDarkMode()
+
+  const siteMapPageUrl = React.useMemo(() => {
+    const params: any = {}
+    if (lite) params.lite = lite
+
+    const searchParams = new URLSearchParams(params)
+    return site ? mapPageUrl(site, recordMap!, searchParams) : undefined
+  }, [site, recordMap, lite])
+
+  const isLoading = !recordMap || !recordMap.block
+  const keys = isLoading ? [] : Object.keys(recordMap.block)
+  const block = isLoading ? null : recordMap.block?.[keys[0]]?.value
+
+  const isBlogPost =
+    block?.type === 'page' && block?.parent_table === 'collection'
+
+  const showTableOfContents = !!isBlogPost
+  const minTableOfContentsItems = 3
+
+  // --- 상단 상태 추가 ---
+  const [didFinishLoad, setDidFinishLoad] = React.useState(false)
+
+  // --- 아래 useEffect 추가 ---
+  React.useEffect(() => {
+    if (recordMap?.block && Object.keys(recordMap.block).length > 0) {
+      setDidFinishLoad(true)
+    }
+  }, [recordMap])
+
+  const pageAside = React.useMemo(
+    () => (
+      <PageAside
+        block={block!}
+        recordMap={recordMap!}
+        isBlogPost={isBlogPost}
+      />
+    ),
+    [block, recordMap, isBlogPost]
+  )
+
+  const footer = React.useMemo(() => <Footer />, [])
+
+  // const title = block ? getBlockTitle(block, recordMap) || site.name : site.name
+  const title = block
+    ? getBlockTitle(block, recordMap) || site?.name || 'Untitled'
+    : site?.name || 'Untitled'
+
+  const canonicalPageUrl =
+    config.isDev || !site || !recordMap
+      ? undefined
+      : getCanonicalPageUrl(site, recordMap)(pageId)
+
+  const socialImage = mapImageUrl(
+    (block && getPageProperty<string>('Social Image', block, recordMap)) ||
+      (block && (block as PageBlock).format?.page_cover) ||
+      config.defaultPageCover,
+    block || undefined
+  )
+  const socialDescription =
+    getPageProperty<string>('Description', block, recordMap) ||
+    config.description
+
+  // ✅ peekPageId가 변경될 때만 실행
+  React.useEffect(() => {
+    if (!peekPageId) return
+
+    console.log('[SidePeek] fetching page:', peekPageId)
+
+    const fetchPeekPage = async () => {
+      try {
+        const res = await fetch(`/api/notion?id=${peekPageId}`)
+        if (!res.ok) throw new Error('Failed to fetch peek page')
+
+        const data = await res.json()
+        console.log('[SidePeek] loaded page:', data)
+        setPeekRecordMap(data?.recordMap || null)
+        setIsPeekOpen(true)
+      } catch (err) {
+        console.error('[SidePeek fetch error]', err)
+        setPeekRecordMap(null)
+        setIsPeekOpen(false)
+      }
+    }
+
+    fetchPeekPage()
+  }, [peekPageId])
+
+  const header = React.useMemo(
+    () => (
+      <PageHead
+        pageId={pageId}
+        site={site}
+        title={title}
+        description={socialDescription}
+        image={socialImage}
+        url={canonicalPageUrl}
+        isBlogPost={isBlogPost}
+      />
+    ),
+    [
+      pageId,
+      site,
+      title,
+      socialDescription,
+      socialImage,
+      canonicalPageUrl,
+      isBlogPost
+    ]
+  )
+
   const components = React.useMemo<Partial<NotionComponents>>(
     () => ({
       nextLegacyImage: Image,
@@ -243,52 +361,24 @@ export function NotionPage({
     }
   }, [recordMap])
 
-  // lite mode is for oembed
-  const isLiteMode = lite === 'true'
+  // --- 조건 정리 ---
+  const hasBlocks =
+    !!recordMap?.block && Object.keys(recordMap.block).length > 0
+  const hasBlockValue = hasBlocks && !!block
+  const isReady = hasBlockValue || didFinishLoad
+  const show404 =
+    !!error || (!!site && !!pageId && didFinishLoad && !hasBlockValue)
 
-  const { isDarkMode } = useDarkMode()
-
-  const siteMapPageUrl = React.useMemo(() => {
-    const params: any = {}
-    if (lite) params.lite = lite
-
-    const searchParams = new URLSearchParams(params)
-    return site ? mapPageUrl(site, recordMap!, searchParams) : undefined
-  }, [site, recordMap, lite])
-
-  const keys = Object.keys(recordMap?.block || {})
-  const block = recordMap?.block?.[keys[0]!]?.value
-
-  // const isRootPage =
-  //   parsePageId(block?.id) === parsePageId(site?.rootNotionPageId)
-  const isBlogPost =
-    block?.type === 'page' && block?.parent_table === 'collection'
-
-  const showTableOfContents = !!isBlogPost
-  const minTableOfContentsItems = 3
-
-  const pageAside = React.useMemo(
-    () => (
-      <PageAside
-        block={block!}
-        recordMap={recordMap!}
-        isBlogPost={isBlogPost}
-      />
-    ),
-    [block, recordMap, isBlogPost]
-  )
-
-  const footer = React.useMemo(() => <Footer />, [])
-
-  if (router.isFallback) {
+  // --- 순서 중요 ---
+  if (!isReady) {
+    console.log('[Render] Loading...')
     return <Loading />
   }
 
-  if (error || !site || !block) {
+  if (show404) {
+    console.log('[Render] Showing 404 (after load complete)')
     return <Page404 site={site} pageId={pageId} error={error} />
   }
-
-  const title = getBlockTitle(block, recordMap) || site.name
 
   console.log('notion page', {
     isDev: config.isDev,
@@ -306,96 +396,6 @@ export function NotionPage({
     g.block = block
   }
 
-  const canonicalPageUrl = config.isDev
-    ? undefined
-    : getCanonicalPageUrl(site, recordMap)(pageId)
-
-  const socialImage = mapImageUrl(
-    getPageProperty<string>('Social Image', block, recordMap) ||
-      (block as PageBlock).format?.page_cover ||
-      config.defaultPageCover,
-    block
-  )
-
-  const socialDescription =
-    getPageProperty<string>('Description', block, recordMap) ||
-    config.description
-
-  //// Side Peek 기능 추가
-  // ---------------------------------------------------------------------
-  // 아래 코드를 NotionPage 컴포넌트 내부에 추가
-  // ✅ 사이드 피크 관련 상태
-  const [isPeekOpen, setIsPeekOpen] = React.useState(false)
-  const [peekPageId, setPeekPageId] = React.useState<string | null>(null)
-  const [peekRecordMap, setPeekRecordMap] = useState<any>(null)
-
-  useEffect(() => {
-    if (!peekPageId) return
-
-    console.log('[SidePeek] fetching page:', peekPageId)
-    fetch(`/api/notion?id=${peekPageId}`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to fetch peek page')
-        return res.json()
-      })
-      .then((data) => {
-        console.log('[SidePeek] loaded page:', data)
-        setPeekRecordMap(data.recordMap)
-      })
-      .catch((err) => {
-        console.error('[SidePeek] fetch error:', err)
-        setPeekRecordMap(null)
-      })
-  }, [peekPageId])
-
-  ///////
-  // ✅ 클릭된 peekPageId가 변경될 때마다 해당 페이지 데이터 fetch
-  React.useEffect(() => {
-    console.log('peekPageId 변경됨:', peekPageId)
-    console.log('isPeekOpen 변경됨:', isPeekOpen)
-
-    if (!peekPageId) return
-
-    const fetchPeekPage = async () => {
-      try {
-        const res = await fetch(`/api/notion?id=${peekPageId}`)
-        //const res = await fetch(`/api/page?id=${peekPageId}`)
-        const data = await res.json()
-        setPeekRecordMap(data?.recordMap)
-        setIsPeekOpen(true)
-      } catch (err) {
-        console.error('[SidePeek fetch error]', err)
-      }
-    }
-
-    fetchPeekPage()
-  }, [peekPageId, isPeekOpen])
-
-  // ---------------------------------------------------------------------
-
-  const header = React.useMemo(
-    () => (
-      <PageHead
-        pageId={pageId}
-        site={site}
-        title={title}
-        description={socialDescription}
-        image={socialImage}
-        url={canonicalPageUrl}
-        isBlogPost={isBlogPost}
-      />
-    ),
-    [
-      pageId,
-      site,
-      title,
-      socialDescription,
-      socialImage,
-      canonicalPageUrl,
-      isBlogPost
-    ]
-  )
-
   console.log('[Render check]', { isPeekOpen, peekRecordMap })
 
   // 함수 컴포넌트 내부 상단 어딘가에 추가
@@ -407,75 +407,55 @@ export function NotionPage({
 
   return (
     <>
-      {header}
+      {!isReady ? (
+        <Loading />
+      ) : (
+        <>
+          {header}
 
-      {isLiteMode && <BodyClassName className='notion-lite' />}
-      {isDarkMode && <BodyClassName className='dark-mode' />}
+          {isLiteMode && <BodyClassName className='notion-lite' />}
+          {isDarkMode && <BodyClassName className='dark-mode' />}
 
-      {/* {pageAside} */}
+          {/* {pageAside} */}
 
-      <NotionPageRenderer
-        recordMap={recordMap}
-        rootPageId={site.rootNotionPageId}
-        fullPage={!isLiteMode}
-        darkMode={isDarkMode}
-        components={components}
-        mapPageUrl={siteMapPageUrl}
-        mapImageUrl={mapImageUrl}
-        pageAside={pageAside}
-        footer={footer}
-        onOpenPeek={(pageId: string) => {
-          // ✅ 여기서 콜백 정의
-          setPeekPageId(pageId)
-          setIsPeekOpen(true)
-        }}
-      />
-
-      <SidePeek isOpen={isPeekOpen} onClose={handleClosePeek}>
-        {peekRecordMap ? (
           <NotionPageRenderer
-            recordMap={peekRecordMap}
+            recordMap={recordMap}
             rootPageId={site.rootNotionPageId}
             fullPage={!isLiteMode}
             darkMode={isDarkMode}
             components={components}
             mapPageUrl={siteMapPageUrl}
             mapImageUrl={mapImageUrl}
+            pageAside={pageAside}
+            footer={footer}
+            onOpenPeek={(pageId: string) => {
+              // ✅ 여기서 콜백 정의
+              setPeekPageId(pageId)
+              setIsPeekOpen(true)
+            }}
           />
-        ) : (
-          <div className='text-white p-4'>로딩 중...</div>
-        )}
-      </SidePeek>
 
-      {/* {footer} */}
+          <SidePeek isOpen={isPeekOpen} onClose={handleClosePeek}>
+            {isPeekOpen && peekRecordMap ? (
+              <NotionPageRenderer
+                recordMap={peekRecordMap || {}}
+                rootPageId={site.rootNotionPageId}
+                fullPage={!isLiteMode}
+                darkMode={isDarkMode}
+                components={components}
+                mapPageUrl={siteMapPageUrl}
+                mapImageUrl={mapImageUrl}
+              />
+            ) : (
+              <div className='text-white p-4'>로딩 중...</div>
+            )}
+          </SidePeek>
 
-      {/* 기존 */}
-      {/* <NotionRenderer
-        bodyClassName={cs(
-          styles.notion,
-          pageId === site.rootNotionPageId && 'index-page'
-        )}
-        darkMode={isDarkMode}
-        components={components}
-        recordMap={recordMap}
-        rootPageId={site.rootNotionPageId}
-        rootDomain={site.domain}
-        fullPage={!isLiteMode}
-        previewImages={!!recordMap.preview_images}
-        showCollectionViewDropdown={false}
-        showTableOfContents={showTableOfContents}
-        minTableOfContentsItems={minTableOfContentsItems}
-        defaultPageIcon={config.defaultPageIcon}
-        defaultPageCover={config.defaultPageCover}
-        defaultPageCoverPosition={config.defaultPageCoverPosition}
-        mapPageUrl={siteMapPageUrl}
-        mapImageUrl={mapImageUrl}
-        searchNotion={config.isSearchEnabled ? searchNotion : undefined}
-        pageAside={pageAside}
-        footer={footer}
-      /> */}
+          {/* {footer} */}
 
-      {/* <GitHubShareButton /> */}
+          {/* <GitHubShareButton /> */}
+        </>
+      )}
     </>
   )
 }
