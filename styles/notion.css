@@ -40,6 +40,8 @@
   padding: 2rem; */
 }
 
+
+
 .notion-page-has-cover {
   padding-top: 70px !important;
 }
@@ -680,6 +682,7 @@ svg.notion-collection-column-title-icon {
   margin-right: 6px !important;
   flex-shrink: 0 !important;
 }
+
 
 /* ✅ 제목 텍스트 baseline 정렬 보정 */
 .notion-table-view .notion-page-title-text {

@@ -1,3 +1,4 @@
+'use client'
 import * as React from 'react'
 import { useState } from 'react'
 import type { MapImageUrlFn } from 'react-notion-x'

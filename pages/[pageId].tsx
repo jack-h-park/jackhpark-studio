@@ -15,12 +15,13 @@ export const getStaticProps: GetStaticProps<PageProps, Params> = async (
     const props = await resolveNotionPage(domain, rawPageId)
     const siteMap = await getSiteMap()
 
-    // 10/6 직접 수정중
-    return { 
+    return {
       props: {
-        ...props, 
-      canonicalPageMap: siteMap?.canonicalPageMap || null
-    }, revalidate: 10 }
+        ...props,
+        canonicalPageMap: siteMap?.canonicalPageMap || null
+      },
+      revalidate: 10
+    }
   } catch (err) {
     console.error('page error', domain, rawPageId, err)
 

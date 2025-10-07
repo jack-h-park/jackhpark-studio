@@ -173,14 +173,99 @@ const propertyDateValue = (
 }
 
 const propertyTextValue = (
-  { schema, pageHeader }: any,
+  { schema, pageHeader, data, block, value }: any,
   defaultFn: () => React.ReactNode
 ) => {
+  // ✅ 페이지 헤더에서 'author' 필드를 굵게 표시
   if (pageHeader && schema?.name?.toLowerCase() === 'author') {
     return <b>{defaultFn()}</b>
   }
 
-  return defaultFn()
+  // ✅ CleanText 적용 (inline DB 텍스트 셀 포함)
+  const raw =
+    value ??
+    data ??
+    block?.properties?.[schema?.id] ??
+    schema?.name ??
+    defaultFn()?.toString() ??
+    ''
+
+  console.log('[propertyTextValue → CleanText]', {
+    schemaName: schema?.name,
+    raw
+  })
+  return <CleanText text={raw} />
+}
+
+console.log('[Injecting CleanText]')
+// ✅ safer text renderer: normalize react-notion-x rich text → plain inline text
+const CleanText = (props: any) => {
+  const raw: any = props?.value ?? props?.text ?? props?.children ?? ''
+  console.log('[CleanText called]', props)
+
+  const renderRichText = (item: any): string => {
+    if (!Array.isArray(item)) return typeof item === 'string' ? item : ''
+    const [text, decorations]: [string, any[]] = item as [string, any[]]
+    if (!decorations || !Array.isArray(decorations) || decorations.length === 0)
+      return text
+
+    let html: string = text
+    for (const deco of decorations) {
+      if (!Array.isArray(deco)) continue
+      const [type, value] = deco as [string, string | undefined]
+      switch (type) {
+        case 'b':
+          html = `<b>${html}</b>`
+          break
+        case 'i':
+          html = `<i>${html}</i>`
+          break
+        case 'u':
+          html = `<u>${html}</u>`
+          break
+        case 's':
+          html = `<s>${html}</s>`
+          break
+        case 'a':
+          html = `<a href="${value ?? '#'}" target="_blank" rel="noopener noreferrer">${html}</a>`
+          break
+        case 'c':
+          html = `<code>${html}</code>`
+          break
+      }
+    }
+    return html
+  }
+
+  let html = ''
+  try {
+    if (Array.isArray(raw)) {
+      html = raw.map((r) => renderRichText(r)).join('')
+    } else if (typeof raw === 'string') {
+      html = raw
+    } else if (
+      raw &&
+      typeof raw === 'object' &&
+      typeof (raw as any).plain_text === 'string'
+    ) {
+      html = (raw as any).plain_text
+    } else {
+      html = String(raw)
+    }
+  } catch (e) {
+    console.warn('[CleanText error]', e)
+  }
+
+  html = html
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+
+  console.log('[HTML preview]', html)
+
+  return <span data-clean-text='1' dangerouslySetInnerHTML={{ __html: html }} />
 }
 
 export function NotionPage({
@@ -296,10 +381,22 @@ export function NotionPage({
       Header: NotionPageHeader,
       propertyLastEditedTimeValue,
       propertyTextValue,
-      propertyDateValue
+      propertyDateValue,
+      Text: CleanText
     }),
     []
   )
+
+  React.useEffect(() => {
+    if (components) {
+      console.log('[Notion components override]', Object.keys(components))
+      if (Object.keys(components).includes('Text')) {
+        console.info('✅ CleanText successfully registered')
+      } else {
+        console.warn('⚠️ CleanText not injected')
+      }
+    }
+  }, [components])
 
   // 🔍 디버깅용: schema 전체 구조 확인
   React.useEffect(() => {
