@@ -309,11 +309,31 @@
   }
 }
 
+.notion-page-link .notion-page-title-text {
+  text-decoration: none !important;
+  border-bottom: none !important;
+  transition: background-color 0.2s ease;
+}
+
+/* ✅ 컬럼 헤더 아이콘 완전히 숨기기 (전역) */
+.notion-collection-view-type-table th .notion-collection-column-title-icon,
+.notion-collection .notion-collection-column-title .notion-collection-column-title-icon,
+th .notion-collection-column-title-icon,
+svg.notion-collection-column-title-icon {
+  display: none !important;
+  visibility: hidden !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
 /* 누가 넣은거지? */
-.notion-block-ab9a258d6cf444f3bb40dc2600feae91 .notion-page-link {
+/* .notion-block-ab9a258d6cf444f3bb40dc2600feae91 .notion-page-link {
   justify-content: center;
   padding: 50em;
-}
+} */
 
 .notion-code {
   background: rgba(249, 250, 251, 1);
