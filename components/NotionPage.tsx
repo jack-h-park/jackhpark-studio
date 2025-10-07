@@ -9,10 +9,7 @@ import { formatDate, getBlockTitle, getPageProperty } from 'notion-utils'
 import * as React from 'react'
 import { useState } from 'react'
 import BodyClassName from 'react-body-classname'
-import {
-  type NotionComponents,
-  useNotionContext
-} from 'react-notion-x'
+import { type NotionComponents, useNotionContext } from 'react-notion-x'
 import { EmbeddedTweet, TweetNotFound, TweetSkeleton } from 'react-tweet'
 import { useSearchParam } from 'react-use'
 
@@ -198,13 +195,14 @@ export function NotionPage({
 
   const [isPeekOpen, setIsPeekOpen] = React.useState(false)
   const [peekPageId, setPeekPageId] = React.useState<string | null>(null)
-  const [peekRecordMap, setPeekRecordMap] = useState<types.ExtendedRecordMap | null>(null)
+  const [peekRecordMap, setPeekRecordMap] =
+    useState<types.ExtendedRecordMap | null>(null)
 
   // lite mode is for oembed
   const isLiteMode = lite === 'true'
 
   const { isDarkMode } = useDarkMode()
-  
+
   const siteMapPageUrl = React.useMemo(() => {
     const params: any = {}
     if (lite) params.lite = lite
@@ -215,7 +213,8 @@ export function NotionPage({
 
   const keys = recordMap?.block ? Object.keys(recordMap.block) : [] // prettier-ignore
   const blockId = keys[0]
-  const block = recordMap?.block && blockId ? recordMap.block[blockId]?.value : null
+  const block =
+    recordMap?.block && blockId ? recordMap.block[blockId]?.value : null
 
   const isBlogPost =
     block?.type === 'page' && block?.parent_table === 'collection'
@@ -264,14 +263,14 @@ export function NotionPage({
           block
         ) || mapImageUrl(config.defaultPageCover, block)
       : config.defaultPageCover
-      
+
   const socialDescription =
     (block &&
       recordMap &&
       getPageProperty<string>('Description', block, recordMap)) ||
     config.description
 
-    const handleOpenPeek = (pageId: string) => {
+  const handleOpenPeek = (pageId: string) => {
     setPeekPageId(pageId)
     setIsPeekOpen(true)
   }
@@ -420,6 +419,7 @@ export function NotionPage({
           {recordMap && (
             <NotionPageRenderer
               recordMap={recordMap}
+              canonicalPageMap={canonicalPageMap}
               rootPageId={site?.rootNotionPageId}
               fullPage={!isLiteMode}
               darkMode={isDarkMode}

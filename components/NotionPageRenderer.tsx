@@ -14,6 +14,7 @@ import { Modal } from 'react-notion-x/build/third-party/modal'
 import ReactModal from 'react-modal'
 
 import { parsePageId } from 'notion-utils'
+import router from 'next/router'
 
 const NotionRenderer = dynamic(
   async () => (await import('react-notion-x')).NotionRenderer,
@@ -65,65 +66,63 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
   }, [])
 
   // ✅ 부모 컴포넌트에서 받은 components와 PageLink 오버라이드를 병합
-  const components = React.useMemo(() => ({
-    ...parentComponents,
-    Code,
-    Collection,
-    Equation,
-    Pdf,
-    Modal,
-    PageLink: ({ href, children, ...props }: any) => {
-      if (!href) return <a {...props}>{children}</a>
+  const components = React.useMemo(
+    () => ({
+      ...parentComponents,
+      Code,
+      Collection,
+      Equation,
+      Pdf,
+      Modal,
+      PageLink: ({ href, children, className, ...props }: any) => {
+        if (!href) return <a {...props}>{children}</a>
 
-      // 내부 페이지 판별
-      const isInternal =
-        href.startsWith('/') ||
-        href.match(/[0-9a-f]{32}/i) ||
-        href.match(
-          /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
-        )
+        const isExternal =
+          href.startsWith('http://') || href.startsWith('https://')
+        const pageId =
+          parsePageId(href) ||
+          canonicalPageMap?.[href.replace(/^\/+|\/+$/g, '')]
 
-      if (!isInternal) {
+        const handleClick = (e: React.MouseEvent) => {
+          e.preventDefault()
+          e.stopPropagation()
+
+          console.log('[PageLink clicked]', href)
+          console.log('canonicalPageMap?', canonicalPageMap)
+          console.log('onOpenPeek 존재?', !!onOpenPeek)
+          console.log('onOpenPeek pageId?', pageId)
+
+          // 👇 여기서 element를 명시적으로 선언해야 함
+          const element = e.currentTarget as HTMLElement
+
+          // ✅ inline database 내부인지 판별
+          const isInlineDBLink = !!element.closest('.notion-collection')
+
+          // ✅ inline DB 내 링크만 Side Peek
+          if (isInlineDBLink && pageId && onOpenPeek) {
+            onOpenPeek(pageId)
+            return
+          }
+
+          // 외부 링크면 새 창
+          if (isExternal) {
+            window.open(href, '_blank')
+            return
+          }
+
+          // 내부 페이지 이동
+          router.push(href)
+        }
+
         return (
-          <a href={href} target='_blank' rel='noopener noreferrer' {...props}>
+          <a href={href} className={className} {...props} onClick={handleClick}>
             {children}
           </a>
         )
       }
-
-      return (
-        <a
-          {...props}
-          href={href}
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-
-            // ✅ 여기서 pageId만 정제해서 추출
-            const match = href.match(/([0-9a-f]{32})$/i)
-            const pageId = match ? match[1] : null
-
-            console.log('[PageLink clicked]', href)
-            console.log('canonicalPageMap?', canonicalPageMap)
-            console.log('onOpenPeek 존재?', !!onOpenPeek)
-            console.log('onOpenPeek pageId?', pageId)
-
-            const parsedPageId = parsePageId(pageId)
-
-            if (parsedPageId) {
-              console.log('[Extracted pageId]', parsedPageId)
-              onOpenPeek?.(parsedPageId)
-            } else {
-              console.warn('Failed to extract pageId from href', href)
-              window.location.href = href // fallback
-            }
-          }}
-        >
-          {children}
-        </a>
-      )
-    }
-  }), [onOpenPeek, parentComponents])
+    }),
+    [onOpenPeek, parentComponents]
+  )
 
   // ✅ NotionRenderer 반환
   return (
@@ -144,4 +143,3 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
     </div>
   )
 }
-

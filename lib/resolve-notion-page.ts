@@ -19,6 +19,7 @@ export async function resolveNotionPage(
 ): Promise<PageProps> {
   let pageId: string | undefined
   let recordMap: ExtendedRecordMap
+  let canonicalPageMap: PageProps['canonicalPageMap']
 
   if (rawPageId && rawPageId !== 'index') {
     /**
@@ -62,7 +63,8 @@ export async function resolveNotionPage(
     } else {
       // Step 5: canonicalPageMap fallback (siteMap lookup)
       const siteMap = await getSiteMap()
-      pageId = siteMap?.canonicalPageMap[rawPageId]
+      canonicalPageMap = siteMap.canonicalPageMap
+      pageId = canonicalPageMap[rawPageId]
 
       if (pageId) {
         recordMap = await getPage(pageId)
@@ -88,6 +90,8 @@ export async function resolveNotionPage(
     /**
      * Default: if no rawPageId, use the root Notion page
      */
+    const siteMap = await getSiteMap()
+    canonicalPageMap = siteMap.canonicalPageMap
     pageId = site.rootNotionPageId
     recordMap = await getPage(pageId)
   }
@@ -95,7 +99,7 @@ export async function resolveNotionPage(
   /**
    * ✅ Return unified page props
    */
-  const props: PageProps = { site, recordMap, pageId }
+  const props: PageProps = { site, recordMap, pageId, canonicalPageMap }
   return { ...props, ...(await acl.pageAcl(props)) }
 }
 
