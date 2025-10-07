@@ -710,3 +710,21 @@ svg.notion-collection-column-title-icon {
   vertical-align: middle !important;
   height: 100% !important;
 }
+
+
+/* ✅ Inline database 아이콘 크기 확대 (일반 페이지에는 영향 없음) */
+.notion-collection .notion-page-icon-inline .notion-page-title-icon,
+.notion-collection .notion-page-icon-inline .notion-page-icon {
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  min-height: 40px !important;
+  margin-right: 6px !important;
+  object-fit: contain !important;
+}
+
+.notion-collection .notion-page-icon-inline .notion-page-icon-image img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
