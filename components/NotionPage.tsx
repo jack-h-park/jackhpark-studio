@@ -7,7 +7,6 @@ import Link from 'next/link'
 import { type PageBlock } from 'notion-types'
 import { formatDate, getBlockTitle, getPageProperty } from 'notion-utils'
 import * as React from 'react'
-import { useState } from 'react'
 import BodyClassName from 'react-body-classname'
 import { type NotionComponents, useNotionContext } from 'react-notion-x'
 import { EmbeddedTweet, TweetNotFound, TweetSkeleton } from 'react-tweet'
@@ -17,6 +16,7 @@ import type * as types from '@/lib/types'
 import * as config from '@/lib/config'
 import { mapImageUrl } from '@/lib/map-image-url'
 import { getCanonicalPageUrl, mapPageUrl } from '@/lib/map-page-url'
+import { useSidePeek } from '@/lib/use-side-peek'
 import { useDarkMode } from '@/lib/use-dark-mode'
 
 import { Footer } from './Footer'
@@ -193,10 +193,13 @@ export function NotionPage({
   //const router = useRouter()
   const lite = useSearchParam('lite')
 
-  const [isPeekOpen, setIsPeekOpen] = React.useState(false)
-  const [peekPageId, setPeekPageId] = React.useState<string | null>(null)
-  const [peekRecordMap, setPeekRecordMap] =
-    useState<types.ExtendedRecordMap | null>(null)
+  const {
+    isPeekOpen,
+    peekRecordMap,
+    isLoading: isPeekLoading,
+    handleOpenPeek,
+    handleClosePeek
+  } = useSidePeek()
 
   // lite mode is for oembed
   const isLiteMode = lite === 'true'
@@ -218,19 +221,6 @@ export function NotionPage({
 
   const isBlogPost =
     block?.type === 'page' && block?.parent_table === 'collection'
-
-  // const showTableOfContents = !!isBlogPost
-  // const minTableOfContentsItems = 3
-
-  // --- 상단 상태 추가 ---
-  const [didFinishLoad, setDidFinishLoad] = React.useState(false)
-
-  // --- 아래 useEffect 추가 ---
-  React.useEffect(() => {
-    if (recordMap?.block && Object.keys(recordMap.block).length > 0) {
-      setDidFinishLoad(true)
-    }
-  }, [recordMap])
 
   const pageAside = React.useMemo(
     () => (
@@ -269,39 +259,6 @@ export function NotionPage({
       recordMap &&
       getPageProperty<string>('Description', block, recordMap)) ||
     config.description
-
-  const handleOpenPeek = (pageId: string) => {
-    setPeekPageId(pageId)
-    setIsPeekOpen(true)
-  }
-
-  // ✅ peekPageId가 변경될 때만 실행
-  React.useEffect(() => {
-    if (!peekPageId) return
-
-    console.log('[SidePeek] fetching page:', peekPageId)
-
-    const fetchPeekPage = async () => {
-      try {
-        const res = await fetch(`/api/notion?id=${peekPageId}`)
-        if (!res.ok) throw new Error('Failed to fetch peek page')
-
-        const data = (await res.json()) as {
-          recordMap: types.ExtendedRecordMap
-        }
-
-        console.log('[SidePeek] loaded page:', data.recordMap)
-        setPeekRecordMap(data.recordMap || null)
-        setIsPeekOpen(true)
-      } catch (err) {
-        console.error('[SidePeek fetch error]', err)
-        setPeekRecordMap(null)
-        setIsPeekOpen(false)
-      }
-    }
-
-    void fetchPeekPage()
-  }, [peekPageId])
 
   const header = React.useMemo(
     () => (
@@ -359,22 +316,13 @@ export function NotionPage({
     }
   }, [recordMap])
 
-  // --- 조건 정리 ---
-  const hasBlocks =
-    !!recordMap?.block && Object.keys(recordMap.block).length > 0
-  const hasBlockValue = hasBlocks && !!block
-  const isReady = hasBlockValue || didFinishLoad
-  const show404 =
-    !!error || (!!site && !!pageId && didFinishLoad && !hasBlockValue)
-
-  // --- 순서 중요 ---
-  if (!isReady) {
-    console.log('[Render] Loading...')
+  // 렌더링 로직 단순화
+  if (!recordMap && !error) {
     return <Loading />
   }
 
-  if (show404) {
-    console.log('[Render] Showing 404 (after load complete)')
+  if (error || !block) {
+    // `block`이 없으면 페이지 콘텐츠가 없는 것이므로 404로 간주
     return <Page404 site={site} pageId={pageId} error={error} />
   }
 
@@ -396,64 +344,44 @@ export function NotionPage({
 
   console.log('[Render check]', { isPeekOpen, peekRecordMap })
 
-  // 함수 컴포넌트 내부 상단 어딘가에 추가
-  const handleClosePeek = () => {
-    setIsPeekOpen(false)
-    setPeekRecordMap(null) // 내부 NotionPageRenderer 제거
-    setPeekPageId(null)
-  }
-
   return (
     <>
-      {!isReady ? (
-        <Loading />
-      ) : (
-        <>
-          {header}
+      {header}
 
-          {isLiteMode && <BodyClassName className='notion-lite' />}
-          {isDarkMode && <BodyClassName className='dark-mode' />}
+      {isLiteMode && <BodyClassName className='notion-lite' />}
+      {isDarkMode && <BodyClassName className='dark-mode' />}
 
-          {/* {pageAside} */}
-
-          {recordMap && (
-            <NotionPageRenderer
-              recordMap={recordMap}
-              canonicalPageMap={canonicalPageMap}
-              rootPageId={site?.rootNotionPageId}
-              fullPage={!isLiteMode}
-              darkMode={isDarkMode}
-              components={components}
-              mapPageUrl={siteMapPageUrl as any}
-              mapImageUrl={mapImageUrl as any}
-              pageAside={pageAside}
-              footer={footer}
-              onOpenPeek={handleOpenPeek}
-            />
-          )}
-
-          <SidePeek isOpen={isPeekOpen} onClose={handleClosePeek}>
-            {isPeekOpen && peekRecordMap ? (
-              <NotionPageRenderer
-                recordMap={peekRecordMap}
-                rootPageId={site?.rootNotionPageId}
-                canonicalPageMap={canonicalPageMap}
-                fullPage={!isLiteMode}
-                darkMode={isDarkMode}
-                components={components}
-                mapPageUrl={siteMapPageUrl as any}
-                mapImageUrl={mapImageUrl as any}
-              />
-            ) : (
-              <div className='text-white p-4'>로딩 중...</div>
-            )}
-          </SidePeek>
-
-          {/* {footer} */}
-
-          {/* <GitHubShareButton /> */}
-        </>
+      {recordMap && (
+        <NotionPageRenderer
+          recordMap={recordMap}
+          canonicalPageMap={canonicalPageMap}
+          rootPageId={site?.rootNotionPageId}
+          fullPage={!isLiteMode}
+          darkMode={isDarkMode}
+          components={components}
+          mapPageUrl={siteMapPageUrl as any}
+          mapImageUrl={mapImageUrl as any}
+          pageAside={pageAside}
+          footer={footer}
+          onOpenPeek={handleOpenPeek}
+        />
       )}
+
+      <SidePeek isOpen={isPeekOpen} onClose={handleClosePeek}>
+        {isPeekLoading && <Loading />}
+        {peekRecordMap && (
+          <NotionPageRenderer
+            recordMap={peekRecordMap}
+            rootPageId={site?.rootNotionPageId}
+            canonicalPageMap={canonicalPageMap}
+            fullPage={!isLiteMode}
+            darkMode={isDarkMode}
+            components={components}
+            mapPageUrl={siteMapPageUrl as any}
+            mapImageUrl={mapImageUrl as any}
+          />
+        )}
+      </SidePeek>
     </>
   )
 }
