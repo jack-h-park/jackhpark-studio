@@ -27,6 +27,7 @@ interface NotionPageRendererProps {
   darkMode?: boolean
   fullPage?: boolean
   rootPageId?: string
+  canonicalPageMap?: Record<string, string>
   mapPageUrl?: (id: string) => string
   mapImageUrl?: MapImageUrlFn
   pageAside?: React.ReactNode
@@ -40,6 +41,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
   darkMode,
   fullPage,
   rootPageId,
+  canonicalPageMap,
   mapPageUrl,
   mapImageUrl,
   pageAside,
@@ -102,6 +104,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
             const pageId = match ? match[1] : null
 
             console.log('[PageLink clicked]', href)
+            console.log('canonicalPageMap?', canonicalPageMap)
             console.log('onOpenPeek 존재?', !!onOpenPeek)
             console.log('onOpenPeek pageId?', pageId)
 

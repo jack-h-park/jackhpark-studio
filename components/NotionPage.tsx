@@ -189,6 +189,7 @@ const propertyTextValue = (
 export function NotionPage({
   site,
   recordMap,
+  canonicalPageMap,
   error,
   pageId
 }: types.PageProps) {
@@ -216,7 +217,6 @@ export function NotionPage({
   const blockId = keys[0]
   const block = recordMap?.block && blockId ? recordMap.block[blockId]?.value : null
 
-
   const isBlogPost =
     block?.type === 'page' && block?.parent_table === 'collection'
 
@@ -236,7 +236,7 @@ export function NotionPage({
   const pageAside = React.useMemo(
     () => (
       <PageAside
- block={block!}
+        block={block!}
         recordMap={recordMap!}
         isBlogPost={isBlogPost}
       />
@@ -270,6 +270,11 @@ export function NotionPage({
       recordMap &&
       getPageProperty<string>('Description', block, recordMap)) ||
     config.description
+
+    const handleOpenPeek = (pageId: string) => {
+    setPeekPageId(pageId)
+    setIsPeekOpen(true)
+  }
 
   // ✅ peekPageId가 변경될 때만 실행
   React.useEffect(() => {
@@ -423,11 +428,7 @@ export function NotionPage({
               mapImageUrl={mapImageUrl as any}
               pageAside={pageAside}
               footer={footer}
-              onOpenPeek={(pageId: string) => {
-                // ✅ 여기서 콜백 정의
-                setPeekPageId(pageId)
-                setIsPeekOpen(true)
-              }}
+              onOpenPeek={handleOpenPeek}
             />
           )}
 
@@ -436,6 +437,7 @@ export function NotionPage({
               <NotionPageRenderer
                 recordMap={peekRecordMap}
                 rootPageId={site?.rootNotionPageId}
+                canonicalPageMap={canonicalPageMap}
                 fullPage={!isLiteMode}
                 darkMode={isDarkMode}
                 components={components}

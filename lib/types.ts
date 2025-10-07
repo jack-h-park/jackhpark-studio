@@ -14,6 +14,7 @@ export interface PageError {
 export interface PageProps {
   site?: Site
   recordMap?: ExtendedRecordMap
+  canonicalPageMap?: CanonicalPageMap
   pageId?: string
   error?: PageError
 }
