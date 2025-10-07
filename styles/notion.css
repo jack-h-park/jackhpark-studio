@@ -106,6 +106,14 @@
   padding: 2px 4px !important;
 }
 
+/* ✅ 테이블 내 제목(아이콘+텍스트) 수직 정렬 */
+.notion-table-view .notion-page-title {
+  display: inline-flex !important; /* inline-flex로 변경하여 다른 요소와 어울리게 함 */
+  align-items: center !important;  /* 자식 요소(아이콘, 텍스트)를 수직 중앙 정렬 */
+  gap: 6px !important;             /* 아이콘과 텍스트 사이 간격 */
+  width: 100%;                     /* 셀 너비 전체를 차지하도록 설정 */
+}
+
 
 /* ✅ 테이블 전체 여백 초기화 */
 .notion-table,
@@ -638,4 +646,50 @@ svg.notion-collection-column-title-icon {
   color: inherit !important;
   display: inline-block !important;
   font-weight: 500;
+}
+
+/* ✅ inline database 텍스트 정렬 일관화 */
+.notion-table-view .notion-property-title {
+  display: flex !important;
+  align-items: center !important;
+  height: auto !important;
+  line-height: 1.4 !important;
+}
+
+/* ✅ 아이콘 중앙 정렬 */
+.notion-table-view .notion-page-icon-inline {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 20px !important;
+  height: 20px !important;
+  margin-right: 6px !important;
+  flex-shrink: 0 !important;
+}
+
+/* ✅ 제목 텍스트 baseline 정렬 보정 */
+.notion-table-view .notion-page-title-text {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  line-height: 1.4 !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  text-overflow: unset !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* ✅ property wrapper도 height 균일화 */
+.notion-table-view .notion-property {
+  height: auto !important;
+  align-items: center !important;
+}
+
+/* ✅ 각 셀 내용 수직 중앙 고정 */
+.notion-table-view td,
+.notion-table-view .notion-property,
+.notion-table-view .notion-property-title {
+  display: flex !important;
+  align-items: center !important;
+  vertical-align: middle !important;
+  height: 100% !important;
 }
