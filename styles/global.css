@@ -1,3 +1,7 @@
+@import 'react-notion-x/src/styles.css';
+@import 'katex/dist/katex.min.css';
+@import 'prismjs/themes/prism-coy.css';
+
 * {
   box-sizing: border-box;
 }
@@ -81,3 +85,7 @@ header, footer {
 }
 
 /* // components/notion-page-renderer.module.css */
+
+/* Custom Overrides */
+@import './notion.css';
+@import './prism-theme.css';
