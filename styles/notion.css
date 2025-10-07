@@ -12,6 +12,20 @@
   --notion-header-height: 54px;
 }
 
+.notion-select,
+.notion-multi-select,
+.notion-property-multi_select,
+.notion-pill {
+  padding: 2px 6px !important;
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+.notion-table-cell-multi_select {
+  padding: 6px 8px !important;
+  vertical-align: middle !important;
+}
+
 .notion-frame {
   padding: 0;
 }
