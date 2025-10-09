@@ -307,16 +307,31 @@ export function NotionPage({
   const isBlogPost =
     block?.type === 'page' && block?.parent_table === 'collection'
 
-  const pageAside = React.useMemo(
+
+      const pageAside = React.useMemo(
     () => (
-      <PageAside
-        block={block!}
-        recordMap={recordMap!}
-        isBlogPost={isBlogPost}
-      />
+      config.showPageAside
+        ? <PageAside
+            block={block!}
+            recordMap={recordMap!}
+            isBlogPost={isBlogPost}
+          />
+        : null
     ),
+    // 의존성 배열에 showPageAside를 추가하여 이 값이 바뀔 때마다 다시 계산되도록 합니다.
     [block, recordMap, isBlogPost]
   )
+
+  // const pageAside = React.useMemo(
+  //   () => (
+  //     <PageAside
+  //       block={block!}
+  //       recordMap={recordMap!}
+  //       isBlogPost={isBlogPost}
+  //     />
+  //   ),
+  //   [block, recordMap, isBlogPost]
+  // )
 
   const footer = React.useMemo(() => <Footer />, [])
 

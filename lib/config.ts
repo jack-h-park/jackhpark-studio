@@ -57,6 +57,9 @@ export const domain: string = getRequiredSiteConfig('domain')
 export const description: string = getSiteConfig('description', 'Notion Blog')
 export const language: string = getSiteConfig('language', 'en')
 
+// 내가 추가
+export const showPageAside: boolean = getSiteConfig('showPageAside', false)
+
 // social accounts
 export const twitter: string | undefined = getSiteConfig('twitter')
 export const mastodon: string | undefined = getSiteConfig('mastodon')
