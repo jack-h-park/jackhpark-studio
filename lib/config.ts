@@ -48,6 +48,8 @@ export const inversePageUrlOverrides = invertPageUrlOverrides(pageUrlOverrides)
 export const environment = process.env.NODE_ENV || 'development'
 export const isDev = environment === 'development'
 
+const defaultNotionPageCacheTTLSeconds = isDev ? '0' : '300'
+
 // general site config
 export const name: string = getRequiredSiteConfig('name')
 export const author: string = getRequiredSiteConfig('author')
@@ -130,6 +132,27 @@ export const redisUrl = getEnv(
   isRedisEnabled ? `redis://${redisUser}:${redisPassword}@${redisHost}` : null
 )
 export const redisNamespace = getEnv('REDIS_NAMESPACE', 'preview-images')
+
+const rawNotionPageCacheTTL = getEnv(
+  'NOTION_PAGE_CACHE_TTL',
+  defaultNotionPageCacheTTLSeconds
+) as string
+
+const parsedNotionPageCacheTTLSeconds = Number(rawNotionPageCacheTTL)
+
+export const isNotionPageCacheEnabled =
+  Number.isFinite(parsedNotionPageCacheTTLSeconds) &&
+  parsedNotionPageCacheTTLSeconds > 0
+
+export const notionPageCacheTTL =
+  isNotionPageCacheEnabled && parsedNotionPageCacheTTLSeconds > 0
+    ? parsedNotionPageCacheTTLSeconds * 1000
+    : undefined
+
+export const notionPageCacheKeyPrefix = getEnv(
+  'NOTION_PAGE_CACHE_PREFIX',
+  'notion-page'
+) as string
 
 // ----------------------------------------------------------------------------
 

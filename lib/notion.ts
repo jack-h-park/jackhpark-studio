@@ -8,10 +8,15 @@ import pMap from 'p-map'
 import pMemoize from 'p-memoize'
 
 import {
+  environment,
   isPreviewImageSupportEnabled,
   navigationLinks,
-  navigationStyle
+  navigationStyle,
+  notionPageCacheKeyPrefix,
+  notionPageCacheTTL,
+  isNotionPageCacheEnabled
 } from './config'
+import { db } from './db'
 import { getTweetsMap } from './get-tweets'
 import { notion } from './notion-api'
 import { getPreviewImageMap } from './preview-images'
@@ -42,13 +47,99 @@ const getNavigationLinkPages = pMemoize(
   }
 )
 
-export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
+const inFlightPageFetches = new Map<string, Promise<ExtendedRecordMap>>()
+
+type MemoryCacheEntry = {
+  recordMap: ExtendedRecordMap
+  expiresAt: number
+}
+
+const memoryPageCache = new Map<string, MemoryCacheEntry>()
+
+const getPageCacheKey = (pageId: string) => {
+  const normalizedId = pageId.replace(/-/g, '')
+  return `${notionPageCacheKeyPrefix}:${environment}:${normalizedId}`
+}
+
+const getCacheExpiry = () =>
+  typeof notionPageCacheTTL === 'number'
+    ? Date.now() + notionPageCacheTTL
+    : Date.now()
+
+const getCachedRecordMapFromMemory = (cacheKey: string) => {
+  const entry = memoryPageCache.get(cacheKey)
+  if (!entry) {
+    return null
+  }
+
+  if (typeof notionPageCacheTTL === 'number' && Date.now() > entry.expiresAt) {
+    memoryPageCache.delete(cacheKey)
+    return null
+  }
+
+  return entry.recordMap
+}
+
+const setCachedRecordMapInMemory = (
+  cacheKey: string,
+  recordMap: ExtendedRecordMap
+) => {
+  if (!isNotionPageCacheEnabled) {
+    return
+  }
+
+  memoryPageCache.set(cacheKey, {
+    recordMap,
+    expiresAt: getCacheExpiry()
+  })
+}
+
+const readCachedRecordMap = async (
+  cacheKey: string
+): Promise<ExtendedRecordMap | null> => {
+  if (!isNotionPageCacheEnabled) {
+    return null
+  }
+
+  try {
+    const cached = (await db.get(cacheKey)) as ExtendedRecordMap | undefined
+    if (cached) {
+      setCachedRecordMapInMemory(cacheKey, cached)
+      return cached
+    }
+  } catch (err: any) {
+    console.warn(`redis error get "${cacheKey}"`, err.message)
+  }
+
+  return null
+}
+
+const writeCachedRecordMap = async (
+  cacheKey: string,
+  recordMap: ExtendedRecordMap
+) => {
+  if (!isNotionPageCacheEnabled) {
+    return
+  }
+
+  try {
+    if (typeof notionPageCacheTTL === 'number') {
+      await db.set(cacheKey, recordMap, notionPageCacheTTL)
+    } else {
+      await db.set(cacheKey, recordMap)
+    }
+    setCachedRecordMapInMemory(cacheKey, recordMap)
+  } catch (err: any) {
+    console.warn(`redis error set "${cacheKey}"`, err.message)
+  }
+}
+
+const loadPageFromNotion = async (
+  pageId: string
+): Promise<ExtendedRecordMap> => {
   let recordMap = await notion.getPage(pageId)
 
   if (navigationStyle !== 'default') {
-    // ensure that any pages linked to in the custom navigation header have
-    // their block info fully resolved in the page record map so we know
-    // the page title, slug, etc.
     const navigationLinkRecordMaps = await getNavigationLinkPages()
 
     if (navigationLinkRecordMaps?.length) {
@@ -68,6 +159,44 @@ export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
   await getTweetsMap(recordMap)
 
   return recordMap
+}
+
+export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
+  const cacheKey = getPageCacheKey(pageId)
+
+  if (isNotionPageCacheEnabled) {
+    const memoryCached = getCachedRecordMapFromMemory(cacheKey)
+    if (memoryCached) {
+      return memoryCached
+    }
+
+    const persistentCached = await readCachedRecordMap(cacheKey)
+    if (persistentCached) {
+      return persistentCached
+    }
+  }
+
+  const existingFetch = inFlightPageFetches.get(cacheKey)
+
+  if (existingFetch) {
+    return existingFetch
+  }
+
+  const fetchPromise = (async () => {
+    const recordMap = await loadPageFromNotion(pageId)
+
+    await writeCachedRecordMap(cacheKey, recordMap)
+
+    return recordMap
+  })()
+
+  inFlightPageFetches.set(cacheKey, fetchPromise)
+
+  try {
+    return await fetchPromise
+  } finally {
+    inFlightPageFetches.delete(cacheKey)
+  }
 }
 
 export async function search(params: SearchParams): Promise<SearchResults> {
