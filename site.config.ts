@@ -56,7 +56,7 @@ export default siteConfig({
   navigationStyle: 'custom',
   navigationLinks: [
      {
-       title: 'About',
+       title: 'Personal',
        pageId: '28299029c0b4816e89c0c4f17a39963b'
      }
   ]

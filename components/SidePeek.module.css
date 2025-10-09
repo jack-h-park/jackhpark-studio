@@ -1,10 +1,7 @@
-/* ✅ 공통 오버레이 */
-.sidepeek-overlay {
+/* Shared overlay */
+.overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  inset: 0;
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(6px);
   z-index: 9998;
@@ -12,50 +9,51 @@
   transition: opacity 0.25s ease;
 }
 
-/* ✅ 데스크탑 기본 패널 */
-.sidepeek-panel {
+/* Desktop panel */
+.panel {
   position: fixed;
   top: 0;
   right: 0;
   height: 100vh;
   width: 480px;
-  background: #fff;
+  background: var(--bg-color, #fff);
+  color: var(--fg-color, #111);
   box-shadow: -10px 0 30px rgba(0, 0, 0, 0.2);
-  z-index: 9999;
+  z-index: 10000;
   overflow-y: auto;
+  overflow-x: hidden;
   border-radius: 0;
   transform: translateX(100%);
   transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: auto;
 }
 
-/* ✅ 모바일 전체화면 버전 */
-.sidepeek-mobile {
+.mobile {
   width: 100vw !important;
   height: 100vh;
   right: 0;
   left: 0;
   bottom: 0;
-  background: #fff;
   border-radius: 16px 16px 0 0;
   box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.25);
-  overflow-y: auto;
   transform: translateY(100%);
   transition: transform 0.3s ease;
+  touch-action: pan-y;
 }
 
-/* ✅ 모바일 상단 손잡이 (시각적 표시) */
-.sidepeek-mobile::before {
-  content: '';
-  display: block;
+.dragHandle {
   width: 48px;
   height: 5px;
   border-radius: 2.5px;
   background: rgba(0, 0, 0, 0.2);
-  margin: 12px auto;
+  margin: 12px auto 0;
 }
 
-/* ✅ 닫기 버튼 스타일 (모바일용만 표시됨) */
-.sidepeek-mobile button[aria-label='Close side panel'] {
+.closeButton {
   position: absolute;
   top: 10px;
   right: 10px;
@@ -71,23 +69,21 @@
   transition: background 0.2s ease;
 }
 
-.sidepeek-mobile button[aria-label='Close side panel']:hover {
+.closeButton:hover {
   background: rgba(0, 0, 0, 0.7);
 }
 
-/* ✅ 애니메이션 부드럽게 */
-.sidepeek-panel,
-.sidepeek-overlay {
+.panel,
+.overlay {
   will-change: transform, opacity;
 }
 
-/* ✅ 다크모드 대응 */
-.dark-mode .sidepeek-panel,
-.dark-mode .sidepeek-mobile {
-  background: #1a1a1a;
-  color: #f5f5f5;
+:global(.dark-mode) .panel,
+:global(.dark-mode) .mobile {
+  background: var(--bg-color, #1a1a1a);
+  color: var(--fg-color, #f5f5f5);
 }
 
-.dark-mode .sidepeek-mobile::before {
+:global(.dark-mode) .dragHandle {
   background: rgba(255, 255, 255, 0.25);
 }

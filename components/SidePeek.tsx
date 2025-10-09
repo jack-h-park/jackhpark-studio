@@ -3,10 +3,12 @@ import {
   motion,
   AnimatePresence,
   useMotionValue,
-  useTransform
+  useTransform,
+  useDragControls
 } from 'framer-motion'
 import { createPortal } from 'react-dom'
 import cs from 'classnames'
+import styles from './SidePeek.module.css'
 
 export interface SidePeekProps {
   isOpen: boolean
@@ -21,11 +23,14 @@ export const SidePeek: React.FC<SidePeekProps> = ({
 }) => {
   const [mounted, setMounted] = React.useState(false)
   const [isMobile, setIsMobile] = React.useState(false)
+  const panelRef = React.useRef<HTMLDivElement | null>(null)
+  const scrollRafRef = React.useRef<number | null>(null)
+  const dragControls = useDragControls()
 
   const y = useMotionValue(0)
   const opacity = useTransform(y, [0, 150], [1, 0.3])
 
-  // ✅ 마운트 및 모바일 감지
+  // detect mount and viewport size changes
   React.useEffect(() => {
     setMounted(true)
     const handleResize = () => setIsMobile(window.innerWidth < 768)
@@ -37,14 +42,14 @@ export const SidePeek: React.FC<SidePeekProps> = ({
     }
   }, [])
 
-  // ✅ ESC 키로 닫기
+  // allow closing via ESC key
   React.useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const handleEsc = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
     if (isOpen) window.addEventListener('keydown', handleEsc)
     return () => window.removeEventListener('keydown', handleEsc)
   }, [isOpen, onClose])
 
-  // ✅ 스크롤 잠금
+  // lock document scroll while the peek is open
   React.useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : ''
     return () => {
@@ -52,11 +57,45 @@ export const SidePeek: React.FC<SidePeekProps> = ({
     }
   }, [isOpen])
 
+  // propagate panel scroll events so lazy notion blocks continue rendering
+  React.useEffect(() => {
+    if (!isOpen || typeof window === 'undefined') {
+      return
+    }
+
+    const panelEl = panelRef.current
+    if (!panelEl) return
+
+    const emitScroll = () => {
+      if (scrollRafRef.current !== null) {
+        return
+      }
+
+      scrollRafRef.current = window.requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('scroll'))
+        scrollRafRef.current = null
+      })
+    }
+
+    panelEl.addEventListener('scroll', emitScroll, { passive: true })
+    emitScroll()
+
+    return () => {
+      panelEl.removeEventListener('scroll', emitScroll)
+      if (scrollRafRef.current !== null) {
+        window.cancelAnimationFrame(scrollRafRef.current)
+        scrollRafRef.current = null
+      }
+    }
+  }, [isOpen])
+
+  const hiddenPosition = isMobile
+    ? { x: 0, y: '100%' as const }
+    : { x: 480, y: 0 }
+
   if (!mounted || typeof window === 'undefined') return null
 
-  const panelWidth = isMobile ? '100%' : 480
-
-  // ✅ 모바일 스와이프 제스처 핸들러
+  // close the panel when the mobile drag exceeds the threshold
   const handleDragEnd = (_: any, info: any) => {
     if (info.offset.y > 120) {
       onClose()
@@ -67,69 +106,45 @@ export const SidePeek: React.FC<SidePeekProps> = ({
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* 오버레이 */}
+          {/* Overlay */}
           <motion.div
-            className='sidepeek-overlay'
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.4)',
-              backdropFilter: 'blur(6px)',
-              zIndex: 9999,
-              opacity
-            }}
+            className={styles.overlay}
+            style={{ opacity }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
           />
 
-          {/* 사이드 패널 */}
+          {/* Side panel */}
           <motion.div
-            className={cs(
-              'sidepeek-panel',
-              isMobile ? 'sidepeek-mobile' : 'sidepeek-desktop'
-            )}
-            style={{
-              position: 'fixed',
-              top: 0,
-              right: 0,
-              bottom: 0,
-              width: panelWidth,
-              background: 'white',
-              zIndex: 10000,
-              boxShadow: '-10px 0 30px rgba(0,0,0,0.2)',
-              overflowY: 'auto'
-            }}
+            ref={panelRef}
+            className={cs(styles.panel, isMobile && styles.mobile)}
             drag={isMobile ? 'y' : false}
+            dragListener={false}
+            dragControls={dragControls}
             dragConstraints={{ top: 0, bottom: 0 }}
             onDragEnd={isMobile ? handleDragEnd : undefined}
-            initial={{ x: panelWidth }}
+            initial={hiddenPosition}
             animate={{ x: 0, y: 0 }}
-            exit={{ x: panelWidth }}
+            exit={hiddenPosition}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
-            {/* 모바일 닫기 버튼 */}
+            {isMobile && (
+              <div
+                className={styles.dragHandle}
+                onPointerDown={(event) => dragControls.start(event)}
+              />
+            )}
+
+            {/* Mobile close button */}
             {isMobile && (
               <button
                 onClick={onClose}
-                style={{
-                  position: 'absolute',
-                  top: 10,
-                  right: 10,
-                  zIndex: 10001,
-                  fontSize: 22,
-                  border: 'none',
-                  background: 'rgba(0,0,0,0.5)',
-                  color: '#fff',
-                  borderRadius: '50%',
-                  width: 36,
-                  height: 36,
-                  cursor: 'pointer'
-                }}
+                className={styles.closeButton}
                 aria-label='Close side panel'
               >
-                ✕
+                x
               </button>
             )}
 
