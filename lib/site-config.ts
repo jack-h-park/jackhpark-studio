@@ -10,6 +10,7 @@ export interface SiteConfig {
   description?: string
   language?: string
 
+  showPageAside?: boolean
   twitter?: string
   github?: string
   linkedin?: string

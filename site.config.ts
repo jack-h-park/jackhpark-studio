@@ -2,7 +2,7 @@ import { siteConfig } from './lib/site-config'
 
 export default siteConfig({
   // the site's root Notion page (required)
-  rootNotionPageId: '28299029c0b481ce8999d425287d3db6', //28299029c0b481ce8999d425287d3db6 //28299029c0b4800aaa33df42d6b8caab
+  rootNotionPageId: '28299029c0b481ce8999d425287d3db6', 
 
   // if you want to restrict pages to a single notion workspace (optional)
   // (this should be a Notion ID; see the docs for how to extract this)
@@ -17,6 +17,7 @@ export default siteConfig({
   description: 'Jack H. Park\'s Personal Landing Page Built with Next.js (as a frontend framework), react-notion-x (as a component library), Notion (as a CMS) and Velcel (as a hosting provider)',
 
   // social usernames (optional)
+  showPageAside: false,
   linkedin: 'jackhpark',
   github: 'jack-h-park',
   instagram: 'jack_hw_park',

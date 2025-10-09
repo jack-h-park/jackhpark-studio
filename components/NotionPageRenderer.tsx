@@ -66,19 +66,19 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
     return () => cancelAnimationFrame(timer)
   }, [])
 
-  const sanitizedRecordMap = React.useMemo(() => {
+  const sanitizedRecordMap = React.useMemo<ExtendedRecordMap>(() => {
     const views = recordMap?.collection_view
     if (!views) {
       return recordMap
     }
 
     let hasChanges = false
-    const patchedViews: Partial<typeof views> = {}
+    const patchedViews = { ...views }
 
     Object.entries(views).forEach(([viewId, view]) => {
       const viewValue = view?.value
 
-      if (!viewValue || viewValue.type !== 'list') {
+      if (!view || !viewValue || viewValue.type !== 'list') {
         return
       }
 
@@ -130,10 +130,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
 
     return {
       ...recordMap,
-      collection_view: {
-        ...views,
-        ...patchedViews
-      }
+      collection_view: patchedViews
     }
   }, [recordMap])
 
