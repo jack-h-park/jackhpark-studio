@@ -66,6 +66,78 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
     return () => cancelAnimationFrame(timer)
   }, [])
 
+  const sanitizedRecordMap = React.useMemo(() => {
+    const views = recordMap?.collection_view
+    if (!views) {
+      return recordMap
+    }
+
+    let hasChanges = false
+    const patchedViews: Partial<typeof views> = {}
+
+    Object.entries(views).forEach(([viewId, view]) => {
+      const viewValue = view?.value
+
+      if (!viewValue || viewValue.type !== 'list') {
+        return
+      }
+
+      const listProperties = viewValue.format?.list_properties
+
+      if (!Array.isArray(listProperties) || listProperties.length === 0) {
+        return
+      }
+
+      let viewChanged = false
+
+      const patchedListProperties = listProperties.map((propertyConfig) => {
+        if (!propertyConfig || typeof propertyConfig !== 'object') {
+          return propertyConfig
+        }
+
+        if (propertyConfig.visible === false) {
+          return propertyConfig
+        }
+
+        if (propertyConfig.property !== 'title') {
+          return propertyConfig
+        }
+
+        viewChanged = true
+        return { ...propertyConfig, visible: false }
+      })
+
+      if (!viewChanged) {
+        return
+      }
+
+      hasChanges = true
+      patchedViews[viewId] = {
+        ...view,
+        value: {
+          ...viewValue,
+          format: {
+            ...viewValue.format,
+            list_properties: patchedListProperties
+          }
+        }
+      }
+    })
+
+    if (!hasChanges) {
+      return recordMap
+    }
+
+    return {
+      ...recordMap,
+      collection_view: {
+        ...views,
+        ...patchedViews
+      }
+    }
+  }, [recordMap])
+
+
   // ✅ 부모 컴포넌트에서 받은 components와 PageLink 오버라이드를 병합
   const components = React.useMemo(
     () => ({
@@ -122,7 +194,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
         )
       }
     }),
-    [onOpenPeek, parentComponents]
+    [canonicalPageMap, onOpenPeek, parentComponents]
   )
 
   // ✅ NotionRenderer 반환
@@ -130,7 +202,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
     <div className='notion-frame'>
       {mounted ? (
         <NotionRenderer
-          recordMap={recordMap}
+          recordMap={sanitizedRecordMap}
           darkMode={darkMode}
           fullPage={fullPage}
           rootPageId={rootPageId}
