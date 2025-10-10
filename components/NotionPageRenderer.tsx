@@ -6,7 +6,7 @@ import type { NotionComponents } from 'react-notion-x'
 import dynamic from 'next/dynamic'
 import type { ExtendedRecordMap } from 'notion-types'
 
-// ✅ react-notion-x 기본 컴포넌트 로드
+// ??react-notion-x 湲곕낯 而댄룷?뚰듃 濡쒕뱶
 import { Code } from 'react-notion-x/build/third-party/code'
 import { Collection } from 'react-notion-x/build/third-party/collection'
 import { Equation } from 'react-notion-x/build/third-party/equation'
@@ -34,8 +34,8 @@ interface NotionPageRendererProps {
   mapImageUrl?: MapImageUrlFn
   pageAside?: React.ReactNode
   footer?: React.ReactNode
-  components?: Partial<NotionComponents> // ✅ components prop 추가
-  onOpenPeek?: (pageId: string) => void // ✅ 부모에서 전달받을 콜백
+  components?: Partial<NotionComponents> // ??components prop 異붽?
+  onOpenPeek?: (pageId: string) => void // ??遺紐⑥뿉???꾨떖諛쏆쓣 肄쒕갚
 }
 
 export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
@@ -48,13 +48,13 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
   mapImageUrl,
   pageAside,
   footer,
-  components: parentComponents, // ✅ prop 이름 변경
+  components: parentComponents, // ??prop ?대쫫 蹂寃?
   onOpenPeek
 }) => {
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
-    // DOM이 확실히 준비된 후에 mount
+    // DOM???뺤떎??以鍮꾨맂 ?꾩뿉 mount
     const timer = requestAnimationFrame(() => setMounted(true))
 
     if (typeof window !== 'undefined' && !modalInitialized) {
@@ -82,7 +82,9 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
         return
       }
 
-      const listProperties = viewValue.format?.list_properties
+      const format = viewValue.format
+
+      const listProperties = format?.list_properties
 
       if (!Array.isArray(listProperties) || listProperties.length === 0) {
         return
@@ -134,8 +136,68 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
     }
   }, [recordMap])
 
+  React.useEffect(() => {
+    if (!recordMap?.collection_view) {
+      console.log('[CollectionDebug] no collection views present')
+      return
+    }
 
-  // ✅ 부모 컴포넌트에서 받은 components와 PageLink 오버라이드를 병합
+    Object.entries(recordMap.collection_view).forEach(([viewId, view]) => {
+      const viewValue: any = view?.value
+      if (!viewValue) {
+        console.log('[CollectionDebug] missing view value', { viewId })
+        return
+      }
+
+      const collectionId: string | undefined = viewValue.collection_id
+      const queryEntry =
+        collectionId &&
+        recordMap.collection_query?.[collectionId]?.[viewId]
+
+      const format = viewValue.format ?? {}
+      const collectionGroups = format?.collection_groups
+      const boardColumns = format?.board_columns
+      const groupBy = format?.collection_group_by ?? format?.board_columns_by
+
+      const reducerResults: any = queryEntry?.reducerResults
+
+      console.log('[CollectionDebug] view snapshot', {
+        viewId,
+        collectionId,
+        viewType: viewValue.type,
+        hasGrouping: Boolean(groupBy) || Boolean(collectionGroups),
+        groupBy,
+        collectionGroupsLength: Array.isArray(collectionGroups)
+          ? collectionGroups.length
+          : 0,
+        boardColumnsLength: Array.isArray(boardColumns)
+          ? boardColumns.length
+          : 0,
+        queryKeys: queryEntry ? Object.keys(queryEntry) : null,
+        reducerKeys: reducerResults ? Object.keys(reducerResults) : null,
+        resultsBuckets: reducerResults
+          ? Object.entries(reducerResults)
+              .filter(([key, value]: [string, any]) => {
+                return (
+                  key.startsWith('results:') &&
+                  Boolean(value?.blockIds?.length ?? 0)
+                )
+              })
+              .map(([key, value]: [string, any]) => ({
+                key,
+                count: value?.blockIds?.length ?? 0
+              }))
+          : null,
+        fallbackBlockIdsLength: Array.isArray(queryEntry?.blockIds)
+          ? queryEntry.blockIds.length
+          : null
+      })
+    })
+  }, [recordMap])
+
+
+
+  // ??遺紐?而댄룷?뚰듃?먯꽌 諛쏆? components? PageLink ?ㅻ쾭?쇱씠?쒕? 蹂묓빀
   const components = React.useMemo(
     () => ({
       ...parentComponents,
@@ -159,28 +221,28 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
 
           console.log('[PageLink clicked]', href)
           console.log('canonicalPageMap?', canonicalPageMap)
-          console.log('onOpenPeek 존재?', !!onOpenPeek)
+          console.log('onOpenPeek 議댁옱?', !!onOpenPeek)
           console.log('onOpenPeek pageId?', pageId)
 
-          // 👇 여기서 element를 명시적으로 선언해야 함
+          // ?몙 ?ш린??element瑜?紐낆떆?곸쑝濡??좎뼵?댁빞 ??
           const element = e.currentTarget as HTMLElement
 
-          // ✅ inline database 내부인지 판별
+          // ??inline database ?대??몄? ?먮퀎
           const isInlineDBLink = !!element.closest('.notion-collection')
 
-          // ✅ inline DB 내 링크만 Side Peek
+          // ??inline DB ??留곹겕留?Side Peek
           if (isInlineDBLink && pageId && onOpenPeek) {
             onOpenPeek(pageId)
             return
           }
 
-          // 외부 링크면 새 창
+          // ?몃? 留곹겕硫???李?
           if (isExternal) {
             window.open(href, '_blank')
             return
           }
 
-          // 내부 페이지 이동
+          // ?대? ?섏씠吏 ?대룞
           router.push(href)
         }
 
@@ -194,7 +256,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
     [canonicalPageMap, onOpenPeek, parentComponents]
   )
 
-  // ✅ NotionRenderer 반환
+  // ??NotionRenderer 諛섑솚
   return (
     <div className='notion-frame'>
       {mounted ? (
@@ -213,3 +275,5 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
     </div>
   )
 }
+
+

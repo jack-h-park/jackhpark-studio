@@ -711,3 +711,12 @@ svg.notion-collection-column-title-icon {
   height: 100% !important;
 }
 
+/* Inline DB group header tweak */
+.notion-collection-group-title {
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.notion-collection-group-title .notion-property-text {
+  text-transform: capitalize;
+}
