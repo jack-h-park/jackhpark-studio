@@ -1,8 +1,8 @@
 // global styles shared across the entire site
 import 'styles/global.css'
+
 // this might be better for dark mode
 // import 'prismjs/themes/prism-okaidia.css'
-
 import type { AppProps } from 'next/app'
 import * as Fathom from 'fathom-client'
 import { useRouter } from 'next/router'

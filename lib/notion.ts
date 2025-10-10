@@ -9,13 +9,12 @@ import pMemoize from 'p-memoize'
 
 import {
   environment,
+  isNotionPageCacheEnabled,
   isPreviewImageSupportEnabled,
   navigationLinks,
   navigationStyle,
   notionPageCacheKeyPrefix,
-  notionPageCacheTTL,
-  isNotionPageCacheEnabled
-} from './config'
+  notionPageCacheTTL} from './config'
 import { db } from './db'
 import { getTweetsMap } from './get-tweets'
 import { notion } from './notion-api'
@@ -170,7 +169,7 @@ const mergeCollectionQuery = (
   const clone = {
     ...target,
     collection_query: {
-      ...(target?.collection_query ?? {})
+      ...target?.collection_query
     }
   }
 
@@ -223,7 +222,7 @@ type MemoryCacheEntry = {
 const memoryPageCache = new Map<string, MemoryCacheEntry>()
 
 const getPageCacheKey = (pageId: string) => {
-  const normalizedId = pageId.replace(/-/g, '')
+  const normalizedId = pageId.replaceAll('-', '')
   return `${notionPageCacheKeyPrefix}:${environment}:${normalizedId}`
 }
 
@@ -343,7 +342,7 @@ const hydrateGroupedCollectionData = async (
 
       const sanitizedView = sanitizeCollectionViewForGrouping(rawView)
       recordMap.collection_view[viewId] = {
-        ...(recordMap.collection_view[viewId] ?? {}),
+        ...recordMap.collection_view[viewId],
         value: sanitizedView
       }
       const collectionId = sanitizedView?.collection_id as string | undefined
@@ -507,11 +506,11 @@ const hydrateGroupedCollectionData = async (
           if (bucketMap.size > 0) {
               const bucketEntries = Array.from(bucketMap.entries())
               const updatedReducers: Record<string, any> = {
-                ...(normalizedResult?.reducerResults ?? {})
+                ...normalizedResult?.reducerResults
               }
               const topLevelEntries: Record<string, any> = {}
               const listGroupResults: any[] = []
-              const allBlockIds: Set<string> = new Set()
+              const allBlockIds = new Set<string>()
 
               console.debug('[grouped-collection] buckets built', {
                 viewId,
@@ -524,7 +523,7 @@ const hydrateGroupedCollectionData = async (
 
               for (const [label, set] of bucketEntries) {
                 const blockIds = Array.from(set)
-                blockIds.forEach((id) => allBlockIds.add(id))
+                for (const id of blockIds) allBlockIds.add(id)
 
                 const queryLabel = label === UNCATEGORIZED_KEY ? 'uncategorized' : label
                 const resultsKey = `results:${groupType}:${queryLabel}`

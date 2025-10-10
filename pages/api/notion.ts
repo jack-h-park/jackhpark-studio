@@ -1,7 +1,8 @@
 //pages/api/notion.ts
-import { resolveNotionPage } from '@/lib/resolve-notion-page'
-import { domain } from '@/lib/config'
 import type { NextApiRequest, NextApiResponse } from 'next'
+
+import { domain } from '@/lib/config'
+import { resolveNotionPage } from '@/lib/resolve-notion-page'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const id = req.query.id as string
@@ -10,7 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const data = await resolveNotionPage(domain, id)
     res.status(200).json(data)
-  } catch (err) {
+  } catch {
     res.status(404).json({ error: 'Page not found' })
   }
 }

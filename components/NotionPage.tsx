@@ -16,8 +16,8 @@ import type * as types from '@/lib/types'
 import * as config from '@/lib/config'
 import { mapImageUrl } from '@/lib/map-image-url'
 import { getCanonicalPageUrl, mapPageUrl } from '@/lib/map-page-url'
-import { useSidePeek } from '@/lib/use-side-peek'
 import { useDarkMode } from '@/lib/use-dark-mode'
+import { useSidePeek } from '@/lib/use-side-peek'
 
 import { Footer } from './Footer'
 //import { GitHubShareButton } from './GitHubShareButton'
@@ -199,44 +199,43 @@ const propertyTextValue = (
 
 console.log('[Injecting CleanText]')
 // ✅ safer text renderer: normalize react-notion-x rich text → plain inline text
-const CleanText = (props: any) => {
+function renderRichText(item: any): string {
+  if (!Array.isArray(item)) return typeof item === 'string' ? item : ''
+  const [text, decorations]: [string, any[]] = item as [string, any[]]
+  if (!decorations || !Array.isArray(decorations) || decorations.length === 0)
+    return text
+
+  let html: string = text
+  for (const deco of decorations) {
+    if (!Array.isArray(deco)) continue
+    const [type, value] = deco as [string, string | undefined]
+    switch (type) {
+      case 'b':
+        html = `<b>${html}</b>`
+        break
+      case 'i':
+        html = `<i>${html}</i>`
+        break
+      case 'u':
+        html = `<u>${html}</u>`
+        break
+      case 's':
+        html = `<s>${html}</s>`
+        break
+      case 'a':
+        html = `<a href="${value ?? '#'}" target="_blank" rel="noopener noreferrer">${html}</a>`
+        break
+      case 'c':
+        html = `<code>${html}</code>`
+        break
+    }
+  }
+  return html
+}
+
+function CleanText(props: any) {
   const raw: any = props?.value ?? props?.text ?? props?.children ?? ''
   console.log('[CleanText called]', props)
-
-  const renderRichText = (item: any): string => {
-    if (!Array.isArray(item)) return typeof item === 'string' ? item : ''
-    const [text, decorations]: [string, any[]] = item as [string, any[]]
-    if (!decorations || !Array.isArray(decorations) || decorations.length === 0)
-      return text
-
-    let html: string = text
-    for (const deco of decorations) {
-      if (!Array.isArray(deco)) continue
-      const [type, value] = deco as [string, string | undefined]
-      switch (type) {
-        case 'b':
-          html = `<b>${html}</b>`
-          break
-        case 'i':
-          html = `<i>${html}</i>`
-          break
-        case 'u':
-          html = `<u>${html}</u>`
-          break
-        case 's':
-          html = `<s>${html}</s>`
-          break
-        case 'a':
-          html = `<a href="${value ?? '#'}" target="_blank" rel="noopener noreferrer">${html}</a>`
-          break
-        case 'c':
-          html = `<code>${html}</code>`
-          break
-      }
-    }
-    return html
-  }
-
   let html = ''
   try {
     if (Array.isArray(raw)) {
@@ -252,16 +251,16 @@ const CleanText = (props: any) => {
     } else {
       html = String(raw)
     }
-  } catch (e) {
-    console.warn('[CleanText error]', e)
+  } catch (err) {
+    console.warn('[CleanText error]', err)
   }
 
   html = html
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&amp;', '&')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&#39;', "'")
 
   console.log('[HTML preview]', html)
 
@@ -497,3 +496,4 @@ export function NotionPage({
     </>
   )
 }
+// inline grouped list title hiding implemented via sanitized NotionPageRenderer.

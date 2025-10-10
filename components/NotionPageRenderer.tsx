@@ -1,21 +1,17 @@
 'use client'
-import * as React from 'react'
-import { useState } from 'react'
-import type { MapImageUrlFn } from 'react-notion-x'
-import type { NotionComponents } from 'react-notion-x'
-import dynamic from 'next/dynamic'
 import type { ExtendedRecordMap } from 'notion-types'
-
+import dynamic from 'next/dynamic'
+import router from 'next/router'
+import { parsePageId } from 'notion-utils'
+import * as React from 'react'
+import ReactModal from 'react-modal'
+import { type MapImageUrlFn ,type  NotionComponents } from 'react-notion-x'
 // ??react-notion-x 湲곕낯 而댄룷?뚰듃 濡쒕뱶
 import { Code } from 'react-notion-x/build/third-party/code'
 import { Collection } from 'react-notion-x/build/third-party/collection'
 import { Equation } from 'react-notion-x/build/third-party/equation'
-import { Pdf } from 'react-notion-x/build/third-party/pdf'
 import { Modal } from 'react-notion-x/build/third-party/modal'
-import ReactModal from 'react-modal'
-
-import { parsePageId } from 'notion-utils'
-import router from 'next/router'
+import { Pdf } from 'react-notion-x/build/third-party/pdf'
 
 const NotionRenderer = dynamic(
   async () => (await import('react-notion-x')).NotionRenderer,
@@ -38,7 +34,7 @@ interface NotionPageRendererProps {
   onOpenPeek?: (pageId: string) => void // ??遺紐⑥뿉???꾨떖諛쏆쓣 肄쒕갚
 }
 
-export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
+export function NotionPageRenderer({
   recordMap,
   darkMode,
   fullPage,
@@ -50,7 +46,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
   footer,
   components: parentComponents, // ??prop ?대쫫 蹂寃?
   onOpenPeek
-}) => {
+}: NotionPageRendererProps) {
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
@@ -75,11 +71,11 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
     let hasChanges = false
     const patchedViews = { ...views }
 
-    Object.entries(views).forEach(([viewId, view]) => {
+    for (const [viewId, view] of Object.entries(views)) {
       const viewValue = view?.value
 
       if (!view || !viewValue || viewValue.type !== 'list') {
-        return
+        continue
       }
 
       const format = viewValue.format
@@ -87,7 +83,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
       const listProperties = format?.list_properties
 
       if (!Array.isArray(listProperties) || listProperties.length === 0) {
-        return
+        continue
       }
 
       let viewChanged = false
@@ -110,7 +106,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
       })
 
       if (!viewChanged) {
-        return
+        continue
       }
 
       hasChanges = true
@@ -124,7 +120,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
           }
         }
       }
-    })
+    }
 
     if (!hasChanges) {
       return recordMap
@@ -142,11 +138,11 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
       return
     }
 
-    Object.entries(recordMap.collection_view).forEach(([viewId, view]) => {
+    for (const [viewId, view] of Object.entries(recordMap.collection_view)) {
       const viewValue: any = view?.value
       if (!viewValue) {
         console.log('[CollectionDebug] missing view value', { viewId })
-        return
+        continue
       }
 
       const collectionId: string | undefined = viewValue.collection_id
@@ -192,7 +188,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
           ? queryEntry.blockIds.length
           : null
       })
-    })
+    }
   }, [recordMap])
 
 
@@ -213,7 +209,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
           href.startsWith('http://') || href.startsWith('https://')
         const pageId =
           parsePageId(href) ||
-          canonicalPageMap?.[href.replace(/^\/+|\/+$/g, '')]
+          canonicalPageMap?.[href.replaceAll(/^\/+|\/+$/g, '')]
 
         const handleClick = (e: React.MouseEvent) => {
           e.preventDefault()
@@ -243,7 +239,7 @@ export const NotionPageRenderer: React.FC<NotionPageRendererProps> = ({
           }
 
           // ?대? ?섏씠吏 ?대룞
-          router.push(href)
+          void router.push(href)
         }
 
         return (

@@ -1,13 +1,13 @@
-import * as React from 'react'
-import {
-  motion,
-  AnimatePresence,
-  useMotionValue,
-  useTransform,
-  useDragControls
-} from 'framer-motion'
-import { createPortal } from 'react-dom'
 import cs from 'classnames'
+import {
+  AnimatePresence,
+  motion,
+  useDragControls,
+  useMotionValue,
+  useTransform} from 'framer-motion'
+import * as React from 'react'
+import { createPortal } from 'react-dom'
+
 import styles from './SidePeek.module.css'
 
 export interface SidePeekProps {
@@ -16,11 +16,11 @@ export interface SidePeekProps {
   children: React.ReactNode
 }
 
-export const SidePeek: React.FC<SidePeekProps> = ({
+export function SidePeek({
   isOpen,
   onClose,
   children
-}) => {
+}: SidePeekProps) {
   const [mounted, setMounted] = React.useState(false)
   const [isMobile, setIsMobile] = React.useState(false)
   const panelRef = React.useRef<HTMLDivElement | null>(null)
