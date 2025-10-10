@@ -1,5 +1,5 @@
 'use client'
-import type { ExtendedRecordMap } from 'notion-types'
+import type { CollectionQueryResult, ExtendedRecordMap } from 'notion-types'
 import dynamic from 'next/dynamic'
 import router from 'next/router'
 import { parsePageId } from 'notion-utils'
@@ -155,7 +155,19 @@ export function NotionPageRenderer({
       const boardColumns = format?.board_columns
       const groupBy = format?.collection_group_by ?? format?.board_columns_by
 
-      const reducerResults: any = queryEntry?.reducerResults
+      const queryResult =
+        typeof queryEntry === 'object' && queryEntry !== null
+          ? (queryEntry as CollectionQueryResult)
+          : null
+
+      const reducerResults =
+        queryResult &&
+        queryResult.reducerResults &&
+        typeof queryResult.reducerResults === 'object'
+          ? (queryResult.reducerResults as Record<string, any>)
+          : null
+
+      const blockIdsLength = queryResult?.blockIds?.length ?? null
 
       console.log('[CollectionDebug] view snapshot', {
         viewId,
@@ -169,7 +181,7 @@ export function NotionPageRenderer({
         boardColumnsLength: Array.isArray(boardColumns)
           ? boardColumns.length
           : 0,
-        queryKeys: queryEntry ? Object.keys(queryEntry) : null,
+        queryKeys: queryResult ? Object.keys(queryResult) : null,
         reducerKeys: reducerResults ? Object.keys(reducerResults) : null,
         resultsBuckets: reducerResults
           ? Object.entries(reducerResults)
@@ -184,9 +196,7 @@ export function NotionPageRenderer({
                 count: value?.blockIds?.length ?? 0
               }))
           : null,
-        fallbackBlockIdsLength: Array.isArray(queryEntry?.blockIds)
-          ? queryEntry.blockIds.length
-          : null
+        fallbackBlockIdsLength: blockIdsLength
       })
     }
   }, [recordMap])

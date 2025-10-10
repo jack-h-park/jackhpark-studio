@@ -1,5 +1,7 @@
 import {
+  type CollectionView,
   type ExtendedRecordMap,
+  type Role,
   type SearchParams,
   type SearchResults
 } from 'notion-types'
@@ -337,12 +339,17 @@ const hydrateGroupedCollectionData = async (
 
   const targets = Object.entries(collectionViews)
     .map(([viewId, view]) => {
-      const rawView = view?.value as any
+      if (!view || typeof view !== 'object') {
+        return null
+      }
+
+      const typedView = view as { role: Role; value: CollectionView }
+      const rawView = typedView.value
       if (!rawView) return null
 
       const sanitizedView = sanitizeCollectionViewForGrouping(rawView)
       recordMap.collection_view[viewId] = {
-        ...recordMap.collection_view[viewId],
+        ...typedView,
         value: sanitizedView
       }
       const collectionId = sanitizedView?.collection_id as string | undefined
@@ -409,13 +416,11 @@ const hydrateGroupedCollectionData = async (
         )
 
         if (data?.recordMap) {
-          recordMap = mergeRecordMaps(recordMap, {
-            ...data.recordMap,
-            collection_query: undefined
-          })
+          recordMap = mergeRecordMaps(recordMap, data.recordMap as any)
 
-          const fetchedEntry =
-            data.recordMap.collection_query?.[collectionId]?.[viewId]
+          const fetchedEntry = (
+            data.recordMap as ExtendedRecordMap
+          ).collection_query?.[collectionId]?.[viewId]
           if (fetchedEntry) {
             recordMap = mergeCollectionQuery(
               recordMap,
