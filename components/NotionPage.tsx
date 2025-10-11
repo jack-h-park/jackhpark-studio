@@ -404,7 +404,8 @@ export function NotionPage({
   const peekComponents = React.useMemo<Partial<NotionComponents>>(
     () => ({
       ...components,
-      Header: (_headerProps) => null
+      Header: (_headerProps: React.ComponentProps<typeof NotionPageHeader>) =>
+        null
     }),
     [components]
   )
