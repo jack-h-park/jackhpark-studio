@@ -6,7 +6,8 @@ import { parsePageId } from 'notion-utils'
 import * as React from 'react'
 import ReactModal from 'react-modal'
 import { type MapImageUrlFn ,type  NotionComponents } from 'react-notion-x'
-// ??react-notion-x 湲곕낯 而댄룷?뚰듃 濡쒕뱶
+import { SIDE_PEEK_DISABLED_COLLECTION_IDS, SIDE_PEEK_DISABLED_COLLECTION_BLOCK_IDS } from '@/lib/side-peek.config'
+// ??react-notion-x 疫꿸퀡???뚮똾猷??곕뱜 嚥≪뮆諭?
 import { Code } from 'react-notion-x/build/third-party/code'
 import { Collection } from 'react-notion-x/build/third-party/collection'
 import { Equation } from 'react-notion-x/build/third-party/equation'
@@ -30,8 +31,8 @@ interface NotionPageRendererProps {
   mapImageUrl?: MapImageUrlFn
   pageAside?: React.ReactNode
   footer?: React.ReactNode
-  components?: Partial<NotionComponents> // ??components prop 異붽?
-  onOpenPeek?: (pageId: string) => void // ??遺紐⑥뿉???꾨떖諛쏆쓣 肄쒕갚
+  components?: Partial<NotionComponents> // ??components prop ?곕떽?
+  onOpenPeek?: (pageId: string) => void // ???봔筌뤴뫁肉???袁⑤뼎獄쏆룇???꾩뮆媛?
 }
 
 export function NotionPageRenderer({
@@ -44,13 +45,13 @@ export function NotionPageRenderer({
   mapImageUrl,
   pageAside,
   footer,
-  components: parentComponents, // ??prop ?대쫫 蹂寃?
+  components: parentComponents, // ??prop ??已?癰궰野?
   onOpenPeek
 }: NotionPageRendererProps) {
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
-    // DOM???뺤떎??以鍮꾨맂 ?꾩뿉 mount
+    // DOM???類ㅻ뼄??餓Β??쑬留??袁⑸퓠 mount
     const timer = requestAnimationFrame(() => setMounted(true))
 
     if (typeof window !== 'undefined' && !modalInitialized) {
@@ -203,7 +204,7 @@ export function NotionPageRenderer({
 
 
 
-  // ??遺紐?而댄룷?뚰듃?먯꽌 諛쏆? components? PageLink ?ㅻ쾭?쇱씠?쒕? 蹂묓빀
+  // ???봔筌??뚮똾猷??곕뱜?癒?퐣 獄쏆룇? components?? PageLink ??살쒔??깆뵠??? 癰귣쵑鍮
   const components = React.useMemo(
     () => ({
       ...parentComponents,
@@ -213,7 +214,13 @@ export function NotionPageRenderer({
       Pdf,
       Modal,
       PageLink: ({ href, children, className, ...props }: any) => {
-        if (!href) return <a {...props}>{children}</a>
+        if (!href) {
+          return (
+            <a className={className} {...props}>
+              {children}
+            </a>
+          )
+        }
 
         const isExternal =
           href.startsWith('http://') || href.startsWith('https://')
@@ -227,28 +234,67 @@ export function NotionPageRenderer({
 
           console.log('[PageLink clicked]', href)
           console.log('canonicalPageMap?', canonicalPageMap)
-          console.log('onOpenPeek 議댁옱?', !!onOpenPeek)
+          console.log('onOpenPeek 鈺곕똻??', !!onOpenPeek)
           console.log('onOpenPeek pageId?', pageId)
 
-          // ?몙 ?ш린??element瑜?紐낆떆?곸쑝濡??좎뼵?댁빞 ??
+          // Identify the inline collection element (if any) that owns this link
           const element = e.currentTarget as HTMLElement
+          const collectionElement = element.closest('.notion-collection') as HTMLElement | null
 
-          // ??inline database ?대??몄? ?먮퀎
-          const isInlineDBLink = !!element.closest('.notion-collection')
+          const inlineCollectionBlockId = collectionElement
+            ? collectionElement.dataset?.blockId ??
+              collectionElement.getAttribute('data-block-id') ??
+              collectionElement
+                .closest('[data-block-id]')
+                ?.getAttribute('data-block-id') ??
+              Array.from(collectionElement.classList ?? []).find((className) =>
+                className.startsWith('notion-block-')
+              )?.replace('notion-block-', '') ??
+              null
+            : null
 
-          // ??inline DB ??留곹겕留?Side Peek
-          if (isInlineDBLink && pageId && onOpenPeek) {
+          const normalizedCollectionBlockId = inlineCollectionBlockId
+            ? inlineCollectionBlockId.replace(/-/g, '')
+            : null
+
+          const isInlineDBLink = !!collectionElement
+
+          const parentCollectionId = pageId
+            ? sanitizedRecordMap?.block?.[pageId]?.value?.parent_id
+            : null
+
+          const normalizedParentCollectionId = parentCollectionId
+            ? parentCollectionId.replace(/-/g, '')
+            : null
+
+          const shouldBypassSidePeek =
+            (normalizedParentCollectionId &&
+              SIDE_PEEK_DISABLED_COLLECTION_IDS.has(
+                normalizedParentCollectionId
+              )) ||
+            (normalizedCollectionBlockId &&
+              SIDE_PEEK_DISABLED_COLLECTION_BLOCK_IDS.has(
+                normalizedCollectionBlockId
+              ))
+
+          // Inline DB links trigger Side Peek unless the collection opts out
+          if (
+            isInlineDBLink &&
+            pageId &&
+            onOpenPeek &&
+            !shouldBypassSidePeek
+          ) {
             onOpenPeek(pageId)
             return
           }
 
-          // ?몃? 留곹겕硫???李?
+          // ?紐? 筌띻낱寃뺧쭖???筌?
           if (isExternal) {
             window.open(href, '_blank')
             return
           }
 
-          // ?대? ?섏씠吏 ?대룞
+          // ??? ??륁뵠筌왖 ??猷?
           void router.push(href)
         }
 
@@ -259,10 +305,10 @@ export function NotionPageRenderer({
         )
       }
     }),
-    [canonicalPageMap, onOpenPeek, parentComponents]
+    [canonicalPageMap, onOpenPeek, parentComponents, sanitizedRecordMap]
   )
 
-  // ??NotionRenderer 諛섑솚
+  // ??NotionRenderer 獄쏆꼹??
   return (
     <div className='notion-frame'>
       {mounted ? (
@@ -281,5 +327,6 @@ export function NotionPageRenderer({
     </div>
   )
 }
+
 
 

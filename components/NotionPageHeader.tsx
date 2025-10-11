@@ -4,6 +4,7 @@ import { IoSunnyOutline } from '@react-icons/all-files/io5/IoSunnyOutline'
 import cs from 'classnames'
 import * as React from 'react'
 import { Breadcrumbs, Header, Search, useNotionContext } from 'react-notion-x'
+import { getBlockTitle, getPageBreadcrumbs } from 'notion-utils'
 
 import { isSearchEnabled, navigationLinks, navigationStyle } from '@/lib/config'
 import { useDarkMode } from '@/lib/use-dark-mode'
@@ -37,9 +38,28 @@ export function NotionPageHeader({
 }: {
   block: types.CollectionViewPageBlock | types.PageBlock
 }) {
-  const { components, mapPageUrl } = useNotionContext()
+  const { components, mapPageUrl, recordMap } = useNotionContext()
 
   console.log('[Real Header] 렌더링됨 =', block)
+
+  const breadcrumbs = React.useMemo(() => {
+    if (!block?.id || !recordMap) {
+      return []
+    }
+
+    return getPageBreadcrumbs(recordMap, block.id) ?? []
+  }, [block?.id, recordMap])
+
+  const fallbackBreadcrumbs = React.useMemo(() => {
+    const title = getBlockTitle(block, recordMap) || 'Untitled'
+
+    return [
+      {
+        pageId: block?.id,
+        title
+      }
+    ]
+  }, [block, recordMap])
 
   if (navigationStyle === 'default') {
     return <Header block={block} />
@@ -48,7 +68,26 @@ export function NotionPageHeader({
   return (
     <header className='notion-header'>
       <div className='notion-nav-header'>
-        <Breadcrumbs block={block} rootOnly={true} />
+        <div className='breadcrumbs'>
+          {breadcrumbs.length > 0 ? (
+            <Breadcrumbs block={block} />
+          ) : (
+            fallbackBreadcrumbs.map((breadcrumb: any, index: number) => {
+              const IconComponent = components.PageIcon ?? null
+
+              return (
+                <React.Fragment key={breadcrumb.pageId || index}>
+                  <div className='breadcrumb active'>
+                    {IconComponent ? (
+                      <IconComponent className='icon' block={block} />
+                    ) : null}
+                    <span className='title'>{breadcrumb.title}</span>
+                  </div>
+                </React.Fragment>
+              )
+            })
+          )}
+        </div>
 
         <div className='notion-nav-header-rhs breadcrumbs'>
           {navigationLinks
