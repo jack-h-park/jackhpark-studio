@@ -48,7 +48,10 @@ export const inversePageUrlOverrides = invertPageUrlOverrides(pageUrlOverrides)
 export const environment = process.env.NODE_ENV || 'development'
 export const isDev = environment === 'development'
 
-const defaultNotionPageCacheTTLSeconds = isDev ? '0' : '300'
+const notionPageCacheTTLFromConfig =
+  getSiteConfig('notionPageCacheTTLSeconds', isDev ? 0 : 300) ??
+  (isDev ? 0 : 300)
+const defaultNotionPageCacheTTLSeconds = String(notionPageCacheTTLFromConfig)
 
 // general site config
 export const name: string = getRequiredSiteConfig('name')

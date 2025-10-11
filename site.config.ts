@@ -35,6 +35,9 @@ export default siteConfig({
   // whether or not to enable support for LQIP preview images (optional)
   isPreviewImageSupportEnabled: true,
 
+  // default TTL (in seconds) for cached Notion pages; can be overridden via env
+  notionPageCacheTTLSeconds: 60,
+
   // whether or not redis is enabled for caching generated preview images (optional)
   // NOTE: if you enable redis, you need to set the `REDIS_HOST` and `REDIS_PASSWORD`
   // environment variables. see the readme for more info

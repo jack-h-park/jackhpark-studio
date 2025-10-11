@@ -6,13 +6,14 @@ import { parsePageId } from 'notion-utils'
 import * as React from 'react'
 import ReactModal from 'react-modal'
 import { type MapImageUrlFn ,type  NotionComponents } from 'react-notion-x'
-import { SIDE_PEEK_DISABLED_COLLECTION_IDS, SIDE_PEEK_DISABLED_COLLECTION_BLOCK_IDS } from '@/lib/side-peek.config'
 // ??react-notion-x 疫꿸퀡???뚮똾猷??곕뱜 嚥≪뮆諭?
 import { Code } from 'react-notion-x/build/third-party/code'
 import { Collection } from 'react-notion-x/build/third-party/collection'
 import { Equation } from 'react-notion-x/build/third-party/equation'
 import { Modal } from 'react-notion-x/build/third-party/modal'
 import { Pdf } from 'react-notion-x/build/third-party/pdf'
+
+import { SIDE_PEEK_DISABLED_COLLECTION_BLOCK_IDS,SIDE_PEEK_DISABLED_COLLECTION_IDS } from '@/lib/side-peek.config'
 
 const NotionRenderer = dynamic(
   async () => (await import('react-notion-x')).NotionRenderer,
@@ -243,10 +244,9 @@ export function NotionPageRenderer({
 
           const inlineCollectionBlockId = collectionElement
             ? collectionElement.dataset?.blockId ??
-              collectionElement.getAttribute('data-block-id') ??
+              collectionElement.dataset.blockId ??
               collectionElement
-                .closest('[data-block-id]')
-                ?.getAttribute('data-block-id') ??
+                .closest('[data-block-id]')?.dataset.blockId ??
               Array.from(collectionElement.classList ?? []).find((className) =>
                 className.startsWith('notion-block-')
               )?.replace('notion-block-', '') ??
@@ -254,7 +254,7 @@ export function NotionPageRenderer({
             : null
 
           const normalizedCollectionBlockId = inlineCollectionBlockId
-            ? inlineCollectionBlockId.replace(/-/g, '')
+            ? inlineCollectionBlockId.replaceAll('-', '')
             : null
 
           const isInlineDBLink = !!collectionElement
@@ -264,7 +264,7 @@ export function NotionPageRenderer({
             : null
 
           const normalizedParentCollectionId = parentCollectionId
-            ? parentCollectionId.replace(/-/g, '')
+            ? parentCollectionId.replaceAll('-', '')
             : null
 
           const shouldBypassSidePeek =

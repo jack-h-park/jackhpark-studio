@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Inline database IDs (collection parent IDs) that should opt out of Side Peek.
  * Provide the 32-character ID without dashes.
  */
