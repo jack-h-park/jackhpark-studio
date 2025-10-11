@@ -457,6 +457,7 @@ const hydrateGroupedCollectionData = async (
             })
             const bucketMap = new Map<string, Set<string>>()
             const UNCATEGORIZED_KEY = 'uncategorized'
+            const UNCATEGORIZED_LABEL = 'Uncategorized'
 
             for (const [blockId, blockWrapper] of Object.entries(
               recordMap.block ?? {}
@@ -509,7 +510,14 @@ const hydrateGroupedCollectionData = async (
             }
 
           if (bucketMap.size > 0) {
-              const bucketEntries = Array.from(bucketMap.entries())
+              const bucketEntries = Array.from(bucketMap.entries()).map(
+                ([label, set]) => ({
+                  originalLabel: label,
+                  displayLabel:
+                    label === UNCATEGORIZED_KEY ? UNCATEGORIZED_LABEL : label,
+                  set
+                })
+              )
               const updatedReducers: Record<string, any> = {
                 ...normalizedResult?.reducerResults
               }
@@ -520,19 +528,26 @@ const hydrateGroupedCollectionData = async (
               console.debug('[grouped-collection] buckets built', {
                 viewId,
                 collectionId,
-                buckets: bucketEntries.map(([label, set]) => ({
-                  label,
+                buckets: bucketEntries.map(({ displayLabel, set }) => ({
+                  label: displayLabel,
                   count: set.size
                 }))
               })
 
-              for (const [label, set] of bucketEntries) {
+              for (const { originalLabel, displayLabel, set } of bucketEntries) {
                 const blockIds = Array.from(set)
                 for (const id of blockIds) allBlockIds.add(id)
 
-                const queryLabel = label === UNCATEGORIZED_KEY ? 'uncategorized' : label
-                const resultsKey = `results:${groupType}:${queryLabel}`
-                const aggregationKey = `group_aggregation:${groupType}:${queryLabel}`
+                const originalResultsKey = `results:${groupType}:${originalLabel}`
+                const originalAggregationKey = `group_aggregation:${groupType}:${originalLabel}`
+
+                delete updatedReducers[originalResultsKey]
+                delete updatedReducers[originalAggregationKey]
+                delete (normalizedResult as any)[originalResultsKey]
+                delete (normalizedResult as any)[originalAggregationKey]
+
+                const resultsKey = `results:${groupType}:${displayLabel}`
+                const aggregationKey = `group_aggregation:${groupType}:${displayLabel}`
 
                 const resultEntry = {
                   type: 'results',
@@ -556,11 +571,11 @@ const hydrateGroupedCollectionData = async (
                 listGroupResults.push({
                   value: {
                     type: groupType,
-                    value: queryLabel
+                    value: displayLabel
                   },
-                  visible: true
-                })
-              }
+                visible: true
+              })
+            }
 
               normalizedResult = sanitizeForJSON({
                 ...normalizedResult,
@@ -586,27 +601,42 @@ const hydrateGroupedCollectionData = async (
                 normalizedResult.list_groups.results = normalizedResult.list_groups.results.map(
                   (group: any, index: number) => {
                     if (!group) return group
-                    if (group.value === null || group.value === undefined) {
-                      const label = bucketEntries[index]?.[0] ?? UNCATEGORIZED_KEY
+                    const entry = bucketEntries[index]
+                    const displayLabel =
+                      entry?.displayLabel ?? UNCATEGORIZED_LABEL
+
+                    if (
+                      typeof group.value === 'object' &&
+                      group.value !== null
+                    ) {
                       return {
                         ...group,
                         value: {
+                          ...group.value,
                           type: groupType,
-                          value: label === UNCATEGORIZED_KEY ? 'uncategorized' : label
+                          value: displayLabel
                         }
                       }
                     }
-                    return group
+
+                    return {
+                      ...group,
+                      value: {
+                        type: groupType,
+                        value: displayLabel
+                      }
+                    }
                   }
                 )
 
                 const view = recordMap.collection_view?.[viewId]
                 if (view?.value?.format) {
-                  view.value.format.collection_groups = bucketEntries.map(([label]) =>
+                  view.value.format.collection_groups = bucketEntries.map(
+                    ({ displayLabel }) =>
                     normalizeGroupValue({
                       value: {
                         type: groupType,
-                        value: label === UNCATEGORIZED_KEY ? 'uncategorized' : label
+                        value: displayLabel
                       },
                       property: groupByProperty,
                       hidden: false
