@@ -42,14 +42,14 @@ importers:
         specifier: ^15.5.3
         version: 15.5.3(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       notion-client:
-        specifier: ^7.6.0
-        version: 7.6.0
+        specifier: ^7.7.1
+        version: 7.7.1
       notion-types:
-        specifier: ^7.6.0
-        version: 7.6.0
+        specifier: ^7.7.1
+        version: 7.7.1
       notion-utils:
-        specifier: ^7.6.0
-        version: 7.6.0
+        specifier: ^7.7.1
+        version: 7.7.1
       p-map:
         specifier: ^7.0.3
         version: 7.0.3
@@ -1760,16 +1760,24 @@ packages:
     resolution: {integrity: sha512-X06Mfd/5aKsRHc0O0J5CUedwnPmnDtLF2+nq+KN9KSDlJHkPuh0JUviWjEWMe0SW/9TDdSLVPuk7L5gGTIA1/w==}
     engines: {node: '>=14.16'}
 
-  notion-client@7.6.0:
-    resolution: {integrity: sha512-nnO4Tbn6gP/r3xHgHuyxjYiWgLPQ32HsPh4cU6Feg27+vQtQnKfYnLjC3YZWNp1Ni2E0BQYxPQq/mW6w/3YnSQ==}
+  notion-client@7.7.1:
+    resolution: {integrity: sha512-xBz/+Lr7V40TpVpvMYb3Xw9lcxHhN+zvCc0JtNhVICTV5jnuMwIjQkSpaT8+gqlhBif+6DYEnMZptBrONWBPyQ==}
     engines: {node: '>=18'}
 
   notion-types@7.6.0:
     resolution: {integrity: sha512-jFXrNjGiHLDkz0f2wktD8J3tsse4U+UX5+UG6+CpfwruGh+2zrPY6Qo1SdIccLxS17rzBMYcU8gtSACBpexOmA==}
     engines: {node: '>=18'}
 
+  notion-types@7.7.1:
+    resolution: {integrity: sha512-565D6k9rjRomec063p17iZe93ixhcomoDXy7K/Eq7t5826MUiU+g3IJiykoiDbBgx+cxn/4JHaHZIux+DYv74g==}
+    engines: {node: '>=18'}
+
   notion-utils@7.6.0:
     resolution: {integrity: sha512-DOP1vK4MBWhFcYFUEtFzGR6H6KZQz3PGJkmvB+/gCfjGd8Y2NSDelj+Eypelz16PtPALUAJmvx2e19Oegxcq2g==}
+    engines: {node: '>=18'}
+
+  notion-utils@7.7.1:
+    resolution: {integrity: sha512-NZuG45RBUtBIh9djHylehsmdyFpByvY+bND8Xh9ihIFs8T9QVBwGq4l7sNfDJv0Pl9cmXven5jkUDYs9bAJOFA==}
     engines: {node: '>=18'}
 
   npm-normalize-package-bin@4.0.0:
@@ -4212,14 +4220,16 @@ snapshots:
 
   normalize-url@8.1.0: {}
 
-  notion-client@7.6.0:
+  notion-client@7.7.1:
     dependencies:
-      notion-types: 7.6.0
-      notion-utils: 7.6.0
+      notion-types: 7.7.1
+      notion-utils: 7.7.1
       ofetch: 1.4.1
       p-map: 7.0.3
 
   notion-types@7.6.0: {}
+
+  notion-types@7.7.1: {}
 
   notion-utils@7.6.0:
     dependencies:
@@ -4227,6 +4237,14 @@ snapshots:
       memoize: 10.1.0
       normalize-url: 8.1.0
       notion-types: 7.6.0
+      p-queue: 8.1.1
+
+  notion-utils@7.7.1:
+    dependencies:
+      is-url-superb: 6.1.0
+      memoize: 10.1.0
+      normalize-url: 8.1.0
+      notion-types: 7.7.1
       p-queue: 8.1.1
 
   npm-normalize-package-bin@4.0.0: {}

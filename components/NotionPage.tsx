@@ -401,6 +401,14 @@ export function NotionPage({
     []
   )
 
+  const peekComponents = React.useMemo<Partial<NotionComponents>>(
+    () => ({
+      ...components,
+      Header: (_headerProps) => null
+    }),
+    [components]
+  )
+
   React.useEffect(() => {
     if (components) {
       console.log('[Notion components override]', Object.keys(components))
@@ -487,7 +495,7 @@ export function NotionPage({
             canonicalPageMap={canonicalPageMap}
             fullPage={!isLiteMode}
             darkMode={isDarkMode}
-            components={components}
+            components={peekComponents}
             mapPageUrl={siteMapPageUrl as any}
             mapImageUrl={mapImageUrl as any}
           />
