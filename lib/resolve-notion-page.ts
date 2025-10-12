@@ -64,7 +64,7 @@ export async function resolveNotionPage(
       // Step 5: canonicalPageMap fallback (siteMap lookup)
       const siteMap = await getSiteMap()
       canonicalPageMap = siteMap.canonicalPageMap
-      pageId = canonicalPageMap[rawPageId]
+      pageId = findPageIdFromCanonicalMap(canonicalPageMap, rawPageId)
 
       if (pageId) {
         recordMap = await getPage(pageId)
@@ -101,6 +101,51 @@ export async function resolveNotionPage(
    */
   const props: PageProps = { site, recordMap, pageId, canonicalPageMap }
   return { ...props, ...(await acl.pageAcl(props)) }
+}
+
+function findPageIdFromCanonicalMap(
+  canonicalPageMap: PageProps['canonicalPageMap'],
+  rawPageId: string
+): string | undefined {
+  if (!canonicalPageMap) {
+    return undefined
+  }
+
+  const trimmedRawPageId = rawPageId.replaceAll(/^\/+|\/+$/g, '')
+  const normalizedRawPageId = trimmedRawPageId.toLowerCase()
+
+  const directMatch =
+    canonicalPageMap[trimmedRawPageId] ||
+    canonicalPageMap[normalizedRawPageId] ||
+    canonicalPageMap[rawPageId]
+
+  if (directMatch) {
+    return directMatch
+  }
+
+  for (const [canonicalPath, notionPageId] of Object.entries(
+    canonicalPageMap
+  )) {
+    const normalizedCanonicalPath = canonicalPath.toLowerCase()
+
+    if (normalizedCanonicalPath === normalizedRawPageId) {
+      return notionPageId
+    }
+
+    const canonicalWithoutUuid = normalizedCanonicalPath.replace(
+      /-[0-9a-f]{32}$/i,
+      ''
+    )
+
+    if (
+      canonicalWithoutUuid &&
+      canonicalWithoutUuid === normalizedRawPageId
+    ) {
+      return notionPageId
+    }
+  }
+
+  return undefined
 }
 
 
