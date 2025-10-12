@@ -68,9 +68,16 @@
   width: 100% !important;
 }
 
+.notion-header {
+  max-width: none;
+}
+
 .notion-header .notion-nav-header {
-  max-width: 1100px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0 clamp(16px, 4vw, 72px);
+  box-sizing: border-box;
   overflow-x: auto;
 }
 
@@ -277,11 +284,6 @@
   }
 }
 
-.notion .notion-page-icon-cover {
-  margin-left: auto;
-  margin-right: auto;
-}
-
 .notion-title {
   /* 이전 버전에서 사용하던 정렬 방식 참고 */
   display: block;
@@ -326,12 +328,21 @@
 .notion-page-cover-wrapper,
 .notion-page-cover-wrapper span,
 .notion-page-cover-wrapper img {
-  max-width: 1200px !important;
+  width: 100% !important;
+  max-width: none !important;
   border-radius: 24px;
 }
 
 .notion-page-cover-wrapper {
+  margin: 0 auto;
   box-shadow: 2px 2px 8px 4px rgba(15, 15, 15, 0.1);
+}
+
+.notion.notion-full-width .notion-page-cover-wrapper,
+.notion.notion-full-width .notion-page-cover-wrapper span,
+.notion.notion-full-width .notion-page-cover-wrapper img {
+  border-radius: 0;
+  margin: 0;
 }
 
 @media only screen and (max-width: 1200px) {
@@ -558,17 +569,21 @@ svg.notion-collection-column-title-icon {
 }  */
 
 .notion-page[data-page-id="28299029c0b481ce8999d425287d3db6"] .notion-page-icon-hero {
- transform: translateX(-140px); /* 임시 위치 보정 */
+  transform: translateX(-140px); /* 임시 위치 보정 */
   justify-content: center;
 }
 
-/* 헤더 여백 조정 제거 */
-.notion-page-icon-hero {
-  display: flex;
+.notion.notion-full-width .notion-page-icon-hero {
+  left: clamp(16px, 4vw, 72px);
+}
 
-  /* 헤더 아이콘이 지나치게 벌어지지 않도록 간격 제한 */
- 
- 
+.notion.notion-full-width .notion-page-icon-hero.notion-page-icon-image,
+.notion.notion-full-width .notion-page-icon-hero.notion-page-icon-span {
+  margin-left: 0;
+}
+
+.notion.notion-full-width .notion-page-icon-hero .notion-page-icon-cover {
+  margin: 0;
 }
 
 .notion-header {
