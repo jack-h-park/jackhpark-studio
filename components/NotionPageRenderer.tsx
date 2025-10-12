@@ -242,11 +242,13 @@ export function NotionPageRenderer({
           const element = e.currentTarget as HTMLElement
           const collectionElement = element.closest('.notion-collection') as HTMLElement | null
 
+          const closestDataBlockElement = collectionElement
+            ? (collectionElement.closest('[data-block-id]') as HTMLElement | null)
+            : null
+
           const inlineCollectionBlockId = collectionElement
             ? collectionElement.dataset?.blockId ??
-              collectionElement.dataset.blockId ??
-              collectionElement
-                .closest('[data-block-id]')?.dataset.blockId ??
+              closestDataBlockElement?.dataset?.blockId ??
               Array.from(collectionElement.classList ?? []).find((className) =>
                 className.startsWith('notion-block-')
               )?.replace('notion-block-', '') ??

@@ -78,7 +78,7 @@
   gap: 0.5rem;
 }
 
-/* 아래는 전부 내가 넣은거 */
+/* ?�래???��? ?��? ?��?�?*/
 /* .notion-page-title {
   font-size: 1.2rem !important;
   font-weight: 600; 
@@ -87,17 +87,17 @@
 
 
 
-/* ✅ 테이블 안에 한정된 page title 줄바꿈 허용 */
+/* ???�이�??�에 ?�정??page title 줄바�??�용 */
 .notion-table-view .notion-page-title-text {
-  white-space: normal !important;      /* nowrap → normal 로 강제 변경 */
+  white-space: normal !important;      /* nowrap ??normal �?강제 변�?*/
   word-break: break-word !important;
   overflow-wrap: anywhere !important;
-  text-overflow: unset !important;     /* ellipsis 제거 */
-  display: inline !important;          /* block 아님: 아이콘 정렬 유지 */
+  text-overflow: unset !important;     /* ellipsis ?�거 */
+  display: inline !important;          /* block ?�님: ?�이�??�렬 ?��? */
   line-height: 1.4 !important;
 }
 
-/* ✅ 테이블 아이콘 설정 */
+/* ???�이�??�이�??�정 */
 .notion-table-view .notion-page-icon-inline {
   width: 1.5em !important;
   height: 1.5em !important;
@@ -107,7 +107,7 @@
 
 
 
-/* ✅ 그 외 보조적 설정 -> 삭제할까 */
+/* ??�???보조???�정 -> ??��?�까 */
 .notion-table-view .notion-property-title {
   display: flex !important;
   align-items: center !important;
@@ -122,44 +122,53 @@
   padding: 2px 4px !important;
 }
 
-/* ✅ 테이블 내 제목(아이콘+텍스트) 수직 정렬 */
+/* ???�이�????�목(?�이�??�스?? ?�직 ?�렬 */
 .notion-table-view .notion-page-title {
-  display: inline-flex !important; /* inline-flex로 변경하여 다른 요소와 어울리게 함 */
-  align-items: center !important;  /* 자식 요소(아이콘, 텍스트)를 수직 중앙 정렬 */
-  gap: 6px !important;             /* 아이콘과 텍스트 사이 간격 */
-  width: 100%;                     /* 셀 너비 전체를 차지하도록 설정 */
+  display: inline-flex !important; /* inline-flex�?변경하???�른 ?�소?� ?�울리게 ??*/
+  align-items: center !important;  /* ?�식 ?�소(?�이�? ?�스??�??�직 중앙 ?�렬 */
+  gap: 6px !important;             /* ?�이콘과 ?�스???�이 간격 */
+  width: 100%;                     /* ?� ?�비 ?�체�?차�??�도�??�정 */
 }
 
 
-/* ✅ 테이블 전체 여백 초기화 */
+/* ???�이�??�체 ?�백 초기??*/
 .notion-table,
 .notion-table-view {
   margin-left: 0 !important;
-  padding-left: 16px !important; /* 왼쪽 여백 추가 */
-  padding-right: 16px !important; /* 오른쪽 여백도 균형 있게 */
+  padding-left: 16px !important; /* ?�쪽 ?�백 추�? */
+  padding-right: 16px !important; /* ?�른�??�백??균형 ?�게 */
   width: 100% !important;
   box-sizing: border-box;
 }
 
-/* ✅ 위아래 간격을 적당히 유지 */
+/* ???�아??간격???�당???��? */
 .notion-table,
 .notion-collection {
   margin-top: 0 !important;
   margin-bottom: 1.25rem !important;
 }
 
-/* ✅ 셀 내부 여백(Compact Table 스타일) */
+/* ???� ?��? ?�백(Compact Table ?��??? */
 .notion-table td,
 .notion-table th {
   padding: 0.4rem 0.6rem !important;
 }
 
-/* ✅ 헤더 텍스트 두께 살짝 줄이기 */
+/* ???�더 ?�스???�께 ?�짝 줄이�?*/
 .notion-table th {
   font-weight: 500 !important;
 }
+.dark-mode .notion-table,
+.dark-mode .notion-table td,
+.dark-mode .notion-table th,
+.dark-mode .notion-table-view,
+.dark-mode .notion-table-view td,
+.dark-mode .notion-table-view th {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
 
-/* 아래는 전부 내가 주석처리한거 */
+
+/* ?�래???��? ?��? 주석처리?�거 */
 /* .notion-gallery-grid {
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   grid-gap: 3vmin;
@@ -274,22 +283,22 @@
 }
 
 .notion-title {
-  /* 원래 있던거 */
+  /* ?�래 ?�던�?*/
   display: block;
   text-align: center;
 
-  /* 제목 폰트 크기 조절하려고 내가 추가한거 */
-  font-size: 1.6rem !important; /* 기본은 약 2rem */
+  /* ?�목 ?�트 ?�기 조절?�려�??��? 추�??�거 */
+  font-size: 1.6rem !important; /* 기본?� ??2rem */
   line-height: 1.2 !important;
 }
 
-/* 제목 위아래 여백 조절 */
+/* ?�목 ?�아???�백 조절 */
 .notion-page-block .notion-title {
   margin-top: 0.2em !important;  
   margin-bottom: 0.1em !important;
 }
 
-/* 제목과 아이콘, 커버 이미지 간의 여백 줄이기 */
+/* ?�목�??�이�? 커버 ?��?지 간의 ?�백 줄이�?*/
 /* .notion-page {
   padding-top: 7.0em !important;
 } */
@@ -339,7 +348,7 @@
   transition: background-color 0.2s ease;
 }
 
-/* ✅ 컬럼 헤더 아이콘 완전히 숨기기 (전역) */
+/* ??컬럼 ?�더 ?�이�??�전???�기�?(?�역) */
 .notion-collection-view-type-table th .notion-collection-column-title-icon,
 .notion-collection .notion-collection-column-title .notion-collection-column-title-icon,
 th .notion-collection-column-title-icon,
@@ -353,7 +362,7 @@ svg.notion-collection-column-title-icon {
   overflow: hidden !important;
 }
 
-/* 누가 넣은거지? */
+/* ?��? ?��?거�?? */
 /* .notion-block-ab9a258d6cf444f3bb40dc2600feae91 .notion-page-link {
   justify-content: center;
   padding: 50em;
@@ -491,8 +500,8 @@ svg.notion-collection-column-title-icon {
   background-image: none !important;
 } 
 
-/* 🌙 Notion dark mode background color tuning 
- ChatGPT 통해서 내가 추가한거 */
+/* ?�� Notion dark mode background color tuning 
+ ChatGPT ?�해???��? 추�??�거 */
 .dark-mode .notion-red_background {
   background-color: rgba(255, 99, 99, 0.25) !important;
   color: #ffb3b3 !important;
@@ -549,15 +558,15 @@ svg.notion-collection-column-title-icon {
 }  */
 
 .notion-page[data-page-id="28299029c0b481ce8999d425287d3db6"] .notion-page-icon-hero {
- transform: translateX(-140px); /* 예시 */
+ transform: translateX(-140px); /* ?�시 */
   justify-content: center;
 }
 
-/* 내가 추가 한거 */
+/* ?��? 추�? ?�거 */
 .notion-page-icon-hero {
   display: flex;
 
-  /* 이걸 넣으면 아래 제목과 갑자기 벌어짐 */
+  /* ?�걸 ?�으�??�래 ?�목�?갑자�?벌어�?*/
  
  
 }
@@ -609,12 +618,12 @@ svg.notion-collection-column-title-icon {
   align-items: center;
 }
 
-/* Skill 나온 부분 데이터베이스(28299029c0b48122955acc4102667636) 안의 카드 클릭 비활성화 */
+/* Skill ?�온 부�??�이?�베?�스(28299029c0b48122955acc4102667636) ?�의 카드 ?�릭 비활?�화 */
 /* .notion-block-28299029c0b48122955acc4102667636 .notion-collection-card {
   pointer-events: none !important;
 } */
 
-/* hover 효과 제거 (이미지 밝기, 테두리 변화 등) 
+/* hover ?�과 ?�거 (?��?지 밝기, ?�두�?변???? 
 .notion-block-28299029c0b48122955acc4102667636 .notion-collection-card:hover {
   transform: none !important;
   box-shadow: none !important;
@@ -622,29 +631,29 @@ svg.notion-collection-column-title-icon {
 }
 */
 
-/* 문단(텍스트 블록) 간 간격 줄이기 */
+/* 문단(?�스??블록) �?간격 줄이�?*/
 .notion-text-block {
   margin-bottom: 0.3em !important;
 }
 
-/* 문단 안 <p> 태그에도 여백이 있다면 함께 줄이기 */
+/* 문단 ??<p> ?�그?�도 ?�백???�다�??�께 줄이�?*/
 .notion-text-block > p {
   margin-bottom: 0.3em !important;
 }
 
-/* 문단 사이 너무 좁게 보이면 약간만 띄우기 */
+/* 문단 ?�이 ?�무 좁게 보이�??�간�??�우�?*/
 .notion-text-block + .notion-text-block {
   margin-top: 0.2em !important;
 }
 
 
 
-/* ▶︎ 아이콘 숨기기 */
+/* ?�︎ ?�이�??�기�?*/
 .notion-table-cell-place summary {
   display: none !important;
 }
 
-/* 내부 콘텐츠 강제 표시 */
+/* ?��? 콘텐�?강제 ?�시 */
 .notion-table-cell-place details,
 .notion-table-cell-place details[open],
 .notion-table-cell-place details > div {
@@ -656,7 +665,7 @@ svg.notion-collection-column-title-icon {
   overflow: visible !important;
 }
 
-/* 페이지 링크 스타일 */
+/* ?�이지 링크 ?��???*/
 .notion-table-cell-place .notion-page-link {
   text-decoration: none !important;
   color: inherit !important;
@@ -664,7 +673,7 @@ svg.notion-collection-column-title-icon {
   font-weight: 500;
 }
 
-/* ✅ inline database 텍스트 정렬 일관화 */
+/* ??inline database ?�스???�렬 ?��???*/
 .notion-table-view .notion-property-title {
   display: flex !important;
   align-items: center !important;
@@ -672,7 +681,7 @@ svg.notion-collection-column-title-icon {
   line-height: 1.4 !important;
 }
 
-/* ✅ 아이콘 중앙 정렬 */
+/* ???�이�?중앙 ?�렬 */
 .notion-table-view .notion-page-icon-inline {
   display: inline-flex !important;
   align-items: center !important;
@@ -684,7 +693,7 @@ svg.notion-collection-column-title-icon {
 }
 
 
-/* ✅ 제목 텍스트 baseline 정렬 보정 */
+/* ???�목 ?�스??baseline ?�렬 보정 */
 .notion-table-view .notion-page-title-text {
   display: inline-block !important;
   vertical-align: middle !important;
@@ -695,13 +704,13 @@ svg.notion-collection-column-title-icon {
   overflow-wrap: anywhere !important;
 }
 
-/* ✅ property wrapper도 height 균일화 */
+/* ??property wrapper??height 균일??*/
 .notion-table-view .notion-property {
   height: auto !important;
   align-items: center !important;
 }
 
-/* ✅ 각 셀 내용 수직 중앙 고정 */
+/* ??�??� ?�용 ?�직 중앙 고정 */
 .notion-table-view td,
 .notion-table-view .notion-property,
 .notion-table-view .notion-property-title {

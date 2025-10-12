@@ -1,10 +1,10 @@
-import type * as types from 'notion-types'
+import type { CollectionViewPageBlock, PageBlock } from 'notion-types'
 import { IoMoonSharp } from '@react-icons/all-files/io5/IoMoonSharp'
 import { IoSunnyOutline } from '@react-icons/all-files/io5/IoSunnyOutline'
 import cs from 'classnames'
 import { getBlockTitle, getPageBreadcrumbs } from 'notion-utils'
 import * as React from 'react'
-import { Breadcrumbs, Header, Search, useNotionContext } from 'react-notion-x'
+import { Breadcrumbs, Header, PageIcon, Search, useNotionContext } from 'react-notion-x'
 
 import { isSearchEnabled, navigationLinks, navigationStyle } from '@/lib/config'
 import { useDarkMode } from '@/lib/use-dark-mode'
@@ -36,7 +36,7 @@ function ToggleThemeButton() {
 export function NotionPageHeader({
   block
 }: {
-  block: types.CollectionViewPageBlock | types.PageBlock
+  block: CollectionViewPageBlock | PageBlock
 }) {
   const { components, mapPageUrl, recordMap } = useNotionContext()
 
@@ -72,20 +72,14 @@ export function NotionPageHeader({
           {breadcrumbs.length > 0 ? (
             <Breadcrumbs block={block} />
           ) : (
-            fallbackBreadcrumbs.map((breadcrumb: any, index: number) => {
-              const IconComponent = components.PageIcon ?? null
-
-              return (
-                <React.Fragment key={breadcrumb.pageId || index}>
-                  <div className='breadcrumb active'>
-                    {IconComponent ? (
-                      <IconComponent className='icon' block={block} />
-                    ) : null}
-                    <span className='title'>{breadcrumb.title}</span>
-                  </div>
-                </React.Fragment>
-              )
-            })
+            fallbackBreadcrumbs.map((breadcrumb: any, index: number) => (
+              <React.Fragment key={breadcrumb.pageId || index}>
+                <div className='breadcrumb active'>
+                  <PageIcon className='icon' block={block} />
+                  <span className='title'>{breadcrumb.title}</span>
+                </div>
+              </React.Fragment>
+            ))
           )}
         </div>
 
