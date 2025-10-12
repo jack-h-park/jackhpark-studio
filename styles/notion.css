@@ -78,7 +78,7 @@
   gap: 0.5rem;
 }
 
-/* ?�래???��? ?��? ?��?�?*/
+/* 기본 페이지 제목 스타일 가이드 */
 /* .notion-page-title {
   font-size: 1.2rem !important;
   font-weight: 600; 
@@ -87,17 +87,17 @@
 
 
 
-/* ???�이�??�에 ?�정??page title 줄바�??�용 */
+/* 인라인 데이터베이스에서 페이지 제목 줄바꿈 허용 */
 .notion-table-view .notion-page-title-text {
-  white-space: normal !important;      /* nowrap ??normal �?강제 변�?*/
+  white-space: normal !important;      /* nowrap을 normal로 강제 변환 */
   word-break: break-word !important;
   overflow-wrap: anywhere !important;
-  text-overflow: unset !important;     /* ellipsis ?�거 */
-  display: inline !important;          /* block ?�님: ?�이�??�렬 ?��? */
+  text-overflow: unset !important;     /* ellipsis 제거 */
+  display: inline !important;          /* block 대신 inline으로 정렬 유지 */
   line-height: 1.4 !important;
 }
 
-/* ???�이�??�이�??�정 */
+/* 인라인 DB 아이콘 크기 조정 */
 .notion-table-view .notion-page-icon-inline {
   width: 1.5em !important;
   height: 1.5em !important;
@@ -107,7 +107,7 @@
 
 
 
-/* ??�???보조???�정 -> ??��?�까 */
+/* 보조 속성 텍스트 정렬을 기본 레이아웃과 맞춤 */
 .notion-table-view .notion-property-title {
   display: flex !important;
   align-items: center !important;
@@ -122,39 +122,39 @@
   padding: 2px 4px !important;
 }
 
-/* ???�이�????�목(?�이�??�스?? ?�직 ?�렬 */
+/* 인라인 DB 제목과 아이콘을 한 줄 정렬 */
 .notion-table-view .notion-page-title {
-  display: inline-flex !important; /* inline-flex�?변경하???�른 ?�소?� ?�울리게 ??*/
-  align-items: center !important;  /* ?�식 ?�소(?�이�? ?�스??�??�직 중앙 ?�렬 */
-  gap: 6px !important;             /* ?�이콘과 ?�스???�이 간격 */
-  width: 100%;                     /* ?� ?�비 ?�체�?차�??�도�??�정 */
+  display: inline-flex !important; /* inline-flex로 변경해 인접 요소와 조화 */
+  align-items: center !important;  /* 아이콘과 텍스트를 수직 중앙 정렬 */
+  gap: 6px !important;             /* 아이콘과 텍스트 간격 */
+  width: 100%;                     /* 전체 폭을 사용해 자동 줄바꿈 허용 */
 }
 
 
-/* ???�이�??�체 ?�백 초기??*/
+/* 인라인 DB 컨테이너 패딩 초기화 */
 .notion-table,
 .notion-table-view {
   margin-left: 0 !important;
-  padding-left: 16px !important; /* ?�쪽 ?�백 추�? */
-  padding-right: 16px !important; /* ?�른�??�백??균형 ?�게 */
+  padding-left: 16px !important; /* 좌측 패딩 보강 */
+  padding-right: 16px !important; /* 우측 패딩 균형 유지 */
   width: 100% !important;
   box-sizing: border-box;
 }
 
-/* ???�아??간격???�당???��? */
+/* 인라인 DB 상하 간격 재조정 */
 .notion-table,
 .notion-collection {
   margin-top: 0 !important;
   margin-bottom: 1.25rem !important;
 }
 
-/* ???� ?��? ?�백(Compact Table ?��??? */
+/* 컴팩트 테이블 셀 패딩 축소 */
 .notion-table td,
 .notion-table th {
   padding: 0.4rem 0.6rem !important;
 }
 
-/* ???�더 ?�스???�께 ?�짝 줄이�?*/
+/* 테이블 헤더 폰트 두께 보정 */
 .notion-table th {
   font-weight: 500 !important;
 }
@@ -168,7 +168,7 @@
 }
 
 
-/* ?�래???��? ?��? 주석처리?�거 */
+/* 기존 갤러리 레이아웃은 주석 처리 상태로 유지 */
 /* .notion-gallery-grid {
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   grid-gap: 3vmin;
@@ -283,22 +283,22 @@
 }
 
 .notion-title {
-  /* ?�래 ?�던�?*/
+  /* 이전 버전에서 사용하던 정렬 방식 참고 */
   display: block;
   text-align: center;
 
-  /* ?�목 ?�트 ?�기 조절?�려�??��? 추�??�거 */
-  font-size: 1.6rem !important; /* 기본?� ??2rem */
+  /* 제목 폰트 크기를 줄이고 중앙 정렬 유지 */
+  font-size: 1.6rem !important; /* 기본값은 약 2rem */
   line-height: 1.2 !important;
 }
 
-/* ?�목 ?�아???�백 조절 */
+/* 제목 블록 주변 여백 조절 */
 .notion-page-block .notion-title {
   margin-top: 0.2em !important;  
   margin-bottom: 0.1em !important;
 }
 
-/* ?�목�??�이�? 커버 ?��?지 간의 ?�백 줄이�?*/
+/* 제목과 커버 이미지 사이 간격 축소 */
 /* .notion-page {
   padding-top: 7.0em !important;
 } */
@@ -348,7 +348,7 @@
   transition: background-color 0.2s ease;
 }
 
-/* ??컬럼 ?�더 ?�이�??�전???�기�?(?�역) */
+/* 테이블 컬럼 헤더 아이콘 숨김 (사용 안 함) */
 .notion-collection-view-type-table th .notion-collection-column-title-icon,
 .notion-collection .notion-collection-column-title .notion-collection-column-title-icon,
 th .notion-collection-column-title-icon,
@@ -362,7 +362,7 @@ svg.notion-collection-column-title-icon {
   overflow: hidden !important;
 }
 
-/* ?��? ?��?거�?? */
+/* 특정 블록 실험 스타일 (보류) */
 /* .notion-block-ab9a258d6cf444f3bb40dc2600feae91 .notion-page-link {
   justify-content: center;
   padding: 50em;
@@ -500,8 +500,8 @@ svg.notion-collection-column-title-icon {
   background-image: none !important;
 } 
 
-/* ?�� Notion dark mode background color tuning 
- ChatGPT ?�해???��? 추�??�거 */
+/* 커스텀 Notion 다크 모드 배경색 조정 - ChatGPT 제안 반영 */
+ ChatGPT ?듯빐???닿? 異붽??쒓굅 */
 .dark-mode .notion-red_background {
   background-color: rgba(255, 99, 99, 0.25) !important;
   color: #ffb3b3 !important;
@@ -558,15 +558,15 @@ svg.notion-collection-column-title-icon {
 }  */
 
 .notion-page[data-page-id="28299029c0b481ce8999d425287d3db6"] .notion-page-icon-hero {
- transform: translateX(-140px); /* ?�시 */
+ transform: translateX(-140px); /* 임시 위치 보정 */
   justify-content: center;
 }
 
-/* ?��? 추�? ?�거 */
+/* 헤더 여백 조정 제거 */
 .notion-page-icon-hero {
   display: flex;
 
-  /* ?�걸 ?�으�??�래 ?�목�?갑자�?벌어�?*/
+  /* 헤더 아이콘이 지나치게 벌어지지 않도록 간격 제한 */
  
  
 }
@@ -618,12 +618,12 @@ svg.notion-collection-column-title-icon {
   align-items: center;
 }
 
-/* Skill ?�온 부�??�이?�베?�스(28299029c0b48122955acc4102667636) ?�의 카드 ?�릭 비활?�화 */
+/* Skill 섹션 인라인 데이터베이스 카드 클릭 비활성화 */
 /* .notion-block-28299029c0b48122955acc4102667636 .notion-collection-card {
   pointer-events: none !important;
 } */
 
-/* hover ?�과 ?�거 (?��?지 밝기, ?�두�?변???? 
+/* hover 효과 제거 (이미지 밝기·그림자 변경 방지) */
 .notion-block-28299029c0b48122955acc4102667636 .notion-collection-card:hover {
   transform: none !important;
   box-shadow: none !important;
@@ -631,29 +631,29 @@ svg.notion-collection-column-title-icon {
 }
 */
 
-/* 문단(?�스??블록) �?간격 줄이�?*/
+/* 문단(텍스트 블록) 간격 줄이기 */
 .notion-text-block {
   margin-bottom: 0.3em !important;
 }
 
-/* 문단 ??<p> ?�그?�도 ?�백???�다�??�께 줄이�?*/
+/* 문단 내부 <p> 태그에도 동일한 여백 적용 */
 .notion-text-block > p {
   margin-bottom: 0.3em !important;
 }
 
-/* 문단 ?�이 ?�무 좁게 보이�??�간�??�우�?*/
+/* 문단 줄 간격이 지나치게 좁아지지 않도록 보정 */
 .notion-text-block + .notion-text-block {
   margin-top: 0.2em !important;
 }
 
 
 
-/* ?�︎ ?�이�??�기�?*/
+/* 장소 속성 summary 토글 숨김 */
 .notion-table-cell-place summary {
   display: none !important;
 }
 
-/* ?��? 콘텐�?강제 ?�시 */
+/* 장소 상세 콘텐츠 항상 표시 */
 .notion-table-cell-place details,
 .notion-table-cell-place details[open],
 .notion-table-cell-place details > div {
@@ -665,7 +665,7 @@ svg.notion-collection-column-title-icon {
   overflow: visible !important;
 }
 
-/* ?�이지 링크 ?��???*/
+/* 페이지 링크 기본 스타일 정리 */
 .notion-table-cell-place .notion-page-link {
   text-decoration: none !important;
   color: inherit !important;
@@ -673,7 +673,7 @@ svg.notion-collection-column-title-icon {
   font-weight: 500;
 }
 
-/* ??inline database ?�스???�렬 ?��???*/
+/* 인라인 데이터베이스 속성 정렬 보정 */
 .notion-table-view .notion-property-title {
   display: flex !important;
   align-items: center !important;
@@ -681,7 +681,7 @@ svg.notion-collection-column-title-icon {
   line-height: 1.4 !important;
 }
 
-/* ???�이�?중앙 ?�렬 */
+/* 페이지 아이콘 중앙 정렬 */
 .notion-table-view .notion-page-icon-inline {
   display: inline-flex !important;
   align-items: center !important;
@@ -693,7 +693,7 @@ svg.notion-collection-column-title-icon {
 }
 
 
-/* ???�목 ?�스??baseline ?�렬 보정 */
+/* 페이지 제목 텍스트 baseline 보정 */
 .notion-table-view .notion-page-title-text {
   display: inline-block !important;
   vertical-align: middle !important;
@@ -704,13 +704,13 @@ svg.notion-collection-column-title-icon {
   overflow-wrap: anywhere !important;
 }
 
-/* ??property wrapper??height 균일??*/
+/* property wrapper 높이 균일화 */
 .notion-table-view .notion-property {
   height: auto !important;
   align-items: center !important;
 }
 
-/* ??�??� ?�용 ?�직 중앙 고정 */
+/* 표 셀과 속성을 수직 중앙 정렬 */
 .notion-table-view td,
 .notion-table-view .notion-property,
 .notion-table-view .notion-property-title {
@@ -729,3 +729,4 @@ svg.notion-collection-column-title-icon {
 .notion-collection-group-title .notion-property-text {
   text-transform: capitalize;
 }
+

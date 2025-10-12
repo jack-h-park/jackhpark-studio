@@ -6,7 +6,7 @@ import { parsePageId } from 'notion-utils'
 import * as React from 'react'
 import ReactModal from 'react-modal'
 import { type MapImageUrlFn ,type  NotionComponents } from 'react-notion-x'
-// ??react-notion-x 疫꿸퀡???뚮똾猷??곕뱜 嚥≪뮆諭?
+// react-notion-x에서 제공하는 서드파티 컴포넌트를 직접 임포트
 import { Code } from 'react-notion-x/build/third-party/code'
 import { Collection } from 'react-notion-x/build/third-party/collection'
 import { Equation } from 'react-notion-x/build/third-party/equation'
@@ -32,8 +32,8 @@ interface NotionPageRendererProps {
   mapImageUrl?: MapImageUrlFn
   pageAside?: React.ReactNode
   footer?: React.ReactNode
-  components?: Partial<NotionComponents> // ??components prop ?곕떽?
-  onOpenPeek?: (pageId: string) => void // ???봔筌뤴뫁肉???袁⑤뼎獄쏆룇???꾩뮆媛?
+  components?: Partial<NotionComponents> // 상위에서 전달되는 사용자 정의 컴포넌트
+  onOpenPeek?: (pageId: string) => void // 사이드 피크를 여는 콜백
 }
 
 export function NotionPageRenderer({
@@ -46,13 +46,13 @@ export function NotionPageRenderer({
   mapImageUrl,
   pageAside,
   footer,
-  components: parentComponents, // ??prop ??已?癰궰野?
+  components: parentComponents, // 부모에서 전달된 커스텀 컴포넌트
   onOpenPeek
 }: NotionPageRendererProps) {
   const [mounted, setMounted] = React.useState(false)
 
   React.useEffect(() => {
-    // DOM???類ㅻ뼄??餓Β??쑬留??袁⑸퓠 mount
+    // DOM이 준비된 뒤 모달 접근성 대상으로 등록하고 마운트 상태 업데이트
     const timer = requestAnimationFrame(() => setMounted(true))
 
     if (typeof window !== 'undefined' && !modalInitialized) {
@@ -205,7 +205,7 @@ export function NotionPageRenderer({
 
 
 
-  // ???봔筌??뚮똾猷??곕뱜?癒?퐣 獄쏆룇? components?? PageLink ??살쒔??깆뵠??? 癰귣쵑鍮
+  // 사용자 정의 PageLink를 주입해 사이드 피크와 라우팅을 제어
   const components = React.useMemo(
     () => ({
       ...parentComponents,
@@ -235,7 +235,7 @@ export function NotionPageRenderer({
 
           console.log('[PageLink clicked]', href)
           console.log('canonicalPageMap?', canonicalPageMap)
-          console.log('onOpenPeek 鈺곕똻??', !!onOpenPeek)
+          console.log('onOpenPeek 콜백 존재?', !!onOpenPeek)
           console.log('onOpenPeek pageId?', pageId)
 
           // Identify the inline collection element (if any) that owns this link
@@ -290,13 +290,13 @@ export function NotionPageRenderer({
             return
           }
 
-          // ?紐? 筌띻낱寃뺧쭖???筌?
+          // 외부 링크는 새 창에서 열기
           if (isExternal) {
             window.open(href, '_blank')
             return
           }
 
-          // ??? ??륁뵠筌왖 ??猷?
+          // 내부 링크는 Next.js 라우터로 이동
           void router.push(href)
         }
 
@@ -310,7 +310,7 @@ export function NotionPageRenderer({
     [canonicalPageMap, onOpenPeek, parentComponents, sanitizedRecordMap]
   )
 
-  // ??NotionRenderer 獄쏆꼹??
+  // 최종적으로 NotionRenderer 렌더링
   return (
     <div className='notion-frame'>
       {mounted ? (
