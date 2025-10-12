@@ -1,4 +1,4 @@
-/**
+﻿/**
  * This file contains site-specifc style overrides for Notion elements from
  * react-notion-x.
  *
@@ -147,6 +147,22 @@
   width: 100% !important;
   box-sizing: border-box;
 }
+
+/* .notion-collection .notion-table,
+.notion-collection .notion-table-view,
+.notion-collection .notion-table-header,
+.notion-collection .notion-table-body {
+  width: clamp(600px, 85vw, 1300px) !important;
+  max-width: clamp(600px, 85vw, 1300px) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  float: none !important;
+}
+
+.notion-collection .notion-table-header,
+.notion-collection .notion-table-body {
+  overflow-x: auto !important;
+} */
 
 /* 인라인 DB 상하 간격 재조정 */
 .notion-table,
@@ -510,9 +526,7 @@ svg.notion-collection-column-title-icon {
   border-radius: 0;
   background-image: none !important;
 } 
-
-/* 커스텀 Notion 다크 모드 배경색 조정 - ChatGPT 제안 반영 */
- ChatGPT ?듯빐???닿? 異붽??쒓굅 */
+ 
 .dark-mode .notion-red_background {
   background-color: rgba(255, 99, 99, 0.25) !important;
   color: #ffb3b3 !important;
