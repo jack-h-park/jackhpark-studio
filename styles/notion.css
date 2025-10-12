@@ -142,10 +142,13 @@
 .notion-table,
 .notion-table-view {
   margin-left: 0 !important;
-  padding-left: 16px !important; /* 좌측 패딩 보강 */
-  padding-right: 16px !important; /* 우측 패딩 균형 유지 */
+  /* padding-left: 16px !important; 
+  padding-right: 16px !important; */
   width: 100% !important;
   box-sizing: border-box;
+}
+.notion-table {
+  overflow: unset !important;
 }
 
 /* .notion-collection .notion-table,
@@ -169,6 +172,16 @@
 .notion-collection {
   margin-top: 0 !important;
   margin-bottom: 1.25rem !important;
+}
+.notion-table-row {
+  width: min(100%, 1300px) !important;
+  /* margin-left: auto !important;
+  margin-right: auto !important; */
+}
+
+.notion-full-width .notion-table-header,
+.notion-full-width .notion-table-header-inner {
+  width: min(100%, 1300px) !important;
 }
 
 /* 컴팩트 테이블 셀 패딩 축소 */
