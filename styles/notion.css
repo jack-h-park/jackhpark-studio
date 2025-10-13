@@ -16,7 +16,7 @@
 .notion-multi-select,
 .notion-property-multi_select,
 .notion-pill {
-  padding: 2px 6px !important;
+  /* padding: 2px 6px !important; */
   padding-top: 2px !important;
   padding-bottom: 2px !important;
 }
@@ -174,14 +174,34 @@
   margin-bottom: 1.25rem !important;
 }
 .notion-table-row {
-  width: min(100%, 1300px) !important;
+  width: min(100%, 1000px) !important;
   /* margin-left: auto !important;
   margin-right: auto !important; */
 }
 
 .notion-full-width .notion-table-header,
 .notion-full-width .notion-table-header-inner {
-  width: min(100%, 1300px) !important;
+  width: min(100%, 1000px) !important;
+}
+
+/* full width + 인라인 테이블에서 컬럼 폭을 컨텐츠에 맞춰 놓기 */
+.notion-full-width .notion-collection-inline .notion-table-th,
+.notion-full-width .notion-collection-inline .notion-table-view-header-cell,
+.notion-full-width .notion-collection-inline .notion-table-cell {
+  width: auto !important;
+  flex: 0 0 auto !important;
+  min-width: 140px;             /* 너무 좁아지지 않도록 안전장치 */
+  white-space: normal;          /* 줄바꿈 허용 */
+  word-break: break-word;
+}
+
+.notion-full-width .notion-collection .notion-table-th:last-child,
+.notion-full-width .notion-collection .notion-table-row > .notion-table-cell:last-child {
+  width: auto !important;
+  flex: 1 1 auto !important;
+  min-width: 140px;
+  white-space: normal !important;
+  word-break: break-word;
 }
 
 /* 컴팩트 테이블 셀 패딩 축소 */
@@ -347,12 +367,12 @@
   justify-content: center;
 }
 
-.notion-collection-row-value {
+/* .notion-collection-row-value {
   display: flex;
   align-items: center;
   padding: 0;
   min-height: 23px;
-}
+} */
 
 .notion-page-cover-wrapper,
 .notion-page-cover-wrapper span,
