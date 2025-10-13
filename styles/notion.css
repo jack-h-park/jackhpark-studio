@@ -320,7 +320,7 @@
 .gallery-image-modal__inner {
   position: relative;
   width: 100%;
-  max-height: 90vh;
+  max-height: 95vh;
   padding: clamp(16px, 4vw, 28px);
   border-radius: 20px;
   background: rgba(0, 0, 0, 0.78);
@@ -364,7 +364,7 @@
 
 .gallery-image-modal__image img {
   max-width: 100%;
-  max-height: 70vh;
+  max-height: 80vh;
   border-radius: 16px;
   object-fit: contain;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
@@ -942,4 +942,3 @@ svg.notion-collection-column-title-icon {
 .notion-collection-group-title .notion-property-text {
   text-transform: capitalize;
 }
-
