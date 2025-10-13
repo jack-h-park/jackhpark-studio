@@ -2,9 +2,10 @@ import type { CollectionViewPageBlock, PageBlock } from 'notion-types'
 import { IoMoonSharp } from '@react-icons/all-files/io5/IoMoonSharp'
 import { IoSunnyOutline } from '@react-icons/all-files/io5/IoSunnyOutline'
 import cs from 'classnames'
+import Link from 'next/link' // ✅ Next.js 라우터 링크 사용
 import { getBlockTitle, getPageBreadcrumbs } from 'notion-utils'
 import * as React from 'react'
-import { Breadcrumbs, Header, PageIcon, Search, useNotionContext } from 'react-notion-x'
+import { Header, PageIcon, Search, useNotionContext } from 'react-notion-x'
 
 import { isSearchEnabled, navigationLinks, navigationStyle } from '@/lib/config'
 import { useDarkMode } from '@/lib/use-dark-mode'
@@ -68,7 +69,47 @@ export function NotionPageHeader({
   return (
     <header className='notion-header'>
       <div className='notion-nav-header'>
-        <div className='breadcrumbs'>
+
+{/* 새로운 버전 */}
+<div className='breadcrumbs'>
+  {(() => {
+    const rootBreadcrumb =
+      breadcrumbs.length > 0
+        ? [breadcrumbs[0]] // 현재 페이지 계층 중 Root만
+        : fallbackBreadcrumbs.length > 0
+        ? [fallbackBreadcrumbs[0]] // fallback도 Root만
+        : []
+
+    if (rootBreadcrumb.length === 0) return null
+
+    const root = rootBreadcrumb[0]
+    const rootBlock = recordMap.block[root.pageId]?.value
+
+    return (
+      <div className='breadcrumb active'>
+        <Link
+          href={`/${root.pageId}`}
+          className='breadcrumb-link'
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            textDecoration: 'none',
+          }}
+        >
+          {/* 아이콘 */}
+          {rootBlock && <PageIcon className='icon' block={rootBlock} />}
+
+          {/* 제목 */}
+          <span className='title' style={{ marginLeft: '0.4em' }}>
+            {root.title}
+          </span>
+        </Link>
+      </div>
+    )
+  })()}
+</div>
+
+        {/* 원래 버전 <div className='breadcrumbs'>
           {breadcrumbs.length > 0 ? (
             <Breadcrumbs block={block} />
           ) : (
@@ -81,7 +122,7 @@ export function NotionPageHeader({
               </React.Fragment>
             ))
           )}
-        </div>
+        </div> */}
 
         <div className='notion-nav-header-rhs breadcrumbs'>
           {navigationLinks
