@@ -1,11 +1,10 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import Image from 'next/legacy/image'
 import Link from 'next/link'
 //import { useRouter } from 'next/router'
 import { type PageBlock } from 'notion-types'
-import { formatDate, getBlockTitle, getPageProperty } from 'notion-utils'
+import { formatDate, getBlockTitle, getPageProperty, parsePageId } from 'notion-utils'
 import * as React from 'react'
 import BodyClassName from 'react-body-classname'
 import { type NotionComponents, useNotionContext } from 'react-notion-x'
@@ -267,6 +266,50 @@ function CleanText(props: any) {
   return <span data-clean-text='1' dangerouslySetInnerHTML={{ __html: html }} />
 }
 
+type GalleryPreviewState = {
+  src: string
+  alt: string
+  title?: string
+  href?: string
+}
+
+type NotionImageProps = Omit<
+  React.ComponentPropsWithoutRef<'img'>,
+  'ref'
+> & {
+  priority?: boolean
+  placeholder?: 'blur' | string
+  blurDataURL?: string
+}
+
+const NotionImage = React.forwardRef<HTMLImageElement, NotionImageProps>(
+  (
+    { priority: _priority, placeholder: _placeholder, blurDataURL, loading, style, ...rest },
+    ref
+  ) => {
+    const mergedStyle =
+      _placeholder === 'blur' && blurDataURL
+        ? {
+            ...style,
+            backgroundImage: `url(${blurDataURL})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }
+        : style
+
+    return (
+      <img
+        {...rest}
+        ref={ref}
+        loading={loading ?? 'lazy'}
+        style={mergedStyle}
+      />
+    )
+  }
+)
+
+NotionImage.displayName = 'NotionImage'
+
 export function NotionPage({
   site,
   recordMap,
@@ -284,6 +327,192 @@ export function NotionPage({
     handleOpenPeek,
     handleClosePeek
   } = useSidePeek()
+
+  const [galleryPreview, setGalleryPreview] =
+    React.useState<GalleryPreviewState | null>(null)
+
+  const handleOpenGalleryPreview = React.useCallback(
+    (preview: GalleryPreviewState) => {
+      console.log('[GalleryPreview] open modal request', preview)
+      setGalleryPreview(preview)
+    },
+    []
+  )
+
+  const handleCloseGalleryPreview = React.useCallback(() => {
+    console.log('[GalleryPreview] close modal request')
+    setGalleryPreview(null)
+  }, [])
+
+  const resolvePageIdFromHref = React.useCallback(
+    (href: string | null | undefined): string | null => {
+      if (!href) return null
+
+      const normalized = href.replaceAll(/^\/+/g, '').replaceAll(/\/+$/g, '')
+      return (
+        parsePageId(normalized) ||
+        canonicalPageMap?.[normalized] ||
+        null
+      )
+    },
+    [canonicalPageMap]
+  )
+
+  const getPageBlock = React.useCallback(
+    (id: string | null | undefined) => {
+      if (!id) return null
+      const plainId = id.replaceAll('-', '')
+      return (
+        recordMap?.block?.[id]?.value ??
+        recordMap?.block?.[plainId]?.value ??
+        null
+      )
+    },
+    [recordMap]
+  )
+
+  React.useEffect(() => {
+    if (!galleryPreview) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        handleCloseGalleryPreview()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [galleryPreview, handleCloseGalleryPreview])
+
+  React.useEffect(() => {
+    const handleGalleryClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null
+      if (!target) return
+
+      const anchor = target.closest('a.notion-collection-card') as
+        | HTMLAnchorElement
+        | null
+      if (!anchor) return
+
+      if (!anchor.closest('.notion-gallery-view')) {
+        return
+      }
+
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      const href = anchor.getAttribute('href') || ''
+      const pageId = resolvePageIdFromHref(href)
+
+      let previewSrc: string | null = null
+
+      const coverRoot = anchor.querySelector<HTMLElement>(
+        '.notion-collection-card-cover'
+      )
+      const imageElement = coverRoot?.querySelector<HTMLImageElement>('img')
+      const sourceElement =
+        coverRoot?.querySelector<HTMLSourceElement>('source') ?? null
+
+      if (imageElement) {
+        previewSrc =
+          imageElement.dataset?.src ||
+          imageElement.currentSrc ||
+          imageElement.getAttribute('src') ||
+          null
+      }
+
+      if (!previewSrc && sourceElement) {
+        const srcSet = sourceElement.getAttribute('srcset')
+        if (srcSet) {
+          const first = srcSet.trim().split(/\s+/)[0]
+          if (first) {
+            previewSrc = first
+          }
+        }
+      }
+
+      if (!previewSrc && coverRoot) {
+        const backgroundHost =
+          coverRoot.querySelector<HTMLElement>(
+            '[style*="background-image"]'
+          ) || coverRoot
+
+        const inlineBackground =
+          backgroundHost.style?.backgroundImage ||
+          coverRoot.style?.backgroundImage ||
+          ''
+
+        const computedBackground =
+          inlineBackground && inlineBackground !== 'none'
+            ? inlineBackground
+            : window
+                .getComputedStyle(backgroundHost)
+                .getPropertyValue('background-image')
+
+        const backgroundMatch =
+          computedBackground && computedBackground !== 'none'
+            ? /url\((['"]?)(.+?)\1\)/i.exec(computedBackground)
+            : null
+
+        if (backgroundMatch && backgroundMatch[2]) {
+          previewSrc = backgroundMatch[2]
+        } else {
+          const dataBackground =
+            backgroundHost.dataset?.src || coverRoot.dataset?.src
+          if (dataBackground) {
+            previewSrc = dataBackground
+          }
+        }
+      }
+
+      if (!previewSrc && pageId) {
+        const pageBlock = getPageBlock(pageId)
+        const pageCover = pageBlock?.format?.page_cover
+        if (pageBlock && pageCover) {
+          previewSrc = mapImageUrl
+            ? mapImageUrl(pageCover, pageBlock)
+            : pageCover
+        }
+      }
+
+      const titleText =
+        anchor
+          .querySelector(
+            '.notion-collection-card-property .notion-page-title-text'
+          )
+          ?.textContent?.trim() || ''
+
+      const altText =
+        imageElement?.getAttribute('alt')?.trim() ||
+        titleText ||
+        'Gallery preview'
+
+      handleOpenGalleryPreview({
+        src: previewSrc ?? '',
+        alt: altText,
+        title: titleText || undefined,
+        href
+      })
+    }
+
+    document.addEventListener('click', handleGalleryClick, true)
+    return () => document.removeEventListener('click', handleGalleryClick, true)
+  }, [
+    handleOpenGalleryPreview,
+    mapImageUrl,
+    resolvePageIdFromHref,
+    getPageBlock
+  ])
 
   // lite mode is for oembed
   const isLiteMode = lite === 'true'
@@ -384,7 +613,7 @@ export function NotionPage({
 
   const components = React.useMemo<Partial<NotionComponents>>(
     () => ({
-      nextLegacyImage: Image,
+      Image: NotionImage,
       nextLink: Link,
       Code,
       Collection,
@@ -485,6 +714,64 @@ export function NotionPage({
           footer={footer}
           onOpenPeek={handleOpenPeek}
         />
+      )}
+
+      {galleryPreview && (
+        <div
+          className='gallery-image-modal__overlay'
+          role='dialog'
+          aria-modal='true'
+        >
+          <button
+            type='button'
+            className='gallery-image-modal__backdrop'
+            aria-label='Close image preview'
+            onClick={handleCloseGalleryPreview}
+          />
+          <div className='gallery-image-modal__content'>
+            <div className='gallery-image-modal__inner'>
+              <button
+                type='button'
+                className='gallery-image-modal__close'
+                onClick={handleCloseGalleryPreview}
+                aria-label='Close image preview'
+              >
+                X
+              </button>
+
+              <div className='gallery-image-modal__image'>
+                {galleryPreview.src ? (
+                  <img src={galleryPreview.src} alt={galleryPreview.alt} />
+                ) : (
+                  <div className='gallery-image-modal__image--placeholder'>
+                    Image preview unavailable.
+                  </div>
+                )}
+              </div>
+
+              {(galleryPreview.title || galleryPreview.href) && (
+                <div className='gallery-image-modal__meta'>
+                  {galleryPreview.title && (
+                    <div className='gallery-image-modal__title'>
+                      {galleryPreview.title}
+                    </div>
+                  )}
+
+                  {galleryPreview.href && (
+                    <a
+                      className='gallery-image-modal__link'
+                      href={galleryPreview.href}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                    >
+                      Open page
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       <SidePeek isOpen={isPeekOpen} onClose={handleClosePeek}>
