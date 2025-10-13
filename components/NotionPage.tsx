@@ -331,6 +331,8 @@ export function NotionPage({
   const [galleryPreview, setGalleryPreview] =
     React.useState<GalleryPreviewState | null>(null)
 
+  const [isZoomed, setIsZoomed] = React.useState(false)
+
   const handleOpenGalleryPreview = React.useCallback(
     (preview: GalleryPreviewState) => {
       console.log('[GalleryPreview] open modal request', preview)
@@ -342,6 +344,11 @@ export function NotionPage({
   const handleCloseGalleryPreview = React.useCallback(() => {
     console.log('[GalleryPreview] close modal request')
     setGalleryPreview(null)
+    setIsZoomed(false) // 줌 상태 초기화
+  }, [])
+
+  const handleToggleZoom = React.useCallback(() => {
+    setIsZoomed((prev) => !prev)
   }, [])
 
   const resolvePageIdFromHref = React.useCallback(
@@ -718,7 +725,9 @@ export function NotionPage({
 
       {galleryPreview && (
         <div
-          className='gallery-image-modal__overlay'
+          className={`gallery-image-modal__overlay ${
+            isZoomed ? 'is-zoomed' : ''
+          }`}
           role='dialog'
           aria-modal='true'
         >
@@ -739,7 +748,11 @@ export function NotionPage({
                 X
               </button>
 
-              <div className='gallery-image-modal__image'>
+              <div
+                className='gallery-image-modal__image'
+                onClick={handleToggleZoom}
+                title={isZoomed ? 'Zoom out' : 'Zoom in'}
+              >
                 {galleryPreview.src ? (
                   <img src={galleryPreview.src} alt={galleryPreview.alt} />
                 ) : (

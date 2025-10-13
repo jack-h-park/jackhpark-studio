@@ -368,6 +368,30 @@
   border-radius: 16px;
   object-fit: contain;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  cursor: zoom-in;
+  transition: transform 200ms ease-in-out;
+}
+
+/* 확대 상태 스타일 */
+.gallery-image-modal__overlay.is-zoomed .gallery-image-modal__image {
+  cursor: zoom-out;
+}
+
+.gallery-image-modal__overlay.is-zoomed .gallery-image-modal__image img {
+  max-height: 100vh;
+  cursor: zoom-out;
+  transform: scale(1.05);
+}
+
+/* 확대 시 불필요한 UI 숨기기 */
+.gallery-image-modal__overlay.is-zoomed .gallery-image-modal__close,
+.gallery-image-modal__overlay.is-zoomed .gallery-image-modal__meta {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 150ms ease-in-out,
+    visibility 150ms ease-in-out;
 }
 
 .gallery-image-modal__image--placeholder {
