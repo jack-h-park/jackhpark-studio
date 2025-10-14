@@ -516,7 +516,6 @@ export function NotionPage({
     return () => document.removeEventListener('click', handleGalleryClick, true)
   }, [
     handleOpenGalleryPreview,
-    mapImageUrl,
     resolvePageIdFromHref,
     getPageBlock
   ])
