@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/security/(.*)",
+      "destination": "https://mcp-security-incidents.vercel.app/$1"
+    },
+    {
+      "source": "/security",
+      "destination": "https://mcp-security-incidents.vercel.app"
+    }
+  ]
+}
