@@ -5,15 +5,19 @@ import router from 'next/router'
 import { parsePageId } from 'notion-utils'
 import * as React from 'react'
 import ReactModal from 'react-modal'
-import { type MapImageUrlFn ,type  NotionComponents } from 'react-notion-x'
+import { type MapImageUrlFn, type NotionComponents } from 'react-notion-x'
 // react-notion-x���� �����ϴ� ������Ƽ ������Ʈ�� ���� ����Ʈ
-import { Code } from 'react-notion-x/build/third-party/code'
 import { Collection } from 'react-notion-x/build/third-party/collection'
 import { Equation } from 'react-notion-x/build/third-party/equation'
 import { Modal } from 'react-notion-x/build/third-party/modal'
 import { Pdf } from 'react-notion-x/build/third-party/pdf'
 
-import { SIDE_PEEK_DISABLED_COLLECTION_BLOCK_IDS,SIDE_PEEK_DISABLED_COLLECTION_IDS } from '@/lib/side-peek.config'
+import {
+  SIDE_PEEK_DISABLED_COLLECTION_BLOCK_IDS,
+  SIDE_PEEK_DISABLED_COLLECTION_IDS
+} from '@/lib/side-peek.config'
+
+import { NotionCode } from './notion-code'
 
 const NotionRenderer = dynamic(
   async () => (await import('react-notion-x')).NotionRenderer,
@@ -209,7 +213,7 @@ export function NotionPageRenderer({
   const components = React.useMemo(
     () => ({
       ...parentComponents,
-      Code,
+      Code: NotionCode,
       Collection,
       Equation,
       Pdf,
