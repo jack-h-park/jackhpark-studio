@@ -13,6 +13,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "ingest": "tsx --tsconfig tsconfig.json scripts/ingest.ts",
+    "ingest:notion": "tsx --tsconfig tsconfig.json scripts/ingest-notion.ts",
     "build": "next build",
     "start": "next start",
     "deploy": "vercel deploy",
