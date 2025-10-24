@@ -1,6 +1,7 @@
 import type { GetServerSideProps } from 'next'
-import type { JSX } from 'react'
 import Head from 'next/head'
+import { parsePageId } from 'notion-utils'
+import { type JSX, useCallback, useEffect, useRef, useState } from 'react'
 
 import { getSupabaseAdminClient } from '../../lib/supabase-admin'
 
@@ -42,11 +43,81 @@ type PageProps = {
   runs: RunRecord[]
 }
 
+type ManualRunStats = {
+  documentsProcessed: number
+  documentsAdded: number
+  documentsUpdated: number
+  documentsSkipped: number
+  chunksAdded: number
+  chunksUpdated: number
+  charactersAdded: number
+  charactersUpdated: number
+  errorCount: number
+}
+
+type ManualIngestionStatus =
+  | 'idle'
+  | 'in_progress'
+  | 'success'
+  | 'completed_with_errors'
+  | 'failed'
+
+type ManualEvent =
+  | { type: 'run'; runId: string | null }
+  | { type: 'log'; message: string; level?: 'info' | 'warn' | 'error' }
+  | { type: 'progress'; step: string; percent: number }
+  | {
+      type: 'complete'
+      status: 'success' | 'completed_with_errors' | 'failed'
+      message?: string
+      runId: string | null
+      stats: ManualRunStats
+    }
+
+type ManualLogEntry = {
+  id: string
+  message: string
+  level: 'info' | 'warn' | 'error'
+  timestamp: number
+}
+
+type DocumentRow = {
+  chunk_count: number | null
+  total_characters: number | null
+  last_ingested_at: string | number | null
+}
+
+const manualStatusLabels: Record<ManualIngestionStatus, string> = {
+  idle: '대기 중',
+  in_progress: '진행 중',
+  success: '성공',
+  completed_with_errors: '부분 성공',
+  failed: '실패'
+}
+
 const numberFormatter = new Intl.NumberFormat('en-US')
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   dateStyle: 'medium',
   timeStyle: 'short'
 })
+const logTimeFormatter = new Intl.DateTimeFormat('en-US', {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false
+})
+
+function createLogEntry(
+  message: string,
+  level: 'info' | 'warn' | 'error'
+): ManualLogEntry {
+  return {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    message,
+    level,
+    timestamp: Date.now()
+  }
+}
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
@@ -274,6 +345,447 @@ function getNumericMetadata(
   return null
 }
 
+function ManualIngestionPanel(): JSX.Element {
+  const [mode, setMode] = useState<'notion_page' | 'url'>('notion_page')
+  const [notionInput, setNotionInput] = useState('')
+  const [urlInput, setUrlInput] = useState('')
+  const [isRunning, setIsRunning] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [status, setStatus] = useState<ManualIngestionStatus>('idle')
+  const [runId, setRunId] = useState<string | null>(null)
+  const [finalMessage, setFinalMessage] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [logs, setLogs] = useState<ManualLogEntry[]>([])
+  const [stats, setStats] = useState<ManualRunStats | null>(null)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  const appendLog = useCallback(
+    (message: string, level: 'info' | 'warn' | 'error' = 'info') => {
+      if (!mountedRef.current) {
+        return
+      }
+
+      setLogs((prev) => [...prev, createLogEntry(message, level)])
+    },
+    []
+  )
+
+  const handleEvent = useCallback(
+    (event: ManualEvent) => {
+      if (!mountedRef.current) {
+        return
+      }
+
+      let completionMessage = ''
+      let completionLevel: 'info' | 'warn' | 'error' = 'info'
+
+      switch (event.type) {
+        case 'run':
+          setRunId(event.runId)
+          if (event.runId) {
+            appendLog(`Supabase run ID: ${event.runId}`)
+          }
+          break
+        case 'log':
+          appendLog(event.message, event.level ?? 'info')
+          break
+        case 'progress':
+          setProgress(Math.max(0, Math.min(100, event.percent)))
+          break
+        case 'complete':
+          completionMessage =
+            event.message ?? '수동 수집이 완료되었습니다.'
+          completionLevel =
+            event.status === 'failed'
+              ? 'error'
+              : event.status === 'completed_with_errors'
+                ? 'warn'
+                : 'info'
+          setStatus(event.status)
+          setStats(event.stats)
+          setRunId(event.runId)
+          setFinalMessage(completionMessage)
+          appendLog(completionMessage, completionLevel)
+          setProgress(100)
+          setIsRunning(false)
+          break
+        default:
+          break
+      }
+    },
+    [appendLog]
+  )
+
+  const startManualIngestion = useCallback(async () => {
+    if (isRunning) {
+      return
+    }
+
+    let payload:
+      | { mode: 'notion_page'; pageId: string }
+      | { mode: 'url'; url: string }
+
+    if (mode === 'notion_page') {
+      const parsed = parsePageId(notionInput.trim(), { uuid: true })
+      if (!parsed) {
+        setErrorMessage('유효한 Notion 페이지 ID 또는 URL을 입력해주세요.')
+        return
+      }
+      payload = { mode: 'notion_page', pageId: parsed }
+    } else {
+      const trimmed = urlInput.trim()
+      if (!trimmed) {
+        setErrorMessage('수집할 URL을 입력해주세요.')
+        return
+      }
+
+      let parsedUrl: URL
+      try {
+        parsedUrl = new URL(trimmed)
+      } catch {
+        setErrorMessage('유효한 URL을 입력해주세요.')
+        return
+      }
+
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        setErrorMessage('HTTP 또는 HTTPS URL만 지원됩니다.')
+        return
+      }
+
+      payload = { mode: 'url', url: parsedUrl.toString() }
+    }
+
+    if (!mountedRef.current) {
+      return
+    }
+
+    setErrorMessage(null)
+    setIsRunning(true)
+    setStatus('in_progress')
+    setProgress(0)
+    setRunId(null)
+    setFinalMessage(null)
+    setStats(null)
+    const startLog =
+      mode === 'notion_page'
+        ? 'Notion 페이지 수동 수집을 시작합니다.'
+        : '일반 URL 수동 수집을 시작합니다.'
+    setLogs([createLogEntry(startLog, 'info')])
+
+    try {
+      const response = await fetch('/api/admin/manual-ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+
+      if (!response.ok) {
+        let message = `요청이 실패했습니다. (${response.status})`
+        const contentType = response.headers.get('content-type') ?? ''
+
+        if (contentType.includes('application/json')) {
+          try {
+            const data = (await response.json()) as { error?: unknown }
+            if (
+              typeof data.error === 'string' &&
+              data.error.trim().length > 0
+            ) {
+              message = data.error.trim()
+            }
+          } catch {
+            // ignore
+          }
+        } else {
+          try {
+            const text = await response.text()
+            if (text.trim()) {
+              message = text.trim()
+            }
+          } catch {
+            // ignore
+          }
+        }
+
+        throw new Error(message)
+      }
+
+      if (!response.body) {
+        throw new Error('이 브라우저에서는 스트리밍 응답을 지원하지 않습니다.')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let completed = false
+
+      const forwardEvent = (event: ManualEvent) => {
+        if (event.type === 'complete') {
+          completed = true
+        }
+        handleEvent(event)
+      }
+
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) {
+          break
+        }
+
+        buffer += decoder.decode(value, { stream: true })
+
+        let boundary = buffer.indexOf('\n\n')
+        while (boundary !== -1) {
+          const raw = buffer.slice(0, boundary).trim()
+          buffer = buffer.slice(boundary + 2)
+
+          if (raw) {
+            const dataLine = raw
+              .split('\n')
+              .find((line: string) => line.startsWith('data:'))
+
+            if (dataLine) {
+              const payloadStr = dataLine.slice(5).trim()
+              if (payloadStr) {
+                try {
+                  const event = JSON.parse(payloadStr) as ManualEvent
+                  forwardEvent(event)
+                } catch {
+                  // ignore malformed payloads
+                }
+              }
+            }
+          }
+
+          boundary = buffer.indexOf('\n\n')
+        }
+      }
+
+      if (buffer.trim()) {
+        const dataLine = buffer
+          .trim()
+          .split('\n')
+          .find((line: string) => line.startsWith('data:'))
+
+        if (dataLine) {
+          const payloadStr = dataLine.slice(5).trim()
+          if (payloadStr) {
+            try {
+              const event = JSON.parse(payloadStr) as ManualEvent
+              forwardEvent(event)
+            } catch {
+              // ignore malformed payloads
+            }
+          }
+        }
+      }
+
+      if (!completed && mountedRef.current) {
+        const message = '수동 수집이 예기치 않게 종료되었습니다.'
+        setStatus('failed')
+        setProgress((prev) => Math.max(prev, 100))
+        setFinalMessage(message)
+        appendLog(message, 'error')
+      }
+    } catch (err) {
+      if (!mountedRef.current) {
+        return
+      }
+
+      const message =
+        err instanceof Error
+          ? err.message
+          : '수동 수집 실행 중 오류가 발생했습니다.'
+      setStatus('failed')
+      setProgress((prev) => Math.max(prev, 100))
+      setFinalMessage(message)
+      appendLog(message, 'error')
+    } finally {
+      if (mountedRef.current) {
+        setIsRunning(false)
+      }
+    }
+  }, [
+    appendLog,
+    handleEvent,
+    isRunning,
+    mode,
+    notionInput,
+    urlInput
+  ])
+
+  return (
+    <section className="manual-ingest">
+      <div className="manual-header">
+        <h2>Manual Ingestion</h2>
+        <p className="manual-subtitle">
+          Admin에서 즉시 Notion 페이지 또는 일반 URL을 수집하고 진행 상황을 확인하세요.
+        </p>
+      </div>
+
+      <div className="mode-toggle">
+        <button
+          type="button"
+          className={mode === 'notion_page' ? 'active' : ''}
+          onClick={() => setMode('notion_page')}
+          disabled={isRunning}
+        >
+          Notion Page
+        </button>
+        <button
+          type="button"
+          className={mode === 'url' ? 'active' : ''}
+          onClick={() => setMode('url')}
+          disabled={isRunning}
+        >
+          일반 URL
+        </button>
+      </div>
+
+      <div className="manual-form">
+        {mode === 'notion_page' ? (
+          <label>
+            <span>Notion 페이지 ID 또는 URL</span>
+            <input
+              type="text"
+              placeholder="예: https://www.notion.so/... 또는 페이지 ID"
+              value={notionInput}
+              onChange={(event) => setNotionInput(event.target.value)}
+              disabled={isRunning}
+            />
+          </label>
+        ) : (
+          <label>
+            <span>수집할 URL</span>
+            <input
+              type="url"
+              placeholder="https://example.com/article"
+              value={urlInput}
+              onChange={(event) => setUrlInput(event.target.value)}
+              disabled={isRunning}
+            />
+          </label>
+        )}
+
+        {errorMessage ? (
+          <div className="form-error">{errorMessage}</div>
+        ) : null}
+
+        <div className="manual-actions">
+          <button
+            type="button"
+            onClick={startManualIngestion}
+            disabled={isRunning}
+          >
+            {isRunning ? '실행 중...' : '수동 실행'}
+          </button>
+
+          <div className="manual-status">
+            <span className={`status status-${status}`}>
+              {manualStatusLabels[status]}
+            </span>
+            {runId ? <span className="run-meta">Run ID: {runId}</span> : null}
+          </div>
+        </div>
+      </div>
+
+      <div className="progress-shell">
+        <div className="progress-bar">
+          <div style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
+        </div>
+        <div className="progress-meta">
+          <span>{Math.round(progress)}%</span>
+          {finalMessage ? (
+            <span className="manual-message">{finalMessage}</span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="log-list">
+        {logs.length === 0 ? (
+          <div className="log-empty">진행 로그가 여기에 표시됩니다.</div>
+        ) : (
+          logs.map((log) => (
+            <div key={log.id} className={`log-entry ${log.level}`}>
+              <span className="log-time">
+                {logTimeFormatter.format(new Date(log.timestamp))}
+              </span>
+              <span>{log.message}</span>
+            </div>
+          ))
+        )}
+      </div>
+
+      {stats ? (
+        <div className="run-summary">
+          <h3>실행 결과</h3>
+          <div className="run-summary-grid">
+            <div className="run-summary-card">
+              <span className="summary-label">처리된 문서</span>
+              <span className="summary-value">
+                {numberFormatter.format(stats.documentsProcessed)}
+              </span>
+            </div>
+            <div className="run-summary-card">
+              <span className="summary-label">추가된 문서</span>
+              <span className="summary-value">
+                {numberFormatter.format(stats.documentsAdded)}
+              </span>
+            </div>
+            <div className="run-summary-card">
+              <span className="summary-label">업데이트된 문서</span>
+              <span className="summary-value">
+                {numberFormatter.format(stats.documentsUpdated)}
+              </span>
+            </div>
+            <div className="run-summary-card">
+              <span className="summary-label">건너뛴 문서</span>
+              <span className="summary-value">
+                {numberFormatter.format(stats.documentsSkipped)}
+              </span>
+            </div>
+            <div className="run-summary-card">
+              <span className="summary-label">추가된 청크</span>
+              <span className="summary-value">
+                {numberFormatter.format(stats.chunksAdded)}
+              </span>
+            </div>
+            <div className="run-summary-card">
+              <span className="summary-label">업데이트된 청크</span>
+              <span className="summary-value">
+                {numberFormatter.format(stats.chunksUpdated)}
+              </span>
+            </div>
+            <div className="run-summary-card">
+              <span className="summary-label">추가된 문자 수</span>
+              <span className="summary-value">
+                {numberFormatter.format(stats.charactersAdded)}
+              </span>
+            </div>
+            <div className="run-summary-card">
+              <span className="summary-label">업데이트된 문자 수</span>
+              <span className="summary-value">
+                {numberFormatter.format(stats.charactersUpdated)}
+              </span>
+            </div>
+            <div className="run-summary-card">
+              <span className="summary-label">오류 수</span>
+              <span className="summary-value">
+                {numberFormatter.format(stats.errorCount)}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
   return (
     <>
@@ -283,6 +795,8 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
 
       <main className="ingestion-dashboard">
         <h1>Ingestion Dashboard</h1>
+
+        <ManualIngestionPanel />
 
         <section className="overview">
           <h2>Current Snapshot</h2>
@@ -445,6 +959,275 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
           gap: 2rem;
         }
 
+        .manual-ingest {
+          border: 1px solid rgba(0, 0, 0, 0.1);
+          border-radius: 16px;
+          padding: 1.5rem;
+          background: rgba(255, 255, 255, 0.9);
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+        }
+
+        .manual-header {
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+        }
+
+        .manual-header h2 {
+          margin: 0;
+        }
+
+        .manual-subtitle {
+          font-size: 0.9rem;
+          color: rgba(0, 0, 0, 0.6);
+        }
+
+        .mode-toggle {
+          display: inline-flex;
+          gap: 0.25rem;
+          background: rgba(29, 78, 216, 0.08);
+          border-radius: 999px;
+          padding: 0.25rem;
+          align-self: flex-start;
+        }
+
+        .mode-toggle button {
+          border: none;
+          background: transparent;
+          padding: 0.4rem 1rem;
+          border-radius: 999px;
+          font-weight: 600;
+          font-size: 0.9rem;
+          color: rgba(17, 24, 39, 0.75);
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+
+        .mode-toggle button.active {
+          background: #1d4ed8;
+          color: #fff;
+          box-shadow: 0 2px 6px rgba(29, 78, 216, 0.25);
+        }
+
+        .mode-toggle button:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+
+        .manual-form {
+          display: grid;
+          gap: 1rem;
+        }
+
+        .manual-form label {
+          display: grid;
+          gap: 0.5rem;
+          font-weight: 600;
+          font-size: 0.95rem;
+          color: rgba(17, 24, 39, 0.75);
+        }
+
+        .manual-form input {
+          border: 1px solid rgba(0, 0, 0, 0.15);
+          border-radius: 8px;
+          padding: 0.6rem 0.75rem;
+          font-size: 0.95rem;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .manual-form input:focus {
+          outline: none;
+          border-color: #1d4ed8;
+          box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.2);
+        }
+
+        .manual-form input:disabled {
+          background: rgba(0, 0, 0, 0.04);
+          cursor: not-allowed;
+        }
+
+        .form-error {
+          font-size: 0.85rem;
+          color: #b91c1c;
+        }
+
+        .manual-actions {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .manual-actions button {
+          border: none;
+          background: #1d4ed8;
+          color: #fff;
+          padding: 0.6rem 1.5rem;
+          border-radius: 8px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.15s ease, transform 0.15s ease;
+        }
+
+        .manual-actions button:hover:not(:disabled) {
+          background: #1a46c2;
+          transform: translateY(-1px);
+        }
+
+        .manual-actions button:disabled {
+          background: rgba(29, 78, 216, 0.5);
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .manual-status {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+        }
+
+        .manual-status .status {
+          font-size: 0.85rem;
+        }
+
+        .status-idle {
+          background: rgba(0, 0, 0, 0.08);
+          color: rgba(17, 24, 39, 0.7);
+        }
+
+        .run-meta {
+          font-size: 0.85rem;
+          color: rgba(0, 0, 0, 0.55);
+        }
+
+        .progress-shell {
+          display: grid;
+          gap: 0.5rem;
+        }
+
+        .progress-bar {
+          width: 100%;
+          height: 10px;
+          border-radius: 999px;
+          background: rgba(0, 0, 0, 0.08);
+          overflow: hidden;
+        }
+
+        .progress-bar > div {
+          height: 100%;
+          background: #1d4ed8;
+          border-radius: inherit;
+          transition: width 0.2s ease;
+        }
+
+        .progress-meta {
+          display: flex;
+          gap: 0.75rem;
+          align-items: center;
+          font-size: 0.85rem;
+          color: rgba(0, 0, 0, 0.6);
+          flex-wrap: wrap;
+        }
+
+        .manual-message {
+          color: rgba(17, 24, 39, 0.75);
+        }
+
+        .log-list {
+          border: 1px solid rgba(0, 0, 0, 0.12);
+          border-radius: 10px;
+          padding: 0.75rem;
+          max-height: 220px;
+          overflow-y: auto;
+          background: rgba(0, 0, 0, 0.02);
+          display: grid;
+          gap: 0.5rem;
+        }
+
+        .log-entry {
+          display: flex;
+          gap: 0.6rem;
+          align-items: baseline;
+          font-size: 0.85rem;
+          color: rgba(17, 24, 39, 0.85);
+        }
+
+        .log-entry.warn {
+          color: #92400e;
+        }
+
+        .log-entry.error {
+          color: #991b1b;
+        }
+
+        .log-time {
+          font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas,
+            'Liberation Mono', 'Courier New', monospace;
+          font-size: 0.8rem;
+          color: rgba(0, 0, 0, 0.45);
+        }
+
+        .log-empty {
+          font-size: 0.85rem;
+          color: rgba(0, 0, 0, 0.5);
+        }
+
+        .run-summary {
+          display: grid;
+          gap: 0.75rem;
+        }
+
+        .run-summary h3 {
+          margin: 0;
+          font-size: 1.1rem;
+        }
+
+        .run-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: 0.75rem;
+        }
+
+        .run-summary-card {
+          border: 1px solid rgba(0, 0, 0, 0.1);
+          border-radius: 10px;
+          padding: 0.75rem;
+          background: rgba(255, 255, 255, 0.85);
+          display: grid;
+          gap: 0.25rem;
+        }
+
+        .summary-label {
+          font-size: 0.75rem;
+          text-transform: uppercase;
+          color: rgba(0, 0, 0, 0.55);
+          letter-spacing: 0.05em;
+        }
+
+        .summary-value {
+          font-size: 1.1rem;
+          font-weight: 600;
+        }
+
+        @media (max-width: 640px) {
+          .manual-actions {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .manual-actions button {
+            width: 100%;
+          }
+
+          .manual-status {
+            width: 100%;
+            justify-content: space-between;
+          }
+        }
+
         h1 {
           font-size: 2rem;
           font-weight: 600;
@@ -589,17 +1372,17 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
     .from('rag_documents')
     .select('doc_id, chunk_count, total_characters, last_ingested_at')
 
-  const runs: RunRecord[] = (runsData ?? []).map((run) =>
+  const runs: RunRecord[] = (runsData ?? []).map((run: unknown) =>
     normalizeRunRecord(run)
   )
 
-  const docs = documentsData ?? []
+  const docs: DocumentRow[] = (documentsData ?? []) as DocumentRow[]
   const totalDocuments = docs.length
-  const totalChunks = docs.reduce(
+  const totalChunks = docs.reduce<number>(
     (sum, doc) => sum + (doc.chunk_count ?? 0),
     0
   )
-  const totalCharacters = docs.reduce(
+  const totalCharacters = docs.reduce<number>(
     (sum, doc) => sum + (doc.total_characters ?? 0),
     0
   )

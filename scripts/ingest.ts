@@ -125,9 +125,9 @@ async function extractMainContent(url: string): Promise<Article> {
       dom.window.document.body?.textContent ??
       ''
 
-    const text = rawText
-      .split('\n')
-      .map((line) => line.trim())
+  const text = rawText
+    .split('\n')
+    .map((line: string) => line.trim())
       .filter(Boolean)
       .join('\n\n')
 

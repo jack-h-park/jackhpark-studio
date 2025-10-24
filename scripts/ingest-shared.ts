@@ -363,7 +363,9 @@ export async function embedBatch(texts: string[]): Promise<number[][]> {
     input: texts
   })
 
-  return response.data.map((item) => item.embedding)
+  return response.data.map(
+    (item: { embedding: number[] }): number[] => item.embedding
+  )
 }
 
 export function hashChunk(input: string): string {
