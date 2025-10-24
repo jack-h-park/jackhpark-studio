@@ -39,6 +39,7 @@ export type ChunkInsert = {
   chunk: string
   chunk_hash: string
   embedding: number[]
+  ingested_at?: string
 }
 
 export type DocumentState = {
@@ -47,6 +48,8 @@ export type DocumentState = {
   content_hash: string
   last_ingested_at: string
   last_source_update: string | null
+  chunk_count: number | null
+  total_characters: number | null
 }
 
 export type DocumentStateUpsert = {
@@ -54,6 +57,8 @@ export type DocumentStateUpsert = {
   source_url: string
   content_hash: string
   last_source_update?: string | null
+  chunk_count?: number
+  total_characters?: number
 }
 
 function isMissingTableError(error: PostgrestError | null): boolean {
@@ -89,7 +94,7 @@ export async function getDocumentState(
   const { data, error } = await supabaseClient
     .from(DOCUMENTS_TABLE)
     .select(
-      'doc_id, source_url, content_hash, last_ingested_at, last_source_update'
+      'doc_id, source_url, content_hash, last_ingested_at, last_source_update, chunk_count, total_characters'
     )
     .eq('doc_id', docId)
     .maybeSingle()
@@ -120,7 +125,13 @@ export async function upsertDocumentState(
     last_source_update:
       toUpsert.last_source_update === undefined
         ? null
-        : toUpsert.last_source_update
+        : toUpsert.last_source_update,
+    chunk_count:
+      toUpsert.chunk_count === undefined ? null : toUpsert.chunk_count,
+    total_characters:
+      toUpsert.total_characters === undefined
+        ? null
+        : toUpsert.total_characters
   }
 
   const { error } = await supabaseClient
@@ -135,6 +146,144 @@ export async function upsertDocumentState(
   }
 
   documentStateTableStatus = 'available'
+}
+
+const INGEST_RUNS_TABLE = 'rag_ingest_runs'
+let ingestRunsTableStatus: 'unknown' | 'available' | 'missing' = 'unknown'
+let ingestRunsWarningLogged = false
+
+type IngestRunStatus = 'in_progress' | 'success' | 'completed_with_errors' | 'failed'
+
+export type IngestRunStartInput = {
+  source: string
+  ingestion_type: 'full' | 'partial'
+  partial_reason?: string | null
+  metadata?: Record<string, unknown> | null
+}
+
+export type IngestRunHandle = {
+  id: string
+} | null
+
+export type IngestRunErrorLog = {
+  context?: string | null
+  doc_id?: string | null
+  message: string
+}
+
+export type IngestRunStats = {
+  documentsProcessed: number
+  documentsAdded: number
+  documentsUpdated: number
+  documentsSkipped: number
+  chunksAdded: number
+  chunksUpdated: number
+  charactersAdded: number
+  charactersUpdated: number
+  errorCount: number
+}
+
+export type IngestRunFinishInput = {
+  status: Exclude<IngestRunStatus, 'in_progress'>
+  durationMs: number
+  totals: IngestRunStats
+  errorLogs?: IngestRunErrorLog[]
+}
+
+export function createEmptyRunStats(): IngestRunStats {
+  return {
+    documentsProcessed: 0,
+    documentsAdded: 0,
+    documentsUpdated: 0,
+    documentsSkipped: 0,
+    chunksAdded: 0,
+    chunksUpdated: 0,
+    charactersAdded: 0,
+    charactersUpdated: 0,
+    errorCount: 0
+  }
+}
+
+function handleIngestRunsError(error: PostgrestError | null): boolean {
+  if (!isMissingTableError(error)) {
+    return false
+  }
+
+  ingestRunsTableStatus = 'missing'
+  if (!ingestRunsWarningLogged) {
+    console.warn(
+      '[ingest] Supabase table "rag_ingest_runs" was not found. Run-level logging will be skipped.'
+    )
+    ingestRunsWarningLogged = true
+  }
+  return true
+}
+
+export async function startIngestRun(
+  input: IngestRunStartInput
+): Promise<IngestRunHandle> {
+  if (ingestRunsTableStatus === 'missing') {
+    return null
+  }
+
+  const payload = {
+    source: input.source,
+    ingestion_type: input.ingestion_type,
+    partial_reason: input.partial_reason ?? null,
+    status: 'in_progress' as IngestRunStatus,
+    started_at: new Date().toISOString(),
+    metadata: input.metadata ?? null
+  }
+
+  const { data, error } = await supabaseClient
+    .from(INGEST_RUNS_TABLE)
+    .insert(payload)
+    .select('id')
+    .single()
+
+  if (error) {
+    if (handleIngestRunsError(error)) {
+      return null
+    }
+    throw error
+  }
+
+  ingestRunsTableStatus = 'available'
+  return { id: data.id as string }
+}
+
+export async function finishIngestRun(
+  handle: IngestRunHandle,
+  input: IngestRunFinishInput
+): Promise<void> {
+  if (!handle || ingestRunsTableStatus === 'missing') {
+    return
+  }
+
+  const payload = {
+    status: input.status,
+    ended_at: new Date().toISOString(),
+    duration_ms: input.durationMs,
+    documents_processed: input.totals.documentsProcessed,
+    documents_added: input.totals.documentsAdded,
+    documents_updated: input.totals.documentsUpdated,
+    documents_skipped: input.totals.documentsSkipped,
+    chunks_added: input.totals.chunksAdded,
+    chunks_updated: input.totals.chunksUpdated,
+    characters_added: input.totals.charactersAdded,
+    characters_updated: input.totals.charactersUpdated,
+    error_count: input.totals.errorCount,
+    error_logs: (input.errorLogs ?? []).slice(0, 50)
+  }
+
+  const { error } = await supabaseClient
+    .from(INGEST_RUNS_TABLE)
+    .update(payload)
+    .eq('id', handle.id)
+
+  if (error) {
+    handleIngestRunsError(error)
+  }
 }
 
 export function chunkByTokens(
