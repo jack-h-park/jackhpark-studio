@@ -745,15 +745,6 @@ function ManualIngestionPanel(): JSX.Element {
   const renderScopeSelector = (
     scope: "partial" | "full",
     setScope: (value: "partial" | "full") => void,
-    copy: {
-      label: string;
-      partialTitle: string;
-      partialDesc: string;
-      fullTitle: string;
-      fullDesc: string;
-      hintPartial: string;
-      hintFull: string;
-    },
     groupName: string,
     labelId: string,
   ) => (
@@ -763,7 +754,7 @@ function ManualIngestionPanel(): JSX.Element {
       aria-labelledby={labelId}
     >
       <legend id={labelId} className="manual-scope__label">
-        {copy.label}
+        {scopeCopy.label}
       </legend>
       <div className="manual-scope__controls">
         <label
@@ -779,8 +770,8 @@ function ManualIngestionPanel(): JSX.Element {
             onChange={() => setScope("partial")}
             disabled={isRunning}
           />
-          <span className="manual-scope__title">{copy.partialTitle}</span>
-          <span className="manual-scope__desc">{copy.partialDesc}</span>
+          <span className="manual-scope__title">{scopeCopy.partialTitle}</span>
+          <span className="manual-scope__desc">{scopeCopy.partialDesc}</span>
         </label>
         <label
           className={`manual-scope__option ${scope === "full" ? "is-active" : ""} ${
@@ -795,12 +786,12 @@ function ManualIngestionPanel(): JSX.Element {
             onChange={() => setScope("full")}
             disabled={isRunning}
           />
-          <span className="manual-scope__title">{copy.fullTitle}</span>
-          <span className="manual-scope__desc">{copy.fullDesc}</span>
+          <span className="manual-scope__title">{scopeCopy.fullTitle}</span>
+          <span className="manual-scope__desc">{scopeCopy.fullDesc}</span>
         </label>
       </div>
       <p className="manual-scope__hint">
-        {scope === "full" ? copy.hintFull : copy.hintPartial}
+        {scope === "full" ? scopeCopy.hintFull : scopeCopy.hintPartial}
       </p>
     </fieldset>
   );
@@ -817,12 +808,12 @@ function ManualIngestionPanel(): JSX.Element {
 
   return (
     <>
+      {/*
+        This style block is necessary for styled-jsx to apply styles to this component,
+        as it's defined separately from the main page component where the styles are declared.
+      */}
+      <style jsx>{styles}</style>
       <section className="manual-ingestion admin-card">
-        {/*
-         This style block is necessary for styled-jsx to apply styles to this component,
-         as it's defined separately from the main page component where the styles are declared.
-        */}
-        <style jsx>{styles}</style>
         <header className="manual-ingestion__header">
           <div>
             <h2>Manual Ingestion</h2>
@@ -917,21 +908,19 @@ function ManualIngestionPanel(): JSX.Element {
                 ? renderScopeSelector(
                     notionScope,
                     setNotionScope,
-                    scopeCopy,
                     "manual-scope-notion",
                     "manual-scope-label-notion",
                   )
                 : renderScopeSelector(
                     urlScope,
                     setUrlScope,
-                    scopeCopy,
                     "manual-scope-url",
                     "manual-scope-label-url",
                   )}
 
               <p className="manual-hint">
                 {mode === "notion_page"
-                  ? "Paste the full shared link or the 32-character page ID from Notion. Choose the scope above to control how much content is reprocessed."
+                  ? "Paste the full shared link or the 32-character page ID from Notion. Use the scope above to control how much content is reprocessed."
                   : "Enter a public HTTP(S) link. Use the scope above to skip unchanged articles or force a full refresh."}
               </p>
 
@@ -1101,681 +1090,6 @@ function ManualIngestionPanel(): JSX.Element {
 }
 
 function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
-  const ManualIngestionPanel = (): JSX.Element => {
-    const router = useRouter();
-    const [mode, setMode] = useState<"notion_page" | "url">("notion_page");
-    const [notionInput, setNotionInput] = useState("");
-    const [notionScope, setNotionScope] = useState<"partial" | "full">(
-      "partial",
-    );
-    const [urlScope, setUrlScope] = useState<"partial" | "full">("partial");
-    const [urlInput, setUrlInput] = useState("");
-    const [isRunning, setIsRunning] = useState(false);
-    const [progress, setProgress] = useState(0);
-    const [status, setStatus] = useState<ManualIngestionStatus>("idle");
-    const [runId, setRunId] = useState<string | null>(null);
-    const [finalMessage, setFinalMessage] = useState<string | null>(null);
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [logs, setLogs] = useState<ManualLogEntry[]>([]);
-    const [stats, setStats] = useState<ManualRunStats | null>(null);
-    const [hasCompleted, setHasCompleted] = useState(false);
-    const mountedRef = useRef(true);
-
-    useEffect(() => {
-      return () => {
-        mountedRef.current = false;
-      };
-    }, []);
-
-    const appendLog = useCallback(
-      (message: string, level: "info" | "warn" | "error" = "info") => {
-        if (!mountedRef.current) {
-          return;
-        }
-
-        setLogs((prev) => [...prev, createLogEntry(message, level)]);
-      },
-      [],
-    );
-
-    const handleEvent = useCallback(
-      (event: ManualEvent) => {
-        if (!mountedRef.current) {
-          return;
-        }
-
-        let completionMessage = "";
-        let completionLevel: "info" | "warn" | "error" = "info";
-
-        switch (event.type) {
-          case "run":
-            setRunId(event.runId);
-            if (event.runId) {
-              appendLog(`Supabase run ID: ${event.runId}`);
-            }
-            break;
-          case "log":
-            appendLog(event.message, event.level ?? "info");
-            break;
-          case "progress":
-            setProgress(Math.max(0, Math.min(100, event.percent)));
-            break;
-          case "complete":
-            completionMessage =
-              event.message ?? "Manual ingestion finished successfully.";
-            completionLevel =
-              event.status === "failed"
-                ? "error"
-                : event.status === "completed_with_errors"
-                  ? "warn"
-                  : "info";
-            setStatus(event.status);
-            setStats(event.stats);
-            setRunId(event.runId);
-            setFinalMessage(completionMessage);
-            appendLog(completionMessage, completionLevel);
-            setHasCompleted(true);
-            setProgress(100);
-            setIsRunning(false);
-            break;
-          default:
-            break;
-        }
-      },
-      [appendLog],
-    );
-
-    const startManualIngestion = useCallback(async () => {
-      if (isRunning) {
-        return;
-      }
-
-      let payload:
-        | {
-            mode: "notion_page";
-            pageId: string;
-            ingestionType: "full" | "partial";
-          }
-        | {
-            mode: "url";
-            url: string;
-            ingestionType: "full" | "partial";
-          };
-
-      if (mode === "notion_page") {
-        const parsed = parsePageId(notionInput.trim(), { uuid: true });
-        if (!parsed) {
-          setErrorMessage("Enter a valid Notion page ID or URL.");
-          return;
-        }
-        payload = {
-          mode: "notion_page",
-          pageId: parsed,
-          ingestionType: notionScope,
-        };
-      } else {
-        const trimmed = urlInput.trim();
-        if (!trimmed) {
-          setErrorMessage("Enter at least one URL to ingest.");
-          return;
-        }
-
-        let parsedUrl: URL;
-        try {
-          parsedUrl = new URL(trimmed);
-        } catch {
-          setErrorMessage("Enter a valid URL.");
-          return;
-        }
-
-        if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
-          setErrorMessage("Only HTTP and HTTPS URLs are supported.");
-          return;
-        }
-
-        payload = {
-          mode: "url",
-          url: parsedUrl.toString(),
-          ingestionType: urlScope,
-        };
-      }
-
-      if (!mountedRef.current) {
-        return;
-      }
-
-      setErrorMessage(null);
-      setIsRunning(true);
-      setStatus("in_progress");
-      setProgress(0);
-      setRunId(null);
-      setFinalMessage(null);
-      setStats(null);
-      setHasCompleted(false);
-      const startLog =
-        mode === "notion_page"
-          ? `Starting manual ${notionScope} ingestion for the Notion page.`
-          : `Starting manual ${urlScope} ingestion for the provided URL.`;
-      setLogs([createLogEntry(startLog, "info")]);
-
-      try {
-        const response = await fetch("/api/admin/manual-ingest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          let message = `Request failed. (${response.status})`;
-          const contentType = response.headers.get("content-type") ?? "";
-
-          if (contentType.includes("application/json")) {
-            try {
-              const data = (await response.json()) as { error?: unknown };
-              if (
-                typeof data.error === "string" &&
-                data.error.trim().length > 0
-              ) {
-                message = data.error.trim();
-              }
-            } catch {
-              // ignore
-            }
-          } else {
-            try {
-              const text = await response.text();
-              if (text.trim()) {
-                message = text.trim();
-              }
-            } catch {
-              // ignore
-            }
-          }
-
-          throw new Error(message);
-        }
-
-        if (!response.body) {
-          throw new Error(
-            "Streaming responses are not supported in this browser.",
-          );
-        }
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let completed = false;
-
-        const forwardEvent = (event: ManualEvent) => {
-          if (event.type === "complete") {
-            completed = true;
-          }
-          handleEvent(event);
-        };
-
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) {
-            break;
-          }
-
-          buffer += decoder.decode(value, { stream: true });
-
-          let boundary = buffer.indexOf("\n\n");
-          while (boundary !== -1) {
-            const raw = buffer.slice(0, boundary).trim();
-            buffer = buffer.slice(boundary + 2);
-
-            if (raw) {
-              const dataLine = raw
-                .split("\n")
-                .find((line: string) => line.startsWith("data:"));
-
-              if (dataLine) {
-                const payloadStr = dataLine.slice(5).trim();
-                if (payloadStr) {
-                  try {
-                    const event = JSON.parse(payloadStr) as ManualEvent;
-                    forwardEvent(event);
-                  } catch {
-                    // ignore malformed payloads
-                  }
-                }
-              }
-            }
-
-            boundary = buffer.indexOf("\n\n");
-          }
-        }
-
-        if (buffer.trim()) {
-          const dataLine = buffer
-            .trim()
-            .split("\n")
-            .find((line: string) => line.startsWith("data:"));
-
-          if (dataLine) {
-            const payloadStr = dataLine.slice(5).trim();
-            if (payloadStr) {
-              try {
-                const event = JSON.parse(payloadStr) as ManualEvent;
-                forwardEvent(event);
-              } catch {
-                // ignore malformed payloads
-              }
-            }
-          }
-        }
-
-        if (!completed && mountedRef.current) {
-          const message = "Manual ingestion ended unexpectedly.";
-          setStatus("failed");
-          setProgress((prev) => Math.max(prev, 100));
-          setFinalMessage(message);
-          appendLog(message, "error");
-        }
-      } catch (err) {
-        if (!mountedRef.current) {
-          return;
-        }
-
-        const message =
-          err instanceof Error
-            ? err.message
-            : "An error occurred while running manual ingestion.";
-        setStatus("failed");
-        setProgress((prev) => Math.max(prev, 100));
-        setFinalMessage(message);
-        appendLog(message, "error");
-      } finally {
-        if (mountedRef.current) {
-          setIsRunning(false);
-        }
-      }
-    }, [
-      appendLog,
-      handleEvent,
-      isRunning,
-      mode,
-      notionInput,
-      notionScope,
-      urlInput,
-      urlScope,
-    ]);
-
-    const handleSubmit = useCallback(
-      (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        void startManualIngestion();
-      },
-      [startManualIngestion],
-    );
-
-    const activeTabId = `manual-tab-${mode}`;
-    const renderScopeSelector = (
-      scope: "partial" | "full",
-      setScope: (value: "partial" | "full") => void,
-      copy: {
-        label: string;
-        partialTitle: string;
-        partialDesc: string;
-        fullTitle: string;
-        fullDesc: string;
-        hintPartial: string;
-        hintFull: string;
-      },
-      groupName: string,
-      labelId: string,
-    ) => (
-      <fieldset
-        className="manual-scope"
-        role="radiogroup"
-        aria-labelledby={labelId}
-      >
-        <legend id={labelId} className="manual-scope__label">
-          {copy.label}
-        </legend>
-        <div className="manual-scope__controls">
-          <label
-            className={`manual-scope__option ${
-              scope === "partial" ? "is-active" : ""
-            } ${isRunning ? "is-disabled" : ""}`}
-          >
-            <input
-              type="radio"
-              name={groupName}
-              value="partial"
-              checked={scope === "partial"}
-              onChange={() => setScope("partial")}
-              disabled={isRunning}
-            />
-            <span className="manual-scope__title">{copy.partialTitle}</span>
-            <span className="manual-scope__desc">{copy.partialDesc}</span>
-          </label>
-          <label
-            className={`manual-scope__option ${
-              scope === "full" ? "is-active" : ""
-            } ${isRunning ? "is-disabled" : ""}`}
-          >
-            <input
-              type="radio"
-              name={groupName}
-              value="full"
-              checked={scope === "full"}
-              onChange={() => setScope("full")}
-              disabled={isRunning}
-            />
-            <span className="manual-scope__title">{copy.fullTitle}</span>
-            <span className="manual-scope__desc">{copy.fullDesc}</span>
-          </label>
-        </div>
-        <p className="manual-scope__hint">
-          {scope === "full" ? copy.hintFull : copy.hintPartial}
-        </p>
-      </fieldset>
-    );
-
-    const notionScopeCopy = {
-      label: "Ingestion scope",
-      partialTitle: "Partial",
-      partialDesc: "Re-embed the page only if changes are detected.",
-      fullTitle: "Full",
-      fullDesc: "Force a complete re-embed of every chunk in this page.",
-      hintPartial: "Partial runs are quicker and skip unchanged content.",
-      hintFull: "Full runs can take longer for large pages.",
-    };
-
-    const urlScopeCopy = {
-      label: "Ingestion scope",
-      partialTitle: "Partial",
-      partialDesc: "Skip re-ingesting when the article content hasn't changed.",
-      fullTitle: "Full",
-      fullDesc: "Re-ingest the article even if the content appears unchanged.",
-      hintPartial: "Partial runs save time by avoiding redundant ingestion.",
-      hintFull:
-        "Full runs ensure embeddings stay fresh even without detected diffs.",
-    };
-
-    return (
-      <section className="manual-ingestion admin-card">
-        <header className="manual-ingestion__header">
-          <div>
-            <h2>Manual Ingestion</h2>
-            <p>
-              Trigger manual ingestion for a Notion page or external URL and
-              track the progress here.
-            </p>
-          </div>
-          <div className="manual-ingestion__status">
-            <span className={`status-pill status-pill--${status}`}>
-              {manualStatusLabels[status]}
-            </span>
-            {runId ? (
-              <span className="status-pill__meta">Run ID: {runId}</span>
-            ) : null}
-          </div>
-        </header>
-
-        <div className="manual-ingestion__layout">
-          <div className="manual-ingestion__primary">
-            <div
-              className="manual-ingestion__tabs"
-              role="tablist"
-              aria-label="Manual ingestion source"
-            >
-              {MANUAL_TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = mode === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    id={`manual-tab-${tab.id}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    aria-controls={`manual-panel-${tab.id}`}
-                    className={`manual-tab ${
-                      isActive ? "manual-tab--active" : ""
-                    }`}
-                    onClick={() => setMode(tab.id)}
-                    disabled={isRunning}
-                  >
-                    <span className="manual-tab__icon" aria-hidden="true">
-                      <Icon />
-                    </span>
-                    <span className="manual-tab__copy">
-                      <span className="manual-tab__title">{tab.label}</span>
-                      <span className="manual-tab__subtitle">
-                        {tab.subtitle}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <form
-              className="manual-form"
-              aria-labelledby={activeTabId}
-              id={`manual-panel-${mode}`}
-              role="tabpanel"
-              onSubmit={handleSubmit}
-              noValidate
-            >
-              {mode === "notion_page" ? (
-                <div className="manual-field">
-                  <label htmlFor="manual-notion-input">
-                    Notion Page ID or URL
-                  </label>
-                  <input
-                    id="manual-notion-input"
-                    type="text"
-                    placeholder="https://www.notion.so/... or page ID"
-                    value={notionInput}
-                    onChange={(event) => setNotionInput(event.target.value)}
-                    disabled={isRunning}
-                  />
-                </div>
-              ) : (
-                <div className="manual-field">
-                  <label htmlFor="manual-url-input">URL to ingest</label>
-                  <input
-                    id="manual-url-input"
-                    type="url"
-                    placeholder="https://example.com/article"
-                    value={urlInput}
-                    onChange={(event) => setUrlInput(event.target.value)}
-                    disabled={isRunning}
-                  />
-                </div>
-              )}
-
-              {mode === "notion_page"
-                ? renderScopeSelector(
-                    notionScope,
-                    setNotionScope,
-                    notionScopeCopy,
-                    "manual-scope-notion",
-                    "manual-scope-label-notion",
-                  )
-                : renderScopeSelector(
-                    urlScope,
-                    setUrlScope,
-                    urlScopeCopy,
-                    "manual-scope-url",
-                    "manual-scope-label-url",
-                  )}
-
-              <p className="manual-hint">
-                {mode === "notion_page"
-                  ? "Paste the full shared link or the 32-character page ID from Notion. Choose the scope above to control how much content is reprocessed."
-                  : "Enter a public HTTP(S) link. Use the scope above to skip unchanged articles or force a full refresh."}
-              </p>
-
-              {errorMessage ? (
-                <div className="manual-error" role="alert">
-                  {errorMessage}
-                </div>
-              ) : null}
-
-              <div className="manual-actions">
-                <button
-                  type="submit"
-                  className={`manual-button ${isRunning ? "is-loading" : ""}`}
-                  disabled={isRunning}
-                >
-                  {isRunning ? "Running" : "Run manually"}
-                </button>
-
-                <div className="manual-progress" aria-live="polite">
-                  <div className="progress-bar" aria-hidden="true">
-                    <div
-                      className="progress-bar__value"
-                      style={{
-                        width: `${Math.max(0, Math.min(100, progress))}%`,
-                      }}
-                    />
-                  </div>
-                  <div className="progress-meta">
-                    <span className="progress-percent">
-                      {Math.round(progress)}%
-                    </span>
-                    {finalMessage ? (
-                      <span className="progress-message">{finalMessage}</span>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </form>
-          </div>
-
-          <aside
-            className="manual-ingestion__aside"
-            aria-label="Manual ingestion tips"
-          >
-            <h3>Tips</h3>
-            <ul>
-              <li>
-                Ensure the Notion page is shared and accessible with the
-                integration token.
-              </li>
-              <li>
-                Long articles are chunked automatically; you can rerun to
-                refresh the data.
-              </li>
-              <li>
-                External URLs should be static pages without paywalls or heavy
-                scripts.
-              </li>
-            </ul>
-            <div className="tip-callout">
-              <strong>Heads up</strong>
-              <p>
-                Manual runs are processed immediately and may take a few seconds
-                depending on the content size.
-              </p>
-            </div>
-          </aside>
-        </div>
-
-        <section className="manual-logs" aria-live="polite">
-          <header className="manual-logs__header">
-            <h3>Run Log</h3>
-            <span className="manual-logs__meta">
-              {logs.length === 0
-                ? "Awaiting events"
-                : `${logs.length} entr${logs.length === 1 ? "y" : "ies"}`}
-            </span>
-            {hasCompleted && !isRunning ? (
-              <button
-                type="button"
-                className="manual-logs__refresh-button"
-                onClick={() => {
-                  void router.replace(router.asPath);
-                }}
-              >
-                Refresh Dashboard
-              </button>
-            ) : null}
-          </header>
-          {logs.length === 0 ? (
-            <div className="manual-logs__empty">
-              Execution logs will appear here.
-            </div>
-          ) : (
-            <ul className="manual-logs__list">
-              {logs.map((log) => {
-                const Icon = LOG_ICONS[log.level];
-                return (
-                  <li
-                    key={log.id}
-                    className={`manual-log-entry manual-log-entry--${log.level}`}
-                  >
-                    <span className="manual-log-entry__icon" aria-hidden="true">
-                      <Icon />
-                    </span>
-                    <div className="manual-log-entry__body">
-                      <span className="manual-log-entry__time">
-                        {logTimeFormatter.format(new Date(log.timestamp))}
-                      </span>
-                      <span className="manual-log-entry__message">
-                        {log.message}
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </section>
-
-        {stats ? (
-          <section className="manual-summary">
-            <h3>Run Summary</h3>
-            <dl className="summary-grid">
-              <div className="summary-item">
-                <dt>Documents Processed</dt>
-                <dd>{numberFormatter.format(stats.documentsProcessed)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Documents Added</dt>
-                <dd>{numberFormatter.format(stats.documentsAdded)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Documents Updated</dt>
-                <dd>{numberFormatter.format(stats.documentsUpdated)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Documents Skipped</dt>
-                <dd>{numberFormatter.format(stats.documentsSkipped)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Chunks Added</dt>
-                <dd>{numberFormatter.format(stats.chunksAdded)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Chunks Updated</dt>
-                <dd>{numberFormatter.format(stats.chunksUpdated)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Characters Added</dt>
-                <dd>{numberFormatter.format(stats.charactersAdded)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Characters Updated</dt>
-                <dd>{numberFormatter.format(stats.charactersUpdated)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Errors</dt>
-                <dd>{numberFormatter.format(stats.errorCount)}</dd>
-              </div>
-            </dl>
-          </section>
-        ) : null}
-      </section>
-    );
-  };
-
   return (
     <>
       <Head>
@@ -1906,16 +1220,17 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
                           run.metadata,
                           "hostname",
                         );
-                        const manualScope = getStringMetadata(
+                        const ingestionScope = getStringMetadata(
                           run.metadata,
                           "ingestionType",
                         );
-                        const manualScopeLabel =
-                          manualScope === "full"
+                        const scopeLabel =
+                          ingestionScope === "full"
                             ? "Full"
-                            : manualScope === "partial"
+                            : ingestionScope === "partial"
                               ? "Partial"
-                              : manualScope;
+                              : null;
+
                         return (
                           <tr key={run.id}>
                             <td>
@@ -2053,9 +1368,9 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
                                   URLs: {numberFormatter.format(urlCount)}
                                 </div>
                               ) : null}
-                              {manualScopeLabel ? (
+                              {scopeLabel ? (
                                 <div className="admin-table__meta">
-                                  Scope: {manualScopeLabel}
+                                  Scope: {scopeLabel}
                                 </div>
                               ) : null}
                               {!rootPageId &&
@@ -2064,7 +1379,7 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
                               !targetUrl &&
                               !hostname &&
                               urlCount === null &&
-                              !manualScopeLabel ? (
+                              !scopeLabel ? (
                                 <div className="admin-table__meta">—</div>
                               ) : null}
                             </td>
@@ -2104,73 +1419,6 @@ function ClientSideDate({ value }: { value: string | null | undefined }) {
 
   return <>{formatDate(value)}</>;
 }
-
-export const getServerSideProps: GetServerSideProps<PageProps> = async (
-  _context,
-) => {
-  const supabase = getSupabaseAdminClient();
-
-  const { data: runsData } = await supabase
-    .from("rag_ingest_runs")
-    .select(
-      "id, source, ingestion_type, partial_reason, status, started_at, ended_at, duration_ms, documents_processed, documents_added, documents_updated, documents_skipped, chunks_added, chunks_updated, characters_added, characters_updated, error_count, error_logs, metadata",
-    )
-    .order("started_at", { ascending: false })
-    .limit(50);
-
-  const { data: documentsData } = await supabase
-    .from("rag_documents")
-    .select("doc_id, chunk_count, total_characters, last_ingested_at");
-
-  const runs: RunRecord[] = (runsData ?? []).map((run: unknown) =>
-    normalizeRunRecord(run),
-  );
-
-  const docs: DocumentRow[] = (documentsData ?? []) as DocumentRow[];
-  const totalDocuments = docs.length;
-  const totalChunks = docs.reduce<number>(
-    (sum, doc) => sum + (doc.chunk_count ?? 0),
-    0,
-  );
-  const totalCharacters = docs.reduce<number>(
-    (sum, doc) => sum + (doc.total_characters ?? 0),
-    0,
-  );
-  const lastUpdatedTimestamp = docs.reduce<number | null>((latest, doc) => {
-    const date = parseDate(doc.last_ingested_at);
-    if (!date) {
-      return latest;
-    }
-
-    const timestamp = date.getTime();
-    if (Number.isNaN(timestamp)) {
-      return latest;
-    }
-
-    if (latest === null || timestamp > latest) {
-      return timestamp;
-    }
-
-    return latest;
-  }, null);
-
-  const lastUpdatedAt =
-    lastUpdatedTimestamp === null
-      ? null
-      : new Date(lastUpdatedTimestamp).toISOString();
-
-  return {
-    props: {
-      overview: {
-        totalDocuments,
-        totalChunks,
-        totalCharacters,
-        lastUpdatedAt,
-      },
-      runs,
-    },
-  };
-};
 
 const styles = css.global`
   .admin-ingestion-page {
@@ -2364,6 +1612,16 @@ const styles = css.global`
     margin-top: 0.35rem;
     font-size: 0.85rem;
     color: rgba(55, 53, 47, 0.55);
+  }
+
+  .admin-table__meta a {
+    color: rgba(46, 170, 220, 0.85);
+    text-decoration: none;
+  }
+
+  .admin-table__meta a:hover,
+  .admin-table__meta a:focus {
+    text-decoration: underline;
   }
 
   .admin-issues {
@@ -2602,7 +1860,6 @@ const styles = css.global`
   }
 
   .manual-scope__option {
-    position: relative;
     flex: 1 1 200px;
     min-width: 160px;
     border: 1px solid rgba(55, 53, 47, 0.18);
@@ -2617,14 +1874,13 @@ const styles = css.global`
       border-color 0.15s ease,
       box-shadow 0.15s ease,
       background 0.15s ease;
+    position: relative;
     text-align: left;
   }
 
   .manual-scope__option input {
     position: absolute;
     inset: 0;
-    width: 100%;
-    height: 100%;
     opacity: 0;
     pointer-events: none;
   }
@@ -2649,11 +1905,13 @@ const styles = css.global`
     font-size: 0.95rem;
     font-weight: 600;
     color: rgba(55, 53, 47, 0.78);
+    display: block;
   }
 
   .manual-scope__desc {
     font-size: 0.82rem;
     color: rgba(55, 53, 47, 0.6);
+    display: block;
   }
 
   .manual-scope__hint {
@@ -2984,5 +2242,72 @@ const styles = css.global`
     }
   }
 `;
+
+export const getServerSideProps: GetServerSideProps<PageProps> = async (
+  _context,
+) => {
+  const supabase = getSupabaseAdminClient();
+
+  const { data: runsData } = await supabase
+    .from("rag_ingest_runs")
+    .select(
+      "id, source, ingestion_type, partial_reason, status, started_at, ended_at, duration_ms, documents_processed, documents_added, documents_updated, documents_skipped, chunks_added, chunks_updated, characters_added, characters_updated, error_count, error_logs, metadata",
+    )
+    .order("started_at", { ascending: false })
+    .limit(50);
+
+  const { data: documentsData } = await supabase
+    .from("rag_documents")
+    .select("doc_id, chunk_count, total_characters, last_ingested_at");
+
+  const runs: RunRecord[] = (runsData ?? []).map((run: unknown) =>
+    normalizeRunRecord(run),
+  );
+
+  const docs: DocumentRow[] = (documentsData ?? []) as DocumentRow[];
+  const totalDocuments = docs.length;
+  const totalChunks = docs.reduce<number>(
+    (sum, doc) => sum + (doc.chunk_count ?? 0),
+    0,
+  );
+  const totalCharacters = docs.reduce<number>(
+    (sum, doc) => sum + (doc.total_characters ?? 0),
+    0,
+  );
+  const lastUpdatedTimestamp = docs.reduce<number | null>((latest, doc) => {
+    const date = parseDate(doc.last_ingested_at);
+    if (!date) {
+      return latest;
+    }
+
+    const timestamp = date.getTime();
+    if (Number.isNaN(timestamp)) {
+      return latest;
+    }
+
+    if (latest === null || timestamp > latest) {
+      return timestamp;
+    }
+
+    return latest;
+  }, null);
+
+  const lastUpdatedAt =
+    lastUpdatedTimestamp === null
+      ? null
+      : new Date(lastUpdatedTimestamp).toISOString();
+
+  return {
+    props: {
+      overview: {
+        totalDocuments,
+        totalChunks,
+        totalCharacters,
+        lastUpdatedAt,
+      },
+      runs,
+    },
+  };
+};
 
 export default IngestionDashboard;
