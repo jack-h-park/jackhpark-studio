@@ -1053,7 +1053,7 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
                 <div className="admin-metric">
                   <span className="admin-metric__label">Last Updated</span>
                   <span className="admin-metric__value">
-                    {formatDate(overview.lastUpdatedAt)}
+                    <ClientSideDate value={overview.lastUpdatedAt} />
                   </span>
                 </div>
               </div>
@@ -1103,10 +1103,13 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
                         return (
                           <tr key={run.id}>
                             <td>
-                              <div>{formatDate(run.started_at)}</div>
+                              <div>
+                                <ClientSideDate value={run.started_at} />
+                              </div>
                               {run.ended_at ? (
                                 <div className="admin-table__meta">
-                                  Finished: {formatDate(run.ended_at)}
+                                  Finished:{" "}
+                                  <ClientSideDate value={run.ended_at} />
                                 </div>
                               ) : null}
                             </td>
@@ -1208,6 +1211,22 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
       <style jsx>{styles}</style>
     </>
   );
+}
+
+function ClientSideDate({ value }: { value: string | null | undefined }) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    // 서버 렌더링 및 초기 클라이언트 렌더링 시에는 placeholder를 보여줍니다.
+    // 이렇게 하면 서버와 클라이언트의 초기 UI가 일치하게 됩니다.
+    return <span>--</span>;
+  }
+
+  return <>{formatDate(value)}</>;
 }
 
 const styles = css`
