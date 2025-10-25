@@ -99,9 +99,7 @@ async function ingestPage(
 
   const existingState = await getDocumentState(pageId)
   const unchanged =
-    existingState &&
-    existingState.content_hash === pageHash &&
-    (!lastEditedTime || existingState.last_source_update === lastEditedTime)
+    existingState && existingState.content_hash === pageHash
 
   if (unchanged) {
     console.log(`Skipping unchanged Notion page: ${title}`)

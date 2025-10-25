@@ -511,8 +511,15 @@ function ManualIngestionPanel(): JSX.Element {
           break;
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [appendLog, isRunning, status],
+    [
+      appendLog,
+      setRunId,
+      setProgress,
+      setStatus,
+      setStats,
+      setFinalMessage,
+      setIsRunning,
+    ],
   );
 
   useEffect(() => {
@@ -729,14 +736,13 @@ function ManualIngestionPanel(): JSX.Element {
       }
     }
   }, [
-    appendLog,
-    handleEvent,
     isRunning,
     mode,
     notionInput,
     notionScope,
     urlInput,
     urlScope,
+    handleEvent,
   ]);
 
   const handleSubmit = useCallback(
@@ -1004,17 +1010,6 @@ function ManualIngestionPanel(): JSX.Element {
                 ? "Awaiting events"
                 : `${logs.length} entr${logs.length === 1 ? "y" : "ies"}`}
             </span>
-            {hasCompleted && !isRunning ? (
-              <button
-                type="button"
-                className="manual-logs__refresh-button"
-                onClick={() => {
-                  void router.replace(router.asPath);
-                }}
-              >
-                Refresh Dashboard
-              </button>
-            ) : null}
           </header>
           {logs.length === 0 ? (
             <div className="manual-logs__empty">
@@ -1091,6 +1086,24 @@ function ManualIngestionPanel(): JSX.Element {
           </section>
         ) : null}
       </section>
+
+      {hasCompleted && !isRunning ? (
+        <div className="admin-card manual-refresh-card">
+          <p>
+            Ingestion run completed. Refresh the dashboard to see the latest
+            data.
+          </p>
+          <button
+            type="button"
+            className="manual-logs__refresh-button"
+            onClick={() => {
+              void router.replace(router.asPath);
+            }}
+          >
+            Refresh Dashboard
+          </button>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -2215,6 +2228,20 @@ const styles = css.global`
     font-size: 1.25rem;
     font-weight: 600;
     color: rgba(55, 53, 47, 0.95);
+  }
+
+  .manual-refresh-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.2rem 1.8rem;
+  }
+
+  .manual-refresh-card p {
+    margin: 0;
+    font-size: 0.95rem;
+    color: rgba(55, 53, 47, 0.7);
   }
 
   @media (min-width: 960px) {

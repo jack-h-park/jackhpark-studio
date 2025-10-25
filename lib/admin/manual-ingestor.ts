@@ -120,10 +120,10 @@ async function runNotionPageIngestion(
     const sourceUrl = getPageUrl(pageId)
 
     const existingState = await getDocumentState(pageId)
+
     const unchanged =
       existingState &&
-      existingState.content_hash === contentHash &&
-      (!lastEditedTime || existingState.last_source_update === lastEditedTime)
+      existingState.content_hash === contentHash
 
     if (unchanged) {
       stats.documentsSkipped += 1
