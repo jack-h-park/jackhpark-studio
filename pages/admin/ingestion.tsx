@@ -88,11 +88,11 @@ type DocumentRow = {
 }
 
 const manualStatusLabels: Record<ManualIngestionStatus, string> = {
-  idle: '대기 중',
-  in_progress: '진행 중',
-  success: '성공',
-  completed_with_errors: '부분 성공',
-  failed: '실패'
+  idle: 'Idle',
+  in_progress: 'In Progress',
+  success: 'Succeeded',
+  completed_with_errors: 'Completed with Errors',
+  failed: 'Failed'
 }
 
 const numberFormatter = new Intl.NumberFormat('en-US')
@@ -400,7 +400,7 @@ function ManualIngestionPanel(): JSX.Element {
           break
         case 'complete':
           completionMessage =
-            event.message ?? '수동 수집이 완료되었습니다.'
+            event.message ?? 'Manual ingestion finished successfully.'
           completionLevel =
             event.status === 'failed'
               ? 'error'
@@ -434,14 +434,14 @@ function ManualIngestionPanel(): JSX.Element {
     if (mode === 'notion_page') {
       const parsed = parsePageId(notionInput.trim(), { uuid: true })
       if (!parsed) {
-        setErrorMessage('유효한 Notion 페이지 ID 또는 URL을 입력해주세요.')
+        setErrorMessage('Enter a valid Notion page ID or URL.')
         return
       }
       payload = { mode: 'notion_page', pageId: parsed }
     } else {
       const trimmed = urlInput.trim()
       if (!trimmed) {
-        setErrorMessage('수집할 URL을 입력해주세요.')
+        setErrorMessage('Enter at least one URL to ingest.')
         return
       }
 
@@ -449,12 +449,12 @@ function ManualIngestionPanel(): JSX.Element {
       try {
         parsedUrl = new URL(trimmed)
       } catch {
-        setErrorMessage('유효한 URL을 입력해주세요.')
+        setErrorMessage('Enter a valid URL.')
         return
       }
 
       if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-        setErrorMessage('HTTP 또는 HTTPS URL만 지원됩니다.')
+        setErrorMessage('Only HTTP and HTTPS URLs are supported.')
         return
       }
 
@@ -474,8 +474,8 @@ function ManualIngestionPanel(): JSX.Element {
     setStats(null)
     const startLog =
       mode === 'notion_page'
-        ? 'Notion 페이지 수동 수집을 시작합니다.'
-        : '일반 URL 수동 수집을 시작합니다.'
+        ? 'Starting manual ingestion for the Notion page.'
+        : 'Starting manual ingestion for the provided URL.'
     setLogs([createLogEntry(startLog, 'info')])
 
     try {
@@ -486,7 +486,7 @@ function ManualIngestionPanel(): JSX.Element {
       })
 
       if (!response.ok) {
-        let message = `요청이 실패했습니다. (${response.status})`
+        let message = `Request failed. (${response.status})`
         const contentType = response.headers.get('content-type') ?? ''
 
         if (contentType.includes('application/json')) {
@@ -516,7 +516,7 @@ function ManualIngestionPanel(): JSX.Element {
       }
 
       if (!response.body) {
-        throw new Error('이 브라우저에서는 스트리밍 응답을 지원하지 않습니다.')
+        throw new Error('Streaming responses are not supported in this browser.')
       }
 
       const reader = response.body.getReader()
@@ -586,7 +586,7 @@ function ManualIngestionPanel(): JSX.Element {
       }
 
       if (!completed && mountedRef.current) {
-        const message = '수동 수집이 예기치 않게 종료되었습니다.'
+        const message = 'Manual ingestion ended unexpectedly.'
         setStatus('failed')
         setProgress((prev) => Math.max(prev, 100))
         setFinalMessage(message)
@@ -600,7 +600,7 @@ function ManualIngestionPanel(): JSX.Element {
       const message =
         err instanceof Error
           ? err.message
-          : '수동 수집 실행 중 오류가 발생했습니다.'
+          : 'An error occurred while running manual ingestion.'
       setStatus('failed')
       setProgress((prev) => Math.max(prev, 100))
       setFinalMessage(message)
@@ -620,78 +620,128 @@ function ManualIngestionPanel(): JSX.Element {
   ])
 
   return (
-    <section className="manual-ingest">
+    <section className="manual-ingest dashboard-card">
       <div className="manual-header">
         <h2>Manual Ingestion</h2>
         <p className="manual-subtitle">
-          Admin에서 즉시 Notion 페이지 또는 일반 URL을 수집하고 진행 상황을 확인하세요.
+          Trigger manual ingestion for a Notion page or external URL and track the progress here.
         </p>
       </div>
 
-      <div className="mode-toggle">
-        <button
-          type="button"
-          className={mode === 'notion_page' ? 'active' : ''}
-          onClick={() => setMode('notion_page')}
-          disabled={isRunning}
-        >
-          Notion Page
-        </button>
-        <button
-          type="button"
-          className={mode === 'url' ? 'active' : ''}
-          onClick={() => setMode('url')}
-          disabled={isRunning}
-        >
-          일반 URL
-        </button>
-      </div>
+      <div className="manual-grid">
+        <div className="manual-panel">
+          <div className="manual-mode">
+            <span className="mode-label">Source type</span>
+            <div className="mode-tabs" role="tablist" aria-label="Manual ingestion source">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'notion_page'}
+                className={`mode-tab ${mode === 'notion_page' ? 'is-active' : ''}`}
+                onClick={() => setMode('notion_page')}
+                disabled={isRunning}
+              >
+                <span className="mode-tab__title">Notion Page</span>
+                <span className="mode-tab__caption">Sync from your workspace</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'url'}
+                className={`mode-tab ${mode === 'url' ? 'is-active' : ''}`}
+                onClick={() => setMode('url')}
+                disabled={isRunning}
+              >
+                <span className="mode-tab__title">External URL</span>
+                <span className="mode-tab__caption">Fetch a public article</span>
+              </button>
+            </div>
+          </div>
 
-      <div className="manual-form">
-        {mode === 'notion_page' ? (
-          <label>
-            <span>Notion 페이지 ID 또는 URL</span>
-            <input
-              type="text"
-              placeholder="예: https://www.notion.so/... 또는 페이지 ID"
-              value={notionInput}
-              onChange={(event) => setNotionInput(event.target.value)}
-              disabled={isRunning}
-            />
-          </label>
-        ) : (
-          <label>
-            <span>수집할 URL</span>
-            <input
-              type="url"
-              placeholder="https://example.com/article"
-              value={urlInput}
-              onChange={(event) => setUrlInput(event.target.value)}
-              disabled={isRunning}
-            />
-          </label>
-        )}
-
-        {errorMessage ? (
-          <div className="form-error">{errorMessage}</div>
-        ) : null}
-
-        <div className="manual-actions">
-          <button
-            type="button"
-            onClick={startManualIngestion}
-            disabled={isRunning}
+          <div
+            className="manual-content"
+            style={{
+              border: '1px solid rgba(55, 53, 47, 0.16)',
+              borderTop: 'none',
+              borderRadius: '0 0 12px 12px',
+              background: 'rgba(248, 248, 246, 0.9)',
+              padding: '1.4rem 1.6rem'
+            }}
           >
-            {isRunning ? '실행 중...' : '수동 실행'}
-          </button>
+            <div className="manual-form">
+              {mode === 'notion_page' ? (
+                <div className="manual-field">
+                  <label htmlFor="manual-notion-input">Notion Page ID or URL</label>
+                  <div className="input-shell">
+                    <input
+                      id="manual-notion-input"
+                      type="text"
+                      placeholder="https://www.notion.so/... or page ID"
+                      value={notionInput}
+                      onChange={(event) => setNotionInput(event.target.value)}
+                      disabled={isRunning}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="manual-field">
+                  <label htmlFor="manual-url-input">URL to ingest</label>
+                  <div className="input-shell">
+                    <input
+                      id="manual-url-input"
+                      type="url"
+                      placeholder="https://example.com/article"
+                      value={urlInput}
+                      onChange={(event) => setUrlInput(event.target.value)}
+                      disabled={isRunning}
+                    />
+                  </div>
+                </div>
+              )}
 
-          <div className="manual-status">
-            <span className={`status status-${status}`}>
-              {manualStatusLabels[status]}
-            </span>
-            {runId ? <span className="run-meta">Run ID: {runId}</span> : null}
+              <p className="field-hint">
+                {mode === 'notion_page'
+                  ? 'Paste the full shared link or the 32-character page ID from Notion.'
+                  : 'Enter a public HTTP(S) link. We will fetch, parse, and ingest the article once.'}
+              </p>
+
+              {errorMessage ? (
+                <div className="form-error">{errorMessage}</div>
+              ) : null}
+
+              <div className="manual-actions">
+                <button
+                  type="button"
+                  onClick={startManualIngestion}
+                  disabled={isRunning}
+                >
+                  {isRunning ? 'Running...' : 'Run manually'}
+                </button>
+
+                <div className="manual-status">
+                  <span className={`status status-${status}`}>
+                    {manualStatusLabels[status]}
+                  </span>
+                  {' '}
+                  {runId ? <span className="run-meta">Run ID: {runId}</span> : null}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+
+        <aside className="manual-aside" aria-label="Manual ingestion tips">
+          <h3>Tips</h3>
+          <ul>
+            <li>Ensure the Notion page is shared and accessible with the integration token.</li>
+            <li>Long articles are chunked automatically; you can rerun to refresh.</li>
+            <li>External URLs should be static pages without paywalls or heavy scripts.</li>
+          </ul>
+          <div className="tip-callout">
+            <strong>Heads up</strong>
+            <p>Manual runs are processed immediately and may take a few seconds depending on content size.</p>
+          </div>
+        </aside>
       </div>
 
       <div className="progress-shell">
@@ -700,6 +750,7 @@ function ManualIngestionPanel(): JSX.Element {
         </div>
         <div className="progress-meta">
           <span>{Math.round(progress)}%</span>
+          {' '}
           {finalMessage ? (
             <span className="manual-message">{finalMessage}</span>
           ) : null}
@@ -708,13 +759,14 @@ function ManualIngestionPanel(): JSX.Element {
 
       <div className="log-list">
         {logs.length === 0 ? (
-          <div className="log-empty">진행 로그가 여기에 표시됩니다.</div>
+          <div className="log-empty">Execution logs will appear here.</div>
         ) : (
           logs.map((log) => (
             <div key={log.id} className={`log-entry ${log.level}`}>
               <span className="log-time">
                 {logTimeFormatter.format(new Date(log.timestamp))}
               </span>
+              {' '}
               <span>{log.message}</span>
             </div>
           ))
@@ -723,58 +775,58 @@ function ManualIngestionPanel(): JSX.Element {
 
       {stats ? (
         <div className="run-summary">
-          <h3>실행 결과</h3>
+          <h3>Run Summary</h3>
           <div className="run-summary-grid">
             <div className="run-summary-card">
-              <span className="summary-label">처리된 문서</span>
+              <span className="summary-label">Documents Processed</span>
               <span className="summary-value">
                 {numberFormatter.format(stats.documentsProcessed)}
               </span>
             </div>
             <div className="run-summary-card">
-              <span className="summary-label">추가된 문서</span>
+              <span className="summary-label">Documents Added</span>
               <span className="summary-value">
                 {numberFormatter.format(stats.documentsAdded)}
               </span>
             </div>
             <div className="run-summary-card">
-              <span className="summary-label">업데이트된 문서</span>
+              <span className="summary-label">Documents Updated</span>
               <span className="summary-value">
                 {numberFormatter.format(stats.documentsUpdated)}
               </span>
             </div>
             <div className="run-summary-card">
-              <span className="summary-label">건너뛴 문서</span>
+              <span className="summary-label">Documents Skipped</span>
               <span className="summary-value">
                 {numberFormatter.format(stats.documentsSkipped)}
               </span>
             </div>
             <div className="run-summary-card">
-              <span className="summary-label">추가된 청크</span>
+              <span className="summary-label">Chunks Added</span>
               <span className="summary-value">
                 {numberFormatter.format(stats.chunksAdded)}
               </span>
             </div>
             <div className="run-summary-card">
-              <span className="summary-label">업데이트된 청크</span>
+              <span className="summary-label">Chunks Updated</span>
               <span className="summary-value">
                 {numberFormatter.format(stats.chunksUpdated)}
               </span>
             </div>
             <div className="run-summary-card">
-              <span className="summary-label">추가된 문자 수</span>
+              <span className="summary-label">Characters Added</span>
               <span className="summary-value">
                 {numberFormatter.format(stats.charactersAdded)}
               </span>
             </div>
             <div className="run-summary-card">
-              <span className="summary-label">업데이트된 문자 수</span>
+              <span className="summary-label">Characters Updated</span>
               <span className="summary-value">
                 {numberFormatter.format(stats.charactersUpdated)}
               </span>
             </div>
             <div className="run-summary-card">
-              <span className="summary-label">오류 수</span>
+              <span className="summary-label">Errors</span>
               <span className="summary-value">
                 {numberFormatter.format(stats.errorCount)}
               </span>
@@ -793,50 +845,57 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
         <title>Ingestion Dashboard</title>
       </Head>
 
-      <main className="ingestion-dashboard">
-        <h1>Ingestion Dashboard</h1>
+      <main className="dashboard-root">
+        <article className="dashboard-page notion-page">
+          <header className="dashboard-header">
+            <h1>Ingestion Dashboard</h1>
+        <p className="dashboard-subtitle">
+          Monitor ingestion health, trigger manual runs, and review the latest dataset snapshot.
+        </p>
+          </header>
 
-        <ManualIngestionPanel />
+          <div className="dashboard-stack">
+            <ManualIngestionPanel />
 
-        <section className="overview">
-          <h2>Current Snapshot</h2>
-          <div className="metrics-grid">
-            <div className="metric-card">
-              <span className="metric-label">Documents</span>
-              <span className="metric-value">
-                {numberFormatter.format(overview.totalDocuments)}
-              </span>
-            </div>
-            <div className="metric-card">
-              <span className="metric-label">Chunks</span>
-              <span className="metric-value">
-                {numberFormatter.format(overview.totalChunks)}
-              </span>
-            </div>
-            <div className="metric-card">
-              <span className="metric-label">Content Size</span>
-              <span className="metric-value">
-                {formatCharacters(overview.totalCharacters)}
-              </span>
-            </div>
-            <div className="metric-card">
-              <span className="metric-label">Last Updated</span>
-              <span className="metric-value">
-                {formatDate(overview.lastUpdatedAt)}
-              </span>
-            </div>
-          </div>
-        </section>
+            <section className="overview dashboard-card">
+              <h2>Current Snapshot</h2>
+              <div className="metrics-grid">
+                <div className="metric-card">
+                  <span className="metric-label">Documents</span>
+                  <span className="metric-value">
+                    {numberFormatter.format(overview.totalDocuments)}
+                  </span>
+                </div>
+                <div className="metric-card">
+                  <span className="metric-label">Chunks</span>
+                  <span className="metric-value">
+                    {numberFormatter.format(overview.totalChunks)}
+                  </span>
+                </div>
+                <div className="metric-card">
+                  <span className="metric-label">Content Size</span>
+                  <span className="metric-value">
+                    {formatCharacters(overview.totalCharacters)}
+                  </span>
+                </div>
+                <div className="metric-card">
+                  <span className="metric-label">Last Updated</span>
+                  <span className="metric-value">
+                    {formatDate(overview.lastUpdatedAt)}
+                  </span>
+                </div>
+              </div>
+            </section>
 
-        <section className="history">
-          <h2>Recent Runs</h2>
-          <div className="history-table-container">
-            <table className="history-table">
-              <thead>
-                <tr>
-                  <th>Started</th>
-                  <th>Status</th>
-                  <th>Type</th>
+            <section className="history dashboard-card">
+              <h2>Recent Runs</h2>
+              <div className="history-table-container">
+                <table className="history-table">
+                  <thead>
+                    <tr>
+                      <th>Started</th>
+                      <th>Status</th>
+                      <th>Type</th>
                   <th>Duration</th>
                   <th>Docs</th>
                   <th>Data Added</th>
@@ -946,296 +1005,471 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
               </tbody>
             </table>
           </div>
-        </section>
+            </section>
+          </div>
+        </article>
       </main>
 
       <style jsx>{`
-        .ingestion-dashboard {
-          max-width: 1200px;
+        .dashboard-root {
+          min-height: 100vh;
+          padding: 5rem 0 6rem;
+          background: #f7f6f3;
+        }
+
+        .dashboard-page {
+          width: 100%;
+          max-width: 900px;
           margin: 0 auto;
-          padding: 2rem 1rem 4rem;
+          padding: 0 1.5rem;
+          color: rgba(55, 53, 47, 0.95);
+          font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+          line-height: 1.6;
+        }
+
+        .dashboard-header {
+          margin-bottom: 2.5rem;
+        }
+
+        .dashboard-header h1 {
+          margin: 0;
+          font-size: 2.4rem;
+          font-weight: 700;
+          letter-spacing: -0.01em;
+          color: rgba(55, 53, 47, 0.98);
+        }
+
+        .dashboard-subtitle {
+          margin: 0.75rem 0 0;
+          max-width: 48rem;
+          font-size: 1.05rem;
+          color: rgba(55, 53, 47, 0.6);
+        }
+
+        .dashboard-stack {
+          display: flex;
+          flex-direction: column;
+          gap: 1.75rem;
+        }
+
+        .dashboard-card {
+          background: rgba(255, 255, 255, 0.95);
+          border: 1px solid rgba(55, 53, 47, 0.18);
+          border-radius: 14px;
+          padding: 1.75rem 2rem;
+          box-shadow: 0 24px 60px -32px rgba(15, 15, 15, 0.22);
+          backdrop-filter: blur(8px);
+        }
+
+        .manual-ingest {
           display: flex;
           flex-direction: column;
           gap: 2rem;
         }
 
-        .manual-ingest {
-          border: 1px solid rgba(0, 0, 0, 0.1);
-          border-radius: 16px;
-          padding: 1.5rem;
-          background: rgba(255, 255, 255, 0.9);
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-        }
-
         .manual-header {
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
+          gap: 0.4rem;
         }
 
         .manual-header h2 {
           margin: 0;
+          font-size: 1.6rem;
+          font-weight: 700;
+          color: rgba(55, 53, 47, 0.98);
         }
 
         .manual-subtitle {
+          margin: 0;
+          font-size: 1rem;
+          color: rgba(55, 53, 47, 0.6);
+        }
+
+        .manual-grid {
+          display: grid;
+          gap: 1.75rem;
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .manual-panel {
+          display: grid;
+          gap: 1.75rem;
+        }
+
+        .manual-mode {
+          display: grid;
+          gap: 0.5rem;
+        }
+
+        .mode-label {
           font-size: 0.9rem;
-          color: rgba(0, 0, 0, 0.6);
+          font-weight: 600;
+          letter-spacing: 0.02em;
+          color: rgba(55, 53, 47, 0.6);
         }
 
-        .mode-toggle {
-          display: inline-flex;
-          gap: 0.25rem;
-          background: rgba(29, 78, 216, 0.08);
-          border-radius: 999px;
-          padding: 0.25rem;
-          align-self: flex-start;
+        .mode-tabs {
+          position: relative;
+          border-radius: 12px 12px 0 0;
+          border: 1px solid rgba(55, 53, 47, 0.16);
+          border-bottom: none;
+          display: flex;
+          align-items: flex-end;
+          background: rgba(245, 244, 240, 0.7);
+          overflow: hidden;
         }
 
-        .mode-toggle button {
+        .mode-tab {
+          position: relative;
+          flex: 1 1 0;
+          min-width: 0;
           border: none;
           background: transparent;
-          padding: 0.4rem 1rem;
-          border-radius: 999px;
+          appearance: none;
+          -webkit-appearance: none;
+          -moz-appearance: none;
+          outline: none;
+          padding: 0.9rem 1.1rem 0.6rem;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.2rem;
           font-weight: 600;
-          font-size: 0.9rem;
-          color: rgba(17, 24, 39, 0.75);
+          font-size: 0.92rem;
+          color: rgba(55, 53, 47, 0.55);
           cursor: pointer;
-          transition: all 0.15s ease;
+          text-align: left;
+          transition: color 0.2s ease, background 0.2s ease;
         }
 
-        .mode-toggle button.active {
-          background: #1d4ed8;
-          color: #fff;
-          box-shadow: 0 2px 6px rgba(29, 78, 216, 0.25);
+        .mode-tab::after {
+          content: '';
+          position: absolute;
+          bottom: -1px;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: transparent;
+          transition: background 0.2s ease;
         }
 
-        .mode-toggle button:disabled {
+        .mode-tab.is-active {
+          color: rgba(55, 53, 47, 0.9);
+          background: #fff;
+        }
+
+        .mode-tab.is-active::after {
+          background: rgba(46, 170, 220, 0.95);
+        }
+
+        .mode-tab:disabled {
           cursor: not-allowed;
-          opacity: 0.6;
+          opacity: 0.55;
+        }
+
+        .mode-tab__title {
+          display: block;
+          font-size: 0.94rem;
+          font-weight: 600;
+        }
+
+        .mode-tab__caption {
+          font-size: 0.8rem;
+          font-weight: 500;
+          color: inherit;
+          opacity: 0.7;
+          display: block;
+        }
+
+        .manual-content {
+          border: 1px solid rgba(55, 53, 47, 0.16);
+          border-top: none;
+          border-radius: 0 0 12px 12px;
+          background: rgba(248, 248, 246, 0.9);
+          padding: 1.4rem 1.6rem;
+          display: grid;
+          gap: 1.25rem;
         }
 
         .manual-form {
           display: grid;
-          gap: 1rem;
+          gap: 1.25rem;
         }
 
-        .manual-form label {
+        .manual-field {
           display: grid;
-          gap: 0.5rem;
+          gap: 0.45rem;
+        }
+
+        .manual-field label {
           font-weight: 600;
           font-size: 0.95rem;
-          color: rgba(17, 24, 39, 0.75);
+          color: rgba(55, 53, 47, 0.75);
         }
 
-        .manual-form input {
-          border: 1px solid rgba(0, 0, 0, 0.15);
-          border-radius: 8px;
-          padding: 0.6rem 0.75rem;
-          font-size: 0.95rem;
+        .input-shell {
+          display: flex;
+          align-items: center;
+          border: 1px solid rgba(55, 53, 47, 0.18);
+          border-radius: 12px;
+          padding: 0.1rem;
+          background: rgba(255, 255, 255, 0.92);
           transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        .manual-form input:focus {
-          outline: none;
-          border-color: #1d4ed8;
-          box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.2);
+        .input-shell:focus-within {
+          border-color: rgba(46, 170, 220, 0.65);
+          box-shadow: 0 0 0 2px rgba(46, 170, 220, 0.18);
         }
 
-        .manual-form input:disabled {
-          background: rgba(0, 0, 0, 0.04);
-          cursor: not-allowed;
+        .input-shell input {
+          flex: 1 1 auto;
+          border: none;
+          background: transparent;
+          padding: 0.75rem 0.95rem;
+          font-size: 0.95rem;
+          color: rgba(55, 53, 47, 0.9);
+        }
+
+        .input-shell input:focus {
+          outline: none;
+        }
+
+        .input-shell input:disabled {
+          color: rgba(55, 53, 47, 0.45);
+        }
+
+        .field-hint {
+          margin: -0.2rem 0 0;
+          font-size: 0.85rem;
+          color: rgba(55, 53, 47, 0.55);
+          line-height: 1.5;
         }
 
         .form-error {
           font-size: 0.85rem;
-          color: #b91c1c;
+          color: #b71c1c;
         }
 
         .manual-actions {
           display: flex;
           flex-wrap: wrap;
           align-items: center;
-          gap: 0.75rem;
+          gap: 0.9rem;
+          margin-top: 0.35rem;
         }
 
         .manual-actions button {
-          border: none;
-          background: #1d4ed8;
+          border: 1px solid rgba(55, 53, 47, 0.18);
+          background: rgba(55, 53, 47, 0.9);
           color: #fff;
-          padding: 0.6rem 1.5rem;
-          border-radius: 8px;
+          padding: 0.65rem 1.6rem;
+          border-radius: 10px;
           font-weight: 600;
+          font-size: 0.95rem;
           cursor: pointer;
-          transition: background 0.15s ease, transform 0.15s ease;
+          transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
         }
 
         .manual-actions button:hover:not(:disabled) {
-          background: #1a46c2;
           transform: translateY(-1px);
+          box-shadow: 0 10px 24px -12px rgba(55, 53, 47, 0.5);
+          background: rgba(55, 53, 47, 0.92);
         }
 
         .manual-actions button:disabled {
-          background: rgba(29, 78, 216, 0.5);
+          opacity: 0.6;
           cursor: not-allowed;
-          transform: none;
         }
 
         .manual-status {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
-          flex-wrap: wrap;
+          gap: 0.5rem;
+          font-size: 0.9rem;
+          color: rgba(55, 53, 47, 0.6);
         }
 
         .manual-status .status {
-          font-size: 0.85rem;
-        }
-
-        .status-idle {
-          background: rgba(0, 0, 0, 0.08);
-          color: rgba(17, 24, 39, 0.7);
+          padding: 0.35rem 0.85rem;
+          border-radius: 999px;
+          font-weight: 600;
+          letter-spacing: 0.01em;
         }
 
         .run-meta {
+          color: rgba(55, 53, 47, 0.5);
+        }
+
+        .manual-aside {
+          border: 1px solid rgba(55, 53, 47, 0.12);
+          border-radius: 14px;
+          padding: 1.4rem 1.6rem;
+          background: rgba(245, 244, 240, 0.9);
+          display: grid;
+          gap: 1rem;
+        }
+
+        .manual-aside h3 {
+          margin: 0;
+          font-size: 1.05rem;
+          font-weight: 600;
+          color: rgba(55, 53, 47, 0.85);
+        }
+
+        .manual-aside ul {
+          margin: 0;
+          padding-left: 1.2rem;
+          display: grid;
+          gap: 0.5rem;
+          font-size: 0.9rem;
+          color: rgba(55, 53, 47, 0.7);
+        }
+
+        .manual-aside li {
+          line-height: 1.55;
+        }
+
+        .tip-callout {
+          border-radius: 12px;
+          background: rgba(46, 170, 220, 0.12);
+          border: 1px solid rgba(46, 170, 220, 0.25);
+          padding: 0.85rem 1rem;
+          display: grid;
+          gap: 0.35rem;
+        }
+
+        .tip-callout strong {
           font-size: 0.85rem;
-          color: rgba(0, 0, 0, 0.55);
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: rgba(46, 146, 200, 0.95);
+        }
+
+        .tip-callout p {
+          margin: 0;
+          font-size: 0.9rem;
+          color: rgba(55, 53, 47, 0.7);
         }
 
         .progress-shell {
-          display: grid;
-          gap: 0.5rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.55rem;
         }
 
         .progress-bar {
-          width: 100%;
-          height: 10px;
+          background: rgba(55, 53, 47, 0.12);
           border-radius: 999px;
-          background: rgba(0, 0, 0, 0.08);
+          height: 10px;
           overflow: hidden;
         }
 
-        .progress-bar > div {
+        .progress-bar div {
           height: 100%;
-          background: #1d4ed8;
-          border-radius: inherit;
-          transition: width 0.2s ease;
+          border-radius: 999px;
+          background: linear-gradient(90deg, rgba(46, 170, 220, 0.85), rgba(46, 170, 220, 0.55));
+          transition: width 0.25s ease;
         }
 
         .progress-meta {
           display: flex;
-          gap: 0.75rem;
           align-items: center;
-          font-size: 0.85rem;
-          color: rgba(0, 0, 0, 0.6);
-          flex-wrap: wrap;
+          gap: 0.5rem;
+          font-size: 0.95rem;
+          color: rgba(55, 53, 47, 0.65);
         }
 
         .manual-message {
-          color: rgba(17, 24, 39, 0.75);
+          color: rgba(55, 53, 47, 0.7);
         }
 
         .log-list {
-          border: 1px solid rgba(0, 0, 0, 0.12);
-          border-radius: 10px;
-          padding: 0.75rem;
-          max-height: 220px;
-          overflow-y: auto;
-          background: rgba(0, 0, 0, 0.02);
-          display: grid;
-          gap: 0.5rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.65rem;
         }
 
         .log-entry {
-          display: flex;
-          gap: 0.6rem;
-          align-items: baseline;
-          font-size: 0.85rem;
-          color: rgba(17, 24, 39, 0.85);
+          display: grid;
+          grid-template-columns: auto 1fr;
+          gap: 0.75rem;
+          padding: 0.65rem 0.85rem;
+          border-radius: 10px;
+          background: rgba(55, 53, 47, 0.05);
+          border: 1px solid rgba(55, 53, 47, 0.08);
+          font-size: 0.9rem;
+        }
+
+        .log-entry.info {
+          border-color: rgba(46, 170, 220, 0.18);
         }
 
         .log-entry.warn {
-          color: #92400e;
+          border-color: rgba(219, 155, 28, 0.32);
+          background: rgba(219, 155, 28, 0.08);
         }
 
         .log-entry.error {
-          color: #991b1b;
+          border-color: rgba(208, 72, 72, 0.28);
+          background: rgba(208, 72, 72, 0.08);
         }
 
         .log-time {
-          font-family: ui-monospace, SFMono-Regular, SFMono, Menlo, Monaco, Consolas,
-            'Liberation Mono', 'Courier New', monospace;
+          font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
           font-size: 0.8rem;
-          color: rgba(0, 0, 0, 0.45);
+          color: rgba(55, 53, 47, 0.45);
         }
 
         .log-empty {
-          font-size: 0.85rem;
-          color: rgba(0, 0, 0, 0.5);
-        }
-
-        .run-summary {
-          display: grid;
-          gap: 0.75rem;
+          padding: 1.1rem 0;
+          text-align: center;
+          font-size: 0.9rem;
+          color: rgba(55, 53, 47, 0.55);
         }
 
         .run-summary h3 {
-          margin: 0;
-          font-size: 1.1rem;
+          margin: 0 0 1.25rem;
+          font-size: 1.25rem;
+          font-weight: 600;
+          color: rgba(55, 53, 47, 0.9);
         }
 
         .run-summary-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-          gap: 0.75rem;
+          gap: 1rem;
         }
 
         .run-summary-card {
-          border: 1px solid rgba(0, 0, 0, 0.1);
-          border-radius: 10px;
-          padding: 0.75rem;
-          background: rgba(255, 255, 255, 0.85);
+          border: 1px solid rgba(55, 53, 47, 0.14);
+          border-radius: 12px;
+          padding: 0.85rem;
+          background: rgba(255, 255, 255, 0.9);
           display: grid;
-          gap: 0.25rem;
+          gap: 0.35rem;
         }
 
         .summary-label {
           font-size: 0.75rem;
           text-transform: uppercase;
-          color: rgba(0, 0, 0, 0.55);
-          letter-spacing: 0.05em;
+          letter-spacing: 0.06em;
+          color: rgba(55, 53, 47, 0.55);
         }
 
         .summary-value {
-          font-size: 1.1rem;
+          font-size: 1.3rem;
           font-weight: 600;
+          color: rgba(55, 53, 47, 0.95);
         }
 
-        @media (max-width: 640px) {
-          .manual-actions {
-            flex-direction: column;
-            align-items: stretch;
-          }
-
-          .manual-actions button {
-            width: 100%;
-          }
-
-          .manual-status {
-            width: 100%;
-            justify-content: space-between;
-          }
-        }
-
-        h1 {
-          font-size: 2rem;
+        .overview h2,
+        .history h2 {
+          margin: 0 0 1.25rem;
+          font-size: 1.35rem;
           font-weight: 600;
-        }
-
-        h2 {
-          font-size: 1.4rem;
-          margin-bottom: 1rem;
+          color: rgba(55, 53, 47, 0.9);
         }
 
         .metrics-grid {
@@ -1245,110 +1479,158 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
         }
 
         .metric-card {
-          border: 1px solid rgba(0, 0, 0, 0.1);
+          border: 1px solid rgba(55, 53, 47, 0.14);
           border-radius: 12px;
-          padding: 1rem;
-          background: rgba(255, 255, 255, 0.8);
+          padding: 1rem 1.1rem;
+          background: rgba(255, 255, 255, 0.9);
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
+          gap: 0.55rem;
         }
 
         .metric-label {
-          font-size: 0.9rem;
-          color: rgba(0, 0, 0, 0.6);
+          font-size: 0.8rem;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.08em;
+          color: rgba(55, 53, 47, 0.55);
         }
 
         .metric-value {
-          font-size: 1.4rem;
+          font-size: 1.45rem;
           font-weight: 600;
         }
 
         .history-table-container {
           overflow-x: auto;
+          border-radius: 12px;
+          border: 1px solid rgba(55, 53, 47, 0.14);
+          background: rgba(255, 255, 255, 0.92);
         }
 
         .history-table {
           width: 100%;
-          border-collapse: collapse;
+          border-collapse: separate;
+          border-spacing: 0;
         }
 
-        .history-table th,
-        .history-table td {
-          border: 1px solid rgba(0, 0, 0, 0.1);
-          padding: 0.75rem;
-          vertical-align: top;
+        .history-table thead th {
+          background: rgba(55, 53, 47, 0.06);
           text-align: left;
+          padding: 0.85rem 1rem;
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: rgba(55, 53, 47, 0.65);
         }
 
-        .history-table th {
-          background: rgba(0, 0, 0, 0.05);
-          font-weight: 600;
+        .history-table tbody td {
+          padding: 0.85rem 1rem;
+          border-top: 1px solid rgba(55, 53, 47, 0.1);
+          vertical-align: top;
+          font-size: 0.95rem;
+          color: rgba(55, 53, 47, 0.85);
+        }
+
+        .history-table tbody tr:first-child td {
+          border-top: none;
+        }
+
+        .history-table tbody tr:hover {
+          background: rgba(46, 170, 220, 0.08);
         }
 
         .empty-state {
           text-align: center;
-          padding: 2rem;
-          color: rgba(0, 0, 0, 0.6);
+          padding: 2.25rem 1rem;
+          color: rgba(55, 53, 47, 0.55);
         }
 
         .status {
           display: inline-block;
-          padding: 0.25rem 0.5rem;
-          border-radius: 8px;
-          text-transform: capitalize;
+          padding: 0.3rem 0.75rem;
+          border-radius: 999px;
           font-size: 0.85rem;
           font-weight: 600;
+          text-transform: capitalize;
         }
 
         .status-success {
-          background: #e0f7e9;
-          color: #0b5d1e;
+          background: rgba(16, 185, 129, 0.16);
+          color: rgba(6, 95, 70, 0.95);
         }
 
         .status-completed_with_errors {
-          background: #fff4d6;
-          color: #9a6400;
+          background: rgba(234, 179, 8, 0.18);
+          color: rgba(133, 77, 14, 0.95);
         }
 
         .status-failed {
-          background: #fde7e7;
-          color: #a01c1c;
+          background: rgba(248, 113, 113, 0.2);
+          color: rgba(153, 27, 27, 0.95);
         }
 
         .status-in_progress {
-          background: #dbeafe;
-          color: #1d4ed8;
+          background: rgba(96, 165, 250, 0.2);
+          color: rgba(30, 64, 175, 0.95);
         }
 
         .badge {
           display: inline-block;
-          padding: 0.2rem 0.6rem;
+          padding: 0.3rem 0.8rem;
           border-radius: 999px;
-          background: rgba(0, 0, 0, 0.08);
+          background: rgba(55, 53, 47, 0.08);
           font-size: 0.8rem;
           font-weight: 600;
+          color: rgba(55, 53, 47, 0.75);
         }
 
         .subtle {
           font-size: 0.85rem;
-          color: rgba(0, 0, 0, 0.6);
+          color: rgba(55, 53, 47, 0.6);
         }
 
         details {
-          margin-top: 0.5rem;
+          margin-top: 0.6rem;
         }
 
         details summary {
           cursor: pointer;
-          color: #1d4ed8;
+          color: rgba(46, 170, 220, 0.9);
         }
 
         details ul {
           margin: 0.5rem 0 0;
           padding-left: 1.25rem;
+        }
+
+        @media (min-width: 960px) {
+          .manual-grid {
+            grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr);
+            align-items: start;
+          }
+        }
+
+        @media (max-width: 720px) {
+          .dashboard-root {
+            padding: 3.5rem 0 4.5rem;
+          }
+
+          .dashboard-page {
+            padding: 0 1rem;
+          }
+
+          .dashboard-card {
+            padding: 1.4rem 1.4rem;
+          }
+
+          .manual-actions {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .manual-actions button {
+            width: 100%;
+          }
         }
       `}</style>
     </>
@@ -1423,3 +1705,4 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
 }
 
 export default IngestionDashboard
+
