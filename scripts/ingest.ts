@@ -1,5 +1,4 @@
 // scripts/ingest.ts
-import { loadEnvConfig } from '@next/env'
 import pMap from 'p-map'
 
 import {
@@ -19,8 +18,6 @@ import {
   startIngestRun,
   upsertDocumentState
 } from '../lib/rag'
-
-loadEnvConfig(process.cwd())
 
 const INGEST_CONCURRENCY = Math.max(
   1,
@@ -161,6 +158,8 @@ async function ingestUrl(
 }
 
 async function main(): Promise<void> {
+  console.log('Starting external URL ingestion...')
+
   const { mode, urls } = parseArgs('partial')
   const targets = urls.filter(Boolean)
 
@@ -171,6 +170,8 @@ async function main(): Promise<void> {
     process.exitCode = 1
     return
   }
+
+  console.log(`Ingesting ${targets.length} URL(s)...`)
 
   const resolvedReason =
     mode.type === 'partial'
@@ -216,6 +217,22 @@ async function main(): Promise<void> {
       errorLogs
     })
 
+    console.log('\n--- Ingestion Complete ---')
+    console.log(`Duration: ${(durationMs / 1000).toFixed(2)}s`)
+    console.log(`Status: ${status}`)
+    console.log('Documents:')
+    console.log(`  - Processed: ${stats.documentsProcessed}`)
+    console.log(`  - Added:     ${stats.documentsAdded}`)
+    console.log(`  - Updated:   ${stats.documentsUpdated}`)
+    console.log(`  - Skipped:   ${stats.documentsSkipped}`)
+    console.log('Chunks:')
+    console.log(`  - Added:     ${stats.chunksAdded}`)
+    console.log(`  - Updated:   ${stats.chunksUpdated}`)
+    console.log('Characters:')
+    console.log(`  - Added:     ${stats.charactersAdded}`)
+    console.log(`  - Updated:   ${stats.charactersUpdated}`)
+    console.log(`Errors: ${stats.errorCount}`)
+
     if (stats.errorCount > 0) {
       process.exitCode = 1
     }
@@ -232,6 +249,8 @@ async function main(): Promise<void> {
       errorLogs
     })
 
+    console.error('\n--- Ingestion Failed ---')
+    console.error(err)
     throw err
   }
 }

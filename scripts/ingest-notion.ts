@@ -2,16 +2,15 @@
 import { NotionAPI } from 'notion-client'
 import { type ExtendedRecordMap } from 'notion-types'
 import { getAllPagesInSpace } from 'notion-utils'
-import pMap from 'p-map'
+import pMap from 'p-map' 
 
-import { loadEnvConfig } from '@next/env'
 import {
   chunkByTokens,
   type ChunkInsert,
   createEmptyRunStats,
   embedBatch,
-  finishIngestRun,
   extractPlainText,
+  finishIngestRun,
   getDocumentState,
   getPageLastEditedTime,
   getPageTitle,
@@ -24,8 +23,6 @@ import {
   startIngestRun, // This line is already present, no change needed.
   upsertDocumentState
 } from '../lib/rag'
-
-loadEnvConfig(process.cwd())
 
 const notion = new NotionAPI()
 
@@ -167,15 +164,23 @@ async function ingestWorkspace(
   stats: IngestRunStats,
   errorLogs: IngestRunErrorLog[]
 ) {
+  console.log(`\nFetching all pages in Notion space (root: ${rootPageId})...`)
   const pageMap = await getAllPagesInSpace(
     rootPageId,
     undefined,
     async (pageId) => notion.getPage(pageId)
   )
 
+  console.log(`Found ${Object.keys(pageMap).length} total pages.`)
+
   const entries = Object.entries(pageMap).filter(
     (entry): entry is [string, ExtendedRecordMap] => Boolean(entry[1])
   )
+
+  if (entries.length === 0) {
+    console.log('No pages to ingest.')
+    return
+  }
 
   await pMap(
     entries,
@@ -202,6 +207,8 @@ async function main() {
   if (!rootPageId) {
     throw new Error('Missing required environment variable "NOTION_ROOT_PAGE_ID"')
   }
+
+  console.log('Starting Notion ingestion...')
 
   const mode = parseRunMode('full')
   const resolvedReason =
@@ -233,6 +240,22 @@ async function main() {
       errorLogs
     })
 
+    console.log('\n--- Ingestion Complete ---')
+    console.log(`Duration: ${(durationMs / 1000).toFixed(2)}s`)
+    console.log(`Status: ${status}`)
+    console.log('Documents:')
+    console.log(`  - Processed: ${stats.documentsProcessed}`)
+    console.log(`  - Added:     ${stats.documentsAdded}`)
+    console.log(`  - Updated:   ${stats.documentsUpdated}`)
+    console.log(`  - Skipped:   ${stats.documentsSkipped}`)
+    console.log('Chunks:')
+    console.log(`  - Added:     ${stats.chunksAdded}`)
+    console.log(`  - Updated:   ${stats.chunksUpdated}`)
+    console.log('Characters:')
+    console.log(`  - Added:     ${stats.charactersAdded}`)
+    console.log(`  - Updated:   ${stats.charactersUpdated}`)
+    console.log(`Errors: ${stats.errorCount}`)
+
     if (stats.errorCount > 0) {
       process.exitCode = 1
     }
@@ -249,6 +272,8 @@ async function main() {
       errorLogs
     })
 
+    console.error('\n--- Ingestion Failed ---')
+    console.error(err)
     throw err
   }
 }

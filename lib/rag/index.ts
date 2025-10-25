@@ -1,5 +1,6 @@
 import { Readability } from '@mozilla/readability'
 import { type PostgrestError } from '@supabase/supabase-js'
+import { backOff } from 'exponential-backoff'
 import { encode } from 'gpt-tokenizer'
 import { JSDOM } from 'jsdom'
 import { type Decoration, type ExtendedRecordMap } from 'notion-types'
@@ -20,6 +21,20 @@ export type ChunkInsert = {
   chunk_hash: string
   embedding: number[]
   ingested_at?: string
+}
+
+async function retry<T>(
+  operation: () => Promise<T>,
+  description: string
+): Promise<T> {
+  return backOff(operation, {
+    startingDelay: 500,
+    numOfAttempts: 4,
+    retry: (e, attemptNumber) => {
+      console.warn(`[ingest:retry] ${description} failed (attempt ${attemptNumber}). Retrying...`, e)
+      return true
+    }
+  })
 }
 
 export type DocumentState = {
@@ -114,9 +129,10 @@ export async function upsertDocumentState(
         : toUpsert.total_characters
   }
 
-  const { error } = await supabaseClient
-    .from(DOCUMENTS_TABLE)
-    .upsert(payload, { onConflict: 'doc_id' })
+  const { error } = await retry(
+    () => supabaseClient.from(DOCUMENTS_TABLE).upsert(payload, { onConflict: 'doc_id' }),
+    'upsert document state'
+  )
 
   if (error) {
     if (handleDocumentStateError(error)) {
@@ -365,10 +381,10 @@ export async function replaceChunks(
   docId: string,
   rows: ChunkInsert[]
 ): Promise<void> {
-  const { error: deleteError } = await supabaseClient
-    .from('rag_chunks')
-    .delete()
-    .eq('doc_id', docId)
+  const { error: deleteError } = await retry(
+    () => supabaseClient.from('rag_chunks').delete().eq('doc_id', docId),
+    `delete chunks for doc ${docId}`
+  )
 
   if (deleteError) {
     throw deleteError
@@ -378,9 +394,13 @@ export async function replaceChunks(
     return
   }
 
-  const { error: upsertError } = await supabaseClient
-    .from('rag_chunks')
-    .upsert(rows, { onConflict: 'doc_id,chunk_hash' })
+  const { error: upsertError } = await retry(
+    () =>
+      supabaseClient
+        .from('rag_chunks')
+        .upsert(rows, { onConflict: 'doc_id,chunk_hash' }),
+    `upsert chunks for doc ${docId}`
+  )
 
   if (upsertError) {
     throw upsertError
