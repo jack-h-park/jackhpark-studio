@@ -504,7 +504,6 @@ function ManualIngestionPanel(): JSX.Element {
           setRunId(event.runId);
           setFinalMessage(completionMessage);
           appendLog(completionMessage, completionLevel);
-          setHasCompleted(true);
           setProgress(100);
           setIsRunning(false);
           break;
@@ -512,8 +511,15 @@ function ManualIngestionPanel(): JSX.Element {
           break;
       }
     },
-    [appendLog],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [appendLog, isRunning, status],
   );
+
+  useEffect(() => {
+    if (!isRunning && status !== "idle" && status !== "in_progress") {
+      setHasCompleted(true);
+    }
+  }, [isRunning, status]);
 
   const startManualIngestion = useCallback(async () => {
     if (isRunning) {
