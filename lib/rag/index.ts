@@ -23,10 +23,12 @@ export type ChunkInsert = {
   ingested_at?: string
 }
 
-async function retry<T>(
-  operation: () => Promise<T>,
+type SupabaseRpcResponse<T> = { data: T; error: PostgrestError | null }
+
+async function retry<TData>(
+  operation: () => Promise<SupabaseRpcResponse<TData>>,
   description: string
-): Promise<T> {
+): Promise<SupabaseRpcResponse<TData>> {
   return backOff(operation, {
     startingDelay: 500,
     numOfAttempts: 4,
@@ -381,29 +383,49 @@ export async function replaceChunks(
   docId: string,
   rows: ChunkInsert[]
 ): Promise<void> {
-  const { error: deleteError } = await retry(
-    () => supabaseClient.from('rag_chunks').delete().eq('doc_id', docId),
-    `delete chunks for doc ${docId}`
-  )
-
-  if (deleteError) {
-    throw deleteError
-  }
-
-  if (rows.length === 0) {
-    return
-  }
-
-  const { error: upsertError } = await retry(
+  // 1. Get existing chunk hashes for the document
+  const { data: existingChunks, error: selectError } = await retry<{ chunk_hash: string }[]>(
     () =>
       supabaseClient
         .from('rag_chunks')
-        .upsert(rows, { onConflict: 'doc_id,chunk_hash' }),
-    `upsert chunks for doc ${docId}`
-  )
+        .select('chunk_hash')
+        .eq('doc_id', docId)
+        // The type assertion is necessary because Supabase client types can be broad.
+        .then((res: SupabaseRpcResponse<{ chunk_hash: string }[]>) => res),
+    `select chunk_hashes for doc ${docId}`
+  );
 
-  if (upsertError) {
-    throw upsertError
+  if (selectError) {
+    throw selectError;
+  }
+
+  const existingHashes = new Set((existingChunks ?? []).map((c) => c.chunk_hash));
+  const newHashes = new Set(rows.map((r) => r.chunk_hash));
+
+  // 2. Determine which chunks to delete
+  const hashesToDelete = [...existingHashes].filter((hash) => !newHashes.has(hash));
+
+  if (hashesToDelete.length > 0) {
+    const { error: deleteError } = await retry(
+      () =>
+        supabaseClient
+          .from('rag_chunks')
+          .delete()
+          .in('chunk_hash', hashesToDelete)
+          .eq('doc_id', docId),
+      `delete stale chunks for doc ${docId}`
+    );
+    if (deleteError) throw deleteError;
+  }
+
+  // 3. Upsert new/changed chunks
+  if (rows.length > 0) {
+    const { error: upsertError } = await retry(
+      () => supabaseClient.from('rag_chunks').upsert(rows, { onConflict: 'doc_id,chunk_hash' }),
+      `upsert chunks for doc ${docId}`
+    );
+
+    if (upsertError) throw upsertError;
   }
 }
 
@@ -429,7 +451,10 @@ export function extractPlainText(
   recordMap: ExtendedRecordMap,
   pageId: string
 ): string {
-  const blockIds = getPageContentBlockIds(recordMap, pageId)
+  // Ensure block IDs are sorted to maintain a consistent order, as Notion API
+  // does not guarantee the order of content blocks. This prevents hash
+  // mismatches for unchanged pages.
+  const blockIds = getPageContentBlockIds(recordMap, pageId).sort()
   const lines: string[] = []
 
   for (const blockId of blockIds) {
