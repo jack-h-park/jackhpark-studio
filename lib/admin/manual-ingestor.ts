@@ -26,8 +26,12 @@ import {
 const notion = new NotionAPI()
 
 export type ManualIngestionRequest =
-  | { mode: 'notion_page'; pageId: string }
-  | { mode: 'url'; url: string }
+  | {
+      mode: 'notion_page'
+      pageId: string
+      ingestionType?: 'full' | 'partial'
+    }
+  | { mode: 'url'; url: string; ingestionType?: 'full' | 'partial' }
 
 export type ManualIngestionEvent =
   | { type: 'run'; runId: string | null }
@@ -161,13 +165,16 @@ async function extractMainContent(url: string): Promise<FetchArticleResult> {
 
 async function runNotionPageIngestion(
   pageId: string,
+  ingestionType: 'full' | 'partial',
   emit: EmitFn
 ): Promise<void> {
+  const pageUrl = getPageUrl(pageId)
+  const isFull = ingestionType === 'full'
   const runHandle: IngestRunHandle = await startIngestRun({
     source: 'manual/notion-page',
-    ingestion_type: 'partial',
-    partial_reason: 'Manual Notion page ingest',
-    metadata: { pageId }
+    ingestion_type: ingestionType,
+    partial_reason: isFull ? null : 'Manual Notion page ingest',
+    metadata: { pageId, pageUrl, ingestionType }
   })
 
   await emit({ type: 'run', runId: runHandle?.id ?? null })
@@ -181,7 +188,9 @@ async function runNotionPageIngestion(
   const errorLogs: IngestRunErrorLog[] = []
   const started = Date.now()
   let status: ManualRunStatus = 'success'
-  let finalMessage = 'Manual Notion page ingestion finished.'
+  let finalMessage = isFull
+    ? 'Manual Notion page full ingestion finished.'
+    : 'Manual Notion page ingestion finished.'
 
   try {
     await emit({
@@ -316,7 +325,11 @@ async function runNotionPageIngestion(
     status = 'failed'
     stats.errorCount += 1
     const message = err instanceof Error ? err.message : String(err)
-    finalMessage = `Manual Notion ingestion failed: ${message}`
+    finalMessage = `${
+      isFull
+        ? 'Manual Notion page full ingestion failed'
+        : 'Manual Notion ingestion failed'
+    }: ${message}`
     errorLogs.push({
       context: 'fatal',
       doc_id: pageId,
@@ -359,12 +372,18 @@ async function runNotionPageIngestion(
   }
 }
 
-async function runUrlIngestion(url: string, emit: EmitFn): Promise<void> {
+async function runUrlIngestion(
+  url: string,
+  ingestionType: 'full' | 'partial',
+  emit: EmitFn
+): Promise<void> {
+  const parsedUrl = new URL(url)
   const runHandle: IngestRunHandle = await startIngestRun({
     source: 'manual/url',
-    ingestion_type: 'partial',
-    partial_reason: 'Manual URL ingest',
-    metadata: { url }
+    ingestion_type: ingestionType,
+    partial_reason:
+      ingestionType === 'full' ? null : 'Manual URL ingest',
+    metadata: { url, hostname: parsedUrl.hostname, ingestionType }
   })
 
   await emit({ type: 'run', runId: runHandle?.id ?? null })
@@ -378,7 +397,10 @@ async function runUrlIngestion(url: string, emit: EmitFn): Promise<void> {
   const errorLogs: IngestRunErrorLog[] = []
   const started = Date.now()
   let status: ManualRunStatus = 'success'
-  let finalMessage = 'Manual URL ingestion finished.'
+  let finalMessage =
+    ingestionType === 'full'
+      ? 'Manual URL full ingestion finished.'
+      : 'Manual URL ingestion finished.'
 
   try {
     stats.documentsProcessed += 1
@@ -412,7 +434,7 @@ async function runUrlIngestion(url: string, emit: EmitFn): Promise<void> {
       existingState.content_hash === contentHash &&
       (!lastModified || existingState.last_source_update === lastModified)
 
-    if (unchanged) {
+    if (unchanged && ingestionType === 'partial') {
       stats.documentsSkipped += 1
       finalMessage = `No changes detected for ${title}; skipping ingest.`
       await emit({
@@ -501,7 +523,11 @@ async function runUrlIngestion(url: string, emit: EmitFn): Promise<void> {
     status = 'failed'
     stats.errorCount += 1
     const message = err instanceof Error ? err.message : String(err)
-    finalMessage = `Manual URL ingestion failed: ${message}`
+    finalMessage = `${
+      ingestionType === 'full'
+        ? 'Manual URL full ingestion failed'
+        : 'Manual URL ingestion failed'
+    }: ${message}`
     errorLogs.push({
       context: 'fatal',
       doc_id: url,
@@ -549,9 +575,11 @@ export async function runManualIngestion(
   emit: EmitFn
 ): Promise<void> {
   if (request.mode === 'notion_page') {
-    await runNotionPageIngestion(request.pageId, emit)
+    const ingestionType = request.ingestionType ?? 'partial'
+    await runNotionPageIngestion(request.pageId, ingestionType, emit)
     return
   }
 
-  await runUrlIngestion(request.url, emit)
+  const ingestionType = request.ingestionType ?? 'partial'
+  await runUrlIngestion(request.url, ingestionType, emit)
 }

@@ -12,6 +12,7 @@ type ManualIngestionBody = {
   mode?: unknown
   pageId?: unknown
   url?: unknown
+  ingestionType?: unknown
 }
 
 function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
@@ -25,7 +26,9 @@ function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
       throw new Error('Invalid Notion page ID.')
     }
 
-    return { mode: 'notion_page', pageId: parsed }
+    const ingestionType = body.ingestionType === 'full' ? 'full' : 'partial'
+
+    return { mode: 'notion_page', pageId: parsed, ingestionType }
   }
 
   if (body.mode === 'url') {
@@ -46,7 +49,13 @@ function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
       throw new Error('Only HTTP and HTTPS URLs are supported.')
     }
 
-    return { mode: 'url', url: parsed.toString() }
+    const ingestionType = body.ingestionType === 'full' ? 'full' : 'partial'
+
+    return {
+      mode: 'url',
+      url: parsed.toString(),
+      ingestionType
+    }
   }
 
   throw new Error('Unsupported ingestion mode.')
