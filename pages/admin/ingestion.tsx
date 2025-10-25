@@ -743,6 +743,7 @@ function ManualIngestionPanel(): JSX.Element {
     urlInput,
     urlScope,
     handleEvent,
+    appendLog,
   ]);
 
   const handleSubmit = useCallback(

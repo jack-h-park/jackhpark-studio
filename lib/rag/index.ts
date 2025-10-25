@@ -454,7 +454,7 @@ export function extractPlainText(
   // Ensure block IDs are sorted to maintain a consistent order, as Notion API
   // does not guarantee the order of content blocks. This prevents hash
   // mismatches for unchanged pages.
-  const blockIds = getPageContentBlockIds(recordMap, pageId).sort()
+  const blockIds = getPageContentBlockIds(recordMap, pageId).toSorted()
   const lines: string[] = []
 
   for (const blockId of blockIds) {
