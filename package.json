@@ -39,6 +39,7 @@
     "@mozilla/readability": "^0.6.0",
     "@react-icons/all-files": "^4.1.0",
     "@supabase/supabase-js": "^2.76.1",
+    "ai": "^5.0.78",
     "classnames": "^2.5.1",
     "expiry-map": "^2.0.0",
     "fathom-client": "^3.4.1",

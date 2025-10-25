@@ -1,11 +1,11 @@
 import type { GetServerSideProps } from "next";
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiAlertTriangle } from "@react-icons/all-files/fi/FiAlertTriangle";
-import css from "styled-jsx/css";
 import { FiFileText } from "@react-icons/all-files/fi/FiFileText";
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import { FiLink } from "@react-icons/all-files/fi/FiLink";
 import Head from "next/head";
+import { useRouter } from "next/router";
 import { type ExtendedRecordMap, type PageBlock } from "notion-types";
 import { parsePageId } from "notion-utils";
 import {
@@ -18,6 +18,7 @@ import {
   useState,
 } from "react";
 import { NotionContextProvider } from "react-notion-x";
+import css from "styled-jsx/css";
 
 import { Footer } from "../../components/Footer";
 import { NotionPageHeader } from "../../components/NotionPageHeader";
@@ -433,6 +434,7 @@ function getNumericMetadata(
 }
 
 function ManualIngestionPanel(): JSX.Element {
+  const router = useRouter();
   const [mode, setMode] = useState<"notion_page" | "url">("notion_page");
   const [notionInput, setNotionInput] = useState("");
   const [urlInput, setUrlInput] = useState("");
@@ -444,6 +446,7 @@ function ManualIngestionPanel(): JSX.Element {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [logs, setLogs] = useState<ManualLogEntry[]>([]);
   const [stats, setStats] = useState<ManualRunStats | null>(null);
+  const [hasCompleted, setHasCompleted] = useState(false);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -499,6 +502,7 @@ function ManualIngestionPanel(): JSX.Element {
           setRunId(event.runId);
           setFinalMessage(completionMessage);
           appendLog(completionMessage, completionLevel);
+          setHasCompleted(true);
           setProgress(100);
           setIsRunning(false);
           break;
@@ -559,6 +563,7 @@ function ManualIngestionPanel(): JSX.Element {
     setRunId(null);
     setFinalMessage(null);
     setStats(null);
+    setHasCompleted(false);
     const startLog =
       mode === "notion_page"
         ? "Starting manual ingestion for the Notion page."
@@ -889,6 +894,17 @@ function ManualIngestionPanel(): JSX.Element {
                 ? "Awaiting events"
                 : `${logs.length} entr${logs.length === 1 ? "y" : "ies"}`}
             </span>
+            {hasCompleted && !isRunning ? (
+              <button
+                type="button"
+                className="manual-logs__refresh-button"
+                onClick={() => {
+                  void router.replace(router.asPath);
+                }}
+              >
+                Refresh Dashboard
+              </button>
+            ) : null}
           </header>
           {logs.length === 0 ? (
             <div className="manual-logs__empty">
@@ -1773,6 +1789,25 @@ const styles = css`
   .manual-logs__meta {
     font-size: 0.85rem;
     color: rgba(55, 53, 47, 0.55);
+  }
+
+  .manual-logs__refresh-button {
+    border: 1px solid rgba(55, 53, 47, 0.18);
+    background: rgba(255, 255, 255, 0.9);
+    color: rgba(55, 53, 47, 0.8);
+    padding: 0.3rem 0.8rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .manual-logs__refresh-button:hover {
+    background: rgba(245, 244, 240, 0.9);
+    border-color: rgba(55, 53, 47, 0.25);
   }
 
   .manual-logs__empty {

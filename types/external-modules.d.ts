@@ -36,19 +36,3 @@ declare module '@supabase/supabase-js' {
 declare module 'gpt-tokenizer' {
   export function encode(value: string): number[];
 }
-
-declare module 'openai' {
-  export type EmbeddingResponse = {
-    data: Array<{ embedding: number[] }>;
-  };
-
-  export default class OpenAI {
-    constructor(config: { apiKey: string });
-    embeddings: {
-      create(input: {
-        model: string;
-        input: string[] | string;
-      }): Promise<EmbeddingResponse>;
-    };
-  }
-}
