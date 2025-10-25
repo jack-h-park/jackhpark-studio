@@ -1,8 +1,25 @@
 import type { GetServerSideProps } from 'next'
+import { FiAlertCircle } from '@react-icons/all-files/fi/FiAlertCircle'
+import { FiAlertTriangle } from '@react-icons/all-files/fi/FiAlertTriangle'
+import { FiFileText } from '@react-icons/all-files/fi/FiFileText'
+import { FiInfo } from '@react-icons/all-files/fi/FiInfo'
+import { FiLink } from '@react-icons/all-files/fi/FiLink'
 import Head from 'next/head'
+import { type ExtendedRecordMap, type PageBlock } from 'notion-types'
 import { parsePageId } from 'notion-utils'
-import { type JSX, useCallback, useEffect, useRef, useState } from 'react'
+import {
+  type ComponentType,
+  type FormEvent,
+  type JSX,
+  useCallback,
+  useEffect,
+  useRef,
+  useState
+} from 'react'
+import { NotionContextProvider } from 'react-notion-x'
 
+import { Footer } from '../../components/Footer'
+import { NotionPageHeader } from '../../components/NotionPageHeader'
 import { getSupabaseAdminClient } from '../../lib/supabase-admin'
 
 type RunRecord = {
@@ -81,11 +98,76 @@ type ManualLogEntry = {
   timestamp: number
 }
 
+const LOG_ICONS: Record<
+  ManualLogEntry['level'],
+  ComponentType<{ 'aria-hidden'?: boolean }>
+> = {
+  info: FiInfo,
+  warn: FiAlertTriangle,
+  error: FiAlertCircle
+}
+
 type DocumentRow = {
   chunk_count: number | null
   total_characters: number | null
   last_ingested_at: string | number | null
 }
+
+const ADMIN_PAGE_ID = 'admin-ingestion'
+const ADMIN_PAGE_BLOCK: PageBlock = {
+  id: ADMIN_PAGE_ID,
+  type: 'page',
+  parent_id: 'admin-root',
+  parent_table: 'space',
+  alive: true,
+  created_time: 0,
+  last_edited_time: 0,
+  created_by_table: 'notion_user',
+  created_by_id: 'admin',
+  last_edited_by_table: 'notion_user',
+  last_edited_by_id: 'admin',
+  space_id: 'admin-space',
+  version: 1,
+  properties: {
+    title: [['Ingestion Dashboard']]
+  },
+  format: {}
+} as PageBlock
+
+const ADMIN_RECORD_MAP: ExtendedRecordMap = {
+  block: {
+    [ADMIN_PAGE_BLOCK.id]: {
+      role: 'reader',
+      value: ADMIN_PAGE_BLOCK
+    }
+  },
+  collection: {},
+  collection_query: {},
+  collection_view: {},
+  notion_user: {},
+  space: {},
+  space_view: {},
+  user_root: {},
+  user_settings: {},
+  discussion: {},
+  discussion_comment: {},
+  signed_urls: {}
+} as ExtendedRecordMap
+
+const MANUAL_TABS = [
+  {
+    id: 'notion_page' as const,
+    label: 'Notion Page',
+    subtitle: 'Sync from your workspace',
+    icon: FiFileText
+  },
+  {
+    id: 'url' as const,
+    label: 'External URL',
+    subtitle: 'Fetch a public article',
+    icon: FiLink
+  }
+] as const
 
 const manualStatusLabels: Record<ManualIngestionStatus, string> = {
   idle: 'Idle',
@@ -610,229 +692,238 @@ function ManualIngestionPanel(): JSX.Element {
         setIsRunning(false)
       }
     }
-  }, [
-    appendLog,
-    handleEvent,
-    isRunning,
-    mode,
-    notionInput,
-    urlInput
-  ])
+  }, [appendLog, handleEvent, isRunning, mode, notionInput, urlInput])
+
+  const handleSubmit = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      void startManualIngestion()
+    },
+    [startManualIngestion]
+  )
+
+  const activeTabId = `manual-tab-${mode}`
 
   return (
-    <section className="manual-ingest dashboard-card">
-      <div className="manual-header">
-        <h2>Manual Ingestion</h2>
-        <p className="manual-subtitle">
-          Trigger manual ingestion for a Notion page or external URL and track the progress here.
-        </p>
-      </div>
+    <section className="manual-ingestion admin-card">
+      <header className="manual-ingestion__header">
+        <div>
+          <h2>Manual Ingestion</h2>
+          <p>
+            Trigger manual ingestion for a Notion page or external URL and track the
+            progress here.
+          </p>
+        </div>
+        <div className="manual-ingestion__status">
+          <span className={`status-pill status-pill--${status}`}>
+            {manualStatusLabels[status]}
+          </span>
+          {runId ? <span className="status-pill__meta">Run ID: {runId}</span> : null}
+        </div>
+      </header>
 
-      <div className="manual-grid">
-        <div className="manual-panel">
-          <div className="manual-mode">
-            <span className="mode-label">Source type</span>
-            <div className="mode-tabs" role="tablist" aria-label="Manual ingestion source">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'notion_page'}
-                className={`mode-tab ${mode === 'notion_page' ? 'is-active' : ''}`}
-                onClick={() => setMode('notion_page')}
-                disabled={isRunning}
-              >
-                <span className="mode-tab__title">Notion Page</span>
-                <span className="mode-tab__caption">Sync from your workspace</span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === 'url'}
-                className={`mode-tab ${mode === 'url' ? 'is-active' : ''}`}
-                onClick={() => setMode('url')}
-                disabled={isRunning}
-              >
-                <span className="mode-tab__title">External URL</span>
-                <span className="mode-tab__caption">Fetch a public article</span>
-              </button>
-            </div>
-          </div>
-
+      <div className="manual-ingestion__layout">
+        <div className="manual-ingestion__primary">
           <div
-            className="manual-content"
-            style={{
-              border: '1px solid rgba(55, 53, 47, 0.16)',
-              borderTop: 'none',
-              borderRadius: '0 0 12px 12px',
-              background: 'rgba(248, 248, 246, 0.9)',
-              padding: '1.4rem 1.6rem'
-            }}
+            className="manual-ingestion__tabs"
+            role="tablist"
+            aria-label="Manual ingestion source"
           >
-            <div className="manual-form">
-              {mode === 'notion_page' ? (
-                <div className="manual-field">
-                  <label htmlFor="manual-notion-input">Notion Page ID or URL</label>
-                  <div className="input-shell">
-                    <input
-                      id="manual-notion-input"
-                      type="text"
-                      placeholder="https://www.notion.so/... or page ID"
-                      value={notionInput}
-                      onChange={(event) => setNotionInput(event.target.value)}
-                      disabled={isRunning}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="manual-field">
-                  <label htmlFor="manual-url-input">URL to ingest</label>
-                  <div className="input-shell">
-                    <input
-                      id="manual-url-input"
-                      type="url"
-                      placeholder="https://example.com/article"
-                      value={urlInput}
-                      onChange={(event) => setUrlInput(event.target.value)}
-                      disabled={isRunning}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <p className="field-hint">
-                {mode === 'notion_page'
-                  ? 'Paste the full shared link or the 32-character page ID from Notion.'
-                  : 'Enter a public HTTP(S) link. We will fetch, parse, and ingest the article once.'}
-              </p>
-
-              {errorMessage ? (
-                <div className="form-error">{errorMessage}</div>
-              ) : null}
-
-              <div className="manual-actions">
+            {MANUAL_TABS.map((tab) => {
+              const Icon = tab.icon
+              const isActive = mode === tab.id
+              return (
                 <button
+                  key={tab.id}
+                  id={`manual-tab-${tab.id}`}
                   type="button"
-                  onClick={startManualIngestion}
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-controls={`manual-panel-${tab.id}`}
+                  className={`manual-tab ${isActive ? 'manual-tab--active' : ''}`}
+                  onClick={() => setMode(tab.id)}
                   disabled={isRunning}
                 >
-                  {isRunning ? 'Running...' : 'Run manually'}
-                </button>
-
-                <div className="manual-status">
-                  <span className={`status status-${status}`}>
-                    {manualStatusLabels[status]}
+                  <span className="manual-tab__icon" aria-hidden="true">
+                    <Icon />
                   </span>
-                  {' '}
-                  {runId ? <span className="run-meta">Run ID: {runId}</span> : null}
+                  <span className="manual-tab__copy">
+                    <span className="manual-tab__title">{tab.label}</span>
+                    <span className="manual-tab__subtitle">{tab.subtitle}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <form
+            className="manual-form"
+            aria-labelledby={activeTabId}
+            id={`manual-panel-${mode}`}
+            role="tabpanel"
+            onSubmit={handleSubmit}
+            noValidate
+          >
+            {mode === 'notion_page' ? (
+              <div className="manual-field">
+                <label htmlFor="manual-notion-input">Notion Page ID or URL</label>
+                <input
+                  id="manual-notion-input"
+                  type="text"
+                  placeholder="https://www.notion.so/... or page ID"
+                  value={notionInput}
+                  onChange={(event) => setNotionInput(event.target.value)}
+                  disabled={isRunning}
+                />
+              </div>
+            ) : (
+              <div className="manual-field">
+                <label htmlFor="manual-url-input">URL to ingest</label>
+                <input
+                  id="manual-url-input"
+                  type="url"
+                  placeholder="https://example.com/article"
+                  value={urlInput}
+                  onChange={(event) => setUrlInput(event.target.value)}
+                  disabled={isRunning}
+                />
+              </div>
+            )}
+
+            <p className="manual-hint">
+              {mode === 'notion_page'
+                ? 'Paste the full shared link or the 32-character page ID from Notion.'
+                : 'Enter a public HTTP(S) link. We will fetch, parse, and ingest the article once.'}
+            </p>
+
+            {errorMessage ? (
+              <div className="manual-error" role="alert">
+                {errorMessage}
+              </div>
+            ) : null}
+
+            <div className="manual-actions">
+              <button
+                type="submit"
+                className={`manual-button ${isRunning ? 'is-loading' : ''}`}
+                disabled={isRunning}
+              >
+                {isRunning ? 'Running' : 'Run manually'}
+              </button>
+
+              <div className="manual-progress" aria-live="polite">
+                <div className="progress-bar" aria-hidden="true">
+                  <div
+                    className="progress-bar__value"
+                    style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+                  />
+                </div>
+                <div className="progress-meta">
+                  <span className="progress-percent">{Math.round(progress)}%</span>
+                  {finalMessage ? (
+                    <span className="progress-message">{finalMessage}</span>
+                  ) : null}
                 </div>
               </div>
             </div>
-          </div>
+          </form>
         </div>
 
-        <aside className="manual-aside" aria-label="Manual ingestion tips">
+        <aside className="manual-ingestion__aside" aria-label="Manual ingestion tips">
           <h3>Tips</h3>
           <ul>
             <li>Ensure the Notion page is shared and accessible with the integration token.</li>
-            <li>Long articles are chunked automatically; you can rerun to refresh.</li>
+            <li>Long articles are chunked automatically; you can rerun to refresh the data.</li>
             <li>External URLs should be static pages without paywalls or heavy scripts.</li>
           </ul>
           <div className="tip-callout">
             <strong>Heads up</strong>
-            <p>Manual runs are processed immediately and may take a few seconds depending on content size.</p>
+            <p>
+              Manual runs are processed immediately and may take a few seconds depending on the
+              content size.
+            </p>
           </div>
         </aside>
       </div>
 
-      <div className="progress-shell">
-        <div className="progress-bar">
-          <div style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
-        </div>
-        <div className="progress-meta">
-          <span>{Math.round(progress)}%</span>
-          {' '}
-          {finalMessage ? (
-            <span className="manual-message">{finalMessage}</span>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="log-list">
+      <section className="manual-logs" aria-live="polite">
+        <header className="manual-logs__header">
+          <h3>Run Log</h3>
+          <span className="manual-logs__meta">
+            {logs.length === 0
+              ? 'Awaiting events'
+              : `${logs.length} entr${logs.length === 1 ? 'y' : 'ies'}`}
+          </span>
+        </header>
         {logs.length === 0 ? (
-          <div className="log-empty">Execution logs will appear here.</div>
+          <div className="manual-logs__empty">Execution logs will appear here.</div>
         ) : (
-          logs.map((log) => (
-            <div key={log.id} className={`log-entry ${log.level}`}>
-              <span className="log-time">
-                {logTimeFormatter.format(new Date(log.timestamp))}
-              </span>
-              {' '}
-              <span>{log.message}</span>
-            </div>
-          ))
+          <ul className="manual-logs__list">
+            {logs.map((log) => {
+              const Icon = LOG_ICONS[log.level]
+              return (
+                <li
+                  key={log.id}
+                  className={`manual-log-entry manual-log-entry--${log.level}`}
+                >
+                  <span className="manual-log-entry__icon" aria-hidden="true">
+                    <Icon />
+                  </span>
+                  <div className="manual-log-entry__body">
+                    <span className="manual-log-entry__time">
+                      {logTimeFormatter.format(new Date(log.timestamp))}
+                    </span>
+                    <span className="manual-log-entry__message">{log.message}</span>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
         )}
-      </div>
+      </section>
 
       {stats ? (
-        <div className="run-summary">
+        <section className="manual-summary">
           <h3>Run Summary</h3>
-          <div className="run-summary-grid">
-            <div className="run-summary-card">
-              <span className="summary-label">Documents Processed</span>
-              <span className="summary-value">
-                {numberFormatter.format(stats.documentsProcessed)}
-              </span>
+          <dl className="summary-grid">
+            <div className="summary-item">
+              <dt>Documents Processed</dt>
+              <dd>{numberFormatter.format(stats.documentsProcessed)}</dd>
             </div>
-            <div className="run-summary-card">
-              <span className="summary-label">Documents Added</span>
-              <span className="summary-value">
-                {numberFormatter.format(stats.documentsAdded)}
-              </span>
+            <div className="summary-item">
+              <dt>Documents Added</dt>
+              <dd>{numberFormatter.format(stats.documentsAdded)}</dd>
             </div>
-            <div className="run-summary-card">
-              <span className="summary-label">Documents Updated</span>
-              <span className="summary-value">
-                {numberFormatter.format(stats.documentsUpdated)}
-              </span>
+            <div className="summary-item">
+              <dt>Documents Updated</dt>
+              <dd>{numberFormatter.format(stats.documentsUpdated)}</dd>
             </div>
-            <div className="run-summary-card">
-              <span className="summary-label">Documents Skipped</span>
-              <span className="summary-value">
-                {numberFormatter.format(stats.documentsSkipped)}
-              </span>
+            <div className="summary-item">
+              <dt>Documents Skipped</dt>
+              <dd>{numberFormatter.format(stats.documentsSkipped)}</dd>
             </div>
-            <div className="run-summary-card">
-              <span className="summary-label">Chunks Added</span>
-              <span className="summary-value">
-                {numberFormatter.format(stats.chunksAdded)}
-              </span>
+            <div className="summary-item">
+              <dt>Chunks Added</dt>
+              <dd>{numberFormatter.format(stats.chunksAdded)}</dd>
             </div>
-            <div className="run-summary-card">
-              <span className="summary-label">Chunks Updated</span>
-              <span className="summary-value">
-                {numberFormatter.format(stats.chunksUpdated)}
-              </span>
+            <div className="summary-item">
+              <dt>Chunks Updated</dt>
+              <dd>{numberFormatter.format(stats.chunksUpdated)}</dd>
             </div>
-            <div className="run-summary-card">
-              <span className="summary-label">Characters Added</span>
-              <span className="summary-value">
-                {numberFormatter.format(stats.charactersAdded)}
-              </span>
+            <div className="summary-item">
+              <dt>Characters Added</dt>
+              <dd>{numberFormatter.format(stats.charactersAdded)}</dd>
             </div>
-            <div className="run-summary-card">
-              <span className="summary-label">Characters Updated</span>
-              <span className="summary-value">
-                {numberFormatter.format(stats.charactersUpdated)}
-              </span>
+            <div className="summary-item">
+              <dt>Characters Updated</dt>
+              <dd>{numberFormatter.format(stats.charactersUpdated)}</dd>
             </div>
-            <div className="run-summary-card">
-              <span className="summary-label">Errors</span>
-              <span className="summary-value">
-                {numberFormatter.format(stats.errorCount)}
-              </span>
+            <div className="summary-item">
+              <dt>Errors</dt>
+              <dd>{numberFormatter.format(stats.errorCount)}</dd>
             </div>
-          </div>
-        </div>
+          </dl>
+        </section>
       ) : null}
     </section>
   )
@@ -845,356 +936,546 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
         <title>Ingestion Dashboard</title>
       </Head>
 
-      <main className="dashboard-root">
-        <article className="dashboard-page notion-page">
-          <header className="dashboard-header">
+      <div className="admin-ingestion-page notion">
+        <div className="admin-header-shell">
+          <NotionContextProvider
+            recordMap={ADMIN_RECORD_MAP}
+            fullPage
+            darkMode={false}
+            previewImages={false}
+            forceCustomImages={false}
+            showCollectionViewDropdown={false}
+            showTableOfContents={false}
+            minTableOfContentsItems={0}
+            linkTableTitleProperties={false}
+            isLinkCollectionToUrlProperty={false}
+            mapPageUrl={(pageId: string) => `/${pageId}`}
+            mapImageUrl={() => undefined}
+          >
+            <NotionPageHeader block={ADMIN_PAGE_BLOCK} />
+          </NotionContextProvider>
+        </div>
+
+        <main className="notion-page-content admin-ingestion-content">
+          <header className="admin-hero">
             <h1>Ingestion Dashboard</h1>
-        <p className="dashboard-subtitle">
-          Monitor ingestion health, trigger manual runs, and review the latest dataset snapshot.
-        </p>
+            <p>
+              Monitor ingestion health, trigger manual runs, and review the latest dataset
+              snapshot.
+            </p>
           </header>
 
-          <div className="dashboard-stack">
+          <div className="admin-stack">
             <ManualIngestionPanel />
 
-            <section className="overview dashboard-card">
-              <h2>Current Snapshot</h2>
-              <div className="metrics-grid">
-                <div className="metric-card">
-                  <span className="metric-label">Documents</span>
-                  <span className="metric-value">
+            <section className="admin-card admin-section">
+              <header className="admin-section__header">
+                <h2>Current Snapshot</h2>
+                <p className="admin-section__description">
+                  Aggregate metrics across the latest indexed content.
+                </p>
+              </header>
+              <div className="admin-metrics">
+                <div className="admin-metric">
+                  <span className="admin-metric__label">Documents</span>
+                  <span className="admin-metric__value">
                     {numberFormatter.format(overview.totalDocuments)}
                   </span>
                 </div>
-                <div className="metric-card">
-                  <span className="metric-label">Chunks</span>
-                  <span className="metric-value">
+                <div className="admin-metric">
+                  <span className="admin-metric__label">Chunks</span>
+                  <span className="admin-metric__value">
                     {numberFormatter.format(overview.totalChunks)}
                   </span>
                 </div>
-                <div className="metric-card">
-                  <span className="metric-label">Content Size</span>
-                  <span className="metric-value">
+                <div className="admin-metric">
+                  <span className="admin-metric__label">Content Size</span>
+                  <span className="admin-metric__value">
                     {formatCharacters(overview.totalCharacters)}
                   </span>
                 </div>
-                <div className="metric-card">
-                  <span className="metric-label">Last Updated</span>
-                  <span className="metric-value">
+                <div className="admin-metric">
+                  <span className="admin-metric__label">Last Updated</span>
+                  <span className="admin-metric__value">
                     {formatDate(overview.lastUpdatedAt)}
                   </span>
                 </div>
               </div>
             </section>
 
-            <section className="history dashboard-card">
-              <h2>Recent Runs</h2>
-              <div className="history-table-container">
-                <table className="history-table">
+            <section className="admin-card admin-section">
+              <header className="admin-section__header">
+                <h2>Recent Runs</h2>
+                <p className="admin-section__description">
+                  Latest ingestion activity from manual and scheduled jobs.
+                </p>
+              </header>
+              <div className="admin-table">
+                <table className="admin-table__grid">
                   <thead>
                     <tr>
                       <th>Started</th>
                       <th>Status</th>
                       <th>Type</th>
-                  <th>Duration</th>
-                  <th>Docs</th>
-                  <th>Data Added</th>
-                  <th>Data Updated</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {runs.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="empty-state">
-                      No ingestion runs have been recorded yet.
-                    </td>
-                  </tr>
-                ) : (
-                  runs.map((run) => {
-                    const errorCount = run.error_count ?? 0
-                    const logs = run.error_logs ?? []
-                    const rootPageId = getStringMetadata(
-                      run.metadata,
-                      'rootPageId'
-                    )
-                    const urlCount = getNumericMetadata(
-                      run.metadata,
-                      'urlCount'
-                    )
-
-                    return (
-                      <tr key={run.id}>
-                        <td>
-                          <div>{formatDate(run.started_at)}</div>
-                          {run.ended_at && (
-                            <div className="subtle">
-                              Finished: {formatDate(run.ended_at)}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <span className={`status status-${run.status}`}>
-                            {run.status.replaceAll('_', ' ')}
-                          </span>
-                          {errorCount > 0 && (
-                            <details>
-                              <summary>{errorCount} issue(s)</summary>
-                              <ul>
-                                {logs.slice(0, 5).map((log, index) => (
-                                  <li key={index}>
-                                    {log.doc_id && (
-                                      <strong>{log.doc_id}: </strong>
-                                    )}
-                                    {log.context && (
-                                      <span>{log.context}: </span>
-                                    )}
-                                    {log.message}
-                                  </li>
-                                ))}
-                                {logs.length > 5 && (
-                                  <li>??{logs.length - 5} more</li>
-                                )}
-                              </ul>
-                            </details>
-                          )}
-                        </td>
-                        <td>
-                          <div className="badge">
-                            {run.ingestion_type === 'full' ? 'Full' : 'Partial'}
-                          </div>
-                          {run.partial_reason && (
-                            <div className="subtle">{run.partial_reason}</div>
-                          )}
-                        </td>
-                        <td>{formatDuration(run.duration_ms ?? 0)}</td>
-                        <td>
-                          <div>
-                            Added:{' '}
-                            {numberFormatter.format(run.documents_added ?? 0)}
-                          </div>
-                          <div>
-                            Updated:{' '}
-                            {numberFormatter.format(run.documents_updated ?? 0)}
-                          </div>
-                          <div>
-                            Skipped:{' '}
-                            {numberFormatter.format(run.documents_skipped ?? 0)}
-                          </div>
-                        </td>
-                        <td>{formatCharacters(run.characters_added ?? 0)}</td>
-                        <td>
-                          {formatCharacters(run.characters_updated ?? 0)}
-                        </td>
-                        <td>
-                          {rootPageId ? (
-                            <div className="subtle">
-                              Root: {rootPageId}
-                            </div>
-                          ) : null}
-                          {urlCount !== null ? (
-                            <div className="subtle">
-                              URLs: {numberFormatter.format(urlCount)}
-                            </div>
-                          ) : null}
+                      <th>Duration</th>
+                      <th>Docs</th>
+                      <th>Data Added</th>
+                      <th>Data Updated</th>
+                      <th>Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {runs.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="admin-table__empty">
+                          No ingestion runs have been recorded yet.
                         </td>
                       </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                    ) : (
+                      runs.map((run) => {
+                        const errorCount = run.error_count ?? 0
+                        const logs = run.error_logs ?? []
+                        const rootPageId = getStringMetadata(run.metadata, 'rootPageId')
+                        const urlCount = getNumericMetadata(run.metadata, 'urlCount')
+
+                        return (
+                          <tr key={run.id}>
+                            <td>
+                              <div>{formatDate(run.started_at)}</div>
+                              {run.ended_at ? (
+                                <div className="admin-table__meta">
+                                  Finished: {formatDate(run.ended_at)}
+                                </div>
+                              ) : null}
+                            </td>
+                            <td>
+                              <span className={`status-pill status-pill--${run.status}`}>
+                                {run.status.replaceAll('_', ' ')}
+                              </span>
+                              {errorCount > 0 && (
+                                <details className="admin-issues">
+                                  <summary>{errorCount} issue(s)</summary>
+                                  <ul>
+                                    {logs.slice(0, 5).map((log, index) => (
+                                      <li key={index}>
+                                        {log.doc_id ? <strong>{log.doc_id}: </strong> : null}
+                                        {log.context ? <span>{log.context}: </span> : null}
+                                        {log.message}
+                                      </li>
+                                    ))}
+                                    {logs.length > 5 ? <li>{`${logs.length - 5} more`}</li> : null}
+                                  </ul>
+                                </details>
+                              )}
+                            </td>
+                            <td>
+                              <span className="badge">
+                                {run.ingestion_type === 'full' ? 'Full' : 'Partial'}
+                              </span>
+                              {run.partial_reason ? (
+                                <div className="admin-table__meta">{run.partial_reason}</div>
+                              ) : null}
+                            </td>
+                            <td>{formatDuration(run.duration_ms ?? 0)}</td>
+                            <td>
+                              <div>
+                                Added: {numberFormatter.format(run.documents_added ?? 0)}
+                              </div>
+                              <div>
+                                Updated: {numberFormatter.format(run.documents_updated ?? 0)}
+                              </div>
+                              <div>
+                                Skipped: {numberFormatter.format(run.documents_skipped ?? 0)}
+                              </div>
+                            </td>
+                            <td>{formatCharacters(run.characters_added ?? 0)}</td>
+                            <td>{formatCharacters(run.characters_updated ?? 0)}</td>
+                            <td>
+                              {rootPageId ? (
+                                <div className="admin-table__meta">Root: {rootPageId}</div>
+                              ) : null}
+                              {urlCount !== null ? (
+                                <div className="admin-table__meta">
+                                  URLs: {numberFormatter.format(urlCount)}
+                                </div>
+                              ) : null}
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </section>
           </div>
-        </article>
-      </main>
+        </main>
+
+        <div className="admin-footer-shell">
+          <Footer />
+        </div>
+      </div>
 
       <style jsx>{`
-        .dashboard-root {
+        .admin-ingestion-page {
+          width: 100%;
           min-height: 100vh;
-          padding: 5rem 0 6rem;
-          background: #f7f6f3;
+          display: flex;
+          flex-direction: column;
+          background: var(--bg-color, #f7f6f3);
+          --notion-max-width: 1320px;
         }
 
-        .dashboard-page {
+        .admin-header-shell,
+        .admin-footer-shell {
           width: 100%;
-          max-width: 900px;
+          display: flex;
+          justify-content: center;
+          background: transparent;
+        }
+
+        .admin-header-shell {
+          padding: 0 clamp(28px, 6vw, 96px);
+          box-sizing: border-box;
+        }
+
+        .admin-header-shell :global(.notion-header) {
+          width: min(100%, 1320px);
           margin: 0 auto;
-          padding: 0 1.5rem;
-          color: rgba(55, 53, 47, 0.95);
-          font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+
+        .admin-header-shell :global(.notion-nav-header) {
+          width: 100%;
+          padding: 0 clamp(4px, 1vw, 12px);
+        }
+
+        .admin-header-shell :global(.notion-nav-header-rhs) {
+          justify-content: flex-end;
+        }
+
+        .admin-footer-shell {
+          padding: 0 clamp(28px, 6vw, 96px);
+          box-sizing: border-box;
+        }
+
+        .admin-footer-shell :global(footer) {
+          width: min(100%, 1320px);
+          margin: 3rem auto 0;
+          padding: 25px clamp(0.5rem, 2vw, 1.75rem);
+          box-sizing: border-box;
+        }
+
+        .admin-ingestion-content {
+          width: min(100%, 1320px);
+          max-width: 1320px;
+          margin: 0 auto;
+          padding: clamp(3.5rem, 6vw, 5rem) clamp(2rem, 4vw, 3.5rem) 5.5rem;
+          color: var(--fg-color, rgba(55, 53, 47, 0.95));
           line-height: 1.6;
         }
 
-        .dashboard-header {
+        .admin-hero {
           margin-bottom: 2.5rem;
         }
 
-        .dashboard-header h1 {
+        .admin-hero h1 {
           margin: 0;
-          font-size: 2.4rem;
+          font-size: 2.35rem;
           font-weight: 700;
           letter-spacing: -0.01em;
-          color: rgba(55, 53, 47, 0.98);
+          color: var(--fg-color, rgba(55, 53, 47, 0.98));
         }
 
-        .dashboard-subtitle {
+        .admin-hero p {
           margin: 0.75rem 0 0;
           max-width: 48rem;
           font-size: 1.05rem;
           color: rgba(55, 53, 47, 0.6);
         }
 
-        .dashboard-stack {
+        .admin-stack {
           display: flex;
           flex-direction: column;
-          gap: 1.75rem;
+          gap: clamp(1.75rem, 3vw, 2.6rem);
         }
 
-        .dashboard-card {
-          background: rgba(255, 255, 255, 0.95);
-          border: 1px solid rgba(55, 53, 47, 0.18);
+        .admin-card {
+          background: rgba(255, 255, 255, 0.97);
+          border: 1px solid rgba(55, 53, 47, 0.16);
+          border-radius: 18px;
+          padding: 2.1rem 2.3rem;
+          box-shadow: 0 26px 60px -36px rgba(15, 15, 15, 0.28);
+          backdrop-filter: blur(10px);
+        }
+
+        .admin-section__header {
+          display: flex;
+          flex-direction: column;
+          gap: 0.4rem;
+          margin-bottom: 1.5rem;
+        }
+
+        .admin-section__header h2 {
+          margin: 0;
+          font-size: 1.45rem;
+          font-weight: 600;
+          color: var(--fg-color, rgba(55, 53, 47, 0.92));
+        }
+
+        .admin-section__description {
+          margin: 0;
+          font-size: 0.95rem;
+          color: rgba(55, 53, 47, 0.55);
+        }
+
+        .admin-metrics {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 1.2rem;
+        }
+
+        .admin-metric {
+          border: 1px solid rgba(55, 53, 47, 0.12);
           border-radius: 14px;
-          padding: 1.75rem 2rem;
-          box-shadow: 0 24px 60px -32px rgba(15, 15, 15, 0.22);
-          backdrop-filter: blur(8px);
+          padding: 1.1rem 1.2rem;
+          background: rgba(255, 255, 255, 0.94);
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
         }
 
-        .manual-ingest {
+        .admin-metric__label {
+          font-size: 0.78rem;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: rgba(55, 53, 47, 0.5);
+        }
+
+        .admin-metric__value {
+          font-size: 1.5rem;
+          font-weight: 600;
+          color: var(--fg-color, rgba(55, 53, 47, 0.92));
+        }
+
+        .admin-table {
+          border: 1px solid rgba(55, 53, 47, 0.14);
+          border-radius: 16px;
+          overflow-x: auto;
+          background: rgba(255, 255, 255, 0.95);
+        }
+
+        .admin-table__grid {
+          width: 100%;
+          border-collapse: separate;
+          border-spacing: 0;
+          min-width: 720px;
+        }
+
+        .admin-table__grid thead th {
+          background: rgba(55, 53, 47, 0.06);
+          text-align: left;
+          padding: 0.9rem 1.1rem;
+          font-size: 0.78rem;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: rgba(55, 53, 47, 0.6);
+        }
+
+        .admin-table__grid tbody td {
+          padding: 1rem 1.1rem;
+          border-top: 1px solid rgba(55, 53, 47, 0.08);
+          vertical-align: top;
+          font-size: 0.95rem;
+          color: rgba(55, 53, 47, 0.85);
+        }
+
+        .admin-table__grid tbody tr:first-child td {
+          border-top: none;
+        }
+
+        .admin-table__grid tbody tr:hover {
+          background: rgba(46, 170, 220, 0.08);
+        }
+
+        .admin-table__empty {
+          text-align: center;
+          padding: 2.4rem 1rem;
+          color: rgba(55, 53, 47, 0.55);
+          font-size: 0.95rem;
+        }
+
+        .admin-table__meta {
+          margin-top: 0.35rem;
+          font-size: 0.85rem;
+          color: rgba(55, 53, 47, 0.55);
+        }
+
+        .admin-issues {
+          margin-top: 0.6rem;
+        }
+
+        .admin-issues summary {
+          cursor: pointer;
+          color: rgba(46, 170, 220, 0.85);
+          font-size: 0.9rem;
+        }
+
+        .admin-issues ul {
+          margin: 0.45rem 0 0;
+          padding-left: 1.25rem;
+          color: rgba(55, 53, 47, 0.7);
+          font-size: 0.9rem;
+        }
+
+        .status-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.35rem 0.85rem;
+          border-radius: 999px;
+          font-size: 0.85rem;
+          font-weight: 600;
+          text-transform: capitalize;
+        }
+
+        .status-pill--success {
+          background: rgba(16, 185, 129, 0.16);
+          color: rgba(6, 95, 70, 0.95);
+        }
+
+        .status-pill--completed_with_errors {
+          background: rgba(234, 179, 8, 0.18);
+          color: rgba(133, 77, 14, 0.95);
+        }
+
+        .status-pill--failed {
+          background: rgba(248, 113, 113, 0.2);
+          color: rgba(153, 27, 27, 0.95);
+        }
+
+        .status-pill--in_progress {
+          background: rgba(96, 165, 250, 0.2);
+          color: rgba(30, 64, 175, 0.95);
+        }
+
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.3rem 0.8rem;
+          border-radius: 999px;
+          background: rgba(55, 53, 47, 0.08);
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: rgba(55, 53, 47, 0.75);
+        }
+
+        .manual-ingestion {
           display: flex;
           flex-direction: column;
           gap: 2rem;
         }
 
-        .manual-header {
+        .manual-ingestion__header {
           display: flex;
-          flex-direction: column;
-          gap: 0.4rem;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 1.5rem;
+          flex-wrap: wrap;
         }
 
-        .manual-header h2 {
+        .manual-ingestion__header h2 {
           margin: 0;
-          font-size: 1.6rem;
-          font-weight: 700;
-          color: rgba(55, 53, 47, 0.98);
-        }
-
-        .manual-subtitle {
-          margin: 0;
-          font-size: 1rem;
-          color: rgba(55, 53, 47, 0.6);
-        }
-
-        .manual-grid {
-          display: grid;
-          gap: 1.75rem;
-          grid-template-columns: minmax(0, 1fr);
-        }
-
-        .manual-panel {
-          display: grid;
-          gap: 1.75rem;
-        }
-
-        .manual-mode {
-          display: grid;
-          gap: 0.5rem;
-        }
-
-        .mode-label {
-          font-size: 0.9rem;
+          font-size: 1.55rem;
           font-weight: 600;
-          letter-spacing: 0.02em;
-          color: rgba(55, 53, 47, 0.6);
+          color: var(--fg-color, rgba(55, 53, 47, 0.94));
         }
 
-        .mode-tabs {
-          position: relative;
-          border-radius: 12px 12px 0 0;
-          border: 1px solid rgba(55, 53, 47, 0.16);
-          border-bottom: none;
+        .manual-ingestion__header p {
+          margin: 0.5rem 0 0;
+          font-size: 0.95rem;
+          color: rgba(55, 53, 47, 0.6);
+          max-width: 38rem;
+        }
+
+        .manual-ingestion__status {
           display: flex;
-          align-items: flex-end;
-          background: rgba(245, 244, 240, 0.7);
+          align-items: center;
+          gap: 0.75rem;
+          font-size: 0.9rem;
+          color: rgba(55, 53, 47, 0.55);
+        }
+
+        .status-pill__meta {
+          font-size: 0.85rem;
+        }
+
+        .manual-ingestion__layout {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 1.75rem;
+        }
+
+        .manual-ingestion__primary {
+          display: grid;
+          gap: 1.5rem;
+        }
+
+        .manual-ingestion__tabs {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          border-radius: 14px;
+          border: 1px solid rgba(55, 53, 47, 0.16);
+          background: rgba(245, 244, 240, 0.85);
           overflow: hidden;
         }
 
-        .mode-tab {
-          position: relative;
-          flex: 1 1 0;
-          min-width: 0;
-          border: none;
-          background: transparent;
-          appearance: none;
-          -webkit-appearance: none;
-          -moz-appearance: none;
-          outline: none;
-          padding: 0.9rem 1.1rem 0.6rem;
+        .manual-tab {
           display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 0.2rem;
+          align-items: center;
+          gap: 0.85rem;
+          padding: 1rem 1.2rem;
+          background: transparent;
+          border: none;
+          text-align: left;
           font-weight: 600;
           font-size: 0.92rem;
           color: rgba(55, 53, 47, 0.55);
           cursor: pointer;
-          text-align: left;
-          transition: color 0.2s ease, background 0.2s ease;
+          transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
         }
 
-        .mode-tab::after {
-          content: '';
-          position: absolute;
-          bottom: -1px;
-          left: 0;
-          right: 0;
-          height: 3px;
-          background: transparent;
-          transition: background 0.2s ease;
+        .manual-tab__icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 2rem;
+          height: 2rem;
+          border-radius: 50%;
+          background: rgba(46, 170, 220, 0.12);
+          color: rgba(46, 170, 220, 0.95);
         }
 
-        .mode-tab.is-active {
-          color: rgba(55, 53, 47, 0.9);
-          background: #fff;
-        }
-
-        .mode-tab.is-active::after {
-          background: rgba(46, 170, 220, 0.95);
-        }
-
-        .mode-tab:disabled {
-          cursor: not-allowed;
-          opacity: 0.55;
-        }
-
-        .mode-tab__title {
+        .manual-tab__subtitle {
           display: block;
-          font-size: 0.94rem;
-          font-weight: 600;
-        }
-
-        .mode-tab__caption {
           font-size: 0.8rem;
           font-weight: 500;
-          color: inherit;
-          opacity: 0.7;
-          display: block;
+          opacity: 0.75;
         }
 
-        .manual-content {
-          border: 1px solid rgba(55, 53, 47, 0.16);
-          border-top: none;
-          border-radius: 0 0 12px 12px;
-          background: rgba(248, 248, 246, 0.9);
-          padding: 1.4rem 1.6rem;
-          display: grid;
-          gap: 1.25rem;
+        .manual-tab--active {
+          color: rgba(55, 53, 47, 0.92);
+          background: var(--bg-color, #fff);
+          transform: translateY(-1px);
+        }
+
+        .manual-tab:disabled {
+          opacity: 0.55;
+          cursor: not-allowed;
         }
 
         .manual-form {
           display: grid;
-          gap: 1.25rem;
+          gap: 1.15rem;
         }
 
         .manual-field {
@@ -1205,49 +1486,37 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
         .manual-field label {
           font-weight: 600;
           font-size: 0.95rem;
-          color: rgba(55, 53, 47, 0.75);
+          color: rgba(55, 53, 47, 0.68);
         }
 
-        .input-shell {
-          display: flex;
-          align-items: center;
+        .manual-field input {
           border: 1px solid rgba(55, 53, 47, 0.18);
           border-radius: 12px;
-          padding: 0.1rem;
-          background: rgba(255, 255, 255, 0.92);
+          padding: 0.78rem 1rem;
+          font-size: 0.95rem;
+          color: rgba(55, 53, 47, 0.9);
+          background: rgba(255, 255, 255, 0.97);
           transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
-        .input-shell:focus-within {
+        .manual-field input:focus {
+          outline: none;
           border-color: rgba(46, 170, 220, 0.65);
           box-shadow: 0 0 0 2px rgba(46, 170, 220, 0.18);
         }
 
-        .input-shell input {
-          flex: 1 1 auto;
-          border: none;
-          background: transparent;
-          padding: 0.75rem 0.95rem;
-          font-size: 0.95rem;
-          color: rgba(55, 53, 47, 0.9);
+        .manual-field input:disabled {
+          background: rgba(245, 244, 240, 0.7);
+          color: rgba(55, 53, 47, 0.5);
         }
 
-        .input-shell input:focus {
-          outline: none;
-        }
-
-        .input-shell input:disabled {
-          color: rgba(55, 53, 47, 0.45);
-        }
-
-        .field-hint {
+        .manual-hint {
           margin: -0.2rem 0 0;
           font-size: 0.85rem;
           color: rgba(55, 53, 47, 0.55);
-          line-height: 1.5;
         }
 
-        .form-error {
+        .manual-error {
           font-size: 0.85rem;
           color: #b71c1c;
         }
@@ -1256,93 +1525,127 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
           display: flex;
           flex-wrap: wrap;
           align-items: center;
-          gap: 0.9rem;
-          margin-top: 0.35rem;
+          gap: 1rem;
+          margin-top: 0.4rem;
         }
 
-        .manual-actions button {
+        .manual-button {
           border: 1px solid rgba(55, 53, 47, 0.18);
-          background: rgba(55, 53, 47, 0.9);
+          background: rgba(55, 53, 47, 0.92);
           color: #fff;
-          padding: 0.65rem 1.6rem;
-          border-radius: 10px;
+          padding: 0.7rem 1.75rem;
+          border-radius: 12px;
           font-weight: 600;
           font-size: 0.95rem;
           cursor: pointer;
           transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.6rem;
         }
 
-        .manual-actions button:hover:not(:disabled) {
+        .manual-button:hover:not(:disabled) {
           transform: translateY(-1px);
-          box-shadow: 0 10px 24px -12px rgba(55, 53, 47, 0.5);
-          background: rgba(55, 53, 47, 0.92);
+          box-shadow: 0 12px 26px -14px rgba(55, 53, 47, 0.55);
+          background: rgba(55, 53, 47, 0.96);
         }
 
-        .manual-actions button:disabled {
+        .manual-button:disabled {
           opacity: 0.6;
           cursor: not-allowed;
         }
 
-        .manual-status {
+        .manual-button.is-loading::after {
+          content: '';
+          width: 1rem;
+          height: 1rem;
+          border: 2px solid currentColor;
+          border-top-color: transparent;
+          border-radius: 999px;
+          animation: spin 0.75s linear infinite;
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        .manual-progress {
+          flex: 1 1 220px;
+          min-width: 220px;
+          display: grid;
+          gap: 0.5rem;
+        }
+
+        .progress-bar {
+          height: 10px;
+          border-radius: 999px;
+          background: rgba(55, 53, 47, 0.12);
+          overflow: hidden;
+        }
+
+        .progress-bar__value {
+          height: 100%;
+          border-radius: 999px;
+          background: linear-gradient(
+            90deg,
+            rgba(46, 170, 220, 0.85),
+            rgba(46, 170, 220, 0.55)
+          );
+          transition: width 0.25s ease;
+        }
+
+        .progress-meta {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.6rem;
           font-size: 0.9rem;
-          color: rgba(55, 53, 47, 0.6);
+          color: rgba(55, 53, 47, 0.65);
         }
 
-        .manual-status .status {
-          padding: 0.35rem 0.85rem;
-          border-radius: 999px;
-          font-weight: 600;
-          letter-spacing: 0.01em;
+        .progress-message {
+          color: rgba(55, 53, 47, 0.7);
         }
 
-        .run-meta {
-          color: rgba(55, 53, 47, 0.5);
-        }
-
-        .manual-aside {
+        .manual-ingestion__aside {
           border: 1px solid rgba(55, 53, 47, 0.12);
           border-radius: 14px;
-          padding: 1.4rem 1.6rem;
+          padding: 1.5rem 1.6rem;
           background: rgba(245, 244, 240, 0.9);
           display: grid;
           gap: 1rem;
         }
 
-        .manual-aside h3 {
+        .manual-ingestion__aside h3 {
           margin: 0;
           font-size: 1.05rem;
           font-weight: 600;
-          color: rgba(55, 53, 47, 0.85);
+          color: rgba(55, 53, 47, 0.82);
         }
 
-        .manual-aside ul {
+        .manual-ingestion__aside ul {
           margin: 0;
           padding-left: 1.2rem;
           display: grid;
-          gap: 0.5rem;
+          gap: 0.55rem;
           font-size: 0.9rem;
           color: rgba(55, 53, 47, 0.7);
         }
 
-        .manual-aside li {
-          line-height: 1.55;
-        }
-
         .tip-callout {
           border-radius: 12px;
-          background: rgba(46, 170, 220, 0.12);
-          border: 1px solid rgba(46, 170, 220, 0.25);
-          padding: 0.85rem 1rem;
+          background: rgba(46, 170, 220, 0.14);
+          border: 1px solid rgba(46, 170, 220, 0.3);
+          padding: 0.9rem 1rem;
           display: grid;
           gap: 0.35rem;
         }
 
         .tip-callout strong {
-          font-size: 0.85rem;
-          letter-spacing: 0.05em;
+          font-size: 0.82rem;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
           color: rgba(46, 146, 200, 0.95);
         }
@@ -1350,277 +1653,145 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
         .tip-callout p {
           margin: 0;
           font-size: 0.9rem;
-          color: rgba(55, 53, 47, 0.7);
+          color: rgba(55, 53, 47, 0.68);
         }
 
-        .progress-shell {
+        .manual-logs {
+          margin-top: 2rem;
+        }
+
+        .manual-logs__header {
           display: flex;
-          flex-direction: column;
-          gap: 0.55rem;
+          justify-content: space-between;
+          align-items: baseline;
+          gap: 1rem;
+          margin-bottom: 0.85rem;
         }
 
-        .progress-bar {
-          background: rgba(55, 53, 47, 0.12);
-          border-radius: 999px;
-          height: 10px;
-          overflow: hidden;
+        .manual-logs__header h3 {
+          margin: 0;
+          font-size: 1.15rem;
+          font-weight: 600;
+          color: rgba(55, 53, 47, 0.9);
         }
 
-        .progress-bar div {
-          height: 100%;
-          border-radius: 999px;
-          background: linear-gradient(90deg, rgba(46, 170, 220, 0.85), rgba(46, 170, 220, 0.55));
-          transition: width 0.25s ease;
+        .manual-logs__meta {
+          font-size: 0.85rem;
+          color: rgba(55, 53, 47, 0.55);
         }
 
-        .progress-meta {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          font-size: 0.95rem;
-          color: rgba(55, 53, 47, 0.65);
-        }
-
-        .manual-message {
-          color: rgba(55, 53, 47, 0.7);
-        }
-
-        .log-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.65rem;
-        }
-
-        .log-entry {
-          display: grid;
-          grid-template-columns: auto 1fr;
-          gap: 0.75rem;
-          padding: 0.65rem 0.85rem;
-          border-radius: 10px;
-          background: rgba(55, 53, 47, 0.05);
-          border: 1px solid rgba(55, 53, 47, 0.08);
-          font-size: 0.9rem;
-        }
-
-        .log-entry.info {
-          border-color: rgba(46, 170, 220, 0.18);
-        }
-
-        .log-entry.warn {
-          border-color: rgba(219, 155, 28, 0.32);
-          background: rgba(219, 155, 28, 0.08);
-        }
-
-        .log-entry.error {
-          border-color: rgba(208, 72, 72, 0.28);
-          background: rgba(208, 72, 72, 0.08);
-        }
-
-        .log-time {
-          font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-          font-size: 0.8rem;
-          color: rgba(55, 53, 47, 0.45);
-        }
-
-        .log-empty {
+        .manual-logs__empty {
           padding: 1.1rem 0;
           text-align: center;
           font-size: 0.9rem;
           color: rgba(55, 53, 47, 0.55);
         }
 
-        .run-summary h3 {
-          margin: 0 0 1.25rem;
-          font-size: 1.25rem;
+        .manual-logs__list {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+          display: grid;
+          gap: 0.8rem;
+        }
+
+        .manual-log-entry {
+          display: grid;
+          grid-template-columns: auto 1fr;
+          gap: 0.8rem;
+          padding: 0.8rem 1rem;
+          border-radius: 12px;
+          border: 1px solid rgba(55, 53, 47, 0.1);
+          background: rgba(55, 53, 47, 0.05);
+          font-size: 0.9rem;
+        }
+
+        .manual-log-entry--info {
+          border-color: rgba(46, 170, 220, 0.2);
+          background: rgba(46, 170, 220, 0.08);
+        }
+
+        .manual-log-entry--warn {
+          border-color: rgba(219, 155, 28, 0.28);
+          background: rgba(219, 155, 28, 0.1);
+        }
+
+        .manual-log-entry--error {
+          border-color: rgba(208, 72, 72, 0.28);
+          background: rgba(208, 72, 72, 0.1);
+        }
+
+        .manual-log-entry__icon {
+          font-size: 1rem;
+          color: inherit;
+        }
+
+        .manual-log-entry__time {
+          font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo,
+            monospace;
+          font-size: 0.8rem;
+          color: rgba(55, 53, 47, 0.45);
+          display: block;
+          margin-bottom: 0.15rem;
+        }
+
+        .manual-summary {
+          margin-top: 2rem;
+        }
+
+        .manual-summary h3 {
+          margin: 0 0 1.15rem;
+          font-size: 1.2rem;
           font-weight: 600;
           color: rgba(55, 53, 47, 0.9);
         }
 
-        .run-summary-grid {
+        .summary-grid {
           display: grid;
           grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
           gap: 1rem;
+          margin: 0;
+          padding: 0;
         }
 
-        .run-summary-card {
-          border: 1px solid rgba(55, 53, 47, 0.14);
+        .summary-item {
+          border: 1px solid rgba(55, 53, 47, 0.12);
           border-radius: 12px;
-          padding: 0.85rem;
-          background: rgba(255, 255, 255, 0.9);
+          padding: 0.9rem;
+          background: rgba(255, 255, 255, 0.94);
           display: grid;
-          gap: 0.35rem;
+          gap: 0.3rem;
         }
 
-        .summary-label {
+        .summary-item dt {
           font-size: 0.75rem;
           text-transform: uppercase;
           letter-spacing: 0.06em;
           color: rgba(55, 53, 47, 0.55);
+          margin: 0;
         }
 
-        .summary-value {
-          font-size: 1.3rem;
+        .summary-item dd {
+          margin: 0;
+          font-size: 1.25rem;
           font-weight: 600;
           color: rgba(55, 53, 47, 0.95);
         }
 
-        .overview h2,
-        .history h2 {
-          margin: 0 0 1.25rem;
-          font-size: 1.35rem;
-          font-weight: 600;
-          color: rgba(55, 53, 47, 0.9);
-        }
-
-        .metrics-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-          gap: 1rem;
-        }
-
-        .metric-card {
-          border: 1px solid rgba(55, 53, 47, 0.14);
-          border-radius: 12px;
-          padding: 1rem 1.1rem;
-          background: rgba(255, 255, 255, 0.9);
-          display: flex;
-          flex-direction: column;
-          gap: 0.55rem;
-        }
-
-        .metric-label {
-          font-size: 0.8rem;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: rgba(55, 53, 47, 0.55);
-        }
-
-        .metric-value {
-          font-size: 1.45rem;
-          font-weight: 600;
-        }
-
-        .history-table-container {
-          overflow-x: auto;
-          border-radius: 12px;
-          border: 1px solid rgba(55, 53, 47, 0.14);
-          background: rgba(255, 255, 255, 0.92);
-        }
-
-        .history-table {
-          width: 100%;
-          border-collapse: separate;
-          border-spacing: 0;
-        }
-
-        .history-table thead th {
-          background: rgba(55, 53, 47, 0.06);
-          text-align: left;
-          padding: 0.85rem 1rem;
-          font-size: 0.8rem;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          color: rgba(55, 53, 47, 0.65);
-        }
-
-        .history-table tbody td {
-          padding: 0.85rem 1rem;
-          border-top: 1px solid rgba(55, 53, 47, 0.1);
-          vertical-align: top;
-          font-size: 0.95rem;
-          color: rgba(55, 53, 47, 0.85);
-        }
-
-        .history-table tbody tr:first-child td {
-          border-top: none;
-        }
-
-        .history-table tbody tr:hover {
-          background: rgba(46, 170, 220, 0.08);
-        }
-
-        .empty-state {
-          text-align: center;
-          padding: 2.25rem 1rem;
-          color: rgba(55, 53, 47, 0.55);
-        }
-
-        .status {
-          display: inline-block;
-          padding: 0.3rem 0.75rem;
-          border-radius: 999px;
-          font-size: 0.85rem;
-          font-weight: 600;
-          text-transform: capitalize;
-        }
-
-        .status-success {
-          background: rgba(16, 185, 129, 0.16);
-          color: rgba(6, 95, 70, 0.95);
-        }
-
-        .status-completed_with_errors {
-          background: rgba(234, 179, 8, 0.18);
-          color: rgba(133, 77, 14, 0.95);
-        }
-
-        .status-failed {
-          background: rgba(248, 113, 113, 0.2);
-          color: rgba(153, 27, 27, 0.95);
-        }
-
-        .status-in_progress {
-          background: rgba(96, 165, 250, 0.2);
-          color: rgba(30, 64, 175, 0.95);
-        }
-
-        .badge {
-          display: inline-block;
-          padding: 0.3rem 0.8rem;
-          border-radius: 999px;
-          background: rgba(55, 53, 47, 0.08);
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: rgba(55, 53, 47, 0.75);
-        }
-
-        .subtle {
-          font-size: 0.85rem;
-          color: rgba(55, 53, 47, 0.6);
-        }
-
-        details {
-          margin-top: 0.6rem;
-        }
-
-        details summary {
-          cursor: pointer;
-          color: rgba(46, 170, 220, 0.9);
-        }
-
-        details ul {
-          margin: 0.5rem 0 0;
-          padding-left: 1.25rem;
-        }
-
         @media (min-width: 960px) {
-          .manual-grid {
+          .manual-ingestion__layout {
             grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr);
             align-items: start;
           }
         }
 
         @media (max-width: 720px) {
-          .dashboard-root {
-            padding: 3.5rem 0 4.5rem;
+          .admin-ingestion-content {
+            padding: 3.25rem 1.2rem 4rem;
           }
 
-          .dashboard-page {
-            padding: 0 1rem;
-          }
-
-          .dashboard-card {
-            padding: 1.4rem 1.4rem;
+          .admin-card {
+            padding: 1.6rem 1.5rem;
           }
 
           .manual-actions {
@@ -1628,8 +1799,13 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
             align-items: stretch;
           }
 
-          .manual-actions button {
+          .manual-button {
             width: 100%;
+          }
+
+          .manual-progress {
+            width: 100%;
+            min-width: 0;
           }
         }
       `}</style>
@@ -1705,4 +1881,3 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
 }
 
 export default IngestionDashboard
-
