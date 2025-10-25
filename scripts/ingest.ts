@@ -1,6 +1,5 @@
 // scripts/ingest.ts
-import { Readability } from '@mozilla/readability'
-import { JSDOM } from 'jsdom'
+import { loadEnvConfig } from '@next/env'
 import pMap from 'p-map'
 
 import {
@@ -8,6 +7,8 @@ import {
   type ChunkInsert,
   createEmptyRunStats,
   embedBatch,
+  type ExtractedArticle,
+  extractMainContent,
   finishIngestRun,
   getDocumentState,
   hashChunk,
@@ -17,19 +18,14 @@ import {
   replaceChunks,
   startIngestRun,
   upsertDocumentState
-} from './ingest-shared'
+} from '../lib/rag'
 
-const USER_AGENT = 'JackRAGBot/1.0'
+loadEnvConfig(process.cwd())
+
 const INGEST_CONCURRENCY = Math.max(
   1,
   Number.parseInt(process.env.INGEST_CONCURRENCY ?? '4', 10)
 )
-
-type Article = {
-  title: string
-  text: string
-  lastModified: string | null
-}
 
 type RunMode = {
   type: 'full' | 'partial'
@@ -87,63 +83,13 @@ function parseArgs(defaultType: 'full' | 'partial'): ParsedArgs {
   return { mode, urls }
 }
 
-function normalizeTimestamp(raw: string | null): string | null {
-  if (!raw) {
-    return null
-  }
-
-  const parsed = new Date(raw)
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString()
-}
-
-async function extractMainContent(url: string): Promise<Article> {
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': USER_AGENT
-    }
-  })
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`)
-  }
-
-  const html = await response.text()
-  const lastModified = normalizeTimestamp(response.headers.get('last-modified'))
-  const dom = new JSDOM(html, { url })
-
-  try {
-    const reader = new Readability(dom.window.document)
-    const article = reader.parse()
-
-    const title =
-      article?.title?.trim() ||
-      dom.window.document.title?.trim() ||
-      new URL(url).hostname
-
-    const rawText =
-      article?.textContent ??
-      dom.window.document.body?.textContent ??
-      ''
-
-  const text = rawText
-    .split('\n')
-    .map((line: string) => line.trim())
-      .filter(Boolean)
-      .join('\n\n')
-
-    return { title, text, lastModified }
-  } finally {
-    dom.window.close()
-  }
-}
-
 async function ingestUrl(
   url: string,
   stats: IngestRunStats
 ): Promise<void> {
   stats.documentsProcessed += 1
 
-  const { title, text, lastModified } = await extractMainContent(url)
+  const { title, text, lastModified }: ExtractedArticle = await extractMainContent(url)
 
   if (!text) {
     console.warn(`No text content extracted for ${url}; skipping`)

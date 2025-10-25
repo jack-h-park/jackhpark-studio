@@ -1,4 +1,4 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
+import { type NextRequest, NextResponse } from 'next/server'
 import { parsePageId } from 'notion-utils'
 
 import {
@@ -6,7 +6,6 @@ import {
   type ManualIngestionRequest,
   runManualIngestion
 } from '../../../lib/admin/manual-ingestor'
-import { createEmptyRunStats } from '../../../scripts/ingest-shared'
 
 type ManualIngestionBody = {
   mode?: unknown
@@ -61,76 +60,66 @@ function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
   throw new Error('Unsupported ingestion mode.')
 }
 
+// Edge 런타임으로 변경
 export const config = {
-  api: {
-    bodyParser: true
-  }
+  runtime: 'edge'
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-): Promise<void> {
+export default async function handler(req: NextRequest): Promise<NextResponse> {
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST')
-    res.status(405).json({ error: 'Method Not Allowed' })
-    return
+    return new NextResponse('Method Not Allowed', {
+      status: 405,
+      headers: { Allow: 'POST' }
+    })
   }
 
   let request: ManualIngestionRequest
   try {
-    request = validateBody(req.body ?? {})
+    const body = await req.json()
+    request = validateBody(body ?? {})
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Invalid payload.'
-    res.status(400).json({ error: message })
-    return
+    return new NextResponse(JSON.stringify({ error: message }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' }
+    })
   }
 
-  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
-  res.setHeader('Cache-Control', 'no-cache, no-transform')
-  res.setHeader('Connection', 'keep-alive')
-  res.flushHeaders?.()
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event: ManualIngestionEvent) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\\n\\n`))
+      }
 
-  let closed = false
-  req.on('close', () => {
-    closed = true
+      try {
+        await runManualIngestion(request, send)
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Unexpected error.'
+        send({
+          type: 'log',
+          level: 'error',
+          message: `Manual ingestion aborted: ${message}`
+        })
+        send({
+          type: 'complete',
+          status: 'failed',
+          message: `Manual ingestion failed: ${message}`,
+          runId: null,
+          stats: { documentsProcessed: 0, documentsAdded: 0, documentsUpdated: 0, documentsSkipped: 0, chunksAdded: 0, chunksUpdated: 0, charactersAdded: 0, charactersUpdated: 0, errorCount: 1 }
+        })
+      } finally {
+        controller.close()
+      }
+    }
   })
 
-  const send = async (event: ManualIngestionEvent) => {
-    if (closed) {
-      return
+  return new NextResponse(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive'
     }
-
-    res.write(`data: ${JSON.stringify(event)}\n\n`)
-  }
-
-  try {
-    await runManualIngestion(request, send)
-  } catch (err) {
-    if (!closed) {
-      const message =
-        err instanceof Error ? err.message : 'Unexpected error.'
-      await send({
-        type: 'log',
-        level: 'error',
-        message: `Manual ingestion aborted: ${message}`
-      })
-      await send({
-        type: 'progress',
-        step: 'finished',
-        percent: 100
-      })
-      await send({
-        type: 'complete',
-        status: 'failed',
-        message: `Manual ingestion failed: ${message}`,
-        runId: null,
-        stats: createEmptyRunStats()
-      })
-    }
-  } finally {
-    if (!closed) {
-      res.end()
-    }
-  }
+  })
 }

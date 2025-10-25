@@ -1,28 +1,31 @@
 // scripts/ingest-notion.ts
 import { NotionAPI } from 'notion-client'
-import { type Decoration, type ExtendedRecordMap } from 'notion-types'
-import {
-  getAllPagesInSpace,
-  getPageContentBlockIds,
-  getTextContent
-} from 'notion-utils'
+import { type ExtendedRecordMap } from 'notion-types'
+import { getAllPagesInSpace } from 'notion-utils'
 import pMap from 'p-map'
 
+import { loadEnvConfig } from '@next/env'
 import {
   chunkByTokens,
   type ChunkInsert,
   createEmptyRunStats,
   embedBatch,
   finishIngestRun,
+  extractPlainText,
   getDocumentState,
+  getPageLastEditedTime,
+  getPageTitle,
+  getPageUrl,
   hashChunk,
   type IngestRunErrorLog,
   type IngestRunHandle,
   type IngestRunStats,
   replaceChunks,
-  startIngestRun,
+  startIngestRun, // This line is already present, no change needed.
   upsertDocumentState
-} from './ingest-shared'
+} from '../lib/rag'
+
+loadEnvConfig(process.cwd())
 
 const notion = new NotionAPI()
 
@@ -76,76 +79,6 @@ const INGEST_CONCURRENCY = Math.max(
   1,
   Number.parseInt(process.env.INGEST_CONCURRENCY ?? '2', 10)
 )
-
-function extractPlainText(recordMap: ExtendedRecordMap, pageId: string): string {
-  const blockIds = getPageContentBlockIds(recordMap, pageId)
-  const lines: string[] = []
-
-  for (const blockId of blockIds) {
-    const block = recordMap.block[blockId]?.value as {
-      properties?: { title?: Decoration[] }
-    } | null
-
-    if (!block?.properties?.title) {
-      continue
-    }
-
-    const text = getTextContent(block.properties.title)
-    if (text) {
-      lines.push(text)
-    }
-  }
-
-  return lines.join('\n').trim()
-}
-
-function getPageTitle(recordMap: ExtendedRecordMap, pageId: string): string {
-  const block = recordMap.block[pageId]?.value as {
-    properties?: { title?: Decoration[] }
-  } | null
-
-  if (block?.properties?.title) {
-    const title = getTextContent(block.properties.title).trim()
-    if (title) {
-      return title
-    }
-  }
-
-  return 'Untitled'
-}
-
-function getPageUrl(pageId: string): string {
-  return `https://www.notion.so/${pageId.replaceAll('-', '')}`
-}
-
-function normalizeTimestamp(input: unknown): string | null {
-  if (!input) {
-    return null
-  }
-
-  if (typeof input === 'number') {
-    const date = new Date(input)
-    return Number.isNaN(date.getTime()) ? null : date.toISOString()
-  }
-
-  if (typeof input === 'string') {
-    const date = new Date(input)
-    return Number.isNaN(date.getTime()) ? null : date.toISOString()
-  }
-
-  return null
-}
-
-function getPageLastEditedTime(
-  recordMap: ExtendedRecordMap,
-  pageId: string
-): string | null {
-  const block = recordMap.block[pageId]?.value as {
-    last_edited_time?: string | number
-  } | null
-
-  return normalizeTimestamp(block?.last_edited_time)
-}
 
 async function ingestPage(
   pageId: string,

@@ -1,19 +1,16 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 
+import { EMBEDDING_MODEL, openai } from '../../lib/core/openai'
 import { getSupabaseAdminClient } from '../../lib/supabase-admin'
 
 export const config = {
   runtime: 'edge'
 }
 
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error('Missing OpenAI API key')
+type ChatMessage = {
+  role: 'user' | 'assistant' | 'system'
+  content: string
 }
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
 
 export default async function handler(req: NextRequest) {
   if (req.method !== 'POST') {
@@ -21,8 +18,13 @@ export default async function handler(req: NextRequest) {
   }
 
   try {
-    const { messages } = (await req.json()) as { messages: any[] }
+    const { messages } = (await req.json()) as { messages: ChatMessage[] }
     const lastMessage = messages.at(-1)
+
+    if (!lastMessage) {
+      return new NextResponse('Bad Request: No messages found', { status: 400 })
+    }
+
     const userQuery = lastMessage.content
 
     if (!userQuery) {
@@ -31,7 +33,7 @@ export default async function handler(req: NextRequest) {
 
     // 1. 사용자의 질문을 임베딩으로 변환합니다.
     const embeddingResponse = await openai.embeddings.create({
-      model: 'text-embedding-3-small',
+      model: EMBEDDING_MODEL,
       input: userQuery
     })
     const embedding = embeddingResponse.data[0].embedding
@@ -39,14 +41,11 @@ export default async function handler(req: NextRequest) {
     // 2. Supabase에서 관련 문서를 검색합니다. (pgvector의 match_documents 함수 사용)
     // 사용자가 제공한 match_rag_chunks 함수를 사용하도록 수정합니다.
     const supabase = getSupabaseAdminClient()
-    const { data: documents, error: matchError } = await supabase.rpc(
-      'match_rag_chunks',
-      {
-        query_embedding: embedding,
-        similarity_threshold: 0.75, // 유사도 임계값 (조정 가능)
-        match_count: 5, // 가져올 청크 수 (조정 가능)
-      }
-    )
+    const { data: documents, error: matchError } = await supabase.rpc('match_rag_chunks', {
+      query_embedding: embedding,
+      similarity_threshold: 0.75, // 유사도 임계값 (조정 가능)
+      match_count: 5 // 가져올 청크 수 (조정 가능)
+    })
 
     if (matchError) {
       console.error('Error matching documents:', matchError)
@@ -57,7 +56,7 @@ export default async function handler(req: NextRequest) {
     }
 
     const contextText = documents
-      .map((doc: any) => doc.chunk) // 'content' 컬럼 대신 'chunk' 컬럼을 사용합니다.
+      .map((doc: { chunk: string }) => doc.chunk) // 'content' 컬럼 대신 'chunk' 컬럼을 사용합니다.
       .join('\n\n---\n\n')
 
     // 3. OpenAI에 전달할 프롬프트를 구성합니다.

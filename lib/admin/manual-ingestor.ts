@@ -1,19 +1,17 @@
-import { Readability } from '@mozilla/readability'
-import { JSDOM } from 'jsdom'
 import { NotionAPI } from 'notion-client'
-import { type Decoration, type ExtendedRecordMap } from 'notion-types'
-import {
-  getPageContentBlockIds,
-  getTextContent
-} from 'notion-utils'
 
 import {
   chunkByTokens,
   type ChunkInsert,
   createEmptyRunStats,
   embedBatch,
+  extractMainContent,
+  extractPlainText,
   finishIngestRun,
   getDocumentState,
+  getPageLastEditedTime,
+  getPageTitle,
+  getPageUrl,
   hashChunk,
   type IngestRunErrorLog,
   type IngestRunHandle,
@@ -21,7 +19,7 @@ import {
   replaceChunks,
   startIngestRun,
   upsertDocumentState
-} from '../../scripts/ingest-shared'
+} from '../rag/index'
 
 const notion = new NotionAPI()
 
@@ -47,121 +45,6 @@ export type ManualIngestionEvent =
 
 type EmitFn = (event: ManualIngestionEvent) => Promise<void> | void
 type ManualRunStatus = 'success' | 'completed_with_errors' | 'failed'
-
-function normalizeTimestamp(input: unknown): string | null {
-  if (!input) {
-    return null
-  }
-
-  if (typeof input === 'number') {
-    const date = new Date(input)
-    return Number.isNaN(date.getTime()) ? null : date.toISOString()
-  }
-
-  if (typeof input === 'string') {
-    const date = new Date(input)
-    return Number.isNaN(date.getTime()) ? null : date.toISOString()
-  }
-
-  return null
-}
-
-function extractPlainText(recordMap: ExtendedRecordMap, pageId: string): string {
-  const blockIds = getPageContentBlockIds(recordMap, pageId)
-  const lines: string[] = []
-
-  for (const blockId of blockIds) {
-    const block = recordMap.block[blockId]?.value as {
-      properties?: { title?: Decoration[] }
-    } | null
-
-    if (!block?.properties?.title) {
-      continue
-    }
-
-    const text = getTextContent(block.properties.title)
-    if (text) {
-      lines.push(text)
-    }
-  }
-
-  return lines.join('\n').trim()
-}
-
-function getPageTitle(recordMap: ExtendedRecordMap, pageId: string): string {
-  const block = recordMap.block[pageId]?.value as {
-    properties?: { title?: Decoration[] }
-  } | null
-
-  if (block?.properties?.title) {
-    const title = getTextContent(block.properties.title).trim()
-    if (title) {
-      return title
-    }
-  }
-
-  return 'Untitled'
-}
-
-function getPageUrl(pageId: string): string {
-  return `https://www.notion.so/${pageId.replaceAll('-', '')}`
-}
-
-function getPageLastEditedTime(
-  recordMap: ExtendedRecordMap,
-  pageId: string
-): string | null {
-  const block = recordMap.block[pageId]?.value as {
-    last_edited_time?: string | number
-  } | null
-
-  return normalizeTimestamp(block?.last_edited_time)
-}
-
-type FetchArticleResult = {
-  title: string
-  text: string
-  lastModified: string | null
-}
-
-async function extractMainContent(url: string): Promise<FetchArticleResult> {
-  const response = await fetch(url, {
-    headers: { 'User-Agent': 'JackRAGBot/1.0' }
-  })
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`)
-  }
-
-  const html = await response.text()
-  const lastModified = normalizeTimestamp(response.headers.get('last-modified'))
-  const dom = new JSDOM(html, { url })
-
-  try {
-    const reader = new Readability(dom.window.document)
-    const article = reader.parse()
-
-    const title =
-      article?.title?.trim() ||
-      dom.window.document.title?.trim() ||
-      new URL(url).hostname
-
-    const rawText =
-      article?.textContent ??
-      dom.window.document.body?.textContent ??
-      ''
-
-    const text = rawText
-      .split('\n')
-      .map((line: string) => line.trim())
-      .filter(Boolean)
-      .join('\n\n')
-
-    return { title, text, lastModified }
-  } finally {
-    dom.window.close()
-  }
-}
 
 async function runNotionPageIngestion(
   pageId: string,

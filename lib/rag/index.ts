@@ -1,32 +1,12 @@
-import { loadEnvConfig } from '@next/env'
-import {
-  createClient,
-  type PostgrestError,
-  type SupabaseClient
-} from '@supabase/supabase-js'
+import { Readability } from '@mozilla/readability'
+import { type PostgrestError } from '@supabase/supabase-js'
 import { encode } from 'gpt-tokenizer'
-import OpenAI from 'openai'
+import { JSDOM } from 'jsdom'
+import { type Decoration, type ExtendedRecordMap } from 'notion-types'
+import { getPageContentBlockIds, getTextContent } from 'notion-utils'
 
-loadEnvConfig(process.cwd())
-
-const required = {
-  SUPABASE_URL: process.env.SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY
-}
-
-for (const [key, value] of Object.entries(required)) {
-  if (!value) {
-    throw new Error(`Missing required environment variable "${key}"`)
-  }
-}
-
-const supabaseClient: SupabaseClient = createClient(
-  required.SUPABASE_URL!,
-  required.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-const openai = new OpenAI({ apiKey: required.OPENAI_API_KEY! })
+import { EMBEDDING_MODEL, openai, USER_AGENT } from '../core/openai'
+import { supabaseClient } from '../core/supabase'
 
 const DOCUMENTS_TABLE = 'rag_documents'
 let documentStateTableStatus: 'unknown' | 'available' | 'missing' = 'unknown'
@@ -152,7 +132,11 @@ const INGEST_RUNS_TABLE = 'rag_ingest_runs'
 let ingestRunsTableStatus: 'unknown' | 'available' | 'missing' = 'unknown'
 let ingestRunsWarningLogged = false
 
-type IngestRunStatus = 'in_progress' | 'success' | 'completed_with_errors' | 'failed'
+type IngestRunStatus =
+  | 'in_progress'
+  | 'success'
+  | 'completed_with_errors'
+  | 'failed'
 
 export type IngestRunStartInput = {
   source: string
@@ -359,7 +343,7 @@ export async function embedBatch(texts: string[]): Promise<number[][]> {
   }
 
   const response = await openai.embeddings.create({
-    model: 'text-embedding-3-small',
+    model: EMBEDDING_MODEL,
     input: texts
   })
 
@@ -403,4 +387,127 @@ export async function replaceChunks(
   }
 }
 
-export { openai, supabaseClient }
+export function normalizeTimestamp(input: unknown): string | null {
+  if (!input) {
+    return null
+  }
+
+  if (typeof input === 'number') {
+    const date = new Date(input)
+    return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  }
+
+  if (typeof input === 'string') {
+    const date = new Date(input)
+    return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  }
+
+  return null
+}
+
+export function extractPlainText(
+  recordMap: ExtendedRecordMap,
+  pageId: string
+): string {
+  const blockIds = getPageContentBlockIds(recordMap, pageId)
+  const lines: string[] = []
+
+  for (const blockId of blockIds) {
+    const block = recordMap.block[blockId]?.value as {
+      properties?: { title?: Decoration[] }
+    } | null
+
+    if (!block?.properties?.title) {
+      continue
+    }
+
+    const text = getTextContent(block.properties.title)
+    if (text) {
+      lines.push(text)
+    }
+  }
+
+  return lines.join('\n').trim()
+}
+
+export function getPageTitle(
+  recordMap: ExtendedRecordMap,
+  pageId: string
+): string {
+  const block = recordMap.block[pageId]?.value as {
+    properties?: { title?: Decoration[] }
+  } | null
+
+  if (block?.properties?.title) {
+    const title = getTextContent(block.properties.title).trim()
+    if (title) {
+      return title
+    }
+  }
+
+  return 'Untitled'
+}
+
+export function getPageUrl(pageId: string): string {
+  return `https://www.notion.so/${pageId.replaceAll('-', '')}`
+}
+
+export function getPageLastEditedTime(
+  recordMap: ExtendedRecordMap,
+  pageId: string
+): string | null {
+  const block = recordMap.block[pageId]?.value as {
+    last_edited_time?: string | number
+  } | null
+
+  return normalizeTimestamp(block?.last_edited_time)
+}
+
+export type ExtractedArticle = {
+  title: string
+  text: string
+  lastModified: string | null
+}
+
+export async function extractMainContent(
+  url: string
+): Promise<ExtractedArticle> {
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': USER_AGENT
+    }
+  })
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch ${url}: ${response.status} ${response.statusText}`
+    )
+  }
+
+  const html = await response.text()
+  const lastModified = normalizeTimestamp(response.headers.get('last-modified'))
+  const dom = new JSDOM(html, { url })
+
+  try {
+    const reader = new Readability(dom.window.document)
+    const article = reader.parse()
+
+    const title =
+      article?.title?.trim() ||
+      dom.window.document.title?.trim() ||
+      new URL(url).hostname
+
+    const rawText =
+      article?.textContent ?? dom.window.document.body?.textContent ?? ''
+
+    const text = rawText
+      .split('\n')
+      .map(String.prototype.trim)
+      .filter(Boolean)
+      .join('\n\n')
+
+    return { title, text, lastModified }
+  } finally {
+    dom.window.close()
+  }
+}
