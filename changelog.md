@@ -69,4 +69,4 @@ flowchart TD
 
 ## Credits
 
-Base: **transitive-bullshit/nextjs-notion-starter-kit** · Author: **Jack Park** · Hosting: **Vercel** · CMS: **Notion**
+Base: **transitive-bullshit/nextjs-notion-starter-kit** · Author: **Jack H. Park** · Hosting: **Vercel** · CMS: **Notion**

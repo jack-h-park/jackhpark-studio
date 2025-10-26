@@ -74,27 +74,26 @@
 
 ```mermaid
 flowchart LR
-  A[User / Browser] --> B[Next.js (React)]
-  B --> C[react-notion-x Renderer]
-  C --> D[Notion CMS]
-  B --> E[Vercel Edge / API Routes]
-  E --> F[OpenAI Chat API]
-  E --> G[Supabase (Embeddings DB)]
-  E --> H[Notion Proxy / API Wrapper]
+  A["User / Browser"] --> B["Next.js (React)"];
+  B --> C["react-notion-x Renderer"];
+  C --> D["Notion CMS"];
+  B --> E["Vercel Edge / API Routes"];
+  E --> F["OpenAI Chat API"];
+  E --> G["Supabase (Embeddings DB)"];
+  E --> H["Notion Proxy / API Wrapper"];
 ```
 
 ### ⚙️ Ingestion & RAG Pipeline
 
 ```mermaid
 flowchart TD
-  A[Notion Page / External URL] --> B[jsdom + Readability]
-  B --> C[gpt-tokenizer]
-  C --> D[OpenAI Embeddings API]
-  D --> E[Supabase DB (Documents + Chunks)]
-
-  subgraph Admin Interface
-    F[/admin/ingestion Dashboard/]
-    F <-- SSE (progress/log/complete) --> G[API: /api/admin/manual-ingest]
+  A["Notion Page or External URL"] --> B["jsdom + Readability"];
+  B --> C["gpt-tokenizer"];
+  C --> D["OpenAI Embeddings API"];
+  D --> E["Supabase — Documents and Chunks"];
+  subgraph "Admin Interface"
+    F["Admin Dashboard (/admin/ingestion)"];
+    F <-- "SSE: progress / log / complete" --> G["API: /api/admin/manual-ingest"];
   end
 ```
 
@@ -111,7 +110,7 @@ flowchart TD
 ## 🧠 Credits
 
 - **Base Project:** [Next.js Notion Starter Kit](https://github.com/transitive-bullshit/nextjs-notion-starter-kit)
-- **Author:** Jack Park
+- **Author:** Jack H. Park
 - **Hosting:** [Vercel](https://vercel.com)
 - **CMS:** [Notion](https://www.notion.so)
 
