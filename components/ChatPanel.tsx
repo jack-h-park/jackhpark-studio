@@ -182,6 +182,17 @@ type ChatMessage = {
   content: string;
 };
 
+type ChatResponse = {
+  answer: string;
+  citations: Array<{ title?: string; source_url?: string }>;
+};
+
+type Engine = "native" | "lc";
+
+function isChatResponse(obj: any): obj is ChatResponse {
+  return obj && typeof obj.answer === "string" && Array.isArray(obj.citations);
+}
+
 export function ChatPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -190,6 +201,21 @@ export function ChatPanel() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
+
+  const [engine, setEngine] = useState<Engine>("lc");
+
+  useEffect(() => {
+    const saved =
+      typeof window !== "undefined"
+        ? (localStorage.getItem("ask_engine") as Engine | null)
+        : null;
+    if (saved === "native" || saved === "lc") setEngine(saved);
+  }, []);
+
+  const setEngineAndSave = (next: Engine) => {
+    setEngine(next);
+    if (typeof window !== "undefined") localStorage.setItem("ask_engine", next);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -224,11 +250,6 @@ export function ChatPanel() {
       content: value,
     };
 
-    const sanitizedMessages = [...messages, userMessage].map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
-
     const assistantMessageId = `assistant-${Date.now()}`;
 
     setMessages((prev) => {
@@ -254,69 +275,112 @@ export function ChatPanel() {
 
     const run = async () => {
       try {
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ messages: sanitizedMessages }),
-          signal: controller.signal,
-        });
+        const endpoint = `/api/chat?engine=${engine}`;
 
-        if (!response.ok || !response.body) {
-          const errorText = await response.text();
-          throw new Error(
-            errorText || `Request failed with status ${response.status}`,
-          );
-        }
+        if (engine === "lc") {
+          // LangChain path: JSON request/response (non-streaming)
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question: value }),
+            signal: controller.signal,
+          });
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let assistantContent = "";
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => "");
+            throw new Error(
+              errorText || `Request failed with status ${response.status}`,
+            );
+          }
 
-        // Stream the response and update the assistant message as chunks arrive.
-        const updateAssistant = (content: string) => {
+          const json = await response.json().catch(() => ({}) as any);
+          if (!isChatResponse(json)) {
+            throw new Error("Invalid response from server");
+          }
+
+          const answer: string = json.answer ?? "";
+          const citations: Array<{ title?: string; source_url?: string }> =
+            json.citations ?? [];
+          const citesText =
+            citations
+              .filter((c) => c?.title || c?.source_url)
+              .map((c, i) =>
+                `(${i + 1}) ${c.title ?? ""} ${c.source_url ?? ""}`.trim(),
+              )
+              .join("\n") || "";
+
+          const finalContent = citesText ? `${answer}\n\n${citesText}` : answer;
+
+          // update assistant once (non-stream)
           setMessages((prev) =>
             prev.map((message) =>
               message.id === assistantMessageId
-                ? { ...message, content }
+                ? { ...message, content: finalContent }
                 : message,
             ),
           );
-        };
+        } else {
+          // Native path: streaming (expects { messages })
+          const sanitizedMessages = [...messages, userMessage].map(
+            (message) => ({
+              role: message.role,
+              content: message.content,
+            }),
+          );
 
-        let done = false;
-        while (!done) {
-          const result = await reader.read();
-          done = result.done ?? false;
-          const value = result.value;
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: sanitizedMessages }),
+            signal: controller.signal,
+          });
 
-          if (!value) {
-            continue;
+          if (!response.ok || !response.body) {
+            const errorText = await response.text().catch(() => "");
+            throw new Error(
+              errorText || `Request failed with status ${response.status}`,
+            );
           }
 
-          assistantContent += decoder.decode(value, { stream: !done });
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let assistantContent = "";
 
-          if (!isMountedRef.current) {
-            return;
+          const updateAssistant = (content: string) => {
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === assistantMessageId
+                  ? { ...message, content }
+                  : message,
+              ),
+            );
+          };
+
+          let done = false;
+          while (!done) {
+            const result = await reader.read();
+            done = result.done ?? false;
+            const chunk = result.value;
+            if (!chunk) continue;
+
+            assistantContent += decoder.decode(chunk, { stream: !done });
+            if (!isMountedRef.current) return;
+
+            updateAssistant(assistantContent);
           }
 
-          updateAssistant(assistantContent);
-        }
-
-        assistantContent += decoder.decode();
-        if (assistantContent && isMountedRef.current) {
-          updateAssistant(assistantContent);
+          assistantContent += decoder.decode();
+          if (assistantContent && isMountedRef.current) {
+            updateAssistant(assistantContent);
+          }
         }
       } catch (err) {
         console.error("Chat request failed", err);
         if (controller.signal.aborted || !isMountedRef.current) {
           return;
         }
-
         const message =
           err instanceof Error ? err.message : "Something went wrong.";
-
         setMessages((prev) =>
           prev.map((item) =>
             item.id === assistantMessageId
@@ -342,6 +406,41 @@ export function ChatPanel() {
         <div className={`chat-panel ${isOpen ? "is-open" : ""}`}>
           <header className="chat-header">
             <h3>Jack's AI Assistant</h3>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={() => setEngineAndSave("native")}
+                aria-pressed={engine === "native"}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 6,
+                  border:
+                    engine === "native" ? "2px solid #444" : "1px solid #ccc",
+                  background: "#fff",
+                  cursor: "pointer",
+                  fontSize: "0.8rem",
+                }}
+                title="Direct (framework-free) engine"
+              >
+                Native
+              </button>
+              <button
+                type="button"
+                onClick={() => setEngineAndSave("lc")}
+                aria-pressed={engine === "lc"}
+                style={{
+                  padding: "6px 10px",
+                  borderRadius: 6,
+                  border: engine === "lc" ? "2px solid #444" : "1px solid #ccc",
+                  background: "#fff",
+                  cursor: "pointer",
+                  fontSize: "0.8rem",
+                }}
+                title="LangChain engine"
+              >
+                LangChain
+              </button>
+            </div>
             <button
               className="chat-close-button"
               onClick={() => setIsOpen(false)}
