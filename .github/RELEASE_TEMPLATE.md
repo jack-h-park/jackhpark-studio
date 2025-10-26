@@ -63,3 +63,39 @@ flowchart TD
   F -- "SSE: progress / log / complete" --> G["API: /api/admin/manual-ingest"];
   G -- "events" --> F;
 ```
+
+---
+
+### ⚙️ Configuration
+
+```
+ADMIN_DASH_USER=
+ADMIN_DASH_PASS=
+NOTION_PAGE_CACHE_TTL=
+OPENAI_API_KEY=
+SUPABASE_URL=
+SUPABASE_SERVICE_KEY=
+```
+
+---
+
+### 🧩 Dependencies
+
+- OpenAI SDK, Supabase JS, gpt-tokenizer
+- @mozilla/readability, jsdom, exponential-backoff
+- framer-motion, react-modal, @react-icons/all-files
+
+---
+
+### 🧠 Credits
+
+- **Base Project:** Next.js Notion Starter Kit
+- **Author:** Jack Park
+- **Hosting:** Vercel
+- **CMS:** Notion
+
+---
+
+> 🏷️ **Tag:** `${{ github.ref_name }}`  
+> ⚙️ **Status:** Pre-release or Stable (update as appropriate)  
+> 🗓️ **Date:** ${{ github.event.release.published_at }}
