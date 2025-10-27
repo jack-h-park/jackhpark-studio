@@ -38,7 +38,7 @@ import { SidePeek } from "./SidePeek";
 // Limit image-preview modal to specific inline database (collection) IDs only.
 // Provide these IDs (block IDs) in `site.config.ts` as `galleryPreviewDatabaseIds`.
 // IDs may include dashes; they will be normalized (dashes removed) before comparison.
-const normalizeId = (id?: string | null) => (id ? id.replace(/-/g, "") : "");
+const normalizeId = (id?: string | null) => (id ? id.replaceAll('-', "") : "");
 const PREVIEW_DATABASE_IDS = new Set<string>(
   ((config as any)?.galleryPreviewDatabaseIds ?? []).map((id: string) =>
     normalizeId(id),
@@ -77,7 +77,7 @@ const markPreviewEligibleCollections = () => {
   );
   for (const col of collections) {
     const id =
-      col.getAttribute("data-block-id") ||
+      col.dataset.blockId ||
       (/\bnotion-block-([a-f0-9]{32})\b/i.exec(col.className)?.[1] ?? null);
     const normalized = normalizeId(id);
     const galleryViews = Array.from(
@@ -89,11 +89,11 @@ const markPreviewEligibleCollections = () => {
       galleryViews.length > 0;
     for (const gv of galleryViews) {
       if (shouldMark) {
-        if (!gv.hasAttribute("data-gallery-preview")) {
-          gv.setAttribute("data-gallery-preview", "1");
+        if (!Object.hasOwn(gv.dataset, "galleryPreview")) {
+          gv.dataset.galleryPreview = "1";
         }
-      } else if (gv.hasAttribute("data-gallery-preview")) {
-        gv.removeAttribute("data-gallery-preview");
+      } else if (Object.hasOwn(gv.dataset, "galleryPreview")) {
+        delete gv.dataset.galleryPreview;
       }
     }
   }

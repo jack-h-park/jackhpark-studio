@@ -6,7 +6,6 @@ import { parsePageId } from "notion-utils";
 import * as React from "react";
 import ReactModal from "react-modal";
 import { type MapImageUrlFn, type NotionComponents } from "react-notion-x";
-
 import { Collection } from "react-notion-x/build/third-party/collection";
 import { Equation } from "react-notion-x/build/third-party/equation";
 import { Modal } from "react-notion-x/build/third-party/modal";
