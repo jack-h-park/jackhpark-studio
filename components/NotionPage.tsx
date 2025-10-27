@@ -495,7 +495,7 @@ export function NotionPage({
       }
       // Click classification
       const isLeftClick = (event as MouseEvent).button === 0;
-      const hasModifier =
+      const _hasModifier =
         (event as MouseEvent).metaKey ||
         (event as MouseEvent).ctrlKey ||
         (event as MouseEvent).shiftKey ||

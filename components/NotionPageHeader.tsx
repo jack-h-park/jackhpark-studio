@@ -43,7 +43,7 @@ export function NotionPageHeader({
 }: {
   block: CollectionViewPageBlock | PageBlock;
 }) {
-  const { components, mapPageUrl, recordMap } = useNotionContext();
+  const { components: _components, mapPageUrl, recordMap } = useNotionContext();
 
   console.log("[Real Header] rendered =", block);
 
