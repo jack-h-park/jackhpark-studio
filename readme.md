@@ -86,15 +86,18 @@ flowchart LR
 ### ⚙️ Ingestion & RAG Pipeline
 
 ```mermaid
-flowchart TD
+  flowchart TD
   A["Notion Page or External URL"] --> B["jsdom + Readability"];
   B --> C["gpt-tokenizer"];
   C --> D["OpenAI Embeddings API"];
-  D --> E["Supabase — Documents and Chunks"];
+  D --> E["Supabase: Documents and Chunks"];
+
   subgraph "Admin Interface"
     F["Admin Dashboard (/admin/ingestion)"];
-    F <-- "SSE: progress / log / complete" --> G["API: /api/admin/manual-ingest"];
   end
+
+  F -- "SSE: progress / log / complete" --> G["API: /api/admin/manual-ingest"];
+  G -- "events" --> F;
 ```
 
 ---
