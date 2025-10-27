@@ -2,7 +2,7 @@
 
 import { AiOutlineClose } from "@react-icons/all-files/ai/AiOutlineClose";
 import { AiOutlineSend } from "@react-icons/all-files/ai/AiOutlineSend";
-import { FcAssistant } from "@react-icons/all-files/fc/FcAssistant";
+import { BsChatDots } from "@react-icons/all-files/bs/BsChatDots";
 import {
   type ChangeEvent,
   type FormEvent,
@@ -15,8 +15,8 @@ import css from "styled-jsx/css";
 const styles = css`
   .chat-panel-container {
     position: fixed;
-    bottom: 24px;
-    right: 24px;
+    bottom: 60px;
+    right: 30px;
     z-index: 1000;
   }
 
@@ -41,6 +41,7 @@ const styles = css`
   .chat-panel-button :global(svg) {
     width: 36px;
     height: 36px;
+    color: #0a4584ff;
   }
 
   .chat-panel {
@@ -165,7 +166,7 @@ const styles = css`
 
   @media (max-width: 480px) {
     .chat-panel-container {
-      bottom: 16px;
+      bottom: 24px;
       right: 16px;
     }
     .chat-panel {
@@ -488,7 +489,7 @@ export function ChatPanel() {
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Open chat assistant"
         >
-          <FcAssistant />
+          <BsChatDots />
         </button>
       </div>
     </>

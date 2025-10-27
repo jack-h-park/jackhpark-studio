@@ -89,9 +89,9 @@
   --m-root-font-weight: 700;
   display: block;
   width: 100%;
-  margin-top: 0.5rem;
-  margin-bottom: 1.5rem;
-  padding: 1.25rem;
+  margin-top: 0rem;
+  margin-bottom: 1.0rem;
+  padding: 0.5rem;
   overflow-x: auto;
   border-radius: 12px;
   background: rgba(135, 141, 145, 0.08);
