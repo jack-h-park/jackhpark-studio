@@ -1,18 +1,18 @@
 import { config } from '@fisch0920/config/eslint'
-import simpleImportSort from 'eslint-plugin-simple-import-sort' // <-- 1. 플러그인을 import 합니다.
+import simpleImportSort from 'eslint-plugin-simple-import-sort' // <-- 1. Import the plugin.
 
 export default [
   ...config,
   {
     files: ['**/*.ts', '**/*.tsx'],
-    plugins: { // <-- 2. 플러그인을 등록합니다.
+    plugins: { // <-- 2. Register the plugin.
       'simple-import-sort': simpleImportSort
     },
     rules: {
-      'simple-import-sort/imports': 'error', // <-- 3. import 정렬 규칙을 활성화합니다.
-      '@typescript-eslint/no-unused-vars': 'error', // <-- 사용하지 않는 변수 규칙도 활성화합니다.
+      'simple-import-sort/imports': 'error', // <-- 3. Enable the import sort rule.
+      '@typescript-eslint/no-unused-vars': 'error', // <-- Also enable the no-unused-vars rule.
 
-      // --- 기존에 끄고 있던 규칙들 ---
+      // --- Rules that were previously turned off ---
       'react/prop-types': 'off',
       'unicorn/no-array-reduce': 'off',
       'unicorn/filename-case': 'off',

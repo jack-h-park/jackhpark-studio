@@ -181,12 +181,12 @@ const propertyTextValue = (
   { schema, pageHeader, data, block, value }: any,
   defaultFn: () => React.ReactNode,
 ) => {
-  // ✅ 페이지 헤더에서 'author' 필드를 굵게 표시
+  // ✅ Bold the 'author' field in the page header
   if (pageHeader && schema?.name?.toLowerCase() === "author") {
     return <b>{defaultFn()}</b>;
   }
 
-  // ✅ CleanText 적용 (inline DB 텍스트 셀 포함)
+  // ✅ Apply CleanText (including inline DB text cells)
   const raw =
     value ??
     data ??
@@ -203,7 +203,7 @@ const propertyTextValue = (
 };
 
 console.log("[Injecting CleanText]");
-// ✅ safer text renderer: normalize react-notion-x rich text → plain inline text
+// Safer text renderer: normalize react-notion-x rich text → plain inline text
 function renderRichText(item: any): string {
   if (!Array.isArray(item)) return typeof item === "string" ? item : "";
   const [text, decorations]: [string, any[]] = item as [string, any[]];
@@ -356,7 +356,7 @@ export function NotionPage({
   const handleCloseGalleryPreview = React.useCallback(() => {
     console.log("[GalleryPreview] close modal request");
     setGalleryPreview(null);
-    setIsZoomed(false); // 줌 상태 초기화
+    setIsZoomed(false); // Reset zoom state
   }, []);
 
   const handleToggleZoom = React.useCallback(() => {
@@ -554,7 +554,7 @@ export function NotionPage({
           isBlogPost={isBlogPost}
         />
       ) : null,
-    // 의존성 배열에 showPageAside를 추가하여 이 값이 바뀔 때마다 다시 계산되도록 합니다.
+    // Add showPageAside to the dependency array to recalculate whenever this value changes.
     [block, recordMap, isBlogPost],
   );
 
@@ -658,7 +658,7 @@ export function NotionPage({
     }
   }, [components]);
 
-  // 🔍 디버깅용: schema 전체 구조 확인
+  // 🔍 For debugging: check the entire schema structure
   React.useEffect(() => {
     if (recordMap?.collection) {
       for (const col of Object.values(recordMap.collection)) {
@@ -673,13 +673,13 @@ export function NotionPage({
     }
   }, [recordMap]);
 
-  // 렌더링 로직 단순화
+  // Simplify rendering logic
   if (!recordMap && !error) {
     return <Loading />;
   }
 
   if (error || !block) {
-    // `block`이 없으면 페이지 콘텐츠가 없는 것이므로 404로 간주
+    // If `block` is missing, it means there is no page content, so treat it as a 404
     return <Page404 site={site} pageId={pageId} error={error} />;
   }
 

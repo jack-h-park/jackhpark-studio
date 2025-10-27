@@ -1432,8 +1432,8 @@ function ClientSideDate({ value }: { value: string | null | undefined }) {
   }, []);
 
   if (!isMounted) {
-    // 서버 렌더링 및 초기 클라이언트 렌더링 시에는 placeholder를 보여줍니다.
-    // 이렇게 하면 서버와 클라이언트의 초기 UI가 일치하게 됩니다.
+    // Show a placeholder during server rendering and initial client rendering.
+    // This ensures that the initial UI matches between the server and the client.
     return <span>--</span>;
   }
 

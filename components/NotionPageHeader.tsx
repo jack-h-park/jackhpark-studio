@@ -2,7 +2,7 @@ import type { CollectionViewPageBlock, PageBlock } from "notion-types";
 import { IoMoonSharp } from "@react-icons/all-files/io5/IoMoonSharp";
 import { IoSunnyOutline } from "@react-icons/all-files/io5/IoSunnyOutline";
 import cs from "classnames";
-import Link from "next/link"; // ✅ Next.js 라우터 링크 사용
+import Link from "next/link"; // ✅ Use Next.js router link
 import { getBlockTitle, getPageBreadcrumbs } from "notion-utils";
 import * as React from "react";
 import { Header, PageIcon, Search, useNotionContext } from "react-notion-x";
@@ -45,7 +45,7 @@ export function NotionPageHeader({
 }) {
   const { components, mapPageUrl, recordMap } = useNotionContext();
 
-  console.log("[Real Header] 렌더링됨 =", block);
+  console.log("[Real Header] rendered =", block);
 
   const breadcrumbs = React.useMemo(() => {
     if (!block?.id || !recordMap) {
@@ -73,14 +73,14 @@ export function NotionPageHeader({
   return (
     <header className="notion-header">
       <div className="notion-nav-header">
-        {/* 새로운 버전 */}
+        {/* New version */}
         <div className="breadcrumbs">
           {(() => {
             const rootBreadcrumb =
               breadcrumbs.length > 0
-                ? [breadcrumbs[0]] // 현재 페이지 계층 중 Root만
+                ? [breadcrumbs[0]] // Only the root of the current page hierarchy
                 : fallbackBreadcrumbs.length > 0
-                  ? [fallbackBreadcrumbs[0]] // fallback도 Root만
+                  ? [fallbackBreadcrumbs[0]] // Fallback is also only the root
                   : [];
 
             if (rootBreadcrumb.length === 0) return null;
@@ -99,10 +99,10 @@ export function NotionPageHeader({
                     textDecoration: "none",
                   }}
                 >
-                  {/* 아이콘 */}
+                  {/* Icon */}
                   {rootBlock && <PageIcon className="icon" block={rootBlock} />}
 
-                  {/* 제목 */}
+                  {/* Title */}
                   <span className="title" style={{ marginLeft: "0.25em" }}>
                     {root.title}
                   </span>
@@ -112,7 +112,7 @@ export function NotionPageHeader({
           })()}
         </div>
 
-        {/* 원래 버전 <div className='breadcrumbs'>
+        {/* Original version <div className='breadcrumbs'>
           {breadcrumbs.length > 0 ? (
             <Breadcrumbs block={block} />
           ) : (
