@@ -625,7 +625,7 @@ svg[data-processed-mermaid] .section-root tspan {
   padding: 0.2em 0.75em;
   line-height: 1.5;
   font-style: italic;
-  font-size: 1.2em;
+  font-size: 1.0em;
   border-left: 4px solid #67bdfc;
 }
 

@@ -116,6 +116,8 @@ export const navigationLinks: Array<NavigationLink | undefined> = getSiteConfig(
   null
 )
 
+export const galleryPreviewDatabaseIds: string[] = getSiteConfig('galleryPreviewDatabaseIds', [])
+
 // Optional site search
 export const isSearchEnabled: boolean = getSiteConfig('isSearchEnabled', true)
 

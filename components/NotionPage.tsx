@@ -34,6 +34,77 @@ import { PageAside } from "./PageAside";
 import { PageHead } from "./PageHead";
 import { SidePeek } from "./SidePeek";
 
+// --- Gallery preview eligibility -------------------------------------------
+// Limit image-preview modal to specific inline database (collection) IDs only.
+// Provide these IDs (block IDs) in `site.config.ts` as `galleryPreviewDatabaseIds`.
+// IDs may include dashes; they will be normalized (dashes removed) before comparison.
+const normalizeId = (id?: string | null) => (id ? id.replace(/-/g, "") : "");
+const PREVIEW_DATABASE_IDS = new Set<string>(
+  ((config as any)?.galleryPreviewDatabaseIds ?? []).map((id: string) =>
+    normalizeId(id),
+  ),
+);
+
+if (process.env.NODE_ENV !== "production") {
+  console.debug(
+    "[GalleryPreview] PREVIEW_DATABASE_IDS size:",
+    PREVIEW_DATABASE_IDS.size,
+    Array.from(PREVIEW_DATABASE_IDS).slice(0, 5),
+  );
+}
+
+// Traverse up to find the nearest Notion block ID, from `data-block-id` or class `notion-block-<id>`
+const getEnclosingBlockId = (start: Element | null): string | null => {
+  let el = start as HTMLElement | null;
+  const classIdRegex = /\bnotion-block-([a-f0-9]{32})\b/i;
+  while (el && el !== document.body) {
+    // 1) attribute-based
+    const attrId = el.getAttribute?.("data-block-id");
+    if (attrId) return attrId;
+    // 2) className-based (react-notion-x sometimes uses notion-block-<id>)
+    const cls = el.className?.toString?.() ?? "";
+    const m = classIdRegex.exec(cls);
+    if (m && m[1]) return m[1];
+    el = el.parentElement as HTMLElement | null;
+  }
+  return null;
+};
+
+// Mark/unmark gallery views inside whitelisted collections for gallery image preview (for CSS scoping)
+const markPreviewEligibleCollections = () => {
+  const collections = Array.from(
+    document.querySelectorAll<HTMLElement>(".notion-collection"),
+  );
+  for (const col of collections) {
+    const id =
+      col.getAttribute("data-block-id") ||
+      (/\bnotion-block-([a-f0-9]{32})\b/i.exec(col.className)?.[1] ?? null);
+    const normalized = normalizeId(id);
+    const galleryViews = Array.from(
+      col.querySelectorAll<HTMLElement>(".notion-gallery-view"),
+    );
+    const shouldMark =
+      !!normalized &&
+      PREVIEW_DATABASE_IDS.has(normalized) &&
+      galleryViews.length > 0;
+    for (const gv of galleryViews) {
+      if (shouldMark) {
+        if (!gv.hasAttribute("data-gallery-preview")) {
+          gv.setAttribute("data-gallery-preview", "1");
+        }
+      } else if (gv.hasAttribute("data-gallery-preview")) {
+        gv.removeAttribute("data-gallery-preview");
+      }
+    }
+  }
+  if (process.env.NODE_ENV !== "production") {
+    const count = document.querySelectorAll(
+      '.notion-gallery-view[data-gallery-preview="1"]',
+    ).length;
+    console.debug("[GalleryPreview] marked gallery views:", count);
+  }
+};
+
 // -----------------------------------------------------------------------------
 // dynamic imports for optional components
 // -----------------------------------------------------------------------------
@@ -409,6 +480,38 @@ export function NotionPage({
       ) as HTMLAnchorElement | null;
       if (!anchor) return;
 
+      // Whitelist check: only intercept clicks for specific inline database (collection) IDs
+      const collectionBlockId = getEnclosingBlockId(anchor);
+      const normalizedCollectionId = normalizeId(collectionBlockId);
+      if (process.env.NODE_ENV !== "production") {
+        console.debug(
+          "[GalleryClick] collectionBlockId:",
+          collectionBlockId,
+          "normalized:",
+          normalizedCollectionId,
+          "whitelisted:",
+          PREVIEW_DATABASE_IDS.has(normalizedCollectionId),
+        );
+      }
+      const isPrimaryClick =
+        event.button === 0 &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.shiftKey &&
+        !event.altKey;
+      if (
+        !normalizedCollectionId ||
+        !PREVIEW_DATABASE_IDS.has(normalizedCollectionId)
+      ) {
+        // Not a whitelisted gallery:
+        // - For gallery cards, stop propagation so SidePeek doesn't hijack,
+        //   but DO NOT preventDefault so the browser performs normal navigation.
+        if (anchor.closest(".notion-gallery-view") && isPrimaryClick) {
+          event.stopPropagation();
+        }
+        return;
+      }
+
       if (!anchor.closest(".notion-gallery-view")) {
         return;
       }
@@ -519,6 +622,7 @@ export function NotionPage({
       });
     };
 
+    // Only intercept gallery card clicks for whitelisted inline databases.
     document.addEventListener("click", handleGalleryClick, true);
     return () =>
       document.removeEventListener("click", handleGalleryClick, true);
@@ -646,6 +750,22 @@ export function NotionPage({
     }),
     [components],
   );
+
+  // Keep [data-gallery-preview="1"] in sync so CSS can scope icon/title hiding
+  React.useEffect(() => {
+    if (typeof document === "undefined") return;
+    const run = () => {
+      try {
+        markPreviewEligibleCollections();
+      } catch {}
+    };
+    run();
+    // Observe DOM changes under .notion-viewport to re-apply marks when Notion re-renders
+    const root = document.querySelector(".notion-viewport") || document.body;
+    const mo = new MutationObserver(() => run());
+    mo.observe(root, { childList: true, subtree: true, attributes: false });
+    return () => mo.disconnect();
+  }, [recordMap]);
 
   React.useEffect(() => {
     if (components) {
@@ -803,6 +923,136 @@ export function NotionPage({
           />
         )}
       </SidePeek>
+
+      <style
+        // Gallery card title/icon visibility & alignment rules
+        dangerouslySetInnerHTML={{
+          __html: `
+  /* --- Gallery title/icon visibility & alignment (reinforced) -------------- */
+  /* NON-preview gallery views: left-align and SHOW everything explicitly */
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card,
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card * {
+    text-align: left !important;
+  }
+  /* Ensure the card body and first property row render */
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-collection-card-body {
+    display: block !important;
+    justify-content: flex-start !important;
+    align-items: flex-start !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-collection-card-property {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  /* Property/title wrappers */
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-property,
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-property-title {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  /* Title row as flex */
+  .notion-gallery-view .notion-collection-card .notion-page-title {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    margin: 0 !important;
+    text-align: left !important;
+  }
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title {
+    gap: 0.12rem !important; /* tighter spacing */
+  }
+  /* Anchor wrapping the title */
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-link {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  /* Icon + icon glyph + text must be visible */
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon-inline,
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon,
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon {
+    display: inline-flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-text {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  /* Center the icon glyph inside its inline container */
+  .notion-gallery-view .notion-collection-card .notion-page-icon-inline {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    vertical-align: middle !important;
+    line-height: 1 !important;
+  }
+  /* Remove margins/padding from icon/title/text to eliminate hidden space */
+  .notion-gallery-view .notion-collection-card .notion-page-icon-inline,
+  .notion-gallery-view .notion-collection-card .notion-page-title-icon,
+  .notion-gallery-view .notion-collection-card .notion-page-icon,
+  .notion-gallery-view .notion-collection-card .notion-page-title-text {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  /* Tiny extra breathing room between icon and title */
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon-inline,
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon,
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon {
+    margin-right: 0.08rem !important; /* adjust 0.06–0.12rem to taste */
+  }
+  /* Slightly increase icon size for non-preview gallery cards */
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon,
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon {
+    width: 1.15em !important;
+    height: 1.15em !important;
+    min-width: 1.15em !important;
+    min-height: 1.15em !important;
+  }
+  /* Emoji (span-based) icons */
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon-span {
+    font-size: 1.1em !important;   /* was ~1em; slightly larger */
+    line-height: 1 !important;
+  }
+  /* SVG/IMG inside icon wrappers: size up to match */
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon svg,
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon img,
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon svg,
+  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon img {
+    width: 1.15em !important;
+    height: 1.15em !important;
+  }
+  .notion-gallery-view .notion-collection-card .notion-page-title-icon,
+  .notion-gallery-view .notion-collection-card .notion-page-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+  }
+  /* Ensure inner SVG/IMG participate correctly without extra baseline offset */
+  .notion-gallery-view .notion-collection-card .notion-page-title-icon svg,
+  .notion-gallery-view .notion-collection-card .notion-page-title-icon img,
+  .notion-gallery-view .notion-collection-card .notion-page-icon svg,
+  .notion-gallery-view .notion-collection-card .notion-page-icon img {
+    display: block !important;
+  }
+  /* Preview-enabled gallery views: hide ONLY the icon and the title text */
+  .notion-gallery-view[data-gallery-preview="1"] .notion-collection-card .notion-page-icon-inline,
+  .notion-gallery-view[data-gallery-preview="1"] .notion-collection-card .notion-page-title-text {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+  }
+  `,
+        }}
+      />
 
       <ChatPanel />
     </>

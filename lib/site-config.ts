@@ -27,6 +27,7 @@ export interface SiteConfig {
   isPreviewImageSupportEnabled?: boolean
   isTweetEmbedSupportEnabled?: boolean
   isRedisEnabled?: boolean
+  galleryPreviewDatabaseIds?: string[]
   isSearchEnabled?: boolean
   notionPageCacheTTLSeconds?: number
 

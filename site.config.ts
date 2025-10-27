@@ -45,6 +45,9 @@ export default siteConfig({
   // environment variables. see the readme for more info
   isRedisEnabled: false,
 
+  // For specifying which gallery DB to apply gallery preview feature
+  galleryPreviewDatabaseIds: ['28999029c0b4807d8fccc28074f8ee6f'],
+
   // map of notion page IDs to URL paths (optional)
   // any pages defined here will override their default URL paths
   // example:
