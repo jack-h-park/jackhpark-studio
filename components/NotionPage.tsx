@@ -38,7 +38,7 @@ import { SidePeek } from "./SidePeek";
 // Limit image-preview modal to specific inline database (collection) IDs only.
 // Provide these IDs (block IDs) in `site.config.ts` as `galleryPreviewDatabaseIds`.
 // IDs may include dashes; they will be normalized (dashes removed) before comparison.
-const normalizeId = (id?: string | null) => (id ? id.replaceAll('-', "") : "");
+const normalizeId = (id?: string | null) => (id ? id.replaceAll("-", "") : "");
 const PREVIEW_DATABASE_IDS = new Set<string>(
   ((config as any)?.galleryPreviewDatabaseIds ?? []).map((id: string) =>
     normalizeId(id),
@@ -493,20 +493,21 @@ export function NotionPage({
           PREVIEW_DATABASE_IDS.has(normalizedCollectionId),
         );
       }
-      const isPrimaryClick =
-        event.button === 0 &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        !event.shiftKey &&
-        !event.altKey;
+      // Click classification
+      const isLeftClick = (event as MouseEvent).button === 0;
+      const hasModifier =
+        (event as MouseEvent).metaKey ||
+        (event as MouseEvent).ctrlKey ||
+        (event as MouseEvent).shiftKey ||
+        (event as MouseEvent).altKey;
       if (
         !normalizedCollectionId ||
         !PREVIEW_DATABASE_IDS.has(normalizedCollectionId)
       ) {
-        // Not a whitelisted gallery:
-        // - For gallery cards, stop propagation so SidePeek doesn't hijack,
-        //   but DO NOT preventDefault so the browser performs normal navigation.
-        if (anchor.closest(".notion-gallery-view") && isPrimaryClick) {
+        // Non-whitelisted gallery:
+        // Prevent SidePeek hijack on ANY left click (with or without modifiers).
+        // DO NOT preventDefault so browser default (cmd/ctrl → new tab; plain → same tab) works.
+        if (anchor.closest(".notion-gallery-view") && isLeftClick) {
           event.stopPropagation();
         }
         return;
@@ -516,13 +517,8 @@ export function NotionPage({
         return;
       }
 
-      if (
-        event.button !== 0 ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.shiftKey ||
-        event.altKey
-      ) {
+      // Whitelisted gallery: open modal on ANY left click, even with modifiers.
+      if (!isLeftClick) {
         return;
       }
 
@@ -622,7 +618,9 @@ export function NotionPage({
       });
     };
 
-    // Only intercept gallery card clicks for whitelisted inline databases.
+    // Intercept gallery card clicks:
+    // - Non-whitelisted galleries: stop propagation only (allow browser default; cmd/ctrl opens new tab)
+    // - Whitelisted galleries: preventDefault + stopPropagation on left clicks (always open preview modal)
     document.addEventListener("click", handleGalleryClick, true);
     return () =>
       document.removeEventListener("click", handleGalleryClick, true);

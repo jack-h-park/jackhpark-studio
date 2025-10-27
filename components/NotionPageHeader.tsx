@@ -136,23 +136,24 @@ export function NotionPageHeader({
 
               if (link.pageId) {
                 return (
-                  <components.PageLink
+                  <Link
                     href={mapPageUrl(link.pageId)}
                     key={index}
                     className={cs(styles.navLink, "breadcrumb", "button")}
                   >
                     {link.title}
-                  </components.PageLink>
+                  </Link>
                 );
               } else {
                 return (
-                  <components.Link
+                  <a
                     href={link.url}
                     key={index}
                     className={cs(styles.navLink, "breadcrumb", "button")}
+                    rel="noopener noreferrer"
                   >
                     {link.title}
-                  </components.Link>
+                  </a>
                 );
               }
             })
