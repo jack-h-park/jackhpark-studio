@@ -62,6 +62,10 @@ export const language: string = getSiteConfig('language', 'en')
 
 // 내가 추가
 export const showPageAside: boolean = getSiteConfig('showPageAside', false)
+export const inlineCollectionTitleBold: boolean = getSiteConfig(
+  'inlineCollectionTitleBold',
+  false
+)
 
 // social accounts
 export const twitter: string | undefined = getSiteConfig('twitter')

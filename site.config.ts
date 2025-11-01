@@ -16,6 +16,8 @@ export default siteConfig({
   // open graph metadata (optional)
   description: 'Jack H. Park\'s Personal Landing Page Built with Next.js (as a frontend framework), react-notion-x (as a component library), Notion (as a CMS) and Velcel (as a hosting provider)',
 
+  inlineCollectionTitleBold: false,
+
   // social usernames (optional)
   showPageAside: false,
   linkedin: 'jackhpark',

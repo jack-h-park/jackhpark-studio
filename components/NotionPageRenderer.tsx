@@ -11,6 +11,7 @@ import { Equation } from "react-notion-x/build/third-party/equation";
 import { Modal } from "react-notion-x/build/third-party/modal";
 import { Pdf } from "react-notion-x/build/third-party/pdf";
 
+import { inlineCollectionTitleBold } from "@/lib/config";
 import {
   SIDE_PEEK_DISABLED_COLLECTION_BLOCK_IDS,
   SIDE_PEEK_DISABLED_COLLECTION_IDS,
@@ -24,6 +25,64 @@ const NotionRenderer = dynamic(
 );
 
 let modalInitialized = false;
+
+const transformInlineTitleBold = (
+  title: any,
+  shouldBold: boolean,
+): any => {
+  if (!Array.isArray(title)) {
+    return title;
+  }
+
+  let changed = false;
+
+  const transformed = title.map((segment) => {
+    if (!Array.isArray(segment)) {
+      return segment;
+    }
+
+    const [text, decorations] = segment as [string, any[] | undefined];
+
+    if (shouldBold) {
+      if (!Array.isArray(decorations) || decorations.length === 0) {
+        changed = true;
+        return [text, [["b"]]];
+      }
+
+      const hasBold = decorations.some(
+        (decoration) => Array.isArray(decoration) && decoration[0] === "b",
+      );
+
+      if (hasBold) {
+        return segment;
+      }
+
+      changed = true;
+      return [text, [...decorations, ["b"]]];
+    }
+
+    if (!Array.isArray(decorations) || decorations.length === 0) {
+      return segment;
+    }
+
+    const filtered = decorations.filter((decoration) => {
+      if (!Array.isArray(decoration)) {
+        return true;
+      }
+
+      return decoration[0] !== "b";
+    });
+
+    if (filtered.length === decorations.length) {
+      return segment;
+    }
+
+    changed = true;
+    return filtered.length > 0 ? [text, filtered] : [text];
+  });
+
+  return changed ? transformed : title;
+};
 
 interface NotionPageRendererProps {
   recordMap: ExtendedRecordMap;
@@ -67,74 +126,135 @@ export function NotionPageRenderer({
   }, []);
 
   const sanitizedRecordMap = React.useMemo<ExtendedRecordMap>(() => {
-    const views = recordMap?.collection_view;
-    if (!views) {
+    if (!recordMap) {
       return recordMap;
     }
 
-    let hasChanges = false;
-    const patchedViews = { ...views };
+    const views = recordMap.collection_view;
+    const blocks = recordMap.block;
 
-    for (const [viewId, view] of Object.entries(views)) {
-      const viewValue = view?.value;
+    let viewsChanged = false;
+    let blocksChanged = false;
+    let patchedViews = views;
+    let patchedBlocks = blocks;
 
-      if (!view || !viewValue || viewValue.type !== "list") {
-        continue;
-      }
-
-      const format = viewValue.format;
-
-      const listProperties = format?.list_properties;
-
-      if (!Array.isArray(listProperties) || listProperties.length === 0) {
-        continue;
-      }
-
-      let viewChanged = false;
-
-      const patchedListProperties = listProperties.map((propertyConfig) => {
-        if (!propertyConfig || typeof propertyConfig !== "object") {
-          return propertyConfig;
+    if (blocks) {
+      for (const [blockId, block] of Object.entries(blocks)) {
+        const blockValue = block?.value as Record<string, any> | undefined;
+        if (!blockValue) {
+          continue;
         }
 
-        if (propertyConfig.visible === false) {
-          return propertyConfig;
+        if (
+          blockValue.type !== "page" ||
+          blockValue.parent_table !== "collection"
+        ) {
+          continue;
         }
 
-        if (propertyConfig.property !== "title") {
-          return propertyConfig;
+        const properties = blockValue.properties as
+          | Record<string, any>
+          | undefined;
+        if (!properties) {
+          continue;
         }
 
-        viewChanged = true;
-        return { ...propertyConfig, visible: false };
-      });
+        const title = properties.title;
+        const sanitizedTitle = transformInlineTitleBold(
+          title,
+          inlineCollectionTitleBold,
+        );
+        if (sanitizedTitle === title) {
+          continue;
+        }
 
-      if (!viewChanged) {
-        continue;
-      }
+        if (!blocksChanged) {
+          patchedBlocks = { ...blocks };
+          blocksChanged = true;
+        }
 
-      hasChanges = true;
-      patchedViews[viewId] = {
-        ...view,
-        value: {
-          ...viewValue,
-          format: {
-            ...viewValue.format,
-            list_properties: patchedListProperties,
+        patchedBlocks[blockId] = {
+          ...block,
+          value: {
+            ...blockValue,
+            properties: {
+              ...properties,
+              title: sanitizedTitle,
+            },
           },
-        },
-      };
+        };
+      }
     }
 
-    if (!hasChanges) {
+    if (views) {
+      const workingViews = { ...views };
+      for (const [viewId, view] of Object.entries(views)) {
+        const viewValue = view?.value;
+
+        if (!view || !viewValue || viewValue.type !== "list") {
+          continue;
+        }
+
+        const format = viewValue.format;
+
+        const listProperties = format?.list_properties;
+
+        if (!Array.isArray(listProperties) || listProperties.length === 0) {
+          continue;
+        }
+
+        let viewChanged = false;
+
+        const patchedListProperties = listProperties.map((propertyConfig) => {
+          if (!propertyConfig || typeof propertyConfig !== "object") {
+            return propertyConfig;
+          }
+
+          if (propertyConfig.visible === false) {
+            return propertyConfig;
+          }
+
+          if (propertyConfig.property !== "title") {
+            return propertyConfig;
+          }
+
+          viewChanged = true;
+          return { ...propertyConfig, visible: false };
+        });
+
+        if (!viewChanged) {
+          continue;
+        }
+
+        viewsChanged = true;
+        workingViews[viewId] = {
+          ...view,
+          value: {
+            ...viewValue,
+            format: {
+              ...viewValue.format,
+              list_properties: patchedListProperties,
+            },
+          },
+        };
+      }
+
+      if (viewsChanged) {
+        patchedViews = workingViews;
+      }
+    }
+
+    if (!blocksChanged && !viewsChanged) {
       return recordMap;
     }
 
     return {
       ...recordMap,
-      collection_view: patchedViews,
+      ...(blocksChanged ? { block: patchedBlocks! } : {}),
+      ...(viewsChanged ? { collection_view: patchedViews! } : {}),
     };
   }, [recordMap]);
+
 
   React.useEffect(() => {
     if (!recordMap?.collection_view) {

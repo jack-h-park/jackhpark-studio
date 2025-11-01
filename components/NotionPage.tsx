@@ -273,6 +273,110 @@ const propertyTextValue = (
   return <CleanText text={raw} />;
 };
 
+const stripBoldFromNode = (node: React.ReactNode): React.ReactNode => {
+  if (Array.isArray(node)) {
+    return (node as React.ReactNode[]).map((child) => stripBoldFromNode(child));
+  }
+
+  if (!React.isValidElement(node)) {
+    return node;
+  }
+
+  const props = (node.props ?? {}) as Record<string, any>;
+  const childArray = React.Children.toArray(
+    props.children as React.ReactNode | React.ReactNode[] | undefined,
+  );
+  const sanitizedChildren = childArray.map((child) =>
+    stripBoldFromNode(child),
+  );
+
+  if (node.type === "b" || node.type === "strong") {
+    if (sanitizedChildren.length === 0) {
+      return null;
+    }
+
+    if (sanitizedChildren.length === 1) {
+      return sanitizedChildren[0]!;
+    }
+
+    return React.createElement(
+      React.Fragment,
+      node.key != null ? { key: node.key } : undefined,
+      ...sanitizedChildren,
+    );
+  }
+
+  if (node.type === React.Fragment) {
+    return React.createElement(
+      React.Fragment,
+      node.key != null ? { key: node.key } : undefined,
+      ...sanitizedChildren,
+    );
+  }
+
+  const hasDangerousHtml =
+    typeof (props.dangerouslySetInnerHTML as any)?.__html === "string";
+  const sanitizedHtml = hasDangerousHtml
+    ? (props.dangerouslySetInnerHTML as any).__html.replaceAll(
+        /<\/?(b|strong)>/gi,
+        "",
+      )
+    : null;
+
+  let resultNode: React.ReactElement<any, any> = node;
+
+  if (
+    hasDangerousHtml &&
+    sanitizedHtml !== (props.dangerouslySetInnerHTML as any).__html
+  ) {
+    const {
+      children: _ignoredChildren,
+      dangerouslySetInnerHTML: _ignoredInnerHtml,
+      ...restProps
+    } = props;
+
+    resultNode = React.cloneElement(
+      resultNode,
+      {
+        ...restProps,
+        dangerouslySetInnerHTML: { __html: sanitizedHtml },
+      } as any,
+    );
+  }
+
+  const childrenChanged =
+    sanitizedChildren.length !== childArray.length ||
+    sanitizedChildren.some((child, index) => child !== childArray[index]);
+
+  if (childrenChanged) {
+    resultNode = React.cloneElement(
+      resultNode,
+      undefined,
+      ...sanitizedChildren,
+    );
+  }
+
+  return resultNode;
+};
+
+const propertyTitleValue = (props: any, defaultFn: () => React.ReactNode) => {
+  const { pageHeader, schema, block } = props ?? {};
+
+  const isCollectionPageRow =
+    block?.type === "page" && block?.parent_table === "collection";
+
+  if (pageHeader || schema?.type !== "title" || !isCollectionPageRow) {
+    return defaultFn();
+  }
+
+  const rendered = defaultFn();
+  if (config.inlineCollectionTitleBold) {
+    return rendered;
+  }
+
+  return stripBoldFromNode(rendered);
+};
+
 console.log("[Injecting CleanText]");
 // Safer text renderer: normalize react-notion-x rich text → plain inline text
 function renderRichText(item: any): string {
@@ -733,6 +837,7 @@ export function NotionPage({
       Tweet,
       Header: NotionPageHeader,
       propertyLastEditedTimeValue,
+      propertyTitleValue,
       propertyTextValue,
       propertyDateValue,
       Text: CleanText,
