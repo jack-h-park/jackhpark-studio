@@ -30,6 +30,7 @@ type ParsedQuery = {
   ingestionTypes: IngestionType[];
   startedFrom: string | null;
   startedTo: string | null;
+  hideSkipped: boolean;
 };
 
 function toList(value: string | string[] | undefined): string[] {
@@ -122,6 +123,8 @@ function parseQuery(query: NextApiRequest["query"]): ParsedQuery {
   );
   const startedTo = normalizeDateParam(toString(query.startedTo), "end");
 
+  const hideSkipped = toString(query.hideSkipped) === "true";
+
   return {
     page,
     pageSize,
@@ -130,6 +133,7 @@ function parseQuery(query: NextApiRequest["query"]): ParsedQuery {
     ingestionTypes,
     startedFrom,
     startedTo,
+    hideSkipped,
   };
 }
 
@@ -143,8 +147,16 @@ export default async function handler(
     return;
   }
 
-  const { page, pageSize, statuses, sources, ingestionTypes, startedFrom, startedTo } =
-    parseQuery(req.query);
+  const {
+    page,
+    pageSize,
+    statuses,
+    sources,
+    ingestionTypes,
+    startedFrom,
+    startedTo,
+    hideSkipped,
+  } = parseQuery(req.query);
 
   const offset = (page - 1) * pageSize;
   const supabase = getSupabaseAdminClient();
@@ -160,6 +172,17 @@ export default async function handler(
 
   if (statuses.length > 0) {
     query = query.in("status", statuses);
+  }
+
+  if (hideSkipped) {
+    // This "or" condition is the inverse of a "fully skipped" run.
+    // It includes a run if ANY of the following are true:
+    // - The status is not 'success'.
+    // - No documents were processed.
+    // - At least one document, chunk, or character total was added or updated.
+    query = query.or(
+      "status.neq.success,documents_processed.eq.0,documents_added.gt.0,documents_updated.gt.0,chunks_added.gt.0,chunks_updated.gt.0,characters_added.gt.0,characters_updated.gt.0",
+    );
   }
 
   if (sources.length > 0) {

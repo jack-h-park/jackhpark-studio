@@ -291,6 +291,14 @@ function parseDateQueryValue(value: string | string[] | undefined): string {
   return parsed.toISOString().slice(0, 10);
 }
 
+function parseBooleanQueryValue(
+  value: string | string[] | undefined,
+  defaultValue: boolean,
+): boolean {
+  const extracted = extractQueryValue(value);
+  return extracted ? extracted === "true" : defaultValue;
+}
+
 function collectSources(runs: RunRecord[]): string[] {
   const sourceSet = new Set<string>();
   for (const run of runs) {
@@ -1124,6 +1132,7 @@ function RecentRunsSection({
   const [sourceFilter, setSourceFilter] = useState<
     string | typeof ALL_FILTER_VALUE
   >(ALL_FILTER_VALUE);
+  const [hideSkipped, setHideSkipped] = useState<boolean>(false);
   const [startedFromFilter, setStartedFromFilter] = useState<string>("");
   const [startedToFilter, setStartedToFilter] = useState<string>("");
   const [statusOptions, setStatusOptions] = useState<RunStatus[]>(() => [
@@ -1144,7 +1153,8 @@ function RecentRunsSection({
     ingestionTypeFilter !== ALL_FILTER_VALUE ||
     sourceFilter !== ALL_FILTER_VALUE ||
     startedFromFilter !== "" ||
-    startedToFilter !== "";
+    startedToFilter !== "" ||
+    hideSkipped;
 
   const sourceOptions = useMemo(() => {
     if (sourceFilter === ALL_FILTER_VALUE) {
@@ -1166,6 +1176,7 @@ function RecentRunsSection({
       source: string | typeof ALL_FILTER_VALUE;
       startedFrom: string;
       startedTo: string;
+      hideSkipped: boolean;
     }) => {
       if (!router.isReady) {
         return;
@@ -1179,7 +1190,8 @@ function RecentRunsSection({
           key === "ingestionType" ||
           key === "source" ||
           key === "startedFrom" ||
-          key === "startedTo"
+          key === "startedTo" ||
+          key === "hideSkipped"
         ) {
           continue;
         }
@@ -1207,6 +1219,9 @@ function RecentRunsSection({
       if (next.startedTo) {
         preserved.startedTo = next.startedTo;
       }
+      if (next.hideSkipped) {
+        preserved.hideSkipped = "true";
+      }
 
       void router.replace(
         { pathname: router.pathname, query: preserved },
@@ -1230,6 +1245,10 @@ function RecentRunsSection({
     const nextPage = parsePageQueryValue(router.query.page);
     const nextStartedFrom = parseDateQueryValue(router.query.startedFrom);
     const nextStartedTo = parseDateQueryValue(router.query.startedTo);
+    const nextHideSkipped = parseBooleanQueryValue(
+      router.query.hideSkipped,
+      false,
+    );
 
     setStatusFilter((prev) => (prev === nextStatus ? prev : nextStatus));
     setIngestionTypeFilter((prev) =>
@@ -1242,6 +1261,9 @@ function RecentRunsSection({
     );
     setStartedToFilter((prev) =>
       prev === nextStartedTo ? prev : nextStartedTo,
+    );
+    setHideSkipped((prev) =>
+      prev === nextHideSkipped ? prev : nextHideSkipped,
     );
   }, [router.isReady, router.query]);
 
@@ -1256,7 +1278,8 @@ function RecentRunsSection({
       ingestionTypeFilter === ALL_FILTER_VALUE &&
       sourceFilter === ALL_FILTER_VALUE &&
       startedFromFilter === "" &&
-      startedToFilter === "";
+      startedToFilter === "" &&
+      !hideSkipped;
 
     if (firstLoadRef.current && isDefaultState) {
       firstLoadRef.current = false;
@@ -1282,6 +1305,9 @@ function RecentRunsSection({
     }
     if (startedToFilter) {
       params.set("startedTo", startedToFilter);
+    }
+    if (hideSkipped) {
+      params.set("hideSkipped", "true");
     }
 
     const controller = new AbortController();
@@ -1313,6 +1339,7 @@ function RecentRunsSection({
             source: sourceFilter,
             startedFrom: startedFromFilter,
             startedTo: startedToFilter,
+            hideSkipped,
           });
           return;
         }
@@ -1353,6 +1380,7 @@ function RecentRunsSection({
     sourceFilter,
     startedFromFilter,
     startedToFilter,
+    hideSkipped,
     initial.page,
     updateQuery,
   ]);
@@ -1374,6 +1402,7 @@ function RecentRunsSection({
         source: sourceFilter,
         startedFrom: startedFromFilter,
         startedTo: startedToFilter,
+        hideSkipped,
       });
     },
     [
@@ -1383,6 +1412,7 @@ function RecentRunsSection({
       startedFromFilter,
       startedToFilter,
       updateQuery,
+      hideSkipped,
     ],
   );
 
@@ -1403,6 +1433,7 @@ function RecentRunsSection({
         source: sourceFilter,
         startedFrom: startedFromFilter,
         startedTo: startedToFilter,
+        hideSkipped,
       });
     },
     [
@@ -1412,6 +1443,7 @@ function RecentRunsSection({
       startedToFilter,
       statusFilter,
       updateQuery,
+      hideSkipped,
     ],
   );
 
@@ -1432,6 +1464,7 @@ function RecentRunsSection({
         source: nextSource,
         startedFrom: startedFromFilter,
         startedTo: startedToFilter,
+        hideSkipped,
       });
     },
     [
@@ -1441,6 +1474,7 @@ function RecentRunsSection({
       startedToFilter,
       statusFilter,
       updateQuery,
+      hideSkipped,
     ],
   );
 
@@ -1459,6 +1493,7 @@ function RecentRunsSection({
         source: sourceFilter,
         startedFrom: value,
         startedTo: startedToFilter,
+        hideSkipped,
       });
     },
     [
@@ -1468,6 +1503,7 @@ function RecentRunsSection({
       startedToFilter,
       statusFilter,
       updateQuery,
+      hideSkipped,
     ],
   );
 
@@ -1486,6 +1522,7 @@ function RecentRunsSection({
         source: sourceFilter,
         startedFrom: startedFromFilter,
         startedTo: value,
+        hideSkipped,
       });
     },
     [
@@ -1494,6 +1531,32 @@ function RecentRunsSection({
       sourceFilter,
       startedFromFilter,
       statusFilter,
+      updateQuery,
+      hideSkipped,
+    ],
+  );
+
+  const handleHideSkippedChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const nextHideSkipped = event.target.checked;
+      setHideSkipped(nextHideSkipped);
+      updateQuery({
+        page,
+        status: statusFilter,
+        ingestionType: ingestionTypeFilter,
+        source: sourceFilter,
+        startedFrom: startedFromFilter,
+        startedTo: startedToFilter,
+        hideSkipped: nextHideSkipped,
+      });
+    },
+    [
+      page,
+      statusFilter,
+      ingestionTypeFilter,
+      sourceFilter,
+      startedFromFilter,
+      startedToFilter,
       updateQuery,
     ],
   );
@@ -1504,7 +1567,8 @@ function RecentRunsSection({
       ingestionTypeFilter !== ALL_FILTER_VALUE ||
       sourceFilter !== ALL_FILTER_VALUE ||
       startedFromFilter !== "" ||
-      startedToFilter !== "";
+      startedToFilter !== "" ||
+      hideSkipped;
 
     if (!filtersActive && page === 1) {
       return;
@@ -1515,6 +1579,7 @@ function RecentRunsSection({
     setSourceFilter(ALL_FILTER_VALUE);
     setStartedFromFilter("");
     setStartedToFilter("");
+    setHideSkipped(false);
     if (page !== 1) {
       setPage(1);
     }
@@ -1525,6 +1590,7 @@ function RecentRunsSection({
       source: ALL_FILTER_VALUE,
       startedFrom: "",
       startedTo: "",
+      hideSkipped: false,
     });
   }, [
     ingestionTypeFilter,
@@ -1533,6 +1599,7 @@ function RecentRunsSection({
     startedFromFilter,
     startedToFilter,
     statusFilter,
+    hideSkipped,
     updateQuery,
   ]);
 
@@ -1551,6 +1618,7 @@ function RecentRunsSection({
         source: sourceFilter,
         startedFrom: startedFromFilter,
         startedTo: startedToFilter,
+        hideSkipped,
       });
     },
     [
@@ -1561,6 +1629,7 @@ function RecentRunsSection({
       startedToFilter,
       statusFilter,
       totalPages,
+      hideSkipped,
       updateQuery,
     ],
   );
@@ -1668,6 +1737,16 @@ function RecentRunsSection({
           </label>
         </div>
         <div className="recent-runs__actions">
+          <label className="recent-runs__checkbox-filter">
+            <input
+              type="checkbox"
+              checked={hideSkipped}
+              onChange={handleHideSkippedChange}
+              disabled={isLoading}
+            />
+            <span>Hide skipped runs</span>
+          </label>
+
           <button
             type="button"
             onClick={handleResetFilters}
@@ -2239,6 +2318,28 @@ const styles = css.global`
   .recent-runs__actions {
     display: flex;
     align-items: flex-end;
+  }
+
+  .recent-runs__checkbox-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: rgba(55, 53, 47, 0.75);
+    cursor: pointer;
+    padding: 0.45rem 0.5rem;
+    user-select: none;
+  }
+
+  .recent-runs__checkbox-filter input {
+    width: 1rem;
+    height: 1rem;
+    cursor: pointer;
+  }
+
+  .recent-runs__checkbox-filter input:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
   }
 
   .recent-runs__reset {
@@ -3065,6 +3166,7 @@ const styles = css.global`
 
 export const getServerSideProps: GetServerSideProps<PageProps> = async (
   _context,
+  // No changes needed here for now, filtering will be client-driven
 ) => {
   const supabase = getSupabaseAdminClient();
   const pageSize = DEFAULT_RUNS_PAGE_SIZE;
