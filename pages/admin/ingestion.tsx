@@ -217,9 +217,14 @@ function getIngestionTypeLabel(type: IngestionType): string {
   return INGESTION_TYPE_LABELS[type] ?? type;
 }
 
-function extractQueryValue(value: string | string[] | undefined): string | null {
+function extractQueryValue(
+  value: string | string[] | undefined,
+): string | null {
   if (Array.isArray(value)) {
-    return value.find((entry) => typeof entry === "string" && entry.length > 0) ?? null;
+    return (
+      value.find((entry) => typeof entry === "string" && entry.length > 0) ??
+      null
+    );
   }
   if (typeof value === "string" && value.length > 0) {
     return value;
@@ -269,9 +274,7 @@ function parsePageQueryValue(value: string | string[] | undefined): number {
   return parsed;
 }
 
-function parseDateQueryValue(
-  value: string | string[] | undefined,
-): string {
+function parseDateQueryValue(value: string | string[] | undefined): string {
   const extracted = extractQueryValue(value);
   if (!extracted) {
     return "";
@@ -800,12 +803,15 @@ function ManualIngestionPanel(): JSX.Element {
 
   const scopeCopy = {
     label: "Ingestion scope",
-    partialTitle: "Only pages with changes",
-    partialDesc: "Run ingestion only if new content is detected since the last run.",
-    fullTitle: "For any pages",
+    partialTitle: "[Partial] Only pages with changes",
+    partialDesc:
+      "Run ingestion only if new content is detected since the last run.",
+    fullTitle: "[Full] For any pages",
     fullDesc: "Force ingestion even when nothing appears to have changed.",
-    hintPartial: "Best when you update content occasionally and want to skip no-op runs.",
-    hintFull: "Use to refresh embeddings manually; runs even without detected changes.",
+    hintPartial:
+      "Best when you update content occasionally and want to skip no-op runs.",
+    hintFull:
+      "Use to refresh embeddings manually; runs even without detected changes.",
   };
 
   return (
@@ -1109,18 +1115,23 @@ function RecentRunsSection({
   const [pageSize] = useState<number>(initial.pageSize);
   const [totalCount, setTotalCount] = useState<number>(initial.totalCount);
   const [totalPages, setTotalPages] = useState<number>(initial.totalPages);
-  const [statusFilter, setStatusFilter] = useState<RunStatus | typeof ALL_FILTER_VALUE>(ALL_FILTER_VALUE);
-  const [ingestionTypeFilter, setIngestionTypeFilter] =
-    useState<IngestionType | typeof ALL_FILTER_VALUE>(ALL_FILTER_VALUE);
-  const [sourceFilter, setSourceFilter] = useState<string | typeof ALL_FILTER_VALUE>(ALL_FILTER_VALUE);
+  const [statusFilter, setStatusFilter] = useState<
+    RunStatus | typeof ALL_FILTER_VALUE
+  >(ALL_FILTER_VALUE);
+  const [ingestionTypeFilter, setIngestionTypeFilter] = useState<
+    IngestionType | typeof ALL_FILTER_VALUE
+  >(ALL_FILTER_VALUE);
+  const [sourceFilter, setSourceFilter] = useState<
+    string | typeof ALL_FILTER_VALUE
+  >(ALL_FILTER_VALUE);
   const [startedFromFilter, setStartedFromFilter] = useState<string>("");
   const [startedToFilter, setStartedToFilter] = useState<string>("");
   const [statusOptions, setStatusOptions] = useState<RunStatus[]>(() => [
     ...RUN_STATUS_VALUES,
   ]);
-  const [ingestionTypeOptions, setIngestionTypeOptions] = useState<IngestionType[]>(() => [
-    ...INGESTION_TYPE_VALUES,
-  ]);
+  const [ingestionTypeOptions, setIngestionTypeOptions] = useState<
+    IngestionType[]
+  >(() => [...INGESTION_TYPE_VALUES]);
   const [knownSources, setKnownSources] = useState<string[]>(() =>
     collectSources(initial.runs),
   );
@@ -1220,9 +1231,7 @@ function RecentRunsSection({
     const nextStartedFrom = parseDateQueryValue(router.query.startedFrom);
     const nextStartedTo = parseDateQueryValue(router.query.startedTo);
 
-    setStatusFilter((prev) =>
-      prev === nextStatus ? prev : nextStatus,
-    );
+    setStatusFilter((prev) => (prev === nextStatus ? prev : nextStatus));
     setIngestionTypeFilter((prev) =>
       prev === nextIngestionType ? prev : nextIngestionType,
     );
@@ -1350,7 +1359,9 @@ function RecentRunsSection({
 
   const handleStatusChange = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
-      const nextStatus = event.target.value as RunStatus | typeof ALL_FILTER_VALUE;
+      const nextStatus = event.target.value as
+        | RunStatus
+        | typeof ALL_FILTER_VALUE;
       setStatusFilter(nextStatus);
       const nextPage = 1;
       if (page !== nextPage) {
@@ -1377,7 +1388,9 @@ function RecentRunsSection({
 
   const handleIngestionTypeChange = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
-      const nextType = event.target.value as IngestionType | typeof ALL_FILTER_VALUE;
+      const nextType = event.target.value as
+        | IngestionType
+        | typeof ALL_FILTER_VALUE;
       setIngestionTypeFilter(nextType);
       const nextPage = 1;
       if (page !== nextPage) {
@@ -1561,10 +1574,8 @@ function RecentRunsSection({
   }, [handlePageChange, page]);
 
   const totalPagesSafe = Math.max(totalPages, 1);
-  const startIndex =
-    totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
-  const endIndex =
-    totalCount === 0 ? 0 : Math.min(page * pageSize, totalCount);
+  const startIndex = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endIndex = totalCount === 0 ? 0 : Math.min(page * pageSize, totalCount);
   const emptyMessage = hasFiltersApplied
     ? "No runs match the selected filters."
     : "No ingestion runs have been recorded yet.";
@@ -1634,7 +1645,11 @@ function RecentRunsSection({
             <input
               type="date"
               value={startedFromFilter}
-              max={startedToFilter && startedToFilter.length > 0 ? startedToFilter : undefined}
+              max={
+                startedToFilter && startedToFilter.length > 0
+                  ? startedToFilter
+                  : undefined
+              }
               onChange={handleStartedFromChange}
             />
           </label>
@@ -1643,7 +1658,11 @@ function RecentRunsSection({
             <input
               type="date"
               value={startedToFilter}
-              min={startedFromFilter && startedFromFilter.length > 0 ? startedFromFilter : undefined}
+              min={
+                startedFromFilter && startedFromFilter.length > 0
+                  ? startedFromFilter
+                  : undefined
+              }
               onChange={handleStartedToChange}
             />
           </label>
@@ -1693,38 +1712,37 @@ function RecentRunsSection({
               runs.map((run) => {
                 const errorCount = run.error_count ?? 0;
                 const logs = run.error_logs ?? [];
-                const rootPageId = getStringMetadata(run.metadata, "rootPageId");
+                const rootPageId = getStringMetadata(
+                  run.metadata,
+                  "rootPageId",
+                );
                 const urlCount = getNumericMetadata(run.metadata, "urlCount");
                 const pageUrl = getStringMetadata(run.metadata, "pageUrl");
                 const pageId = getStringMetadata(run.metadata, "pageId");
                 const targetUrl = getStringMetadata(run.metadata, "url");
                 const hostname = getStringMetadata(run.metadata, "hostname");
-                const ingestionScope = getStringMetadata(
-                  run.metadata,
-                  "ingestionType",
-                );
-                const scopeLabel =
-                  ingestionScope === "full"
-                    ? "Full"
-                    : ingestionScope === "partial"
-                      ? "Partial"
-                      : null;
+                const isFullySkipped =
+                  run.status === "success" &&
+                  (run.documents_processed ?? 0) > 0 &&
+                  run.documents_processed === run.documents_skipped &&
+                  (run.chunks_added ?? 0) === 0 &&
+                  (run.chunks_updated ?? 0) === 0;
+
+                const displayStatus = isFullySkipped ? "skipped" : run.status;
+                const displayStatusLabel = isFullySkipped
+                  ? "Skipped"
+                  : run.status.replaceAll("_", " ");
 
                 return (
                   <tr key={run.id}>
                     <td>
-                      <div>
-                        <ClientSideDate value={run.started_at} />
-                      </div>
-                      {run.ended_at ? (
-                        <div className="admin-table__meta">
-                          Finished: <ClientSideDate value={run.ended_at} />
-                        </div>
-                      ) : null}
+                      <ClientSideDate value={run.started_at} />
                     </td>
                     <td>
-                      <span className={`status-pill status-pill--${run.status}`}>
-                        {run.status.replaceAll("_", " ")}
+                      <span
+                        className={`status-pill status-pill--${displayStatus}`}
+                      >
+                        {displayStatusLabel}
                       </span>
                       {errorCount > 0 && (
                         <details className="admin-issues">
@@ -1735,7 +1753,9 @@ function RecentRunsSection({
                                 {log.doc_id ? (
                                   <strong>{log.doc_id}: </strong>
                                 ) : null}
-                                {log.context ? <span>{log.context}: </span> : null}
+                                {log.context ? (
+                                  <span>{log.context}: </span>
+                                ) : null}
                                 {log.message}
                               </li>
                             ))}
@@ -1751,37 +1771,47 @@ function RecentRunsSection({
                         {run.ingestion_type === "full" ? "Full" : "Partial"}
                       </span>
                       {run.partial_reason ? (
-                        <div className="admin-table__meta">{run.partial_reason}</div>
+                        <div className="admin-table__meta">
+                          {run.partial_reason}
+                        </div>
                       ) : null}
                     </td>
                     <td>{formatDuration(run.duration_ms ?? 0)}</td>
-                    <td>
+                    <td style={{ whiteSpace: "nowrap" }}>
                       <div>
                         Added: {numberFormatter.format(run.chunks_added ?? 0)}
                       </div>
                       <div>
-                        Updated: {numberFormatter.format(run.chunks_updated ?? 0)}
+                        Updated:{" "}
+                        {numberFormatter.format(run.chunks_updated ?? 0)}
                       </div>
                     </td>
-                    <td>
+                    <td style={{ whiteSpace: "nowrap" }}>
                       <div>
-                        Added: {numberFormatter.format(run.documents_added ?? 0)}
+                        Added:{" "}
+                        {numberFormatter.format(run.documents_added ?? 0)}
                       </div>
                       <div>
-                        Updated: {numberFormatter.format(run.documents_updated ?? 0)}
+                        Updated:{" "}
+                        {numberFormatter.format(run.documents_updated ?? 0)}
                       </div>
                       <div>
-                        Skipped: {numberFormatter.format(run.documents_skipped ?? 0)}
+                        Skipped:{" "}
+                        {numberFormatter.format(run.documents_skipped ?? 0)}
                       </div>
                     </td>
                     <td>{formatCharacters(run.characters_added ?? 0)}</td>
                     <td>{formatCharacters(run.characters_updated ?? 0)}</td>
                     <td>
                       {rootPageId ? (
-                        <div className="admin-table__meta">Root: {rootPageId}</div>
+                        <div className="admin-table__meta">
+                          Root: {rootPageId}
+                        </div>
                       ) : null}
                       {pageId ? (
-                        <div className="admin-table__meta">Page ID: {pageId}</div>
+                        <div className="admin-table__meta">
+                          Page ID: {pageId}
+                        </div>
                       ) : null}
                       {pageUrl ? (
                         <div className="admin-table__meta">
@@ -1800,23 +1830,27 @@ function RecentRunsSection({
                         </div>
                       ) : null}
                       {hostname ? (
-                        <div className="admin-table__meta">Host: {hostname}</div>
+                        <div className="admin-table__meta">
+                          Host: {hostname}
+                        </div>
                       ) : null}
                       {urlCount !== null ? (
                         <div className="admin-table__meta">
                           URLs: {numberFormatter.format(urlCount)}
                         </div>
                       ) : null}
-                      {scopeLabel ? (
-                        <div className="admin-table__meta">Scope: {scopeLabel}</div>
+                      {run.ended_at ? (
+                        <div className="admin-table__meta">
+                          Finished: <ClientSideDate value={run.ended_at} />
+                        </div>
                       ) : null}
                       {!rootPageId &&
                       !pageId &&
                       !pageUrl &&
                       !targetUrl &&
-                      !hostname &&
+                      !hostname && // Check if any meta info exists
                       urlCount === null &&
-                      !scopeLabel ? (
+                      !run.ended_at ? (
                         <div className="admin-table__meta">—</div>
                       ) : null}
                     </td>
@@ -1845,7 +1879,10 @@ function RecentRunsSection({
               type="button"
               onClick={handleNextPage}
               disabled={
-                page >= totalPagesSafe || runs.length === 0 || isLoading || totalCount === 0
+                page >= totalPagesSafe ||
+                runs.length === 0 ||
+                isLoading ||
+                totalCount === 0
               }
               className="recent-runs__page-button"
             >
@@ -1858,10 +1895,7 @@ function RecentRunsSection({
   );
 }
 
-function IngestionDashboard({
-  overview,
-  recentRuns,
-}: PageProps): JSX.Element {
+function IngestionDashboard({ overview, recentRuns }: PageProps): JSX.Element {
   return (
     <>
       <Head>
@@ -1976,7 +2010,8 @@ const styles = css.global`
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    background: var(--bg-color, #f7f6f3);
+    /* Use a slightly darker background for better contrast with dense elements */
+    background: var(--bg-color, #f9f8f6);
     --notion-max-width: 1320px;
   }
 
@@ -2023,13 +2058,14 @@ const styles = css.global`
     width: min(100%, 1320px);
     max-width: 1320px;
     margin: 0 auto;
-    padding: clamp(3.5rem, 6vw, 5rem) clamp(2rem, 4vw, 3.5rem) 5.5rem;
+    /* Reduced overall padding for a denser layout */
+    padding: clamp(2.5rem, 5vw, 4rem) clamp(1.5rem, 3vw, 2.5rem) 4.5rem;
     color: var(--fg-color, rgba(55, 53, 47, 0.95));
     line-height: 1.6;
   }
 
   .admin-hero {
-    margin-bottom: 2.5rem;
+    margin-bottom: 2rem; /* Reduced bottom margin */
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -2070,7 +2106,10 @@ const styles = css.global`
     font-size: 0.95rem;
     text-decoration: none;
     box-shadow: 0 18px 40px -30px rgba(37, 99, 235, 0.9);
-    transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    transition:
+      background 0.18s ease,
+      box-shadow 0.18s ease,
+      transform 0.18s ease;
   }
 
   .admin-hero__cta:hover,
@@ -2083,14 +2122,16 @@ const styles = css.global`
   .admin-stack {
     display: flex;
     flex-direction: column;
-    gap: clamp(1.75rem, 3vw, 2.6rem);
+    /* Reduced gap between stacked cards */
+    gap: clamp(1.5rem, 2.5vw, 2rem);
   }
 
   .admin-card {
     background: rgba(255, 255, 255, 0.97);
     border: 1px solid rgba(55, 53, 47, 0.16);
     border-radius: 18px;
-    padding: 2.1rem 2.3rem;
+    /* Reduced padding inside cards */
+    padding: 1.8rem 2rem;
     box-shadow: 0 26px 60px -36px rgba(15, 15, 15, 0.28);
     backdrop-filter: blur(10px);
   }
@@ -2099,7 +2140,8 @@ const styles = css.global`
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-    margin-bottom: 1.5rem;
+    /* Reduced bottom margin for section headers */
+    margin-bottom: 1.25rem;
   }
 
   .admin-section__header h2 {
@@ -2124,8 +2166,9 @@ const styles = css.global`
   .admin-metric {
     border: 1px solid rgba(55, 53, 47, 0.12);
     border-radius: 14px;
-    padding: 1.1rem 1.2rem;
-    background: rgba(255, 255, 255, 0.94);
+    /* Reduced padding for metric boxes */
+    padding: 1rem 1.1rem;
+    background: rgba(255, 255, 255, 0.96);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -2149,7 +2192,8 @@ const styles = css.global`
     flex-wrap: wrap;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1rem;
+    /* Reduced bottom margin for the toolbar */
+    margin-bottom: 0.8rem;
   }
 
   .recent-runs__filters {
@@ -2173,13 +2217,16 @@ const styles = css.global`
 
   .recent-runs__filter select,
   .recent-runs__filter input {
-    padding: 0.5rem 0.6rem;
+    /* Reduced padding for filter controls */
+    padding: 0.4rem 0.6rem;
     border-radius: 8px;
     border: 1px solid rgba(55, 53, 47, 0.18);
     font-size: 0.9rem;
-    background: rgba(255, 255, 255, 0.98);
+    background: #fff;
     color: rgba(55, 53, 47, 0.9);
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
 
   .recent-runs__filter select:focus,
@@ -2195,14 +2242,17 @@ const styles = css.global`
   }
 
   .recent-runs__reset {
-    padding: 0.55rem 0.9rem;
+    /* Reduced padding for reset button */
+    padding: 0.45rem 0.9rem;
     border-radius: 8px;
     border: 1px solid rgba(55, 53, 47, 0.18);
     background: rgba(55, 53, 47, 0.05);
     color: rgba(55, 53, 47, 0.75);
     font-size: 0.9rem;
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease,
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease,
       color 0.15s ease;
   }
 
@@ -2254,7 +2304,8 @@ const styles = css.global`
   .admin-table__grid thead th {
     background: rgba(55, 53, 47, 0.06);
     text-align: left;
-    padding: 0.9rem 1.1rem;
+    /* Further reduced padding for a denser table header */
+    padding: 0.5rem 1rem;
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -2262,10 +2313,12 @@ const styles = css.global`
   }
 
   .admin-table__grid tbody td {
-    padding: 1rem 1.1rem;
+    /* Further reduced padding and line-height for denser table cells */
+    padding: 0.5rem 1rem;
     border-top: 1px solid rgba(55, 53, 47, 0.08);
     vertical-align: top;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    line-height: 1.4;
     color: rgba(55, 53, 47, 0.85);
   }
 
@@ -2273,6 +2326,7 @@ const styles = css.global`
     border-top: none;
   }
 
+  /* Add a subtle hover effect */
   .admin-table__grid tbody tr:hover {
     background: rgba(46, 170, 220, 0.08);
   }
@@ -2285,8 +2339,9 @@ const styles = css.global`
   }
 
   .admin-table__meta {
-    margin-top: 0.35rem;
-    font-size: 0.85rem;
+    /* Further reduced margin for meta text in cells */
+    margin-top: 0.2rem;
+    font-size: 0.82rem;
     color: rgba(55, 53, 47, 0.55);
   }
 
@@ -2301,20 +2356,24 @@ const styles = css.global`
   }
 
   .admin-issues {
-    margin-top: 0.6rem;
+    /* Reduced top margin for issue details */
+    margin-top: 0.3rem;
   }
 
   .admin-issues summary {
     cursor: pointer;
     color: rgba(46, 170, 220, 0.85);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
 
   .admin-issues ul {
-    margin: 0.45rem 0 0;
+    margin: 0.4rem 0 0;
     padding-left: 1.25rem;
     color: rgba(55, 53, 47, 0.7);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
   }
 
   .status-pill {
@@ -2322,7 +2381,7 @@ const styles = css.global`
     align-items: center;
     gap: 0.35rem;
     padding: 0.35rem 0.85rem;
-    border-radius: 999px;
+    border-radius: 16px;
     font-size: 0.85rem;
     font-weight: 600;
     text-transform: capitalize;
@@ -2348,10 +2407,16 @@ const styles = css.global`
     color: rgba(30, 64, 175, 0.95);
   }
 
+  .status-pill--skipped {
+    background: rgba(55, 53, 47, 0.1);
+    color: rgba(55, 53, 47, 0.7);
+    text-transform: none;
+  }
+
   .badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.3rem 0.8rem;
+    padding: 0.25rem 0.7rem;
     border-radius: 999px;
     background: rgba(55, 53, 47, 0.08);
     font-size: 0.8rem;
@@ -2365,7 +2430,8 @@ const styles = css.global`
     justify-content: space-between;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.9rem 1.1rem;
+    /* Reduced padding in table footer */
+    padding: 0.7rem 1rem;
     border-top: 1px solid rgba(55, 53, 47, 0.08);
   }
 
@@ -2381,14 +2447,17 @@ const styles = css.global`
   }
 
   .recent-runs__page-button {
-    padding: 0.45rem 0.85rem;
+    /* Reduced padding for pagination buttons */
+    padding: 0.4rem 0.8rem;
     border-radius: 8px;
     border: 1px solid rgba(55, 53, 47, 0.18);
     background: rgba(255, 255, 255, 0.92);
     font-size: 0.88rem;
     color: rgba(55, 53, 47, 0.78);
     cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease,
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease,
       color 0.15s ease;
   }
 
