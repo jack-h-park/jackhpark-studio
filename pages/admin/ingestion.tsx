@@ -10,11 +10,13 @@ import { useRouter } from "next/router";
 import { type ExtendedRecordMap, type PageBlock } from "notion-types";
 import { parsePageId } from "notion-utils";
 import {
+  type ChangeEvent,
   type ComponentType,
   type FormEvent,
   type JSX,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -23,33 +25,16 @@ import css from "styled-jsx/css";
 
 import { Footer } from "../../components/Footer";
 import { NotionPageHeader } from "../../components/NotionPageHeader";
+import {
+  DEFAULT_RUNS_PAGE_SIZE,
+  INGESTION_TYPE_VALUES,
+  type IngestionType,
+  normalizeRunRecord,
+  RUN_STATUS_VALUES,
+  type RunRecord,
+  type RunStatus,
+} from "../../lib/admin/ingestion-runs";
 import { getSupabaseAdminClient } from "../../lib/supabase-admin";
-
-type RunRecord = {
-  id: string;
-  source: string;
-  ingestion_type: "full" | "partial";
-  partial_reason: string | null;
-  status: "in_progress" | "success" | "completed_with_errors" | "failed";
-  started_at: string;
-  ended_at: string | null;
-  duration_ms: number | null;
-  documents_processed: number | null;
-  documents_added: number | null;
-  documents_updated: number | null;
-  documents_skipped: number | null;
-  chunks_added: number | null;
-  chunks_updated: number | null;
-  characters_added: number | null;
-  characters_updated: number | null;
-  error_count: number | null;
-  error_logs: Array<{
-    context?: string | null;
-    doc_id?: string | null;
-    message: string;
-  }> | null;
-  metadata: Record<string, unknown> | null;
-};
 
 type Overview = {
   totalDocuments: number;
@@ -58,9 +43,17 @@ type Overview = {
   lastUpdatedAt: string | null;
 };
 
+type RecentRunsSnapshot = {
+  runs: RunRecord[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+};
+
 type PageProps = {
   overview: Overview;
-  runs: RunRecord[];
+  recentRuns: RecentRunsSnapshot;
 };
 
 type ManualRunStats = {
@@ -192,6 +185,133 @@ const logTimeFormatter = new Intl.DateTimeFormat("en-US", {
   hour12: false,
 });
 
+const ALL_FILTER_VALUE = "all";
+
+const STATUS_LABELS: Record<RunStatus, string> = {
+  in_progress: "In Progress",
+  success: "Success",
+  completed_with_errors: "Completed with Errors",
+  failed: "Failed",
+};
+
+const INGESTION_TYPE_LABELS: Record<IngestionType, string> = {
+  full: "Full",
+  partial: "Partial",
+};
+
+type RunsApiResponse = {
+  runs: RunRecord[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  statusOptions: RunStatus[];
+  ingestionTypeOptions: IngestionType[];
+};
+
+function getStatusLabel(status: RunStatus): string {
+  return STATUS_LABELS[status] ?? status;
+}
+
+function getIngestionTypeLabel(type: IngestionType): string {
+  return INGESTION_TYPE_LABELS[type] ?? type;
+}
+
+function extractQueryValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) {
+    return value.find((entry) => typeof entry === "string" && entry.length > 0) ?? null;
+  }
+  if (typeof value === "string" && value.length > 0) {
+    return value;
+  }
+  return null;
+}
+
+function parseStatusQueryValue(
+  value: string | string[] | undefined,
+): RunStatus | typeof ALL_FILTER_VALUE {
+  const extracted = extractQueryValue(value);
+  if (extracted && RUN_STATUS_VALUES.includes(extracted as RunStatus)) {
+    return extracted as RunStatus;
+  }
+  return ALL_FILTER_VALUE;
+}
+
+function parseIngestionTypeQueryValue(
+  value: string | string[] | undefined,
+): IngestionType | typeof ALL_FILTER_VALUE {
+  const extracted = extractQueryValue(value);
+  if (extracted && INGESTION_TYPE_VALUES.includes(extracted as IngestionType)) {
+    return extracted as IngestionType;
+  }
+  return ALL_FILTER_VALUE;
+}
+
+function parseSourceQueryValue(
+  value: string | string[] | undefined,
+): string | typeof ALL_FILTER_VALUE {
+  const extracted = extractQueryValue(value);
+  if (!extracted) {
+    return ALL_FILTER_VALUE;
+  }
+  return extracted;
+}
+
+function parsePageQueryValue(value: string | string[] | undefined): number {
+  const extracted = extractQueryValue(value);
+  if (!extracted) {
+    return 1;
+  }
+  const parsed = Number.parseInt(extracted, 10);
+  if (Number.isNaN(parsed) || parsed < 1) {
+    return 1;
+  }
+  return parsed;
+}
+
+function parseDateQueryValue(
+  value: string | string[] | undefined,
+): string {
+  const extracted = extractQueryValue(value);
+  if (!extracted) {
+    return "";
+  }
+
+  const parsed = new Date(extracted);
+  if (Number.isNaN(parsed.getTime())) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(extracted)) {
+      return extracted;
+    }
+    return "";
+  }
+
+  return parsed.toISOString().slice(0, 10);
+}
+
+function collectSources(runs: RunRecord[]): string[] {
+  const sourceSet = new Set<string>();
+  for (const run of runs) {
+    if (typeof run.source === "string" && run.source.length > 0) {
+      sourceSet.add(run.source);
+    }
+  }
+  return Array.from(sourceSet).toSorted((a, b) => a.localeCompare(b));
+}
+
+function mergeSources(existing: string[], runs: RunRecord[]): string[] {
+  if (runs.length === 0) {
+    return existing;
+  }
+
+  const sourceSet = new Set(existing);
+  for (const run of runs) {
+    if (typeof run.source === "string" && run.source.length > 0) {
+      sourceSet.add(run.source);
+    }
+  }
+  return Array.from(sourceSet).toSorted((a, b) => a.localeCompare(b));
+}
+
 function createLogEntry(
   message: string,
   level: "info" | "warn" | "error",
@@ -253,63 +373,6 @@ function formatCharacters(characters: number | null | undefined): string {
   })`;
 }
 
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function toNullableNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function toNumberOrZero(value: unknown): number {
-  return toNullableNumber(value) ?? 0;
-}
-
-function toStringOrNull(value: unknown): string | null {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-  return null;
-}
-
-function toStatus(value: unknown): RunRecord["status"] {
-  if (
-    value === "in_progress" ||
-    value === "completed_with_errors" ||
-    value === "failed"
-  ) {
-    return value;
-  }
-
-  return "success";
-}
-
-function toIngestionType(value: unknown): RunRecord["ingestion_type"] {
-  return value === "partial" ? "partial" : "full";
-}
-
-function toIsoStringOrNull(value: unknown): string | null {
-  if (typeof value === "string" && value.length > 0) {
-    return value;
-  }
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (typeof value === "number") {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date.toISOString();
-  }
-  return null;
-}
-
 function parseDate(value: unknown): Date | null {
   if (value instanceof Date) {
     return Number.isNaN(value.getTime()) ? null : value;
@@ -320,81 +383,6 @@ function parseDate(value: unknown): Date | null {
   }
 
   return null;
-}
-
-function normalizeErrorLogs(value: unknown): RunRecord["error_logs"] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value
-    .map((entry) => {
-      if (!isPlainRecord(entry)) {
-        return null;
-      }
-
-      const message = entry.message;
-      if (typeof message !== "string" || message.length === 0) {
-        return null;
-      }
-
-      const context = entry.context;
-      const docId = entry.doc_id;
-
-      return {
-        message,
-        context: typeof context === "string" ? context : null,
-        doc_id: typeof docId === "string" ? docId : null,
-      };
-    })
-    .filter(
-      (
-        entry,
-      ): entry is {
-        message: string;
-        context: string | null;
-        doc_id: string | null;
-      } => entry !== null,
-    );
-}
-
-function normalizeRunRecord(raw: unknown): RunRecord {
-  const record: Record<string, unknown> = isPlainRecord(raw) ? raw : {};
-
-  const metadata = isPlainRecord(record.metadata)
-    ? (record.metadata as Record<string, unknown>)
-    : null;
-
-  const idValue = record.id;
-  const startedAtValue = record.started_at;
-  const endedAtValue = record.ended_at;
-
-  return {
-    id:
-      typeof idValue === "string"
-        ? idValue
-        : idValue !== undefined && idValue !== null
-          ? String(idValue)
-          : "",
-    source: typeof record.source === "string" ? record.source : "unknown",
-    ingestion_type: toIngestionType(record.ingestion_type),
-    partial_reason: toStringOrNull(record.partial_reason),
-    status: toStatus(record.status),
-    started_at: toIsoStringOrNull(startedAtValue) ?? new Date(0).toISOString(),
-    ended_at: toIsoStringOrNull(endedAtValue),
-    duration_ms: toNullableNumber(record.duration_ms),
-    documents_processed: toNumberOrZero(record.documents_processed),
-    documents_added: toNumberOrZero(record.documents_added),
-    documents_updated: toNumberOrZero(record.documents_updated),
-    documents_skipped: toNumberOrZero(record.documents_skipped),
-    chunks_added: toNumberOrZero(record.chunks_added),
-    chunks_updated: toNumberOrZero(record.chunks_updated),
-    characters_added: toNumberOrZero(record.characters_added),
-    characters_updated: toNumberOrZero(record.characters_updated),
-    error_count: toNumberOrZero(record.error_count),
-    error_logs: normalizeErrorLogs(record.error_logs),
-    metadata,
-  };
 }
 
 function getStringMetadata(
@@ -1110,7 +1098,770 @@ function ManualIngestionPanel(): JSX.Element {
   );
 }
 
-function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
+function RecentRunsSection({
+  initial,
+}: {
+  initial: RecentRunsSnapshot;
+}): JSX.Element {
+  const router = useRouter();
+  const [runs, setRuns] = useState<RunRecord[]>(initial.runs);
+  const [page, setPage] = useState<number>(initial.page);
+  const [pageSize] = useState<number>(initial.pageSize);
+  const [totalCount, setTotalCount] = useState<number>(initial.totalCount);
+  const [totalPages, setTotalPages] = useState<number>(initial.totalPages);
+  const [statusFilter, setStatusFilter] = useState<RunStatus | typeof ALL_FILTER_VALUE>(ALL_FILTER_VALUE);
+  const [ingestionTypeFilter, setIngestionTypeFilter] =
+    useState<IngestionType | typeof ALL_FILTER_VALUE>(ALL_FILTER_VALUE);
+  const [sourceFilter, setSourceFilter] = useState<string | typeof ALL_FILTER_VALUE>(ALL_FILTER_VALUE);
+  const [startedFromFilter, setStartedFromFilter] = useState<string>("");
+  const [startedToFilter, setStartedToFilter] = useState<string>("");
+  const [statusOptions, setStatusOptions] = useState<RunStatus[]>(() => [
+    ...RUN_STATUS_VALUES,
+  ]);
+  const [ingestionTypeOptions, setIngestionTypeOptions] = useState<IngestionType[]>(() => [
+    ...INGESTION_TYPE_VALUES,
+  ]);
+  const [knownSources, setKnownSources] = useState<string[]>(() =>
+    collectSources(initial.runs),
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const firstLoadRef = useRef(true);
+
+  const hasFiltersApplied =
+    statusFilter !== ALL_FILTER_VALUE ||
+    ingestionTypeFilter !== ALL_FILTER_VALUE ||
+    sourceFilter !== ALL_FILTER_VALUE ||
+    startedFromFilter !== "" ||
+    startedToFilter !== "";
+
+  const sourceOptions = useMemo(() => {
+    if (sourceFilter === ALL_FILTER_VALUE) {
+      return knownSources;
+    }
+    if (knownSources.includes(sourceFilter)) {
+      return knownSources;
+    }
+    return [...knownSources, sourceFilter].toSorted((a, b) =>
+      a.localeCompare(b),
+    );
+  }, [knownSources, sourceFilter]);
+
+  const updateQuery = useCallback(
+    (next: {
+      page: number;
+      status: RunStatus | typeof ALL_FILTER_VALUE;
+      ingestionType: IngestionType | typeof ALL_FILTER_VALUE;
+      source: string | typeof ALL_FILTER_VALUE;
+      startedFrom: string;
+      startedTo: string;
+    }) => {
+      if (!router.isReady) {
+        return;
+      }
+
+      const preserved: Record<string, string> = {};
+      for (const [key, value] of Object.entries(router.query)) {
+        if (
+          key === "page" ||
+          key === "status" ||
+          key === "ingestionType" ||
+          key === "source" ||
+          key === "startedFrom" ||
+          key === "startedTo"
+        ) {
+          continue;
+        }
+        const first = Array.isArray(value) ? value[0] : value;
+        if (typeof first === "string") {
+          preserved[key] = first;
+        }
+      }
+
+      if (next.page > 1) {
+        preserved.page = String(next.page);
+      }
+      if (next.status !== ALL_FILTER_VALUE) {
+        preserved.status = next.status;
+      }
+      if (next.ingestionType !== ALL_FILTER_VALUE) {
+        preserved.ingestionType = next.ingestionType;
+      }
+      if (next.source !== ALL_FILTER_VALUE && next.source.trim().length > 0) {
+        preserved.source = next.source.trim();
+      }
+      if (next.startedFrom) {
+        preserved.startedFrom = next.startedFrom;
+      }
+      if (next.startedTo) {
+        preserved.startedTo = next.startedTo;
+      }
+
+      void router.replace(
+        { pathname: router.pathname, query: preserved },
+        undefined,
+        { shallow: true, scroll: false },
+      );
+    },
+    [router],
+  );
+
+  useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
+
+    const nextStatus = parseStatusQueryValue(router.query.status);
+    const nextIngestionType = parseIngestionTypeQueryValue(
+      router.query.ingestionType,
+    );
+    const nextSource = parseSourceQueryValue(router.query.source);
+    const nextPage = parsePageQueryValue(router.query.page);
+    const nextStartedFrom = parseDateQueryValue(router.query.startedFrom);
+    const nextStartedTo = parseDateQueryValue(router.query.startedTo);
+
+    setStatusFilter((prev) =>
+      prev === nextStatus ? prev : nextStatus,
+    );
+    setIngestionTypeFilter((prev) =>
+      prev === nextIngestionType ? prev : nextIngestionType,
+    );
+    setSourceFilter((prev) => (prev === nextSource ? prev : nextSource));
+    setPage((prev) => (prev === nextPage ? prev : nextPage));
+    setStartedFromFilter((prev) =>
+      prev === nextStartedFrom ? prev : nextStartedFrom,
+    );
+    setStartedToFilter((prev) =>
+      prev === nextStartedTo ? prev : nextStartedTo,
+    );
+  }, [router.isReady, router.query]);
+
+  useEffect(() => {
+    if (!router.isReady) {
+      return;
+    }
+
+    const isDefaultState =
+      page === initial.page &&
+      statusFilter === ALL_FILTER_VALUE &&
+      ingestionTypeFilter === ALL_FILTER_VALUE &&
+      sourceFilter === ALL_FILTER_VALUE &&
+      startedFromFilter === "" &&
+      startedToFilter === "";
+
+    if (firstLoadRef.current && isDefaultState) {
+      firstLoadRef.current = false;
+      return;
+    }
+
+    firstLoadRef.current = false;
+
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("pageSize", String(pageSize));
+    if (statusFilter !== ALL_FILTER_VALUE) {
+      params.append("status", statusFilter);
+    }
+    if (ingestionTypeFilter !== ALL_FILTER_VALUE) {
+      params.append("ingestionType", ingestionTypeFilter);
+    }
+    if (sourceFilter !== ALL_FILTER_VALUE && sourceFilter.trim().length > 0) {
+      params.append("source", sourceFilter.trim());
+    }
+    if (startedFromFilter) {
+      params.set("startedFrom", startedFromFilter);
+    }
+    if (startedToFilter) {
+      params.set("startedTo", startedToFilter);
+    }
+
+    const controller = new AbortController();
+    let cancelled = false;
+    setIsLoading(true);
+    setError(null);
+
+    const fetchRuns = async () => {
+      try {
+        const response = await fetch(
+          `/api/admin/ingestion-runs?${params.toString()}`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) {
+          const message = await response.text();
+          throw new Error(message || "Failed to fetch runs.");
+        }
+        const payload = (await response.json()) as RunsApiResponse;
+        if (cancelled) {
+          return;
+        }
+        if (payload.totalPages > 0 && page > payload.totalPages) {
+          const nextPage = Math.max(1, payload.totalPages);
+          setPage(nextPage);
+          updateQuery({
+            page: nextPage,
+            status: statusFilter,
+            ingestionType: ingestionTypeFilter,
+            source: sourceFilter,
+            startedFrom: startedFromFilter,
+            startedTo: startedToFilter,
+          });
+          return;
+        }
+        setRuns(payload.runs);
+        setTotalCount(payload.totalCount);
+        setTotalPages(payload.totalPages);
+        setStatusOptions(payload.statusOptions);
+        setIngestionTypeOptions(payload.ingestionTypeOptions);
+        setKnownSources((current) => mergeSources(current, payload.runs));
+      } catch (err) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Unexpected error fetching runs.";
+        setError(message);
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    void fetchRuns();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [
+    router.isReady,
+    page,
+    pageSize,
+    statusFilter,
+    ingestionTypeFilter,
+    sourceFilter,
+    startedFromFilter,
+    startedToFilter,
+    initial.page,
+    updateQuery,
+  ]);
+
+  const handleStatusChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const nextStatus = event.target.value as RunStatus | typeof ALL_FILTER_VALUE;
+      setStatusFilter(nextStatus);
+      const nextPage = 1;
+      if (page !== nextPage) {
+        setPage(nextPage);
+      }
+      updateQuery({
+        page: nextPage,
+        status: nextStatus,
+        ingestionType: ingestionTypeFilter,
+        source: sourceFilter,
+        startedFrom: startedFromFilter,
+        startedTo: startedToFilter,
+      });
+    },
+    [
+      ingestionTypeFilter,
+      page,
+      sourceFilter,
+      startedFromFilter,
+      startedToFilter,
+      updateQuery,
+    ],
+  );
+
+  const handleIngestionTypeChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const nextType = event.target.value as IngestionType | typeof ALL_FILTER_VALUE;
+      setIngestionTypeFilter(nextType);
+      const nextPage = 1;
+      if (page !== nextPage) {
+        setPage(nextPage);
+      }
+      updateQuery({
+        page: nextPage,
+        status: statusFilter,
+        ingestionType: nextType,
+        source: sourceFilter,
+        startedFrom: startedFromFilter,
+        startedTo: startedToFilter,
+      });
+    },
+    [
+      page,
+      sourceFilter,
+      startedFromFilter,
+      startedToFilter,
+      statusFilter,
+      updateQuery,
+    ],
+  );
+
+  const handleSourceChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const rawValue = event.target.value;
+      const nextSource =
+        rawValue === ALL_FILTER_VALUE ? ALL_FILTER_VALUE : rawValue;
+      setSourceFilter(nextSource);
+      const nextPage = 1;
+      if (page !== nextPage) {
+        setPage(nextPage);
+      }
+      updateQuery({
+        page: nextPage,
+        status: statusFilter,
+        ingestionType: ingestionTypeFilter,
+        source: nextSource,
+        startedFrom: startedFromFilter,
+        startedTo: startedToFilter,
+      });
+    },
+    [
+      ingestionTypeFilter,
+      page,
+      startedFromFilter,
+      startedToFilter,
+      statusFilter,
+      updateQuery,
+    ],
+  );
+
+  const handleStartedFromChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setStartedFromFilter(value);
+      const nextPage = 1;
+      if (page !== nextPage) {
+        setPage(nextPage);
+      }
+      updateQuery({
+        page: nextPage,
+        status: statusFilter,
+        ingestionType: ingestionTypeFilter,
+        source: sourceFilter,
+        startedFrom: value,
+        startedTo: startedToFilter,
+      });
+    },
+    [
+      ingestionTypeFilter,
+      page,
+      sourceFilter,
+      startedToFilter,
+      statusFilter,
+      updateQuery,
+    ],
+  );
+
+  const handleStartedToChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setStartedToFilter(value);
+      const nextPage = 1;
+      if (page !== nextPage) {
+        setPage(nextPage);
+      }
+      updateQuery({
+        page: nextPage,
+        status: statusFilter,
+        ingestionType: ingestionTypeFilter,
+        source: sourceFilter,
+        startedFrom: startedFromFilter,
+        startedTo: value,
+      });
+    },
+    [
+      ingestionTypeFilter,
+      page,
+      sourceFilter,
+      startedFromFilter,
+      statusFilter,
+      updateQuery,
+    ],
+  );
+
+  const handleResetFilters = useCallback(() => {
+    const filtersActive =
+      statusFilter !== ALL_FILTER_VALUE ||
+      ingestionTypeFilter !== ALL_FILTER_VALUE ||
+      sourceFilter !== ALL_FILTER_VALUE ||
+      startedFromFilter !== "" ||
+      startedToFilter !== "";
+
+    if (!filtersActive && page === 1) {
+      return;
+    }
+
+    setStatusFilter(ALL_FILTER_VALUE);
+    setIngestionTypeFilter(ALL_FILTER_VALUE);
+    setSourceFilter(ALL_FILTER_VALUE);
+    setStartedFromFilter("");
+    setStartedToFilter("");
+    if (page !== 1) {
+      setPage(1);
+    }
+    updateQuery({
+      page: 1,
+      status: ALL_FILTER_VALUE,
+      ingestionType: ALL_FILTER_VALUE,
+      source: ALL_FILTER_VALUE,
+      startedFrom: "",
+      startedTo: "",
+    });
+  }, [
+    ingestionTypeFilter,
+    page,
+    sourceFilter,
+    startedFromFilter,
+    startedToFilter,
+    statusFilter,
+    updateQuery,
+  ]);
+
+  const handlePageChange = useCallback(
+    (nextPage: number) => {
+      const maxPages = Math.max(totalPages, 1);
+      const clamped = Math.max(1, Math.min(nextPage, maxPages));
+      if (clamped === page) {
+        return;
+      }
+      setPage(clamped);
+      updateQuery({
+        page: clamped,
+        status: statusFilter,
+        ingestionType: ingestionTypeFilter,
+        source: sourceFilter,
+        startedFrom: startedFromFilter,
+        startedTo: startedToFilter,
+      });
+    },
+    [
+      ingestionTypeFilter,
+      page,
+      sourceFilter,
+      startedFromFilter,
+      startedToFilter,
+      statusFilter,
+      totalPages,
+      updateQuery,
+    ],
+  );
+
+  const handlePreviousPage = useCallback(() => {
+    handlePageChange(page - 1);
+  }, [handlePageChange, page]);
+
+  const handleNextPage = useCallback(() => {
+    handlePageChange(page + 1);
+  }, [handlePageChange, page]);
+
+  const totalPagesSafe = Math.max(totalPages, 1);
+  const startIndex =
+    totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endIndex =
+    totalCount === 0 ? 0 : Math.min(page * pageSize, totalCount);
+  const emptyMessage = hasFiltersApplied
+    ? "No runs match the selected filters."
+    : "No ingestion runs have been recorded yet.";
+  const canReset = hasFiltersApplied || page > 1;
+  const summaryText =
+    totalCount === 0
+      ? "No runs to display yet."
+      : `Showing ${numberFormatter.format(startIndex)}-${numberFormatter.format(endIndex)} of ${numberFormatter.format(totalCount)} run${totalCount === 1 ? "" : "s"}.`;
+
+  return (
+    <section className="admin-card admin-section">
+      <header className="admin-section__header">
+        <h2>Recent Runs</h2>
+        <p className="admin-section__description">
+          Latest ingestion activity from manual and scheduled jobs.
+        </p>
+      </header>
+      <div className="recent-runs__toolbar">
+        <div className="recent-runs__filters">
+          <label className="recent-runs__filter">
+            <span>Status</span>
+            <select
+              value={statusFilter}
+              onChange={handleStatusChange}
+              aria-label="Filter runs by status"
+            >
+              <option value={ALL_FILTER_VALUE}>All statuses</option>
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {getStatusLabel(status)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="recent-runs__filter">
+            <span>Type</span>
+            <select
+              value={ingestionTypeFilter}
+              onChange={handleIngestionTypeChange}
+              aria-label="Filter runs by ingestion type"
+            >
+              <option value={ALL_FILTER_VALUE}>All types</option>
+              {ingestionTypeOptions.map((type) => (
+                <option key={type} value={type}>
+                  {getIngestionTypeLabel(type)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="recent-runs__filter">
+            <span>Source</span>
+            <select
+              value={sourceFilter}
+              onChange={handleSourceChange}
+              aria-label="Filter runs by source"
+            >
+              <option value={ALL_FILTER_VALUE}>All sources</option>
+              {sourceOptions.map((source) => (
+                <option key={source} value={source}>
+                  {source}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="recent-runs__filter">
+            <span>Started After</span>
+            <input
+              type="date"
+              value={startedFromFilter}
+              max={startedToFilter && startedToFilter.length > 0 ? startedToFilter : undefined}
+              onChange={handleStartedFromChange}
+            />
+          </label>
+          <label className="recent-runs__filter">
+            <span>Started Before</span>
+            <input
+              type="date"
+              value={startedToFilter}
+              min={startedFromFilter && startedFromFilter.length > 0 ? startedFromFilter : undefined}
+              onChange={handleStartedToChange}
+            />
+          </label>
+        </div>
+        <div className="recent-runs__actions">
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            disabled={!canReset}
+            className="recent-runs__reset"
+          >
+            Reset view
+          </button>
+        </div>
+      </div>
+      {error ? (
+        <div className="admin-table__error" role="alert">
+          {error}
+        </div>
+      ) : null}
+      <div
+        className={`admin-table${isLoading ? " admin-table--loading" : ""}`}
+        aria-busy={isLoading}
+      >
+        <table className="admin-table__grid">
+          <thead>
+            <tr>
+              <th>Started</th>
+              <th>Status</th>
+              <th>Type</th>
+              <th>Duration</th>
+              <th>Chunks</th>
+              <th>Docs</th>
+              <th>Data Added</th>
+              <th>Data Updated</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.length === 0 ? (
+              <tr>
+                <td colSpan={9} className="admin-table__empty">
+                  {emptyMessage}
+                </td>
+              </tr>
+            ) : (
+              runs.map((run) => {
+                const errorCount = run.error_count ?? 0;
+                const logs = run.error_logs ?? [];
+                const rootPageId = getStringMetadata(run.metadata, "rootPageId");
+                const urlCount = getNumericMetadata(run.metadata, "urlCount");
+                const pageUrl = getStringMetadata(run.metadata, "pageUrl");
+                const pageId = getStringMetadata(run.metadata, "pageId");
+                const targetUrl = getStringMetadata(run.metadata, "url");
+                const hostname = getStringMetadata(run.metadata, "hostname");
+                const ingestionScope = getStringMetadata(
+                  run.metadata,
+                  "ingestionType",
+                );
+                const scopeLabel =
+                  ingestionScope === "full"
+                    ? "Full"
+                    : ingestionScope === "partial"
+                      ? "Partial"
+                      : null;
+
+                return (
+                  <tr key={run.id}>
+                    <td>
+                      <div>
+                        <ClientSideDate value={run.started_at} />
+                      </div>
+                      {run.ended_at ? (
+                        <div className="admin-table__meta">
+                          Finished: <ClientSideDate value={run.ended_at} />
+                        </div>
+                      ) : null}
+                    </td>
+                    <td>
+                      <span className={`status-pill status-pill--${run.status}`}>
+                        {run.status.replaceAll("_", " ")}
+                      </span>
+                      {errorCount > 0 && (
+                        <details className="admin-issues">
+                          <summary>{errorCount} issue(s)</summary>
+                          <ul>
+                            {logs.slice(0, 5).map((log, index) => (
+                              <li key={index}>
+                                {log.doc_id ? (
+                                  <strong>{log.doc_id}: </strong>
+                                ) : null}
+                                {log.context ? <span>{log.context}: </span> : null}
+                                {log.message}
+                              </li>
+                            ))}
+                            {logs.length > 5 ? (
+                              <li>{`${logs.length - 5} more`}</li>
+                            ) : null}
+                          </ul>
+                        </details>
+                      )}
+                    </td>
+                    <td>
+                      <span className="badge">
+                        {run.ingestion_type === "full" ? "Full" : "Partial"}
+                      </span>
+                      {run.partial_reason ? (
+                        <div className="admin-table__meta">{run.partial_reason}</div>
+                      ) : null}
+                    </td>
+                    <td>{formatDuration(run.duration_ms ?? 0)}</td>
+                    <td>
+                      <div>
+                        Added: {numberFormatter.format(run.chunks_added ?? 0)}
+                      </div>
+                      <div>
+                        Updated: {numberFormatter.format(run.chunks_updated ?? 0)}
+                      </div>
+                    </td>
+                    <td>
+                      <div>
+                        Added: {numberFormatter.format(run.documents_added ?? 0)}
+                      </div>
+                      <div>
+                        Updated: {numberFormatter.format(run.documents_updated ?? 0)}
+                      </div>
+                      <div>
+                        Skipped: {numberFormatter.format(run.documents_skipped ?? 0)}
+                      </div>
+                    </td>
+                    <td>{formatCharacters(run.characters_added ?? 0)}</td>
+                    <td>{formatCharacters(run.characters_updated ?? 0)}</td>
+                    <td>
+                      {rootPageId ? (
+                        <div className="admin-table__meta">Root: {rootPageId}</div>
+                      ) : null}
+                      {pageId ? (
+                        <div className="admin-table__meta">Page ID: {pageId}</div>
+                      ) : null}
+                      {pageUrl ? (
+                        <div className="admin-table__meta">
+                          Page:{" "}
+                          <a href={pageUrl} target="_blank" rel="noreferrer">
+                            {pageUrl}
+                          </a>
+                        </div>
+                      ) : null}
+                      {targetUrl ? (
+                        <div className="admin-table__meta">
+                          URL:{" "}
+                          <a href={targetUrl} target="_blank" rel="noreferrer">
+                            {targetUrl}
+                          </a>
+                        </div>
+                      ) : null}
+                      {hostname ? (
+                        <div className="admin-table__meta">Host: {hostname}</div>
+                      ) : null}
+                      {urlCount !== null ? (
+                        <div className="admin-table__meta">
+                          URLs: {numberFormatter.format(urlCount)}
+                        </div>
+                      ) : null}
+                      {scopeLabel ? (
+                        <div className="admin-table__meta">Scope: {scopeLabel}</div>
+                      ) : null}
+                      {!rootPageId &&
+                      !pageId &&
+                      !pageUrl &&
+                      !targetUrl &&
+                      !hostname &&
+                      urlCount === null &&
+                      !scopeLabel ? (
+                        <div className="admin-table__meta">—</div>
+                      ) : null}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+        <div className="recent-runs__footer">
+          <div className="recent-runs__summary">{summaryText}</div>
+          <div className="recent-runs__pagination">
+            <button
+              type="button"
+              onClick={handlePreviousPage}
+              disabled={page <= 1 || isLoading || totalCount === 0}
+              className="recent-runs__page-button"
+            >
+              Previous
+            </button>
+            <span className="recent-runs__page-indicator">
+              Page {numberFormatter.format(page)} of{" "}
+              {numberFormatter.format(totalPagesSafe)}
+            </span>
+            <button
+              type="button"
+              onClick={handleNextPage}
+              disabled={
+                page >= totalPagesSafe || runs.length === 0 || isLoading || totalCount === 0
+              }
+              className="recent-runs__page-button"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function IngestionDashboard({
+  overview,
+  recentRuns,
+}: PageProps): JSX.Element {
   return (
     <>
       <Head>
@@ -1189,234 +1940,7 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
               </div>
             </section>
 
-            <section className="admin-card admin-section">
-              <header className="admin-section__header">
-                <h2>Recent Runs</h2>
-                <p className="admin-section__description">
-                  Latest ingestion activity from manual and scheduled jobs.
-                </p>
-              </header>
-              <div className="admin-table">
-                <table className="admin-table__grid">
-                  <thead>
-                    <tr>
-                      <th>Started</th>
-                      <th>Status</th>
-                      <th>Type</th>
-                      <th>Duration</th>
-                      <th>Chunks</th>
-                      <th>Docs</th>
-                      <th>Data Added</th>
-                      <th>Data Updated</th>
-                      <th>Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {runs.length === 0 ? (
-                      <tr>
-                        <td colSpan={9} className="admin-table__empty">
-                          No ingestion runs have been recorded yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      runs.map((run) => {
-                        const errorCount = run.error_count ?? 0;
-                        const logs = run.error_logs ?? [];
-                        const rootPageId = getStringMetadata(
-                          run.metadata,
-                          "rootPageId",
-                        );
-                        const urlCount = getNumericMetadata(
-                          run.metadata,
-                          "urlCount",
-                        );
-                        const pageUrl = getStringMetadata(
-                          run.metadata,
-                          "pageUrl",
-                        );
-                        const pageId = getStringMetadata(
-                          run.metadata,
-                          "pageId",
-                        );
-                        const targetUrl = getStringMetadata(
-                          run.metadata,
-                          "url",
-                        );
-                        const hostname = getStringMetadata(
-                          run.metadata,
-                          "hostname",
-                        );
-                        const ingestionScope = getStringMetadata(
-                          run.metadata,
-                          "ingestionType",
-                        );
-                        const scopeLabel =
-                          ingestionScope === "full"
-                            ? "Full"
-                            : ingestionScope === "partial"
-                              ? "Partial"
-                              : null;
-
-                        return (
-                          <tr key={run.id}>
-                            <td>
-                              <div>
-                                <ClientSideDate value={run.started_at} />
-                              </div>
-                              {run.ended_at ? (
-                                <div className="admin-table__meta">
-                                  Finished:{" "}
-                                  <ClientSideDate value={run.ended_at} />
-                                </div>
-                              ) : null}
-                            </td>
-                            <td>
-                              <span
-                                className={`status-pill status-pill--${run.status}`}
-                              >
-                                {run.status.replaceAll("_", " ")}
-                              </span>
-                              {errorCount > 0 && (
-                                <details className="admin-issues">
-                                  <summary>{errorCount} issue(s)</summary>
-                                  <ul>
-                                    {logs.slice(0, 5).map((log, index) => (
-                                      <li key={index}>
-                                        {log.doc_id ? (
-                                          <strong>{log.doc_id}: </strong>
-                                        ) : null}
-                                        {log.context ? (
-                                          <span>{log.context}: </span>
-                                        ) : null}
-                                        {log.message}
-                                      </li>
-                                    ))}
-                                    {logs.length > 5 ? (
-                                      <li>{`${logs.length - 5} more`}</li>
-                                    ) : null}
-                                  </ul>
-                                </details>
-                              )}
-                            </td>
-                            <td>
-                              <span className="badge">
-                                {run.ingestion_type === "full"
-                                  ? "Full"
-                                  : "Partial"}
-                              </span>
-                              {run.partial_reason ? (
-                                <div className="admin-table__meta">
-                                  {run.partial_reason}
-                                </div>
-                              ) : null}
-                            </td>
-                            <td>{formatDuration(run.duration_ms ?? 0)}</td>
-                            <td>
-                              <div>
-                                Added:{" "}
-                                {numberFormatter.format(run.chunks_added ?? 0)}
-                              </div>
-                              <div>
-                                Updated:{" "}
-                                {numberFormatter.format(
-                                  run.chunks_updated ?? 0,
-                                )}
-                              </div>
-                            </td>
-                            <td>
-                              <div>
-                                Added:{" "}
-                                {numberFormatter.format(
-                                  run.documents_added ?? 0,
-                                )}
-                              </div>
-                              <div>
-                                Updated:{" "}
-                                {numberFormatter.format(
-                                  run.documents_updated ?? 0,
-                                )}
-                              </div>
-                              <div>
-                                Skipped:{" "}
-                                {numberFormatter.format(
-                                  run.documents_skipped ?? 0,
-                                )}
-                              </div>
-                            </td>
-                            <td>
-                              {formatCharacters(run.characters_added ?? 0)}
-                            </td>
-                            <td>
-                              {formatCharacters(run.characters_updated ?? 0)}
-                            </td>
-                            <td>
-                              {rootPageId ? (
-                                <div className="admin-table__meta">
-                                  Root: {rootPageId}
-                                </div>
-                              ) : null}
-                              {pageId ? (
-                                <div className="admin-table__meta">
-                                  Page ID: {pageId}
-                                </div>
-                              ) : null}
-                              {pageUrl ? (
-                                <div className="admin-table__meta">
-                                  Page:{" "}
-                                  <a
-                                    href={pageUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                  >
-                                    {pageUrl}
-                                  </a>
-                                </div>
-                              ) : null}
-                              {targetUrl ? (
-                                <div className="admin-table__meta">
-                                  URL:{" "}
-                                  <a
-                                    href={targetUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                  >
-                                    {targetUrl}
-                                  </a>
-                                </div>
-                              ) : null}
-                              {hostname ? (
-                                <div className="admin-table__meta">
-                                  Host: {hostname}
-                                </div>
-                              ) : null}
-                              {urlCount !== null ? (
-                                <div className="admin-table__meta">
-                                  URLs: {numberFormatter.format(urlCount)}
-                                </div>
-                              ) : null}
-                              {scopeLabel ? (
-                                <div className="admin-table__meta">
-                                  Scope: {scopeLabel}
-                                </div>
-                              ) : null}
-                              {!rootPageId &&
-                              !pageId &&
-                              !pageUrl &&
-                              !targetUrl &&
-                              !hostname &&
-                              urlCount === null &&
-                              !scopeLabel ? (
-                                <div className="admin-table__meta">—</div>
-                              ) : null}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+            <RecentRunsSection initial={recentRuns} />
           </div>
         </main>
 
@@ -1620,11 +2144,104 @@ const styles = css.global`
     color: var(--fg-color, rgba(55, 53, 47, 0.92));
   }
 
+  .recent-runs__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .recent-runs__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: flex-end;
+  }
+
+  .recent-runs__filter {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 140px;
+  }
+
+  .recent-runs__filter span {
+    font-size: 0.8rem;
+    color: rgba(55, 53, 47, 0.55);
+  }
+
+  .recent-runs__filter select,
+  .recent-runs__filter input {
+    padding: 0.5rem 0.6rem;
+    border-radius: 8px;
+    border: 1px solid rgba(55, 53, 47, 0.18);
+    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.98);
+    color: rgba(55, 53, 47, 0.9);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .recent-runs__filter select:focus,
+  .recent-runs__filter input:focus {
+    outline: none;
+    border-color: rgba(46, 170, 220, 0.7);
+    box-shadow: 0 0 0 3px rgba(46, 170, 220, 0.18);
+  }
+
+  .recent-runs__actions {
+    display: flex;
+    align-items: flex-end;
+  }
+
+  .recent-runs__reset {
+    padding: 0.55rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid rgba(55, 53, 47, 0.18);
+    background: rgba(55, 53, 47, 0.05);
+    color: rgba(55, 53, 47, 0.75);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .recent-runs__reset:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .recent-runs__reset:not(:disabled):hover,
+  .recent-runs__reset:not(:disabled):focus {
+    background: rgba(46, 170, 220, 0.1);
+    border-color: rgba(46, 170, 220, 0.5);
+    color: rgba(46, 170, 220, 0.95);
+  }
+
+  .admin-table__error {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    background: rgba(248, 113, 113, 0.16);
+    color: rgba(153, 27, 27, 0.95);
+    font-size: 0.92rem;
+  }
+
   .admin-table {
     border: 1px solid rgba(55, 53, 47, 0.14);
     border-radius: 16px;
     overflow-x: auto;
     background: rgba(255, 255, 255, 0.95);
+    position: relative;
+  }
+
+  .admin-table--loading::after {
+    content: "Loading…";
+    position: absolute;
+    top: 12px;
+    right: 18px;
+    font-size: 0.85rem;
+    color: rgba(55, 53, 47, 0.45);
   }
 
   .admin-table__grid {
@@ -1740,6 +2357,67 @@ const styles = css.global`
     font-size: 0.8rem;
     font-weight: 600;
     color: rgba(55, 53, 47, 0.75);
+  }
+
+  .recent-runs__footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 1.1rem;
+    border-top: 1px solid rgba(55, 53, 47, 0.08);
+  }
+
+  .recent-runs__summary {
+    font-size: 0.9rem;
+    color: rgba(55, 53, 47, 0.7);
+  }
+
+  .recent-runs__pagination {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .recent-runs__page-button {
+    padding: 0.45rem 0.85rem;
+    border-radius: 8px;
+    border: 1px solid rgba(55, 53, 47, 0.18);
+    background: rgba(255, 255, 255, 0.92);
+    font-size: 0.88rem;
+    color: rgba(55, 53, 47, 0.78);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .recent-runs__page-button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .recent-runs__page-button:not(:disabled):hover,
+  .recent-runs__page-button:not(:disabled):focus {
+    background: rgba(46, 170, 220, 0.1);
+    border-color: rgba(46, 170, 220, 0.5);
+    color: rgba(46, 170, 220, 0.95);
+  }
+
+  .recent-runs__page-indicator {
+    font-size: 0.9rem;
+    color: rgba(55, 53, 47, 0.7);
+  }
+
+  @media (max-width: 960px) {
+    .recent-runs__toolbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .recent-runs__actions {
+      justify-content: flex-end;
+    }
   }
 
   .manual-ingestion {
@@ -2320,14 +2998,16 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   _context,
 ) => {
   const supabase = getSupabaseAdminClient();
+  const pageSize = DEFAULT_RUNS_PAGE_SIZE;
 
-  const { data: runsData } = await supabase
+  const { data: runsData, count: runsCount } = await supabase
     .from("rag_ingest_runs")
     .select(
       "id, source, ingestion_type, partial_reason, status, started_at, ended_at, duration_ms, documents_processed, documents_added, documents_updated, documents_skipped, chunks_added, chunks_updated, characters_added, characters_updated, error_count, error_logs, metadata",
+      { count: "exact" },
     )
     .order("started_at", { ascending: false })
-    .limit(50);
+    .range(0, pageSize - 1);
 
   const { data: documentsData } = await supabase
     .from("rag_documents")
@@ -2336,6 +3016,9 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   const runs: RunRecord[] = (runsData ?? []).map((run: unknown) =>
     normalizeRunRecord(run),
   );
+  const totalCount = runsCount ?? runs.length;
+  const totalPages =
+    pageSize > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
 
   const docs: DocumentRow[] = (documentsData ?? []) as DocumentRow[];
   const totalDocuments = docs.length;
@@ -2378,7 +3061,13 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
         totalCharacters,
         lastUpdatedAt,
       },
-      runs,
+      recentRuns: {
+        runs,
+        page: 1,
+        pageSize,
+        totalCount,
+        totalPages,
+      },
     },
   };
 };
