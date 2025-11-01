@@ -1,5 +1,7 @@
 import { type NextApiRequest, type NextApiResponse } from 'next'
 
+import { loadSystemPrompt } from '@/lib/server/chat-settings'
+
 import { EMBEDDING_MODEL, openai } from '../../lib/core/openai'
 import { getSupabaseAdminClient } from '../../lib/supabase-admin'
 
@@ -53,19 +55,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .join('\n\n---\n\n')
 
     // 3. Construct the prompt for OpenAI.
-    const systemPrompt = `You are a very enthusiastic personal assistant for Jack H. Park.
-    You are helping a user who is visiting Jack's personal website.
-    Your name is "Jack's AI Assistant".
-    You are friendly and helpful.
-    You will be given a question and a context.
-    The context is a series of excerpts from Jack's personal Notion pages.
-    You should use the provided context to answer the question.
-    If the context does not contain the answer, say "I'm sorry, but I don't have enough information to answer that question. You can find more about Jack on his LinkedIn or GitHub." and do not add any more information.
-    Do not mention that you are using a context.
-    Answer in the same language as the question.
-    Be concise and helpful.
-    Here is the context:
-    ${contextText}`.trim()
+    const { prompt: basePrompt } = await loadSystemPrompt()
+    const contextBlock =
+      contextText && contextText.trim().length > 0
+        ? contextText
+        : '(No relevant context was found.)'
+    const systemPrompt = `${basePrompt}\n\nContext:\n${contextBlock}`
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',

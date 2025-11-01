@@ -5,6 +5,7 @@ import { FiFileText } from "@react-icons/all-files/fi/FiFileText";
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import { FiLink } from "@react-icons/all-files/fi/FiLink";
 import Head from "next/head";
+import Link from "next/link";
 import { useRouter } from "next/router";
 import { type ExtendedRecordMap, type PageBlock } from "notion-types";
 import { parsePageId } from "notion-utils";
@@ -1138,11 +1139,16 @@ function IngestionDashboard({ overview, runs }: PageProps): JSX.Element {
 
         <main className="notion-page-content admin-ingestion-content">
           <header className="admin-hero">
-            <h1>Ingestion Dashboard</h1>
-            <p>
-              Monitor ingestion health, trigger manual runs, and review the
-              latest dataset snapshot.
-            </p>
+            <div className="admin-hero__body">
+              <h1>Ingestion Dashboard</h1>
+              <p>
+                Monitor ingestion health, trigger manual runs, and review the
+                latest dataset snapshot.
+              </p>
+            </div>
+            <Link href="/admin/chat-config" className="admin-hero__cta">
+              Chat System Prompt
+            </Link>
           </header>
 
           <div className="admin-stack">
@@ -1500,6 +1506,15 @@ const styles = css.global`
 
   .admin-hero {
     margin-bottom: 2.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .admin-hero__body {
+    flex: 1;
+    min-width: 16rem;
   }
 
   .admin-hero h1 {
@@ -1515,6 +1530,30 @@ const styles = css.global`
     max-width: 48rem;
     font-size: 1.05rem;
     color: rgba(55, 53, 47, 0.6);
+  }
+
+  .admin-hero__cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: fit-content;
+    padding: 0.65rem 1.15rem;
+    border-radius: 12px;
+    border: 1px solid rgba(37, 99, 235, 0.28);
+    background: rgba(37, 99, 235, 0.12);
+    color: rgba(37, 41, 78, 0.92);
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    box-shadow: 0 18px 40px -30px rgba(37, 99, 235, 0.9);
+    transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+
+  .admin-hero__cta:hover,
+  .admin-hero__cta:focus {
+    background: rgba(37, 99, 235, 0.2);
+    box-shadow: 0 20px 42px -30px rgba(37, 99, 235, 0.95);
+    transform: translateY(-1px);
   }
 
   .admin-stack {

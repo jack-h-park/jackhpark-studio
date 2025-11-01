@@ -26,10 +26,7 @@ const NotionRenderer = dynamic(
 
 let modalInitialized = false;
 
-const transformInlineTitleBold = (
-  title: any,
-  shouldBold: boolean,
-): any => {
+const transformInlineTitleBold = (title: any, shouldBold: boolean): any => {
   if (!Array.isArray(title)) {
     return title;
   }
@@ -173,16 +170,15 @@ export function NotionPageRenderer({
           blocksChanged = true;
         }
 
-        patchedBlocks[blockId] = {
-          ...block,
-          value: {
-            ...blockValue,
-            properties: {
-              ...properties,
-              title: sanitizedTitle,
-            },
-          },
+        const updatedValue = {
+          ...(blockValue as any),
+          properties: { ...(properties as any), title: sanitizedTitle },
         };
+
+        patchedBlocks[blockId] = {
+          ...(block as any),
+          value: updatedValue,
+        } as typeof block;
       }
     }
 
@@ -254,7 +250,6 @@ export function NotionPageRenderer({
       ...(viewsChanged ? { collection_view: patchedViews! } : {}),
     };
   }, [recordMap]);
-
 
   React.useEffect(() => {
     if (!recordMap?.collection_view) {

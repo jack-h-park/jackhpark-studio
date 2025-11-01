@@ -1,6 +1,8 @@
 // pages/api/langchain_chat.ts
 import type { NextApiRequest, NextApiResponse } from 'next'
 
+import { loadSystemPrompt } from '@/lib/server/chat-settings'
+
 /**
  * Pages Router API (Node.js runtime).
  * Use Node (not Edge) for LangChain + Supabase clients.
@@ -65,18 +67,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
     const retriever = store.asRetriever({ k: RAG_TOP_K })
 
-    // --- English prompt
-    const prompt = PromptTemplate.fromTemplate(`
-    You are Jack's personal site assistant. Answer concisely using **only** the user's public materials provided in the context.
-- If the answer is not in the context, say "I don't know."
-- Respond in English within 5 concise sentences.
-
-Question:
-{question}
-
-Relevant excerpts:
-{context}
-    `)
+    const { prompt: basePrompt } = await loadSystemPrompt()
+    const promptTemplate = [
+      escapeForPromptTemplate(basePrompt),
+      '',
+      'Question:',
+      '{question}',
+      '',
+      'Relevant excerpts:',
+      '{context}'
+    ].join('\n')
+    const prompt = PromptTemplate.fromTemplate(promptTemplate)
 
     const llm = new ChatOpenAI({
       model: LLM_MODEL,
@@ -114,4 +115,8 @@ Relevant excerpts:
       .status(500)
       .json({ error: err?.message || 'Internal Server Error' })
   }
+}
+
+function escapeForPromptTemplate(value: string): string {
+  return value.replaceAll('{', '{{').replaceAll('}', '}}')
 }

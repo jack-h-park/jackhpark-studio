@@ -52,16 +52,28 @@
 
    OPENAI_API_KEY=sk-...
    SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_SERVICE_KEY=...
+   SUPABASE_SERVICE_ROLE_KEY=...
    ```
 
-3. **Run locally**
+3. **Prepare Supabase chat settings table**
+
+   ```sql
+   create table if not exists chat_settings (
+     key text primary key,
+     value text not null,
+     updated_at timestamptz not null default timezone('utc', now())
+   );
+   ```
+
+   > The admin dashboard (`/admin/chat-config`) reads and updates the shared system prompt from this table.
+
+4. **Run locally**
 
    ```bash
    pnpm dev
    ```
 
-4. **Deploy to Vercel**
+5. **Deploy to Vercel**
    ```bash
    pnpm run deploy
    ```
