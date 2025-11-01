@@ -800,12 +800,12 @@ function ManualIngestionPanel(): JSX.Element {
 
   const scopeCopy = {
     label: "Ingestion scope",
-    partialTitle: "Partial",
-    partialDesc: "Skip ingestion when the content matches the last run.",
-    fullTitle: "Full",
-    fullDesc: "Re-ingest all chunks even if no changes are detected.",
-    hintPartial: "Partial runs are quicker and avoid redundant work.",
-    hintFull: "Full runs re-embed everything and may take longer.",
+    partialTitle: "Only pages with changes",
+    partialDesc: "Run ingestion only if new content is detected since the last run.",
+    fullTitle: "For any pages",
+    fullDesc: "Force ingestion even when nothing appears to have changed.",
+    hintPartial: "Best when you update content occasionally and want to skip no-op runs.",
+    hintFull: "Use to refresh embeddings manually; runs even without detected changes.",
   };
 
   return (
