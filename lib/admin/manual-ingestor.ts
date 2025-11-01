@@ -16,6 +16,7 @@ import {
   type IngestRunErrorLog,
   type IngestRunHandle,
   type IngestRunStats,
+  normalizeTimestamp,
   replaceChunks,
   startIngestRun,
   upsertDocumentState
@@ -121,9 +122,16 @@ async function runNotionPageIngestion(
 
     const existingState = await getDocumentState(pageId)
 
+    const normalizedLastEdited = normalizeTimestamp(lastEditedTime)
+    const normalizedExistingUpdate = normalizeTimestamp(
+      existingState?.last_source_update ?? null
+    )
+
     const unchanged =
       existingState &&
-      existingState.content_hash === contentHash
+      existingState.content_hash === contentHash &&
+      (!normalizedLastEdited ||
+        normalizedExistingUpdate === normalizedLastEdited)
 
     if (unchanged) {
       stats.documentsSkipped += 1
