@@ -133,7 +133,7 @@ async function runNotionPageIngestion(
       (!normalizedLastEdited ||
         normalizedExistingUpdate === normalizedLastEdited)
 
-    if (unchanged) {
+    if (!isFull && unchanged) {
       stats.documentsSkipped += 1
       finalMessage = `No changes detected for Notion page ${title}; skipping ingest.`
       await emit({
