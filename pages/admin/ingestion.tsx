@@ -440,6 +440,7 @@ function ManualIngestionPanel(): JSX.Element {
   const [notionScope, setNotionScope] = useState<"partial" | "full">("partial");
   const [urlScope, setUrlScope] = useState<"partial" | "full">("partial");
   const [urlInput, setUrlInput] = useState("");
+  const [includeLinkedPages, setIncludeLinkedPages] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<ManualIngestionStatus>("idle");
@@ -538,6 +539,7 @@ function ManualIngestionPanel(): JSX.Element {
           mode: "notion_page";
           pageId: string;
           ingestionType: "full" | "partial";
+          includeLinkedPages: boolean;
         }
       | {
           mode: "url";
@@ -555,6 +557,7 @@ function ManualIngestionPanel(): JSX.Element {
         mode: "notion_page",
         pageId: parsed,
         ingestionType: notionScope,
+        includeLinkedPages,
       };
     } else {
       const trimmed = urlInput.trim();
@@ -597,7 +600,9 @@ function ManualIngestionPanel(): JSX.Element {
     setHasCompleted(false);
     const startLog =
       mode === "notion_page"
-        ? `Starting manual ${notionScope} ingestion for the Notion page.`
+        ? `Starting manual ${notionScope} ingestion for the Notion page${
+            includeLinkedPages ? " (including linked pages)" : ""
+          }.`
         : `Starting manual ${urlScope} ingestion for the provided URL.`;
     setLogs([createLogEntry(startLog, "info")]);
 
@@ -740,6 +745,7 @@ function ManualIngestionPanel(): JSX.Element {
     mode,
     notionInput,
     notionScope,
+    includeLinkedPages,
     urlInput,
     urlScope,
     handleEvent,
@@ -811,10 +817,10 @@ function ManualIngestionPanel(): JSX.Element {
 
   const scopeCopy = {
     label: "Ingestion scope",
-    partialTitle: "[Partial] Only pages with changes",
+    partialTitle: "Only pages with changes",
     partialDesc:
       "Run ingestion only if new content is detected since the last run.",
-    fullTitle: "[Full] For any pages",
+    fullTitle: "For any pages",
     fullDesc: "Force ingestion even when nothing appears to have changed.",
     hintPartial:
       "Best when you update content occasionally and want to skip no-op runs.",
@@ -934,9 +940,39 @@ function ManualIngestionPanel(): JSX.Element {
                     "manual-scope-label-url",
                   )}
 
+              {mode === "notion_page" ? (
+                <div className="manual-toggle">
+                  <input
+                    id="manual-linked-pages"
+                    type="checkbox"
+                    checked={includeLinkedPages}
+                    onChange={(event) =>
+                      setIncludeLinkedPages(event.target.checked)
+                    }
+                    disabled={isRunning}
+                    aria-describedby="manual-linked-pages-hint"
+                  />
+                  <div className="manual-toggle__content">
+                    <label
+                      className="manual-toggle__label"
+                      htmlFor="manual-linked-pages"
+                    >
+                      Include linked pages
+                    </label>
+                    <p
+                      className="manual-toggle__hint"
+                      id="manual-linked-pages-hint"
+                    >
+                      Also ingest child pages and any pages referenced via
+                      Notion link-to-page blocks.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
               <p className="manual-hint">
                 {mode === "notion_page"
-                  ? "Paste the full shared link or the 32-character page ID from Notion. Use the scope above to control how much content is reprocessed."
+                  ? "Paste the full shared link or the 32-character page ID from Notion. Use the controls above to define scope and whether linked pages are included."
                   : "Enter a public HTTP(S) link. Use the scope above to skip unchanged articles or force a full refresh."}
               </p>
 
@@ -2825,6 +2861,47 @@ const styles = css.global`
     margin: 0;
     font-size: 0.8rem;
     color: rgba(55, 53, 47, 0.55);
+  }
+
+  .manual-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(55, 53, 47, 0.18);
+    border-radius: 12px;
+    background: rgba(55, 53, 47, 0.04);
+  }
+
+  .manual-toggle input {
+    margin-top: 0.2rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    accent-color: rgba(46, 170, 220, 0.85);
+  }
+
+  .manual-toggle input:disabled {
+    cursor: not-allowed;
+  }
+
+  .manual-toggle__content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .manual-toggle__label {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: rgba(55, 53, 47, 0.78);
+    cursor: pointer;
+  }
+
+  .manual-toggle__hint {
+    margin: 0;
+    font-size: 0.85rem;
+    color: rgba(55, 53, 47, 0.6);
+    max-width: 48ch;
   }
 
   .manual-hint {

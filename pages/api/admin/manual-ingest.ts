@@ -12,6 +12,7 @@ type ManualIngestionBody = ManualIngestionRequest & {
   pageId?: unknown
   url?: unknown
   ingestionType?: unknown
+  includeLinkedPages?: unknown
 }
 
 function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
@@ -26,8 +27,17 @@ function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
     }
 
     const ingestionType = body.ingestionType === 'full' ? 'full' : 'partial'
+    const includeLinkedPages =
+      typeof body.includeLinkedPages === 'boolean'
+        ? body.includeLinkedPages
+        : true
 
-    return { mode: 'notion_page', pageId: parsed, ingestionType }
+    return {
+      mode: 'notion_page',
+      pageId: parsed,
+      ingestionType,
+      includeLinkedPages
+    }
   }
 
   if (body.mode === 'url') {
