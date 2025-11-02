@@ -80,6 +80,13 @@ type ManualEvent =
   | { type: "log"; message: string; level?: "info" | "warn" | "error" }
   | { type: "progress"; step: string; percent: number }
   | {
+      type: "queue";
+      current: number;
+      total: number;
+      pageId: string;
+      title?: string | null;
+    }
+  | {
       type: "complete";
       status: "success" | "completed_with_errors" | "failed";
       message?: string;
@@ -450,6 +457,20 @@ function ManualIngestionPanel(): JSX.Element {
   const [logs, setLogs] = useState<ManualLogEntry[]>([]);
   const [stats, setStats] = useState<ManualRunStats | null>(null);
   const [hasCompleted, setHasCompleted] = useState(false);
+  const [overallProgress, setOverallProgress] = useState<{
+    current: number;
+    total: number;
+    pageId: string | null;
+    title: string | null;
+  }>({
+    current: 0,
+    total: 0,
+    pageId: null,
+    title: null,
+  });
+  const overallProgressRef = useRef<HTMLDivElement | null>(null);
+  const logsContainerRef = useRef<HTMLDivElement | null>(null);
+  const [autoScrollLogs, setAutoScrollLogs] = useState(true);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -488,6 +509,27 @@ function ManualIngestionPanel(): JSX.Element {
         case "log":
           appendLog(event.message, event.level ?? "info");
           break;
+        case "queue": {
+          const safeTotal = Math.max(1, event.total ?? 1);
+          const safeCurrent = Math.min(
+            Math.max(event.current ?? 1, 1),
+            safeTotal,
+          );
+          setOverallProgress({
+            current: safeCurrent,
+            total: safeTotal,
+            pageId: event.pageId ?? null,
+            title: event.title ?? null,
+          });
+          setProgress(0);
+          queueMicrotask(() => {
+            overallProgressRef.current?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          });
+          break;
+        }
         case "progress":
           setProgress(Math.max(0, Math.min(100, event.percent)));
           break;
@@ -506,6 +548,14 @@ function ManualIngestionPanel(): JSX.Element {
           setFinalMessage(completionMessage);
           appendLog(completionMessage, completionLevel);
           setProgress(100);
+          setOverallProgress((prev) =>
+            prev.total > 0
+              ? {
+                  ...prev,
+                  current: prev.total,
+                }
+              : prev,
+          );
           setIsRunning(false);
           break;
         default:
@@ -519,6 +569,7 @@ function ManualIngestionPanel(): JSX.Element {
       setStatus,
       setStats,
       setFinalMessage,
+      setOverallProgress,
       setIsRunning,
     ],
   );
@@ -528,6 +579,41 @@ function ManualIngestionPanel(): JSX.Element {
       setHasCompleted(true);
     }
   }, [isRunning, status]);
+
+  useEffect(() => {
+    const container = logsContainerRef.current;
+    if (!container || !autoScrollLogs) {
+      return;
+    }
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: logs.length <= 1 ? "auto" : "smooth",
+    });
+  }, [logs, autoScrollLogs]);
+
+  const handleLogsScroll = useCallback(() => {
+    const el = logsContainerRef.current;
+    if (!el) {
+      return;
+    }
+    if (autoScrollLogs) {
+      return;
+    }
+  }, [autoScrollLogs]);
+
+  const handleToggleAutoScroll = useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        const el = logsContainerRef.current;
+        if (el) {
+          el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
+        }
+      }
+      setAutoScrollLogs(checked);
+    },
+    [],
+  );
 
   const startManualIngestion = useCallback(async () => {
     if (isRunning) {
@@ -598,12 +684,25 @@ function ManualIngestionPanel(): JSX.Element {
     setFinalMessage(null);
     setStats(null);
     setHasCompleted(false);
+    setOverallProgress({
+      current: 0,
+      total: 0,
+      pageId: null,
+      title: null,
+    });
+    setAutoScrollLogs(true);
     const startLog =
       mode === "notion_page"
         ? `Starting manual ${notionScope} ingestion for the Notion page${
             includeLinkedPages ? " (including linked pages)" : ""
           }.`
         : `Starting manual ${urlScope} ingestion for the provided URL.`;
+    queueMicrotask(() => {
+      overallProgressRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
     setLogs([createLogEntry(startLog, "info")]);
 
     try {
@@ -828,6 +927,27 @@ function ManualIngestionPanel(): JSX.Element {
       "Use to refresh embeddings manually; runs even without detected changes.",
   };
 
+  const totalPages = overallProgress.total;
+  const completedPages =
+    totalPages > 0 ? Math.max(0, overallProgress.current - 1) : 0;
+  const stagePercent = Math.max(0, Math.min(100, progress));
+  const overallPercent =
+    totalPages > 0
+      ? Math.min(
+          100,
+          Math.max(
+            0,
+            ((completedPages + stagePercent / 100) / totalPages) * 100,
+          ),
+        )
+      : stagePercent;
+  const overallCurrentLabel =
+    totalPages > 0 ? Math.min(overallProgress.current, totalPages) : 0;
+  const activePageTitle = overallProgress.title ?? null;
+  const activePageId = overallProgress.pageId ?? null;
+  const showOverallProgress = totalPages > 1;
+  const stageSubtitle = activePageTitle ?? activePageId;
+
   return (
     <>
       {/*
@@ -992,21 +1112,67 @@ function ManualIngestionPanel(): JSX.Element {
                 </button>
 
                 <div className="manual-progress" aria-live="polite">
-                  <div className="progress-bar" aria-hidden="true">
+                  {showOverallProgress ? (
+                    <div className="progress-group" ref={overallProgressRef}>
+                      <div className="progress-group__header">
+                        <span className="progress-group__title">
+                          Overall Progress
+                        </span>
+                        <span className="progress-group__meta">
+                          {overallCurrentLabel} / {totalPages}
+                        </span>
+                      </div>
+                      <div
+                        className="progress-bar"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={Math.round(overallPercent)}
+                      >
+                        <div
+                          className="progress-bar__value"
+                          style={{ width: `${overallPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="progress-group">
+                    <div className="progress-group__header">
+                      <span className="progress-group__title">
+                        {showOverallProgress ? "Current Page" : "Progress"}
+                      </span>
+                      {stageSubtitle ? (
+                        <span className="progress-group__meta">
+                          {stageSubtitle}
+                        </span>
+                      ) : null}
+                    </div>
                     <div
-                      className="progress-bar__value"
-                      style={{
-                        width: `${Math.max(0, Math.min(100, progress))}%`,
-                      }}
-                    />
-                  </div>
-                  <div className="progress-meta">
-                    <span className="progress-percent">
-                      {Math.round(progress)}%
-                    </span>
-                    {finalMessage ? (
-                      <span className="progress-message">{finalMessage}</span>
-                    ) : null}
+                      className="progress-bar"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={Math.round(stagePercent)}
+                    >
+                      <div
+                        className="progress-bar__value"
+                        style={{ width: `${stagePercent}%` }}
+                      />
+                    </div>
+                    <div className="progress-meta">
+                      <span className="progress-percent">
+                        {Math.round(stagePercent)}%
+                      </span>
+                      {showOverallProgress && activePageId && activePageTitle ? (
+                        <span className="progress-id">{activePageId}</span>
+                      ) : null}
+                      {finalMessage ? (
+                        <span className="progress-message">
+                          {finalMessage}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1044,41 +1210,59 @@ function ManualIngestionPanel(): JSX.Element {
 
         <section className="manual-logs" aria-live="polite">
           <header className="manual-logs__header">
-            <h3>Run Log</h3>
-            <span className="manual-logs__meta">
-              {logs.length === 0
-                ? "Awaiting events"
-                : `${logs.length} entr${logs.length === 1 ? "y" : "ies"}`}
-            </span>
+            <div className="manual-logs__title">
+              <h3>Run Log</h3>
+              <span className="manual-logs__meta">
+                {logs.length === 0
+                  ? "Awaiting events"
+                  : `${logs.length} entr${logs.length === 1 ? "y" : "ies"}`}
+              </span>
+            </div>
+            <label className="manual-logs__autoscroll">
+              <input
+                type="checkbox"
+                checked={autoScrollLogs}
+                onChange={(event) =>
+                  handleToggleAutoScroll(event.target.checked)
+                }
+              />
+              <span>Auto-scroll to latest</span>
+            </label>
           </header>
           {logs.length === 0 ? (
             <div className="manual-logs__empty">
               Execution logs will appear here.
             </div>
           ) : (
-            <ul className="manual-logs__list">
-              {logs.map((log) => {
-                const Icon = LOG_ICONS[log.level];
-                return (
-                  <li
-                    key={log.id}
-                    className={`manual-log-entry manual-log-entry--${log.level}`}
-                  >
-                    <span className="manual-log-entry__icon" aria-hidden="true">
-                      <Icon />
-                    </span>
-                    <div className="manual-log-entry__body">
-                      <span className="manual-log-entry__time">
-                        {logTimeFormatter.format(new Date(log.timestamp))}
+            <div
+              className="manual-logs__scroll"
+              ref={logsContainerRef}
+              onScroll={handleLogsScroll}
+            >
+              <ul className="manual-logs__list">
+                {logs.map((log) => {
+                  const Icon = LOG_ICONS[log.level];
+                  return (
+                    <li
+                      key={log.id}
+                      className={`manual-log-entry manual-log-entry--${log.level}`}
+                    >
+                      <span className="manual-log-entry__icon" aria-hidden="true">
+                        <Icon />
                       </span>
-                      <span className="manual-log-entry__message">
-                        {log.message}
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                      <div className="manual-log-entry__body">
+                        <span className="manual-log-entry__time">
+                          {logTimeFormatter.format(new Date(log.timestamp))}
+                        </span>
+                        <span className="manual-log-entry__message">
+                          {log.message}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
           )}
         </section>
 
@@ -2970,10 +3154,37 @@ const styles = css.global`
   }
 
   .manual-progress {
-    flex: 1 1 220px;
-    min-width: 220px;
+    flex: 1 1 260px;
+    min-width: 240px;
     display: grid;
-    gap: 0.5rem;
+    gap: 0.85rem;
+  }
+
+  .progress-group {
+    display: grid;
+    gap: 0.45rem;
+  }
+
+  .progress-group__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+
+  .progress-group__title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: rgba(55, 53, 47, 0.72);
+  }
+
+  .progress-group__meta {
+    font-size: 0.82rem;
+    color: rgba(55, 53, 47, 0.55);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
 
   .progress-bar {
@@ -2996,14 +3207,25 @@ const styles = css.global`
 
   .progress-meta {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 0.6rem;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     color: rgba(55, 53, 47, 0.65);
   }
 
   .progress-message {
     color: rgba(55, 53, 47, 0.7);
+  }
+
+  .progress-id {
+    font-family: "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo,
+      Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.78rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.4rem;
+    background: rgba(55, 53, 47, 0.08);
+    color: rgba(55, 53, 47, 0.6);
   }
 
   .manual-ingestion__aside {
@@ -3060,12 +3282,18 @@ const styles = css.global`
   .manual-logs__header {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     gap: 1rem;
     margin-bottom: 0.85rem;
   }
 
-  .manual-logs__header h3 {
+  .manual-logs__title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .manual-logs__title h3 {
     margin: 0;
     font-size: 1.15rem;
     font-weight: 600;
@@ -3077,11 +3305,31 @@ const styles = css.global`
     color: rgba(55, 53, 47, 0.55);
   }
 
+  .manual-logs__autoscroll {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.82rem;
+    color: rgba(55, 53, 47, 0.65);
+    user-select: none;
+  }
+
+  .manual-logs__autoscroll input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: rgba(46, 170, 220, 0.85);
+    margin: 0;
+  }
+
+  .manual-logs__autoscroll span {
+    display: inline-block;
+  }
+
   .manual-logs__refresh-button {
     border: 1px solid rgba(55, 53, 47, 0.18);
     background: rgba(255, 255, 255, 0.9);
     color: rgba(55, 53, 47, 0.8);
-    padding: 0.3rem 0.8rem;
+    padding: 0.35rem 0.85rem;
     border-radius: 8px;
     font-weight: 600;
     font-size: 0.8rem;
@@ -3101,6 +3349,12 @@ const styles = css.global`
     text-align: center;
     font-size: 0.9rem;
     color: rgba(55, 53, 47, 0.55);
+  }
+
+  .manual-logs__scroll {
+    max-height: 260px;
+    overflow-y: auto;
+    padding-right: 0.4rem;
   }
 
   .manual-logs__list {

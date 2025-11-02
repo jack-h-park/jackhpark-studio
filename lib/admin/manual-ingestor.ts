@@ -1,4 +1,5 @@
 import { NotionAPI } from 'notion-client'
+import { type ExtendedRecordMap } from 'notion-types'
 import { getAllPagesInSpace, parsePageId } from 'notion-utils'
 
 import {
@@ -39,6 +40,13 @@ export type ManualIngestionEvent =
   | { type: 'log'; message: string; level?: 'info' | 'warn' | 'error' }
   | { type: 'progress'; step: string; percent: number }
   | {
+      type: 'queue'
+      current: number
+      total: number
+      pageId: string
+      title: string | null
+    }
+  | {
       type: 'complete'
       status: 'success' | 'completed_with_errors' | 'failed'
       message?: string
@@ -51,11 +59,13 @@ type ManualRunStatus = 'success' | 'completed_with_errors' | 'failed'
 
 async function ingestNotionPage({
   pageId,
+  recordMap,
   ingestionType,
   stats,
   emit
 }: {
   pageId: string
+  recordMap: ExtendedRecordMap
   ingestionType: 'full' | 'partial'
   stats: IngestRunStats
   emit: EmitFn
@@ -63,24 +73,18 @@ async function ingestNotionPage({
   const isFull = ingestionType === 'full'
 
   stats.documentsProcessed += 1
-  await emit({
-    type: 'log',
-    level: 'info',
-    message: `Fetching Notion page ${pageId}...`
-  })
-  const recordMap = await notion.getPage(pageId)
-  await emit({
-    type: 'progress',
-    step: 'fetched',
-    percent: 20
-  })
-
   const title = getPageTitle(recordMap, pageId)
   await emit({
     type: 'log',
     level: 'info',
     message: `Fetched Notion page "${title}" (${pageId}).`
   })
+  await emit({
+    type: 'progress',
+    step: 'fetched',
+    percent: 20
+  })
+
   const plainText = extractPlainText(recordMap, pageId)
 
   if (!plainText) {
@@ -236,17 +240,21 @@ async function runNotionPageIngestion(
       ? 'Manual Notion page full ingestion finished.'
       : 'Manual Notion page ingestion finished.'
 
-  const candidatePageIds: string[] = []
+  type CandidatePage = {
+    pageId: string
+  }
+
+  const candidatePages: CandidatePage[] = []
   const seen = new Set<string>()
 
   const pushCandidate = (id: string) => {
-    if (!seen.has(id)) {
-      candidatePageIds.push(id)
-      seen.add(id)
+    const normalized = parsePageId(id, { uuid: true }) ?? id
+    if (seen.has(normalized)) {
+      return
     }
+    seen.add(normalized)
+    candidatePages.push({ pageId: normalized })
   }
-
-  pushCandidate(pageId)
 
   if (includeLinkedPages) {
     try {
@@ -262,17 +270,20 @@ async function runNotionPageIngestion(
         async (candidateId) => notion.getPage(candidateId)
       )
 
-      for (const key of Object.keys(pageMap)) {
-        const normalized = parsePageId(key, { uuid: true })
-        if (normalized) {
-          pushCandidate(normalized)
+      pushCandidate(pageId)
+
+      for (const [rawId, recordMap] of Object.entries(pageMap)) {
+        if (!recordMap) {
+          continue
         }
+        const normalized = parsePageId(rawId, { uuid: true }) ?? rawId
+        pushCandidate(normalized)
       }
 
       await emit({
         type: 'log',
         level: 'info',
-        message: `Identified ${candidatePageIds.length} page(s) for ingestion.`
+        message: `Identified ${candidatePages.length} page(s) for ingestion.`
       })
     } catch (err) {
       const message =
@@ -285,18 +296,72 @@ async function runNotionPageIngestion(
     }
   }
 
+  if (candidatePages.length === 0) {
+    pushCandidate(pageId)
+  }
+
   const processedPages: string[] = []
 
   try {
-    for (const currentPageId of candidatePageIds) {
+    for (let index = 0; index < candidatePages.length; index += 1) {
+      const candidate = candidatePages[index]!
+      const currentPageId = candidate.pageId
+
       if (processedPages.includes(currentPageId)) {
         continue
       }
       processedPages.push(currentPageId)
 
+      let recordMap: ExtendedRecordMap | null = null
+
+      try {
+        await emit({
+          type: 'log',
+          level: 'info',
+          message: `Fetching Notion page ${currentPageId}...`
+        })
+
+        recordMap = await notion.getPage(currentPageId)
+      } catch (err) {
+        stats.errorCount += 1
+        const message = err instanceof Error ? err.message : String(err)
+        errorLogs.push({
+          context: 'fatal',
+          doc_id: currentPageId,
+          message
+        })
+        await emit({
+          type: 'log',
+          level: 'error',
+          message: `Failed to load Notion page ${currentPageId}: ${message}`
+        })
+        continue
+      }
+
+      if (!recordMap) {
+        stats.documentsSkipped += 1
+        await emit({
+          type: 'log',
+          level: 'warn',
+          message: `Unable to load Notion page ${currentPageId}; skipping.`
+        })
+        continue
+      }
+
+      const title = getPageTitle(recordMap, currentPageId)
+
+      await emit({
+        type: 'queue',
+        current: index + 1,
+        total: candidatePages.length,
+        pageId: currentPageId,
+        title: title ?? null
+      })
+
       try {
         await ingestNotionPage({
           pageId: currentPageId,
+          recordMap,
           ingestionType,
           stats,
           emit
