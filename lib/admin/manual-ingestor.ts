@@ -76,6 +76,11 @@ async function ingestNotionPage({
   })
 
   const title = getPageTitle(recordMap, pageId)
+  await emit({
+    type: 'log',
+    level: 'info',
+    message: `Fetched Notion page "${title}" (${pageId}).`
+  })
   const plainText = extractPlainText(recordMap, pageId)
 
   if (!plainText) {
@@ -83,7 +88,7 @@ async function ingestNotionPage({
     await emit({
       type: 'log',
       level: 'warn',
-      message: `No readable content found for Notion page ${pageId}; nothing ingested.`
+      message: `No readable content found for Notion page "${title}" (${pageId}); nothing ingested.`
     })
     return
   }
@@ -121,7 +126,7 @@ async function ingestNotionPage({
     await emit({
       type: 'log',
       level: 'info',
-      message: `No changes detected for Notion page ${title}; skipping ingest.`
+      message: `No changes detected for Notion page "${title}" (${pageId}); skipping ingest.`
     })
     return
   }
@@ -449,7 +454,7 @@ async function runUrlIngestion(
 
     if (unchanged && ingestionType === 'partial') {
       stats.documentsSkipped += 1
-      finalMessage = `No changes detected for ${title}; skipping ingest.`
+      finalMessage = `No changes detected for ${title} (${url}); skipping ingest.`
       await emit({
         type: 'log',
         level: 'info',
