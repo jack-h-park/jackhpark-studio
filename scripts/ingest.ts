@@ -1,6 +1,7 @@
 // scripts/ingest.ts
 import pMap from 'p-map'
 
+import { normalizeEmbeddingProvider } from '../lib/core/model-provider'
 import {
   chunkByTokens,
   type ChunkInsert,
@@ -10,6 +11,7 @@ import {
   extractMainContent,
   finishIngestRun,
   getDocumentState,
+  hasChunksForProvider,
   hashChunk,
   type IngestRunErrorLog,
   type IngestRunHandle,
@@ -22,6 +24,10 @@ import {
 const INGEST_CONCURRENCY = Math.max(
   1,
   Number.parseInt(process.env.INGEST_CONCURRENCY ?? '4', 10)
+)
+
+const DEFAULT_EMBEDDING_PROVIDER = normalizeEmbeddingProvider(
+  process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null
 )
 
 type RunMode = {
@@ -96,14 +102,23 @@ async function ingestUrl(
 
   const contentHash = hashChunk(`${url}:${text}`)
   const existingState = await getDocumentState(url)
-  if (
+  const embeddingProvider = DEFAULT_EMBEDDING_PROVIDER
+  const unchanged =
     existingState &&
     existingState.content_hash === contentHash &&
     (!lastModified || existingState.last_source_update === lastModified)
-  ) {
-    console.log(`Skipping unchanged URL: ${title}`)
-    stats.documentsSkipped += 1
-    return
+
+  if (unchanged) {
+    const providerHasChunks = await hasChunksForProvider(
+      url,
+      embeddingProvider
+    )
+
+    if (providerHasChunks) {
+      console.log(`Skipping unchanged URL: ${title}`)
+      stats.documentsSkipped += 1
+      return
+    }
   }
 
   const chunks = chunkByTokens(text, 450, 75)
@@ -114,7 +129,7 @@ async function ingestUrl(
     return
   }
 
-  const embeddings = await embedBatch(chunks)
+  const embeddings = await embedBatch(chunks, { provider: embeddingProvider })
   const ingestedAt = new Date().toISOString()
 
   const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
@@ -130,7 +145,7 @@ async function ingestUrl(
   const chunkCount = rows.length
   const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0)
 
-  await replaceChunks(url, rows)
+  await replaceChunks(url, rows, { provider: embeddingProvider })
   await upsertDocumentState({
     doc_id: url,
     source_url: url,
@@ -182,7 +197,10 @@ async function main(): Promise<void> {
     source: 'web',
     ingestion_type: mode.type,
     partial_reason: resolvedReason ?? null,
-    metadata: { urlCount: targets.length }
+    metadata: {
+      urlCount: targets.length,
+      embeddingProvider: DEFAULT_EMBEDDING_PROVIDER
+    }
   })
 
   const stats = createEmptyRunStats()

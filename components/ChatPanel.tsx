@@ -12,6 +12,17 @@ import {
 } from "react";
 import css from "styled-jsx/css";
 
+import {
+  MODEL_PROVIDER_LABELS,
+  MODEL_PROVIDERS,
+  type ModelProvider,
+  normalizeModelProvider,
+} from "@/lib/shared/model-provider";
+
+const DEFAULT_MODEL_PROVIDER: ModelProvider = normalizeModelProvider(
+  process.env.NEXT_PUBLIC_LLM_PROVIDER ?? null,
+  "openai",
+);
 const styles = css`
   .chat-panel-container {
     position: fixed;
@@ -78,6 +89,33 @@ const styles = css`
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
+  }
+
+  .chat-header-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .chat-engine-toggle {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .chat-provider-select {
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 0.8rem;
+    background: #fff;
+    color: #333;
+  }
+
+  .chat-provider-select:focus {
+    outline: none;
+    border-color: #007aff;
+    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
   }
 
   .chat-header h3 {
@@ -204,6 +242,9 @@ export function ChatPanel() {
   const isMountedRef = useRef(true);
 
   const [engine, setEngine] = useState<Engine>("lc");
+  const [provider, setProvider] = useState<ModelProvider>(
+    DEFAULT_MODEL_PROVIDER,
+  );
 
   useEffect(() => {
     const saved =
@@ -216,6 +257,23 @@ export function ChatPanel() {
   const setEngineAndSave = (next: Engine) => {
     setEngine(next);
     if (typeof window !== "undefined") localStorage.setItem("ask_engine", next);
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const stored = localStorage.getItem("ask_provider");
+    if (stored) {
+      setProvider(normalizeModelProvider(stored, DEFAULT_MODEL_PROVIDER));
+    }
+  }, []);
+
+  const setProviderAndSave = (next: ModelProvider) => {
+    setProvider(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("ask_provider", next);
+    }
   };
 
   const scrollToBottom = () => {
@@ -283,7 +341,11 @@ export function ChatPanel() {
           const response = await fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ question: value }),
+            body: JSON.stringify({
+              question: value,
+              provider,
+              embeddingProvider: provider,
+            }),
             signal: controller.signal,
           });
 
@@ -332,7 +394,11 @@ export function ChatPanel() {
           const response = await fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: sanitizedMessages }),
+            body: JSON.stringify({
+              messages: sanitizedMessages,
+              provider,
+              embeddingProvider: provider,
+            }),
             signal: controller.signal,
           });
 
@@ -407,40 +473,62 @@ export function ChatPanel() {
         <div className={`chat-panel ${isOpen ? "is-open" : ""}`}>
           <header className="chat-header">
             <h3>Jack's AI Assistant</h3>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <button
-                type="button"
-                onClick={() => setEngineAndSave("native")}
-                aria-pressed={engine === "native"}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 6,
-                  border:
-                    engine === "native" ? "2px solid #444" : "1px solid #ccc",
-                  background: "#fff",
-                  cursor: "pointer",
-                  fontSize: "0.8rem",
-                }}
-                title="Direct (framework-free) engine"
+            <div className="chat-header-controls">
+              <div className="chat-engine-toggle">
+                <button
+                  type="button"
+                  onClick={() => setEngineAndSave("native")}
+                  aria-pressed={engine === "native"}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    border:
+                      engine === "native"
+                        ? "2px solid #444"
+                        : "1px solid #ccc",
+                    background: "#fff",
+                    cursor: "pointer",
+                    fontSize: "0.8rem",
+                  }}
+                  title="Direct (framework-free) engine"
+                >
+                  Native
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEngineAndSave("lc")}
+                  aria-pressed={engine === "lc"}
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 6,
+                    border:
+                      engine === "lc"
+                        ? "2px solid #444"
+                        : "1px solid #ccc",
+                    background: "#fff",
+                    cursor: "pointer",
+                    fontSize: "0.8rem",
+                  }}
+                  title="LangChain engine"
+                >
+                  LangChain
+                </button>
+              </div>
+              <select
+                className="chat-provider-select"
+                value={provider}
+                onChange={(event) =>
+                  setProviderAndSave(event.target.value as ModelProvider)
+                }
+                disabled={isLoading}
+                aria-label="Model provider"
               >
-                Native
-              </button>
-              <button
-                type="button"
-                onClick={() => setEngineAndSave("lc")}
-                aria-pressed={engine === "lc"}
-                style={{
-                  padding: "6px 10px",
-                  borderRadius: 6,
-                  border: engine === "lc" ? "2px solid #444" : "1px solid #ccc",
-                  background: "#fff",
-                  cursor: "pointer",
-                  fontSize: "0.8rem",
-                }}
-                title="LangChain engine"
-              >
-                LangChain
-              </button>
+                {MODEL_PROVIDERS.map((option) => (
+                  <option key={option} value={option}>
+                    {MODEL_PROVIDER_LABELS[option]}
+                  </option>
+                ))}
+              </select>
             </div>
             <button
               className="chat-close-button"

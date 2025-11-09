@@ -19,7 +19,7 @@
 ### 🧩 RAG + Admin Ingestion + Chat Assistant
 
 - End-to-end document ingestion pipeline (manual + batch modes)
-- Semantic embeddings via **OpenAI** stored in **Supabase**
+- Semantic embeddings via configurable providers (**OpenAI**, **Gemini**, **Hugging Face**) stored in **Supabase**
 - `/admin/ingestion` dashboard with real-time progress (SSE streaming)
 - Built-in **Chat Assistant** with a floating panel UI and streaming responses
 
@@ -50,8 +50,13 @@
    ADMIN_DASH_PASS=secret
    NOTION_PAGE_CACHE_TTL=300
 
+   LLM_PROVIDER=openai
+   # EMBEDDING_PROVIDER=
+   # GOOGLE_API_KEY=...
+   # HUGGINGFACE_API_KEY=...
    OPENAI_API_KEY=sk-...
    SUPABASE_URL=https://your-project.supabase.co
+    SUPABASE_ANON_KEY=...
    SUPABASE_SERVICE_ROLE_KEY=...
    ```
 
@@ -90,7 +95,7 @@ flowchart LR
   B --> C["react-notion-x Renderer"];
   C --> D["Notion CMS"];
   B --> E["Vercel Edge / API Routes"];
-  E --> F["OpenAI Chat API"];
+  E --> F["LLM Provider (OpenAI / Gemini / Hugging Face)"];
   E --> G["Supabase (Embeddings DB)"];
   E --> H["Notion Proxy / API Wrapper"];
 ```
@@ -101,7 +106,7 @@ flowchart LR
   flowchart TD
   A["Notion Page or External URL"] --> B["jsdom + Readability"];
   B --> C["gpt-tokenizer"];
-  C --> D["OpenAI Embeddings API"];
+  C --> D["Embedding Provider API"];
   D --> E["Supabase: Documents and Chunks"];
 
   subgraph "Admin Interface"
@@ -112,11 +117,14 @@ flowchart LR
   G -- "events" --> F;
 ```
 
+> **Supabase 레이어**는 공급자별 테이블/뷰(`rag_chunks_openai`, `rag_chunks_gemini`, `rag_chunks_hf`, `lc_chunks_*`)을 사용합니다. 인제스트 시 선택한 임베딩 공급자와 동일한 테이블/함수를 호출해 주세요.
+
 ---
 
 ## 🧩 Dependencies
 
-- **OpenAI SDK**, **Supabase JS**, **gpt-tokenizer**
+- **OpenAI SDK**, **@google/generative-ai**, **@huggingface/inference**, **Supabase JS**, **gpt-tokenizer**
+- **@langchain/openai**, **@langchain/google-genai**, **@langchain/community**
 - **@mozilla/readability**, **jsdom**, **exponential-backoff**
 - **framer-motion**, **react-modal**, **@react-icons/all-files**
 

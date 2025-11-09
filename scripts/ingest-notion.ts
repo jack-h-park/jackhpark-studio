@@ -4,6 +4,7 @@ import { type ExtendedRecordMap } from 'notion-types'
 import { getAllPagesInSpace } from 'notion-utils'
 import pMap from 'p-map' 
 
+import { normalizeEmbeddingProvider } from '../lib/core/model-provider'
 import {
   chunkByTokens,
   type ChunkInsert,
@@ -15,6 +16,7 @@ import {
   getPageLastEditedTime,
   getPageTitle,
   getPageUrl,
+  hasChunksForProvider,
   hashChunk,
   type IngestRunErrorLog,
   type IngestRunHandle,
@@ -25,6 +27,9 @@ import {
 } from '../lib/rag'
 
 const notion = new NotionAPI()
+const DEFAULT_EMBEDDING_PROVIDER = normalizeEmbeddingProvider(
+  process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null
+)
 
 type RunMode = {
   type: 'full' | 'partial'
@@ -101,10 +106,17 @@ async function ingestPage(
   const unchanged =
     existingState && existingState.content_hash === pageHash
 
+  const embeddingProvider = DEFAULT_EMBEDDING_PROVIDER
   if (unchanged) {
-    console.log(`Skipping unchanged Notion page: ${title}`)
-    stats.documentsSkipped += 1
-    return
+    const providerHasChunks = await hasChunksForProvider(
+      pageId,
+      embeddingProvider
+    )
+    if (providerHasChunks) {
+      console.log(`Skipping unchanged Notion page: ${title}`)
+      stats.documentsSkipped += 1
+      return
+    }
   }
 
   const chunks = chunkByTokens(plainText, 450, 75)
@@ -114,7 +126,7 @@ async function ingestPage(
     return
   }
 
-  const embeddings = await embedBatch(chunks)
+  const embeddings = await embedBatch(chunks, { provider: embeddingProvider })
   const ingestedAt = new Date().toISOString()
 
   const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
@@ -130,7 +142,7 @@ async function ingestPage(
   const chunkCount = rows.length
   const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0)
 
-  await replaceChunks(pageId, rows)
+  await replaceChunks(pageId, rows, { provider: embeddingProvider })
   await upsertDocumentState({
     doc_id: pageId,
     source_url: sourceUrl,
@@ -218,7 +230,7 @@ async function main() {
     source: 'notion',
     ingestion_type: mode.type,
     partial_reason: resolvedReason,
-    metadata: { rootPageId }
+    metadata: { rootPageId, embeddingProvider: DEFAULT_EMBEDDING_PROVIDER }
   })
 
   const stats = createEmptyRunStats()

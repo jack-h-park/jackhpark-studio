@@ -11,6 +11,12 @@ importers:
       '@fisch0920/use-dark-mode':
         specifier: ^2.4.0
         version: 2.4.0(react@19.1.1)
+      '@google/generative-ai':
+        specifier: ^0.11.5
+        version: 0.11.5
+      '@huggingface/inference':
+        specifier: ^2.8.1
+        version: 2.8.1
       '@keyvhq/core':
         specifier: ^1.6.9
         version: 1.6.26
@@ -19,10 +25,13 @@ importers:
         version: 1.6.28
       '@langchain/community':
         specifier: ^1.0.0
-        version: 1.0.0(@browserbasehq/sdk@2.6.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@16.6.1)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12))(@ibm-cloud/watsonx-ai@1.7.0)(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(@mozilla/readability@0.6.0)(@opentelemetry/api@1.9.0)(@supabase/supabase-js@2.76.1)(ibm-cloud-sdk-core@5.4.3)(ignore@5.3.2)(ioredis@5.3.2)(jsdom@27.0.1(canvas@3.2.0)(postcss@8.4.31))(jsonwebtoken@9.0.2)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(playwright@1.56.1)(ws@8.18.3)
+        version: 1.0.0(@browserbasehq/sdk@2.6.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@16.6.1)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12))(@huggingface/inference@2.8.1)(@ibm-cloud/watsonx-ai@1.7.0)(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(@mozilla/readability@0.6.0)(@opentelemetry/api@1.9.0)(@supabase/supabase-js@2.76.1)(ibm-cloud-sdk-core@5.4.3)(ignore@5.3.2)(ioredis@5.3.2)(jsdom@27.0.1(canvas@3.2.0)(postcss@8.4.31))(jsonwebtoken@9.0.2)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(playwright@1.56.1)(ws@8.18.3)
       '@langchain/core':
         specifier: ^1.0.1
         version: 1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))
+      '@langchain/google-genai':
+        specifier: ^0.1.12
+        version: 0.1.12(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(zod@4.1.12)
       '@langchain/openai':
         specifier: ^1.0.0
         version: 1.0.0(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(ws@8.18.3)
@@ -485,6 +494,21 @@ packages:
     resolution: {integrity: sha512-R5onciu81CCOxWVIJcRjp1PfSfBI5fIfxYR2jqydc0nuGWrn4ZB4ciDXiv36PNX5mFIbAgPfjUF0Z5lhSI62TA==}
     peerDependencies:
       react: '>=16.8'
+
+  '@google/generative-ai@0.11.5':
+    resolution: {integrity: sha512-DviMgrnljEKh6qkDT2pVFW+NEuVhggqBUoEnyy2PNL7l4ewxXRJubk3PctC9yPl1AdRIlhqP7E076QQt+IWuTg==}
+    engines: {node: '>=18.0.0'}
+
+  '@google/generative-ai@0.24.1':
+    resolution: {integrity: sha512-MqO+MLfM6kjxcKoy0p1wRzG3b4ZZXtPI+z2IE26UogS2Cm/XHO+7gGRBh6gcJsOiIVoH93UwKvW4HdgiOZCy9Q==}
+    engines: {node: '>=18.0.0'}
+
+  '@huggingface/inference@2.8.1':
+    resolution: {integrity: sha512-EfsNtY9OR6JCNaUa5bZu2mrs48iqeTz0Gutwf+fU0Kypx33xFQB4DKMhp8u4Ee6qVbLbNWvTHuWwlppLQl4p4Q==}
+    engines: {node: '>=18'}
+
+  '@huggingface/tasks@0.12.30':
+    resolution: {integrity: sha512-A1ITdxbEzx9L8wKR8pF7swyrTLxWNDFIGDLUWInxvks2ruQ8PLRBZe8r0EcjC3CDdtlj9jV1V4cgV35K/iy3GQ==}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -1132,6 +1156,12 @@ packages:
   '@langchain/core@1.0.1':
     resolution: {integrity: sha512-hVM3EkojYOk4ISJQKjLuWYSH6kyyOFlZIrLFETDA1L0Z2/Iu0q32aJawZ0FDn6rlXE8QZjBt/9OaOL36rXc05w==}
     engines: {node: '>=20'}
+
+  '@langchain/google-genai@0.1.12':
+    resolution: {integrity: sha512-0Ea0E2g63ejCuormVxbuoyJQ5BYN53i2/fb6WP8bMKzyh+y43R13V8JqOtr3e/GmgNyv3ou/VeaZjx7KAvu/0g==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@langchain/core': '>=0.3.17 <0.4.0'
 
   '@langchain/openai@1.0.0':
     resolution: {integrity: sha512-olKEUIjb3HBOiD/NR056iGJz4wiN6HhQ/u65YmGWYadWWoKOcGwheBw/FE0x6SH4zDlI3QmP+vMhuQoaww19BQ==}
@@ -4255,6 +4285,16 @@ snapshots:
       react: 19.1.1
       use-persisted-state: 0.3.3(react@19.1.1)
 
+  '@google/generative-ai@0.11.5': {}
+
+  '@google/generative-ai@0.24.1': {}
+
+  '@huggingface/inference@2.8.1':
+    dependencies:
+      '@huggingface/tasks': 0.12.30
+
+  '@huggingface/tasks@0.12.30': {}
+
   '@humanfs/core@0.19.1': {}
 
   '@humanfs/node@0.16.7':
@@ -4476,7 +4516,7 @@ snapshots:
       - openai
       - ws
 
-  '@langchain/community@1.0.0(@browserbasehq/sdk@2.6.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@16.6.1)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12))(@ibm-cloud/watsonx-ai@1.7.0)(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(@mozilla/readability@0.6.0)(@opentelemetry/api@1.9.0)(@supabase/supabase-js@2.76.1)(ibm-cloud-sdk-core@5.4.3)(ignore@5.3.2)(ioredis@5.3.2)(jsdom@27.0.1(canvas@3.2.0)(postcss@8.4.31))(jsonwebtoken@9.0.2)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(playwright@1.56.1)(ws@8.18.3)':
+  '@langchain/community@1.0.0(@browserbasehq/sdk@2.6.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@16.6.1)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12))(@huggingface/inference@2.8.1)(@ibm-cloud/watsonx-ai@1.7.0)(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(@mozilla/readability@0.6.0)(@opentelemetry/api@1.9.0)(@supabase/supabase-js@2.76.1)(ibm-cloud-sdk-core@5.4.3)(ignore@5.3.2)(ioredis@5.3.2)(jsdom@27.0.1(canvas@3.2.0)(postcss@8.4.31))(jsonwebtoken@9.0.2)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(playwright@1.56.1)(ws@8.18.3)':
     dependencies:
       '@browserbasehq/stagehand': 1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@16.6.1)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12)
       '@ibm-cloud/watsonx-ai': 1.7.0
@@ -4493,6 +4533,7 @@ snapshots:
       zod: 4.1.12
     optionalDependencies:
       '@browserbasehq/sdk': 2.6.0
+      '@huggingface/inference': 2.8.1
       '@mozilla/readability': 0.6.0
       '@supabase/supabase-js': 2.76.1
       ignore: 5.3.2
@@ -4525,6 +4566,14 @@ snapshots:
       - '@opentelemetry/exporter-trace-otlp-proto'
       - '@opentelemetry/sdk-trace-base'
       - openai
+
+  '@langchain/google-genai@0.1.12(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(zod@4.1.12)':
+    dependencies:
+      '@google/generative-ai': 0.24.1
+      '@langchain/core': 1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))
+      zod-to-json-schema: 3.24.6(zod@4.1.12)
+    transitivePeerDependencies:
+      - zod
 
   '@langchain/openai@1.0.0(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(ws@8.18.3)':
     dependencies:

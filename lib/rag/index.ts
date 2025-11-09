@@ -6,7 +6,9 @@ import { JSDOM } from 'jsdom'
 import { type Decoration, type ExtendedRecordMap } from 'notion-types'
 import { getPageContentBlockIds, getTextContent } from 'notion-utils'
 
-import { EMBEDDING_MODEL, openai, USER_AGENT } from '../core/openai'
+import { embedTexts } from '../core/embeddings'
+import { USER_AGENT } from '../core/openai'
+import { getRagChunksTable } from '../core/rag-tables'
 import { supabaseClient } from '../core/supabase'
 
 const DOCUMENTS_TABLE = 'rag_documents'
@@ -355,19 +357,20 @@ export function chunkByTokens(
   return chunks
 }
 
-export async function embedBatch(texts: string[]): Promise<number[][]> {
+export type EmbedBatchOptions = {
+  provider?: string | null
+  model?: string | null
+}
+
+export async function embedBatch(
+  texts: string[],
+  options?: EmbedBatchOptions
+): Promise<number[][]> {
   if (texts.length === 0) {
     return []
   }
 
-  const response = await openai.embeddings.create({
-    model: EMBEDDING_MODEL,
-    input: texts
-  })
-
-  return response.data.map(
-    (item: { embedding: number[] }): number[] => item.embedding
-  )
+  return embedTexts(texts, options)
 }
 
 export function hashChunk(input: string): string {
@@ -379,20 +382,26 @@ export function hashChunk(input: string): string {
   return String(hash)
 }
 
+type ReplaceChunksOptions = {
+  provider?: string | null
+}
+
 export async function replaceChunks(
   docId: string,
-  rows: ChunkInsert[]
+  rows: ChunkInsert[],
+  options?: ReplaceChunksOptions
 ): Promise<void> {
+  const tableName = getRagChunksTable(options?.provider ?? null)
   // 1. Get existing chunk hashes for the document
   const { data: existingChunks, error: selectError } = await retry<{ chunk_hash: string }[]>(
     () =>
       supabaseClient
-        .from('rag_chunks')
+        .from(tableName)
         .select('chunk_hash')
         .eq('doc_id', docId)
         // The type assertion is necessary because Supabase client types can be broad.
         .then((res: SupabaseRpcResponse<{ chunk_hash: string }[]>) => res),
-    `select chunk_hashes for doc ${docId}`
+    `select chunk_hashes for doc ${docId} (${tableName})`
   );
 
   if (selectError) {
@@ -409,11 +418,11 @@ export async function replaceChunks(
     const { error: deleteError } = await retry(
       () =>
         supabaseClient
-          .from('rag_chunks')
+          .from(tableName)
           .delete()
           .in('chunk_hash', hashesToDelete)
           .eq('doc_id', docId),
-      `delete stale chunks for doc ${docId}`
+      `delete stale chunks for doc ${docId} (${tableName})`
     );
     if (deleteError) throw deleteError;
   }
@@ -421,12 +430,29 @@ export async function replaceChunks(
   // 3. Upsert new/changed chunks
   if (rows.length > 0) {
     const { error: upsertError } = await retry(
-      () => supabaseClient.from('rag_chunks').upsert(rows, { onConflict: 'doc_id,chunk_hash' }),
-      `upsert chunks for doc ${docId}`
+      () => supabaseClient.from(tableName).upsert(rows, { onConflict: 'doc_id,chunk_hash' }),
+      `upsert chunks for doc ${docId} (${tableName})`
     );
 
     if (upsertError) throw upsertError;
   }
+}
+
+export async function hasChunksForProvider(
+  docId: string,
+  provider?: string | null
+): Promise<boolean> {
+  const tableName = getRagChunksTable(provider ?? null)
+  const { count, error } = await supabaseClient
+    .from(tableName)
+    .select('doc_id', { count: 'exact', head: true })
+    .eq('doc_id', docId)
+
+  if (error) {
+    throw error
+  }
+
+  return (count ?? 0) > 0
 }
 
 export function normalizeTimestamp(input: unknown): string | null {

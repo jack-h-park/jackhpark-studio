@@ -23,6 +23,16 @@ import {
 import { NotionContextProvider } from "react-notion-x";
 import css from "styled-jsx/css";
 
+import { normalizeEmbeddingProvider } from "@/lib/core/model-provider";
+import {
+  MODEL_PROVIDER_LABELS,
+  MODEL_PROVIDERS,
+  type ModelProvider,
+  normalizeModelProvider,
+  toModelProviderId,
+} from "@/lib/shared/model-provider";
+
+import type { ManualIngestionRequest } from "../../lib/admin/manual-ingestor";
 import { Footer } from "../../components/Footer";
 import { NotionPageHeader } from "../../components/NotionPageHeader";
 import {
@@ -41,6 +51,7 @@ type Overview = {
   totalChunks: number;
   totalCharacters: number;
   lastUpdatedAt: string | null;
+  defaultEmbeddingProvider: ModelProvider;
 };
 
 type RecentRunsSnapshot = {
@@ -172,6 +183,11 @@ const MANUAL_TABS = [
   },
 ] as const;
 
+const DEFAULT_MANUAL_EMBEDDING_PROVIDER: ModelProvider = normalizeModelProvider(
+  process.env.NEXT_PUBLIC_LLM_PROVIDER ?? null,
+  "openai",
+);
+
 const manualStatusLabels: Record<ManualIngestionStatus, string> = {
   idle: "Idle",
   in_progress: "In Progress",
@@ -269,6 +285,17 @@ function parseSourceQueryValue(
   return extracted;
 }
 
+function parseEmbeddingProviderQueryValue(
+  value: string | string[] | undefined,
+): ModelProvider | typeof ALL_FILTER_VALUE {
+  const extracted = extractQueryValue(value);
+  if (!extracted) {
+    return ALL_FILTER_VALUE;
+  }
+  const normalized = toModelProviderId(extracted);
+  return normalized ?? ALL_FILTER_VALUE;
+}
+
 function parsePageQueryValue(value: string | string[] | undefined): number {
   const extracted = extractQueryValue(value);
   if (!extracted) {
@@ -314,6 +341,33 @@ function collectSources(runs: RunRecord[]): string[] {
     }
   }
   return Array.from(sourceSet).toSorted((a, b) => a.localeCompare(b));
+}
+
+function collectEmbeddingProviders(runs: RunRecord[]): ModelProvider[] {
+  const providerSet = new Set<ModelProvider>();
+  for (const run of runs) {
+    const raw = getStringMetadata(run.metadata, "embeddingProvider");
+    const provider = toModelProviderId(raw);
+    if (provider) {
+      providerSet.add(provider);
+    }
+  }
+  return Array.from(providerSet).toSorted((a, b) => a.localeCompare(b));
+}
+
+function mergeEmbeddingProviders(
+  existing: ModelProvider[],
+  runs: RunRecord[],
+): ModelProvider[] {
+  const providers = new Set(existing);
+  for (const run of runs) {
+    const raw = getStringMetadata(run.metadata, "embeddingProvider");
+    const provider = toModelProviderId(raw);
+    if (provider) {
+      providers.add(provider);
+    }
+  }
+  return Array.from(providers).toSorted((a, b) => a.localeCompare(b));
 }
 
 function mergeSources(existing: string[], runs: RunRecord[]): string[] {
@@ -448,6 +502,8 @@ function ManualIngestionPanel(): JSX.Element {
   const [urlScope, setUrlScope] = useState<"partial" | "full">("partial");
   const [urlInput, setUrlInput] = useState("");
   const [includeLinkedPages, setIncludeLinkedPages] = useState(true);
+  const [manualEmbeddingProvider, setManualEmbeddingProvider] =
+    useState<ModelProvider>(DEFAULT_MANUAL_EMBEDDING_PROVIDER);
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<ManualIngestionStatus>("idle");
@@ -478,6 +534,28 @@ function ManualIngestionPanel(): JSX.Element {
       mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const stored = localStorage.getItem("manual_embedding_provider");
+    if (stored) {
+      setManualEmbeddingProvider(
+        normalizeModelProvider(stored, DEFAULT_MANUAL_EMBEDDING_PROVIDER),
+      );
+    }
+  }, []);
+
+  const setEmbeddingProviderAndSave = useCallback(
+    (next: ModelProvider) => {
+      setManualEmbeddingProvider(next);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("manual_embedding_provider", next);
+      }
+    },
+    [],
+  );
 
   const appendLog = useCallback(
     (message: string, level: "info" | "warn" | "error" = "info") => {
@@ -620,18 +698,7 @@ function ManualIngestionPanel(): JSX.Element {
       return;
     }
 
-    let payload:
-      | {
-          mode: "notion_page";
-          pageId: string;
-          ingestionType: "full" | "partial";
-          includeLinkedPages: boolean;
-        }
-      | {
-          mode: "url";
-          url: string;
-          ingestionType: "full" | "partial";
-        };
+    let payload: ManualIngestionRequest;
 
     if (mode === "notion_page") {
       const parsed = parsePageId(notionInput.trim(), { uuid: true });
@@ -644,6 +711,7 @@ function ManualIngestionPanel(): JSX.Element {
         pageId: parsed,
         ingestionType: notionScope,
         includeLinkedPages,
+        embeddingProvider: manualEmbeddingProvider,
       };
     } else {
       const trimmed = urlInput.trim();
@@ -669,6 +737,7 @@ function ManualIngestionPanel(): JSX.Element {
         mode: "url",
         url: parsedUrl.toString(),
         ingestionType: urlScope,
+        embeddingProvider: manualEmbeddingProvider,
       };
     }
 
@@ -847,6 +916,7 @@ function ManualIngestionPanel(): JSX.Element {
     includeLinkedPages,
     urlInput,
     urlScope,
+    manualEmbeddingProvider,
     handleEvent,
     appendLog,
   ]);
@@ -1059,6 +1129,34 @@ function ManualIngestionPanel(): JSX.Element {
                     "manual-scope-url",
                     "manual-scope-label-url",
                   )}
+
+              <div className="manual-field">
+                <label htmlFor="manual-provider-select">
+                  Embedding provider
+                </label>
+                <select
+                  id="manual-provider-select"
+                  value={manualEmbeddingProvider}
+                  onChange={(event) =>
+                    setEmbeddingProviderAndSave(
+                      normalizeModelProvider(
+                        event.target.value,
+                        manualEmbeddingProvider,
+                      ),
+                    )
+                  }
+                  disabled={isRunning}
+                >
+                  {MODEL_PROVIDERS.map((option) => (
+                    <option key={option} value={option}>
+                      {MODEL_PROVIDER_LABELS[option]}
+                    </option>
+                  ))}
+                </select>
+                <p className="manual-field__hint">
+                  Determines which embedding service powers this run.
+                </p>
+              </div>
 
               {mode === "notion_page" ? (
                 <div className="manual-toggle">
@@ -1352,6 +1450,9 @@ function RecentRunsSection({
   const [sourceFilter, setSourceFilter] = useState<
     string | typeof ALL_FILTER_VALUE
   >(ALL_FILTER_VALUE);
+  const [embeddingProviderFilter, setEmbeddingProviderFilter] = useState<
+    ModelProvider | typeof ALL_FILTER_VALUE
+  >(ALL_FILTER_VALUE);
   const [hideSkipped, setHideSkipped] = useState<boolean>(false);
   const [startedFromFilter, setStartedFromFilter] = useState<string>("");
   const [startedToFilter, setStartedToFilter] = useState<string>("");
@@ -1364,6 +1465,9 @@ function RecentRunsSection({
   const [knownSources, setKnownSources] = useState<string[]>(() =>
     collectSources(initial.runs),
   );
+  const [knownEmbeddingProviders, setKnownEmbeddingProviders] = useState<
+    ModelProvider[]
+  >(() => collectEmbeddingProviders(initial.runs));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const firstLoadRef = useRef(true);
@@ -1372,6 +1476,7 @@ function RecentRunsSection({
     statusFilter !== ALL_FILTER_VALUE ||
     ingestionTypeFilter !== ALL_FILTER_VALUE ||
     sourceFilter !== ALL_FILTER_VALUE ||
+    embeddingProviderFilter !== ALL_FILTER_VALUE ||
     startedFromFilter !== "" ||
     startedToFilter !== "" ||
     hideSkipped;
@@ -1388,12 +1493,25 @@ function RecentRunsSection({
     );
   }, [knownSources, sourceFilter]);
 
+  const embeddingProviderOptions = useMemo(() => {
+    if (embeddingProviderFilter === ALL_FILTER_VALUE) {
+      return knownEmbeddingProviders;
+    }
+    if (knownEmbeddingProviders.includes(embeddingProviderFilter)) {
+      return knownEmbeddingProviders;
+    }
+    return [...knownEmbeddingProviders, embeddingProviderFilter].toSorted((a, b) =>
+      a.localeCompare(b),
+    );
+  }, [knownEmbeddingProviders, embeddingProviderFilter]);
+
   const updateQuery = useCallback(
     (next: {
       page: number;
       status: RunStatus | typeof ALL_FILTER_VALUE;
       ingestionType: IngestionType | typeof ALL_FILTER_VALUE;
       source: string | typeof ALL_FILTER_VALUE;
+      embeddingProvider: ModelProvider | typeof ALL_FILTER_VALUE;
       startedFrom: string;
       startedTo: string;
       hideSkipped: boolean;
@@ -1433,6 +1551,9 @@ function RecentRunsSection({
       if (next.source !== ALL_FILTER_VALUE && next.source.trim().length > 0) {
         preserved.source = next.source.trim();
       }
+      if (next.embeddingProvider !== ALL_FILTER_VALUE) {
+        preserved.embeddingProvider = next.embeddingProvider;
+      }
       if (next.startedFrom) {
         preserved.startedFrom = next.startedFrom;
       }
@@ -1462,6 +1583,9 @@ function RecentRunsSection({
       router.query.ingestionType,
     );
     const nextSource = parseSourceQueryValue(router.query.source);
+    const nextEmbeddingProvider = parseEmbeddingProviderQueryValue(
+      router.query.embeddingProvider,
+    );
     const nextPage = parsePageQueryValue(router.query.page);
     const nextStartedFrom = parseDateQueryValue(router.query.startedFrom);
     const nextStartedTo = parseDateQueryValue(router.query.startedTo);
@@ -1475,6 +1599,9 @@ function RecentRunsSection({
       prev === nextIngestionType ? prev : nextIngestionType,
     );
     setSourceFilter((prev) => (prev === nextSource ? prev : nextSource));
+    setEmbeddingProviderFilter((prev) =>
+      prev === nextEmbeddingProvider ? prev : nextEmbeddingProvider,
+    );
     setPage((prev) => (prev === nextPage ? prev : nextPage));
     setStartedFromFilter((prev) =>
       prev === nextStartedFrom ? prev : nextStartedFrom,
@@ -1497,6 +1624,7 @@ function RecentRunsSection({
       statusFilter === ALL_FILTER_VALUE &&
       ingestionTypeFilter === ALL_FILTER_VALUE &&
       sourceFilter === ALL_FILTER_VALUE &&
+      embeddingProviderFilter === ALL_FILTER_VALUE &&
       startedFromFilter === "" &&
       startedToFilter === "" &&
       !hideSkipped;
@@ -1519,6 +1647,9 @@ function RecentRunsSection({
     }
     if (sourceFilter !== ALL_FILTER_VALUE && sourceFilter.trim().length > 0) {
       params.append("source", sourceFilter.trim());
+    }
+    if (embeddingProviderFilter !== ALL_FILTER_VALUE) {
+      params.append("embeddingProvider", embeddingProviderFilter);
     }
     if (startedFromFilter) {
       params.set("startedFrom", startedFromFilter);
@@ -1557,6 +1688,7 @@ function RecentRunsSection({
             status: statusFilter,
             ingestionType: ingestionTypeFilter,
             source: sourceFilter,
+            embeddingProvider: embeddingProviderFilter,
             startedFrom: startedFromFilter,
             startedTo: startedToFilter,
             hideSkipped,
@@ -1569,6 +1701,9 @@ function RecentRunsSection({
         setStatusOptions(payload.statusOptions);
         setIngestionTypeOptions(payload.ingestionTypeOptions);
         setKnownSources((current) => mergeSources(current, payload.runs));
+        setKnownEmbeddingProviders((current) =>
+          mergeEmbeddingProviders(current, payload.runs),
+        );
       } catch (err) {
         if (controller.signal.aborted) {
           return;
@@ -1601,6 +1736,7 @@ function RecentRunsSection({
     startedFromFilter,
     startedToFilter,
     hideSkipped,
+    embeddingProviderFilter,
     initial.page,
     updateQuery,
   ]);
@@ -1620,6 +1756,7 @@ function RecentRunsSection({
         status: nextStatus,
         ingestionType: ingestionTypeFilter,
         source: sourceFilter,
+        embeddingProvider: embeddingProviderFilter,
         startedFrom: startedFromFilter,
         startedTo: startedToFilter,
         hideSkipped,
@@ -1633,6 +1770,7 @@ function RecentRunsSection({
       startedToFilter,
       updateQuery,
       hideSkipped,
+      embeddingProviderFilter,
     ],
   );
 
@@ -1651,6 +1789,7 @@ function RecentRunsSection({
         status: statusFilter,
         ingestionType: nextType,
         source: sourceFilter,
+        embeddingProvider: embeddingProviderFilter,
         startedFrom: startedFromFilter,
         startedTo: startedToFilter,
         hideSkipped,
@@ -1664,6 +1803,7 @@ function RecentRunsSection({
       statusFilter,
       updateQuery,
       hideSkipped,
+      embeddingProviderFilter,
     ],
   );
 
@@ -1682,6 +1822,7 @@ function RecentRunsSection({
         status: statusFilter,
         ingestionType: ingestionTypeFilter,
         source: nextSource,
+        embeddingProvider: embeddingProviderFilter,
         startedFrom: startedFromFilter,
         startedTo: startedToFilter,
         hideSkipped,
@@ -1690,6 +1831,42 @@ function RecentRunsSection({
     [
       ingestionTypeFilter,
       page,
+      startedFromFilter,
+      startedToFilter,
+      statusFilter,
+      updateQuery,
+      hideSkipped,
+      embeddingProviderFilter,
+    ],
+  );
+
+  const handleEmbeddingProviderChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const rawValue = event.target.value;
+      const resolved =
+        rawValue === ALL_FILTER_VALUE
+          ? ALL_FILTER_VALUE
+          : toModelProviderId(rawValue) ?? ALL_FILTER_VALUE;
+      setEmbeddingProviderFilter(resolved);
+      const nextPage = 1;
+      if (page !== nextPage) {
+        setPage(nextPage);
+      }
+      updateQuery({
+        page: nextPage,
+        status: statusFilter,
+        ingestionType: ingestionTypeFilter,
+        source: sourceFilter,
+        embeddingProvider: resolved,
+        startedFrom: startedFromFilter,
+        startedTo: startedToFilter,
+        hideSkipped,
+      });
+    },
+    [
+      ingestionTypeFilter,
+      page,
+      sourceFilter,
       startedFromFilter,
       startedToFilter,
       statusFilter,
@@ -1711,6 +1888,7 @@ function RecentRunsSection({
         status: statusFilter,
         ingestionType: ingestionTypeFilter,
         source: sourceFilter,
+        embeddingProvider: embeddingProviderFilter,
         startedFrom: value,
         startedTo: startedToFilter,
         hideSkipped,
@@ -1724,6 +1902,7 @@ function RecentRunsSection({
       statusFilter,
       updateQuery,
       hideSkipped,
+      embeddingProviderFilter,
     ],
   );
 
@@ -1740,6 +1919,7 @@ function RecentRunsSection({
         status: statusFilter,
         ingestionType: ingestionTypeFilter,
         source: sourceFilter,
+        embeddingProvider: embeddingProviderFilter,
         startedFrom: startedFromFilter,
         startedTo: value,
         hideSkipped,
@@ -1753,6 +1933,7 @@ function RecentRunsSection({
       statusFilter,
       updateQuery,
       hideSkipped,
+      embeddingProviderFilter,
     ],
   );
 
@@ -1765,6 +1946,7 @@ function RecentRunsSection({
         status: statusFilter,
         ingestionType: ingestionTypeFilter,
         source: sourceFilter,
+        embeddingProvider: embeddingProviderFilter,
         startedFrom: startedFromFilter,
         startedTo: startedToFilter,
         hideSkipped: nextHideSkipped,
@@ -1778,6 +1960,7 @@ function RecentRunsSection({
       startedFromFilter,
       startedToFilter,
       updateQuery,
+      embeddingProviderFilter,
     ],
   );
 
@@ -1786,6 +1969,7 @@ function RecentRunsSection({
       statusFilter !== ALL_FILTER_VALUE ||
       ingestionTypeFilter !== ALL_FILTER_VALUE ||
       sourceFilter !== ALL_FILTER_VALUE ||
+      embeddingProviderFilter !== ALL_FILTER_VALUE ||
       startedFromFilter !== "" ||
       startedToFilter !== "" ||
       hideSkipped;
@@ -1797,6 +1981,7 @@ function RecentRunsSection({
     setStatusFilter(ALL_FILTER_VALUE);
     setIngestionTypeFilter(ALL_FILTER_VALUE);
     setSourceFilter(ALL_FILTER_VALUE);
+    setEmbeddingProviderFilter(ALL_FILTER_VALUE);
     setStartedFromFilter("");
     setStartedToFilter("");
     setHideSkipped(false);
@@ -1808,6 +1993,7 @@ function RecentRunsSection({
       status: ALL_FILTER_VALUE,
       ingestionType: ALL_FILTER_VALUE,
       source: ALL_FILTER_VALUE,
+      embeddingProvider: ALL_FILTER_VALUE,
       startedFrom: "",
       startedTo: "",
       hideSkipped: false,
@@ -1816,6 +2002,7 @@ function RecentRunsSection({
     ingestionTypeFilter,
     page,
     sourceFilter,
+    embeddingProviderFilter,
     startedFromFilter,
     startedToFilter,
     statusFilter,
@@ -1836,6 +2023,7 @@ function RecentRunsSection({
         status: statusFilter,
         ingestionType: ingestionTypeFilter,
         source: sourceFilter,
+        embeddingProvider: embeddingProviderFilter,
         startedFrom: startedFromFilter,
         startedTo: startedToFilter,
         hideSkipped,
@@ -1845,6 +2033,7 @@ function RecentRunsSection({
       ingestionTypeFilter,
       page,
       sourceFilter,
+      embeddingProviderFilter,
       startedFromFilter,
       startedToFilter,
       statusFilter,
@@ -1930,6 +2119,21 @@ function RecentRunsSection({
             </select>
           </label>
           <label className="recent-runs__filter">
+            <span>Embedding</span>
+            <select
+              value={embeddingProviderFilter}
+              onChange={handleEmbeddingProviderChange}
+              aria-label="Filter runs by embedding provider"
+            >
+              <option value={ALL_FILTER_VALUE}>All providers</option>
+              {embeddingProviderOptions.map((provider) => (
+                <option key={provider} value={provider}>
+                  {MODEL_PROVIDER_LABELS[provider] ?? provider}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="recent-runs__filter">
             <span>Started After</span>
             <input
               type="date"
@@ -1992,6 +2196,7 @@ function RecentRunsSection({
               <th>Started</th>
               <th>Status</th>
               <th>Type</th>
+              <th>Embedding</th>
               <th>Duration</th>
               <th>Chunks</th>
               <th>Docs</th>
@@ -2003,7 +2208,7 @@ function RecentRunsSection({
           <tbody>
             {runs.length === 0 ? (
               <tr>
-                <td colSpan={9} className="admin-table__empty">
+                <td colSpan={10} className="admin-table__empty">
                   {emptyMessage}
                 </td>
               </tr>
@@ -2020,6 +2225,17 @@ function RecentRunsSection({
                 const pageId = getStringMetadata(run.metadata, "pageId");
                 const targetUrl = getStringMetadata(run.metadata, "url");
                 const hostname = getStringMetadata(run.metadata, "hostname");
+                const embeddingProviderValue = getStringMetadata(
+                  run.metadata,
+                  "embeddingProvider",
+                );
+                const embeddingProviderId = toModelProviderId(
+                  embeddingProviderValue,
+                );
+                const embeddingProviderLabel =
+                  embeddingProviderId
+                    ? MODEL_PROVIDER_LABELS[embeddingProviderId]
+                    : embeddingProviderValue ?? "—";
                 const isFullySkipped =
                   run.status === "success" &&
                   (run.documents_processed ?? 0) > 0 &&
@@ -2075,6 +2291,7 @@ function RecentRunsSection({
                         </div>
                       ) : null}
                     </td>
+                    <td>{embeddingProviderLabel}</td>
                     <td>{formatDuration(run.duration_ms ?? 0)}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       <div>
@@ -2195,6 +2412,10 @@ function RecentRunsSection({
 }
 
 function IngestionDashboard({ overview, recentRuns }: PageProps): JSX.Element {
+  const defaultProviderLabel =
+    MODEL_PROVIDER_LABELS[overview.defaultEmbeddingProvider] ??
+    overview.defaultEmbeddingProvider;
+
   return (
     <>
       <Head>
@@ -2262,6 +2483,14 @@ function IngestionDashboard({ overview, recentRuns }: PageProps): JSX.Element {
                   <span className="admin-metric__label">Content Size</span>
                   <span className="admin-metric__value">
                     {formatCharacters(overview.totalCharacters)}
+                  </span>
+                </div>
+                <div className="admin-metric">
+                  <span className="admin-metric__label">
+                    Embedding Provider
+                  </span>
+                  <span className="admin-metric__value">
+                    {defaultProviderLabel}
                   </span>
                 </div>
                 <div className="admin-metric">
@@ -2942,7 +3171,8 @@ const styles = css.global`
     color: rgba(55, 53, 47, 0.68);
   }
 
-  .manual-field input {
+  .manual-field input,
+  .manual-field select {
     border: 1px solid rgba(55, 53, 47, 0.18);
     border-radius: 12px;
     padding: 0.78rem 1rem;
@@ -2954,15 +3184,22 @@ const styles = css.global`
       box-shadow 0.15s ease;
   }
 
-  .manual-field input:focus {
+  .manual-field input:focus,
+  .manual-field select:focus {
     outline: none;
     border-color: rgba(46, 170, 220, 0.65);
     box-shadow: 0 0 0 2px rgba(46, 170, 220, 0.18);
   }
 
-  .manual-field input:disabled {
+  .manual-field input:disabled,
+  .manual-field select:disabled {
     background: rgba(245, 244, 240, 0.7);
     color: rgba(55, 53, 47, 0.5);
+  }
+
+  .manual-field__hint {
+    font-size: 0.8rem;
+    color: rgba(55, 53, 47, 0.6);
   }
 
   .manual-scope {
@@ -3555,6 +3792,10 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
       ? null
       : new Date(lastUpdatedTimestamp).toISOString();
 
+  const defaultEmbeddingProvider = normalizeEmbeddingProvider(
+    process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
+  );
+
   return {
     props: {
       overview: {
@@ -3562,6 +3803,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
         totalChunks,
         totalCharacters,
         lastUpdatedAt,
+        defaultEmbeddingProvider,
       },
       recentRuns: {
         runs,

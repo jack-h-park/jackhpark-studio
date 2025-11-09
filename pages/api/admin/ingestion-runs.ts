@@ -1,6 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import {
+  type ModelProvider,
+  toModelProviderId,
+} from "@/lib/shared/model-provider";
+
+import {
   DEFAULT_RUNS_PAGE_SIZE,
   INGESTION_TYPE_VALUES,
   type IngestionType,
@@ -28,6 +33,7 @@ type ParsedQuery = {
   statuses: RunStatus[];
   sources: string[];
   ingestionTypes: IngestionType[];
+  embeddingProviders: ModelProvider[];
   startedFrom: string | null;
   startedTo: string | null;
   hideSkipped: boolean;
@@ -117,6 +123,15 @@ function parseQuery(query: NextApiRequest["query"]): ParsedQuery {
   }
   const ingestionTypes = Array.from(ingestionTypeSet);
 
+  const embeddingProviderSet = new Set<ModelProvider>();
+  for (const candidate of toList(query.embeddingProvider)) {
+    const provider = toModelProviderId(candidate);
+    if (provider) {
+      embeddingProviderSet.add(provider);
+    }
+  }
+  const embeddingProviders = Array.from(embeddingProviderSet);
+
   const startedFrom = normalizeDateParam(
     toString(query.startedFrom),
     "start",
@@ -131,6 +146,7 @@ function parseQuery(query: NextApiRequest["query"]): ParsedQuery {
     statuses,
     sources,
     ingestionTypes,
+    embeddingProviders,
     startedFrom,
     startedTo,
     hideSkipped,
@@ -153,6 +169,7 @@ export default async function handler(
     statuses,
     sources,
     ingestionTypes,
+    embeddingProviders,
     startedFrom,
     startedTo,
     hideSkipped,
@@ -191,6 +208,13 @@ export default async function handler(
 
   if (ingestionTypes.length > 0) {
     query = query.in("ingestion_type", ingestionTypes);
+  }
+
+  if (embeddingProviders.length > 0) {
+    query = query.in(
+      "metadata->>embeddingProvider",
+      embeddingProviders,
+    );
   }
 
   if (startedFrom) {

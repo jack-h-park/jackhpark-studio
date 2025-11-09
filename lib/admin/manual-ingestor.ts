@@ -2,11 +2,13 @@ import { NotionAPI } from 'notion-client'
 import { type ExtendedRecordMap } from 'notion-types'
 import { getAllPagesInSpace, parsePageId } from 'notion-utils'
 
+import type { ModelProvider } from '../shared/model-provider'
 import {
   chunkByTokens,
   type ChunkInsert,
   createEmptyRunStats,
   embedBatch,
+  type EmbedBatchOptions,
   extractMainContent,
   extractPlainText,
   finishIngestRun,
@@ -14,6 +16,7 @@ import {
   getPageLastEditedTime,
   getPageTitle,
   getPageUrl,
+  hasChunksForProvider,
   hashChunk,
   type IngestRunErrorLog,
   type IngestRunHandle,
@@ -26,14 +29,19 @@ import {
 
 const notion = new NotionAPI()
 
+type ManualIngestionBase = {
+  ingestionType?: 'full' | 'partial'
+  embeddingProvider?: ModelProvider
+  embeddingModel?: string | null
+}
+
 export type ManualIngestionRequest =
-  | {
+  | (ManualIngestionBase & {
       mode: 'notion_page'
       pageId: string
-      ingestionType?: 'full' | 'partial'
       includeLinkedPages?: boolean
-    }
-  | { mode: 'url'; url: string; ingestionType?: 'full' | 'partial' }
+    })
+  | (ManualIngestionBase & { mode: 'url'; url: string })
 
 export type ManualIngestionEvent =
   | { type: 'run'; runId: string | null }
@@ -62,13 +70,15 @@ async function ingestNotionPage({
   recordMap,
   ingestionType,
   stats,
-  emit
+  emit,
+  embeddingOptions
 }: {
   pageId: string
   recordMap: ExtendedRecordMap
   ingestionType: 'full' | 'partial'
   stats: IngestRunStats
   emit: EmitFn
+  embeddingOptions: EmbedBatchOptions
 }): Promise<void> {
   const isFull = ingestionType === 'full'
 
@@ -125,7 +135,15 @@ async function ingestNotionPage({
     (!normalizedLastEdited ||
       normalizedExistingUpdate === normalizedLastEdited)
 
-  if (!isFull && unchanged) {
+  let providerHasChunks = false
+  if (unchanged) {
+    providerHasChunks = await hasChunksForProvider(
+      pageId,
+      embeddingOptions.provider ?? null
+    )
+  }
+
+  if (!isFull && unchanged && providerHasChunks) {
     stats.documentsSkipped += 1
     await emit({
       type: 'log',
@@ -156,7 +174,7 @@ async function ingestNotionPage({
     level: 'info',
     message: `Embedding ${chunks.length} chunk(s)...`
   })
-  const embeddings = await embedBatch(chunks)
+  const embeddings = await embedBatch(chunks, embeddingOptions)
   const ingestedAt = new Date().toISOString()
 
   const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
@@ -177,7 +195,9 @@ async function ingestNotionPage({
     step: 'saving',
     percent: 85
   })
-  await replaceChunks(pageId, rows)
+  await replaceChunks(pageId, rows, {
+    provider: embeddingOptions.provider ?? null
+  })
   await upsertDocumentState({
     doc_id: pageId,
     source_url: sourceUrl,
@@ -210,6 +230,7 @@ async function runNotionPageIngestion(
   pageId: string,
   ingestionType: 'full' | 'partial',
   includeLinkedPages: boolean,
+  embeddingOptions: EmbedBatchOptions,
   emit: EmitFn
 ): Promise<void> {
   const pageUrl = getPageUrl(pageId)
@@ -218,7 +239,13 @@ async function runNotionPageIngestion(
     source: 'manual/notion-page',
     ingestion_type: ingestionType,
     partial_reason: isFull ? null : 'Manual Notion page ingest',
-    metadata: { pageId, pageUrl, ingestionType, includeLinkedPages }
+    metadata: {
+      pageId,
+      pageUrl,
+      ingestionType,
+      includeLinkedPages,
+      embeddingProvider: embeddingOptions.provider ?? null
+    }
   })
 
   await emit({ type: 'run', runId: runHandle?.id ?? null })
@@ -364,7 +391,8 @@ async function runNotionPageIngestion(
           recordMap,
           ingestionType,
           stats,
-          emit
+          emit,
+          embeddingOptions
         })
       } catch (err) {
         stats.errorCount += 1
@@ -458,6 +486,7 @@ async function runNotionPageIngestion(
 async function runUrlIngestion(
   url: string,
   ingestionType: 'full' | 'partial',
+  embeddingOptions: EmbedBatchOptions,
   emit: EmitFn
 ): Promise<void> {
   const parsedUrl = new URL(url)
@@ -466,7 +495,12 @@ async function runUrlIngestion(
     ingestion_type: ingestionType,
     partial_reason:
       ingestionType === 'full' ? null : 'Manual URL ingest',
-    metadata: { url, hostname: parsedUrl.hostname, ingestionType }
+    metadata: {
+      url,
+      hostname: parsedUrl.hostname,
+      ingestionType,
+      embeddingProvider: embeddingOptions.provider ?? null
+    }
   })
 
   await emit({ type: 'run', runId: runHandle?.id ?? null })
@@ -517,7 +551,15 @@ async function runUrlIngestion(
       existingState.content_hash === contentHash &&
       (!lastModified || existingState.last_source_update === lastModified)
 
-    if (unchanged && ingestionType === 'partial') {
+    let providerHasChunks = false
+    if (unchanged) {
+      providerHasChunks = await hasChunksForProvider(
+        url,
+        embeddingOptions.provider ?? null
+      )
+    }
+
+    if (unchanged && ingestionType === 'partial' && providerHasChunks) {
       stats.documentsSkipped += 1
       finalMessage = `No changes detected for ${title} (${url}); skipping ingest.`
       await emit({
@@ -556,7 +598,7 @@ async function runUrlIngestion(
       step: 'embedding',
       percent: 65
     })
-    const embeddings = await embedBatch(chunks)
+    const embeddings = await embedBatch(chunks, embeddingOptions)
     const ingestedAt = new Date().toISOString()
 
     const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
@@ -577,7 +619,9 @@ async function runUrlIngestion(
       step: 'saving',
       percent: 85
     })
-    await replaceChunks(url, rows)
+    await replaceChunks(url, rows, {
+      provider: embeddingOptions.provider ?? null
+    })
     await upsertDocumentState({
       doc_id: url,
       source_url: url,
@@ -657,6 +701,11 @@ export async function runManualIngestion(
   request: ManualIngestionRequest,
   emit: EmitFn
 ): Promise<void> {
+  const embeddingOptions: EmbedBatchOptions = {
+    provider: request.embeddingProvider ?? null,
+    model: request.embeddingModel ?? null
+  }
+
   if (request.mode === 'notion_page') {
     const ingestionType = request.ingestionType ?? 'partial'
     const includeLinkedPages = request.includeLinkedPages ?? true
@@ -664,11 +713,12 @@ export async function runManualIngestion(
       request.pageId,
       ingestionType,
       includeLinkedPages,
+      embeddingOptions,
       emit
     )
     return
   }
 
   const ingestionType = request.ingestionType ?? 'partial'
-  await runUrlIngestion(request.url, ingestionType, emit)
+  await runUrlIngestion(request.url, ingestionType, embeddingOptions, emit)
 }

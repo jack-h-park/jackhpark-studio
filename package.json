@@ -30,14 +30,18 @@
     "analyze:browser": "cross-env BUNDLE_ANALYZE=browser next build",
     "test": "run-p test:*",
     "lint": "eslint .",
-    "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check"
+    "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check",
+    "test:gemini": "node --import=tsx --env-file=.env.local scripts/test-gemini.ts"
   },
   "dependencies": {
     "@fisch0920/use-dark-mode": "^2.4.0",
+    "@google/generative-ai": "^0.11.5",
+    "@huggingface/inference": "^2.8.1",
     "@keyvhq/core": "^1.6.9",
     "@keyvhq/redis": "^1.6.10",
     "@langchain/community": "^1.0.0",
     "@langchain/core": "^1.0.1",
+    "@langchain/google-genai": "^0.1.12",
     "@langchain/openai": "^1.0.0",
     "@mozilla/readability": "^0.6.0",
     "@react-icons/all-files": "^4.1.0",

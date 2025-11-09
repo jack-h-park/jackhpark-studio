@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { parsePageId } from 'notion-utils'
 
+import { normalizeEmbeddingProvider } from '@/lib/core/model-provider'
+
 import {
   type ManualIngestionEvent,
   type ManualIngestionRequest,
@@ -13,6 +15,8 @@ type ManualIngestionBody = ManualIngestionRequest & {
   url?: unknown
   ingestionType?: unknown
   includeLinkedPages?: unknown
+  embeddingProvider?: unknown
+  embeddingModel?: unknown
 }
 
 function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
@@ -31,12 +35,22 @@ function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
       typeof body.includeLinkedPages === 'boolean'
         ? body.includeLinkedPages
         : true
+    const embeddingProvider =
+      typeof body.embeddingProvider === 'string'
+        ? normalizeEmbeddingProvider(body.embeddingProvider)
+        : undefined
+    const embeddingModel =
+      typeof body.embeddingModel === 'string' && body.embeddingModel.trim().length > 0
+        ? body.embeddingModel.trim()
+        : undefined
 
     return {
       mode: 'notion_page',
       pageId: parsed,
       ingestionType,
-      includeLinkedPages
+      includeLinkedPages,
+      embeddingProvider,
+      embeddingModel
     }
   }
 
@@ -59,11 +73,21 @@ function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
     }
 
     const ingestionType = body.ingestionType === 'full' ? 'full' : 'partial'
+    const embeddingProvider =
+      typeof body.embeddingProvider === 'string'
+        ? normalizeEmbeddingProvider(body.embeddingProvider)
+        : undefined
+    const embeddingModel =
+      typeof body.embeddingModel === 'string' && body.embeddingModel.trim().length > 0
+        ? body.embeddingModel.trim()
+        : undefined
 
     return {
       mode: 'url',
       url: parsed.toString(),
-      ingestionType
+      ingestionType,
+      embeddingProvider,
+      embeddingModel
     }
   }
 
