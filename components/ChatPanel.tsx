@@ -228,6 +228,8 @@ type ChatResponse = {
 
 type Engine = "native" | "lc";
 
+const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
+
 function isChatResponse(obj: any): obj is ChatResponse {
   return obj && typeof obj.answer === "string" && Array.isArray(obj.citations);
 }
@@ -337,7 +339,7 @@ export function ChatPanel() {
         const endpoint = `/api/chat?engine=${engine}`;
 
         if (engine === "lc") {
-          // LangChain path: JSON request/response (non-streaming)
+          // LangChain streaming
           const response = await fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -349,40 +351,70 @@ export function ChatPanel() {
             signal: controller.signal,
           });
 
-          if (!response.ok) {
+          if (!response.ok || !response.body) {
             const errorText = await response.text().catch(() => "");
             throw new Error(
               errorText || `Request failed with status ${response.status}`,
             );
           }
 
-          const json = await response.json().catch(() => ({}) as any);
-          if (!isChatResponse(json)) {
-            throw new Error("Invalid response from server");
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let fullContent = "";
+
+          const updateAssistant = (content: string) => {
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === assistantMessageId
+                  ? { ...message, content }
+                  : message,
+              ),
+            );
+          };
+
+          let done = false;
+          while (!done) {
+            const result = await reader.read();
+            done = result.done ?? false;
+            const chunk = result.value;
+            if (!chunk) continue;
+
+            fullContent += decoder.decode(chunk, { stream: !done });
+            if (!isMountedRef.current) return;
+
+            const [answer] = fullContent.split(CITATIONS_SEPARATOR);
+            updateAssistant(answer);
           }
 
-          const answer: string = json.answer ?? "";
-          const citations: Array<{ title?: string; source_url?: string }> =
-            json.citations ?? [];
-          const citesText =
-            citations
-              .filter((c) => c?.title || c?.source_url)
-              .map((c, i) =>
-                `(${i + 1}) ${c.title ?? ""} ${c.source_url ?? ""}`.trim(),
-              )
-              .join("\n") || "";
+          const [answer, citationsJson] =
+            fullContent.split(CITATIONS_SEPARATOR);
+          let finalContent = answer;
 
-          const finalContent = citesText ? `${answer}\n\n${citesText}` : answer;
+          if (citationsJson) {
+            try {
+              const citations = JSON.parse(
+                citationsJson,
+              ) as ChatResponse["citations"];
+              const citesText =
+                citations
+                  .filter((c) => c?.title || c?.source_url)
+                  .map((c, i) =>
+                    `(${i + 1}) ${c.title ?? ""} ${c.source_url ?? ""}`.trim(),
+                  )
+                  .join("\n") || "";
+              if (citesText) {
+                finalContent = `${answer.trim()}\n\n${citesText}`;
+              }
+            } catch {
+              // ignore json parse errors
+            }
+          }
 
-          // update assistant once (non-stream)
-          setMessages((prev) =>
-            prev.map((message) =>
-              message.id === assistantMessageId
-                ? { ...message, content: finalContent }
-                : message,
-            ),
-          );
+          if (isMountedRef.current) {
+            updateAssistant(finalContent);
+          }
         } else {
+          // Native streaming
           // Native path: streaming (expects { messages })
           const sanitizedMessages = [...messages, userMessage].map(
             (message) => ({
@@ -483,9 +515,7 @@ export function ChatPanel() {
                     padding: "6px 10px",
                     borderRadius: 6,
                     border:
-                      engine === "native"
-                        ? "2px solid #444"
-                        : "1px solid #ccc",
+                      engine === "native" ? "2px solid #444" : "1px solid #ccc",
                     background: "#fff",
                     cursor: "pointer",
                     fontSize: "0.8rem",
@@ -502,9 +532,7 @@ export function ChatPanel() {
                     padding: "6px 10px",
                     borderRadius: 6,
                     border:
-                      engine === "lc"
-                        ? "2px solid #444"
-                        : "1px solid #ccc",
+                      engine === "lc" ? "2px solid #444" : "1px solid #ccc",
                     background: "#fff",
                     cursor: "pointer",
                     fontSize: "0.8rem",

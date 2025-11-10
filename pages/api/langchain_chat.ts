@@ -30,7 +30,11 @@ export const config = {
   }
 }
 
-type Citation = { doc_id?: string; title?: string; source_url?: string }
+type Citation = {
+  doc_id?: string
+  title?: string
+  source_url?: string
+}
 type AskResult = { answer: string; citations?: Citation[] }
 type ChatRequestBody = {
   question?: unknown
@@ -40,6 +44,8 @@ type ChatRequestBody = {
   embeddingModel?: unknown
   temperature?: unknown
 }
+
+const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`
 
 const SUPABASE_URL = process.env.SUPABASE_URL as string
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string
@@ -130,47 +136,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ].join('\n')
     const prompt = PromptTemplate.fromTemplate(promptTemplate)
 
-    const buildChain = (
-      retriever: any,
-      llmInstance: BaseLanguageModelInterface
-    ) =>
+    const buildChain = (llmInstance: BaseLanguageModelInterface) =>
       RunnableSequence.from([
-        async (input: { question: string }) => {
-          const docs: any[] = await retriever._getRelevantDocuments(
-            input.question
-          )
-          const context = docs
-            .map((d: any) => `- ${d.pageContent}`.slice(0, 800))
-            .join('\n')
-          return { ...input, context, _docs: docs }
-        },
         prompt,
         llmInstance,
-        new StringOutputParser(),
-        async (answer: string, prev: any): Promise<AskResult> => {
-          const docs: any[] = prev?._docs || []
-          const citations: Citation[] = docs.slice(0, 3).map((d: any) => ({
-            doc_id: d?.metadata?.doc_id,
-            title: d?.metadata?.title ?? d?.metadata?.document_meta?.title,
-            source_url: d?.metadata?.source_url
-          }))
-          return { answer, citations }
-        }
+        new StringOutputParser()
       ])
 
     const executeWithResources = async (
       tableName: string,
       queryName: string,
       llmInstance: BaseLanguageModelInterface
-    ) => {
+    ): Promise<{ stream: AsyncIterable<string>; citations: Citation[] }> => {
       const store = new SupabaseVectorStore(embeddings, {
         client: supabase,
         tableName,
         queryName
       })
       const retriever = store.asRetriever({ k: RAG_TOP_K })
-      const chain = buildChain(retriever, llmInstance)
-      return chain.invoke({ question })
+      const chain = buildChain(llmInstance)
+
+      const docs: any[] = await retriever._getRelevantDocuments(question)
+      const context = docs
+        .map((d: any) => `- ${d.pageContent}`.slice(0, 800))
+        .join('\n')
+
+      const stream = await chain.stream({ question, context })
+      const citations: Citation[] = docs.slice(0, 3).map((d: any) => ({
+        doc_id: d?.metadata?.doc_id,
+        title: d?.metadata?.title ?? d?.metadata?.document_meta?.title,
+        source_url: d?.metadata?.source_url
+      }))
+
+      return { stream, citations }
     }
 
     const primaryTable = getLcChunksView(embeddingProvider)
@@ -180,7 +178,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const runWithLlm = async (
       llmInstance: BaseLanguageModelInterface
-    ): Promise<AskResult> => {
+    ): Promise<{ stream: AsyncIterable<string>; citations: Citation[] }> => {
       try {
         return await executeWithResources(
           primaryTable,
@@ -220,13 +218,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const llm = await createChatModel(provider, candidate, temperature)
 
       try {
-        const result = await runWithLlm(llm)
+        const { stream, citations } = await runWithLlm(llm)
         if (candidate !== llmModel) {
           console.warn(
             `[langchain_chat] Gemini model "${candidate}" succeeded after falling back from "${llmModel}".`
           )
         }
-        return res.status(200).json(result)
+
+        res.writeHead(200, {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Transfer-Encoding': 'chunked'
+        })
+
+        for await (const chunk of stream) {
+          if (!res.writableEnded) res.write(chunk)
+        }
+
+        const citationJson = JSON.stringify(citations)
+        if (!res.writableEnded) res.write(`${CITATIONS_SEPARATOR}${citationJson}`)
+        return res.end()
       } catch (err) {
         lastGeminiError = err
         const shouldRetry =
