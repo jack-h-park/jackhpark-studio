@@ -1,8 +1,8 @@
 import { type NextApiRequest, type NextApiResponse } from 'next'
 
 import type { ModelProvider } from '@/lib/shared/model-provider'
-import { getGeminiModelCandidates, shouldRetryGeminiModel } from '@/lib/core/gemini'
 import { embedText } from '@/lib/core/embeddings'
+import { getGeminiModelCandidates, shouldRetryGeminiModel } from '@/lib/core/gemini'
 import {
   getEmbeddingModelName,
   getLlmModelName,
@@ -14,13 +14,21 @@ import { getOpenAIClient } from '@/lib/core/openai'
 import {
   getLegacyRagMatchFunction,
   getRagMatchFunction} from '@/lib/core/rag-tables'
+import {
+  applyHistoryWindow,
+  buildContextWindow,
+  buildIntentContextFallback,
+  type ContextWindowResult,
+  getChatGuardrailConfig,
+  normalizeQuestion,
+  routeQuestion} from '@/lib/server/chat-guardrails'
+import { type ChatMessage,sanitizeMessages } from '@/lib/server/chat-messages'
 import { loadSystemPrompt } from '@/lib/server/chat-settings'
+import {
+  type GuardrailMeta,
+  serializeGuardrailMeta
+} from '@/lib/shared/guardrail-meta'
 import { getSupabaseAdminClient } from '@/lib/supabase-admin'
-
-type ChatMessage = {
-  role: 'user' | 'assistant'
-  content: string
-}
 
 type ChatRequestBody = {
   messages?: unknown
@@ -32,9 +40,6 @@ type ChatRequestBody = {
   maxTokens?: unknown
 }
 
-const DEFAULT_SIMILARITY_THRESHOLD = Number(
-  process.env.RAG_SIMILARITY_THRESHOLD ?? 0.75
-)
 const DEFAULT_MATCH_COUNT = Number(process.env.RAG_TOP_K ?? 5)
 const DEFAULT_TEMPERATURE = Number(process.env.LLM_TEMPERATURE ?? 0)
 const DEFAULT_MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 512)
@@ -52,9 +57,13 @@ export default async function handler(
     const body: ChatRequestBody =
       typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {}
 
-    const messages = Array.isArray(body.messages)
+    const guardrails = getChatGuardrailConfig()
+
+    const rawMessages = Array.isArray(body.messages)
       ? sanitizeMessages(body.messages)
       : []
+    const historyWindow = applyHistoryWindow(rawMessages, guardrails)
+    const messages = historyWindow.preserved
 
     const lastMessage = messages.at(-1)
     if (!lastMessage) {
@@ -67,6 +76,9 @@ export default async function handler(
         .status(400)
         .json({ error: 'Bad Request: Missing user query content' })
     }
+
+    const normalizedQuestion = normalizeQuestion(userQuery)
+    const routingDecision = routeQuestion(normalizedQuestion, messages)
 
     const provider = normalizeLlmProvider(
       first(body.provider) ?? first(req.query.provider)
@@ -93,77 +105,131 @@ export default async function handler(
       parseNumber(body.maxTokens ?? first(req.query.maxTokens), DEFAULT_MAX_TOKENS)
     )
 
-    const embedding = await embedText(userQuery, {
-      provider: embeddingProvider,
-      model: embeddingModel
+    console.log('[native_chat] guardrails', {
+      intent: routingDecision.intent,
+      reason: routingDecision.reason,
+      historyTokens: historyWindow.tokenCount,
+      summaryApplied: Boolean(historyWindow.summaryMemory),
+      provider,
+      embeddingProvider,
+      llmModel,
+      embeddingModel
     })
 
-    if (!embedding || embedding.length === 0) {
-      throw new Error('Failed to generate an embedding for the query.')
+    let contextResult: ContextWindowResult = {
+      contextBlock: '',
+      included: [],
+      dropped: 0,
+      totalTokens: 0,
+      insufficient: routingDecision.intent !== 'knowledge',
+      highestScore: 0
     }
-    console.log(
-      '[native_chat]',
-      JSON.stringify(
-        {
-          provider,
-          embeddingProvider,
-          llmModel,
-          embeddingModel,
-          embeddingLength: embedding.length
-        },
-        null,
-        2
-      )
-    )
 
-    const supabase = getSupabaseAdminClient()
-    const ragMatchFunction = getRagMatchFunction(embeddingProvider)
-    let { data: documents, error: matchError } = await supabase.rpc(
-      ragMatchFunction,
-      {
-        query_embedding: embedding,
-        similarity_threshold: DEFAULT_SIMILARITY_THRESHOLD,
-        match_count: DEFAULT_MATCH_COUNT
+    if (routingDecision.intent === 'knowledge') {
+      const embedding = await embedText(normalizedQuestion.normalized, {
+        provider: embeddingProvider,
+        model: embeddingModel
+      })
+
+      if (!embedding || embedding.length === 0) {
+        throw new Error('Failed to generate an embedding for the query.')
       }
-    )
 
-    if (
-      matchError &&
-      shouldFallbackToLegacyResources(matchError, ragMatchFunction)
-    ) {
-      console.warn(
-        '[native_chat] falling back to legacy match function',
-        ragMatchFunction
+      const supabase = getSupabaseAdminClient()
+      const ragMatchFunction = getRagMatchFunction(embeddingProvider)
+      const matchCount = Math.max(
+        DEFAULT_MATCH_COUNT,
+        guardrails.ragTopK * 2
       )
-      const fallbackFunction = getLegacyRagMatchFunction()
-      const fallback = await supabase.rpc(fallbackFunction, {
-        query_embedding: embedding,
-        similarity_threshold: DEFAULT_SIMILARITY_THRESHOLD,
-        match_count: DEFAULT_MATCH_COUNT
-      })
+      let { data: documents, error: matchError } = await supabase.rpc(
+        ragMatchFunction,
+        {
+          query_embedding: embedding,
+          similarity_threshold: guardrails.similarityThreshold,
+          match_count: matchCount
+        }
+      )
 
-      documents = fallback.data
-      matchError = fallback.error
+      if (
+        matchError &&
+        shouldFallbackToLegacyResources(matchError, ragMatchFunction)
+      ) {
+        console.warn(
+          '[native_chat] falling back to legacy match function',
+          ragMatchFunction
+        )
+        const fallbackFunction = getLegacyRagMatchFunction()
+        const fallback = await supabase.rpc(fallbackFunction, {
+          query_embedding: embedding,
+          similarity_threshold: guardrails.similarityThreshold,
+          match_count: matchCount
+        })
+
+        documents = fallback.data
+        matchError = fallback.error
+      }
+
+      if (matchError) {
+        console.error('Error matching documents:', matchError)
+        return res.status(500).json({
+          error: `Error matching documents: ${matchError.message}`
+        })
+      }
+
+      contextResult = buildContextWindow(documents ?? [], guardrails)
+      console.log('[native_chat] context compression', {
+        retrieved: documents?.length ?? 0,
+        included: contextResult.included.length,
+        dropped: contextResult.dropped,
+        totalTokens: contextResult.totalTokens,
+        highestScore: Number(contextResult.highestScore.toFixed(3)),
+        insufficient: contextResult.insufficient
+      })
+    } else {
+      contextResult = buildIntentContextFallback(routingDecision.intent)
+      console.log('[native_chat] intent fallback', {
+        intent: routingDecision.intent
+      })
     }
 
-    if (matchError) {
-      console.error('Error matching documents:', matchError)
-      return res.status(500).json({
-        error: `Error matching documents: ${matchError.message}`
-      })
+    const responseMeta: GuardrailMeta = {
+      intent: routingDecision.intent,
+      reason: routingDecision.reason,
+      historyTokens: historyWindow.tokenCount,
+      summaryApplied: Boolean(historyWindow.summaryMemory),
+      context: {
+        included: contextResult.included.length,
+        dropped: contextResult.dropped,
+        totalTokens: contextResult.totalTokens,
+        insufficient: contextResult.insufficient
+      }
     }
-
-    const contextText = documents
-      ?.map((doc: { chunk: string }) => doc.chunk)
-      .join('\n\n---\n\n')
-      ?.trim()
+    res.setHeader('X-Guardrail-Meta', serializeGuardrailMeta(responseMeta))
 
     const { prompt: basePrompt } = await loadSystemPrompt()
     const contextBlock =
-      contextText && contextText.length > 0
-        ? contextText
+      contextResult.contextBlock && contextResult.contextBlock.length > 0
+        ? contextResult.contextBlock
         : '(No relevant context was found.)'
-    const systemPrompt = `${basePrompt}\n\nContext:\n${contextBlock}`
+    const summaryBlock = historyWindow.summaryMemory
+      ? `Conversation summary:\n${historyWindow.summaryMemory}`
+      : null
+    const contextStatus = contextResult.insufficient
+      ? 'Context status: No high-confidence matches satisfied the threshold. If unsure, be explicit about the missing information.'
+      : `Context status: ${contextResult.included.length} excerpts (${contextResult.totalTokens} tokens).`
+
+    const systemPrompt = [
+      basePrompt.trim(),
+      '',
+      `Intent: ${routingDecision.intent} (${routingDecision.reason})`,
+      contextStatus,
+      '',
+      'Context:',
+      contextBlock,
+      summaryBlock ? `\n${summaryBlock}` : null
+    ]
+      .filter((part) => part !== null && part !== undefined)
+      .join('\n')
 
     res.writeHead(200, {
       'Content-Type': 'text/plain; charset=utf-8',
@@ -233,32 +299,6 @@ function shouldFallbackToLegacyResources(
     normalized.includes('pgrst202') ||
     normalized.includes('pgrst201')
   ) && normalized.includes(functionName.toLowerCase())
-}
-
-function sanitizeMessages(raw: unknown[]): ChatMessage[] {
-  const result: ChatMessage[] = []
-
-  for (const entry of raw) {
-    if (
-      entry &&
-      typeof entry === 'object' &&
-      'role' in entry &&
-      'content' in entry &&
-      (entry as any).role !== 'system'
-    ) {
-      const role = (entry as any).role
-      const content = (entry as any).content
-      if (
-        (role === 'user' || role === 'assistant') &&
-        typeof content === 'string' &&
-        content.trim().length > 0
-      ) {
-        result.push({ role, content: content.trim() })
-      }
-    }
-  }
-
-  return result
 }
 
 type ChatStreamOptions = {
@@ -347,17 +387,17 @@ async function* streamGemini(options: ChatStreamOptions): AsyncGenerator<string>
       }
 
       return
-    } catch (error) {
-      lastError = error
+    } catch (err) {
+      lastError = err
       const shouldRetry =
-        Boolean(nextModelName) && shouldRetryGeminiModel(modelName, error)
+        Boolean(nextModelName) && shouldRetryGeminiModel(modelName, err)
 
       if (!shouldRetry) {
-        throw error
+        throw err
       }
 
       console.warn(
-        `[native_chat] Gemini model "${modelName}" failed (${error instanceof Error ? error.message : String(error)}). Falling back to "${nextModelName}".`
+        `[native_chat] Gemini model "${modelName}" failed (${err instanceof Error ? err.message : String(err)}). Falling back to "${nextModelName}".`
       )
     }
   }

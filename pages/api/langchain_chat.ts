@@ -4,6 +4,7 @@ import type { BaseLanguageModelInterface } from '@langchain/core/language_models
 import type { NextApiRequest, NextApiResponse } from 'next'
 
 import type { ModelProvider } from '@/lib/shared/model-provider'
+import { getGeminiModelCandidates, shouldRetryGeminiModel } from '@/lib/core/gemini'
 import {
   getEmbeddingModelName,
   getLlmModelName,
@@ -11,14 +12,26 @@ import {
   normalizeLlmProvider,
   requireProviderApiKey
 } from '@/lib/core/model-provider'
-import { getGeminiModelCandidates, shouldRetryGeminiModel } from '@/lib/core/gemini'
 import {
   getLcChunksView,
   getLcMatchFunction,
   getLegacyLcChunksView,
   getLegacyLcMatchFunction
 } from '@/lib/core/rag-tables'
+import {
+  applyHistoryWindow,
+  buildContextWindow,
+  buildIntentContextFallback,
+  type ContextWindowResult,
+  getChatGuardrailConfig,
+  normalizeQuestion,
+  routeQuestion} from '@/lib/server/chat-guardrails'
+import { type ChatMessage,sanitizeMessages } from '@/lib/server/chat-messages'
 import { loadSystemPrompt } from '@/lib/server/chat-settings'
+import {
+  type GuardrailMeta,
+  serializeGuardrailMeta
+} from '@/lib/shared/guardrail-meta'
 
 /**
  * Pages Router API (Node.js runtime).
@@ -35,9 +48,9 @@ type Citation = {
   title?: string
   source_url?: string
 }
-type AskResult = { answer: string; citations?: Citation[] }
 type ChatRequestBody = {
   question?: unknown
+  messages?: unknown
   provider?: unknown
   embeddingProvider?: unknown
   model?: unknown
@@ -65,11 +78,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const body: ChatRequestBody =
       typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {}
-    const question = typeof body.question === 'string' ? body.question : undefined
 
-    if (!question) {
+    const guardrails = getChatGuardrailConfig()
+    const fallbackQuestion =
+      typeof body.question === 'string' ? body.question : undefined
+    let rawMessages: ChatMessage[] = []
+    if (Array.isArray(body.messages)) {
+      rawMessages = sanitizeMessages(body.messages)
+    } else if (fallbackQuestion) {
+      rawMessages = [{ role: 'user', content: fallbackQuestion }]
+    }
+    const historyWindow = applyHistoryWindow(rawMessages, guardrails)
+    const messages = historyWindow.preserved
+    const lastMessage = messages.at(-1)
+
+    if (!lastMessage) {
       return res.status(400).json({ error: 'question is required' })
     }
+
+    const question = lastMessage.content
+    const normalizedQuestion = normalizeQuestion(question)
+    const routingDecision = routeQuestion(normalizedQuestion, messages)
 
     const provider = normalizeLlmProvider(
       first(body.provider) ?? first(req.query.provider)
@@ -109,24 +138,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       embeddingProvider,
       embeddingModel
     )
-    console.log(
-      '[langchain_chat]',
-      JSON.stringify(
-        {
-          provider,
-          embeddingProvider,
-          llmModel,
-          embeddingModel
-        },
-        null,
-        2
-      )
-    )
+    console.log('[langchain_chat] guardrails', {
+      intent: routingDecision.intent,
+      reason: routingDecision.reason,
+      historyTokens: historyWindow.tokenCount,
+      summaryApplied: Boolean(historyWindow.summaryMemory),
+      provider,
+      embeddingProvider,
+      llmModel,
+      embeddingModel
+    })
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
     const { prompt: basePrompt } = await loadSystemPrompt()
     const promptTemplate = [
       escapeForPromptTemplate(basePrompt),
+      '',
+      'Guardrails:',
+      '{intent}',
+      '',
+      'Conversation summary:',
+      '{memory}',
       '',
       'Question:',
       '{question}',
@@ -143,30 +175,94 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         new StringOutputParser()
       ])
 
+    let latestMeta: GuardrailMeta | null = null
+
     const executeWithResources = async (
       tableName: string,
       queryName: string,
       llmInstance: BaseLanguageModelInterface
     ): Promise<{ stream: AsyncIterable<string>; citations: Citation[] }> => {
-      const store = new SupabaseVectorStore(embeddings, {
-        client: supabase,
-        tableName,
-        queryName
-      })
-      const retriever = store.asRetriever({ k: RAG_TOP_K })
+      let contextResult: ContextWindowResult = buildIntentContextFallback(
+        routingDecision.intent
+      )
+
+      if (routingDecision.intent === 'knowledge') {
+        const store = new SupabaseVectorStore(embeddings, {
+          client: supabase,
+          tableName,
+          queryName
+        })
+        const matchCount = Math.max(RAG_TOP_K, guardrails.ragTopK * 2)
+        const matches = await store.similaritySearchWithScore(
+          normalizedQuestion.normalized,
+          matchCount
+        )
+        const ragDocs = matches.map(([doc, score]) => ({
+          chunk: doc.pageContent,
+          metadata: doc.metadata,
+          similarity:
+            typeof score === 'number'
+              ? score
+              : typeof doc?.metadata?.similarity === 'number'
+                ? (doc.metadata.similarity as number)
+                : undefined
+        }))
+        contextResult = buildContextWindow(ragDocs, guardrails)
+        console.log('[langchain_chat] context compression', {
+          retrieved: matches.length,
+          included: contextResult.included.length,
+          dropped: contextResult.dropped,
+          totalTokens: contextResult.totalTokens,
+          highestScore: Number(contextResult.highestScore.toFixed(3)),
+          insufficient: contextResult.insufficient
+        })
+      } else {
+        console.log('[langchain_chat] intent fallback', {
+          intent: routingDecision.intent
+        })
+      }
+
+      latestMeta = {
+        intent: routingDecision.intent,
+        reason: routingDecision.reason,
+        historyTokens: historyWindow.tokenCount,
+        summaryApplied: Boolean(historyWindow.summaryMemory),
+        context: {
+          included: contextResult.included.length,
+          dropped: contextResult.dropped,
+          totalTokens: contextResult.totalTokens,
+          insufficient: contextResult.insufficient
+        }
+      }
+
+      const guardrailMeta = [
+        `Intent: ${routingDecision.intent} (${routingDecision.reason})`,
+        contextResult.insufficient
+          ? 'Context status: insufficient matches. Be explicit when information is missing.'
+          : `Context status: ${contextResult.included.length} excerpts (${contextResult.totalTokens} tokens).`
+      ].join(' | ')
+      const contextValue =
+        contextResult.contextBlock.length > 0
+          ? contextResult.contextBlock
+          : '(No relevant context was found.)'
+      const memoryValue =
+        historyWindow.summaryMemory ??
+        '(No summarized prior turns. Treat this as a standalone exchange.)'
+
       const chain = buildChain(llmInstance)
-
-      const docs: any[] = await retriever._getRelevantDocuments(question)
-      const context = docs
-        .map((d: any) => `- ${d.pageContent}`.slice(0, 800))
-        .join('\n')
-
-      const stream = await chain.stream({ question, context })
-      const citations: Citation[] = docs.slice(0, 3).map((d: any) => ({
-        doc_id: d?.metadata?.doc_id,
-        title: d?.metadata?.title ?? d?.metadata?.document_meta?.title,
-        source_url: d?.metadata?.source_url
-      }))
+      const stream = await chain.stream({
+        question,
+        context: contextValue,
+        memory: memoryValue,
+        intent: guardrailMeta
+      })
+      const citations: Citation[] = contextResult.included
+        .slice(0, 3)
+        .map((doc: any) => ({
+          doc_id: doc?.metadata?.doc_id,
+          title: doc?.metadata?.title ?? doc?.metadata?.document_meta?.title,
+          source_url: doc?.metadata?.source_url
+        }))
 
       return { stream, citations }
     }
@@ -219,6 +315,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       try {
         const { stream, citations } = await runWithLlm(llm)
+        if (latestMeta) {
+          res.setHeader('X-Guardrail-Meta', serializeGuardrailMeta(latestMeta))
+        }
         if (candidate !== llmModel) {
           console.warn(
             `[langchain_chat] Gemini model "${candidate}" succeeded after falling back from "${llmModel}".`
