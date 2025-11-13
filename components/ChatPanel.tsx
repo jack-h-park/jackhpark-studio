@@ -460,6 +460,80 @@ type Engine = "native" | "lc";
 
 const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
 
+class ChatRequestError extends Error {
+  status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "ChatRequestError";
+    this.status = status;
+  }
+}
+
+const NETWORK_ERROR_MESSAGE =
+  "Unable to reach the chat service. Check your network connection or restart the dev server and try again.";
+
+const isLikelyNetworkError = (message: string) =>
+  [
+    "Failed to fetch",
+    "NetworkError",
+    "Connection error",
+    "TypeError: NetworkError",
+    "TypeError: Failed to fetch",
+    "Load failed",
+  ].some((fragment) => message.toLowerCase().includes(fragment.toLowerCase()));
+
+const parseErrorPayload = (raw?: string | null) => {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (typeof parsed?.error === "string") return parsed.error;
+    if (typeof parsed?.message === "string") return parsed.message;
+  } catch {
+    // Swallow JSON parse errors and fall back to the raw text.
+  }
+  return trimmed;
+};
+
+const buildResponseError = async (response: Response) => {
+  const fallback = `Request failed with status ${response.status}`;
+  try {
+    const raw = await response.text();
+    return new ChatRequestError(parseErrorPayload(raw) ?? fallback, response.status);
+  } catch {
+    return new ChatRequestError(fallback, response.status);
+  }
+};
+
+const getUserFacingErrorMessage = (error: unknown) => {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return "The request was cancelled.";
+  }
+
+  if (error instanceof ChatRequestError) {
+    const message = error.message || NETWORK_ERROR_MESSAGE;
+    if (isLikelyNetworkError(message)) {
+      return NETWORK_ERROR_MESSAGE;
+    }
+    return message;
+  }
+
+  if (error instanceof Error) {
+    if (isLikelyNetworkError(error.message)) {
+      return NETWORK_ERROR_MESSAGE;
+    }
+    return error.message || "Something went wrong.";
+  }
+
+  if (typeof error === "string" && isLikelyNetworkError(error)) {
+    return NETWORK_ERROR_MESSAGE;
+  }
+
+  return "Something went wrong while sending your message. Please try again.";
+};
+
 export function ChatPanel() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -628,10 +702,7 @@ export function ChatPanel() {
           });
 
           if (!response.ok || !response.body) {
-            const errorText = await response.text().catch(() => "");
-            throw new Error(
-              errorText || `Request failed with status ${response.status}`,
-            );
+            throw await buildResponseError(response);
           }
 
           const guardrailMeta = deserializeGuardrailMeta(
@@ -700,10 +771,7 @@ export function ChatPanel() {
           });
 
           if (!response.ok || !response.body) {
-            const errorText = await response.text().catch(() => "");
-            throw new Error(
-              errorText || `Request failed with status ${response.status}`,
-            );
+            throw await buildResponseError(response);
           }
 
           const guardrailMeta = deserializeGuardrailMeta(
@@ -735,12 +803,11 @@ export function ChatPanel() {
         if (controller.signal.aborted || !isMountedRef.current) {
           return;
         }
-        const message =
-          err instanceof Error ? err.message : "Something went wrong.";
+        const message = getUserFacingErrorMessage(err);
         setMessages((prev) =>
           prev.map((item) =>
             item.id === assistantMessageId
-              ? { ...item, content: `Error: ${message}` }
+              ? { ...item, content: `Warning: ${message}` }
               : item,
           ),
         );

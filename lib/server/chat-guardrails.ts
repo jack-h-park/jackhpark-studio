@@ -1,5 +1,7 @@
 import { decode, encode } from 'gpt-tokenizer'
 
+import { loadGuardrailSettings } from '@/lib/server/chat-settings'
+
 export type GuardrailChatMessage = {
   role: 'user' | 'assistant'
   content: string
@@ -32,6 +34,11 @@ export type ChatGuardrailConfig = {
     triggerTokens: number
     maxChars: number
     maxTurns: number
+  }
+  chitchatKeywords: string[]
+  fallbacks: {
+    chitchat: string
+    command: string
   }
 }
 
@@ -90,21 +97,6 @@ const DEFAULT_SUMMARY_MAX_CHARS = Number(
 const SUMMARY_ENABLED =
   (process.env.CHAT_SUMMARY_ENABLED ?? 'true').toLowerCase() !== 'false'
 
-const CHITCHAT_KEYWORDS = [
-  'hello',
-  'hi',
-  'how are you',
-  'whats up',
-  'what is up',
-  'tell me a joke',
-  'thank you',
-  'thanks',
-  'lol',
-  'haha',
-  'good morning',
-  'good evening'
-]
-
 const COMMAND_KEYWORDS = [
   'delete',
   'reset',
@@ -121,7 +113,13 @@ const COMMAND_KEYWORDS = [
   'build pipeline'
 ]
 
-export function getChatGuardrailConfig(): ChatGuardrailConfig {
+export async function getChatGuardrailConfig(options?: {
+  forceRefresh?: boolean
+}): Promise<ChatGuardrailConfig> {
+  const guardrailSettings = await loadGuardrailSettings({
+    forceRefresh: options?.forceRefresh
+  })
+
   return {
     similarityThreshold: clamp(
       DEFAULT_SIMILARITY_THRESHOLD,
@@ -137,6 +135,11 @@ export function getChatGuardrailConfig(): ChatGuardrailConfig {
       triggerTokens: Math.max(200, DEFAULT_SUMMARY_TRIGGER_TOKENS),
       maxChars: Math.max(200, DEFAULT_SUMMARY_MAX_CHARS),
       maxTurns: Math.max(2, DEFAULT_SUMMARY_MAX_TURNS)
+    },
+    chitchatKeywords: guardrailSettings.chitchatKeywords,
+    fallbacks: {
+      chitchat: guardrailSettings.fallbackChitchat,
+      command: guardrailSettings.fallbackCommand
     }
   }
 }
@@ -156,7 +159,8 @@ export function normalizeQuestion(raw: string): NormalizedQuestion {
 
 export function routeQuestion(
   normalized: NormalizedQuestion,
-  history: GuardrailChatMessage[] = []
+  history: GuardrailChatMessage[] = [],
+  config: ChatGuardrailConfig
 ): RoutedQuestion {
   const canonical = normalized.canonical
   if (canonical.length === 0) {
@@ -177,7 +181,7 @@ export function routeQuestion(
     }
   }
 
-  if (isChitChatIntent(canonical, history)) {
+  if (isChitChatIntent(canonical, history, config.chitchatKeywords)) {
     return {
       question: normalized,
       intent: 'chitchat',
@@ -305,12 +309,15 @@ export function buildContextWindow(
   }
 }
 
-export function buildIntentContextFallback(intent: ChatIntent): ContextWindowResult {
+export function buildIntentContextFallback(
+  intent: ChatIntent,
+  config: ChatGuardrailConfig
+): ContextWindowResult {
   switch (intent) {
     case 'chitchat':
       return {
         contextBlock:
-          'This is a light-weight chit-chat turn. Keep the response concise, warm, and avoid citing the knowledge base.',
+          config.fallbacks.chitchat,
         included: [],
         dropped: 0,
         totalTokens: 0,
@@ -320,7 +327,7 @@ export function buildIntentContextFallback(intent: ChatIntent): ContextWindowRes
     case 'command':
       return {
         contextBlock:
-          'The user is asking for an action/command. You must politely decline to execute actions and instead explain what is possible.',
+          config.fallbacks.command,
         included: [],
         dropped: 0,
         totalTokens: 0,
@@ -401,11 +408,15 @@ function detectLanguage(text: string): NormalizedQuestion['language'] {
 
 function isChitChatIntent(
   canonical: string,
-  history: GuardrailChatMessage[]
+  history: GuardrailChatMessage[],
+  keywords: string[]
 ): boolean {
-  const historyTail = history.slice(-2).map((msg) => msg.content.toLowerCase())
+  const historyTail = history
+    .filter((msg) => msg.role === 'user')
+    .slice(-2)
+    .map((msg) => msg.content.toLowerCase())
 
-  return CHITCHAT_KEYWORDS.some(
+  return keywords.some(
     (keyword) =>
       canonical.startsWith(keyword) ||
       historyTail.some((entry) => entry.includes(keyword))

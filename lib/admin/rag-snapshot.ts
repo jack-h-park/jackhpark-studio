@@ -1,6 +1,6 @@
 import {
-  normalizeModelProvider,
   type ModelProvider,
+  normalizeModelProvider,
 } from "@/lib/shared/model-provider";
 
 import type { RunStatus } from "./ingestion-runs";

@@ -9,6 +9,10 @@ import {
   useState
 } from 'react'
 
+import type {
+  GuardrailDefaults,
+  GuardrailSettingsResult
+} from '@/lib/server/chat-settings'
 import {
   DEFAULT_SYSTEM_PROMPT,
   SYSTEM_PROMPT_MAX_LENGTH
@@ -18,19 +22,31 @@ type PageProps = {
   systemPrompt: string
   isDefault: boolean
   defaultPrompt: string
+  guardrails: GuardrailSettingsResult
+  guardrailDefaults: GuardrailDefaults
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
-  const { loadSystemPrompt } = await import('@/lib/server/chat-settings')
-  const result = await loadSystemPrompt({ forceRefresh: true })
+  const {
+    loadSystemPrompt,
+    loadGuardrailSettings,
+    getGuardrailDefaults
+  } = await import('@/lib/server/chat-settings')
+
+  const [promptResult, guardrailResult] = await Promise.all([
+    loadSystemPrompt({ forceRefresh: true }),
+    loadGuardrailSettings({ forceRefresh: true })
+  ])
 
   return {
     props: {
-      systemPrompt: result.prompt,
-      isDefault: result.isDefault,
-      defaultPrompt: DEFAULT_SYSTEM_PROMPT
+      systemPrompt: promptResult.prompt,
+      isDefault: promptResult.isDefault,
+      defaultPrompt: DEFAULT_SYSTEM_PROMPT,
+      guardrails: guardrailResult,
+      guardrailDefaults: getGuardrailDefaults()
     }
   }
 }
@@ -38,7 +54,9 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
 export default function ChatConfigPage({
   systemPrompt,
   isDefault,
-  defaultPrompt
+  defaultPrompt,
+  guardrails,
+  guardrailDefaults
 }: PageProps) {
   const [value, setValue] = useState(systemPrompt)
   const [savedPrompt, setSavedPrompt] = useState(systemPrompt)
@@ -46,10 +64,37 @@ export default function ChatConfigPage({
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [error, setError] = useState<string | null>(null)
 
+  const [guardrailKeywords, setGuardrailKeywords] = useState(
+    guardrails.chitchatKeywords.join('\n')
+  )
+  const [guardrailFallbackChitchat, setGuardrailFallbackChitchat] = useState(
+    guardrails.fallbackChitchat
+  )
+  const [guardrailFallbackCommand, setGuardrailFallbackCommand] = useState(
+    guardrails.fallbackCommand
+  )
+  const [savedGuardrails, setSavedGuardrails] = useState({
+    keywords: guardrails.chitchatKeywords.join('\n'),
+    fallbackChitchat: guardrails.fallbackChitchat,
+    fallbackCommand: guardrails.fallbackCommand,
+    isDefault: guardrails.isDefault
+  })
+  const [guardrailStatus, setGuardrailStatus] = useState<SaveStatus>('idle')
+  const [guardrailError, setGuardrailError] = useState<string | null>(null)
+
   const isDirty = value !== savedPrompt
   const isAtLimit = value.length >= SYSTEM_PROMPT_MAX_LENGTH
   const restoreDisabled = value === defaultPrompt
   const saveDisabled = !isDirty || status === 'saving'
+  const guardrailDirty =
+    guardrailKeywords !== savedGuardrails.keywords ||
+    guardrailFallbackChitchat !== savedGuardrails.fallbackChitchat ||
+    guardrailFallbackCommand !== savedGuardrails.fallbackCommand
+  const guardrailSaveDisabled = !guardrailDirty || guardrailStatus === 'saving'
+  const guardrailRestoreDisabled =
+    guardrailKeywords === guardrailDefaults.chitchatKeywords.join('\n') &&
+    guardrailFallbackChitchat === guardrailDefaults.fallbackChitchat &&
+    guardrailFallbackCommand === guardrailDefaults.fallbackCommand
 
   const handleChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
     setValue(event.target.value)
@@ -58,11 +103,52 @@ export default function ChatConfigPage({
     }
   }, [status])
 
+  const resetGuardrailStatus = useCallback(() => {
+    if (guardrailStatus === 'saved' || guardrailStatus === 'error') {
+      setGuardrailStatus('idle')
+    }
+    if (guardrailError) {
+      setGuardrailError(null)
+    }
+  }, [guardrailError, guardrailStatus])
+
+  const handleGuardrailKeywordsChange = useCallback(
+    (event: ChangeEvent<HTMLTextAreaElement>) => {
+      setGuardrailKeywords(event.target.value)
+      resetGuardrailStatus()
+    },
+    [resetGuardrailStatus]
+  )
+
+  const handleGuardrailFallbackChitchatChange = useCallback(
+    (event: ChangeEvent<HTMLTextAreaElement>) => {
+      setGuardrailFallbackChitchat(event.target.value)
+      resetGuardrailStatus()
+    },
+    [resetGuardrailStatus]
+  )
+
+  const handleGuardrailFallbackCommandChange = useCallback(
+    (event: ChangeEvent<HTMLTextAreaElement>) => {
+      setGuardrailFallbackCommand(event.target.value)
+      resetGuardrailStatus()
+    },
+    [resetGuardrailStatus]
+  )
+
   const handleRestoreDefault = useCallback(() => {
     setValue(defaultPrompt)
     setError(null)
     setStatus('idle')
   }, [defaultPrompt])
+
+  const handleGuardrailRestoreDefaults = useCallback(() => {
+    setGuardrailKeywords(guardrailDefaults.chitchatKeywords.join('\n'))
+    setGuardrailFallbackChitchat(guardrailDefaults.fallbackChitchat)
+    setGuardrailFallbackCommand(guardrailDefaults.fallbackCommand)
+    setGuardrailError(null)
+    setGuardrailStatus('idle')
+  }, [guardrailDefaults])
 
   const handleSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -105,6 +191,64 @@ export default function ChatConfigPage({
     [saveDisabled, value]
   )
 
+  const handleGuardrailSubmit = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      if (guardrailSaveDisabled) {
+        return
+      }
+
+      setGuardrailStatus('saving')
+      setGuardrailError(null)
+
+      try {
+        const response = await fetch('/api/admin/chat-settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            guardrails: {
+              chitchatKeywords: guardrailKeywords,
+              fallbackChitchat: guardrailFallbackChitchat,
+              fallbackCommand: guardrailFallbackCommand
+            }
+          })
+        })
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => null)) as { error?: string } | null
+          const message = payload?.error ?? 'Failed to save guardrail settings'
+          throw new Error(message)
+        }
+
+        const payload = (await response.json()) as {
+          guardrails?: GuardrailSettingsResult
+        }
+
+        if (!payload.guardrails) {
+          throw new Error('Server did not return guardrail settings.')
+        }
+
+        setSavedGuardrails({
+          keywords: guardrailKeywords,
+          fallbackChitchat: guardrailFallbackChitchat,
+          fallbackCommand: guardrailFallbackCommand,
+          isDefault: payload.guardrails.isDefault
+        })
+        setGuardrailStatus('saved')
+      } catch (err: any) {
+        console.error('[admin/chat-config] guardrail save failed', err)
+        setGuardrailError(err?.message ?? 'Failed to save guardrail settings')
+        setGuardrailStatus('error')
+      }
+    },
+    [
+      guardrailSaveDisabled,
+      guardrailKeywords,
+      guardrailFallbackChitchat,
+      guardrailFallbackCommand
+    ]
+  )
+
   const helperText = useMemo(() => {
     if (status === 'saved') {
       return 'System prompt updated successfully.'
@@ -118,6 +262,23 @@ export default function ChatConfigPage({
     return 'Update the shared system prompt used by both LangChain and native chat engines.'
   }, [error, persistedIsDefault, status])
 
+  const guardrailHelperText = useMemo(() => {
+    if (guardrailStatus === 'saved') {
+      return 'Guardrail settings updated successfully.'
+    }
+    if (guardrailStatus === 'error' && guardrailError) {
+      return guardrailError
+    }
+    const usingDefaults =
+      savedGuardrails.isDefault.chitchatKeywords &&
+      savedGuardrails.isDefault.fallbackChitchat &&
+      savedGuardrails.isDefault.fallbackCommand
+    if (usingDefaults) {
+      return 'Currently using the default guardrail keywords and fallback guidance.'
+    }
+    return 'Update chit-chat detection keywords and fallback guidance shared by both chat engines.'
+  }, [guardrailError, guardrailStatus, savedGuardrails])
+
   return (
     <>
       <Head>
@@ -127,21 +288,13 @@ export default function ChatConfigPage({
       <div className="admin-shell">
         <header className="admin-header">
           <div>
-            <h1>Chat System Prompt</h1>
+            <h1>Chat Configuration</h1>
             <p>{helperText}</p>
           </div>
           <div className="admin-actions">
             <Link href="/admin/ingestion" className="secondary-button">
               ← Back to Ingestion
             </Link>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={handleRestoreDefault}
-              disabled={restoreDisabled}
-            >
-              Restore Default
-            </button>
           </div>
         </header>
 
@@ -158,6 +311,14 @@ export default function ChatConfigPage({
               maxLength={SYSTEM_PROMPT_MAX_LENGTH}
             />
             <div className="form-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleRestoreDefault}
+                disabled={restoreDisabled}
+              >
+                Restore System Prompt Defaults
+              </button>
               <span className={isAtLimit ? 'limit warning' : 'limit'}>
                 {value.length.toLocaleString()} / {SYSTEM_PROMPT_MAX_LENGTH.toLocaleString()} characters
               </span>
@@ -174,6 +335,65 @@ export default function ChatConfigPage({
           {status === 'saved' && (
             <div className="admin-alert success">
               System prompt saved.
+            </div>
+          )}
+
+          <form className="admin-card" onSubmit={handleGuardrailSubmit}>
+            <h2>Guardrail keyword & fallback config</h2>
+            <p className="description">{guardrailHelperText}</p>
+
+            <label htmlFor="guardrailKeywords">Chit-chat keywords (one per line)</label>
+            <textarea
+              id="guardrailKeywords"
+              name="guardrailKeywords"
+              value={guardrailKeywords}
+              onChange={handleGuardrailKeywordsChange}
+              rows={6}
+              spellCheck={false}
+            />
+
+            <label htmlFor="guardrailFallbackChitchat">Chit-chat fallback context</label>
+            <textarea
+              id="guardrailFallbackChitchat"
+              name="guardrailFallbackChitchat"
+              value={guardrailFallbackChitchat}
+              onChange={handleGuardrailFallbackChitchatChange}
+              rows={4}
+              spellCheck={false}
+            />
+
+            <label htmlFor="guardrailFallbackCommand">Command fallback context</label>
+            <textarea
+              id="guardrailFallbackCommand"
+              name="guardrailFallbackCommand"
+              value={guardrailFallbackCommand}
+              onChange={handleGuardrailFallbackCommandChange}
+              rows={4}
+              spellCheck={false}
+            />
+
+            <div className="form-footer">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleGuardrailRestoreDefaults}
+                disabled={guardrailRestoreDisabled}
+              >
+                Restore Guardrail Defaults
+              </button>
+              <button type="submit" className="primary-button" disabled={guardrailSaveDisabled}>
+                {guardrailStatus === 'saving' ? 'Saving…' : 'Save Guardrails'}
+              </button>
+            </div>
+          </form>
+          {guardrailStatus === 'error' && guardrailError && (
+            <div className="admin-alert error">
+              {guardrailError}
+            </div>
+          )}
+          {guardrailStatus === 'saved' && (
+            <div className="admin-alert success">
+              Guardrail settings saved.
             </div>
           )}
         </main>
@@ -223,6 +443,11 @@ export default function ChatConfigPage({
 
         .admin-card label {
           font-weight: 600;
+        }
+
+        .admin-card .description {
+          margin: 0;
+          color: #555;
         }
 
         textarea {

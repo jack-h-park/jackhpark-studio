@@ -1533,8 +1533,7 @@ function DatasetSnapshotSection({
       : null;
   const sparklineData = buildSparklineData(
     history
-      .slice()
-      .reverse()
+      .toReversed()
       .map((entry) => entry.totalDocuments),
   );
 
@@ -2960,7 +2959,7 @@ function IngestionDashboard({
               </p>
             </div>
             <Link href="/admin/chat-config" className="admin-hero__cta">
-              Chat System Prompt
+              Chat Configuration
             </Link>
           </header>
 

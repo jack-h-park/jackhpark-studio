@@ -79,7 +79,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const body: ChatRequestBody =
       typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {}
 
-    const guardrails = getChatGuardrailConfig()
+    const guardrails = await getChatGuardrailConfig()
     const fallbackQuestion =
       typeof body.question === 'string' ? body.question : undefined
     let rawMessages: ChatMessage[] = []
@@ -98,7 +98,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const question = lastMessage.content
     const normalizedQuestion = normalizeQuestion(question)
-    const routingDecision = routeQuestion(normalizedQuestion, messages)
+    const routingDecision = routeQuestion(normalizedQuestion, messages, guardrails)
 
     const provider = normalizeLlmProvider(
       first(body.provider) ?? first(req.query.provider)
@@ -183,7 +183,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       llmInstance: BaseLanguageModelInterface
     ): Promise<{ stream: AsyncIterable<string>; citations: Citation[] }> => {
       let contextResult: ContextWindowResult = buildIntentContextFallback(
-        routingDecision.intent
+        routingDecision.intent,
+        guardrails
       )
 
       if (routingDecision.intent === 'knowledge') {

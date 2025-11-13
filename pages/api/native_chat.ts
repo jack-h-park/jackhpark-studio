@@ -57,7 +57,7 @@ export default async function handler(
     const body: ChatRequestBody =
       typeof req.body === 'string' ? JSON.parse(req.body) : req.body || {}
 
-    const guardrails = getChatGuardrailConfig()
+    const guardrails = await getChatGuardrailConfig()
 
     const rawMessages = Array.isArray(body.messages)
       ? sanitizeMessages(body.messages)
@@ -78,7 +78,7 @@ export default async function handler(
     }
 
     const normalizedQuestion = normalizeQuestion(userQuery)
-    const routingDecision = routeQuestion(normalizedQuestion, messages)
+    const routingDecision = routeQuestion(normalizedQuestion, messages, guardrails)
 
     const provider = normalizeLlmProvider(
       first(body.provider) ?? first(req.query.provider)
@@ -186,7 +186,7 @@ export default async function handler(
         insufficient: contextResult.insufficient
       })
     } else {
-      contextResult = buildIntentContextFallback(routingDecision.intent)
+      contextResult = buildIntentContextFallback(routingDecision.intent, guardrails)
       console.log('[native_chat] intent fallback', {
         intent: routingDecision.intent
       })
