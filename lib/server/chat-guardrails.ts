@@ -418,8 +418,8 @@ function isChitChatIntent(
 
   return keywords.some(
     (keyword) =>
-      canonical.startsWith(keyword) ||
-      historyTail.some((entry) => entry.includes(keyword))
+      matchesChitchatKeyword(canonical, keyword) ||
+      historyTail.some((entry) => matchesChitchatKeyword(entry, keyword))
   )
 }
 
@@ -460,6 +460,28 @@ function buildMetadataLabel(metadata?: Record<string, any> | null): string {
     return `${title} (${source})`
   }
   return title ?? source ?? ''
+}
+
+function matchesChitchatKeyword(text: string, keyword: string): boolean {
+  if (!text || !keyword) {
+    return false
+  }
+
+  if (text === keyword) {
+    return true
+  }
+
+  if (!text.startsWith(keyword)) {
+    return false
+  }
+
+  const remainder = text.slice(keyword.length).trim()
+  if (!remainder) {
+    return true
+  }
+
+  const remainderWordCount = remainder.split(/\s+/).filter(Boolean).length
+  return remainderWordCount <= 2
 }
 
 function safeDecode(tokens: number[]): string {
