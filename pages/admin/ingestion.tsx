@@ -23,7 +23,6 @@ import {
 import { NotionContextProvider } from "react-notion-x";
 import css from "styled-jsx/css";
 
-import { normalizeEmbeddingProvider } from "@/lib/core/model-provider";
 import {
   MODEL_PROVIDER_LABELS,
   MODEL_PROVIDERS,
@@ -44,14 +43,31 @@ import {
   type RunRecord,
   type RunStatus,
 } from "../../lib/admin/ingestion-runs";
+import {
+  normalizeSnapshotRecord,
+  type SnapshotRecord,
+} from "../../lib/admin/rag-snapshot";
 import { getSupabaseAdminClient } from "../../lib/supabase-admin";
 
-type Overview = {
+type SnapshotSummary = {
+  id: string;
+  capturedAt: string | null;
+  provider: ModelProvider;
+  runId: string | null;
+  runStatus: RunStatus | null;
+  ingestionMode: string | null;
+  schemaVersion: number | null;
   totalDocuments: number;
   totalChunks: number;
   totalCharacters: number;
-  lastUpdatedAt: string | null;
-  defaultEmbeddingProvider: ModelProvider;
+  deltaDocuments: number | null;
+  deltaChunks: number | null;
+  deltaCharacters: number | null;
+};
+
+type DatasetSnapshotOverview = {
+  latest: SnapshotSummary | null;
+  history: SnapshotSummary[];
 };
 
 type RecentRunsSnapshot = {
@@ -62,8 +78,26 @@ type RecentRunsSnapshot = {
   totalPages: number;
 };
 
+type SystemHealthOverview = {
+  runId: string | null;
+  status: RunStatus | "unknown";
+  startedAt: string | null;
+  endedAt: string | null;
+  durationMs: number | null;
+  errorCount: number | null;
+  documentsSkipped: number | null;
+  queueDepth: number | null;
+  retryCount: number | null;
+  pendingRuns: number | null;
+  lastFailureRunId: string | null;
+  lastFailureAt: string | null;
+  lastFailureStatus: RunStatus | null;
+  snapshotCapturedAt: string | null;
+};
+
 type PageProps = {
-  overview: Overview;
+  datasetSnapshot: DatasetSnapshotOverview;
+  systemHealth: SystemHealthOverview;
   recentRuns: RecentRunsSnapshot;
 };
 
@@ -119,12 +153,6 @@ const LOG_ICONS: Record<
   info: FiInfo,
   warn: FiAlertTriangle,
   error: FiAlertCircle,
-};
-
-type DocumentRow = {
-  chunk_count: number | null;
-  total_characters: number | null;
-  last_ingested_at: string | number | null;
 };
 
 const ADMIN_PAGE_ID = "admin-ingestion";
@@ -209,6 +237,7 @@ const logTimeFormatter = new Intl.DateTimeFormat("en-US", {
 });
 
 const ALL_FILTER_VALUE = "all";
+const SNAPSHOT_HISTORY_LIMIT = 8;
 
 const STATUS_LABELS: Record<RunStatus, string> = {
   in_progress: "In Progress",
@@ -445,16 +474,37 @@ function formatCharacters(characters: number | null | undefined): string {
   })`;
 }
 
-function parseDate(value: unknown): Date | null {
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value;
+function formatDeltaLabel(delta: number | null): string | null {
+  if (delta === null || delta === 0) {
+    return null;
   }
-  if (typeof value === "string" || typeof value === "number") {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
+  const formatted = numberFormatter.format(Math.abs(delta));
+  return delta > 0 ? `+${formatted}` : `-${formatted}`;
+}
 
-  return null;
+function getDeltaClass(delta: number | null): string {
+  if (delta === null || delta === 0) {
+    return "snapshot-card__delta--muted";
+  }
+  return delta > 0
+    ? "snapshot-card__delta--positive"
+    : "snapshot-card__delta--negative";
+}
+
+function formatPercentChange(
+  current: number,
+  previous: number,
+): string | null {
+  if (previous === 0) {
+    return null;
+  }
+  const change = ((current - previous) / previous) * 100;
+  if (!Number.isFinite(change) || change === 0) {
+    return null;
+  }
+  const rounded = change.toFixed(1);
+  const prefix = change > 0 ? "+" : "";
+  return `${prefix}${rounded}%`;
 }
 
 function getStringMetadata(
@@ -492,6 +542,44 @@ function getNumericMetadata(
   }
 
   return null;
+}
+
+function toSnapshotSummary(snapshot: SnapshotRecord): SnapshotSummary {
+  return {
+    id: snapshot.id,
+    capturedAt: snapshot.capturedAt,
+    provider: snapshot.embeddingProvider,
+    runId: snapshot.runId,
+    runStatus: snapshot.runStatus,
+    ingestionMode: snapshot.ingestionMode,
+    schemaVersion: snapshot.schemaVersion,
+    totalDocuments: snapshot.totalDocuments,
+    totalChunks: snapshot.totalChunks,
+    totalCharacters: snapshot.totalCharacters,
+    deltaDocuments: snapshot.deltaDocuments,
+    deltaChunks: snapshot.deltaChunks,
+    deltaCharacters: snapshot.deltaCharacters,
+  };
+}
+
+function buildSparklineData(
+  values: number[],
+): { path: string; min: number; max: number } | null {
+  if (!values || values.length < 2) {
+    return null;
+  }
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const path = values
+    .map((value, index) => {
+      const normalized = (value - min) / range;
+      const x = (index / (values.length - 1)) * 100;
+      const y = 100 - normalized * 100;
+      return `${index === 0 ? "M" : "L"}${x} ${y}`;
+    })
+    .join(" ");
+  return { path, min, max };
 }
 
 function ManualIngestionPanel(): JSX.Element {
@@ -1427,6 +1515,335 @@ function ManualIngestionPanel(): JSX.Element {
         </div>
       ) : null}
     </>
+  );
+}
+
+function DatasetSnapshotSection({
+  overview,
+}: {
+  overview: DatasetSnapshotOverview;
+}): JSX.Element {
+  const { latest, history } = overview;
+  const providerLabel =
+    latest && (MODEL_PROVIDER_LABELS[latest.provider] ?? latest.provider);
+  const previous = history.length > 1 ? history[1] : null;
+  const percentChange =
+    latest && previous
+      ? formatPercentChange(latest.totalDocuments, previous.totalDocuments)
+      : null;
+  const sparklineData = buildSparklineData(
+    history
+      .slice()
+      .reverse()
+      .map((entry) => entry.totalDocuments),
+  );
+
+  const historyList = history.slice(0, SNAPSHOT_HISTORY_LIMIT);
+
+  if (!latest) {
+    return (
+      <section className="admin-card admin-section dataset-section">
+        <header className="admin-section__header">
+          <h2>Dataset Snapshot</h2>
+          <p className="admin-section__description">
+            Snapshot history will appear after the next successful ingestion
+            run.
+          </p>
+        </header>
+        <div className="snapshot-empty">
+          <p>No snapshot records found.</p>
+          <p>Run an ingestion job to capture the initial dataset state.</p>
+        </div>
+      </section>
+    );
+  }
+
+  const metrics = [
+    {
+      key: "documents",
+      label: "Documents",
+      value: numberFormatter.format(latest.totalDocuments),
+      delta: latest.deltaDocuments,
+    },
+    {
+      key: "chunks",
+      label: "Chunks",
+      value: numberFormatter.format(latest.totalChunks),
+      delta: latest.deltaChunks,
+    },
+    {
+      key: "characters",
+      label: "Characters",
+      value: formatCharacters(latest.totalCharacters),
+      delta: latest.deltaCharacters,
+    },
+  ];
+
+  return (
+    <section className="admin-card admin-section dataset-section">
+      <header className="admin-section__header">
+        <h2>Dataset Snapshot</h2>
+        <p className="admin-section__description">
+          Latest captured totals from the `rag_snapshot` rollup.
+        </p>
+      </header>
+      <div className="snapshot-grid">
+        {metrics.map((metric) => {
+          const deltaLabel = formatDeltaLabel(metric.delta);
+          return (
+            <article key={metric.key} className="snapshot-card">
+              <span className="snapshot-card__label">{metric.label}</span>
+              <span className="snapshot-card__value">{metric.value}</span>
+              <span
+                className={`snapshot-card__delta ${getDeltaClass(metric.delta)}`}
+              >
+                {deltaLabel ?? "No change"}
+              </span>
+            </article>
+          );
+        })}
+        <article className="snapshot-card snapshot-card--trend">
+          <span className="snapshot-card__label">Trend</span>
+          {sparklineData ? (
+            <>
+              <svg
+                className="snapshot-sparkline"
+                viewBox="0 0 100 100"
+                role="img"
+                aria-label="Snapshot trend sparkline"
+              >
+                <path d={sparklineData.path} />
+              </svg>
+              <div className="snapshot-card__trend-meta">
+                <span>
+                  Min: {numberFormatter.format(sparklineData.min)} · Max:{" "}
+                  {numberFormatter.format(sparklineData.max)}
+                </span>
+                {percentChange ? <span>{percentChange} vs prev.</span> : null}
+              </div>
+            </>
+          ) : (
+            <span className="snapshot-card__delta snapshot-card__delta--muted">
+              More history needed for trend
+            </span>
+          )}
+        </article>
+      </div>
+      <dl className="snapshot-meta">
+        <div>
+          <dt>Embedding Provider</dt>
+          <dd>{providerLabel}</dd>
+        </div>
+        <div>
+          <dt>Ingestion Mode</dt>
+          <dd>{latest.ingestionMode ?? "—"}</dd>
+        </div>
+        <div>
+          <dt>Captured</dt>
+          <dd>
+            {latest.capturedAt ? (
+              <ClientSideDate value={latest.capturedAt} />
+            ) : (
+              "—"
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Source Run</dt>
+          <dd>
+            {latest.runId ? (
+              <code className="snapshot-run-id">{latest.runId}</code>
+            ) : (
+              "—"
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>Schema Version</dt>
+          <dd>{latest.schemaVersion ?? "—"}</dd>
+        </div>
+      </dl>
+
+      <section className="snapshot-history">
+        <header className="snapshot-history__header">
+          <h3>
+            Recent Snapshots <span>({historyList.length})</span>
+          </h3>
+          <p>Comparing the most recent {historyList.length} captures.</p>
+        </header>
+        <ul className="snapshot-history__list">
+          {historyList.map((entry, index) => (
+            <li key={entry.id} className="snapshot-history__item">
+              <div className="snapshot-history__row">
+                <div>
+                  <span className="snapshot-history__timestamp">
+                    {entry.capturedAt ? (
+                      <ClientSideDate value={entry.capturedAt} />
+                    ) : (
+                      "—"
+                    )}
+                  </span>
+                  <span className="snapshot-history__provider">
+                    {MODEL_PROVIDER_LABELS[entry.provider] ?? entry.provider}
+                  </span>
+                </div>
+                <div className="snapshot-history__stats">
+                  <span>
+                    Docs: {numberFormatter.format(entry.totalDocuments)} (
+                    {formatDeltaLabel(entry.deltaDocuments) ?? "0"})
+                  </span>
+                  <span>
+                    Chunks: {numberFormatter.format(entry.totalChunks)} (
+                    {formatDeltaLabel(entry.deltaChunks) ?? "0"})
+                  </span>
+                </div>
+              </div>
+              {index === 0 ? (
+                <span className="snapshot-history__badge">Latest</span>
+              ) : (
+                <span className="snapshot-history__badge snapshot-history__badge--muted">
+                  #{index + 1}
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+    </section>
+  );
+}
+
+function SystemHealthSection({
+  health,
+}: {
+  health: SystemHealthOverview;
+}): JSX.Element {
+  const statusLabel =
+    health.status === "unknown" ? "Unknown" : getStatusLabel(health.status);
+  const runTimestamp = health.endedAt ?? health.startedAt;
+  const lastFailureTimestamp = health.lastFailureAt;
+
+  return (
+    <section className="admin-card admin-section system-health">
+      <header className="admin-section__header">
+        <h2>System Health</h2>
+        <p className="admin-section__description">
+          Operational signals from the latest ingestion run and queue state.
+        </p>
+      </header>
+      <div className="health-grid">
+        <article className="health-card">
+          <span className="health-card__label">Last Run</span>
+          <span className={`health-status-pill health-status-pill--${health.status}`}>
+            {statusLabel}
+          </span>
+          <div className="health-card__meta">
+            {health.runId ? (
+              <>
+                <div>
+                  Run ID: <code className="snapshot-run-id">{health.runId}</code>
+                </div>
+                <div>
+                  Updated:{" "}
+                  {runTimestamp ? (
+                    <ClientSideDate value={runTimestamp} />
+                  ) : (
+                    "—"
+                  )}
+                </div>
+                {health.snapshotCapturedAt ? (
+                  <div>
+                    Snapshot:{" "}
+                    <ClientSideDate value={health.snapshotCapturedAt} />
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <div>No runs recorded yet.</div>
+            )}
+          </div>
+        </article>
+        <article className="health-card">
+          <span className="health-card__label">Duration</span>
+          <span className="health-card__value">
+            {formatDuration(health.durationMs)}
+          </span>
+          <div className="health-card__meta">
+            {health.startedAt ? (
+              <>
+                <div>Started:</div>
+                <div>
+                  <ClientSideDate value={health.startedAt} />
+                </div>
+              </>
+            ) : (
+              <div>—</div>
+            )}
+          </div>
+        </article>
+        <article className="health-card">
+          <span className="health-card__label">Data Quality</span>
+          <div className="health-card__stack">
+            <div>
+              Errors: {numberFormatter.format(health.errorCount ?? 0)}
+            </div>
+            <div>
+              Skipped Docs: {numberFormatter.format(health.documentsSkipped ?? 0)}
+            </div>
+          </div>
+          <div className="health-card__meta">
+            Derived from the latest recorded run.
+          </div>
+        </article>
+        <article className="health-card">
+          <span className="health-card__label">Queue Health</span>
+          <div className="health-card__stack">
+            <div>
+              Queue Depth: {health.queueDepth ?? "—"}
+            </div>
+            <div>
+              Pending Runs: {health.pendingRuns ?? "—"}
+            </div>
+            <div>
+              Retry Count: {health.retryCount ?? "—"}
+            </div>
+          </div>
+          <div className="health-card__meta">
+            Values are captured when the snapshot was recorded.
+          </div>
+        </article>
+        <article className="health-card">
+          <span className="health-card__label">Last Failure</span>
+          {health.lastFailureRunId ? (
+            <>
+              <div className="health-card__value">
+                {health.lastFailureStatus
+                  ? getStatusLabel(health.lastFailureStatus)
+                  : "Failed"}
+              </div>
+              <div className="health-card__meta">
+                <div>
+                  Run ID:{" "}
+                  <code className="snapshot-run-id">
+                    {health.lastFailureRunId}
+                  </code>
+                </div>
+                <div>
+                  At:{" "}
+                  {lastFailureTimestamp ? (
+                    <ClientSideDate value={lastFailureTimestamp} />
+                  ) : (
+                    "—"
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="health-card__meta">No failures recorded.</div>
+          )}
+        </article>
+      </div>
+    </section>
   );
 }
 
@@ -2502,11 +2919,11 @@ function RecentRunsSection({
   );
 }
 
-function IngestionDashboard({ overview, recentRuns }: PageProps): JSX.Element {
-  const defaultProviderLabel =
-    MODEL_PROVIDER_LABELS[overview.defaultEmbeddingProvider] ??
-    overview.defaultEmbeddingProvider;
-
+function IngestionDashboard({
+  datasetSnapshot,
+  systemHealth,
+  recentRuns,
+}: PageProps): JSX.Element {
   return (
     <>
       <Head>
@@ -2550,48 +2967,8 @@ function IngestionDashboard({ overview, recentRuns }: PageProps): JSX.Element {
           <div className="admin-stack">
             <ManualIngestionPanel />
 
-            <section className="admin-card admin-section">
-              <header className="admin-section__header">
-                <h2>Current Snapshot</h2>
-                <p className="admin-section__description">
-                  Aggregate metrics across the latest indexed content.
-                </p>
-              </header>
-              <div className="admin-metrics">
-                <div className="admin-metric">
-                  <span className="admin-metric__label">Documents</span>
-                  <span className="admin-metric__value">
-                    {numberFormatter.format(overview.totalDocuments)}
-                  </span>
-                </div>
-                <div className="admin-metric">
-                  <span className="admin-metric__label">Chunks</span>
-                  <span className="admin-metric__value">
-                    {numberFormatter.format(overview.totalChunks)}
-                  </span>
-                </div>
-                <div className="admin-metric">
-                  <span className="admin-metric__label">Content Size</span>
-                  <span className="admin-metric__value">
-                    {formatCharacters(overview.totalCharacters)}
-                  </span>
-                </div>
-                <div className="admin-metric">
-                  <span className="admin-metric__label">
-                    Embedding Provider
-                  </span>
-                  <span className="admin-metric__value">
-                    {defaultProviderLabel}
-                  </span>
-                </div>
-                <div className="admin-metric">
-                  <span className="admin-metric__label">Last Updated</span>
-                  <span className="admin-metric__value">
-                    <ClientSideDate value={overview.lastUpdatedAt} />
-                  </span>
-                </div>
-              </div>
-            </section>
+            <DatasetSnapshotSection overview={datasetSnapshot} />
+            <SystemHealthSection health={systemHealth} />
 
             <RecentRunsSection initial={recentRuns} />
           </div>
@@ -2776,34 +3153,294 @@ const styles = css.global`
     color: rgba(55, 53, 47, 0.55);
   }
 
-  .admin-metrics {
+  .snapshot-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1.2rem;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.1rem;
   }
 
-  .admin-metric {
+  .snapshot-card {
     border: 1px solid rgba(55, 53, 47, 0.12);
     border-radius: 14px;
-    /* Reduced padding for metric boxes */
     padding: 1rem 1.1rem;
     background: rgba(255, 255, 255, 0.96);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
   }
 
-  .admin-metric__label {
+  .snapshot-card__label {
     font-size: 0.78rem;
-    text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(55, 53, 47, 0.5);
+    text-transform: uppercase;
+    color: rgba(55, 53, 47, 0.55);
   }
 
-  .admin-metric__value {
-    font-size: 1.5rem;
+  .snapshot-card__value {
+    font-size: 1.45rem;
     font-weight: 600;
-    color: var(--fg-color, rgba(55, 53, 47, 0.92));
+    color: rgba(55, 53, 47, 0.92);
+  }
+
+  .snapshot-card__delta {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .snapshot-card--trend {
+    grid-column: span 2;
+  }
+
+  .snapshot-sparkline {
+    width: 100%;
+    height: 80px;
+  }
+
+  .snapshot-sparkline path {
+    fill: none;
+    stroke: rgba(46, 170, 220, 0.9);
+    stroke-width: 2;
+  }
+
+  .snapshot-card__trend-meta {
+    margin-top: 0.35rem;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: rgba(55, 53, 47, 0.6);
+  }
+
+  .snapshot-card__delta--positive {
+    color: rgba(16, 185, 129, 0.95);
+  }
+
+  .snapshot-card__delta--negative {
+    color: rgba(239, 68, 68, 0.95);
+  }
+
+  .snapshot-card__delta--muted {
+    color: rgba(55, 53, 47, 0.45);
+  }
+
+  .snapshot-meta {
+    margin-top: 1.4rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .snapshot-meta div {
+    border: 1px solid rgba(55, 53, 47, 0.1);
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    background: rgba(248, 248, 246, 0.9);
+  }
+
+  .snapshot-meta dt {
+    margin: 0;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(55, 53, 47, 0.55);
+  }
+
+  .snapshot-meta dd {
+    margin: 0.15rem 0 0;
+    font-size: 0.95rem;
+    color: rgba(55, 53, 47, 0.85);
+  }
+
+  .snapshot-empty {
+    border: 1px dashed rgba(55, 53, 47, 0.25);
+    border-radius: 14px;
+    padding: 1.5rem;
+    background: rgba(248, 248, 246, 0.65);
+    color: rgba(55, 53, 47, 0.7);
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .snapshot-run-id {
+    font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    background: rgba(55, 53, 47, 0.08);
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.35rem;
+  }
+
+  .snapshot-history {
+    margin-top: 1.5rem;
+    border: 1px solid rgba(55, 53, 47, 0.1);
+    border-radius: 14px;
+    padding: 1.1rem 1.2rem;
+    background: rgba(255, 255, 255, 0.96);
+  }
+
+  .snapshot-history__header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .snapshot-history__header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: rgba(55, 53, 47, 0.92);
+  }
+
+  .snapshot-history__header h3 span {
+    font-size: 0.85rem;
+    color: rgba(55, 53, 47, 0.55);
+    margin-left: 0.4rem;
+  }
+
+  .snapshot-history__header p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: rgba(55, 53, 47, 0.6);
+  }
+
+  .snapshot-history__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.7rem;
+  }
+
+  .snapshot-history__item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(55, 53, 47, 0.08);
+  }
+
+  .snapshot-history__item:last-child {
+    border-bottom: none;
+  }
+
+  .snapshot-history__row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .snapshot-history__timestamp {
+    font-size: 0.9rem;
+    color: rgba(55, 53, 47, 0.8);
+  }
+
+  .snapshot-history__provider {
+    font-size: 0.8rem;
+    color: rgba(55, 53, 47, 0.55);
+  }
+
+  .snapshot-history__stats {
+    display: flex;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    color: rgba(55, 53, 47, 0.65);
+  }
+
+  .snapshot-history__badge {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    background: rgba(46, 170, 220, 0.12);
+    color: rgba(46, 170, 220, 0.85);
+    font-weight: 600;
+  }
+
+  .snapshot-history__badge--muted {
+    background: rgba(55, 53, 47, 0.08);
+    color: rgba(55, 53, 47, 0.6);
+  }
+
+  .health-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.1rem;
+  }
+
+  .health-card {
+    border: 1px solid rgba(55, 53, 47, 0.12);
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+    background: rgba(255, 255, 255, 0.96);
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .health-card__label {
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(55, 53, 47, 0.55);
+  }
+
+  .health-card__value {
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: rgba(55, 53, 47, 0.92);
+  }
+
+  .health-card__stack {
+    display: grid;
+    gap: 0.2rem;
+    font-size: 0.95rem;
+    color: rgba(55, 53, 47, 0.85);
+  }
+
+  .health-card__meta {
+    font-size: 0.85rem;
+    color: rgba(55, 53, 47, 0.55);
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .health-status-pill {
+    align-self: flex-start;
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    background: rgba(55, 53, 47, 0.08);
+    color: rgba(55, 53, 47, 0.85);
+  }
+
+  .health-status-pill--success {
+    background: rgba(16, 185, 129, 0.16);
+    color: rgba(6, 95, 70, 0.95);
+  }
+
+  .health-status-pill--failed {
+    background: rgba(239, 68, 68, 0.15);
+    color: rgba(153, 27, 27, 0.95);
+  }
+
+  .health-status-pill--completed_with_errors {
+    background: rgba(249, 115, 22, 0.15);
+    color: rgba(154, 52, 18, 0.95);
+  }
+
+  .health-status-pill--in_progress {
+    background: rgba(59, 130, 246, 0.18);
+    color: rgba(37, 99, 235, 0.95);
+  }
+
+  .health-status-pill--unknown {
+    background: rgba(55, 53, 47, 0.12);
+    color: rgba(55, 53, 47, 0.75);
   }
 
   .recent-runs__toolbar {
@@ -3860,6 +4497,14 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   const supabase = getSupabaseAdminClient();
   const pageSize = DEFAULT_RUNS_PAGE_SIZE;
 
+  const { data: snapshotRows } = await supabase
+    .from("rag_snapshot")
+    .select(
+      "id, captured_at, schema_version, run_id, run_status, run_started_at, run_ended_at, run_duration_ms, run_error_count, run_documents_skipped, embedding_provider, ingestion_mode, total_documents, total_chunks, total_characters, delta_documents, delta_chunks, delta_characters, error_count, skipped_documents, queue_depth, retry_count, pending_runs, metadata",
+    )
+    .order("captured_at", { ascending: false })
+    .limit(SNAPSHOT_HISTORY_LIMIT);
+
   const { data: runsData, count: runsCount } = await supabase
     .from("rag_ingest_runs")
     .select(
@@ -3869,10 +4514,6 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
     .order("started_at", { ascending: false })
     .range(0, pageSize - 1);
 
-  const { data: documentsData } = await supabase
-    .from("rag_documents")
-    .select("doc_id, chunk_count, total_characters, last_ingested_at");
-
   const runs: RunRecord[] = (runsData ?? []).map((run: unknown) =>
     normalizeRunRecord(run),
   );
@@ -3880,52 +4521,61 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   const totalPages =
     pageSize > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
 
-  const docs: DocumentRow[] = (documentsData ?? []) as DocumentRow[];
-  const totalDocuments = docs.length;
-  const totalChunks = docs.reduce<number>(
-    (sum, doc) => sum + (doc.chunk_count ?? 0),
-    0,
+  const snapshotRecords: SnapshotRecord[] = (snapshotRows ?? [])
+    .map((row) => normalizeSnapshotRecord(row))
+    .filter((entry): entry is SnapshotRecord => entry !== null);
+
+  const snapshotSummaries = snapshotRecords.map((snapshot) =>
+    toSnapshotSummary(snapshot),
   );
-  const totalCharacters = docs.reduce<number>(
-    (sum, doc) => sum + (doc.total_characters ?? 0),
-    0,
-  );
-  const lastUpdatedTimestamp = docs.reduce<number | null>((latest, doc) => {
-    const date = parseDate(doc.last_ingested_at);
-    if (!date) {
-      return latest;
-    }
 
-    const timestamp = date.getTime();
-    if (Number.isNaN(timestamp)) {
-      return latest;
-    }
+  const datasetSnapshot: DatasetSnapshotOverview = {
+    latest: snapshotSummaries[0] ?? null,
+    history: snapshotSummaries,
+  };
 
-    if (latest === null || timestamp > latest) {
-      return timestamp;
-    }
+  const latestSnapshotRecord = snapshotRecords[0] ?? null;
+  const latestRun = runs[0] ?? null;
+  const lastFailureRun =
+    runs.find(
+      (run) => run.status === "failed" || run.status === "completed_with_errors",
+    ) ?? null;
 
-    return latest;
-  }, null);
-
-  const lastUpdatedAt =
-    lastUpdatedTimestamp === null
-      ? null
-      : new Date(lastUpdatedTimestamp).toISOString();
-
-  const defaultEmbeddingProvider = normalizeEmbeddingProvider(
-    process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
-  );
+  const systemHealth: SystemHealthOverview = {
+    runId: latestSnapshotRecord?.runId ?? latestRun?.id ?? null,
+    status:
+      latestSnapshotRecord?.runStatus ??
+      (latestRun ? latestRun.status : "unknown"),
+    startedAt:
+      latestSnapshotRecord?.runStartedAt ?? latestRun?.started_at ?? null,
+    endedAt:
+      latestSnapshotRecord?.runEndedAt ?? latestRun?.ended_at ?? null,
+    durationMs:
+      latestSnapshotRecord?.runDurationMs ?? latestRun?.duration_ms ?? null,
+    errorCount:
+      latestSnapshotRecord?.errorCount ??
+      latestSnapshotRecord?.runErrorCount ??
+      latestRun?.error_count ??
+      null,
+    documentsSkipped:
+      latestSnapshotRecord?.skippedDocuments ??
+      latestSnapshotRecord?.runDocumentsSkipped ??
+      latestRun?.documents_skipped ??
+      null,
+    queueDepth: latestSnapshotRecord?.queueDepth ?? null,
+    retryCount: latestSnapshotRecord?.retryCount ?? null,
+    pendingRuns: latestSnapshotRecord?.pendingRuns ?? null,
+    lastFailureRunId: lastFailureRun?.id ?? null,
+    lastFailureAt:
+      lastFailureRun?.ended_at ?? lastFailureRun?.started_at ?? null,
+    lastFailureStatus: lastFailureRun?.status ?? null,
+    snapshotCapturedAt: latestSnapshotRecord?.capturedAt ?? null,
+  };
 
   return {
     props: {
-      overview: {
-        totalDocuments,
-        totalChunks,
-        totalCharacters,
-        lastUpdatedAt,
-        defaultEmbeddingProvider,
-      },
+      datasetSnapshot,
+      systemHealth,
       recentRuns: {
         runs,
         page: 1,
