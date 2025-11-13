@@ -1470,6 +1470,9 @@ function RecentRunsSection({
   >(() => collectEmbeddingProviders(initial.runs));
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingRunIds, setDeletingRunIds] = useState<Record<string, boolean>>(
+    {},
+  );
   const firstLoadRef = useRef(true);
 
   const hasFiltersApplied =
@@ -2010,6 +2013,79 @@ function RecentRunsSection({
     updateQuery,
   ]);
 
+  const handleDeleteRun = useCallback(
+    async (run: RunRecord) => {
+      if (
+        typeof window !== "undefined" &&
+        !window.confirm(
+          `Delete run ${run.id} from ${formatDate(run.started_at)}? This action cannot be undone.`,
+        )
+      ) {
+        return;
+      }
+
+      setDeletingRunIds((current) => ({ ...current, [run.id]: true }));
+      setError(null);
+
+      try {
+        const response = await fetch(`/api/admin/ingestion-runs/${run.id}`, {
+          method: "DELETE",
+        });
+
+        if (!response.ok) {
+          let message = "Failed to delete run.";
+          const contentType = response.headers.get("content-type");
+          if (contentType?.includes("application/json")) {
+            try {
+              const payload = (await response.json()) as { error?: string };
+              if (payload?.error) {
+                message = payload.error;
+              }
+            } catch {
+              // Ignore JSON parsing failures.
+            }
+          } else {
+            try {
+              const text = await response.text();
+              if (text.trim().length > 0) {
+                message = text;
+              }
+            } catch {
+              // Ignore text parsing failures.
+            }
+          }
+          throw new Error(message);
+        }
+
+        setRuns((currentRuns) =>
+          currentRuns.filter((entry) => entry.id !== run.id),
+        );
+
+        setTotalCount((currentCount) => {
+          const nextCount = Math.max(0, currentCount - 1);
+          const computedPages =
+            nextCount === 0 ? 1 : Math.max(1, Math.ceil(nextCount / pageSize));
+          setTotalPages(computedPages);
+          setPage((currentPage) => Math.min(currentPage, computedPages));
+          return nextCount;
+        });
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Unexpected error deleting run.";
+        setError(message);
+      } finally {
+        setDeletingRunIds((current) => {
+          const next = { ...current };
+          delete next[run.id];
+          return next;
+        });
+      }
+    },
+    [pageSize],
+  );
+
   const handlePageChange = useCallback(
     (nextPage: number) => {
       const maxPages = Math.max(totalPages, 1);
@@ -2203,12 +2279,13 @@ function RecentRunsSection({
               <th>Data Added</th>
               <th>Data Updated</th>
               <th>Notes</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {runs.length === 0 ? (
               <tr>
-                <td colSpan={10} className="admin-table__empty">
+                <td colSpan={11} className="admin-table__empty">
                   {emptyMessage}
                 </td>
               </tr>
@@ -2242,6 +2319,7 @@ function RecentRunsSection({
                   run.documents_processed === run.documents_skipped &&
                   (run.chunks_added ?? 0) === 0 &&
                   (run.chunks_updated ?? 0) === 0;
+                const isDeleting = deletingRunIds[run.id] === true;
 
                 const displayStatus = isFullySkipped ? "skipped" : run.status;
                 const displayStatusLabel = isFullySkipped
@@ -2369,6 +2447,19 @@ function RecentRunsSection({
                       !run.ended_at ? (
                         <div className="admin-table__meta">—</div>
                       ) : null}
+                    </td>
+                    <td className="admin-table__actions">
+                      <button
+                        type="button"
+                        className="admin-table__delete-button"
+                        onClick={() => {
+                          void handleDeleteRun(run);
+                        }}
+                        disabled={isDeleting}
+                        aria-label={`Delete ingestion run ${run.id}`}
+                      >
+                        {isDeleting ? "Deleting…" : "Delete"}
+                      </button>
                     </td>
                   </tr>
                 );
@@ -2903,6 +2994,36 @@ const styles = css.global`
   .admin-table__meta a:hover,
   .admin-table__meta a:focus {
     text-decoration: underline;
+  }
+
+  .admin-table__actions {
+    white-space: nowrap;
+  }
+
+  .admin-table__delete-button {
+    padding: 0.35rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.08);
+    color: rgba(185, 28, 28, 0.95);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease;
+  }
+
+  .admin-table__delete-button:hover,
+  .admin-table__delete-button:focus {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.6);
+    outline: none;
+  }
+
+  .admin-table__delete-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .admin-issues {
