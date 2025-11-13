@@ -491,10 +491,7 @@ function getDeltaClass(delta: number | null): string {
     : "snapshot-card__delta--negative";
 }
 
-function formatPercentChange(
-  current: number,
-  previous: number,
-): string | null {
+function formatPercentChange(current: number, previous: number): string | null {
   if (previous === 0) {
     return null;
   }
@@ -613,6 +610,7 @@ function ManualIngestionPanel(): JSX.Element {
     title: null,
   });
   const overallProgressRef = useRef<HTMLDivElement | null>(null);
+  const hasAutoScrolledProgressRef = useRef(false);
   const logsContainerRef = useRef<HTMLDivElement | null>(null);
   const [autoScrollLogs, setAutoScrollLogs] = useState(true);
   const mountedRef = useRef(true);
@@ -635,15 +633,12 @@ function ManualIngestionPanel(): JSX.Element {
     }
   }, []);
 
-  const setEmbeddingProviderAndSave = useCallback(
-    (next: ModelProvider) => {
-      setManualEmbeddingProvider(next);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("manual_embedding_provider", next);
-      }
-    },
-    [],
-  );
+  const setEmbeddingProviderAndSave = useCallback((next: ModelProvider) => {
+    setManualEmbeddingProvider(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("manual_embedding_provider", next);
+    }
+  }, []);
 
   const appendLog = useCallback(
     (message: string, level: "info" | "warn" | "error" = "info") => {
@@ -655,6 +650,19 @@ function ManualIngestionPanel(): JSX.Element {
     },
     [],
   );
+
+  const scrollProgressIntoViewOnce = useCallback(() => {
+    if (hasAutoScrolledProgressRef.current) {
+      return;
+    }
+    hasAutoScrolledProgressRef.current = true;
+    queueMicrotask(() => {
+      overallProgressRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }, []);
 
   const handleEvent = useCallback(
     (event: ManualEvent) => {
@@ -688,12 +696,7 @@ function ManualIngestionPanel(): JSX.Element {
             title: event.title ?? null,
           });
           setProgress(0);
-          queueMicrotask(() => {
-            overallProgressRef.current?.scrollIntoView({
-              behavior: "smooth",
-              block: "start",
-            });
-          });
+          scrollProgressIntoViewOnce();
           break;
         }
         case "progress":
@@ -737,6 +740,7 @@ function ManualIngestionPanel(): JSX.Element {
       setFinalMessage,
       setOverallProgress,
       setIsRunning,
+      scrollProgressIntoViewOnce,
     ],
   );
 
@@ -768,18 +772,15 @@ function ManualIngestionPanel(): JSX.Element {
     }
   }, [autoScrollLogs]);
 
-  const handleToggleAutoScroll = useCallback(
-    (checked: boolean) => {
-      if (checked) {
-        const el = logsContainerRef.current;
-        if (el) {
-          el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
-        }
+  const handleToggleAutoScroll = useCallback((checked: boolean) => {
+    if (checked) {
+      const el = logsContainerRef.current;
+      if (el) {
+        el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
       }
-      setAutoScrollLogs(checked);
-    },
-    [],
-  );
+    }
+    setAutoScrollLogs(checked);
+  }, []);
 
   const startManualIngestion = useCallback(async () => {
     if (isRunning) {
@@ -854,12 +855,8 @@ function ManualIngestionPanel(): JSX.Element {
             includeLinkedPages ? " (including linked pages)" : ""
           }.`
         : `Starting manual ${urlScope} ingestion for the provided URL.`;
-    queueMicrotask(() => {
-      overallProgressRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    });
+    hasAutoScrolledProgressRef.current = false;
+    scrollProgressIntoViewOnce();
     setLogs([createLogEntry(startLog, "info")]);
 
     try {
@@ -1007,6 +1004,7 @@ function ManualIngestionPanel(): JSX.Element {
     manualEmbeddingProvider,
     handleEvent,
     appendLog,
+    scrollProgressIntoViewOnce,
   ]);
 
   const handleSubmit = useCallback(
@@ -1350,13 +1348,13 @@ function ManualIngestionPanel(): JSX.Element {
                       <span className="progress-percent">
                         {Math.round(stagePercent)}%
                       </span>
-                      {showOverallProgress && activePageId && activePageTitle ? (
+                      {showOverallProgress &&
+                      activePageId &&
+                      activePageTitle ? (
                         <span className="progress-id">{activePageId}</span>
                       ) : null}
                       {finalMessage ? (
-                        <span className="progress-message">
-                          {finalMessage}
-                        </span>
+                        <span className="progress-message">{finalMessage}</span>
                       ) : null}
                     </div>
                   </div>
@@ -1433,7 +1431,10 @@ function ManualIngestionPanel(): JSX.Element {
                       key={log.id}
                       className={`manual-log-entry manual-log-entry--${log.level}`}
                     >
-                      <span className="manual-log-entry__icon" aria-hidden="true">
+                      <span
+                        className="manual-log-entry__icon"
+                        aria-hidden="true"
+                      >
                         <Icon />
                       </span>
                       <div className="manual-log-entry__body">
@@ -1532,9 +1533,7 @@ function DatasetSnapshotSection({
       ? formatPercentChange(latest.totalDocuments, previous.totalDocuments)
       : null;
   const sparklineData = buildSparklineData(
-    history
-      .toReversed()
-      .map((entry) => entry.totalDocuments),
+    history.toReversed().map((entry) => entry.totalDocuments),
   );
 
   const historyList = history.slice(0, SNAPSHOT_HISTORY_LIMIT);
@@ -1733,22 +1732,21 @@ function SystemHealthSection({
       <div className="health-grid">
         <article className="health-card">
           <span className="health-card__label">Last Run</span>
-          <span className={`health-status-pill health-status-pill--${health.status}`}>
+          <span
+            className={`health-status-pill health-status-pill--${health.status}`}
+          >
             {statusLabel}
           </span>
           <div className="health-card__meta">
             {health.runId ? (
               <>
                 <div>
-                  Run ID: <code className="snapshot-run-id">{health.runId}</code>
+                  Run ID:{" "}
+                  <code className="snapshot-run-id">{health.runId}</code>
                 </div>
                 <div>
                   Updated:{" "}
-                  {runTimestamp ? (
-                    <ClientSideDate value={runTimestamp} />
-                  ) : (
-                    "—"
-                  )}
+                  {runTimestamp ? <ClientSideDate value={runTimestamp} /> : "—"}
                 </div>
                 {health.snapshotCapturedAt ? (
                   <div>
@@ -1783,11 +1781,10 @@ function SystemHealthSection({
         <article className="health-card">
           <span className="health-card__label">Data Quality</span>
           <div className="health-card__stack">
+            <div>Errors: {numberFormatter.format(health.errorCount ?? 0)}</div>
             <div>
-              Errors: {numberFormatter.format(health.errorCount ?? 0)}
-            </div>
-            <div>
-              Skipped Docs: {numberFormatter.format(health.documentsSkipped ?? 0)}
+              Skipped Docs:{" "}
+              {numberFormatter.format(health.documentsSkipped ?? 0)}
             </div>
           </div>
           <div className="health-card__meta">
@@ -1797,15 +1794,9 @@ function SystemHealthSection({
         <article className="health-card">
           <span className="health-card__label">Queue Health</span>
           <div className="health-card__stack">
-            <div>
-              Queue Depth: {health.queueDepth ?? "—"}
-            </div>
-            <div>
-              Pending Runs: {health.pendingRuns ?? "—"}
-            </div>
-            <div>
-              Retry Count: {health.retryCount ?? "—"}
-            </div>
+            <div>Queue Depth: {health.queueDepth ?? "—"}</div>
+            <div>Pending Runs: {health.pendingRuns ?? "—"}</div>
+            <div>Retry Count: {health.retryCount ?? "—"}</div>
           </div>
           <div className="health-card__meta">
             Values are captured when the snapshot was recorded.
@@ -1919,8 +1910,8 @@ function RecentRunsSection({
     if (knownEmbeddingProviders.includes(embeddingProviderFilter)) {
       return knownEmbeddingProviders;
     }
-    return [...knownEmbeddingProviders, embeddingProviderFilter].toSorted((a, b) =>
-      a.localeCompare(b),
+    return [...knownEmbeddingProviders, embeddingProviderFilter].toSorted(
+      (a, b) => a.localeCompare(b),
     );
   }, [knownEmbeddingProviders, embeddingProviderFilter]);
 
@@ -2265,7 +2256,7 @@ function RecentRunsSection({
       const resolved =
         rawValue === ALL_FILTER_VALUE
           ? ALL_FILTER_VALUE
-          : toModelProviderId(rawValue) ?? ALL_FILTER_VALUE;
+          : (toModelProviderId(rawValue) ?? ALL_FILTER_VALUE);
       setEmbeddingProviderFilter(resolved);
       const nextPage = 1;
       if (page !== nextPage) {
@@ -2474,7 +2465,7 @@ function RecentRunsSection({
         }
 
         setRuns((currentRuns) =>
-          currentRuns.filter((entry) => entry.id !== run.id),
+          currentRuns.filter((entry: RunRecord) => entry.id !== run.id),
         );
 
         setTotalCount((currentCount) => {
@@ -2487,9 +2478,7 @@ function RecentRunsSection({
         });
       } catch (err) {
         const message =
-          err instanceof Error
-            ? err.message
-            : "Unexpected error deleting run.";
+          err instanceof Error ? err.message : "Unexpected error deleting run.";
         setError(message);
       } finally {
         setDeletingRunIds((current) => {
@@ -2725,10 +2714,9 @@ function RecentRunsSection({
                 const embeddingProviderId = toModelProviderId(
                   embeddingProviderValue,
                 );
-                const embeddingProviderLabel =
-                  embeddingProviderId
-                    ? MODEL_PROVIDER_LABELS[embeddingProviderId]
-                    : embeddingProviderValue ?? "—";
+                const embeddingProviderLabel = embeddingProviderId
+                  ? MODEL_PROVIDER_LABELS[embeddingProviderId]
+                  : (embeddingProviderValue ?? "—");
                 const isFullySkipped =
                   run.status === "success" &&
                   (run.documents_processed ?? 0) > 0 &&
@@ -4213,8 +4201,9 @@ const styles = css.global`
   }
 
   .progress-id {
-    font-family: "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo,
-      Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-family:
+      "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+      "Liberation Mono", "Courier New", monospace;
     font-size: 0.78rem;
     padding: 0.1rem 0.4rem;
     border-radius: 0.4rem;
@@ -4521,7 +4510,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
     pageSize > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
 
   const snapshotRecords: SnapshotRecord[] = (snapshotRows ?? [])
-    .map((row) => normalizeSnapshotRecord(row))
+    .map((row: unknown) => normalizeSnapshotRecord(row))
     .filter((entry): entry is SnapshotRecord => entry !== null);
 
   const snapshotSummaries = snapshotRecords.map((snapshot) =>
@@ -4537,7 +4526,8 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   const latestRun = runs[0] ?? null;
   const lastFailureRun =
     runs.find(
-      (run) => run.status === "failed" || run.status === "completed_with_errors",
+      (run) =>
+        run.status === "failed" || run.status === "completed_with_errors",
     ) ?? null;
 
   const systemHealth: SystemHealthOverview = {
@@ -4547,8 +4537,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
       (latestRun ? latestRun.status : "unknown"),
     startedAt:
       latestSnapshotRecord?.runStartedAt ?? latestRun?.started_at ?? null,
-    endedAt:
-      latestSnapshotRecord?.runEndedAt ?? latestRun?.ended_at ?? null,
+    endedAt: latestSnapshotRecord?.runEndedAt ?? latestRun?.ended_at ?? null,
     durationMs:
       latestSnapshotRecord?.runDurationMs ?? latestRun?.duration_ms ?? null,
     errorCount:
