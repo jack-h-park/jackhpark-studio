@@ -5,6 +5,7 @@ import { getAllPagesInSpace } from 'notion-utils'
 import pMap from 'p-map' 
 
 import { normalizeEmbeddingProvider } from '../lib/core/model-provider'
+import { rootNotionPageId as configRootNotionPageId } from '../lib/config'
 import {
   chunkByTokens,
   type ChunkInsert,
@@ -30,6 +31,7 @@ const notion = new NotionAPI()
 const DEFAULT_EMBEDDING_PROVIDER = normalizeEmbeddingProvider(
   process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null
 )
+const DEFAULT_ROOT_PAGE_ID = configRootNotionPageId
 
 type RunMode = {
   type: 'full' | 'partial'
@@ -213,9 +215,9 @@ async function ingestWorkspace(
 }
 
 async function main() {
-  const rootPageId = process.env.NOTION_ROOT_PAGE_ID
+  const rootPageId = process.env.NOTION_ROOT_PAGE_ID ?? DEFAULT_ROOT_PAGE_ID
   if (!rootPageId) {
-    throw new Error('Missing required environment variable "NOTION_ROOT_PAGE_ID"')
+    throw new Error('Missing Notion root page ID. Set NOTION_ROOT_PAGE_ID or configure it in site.config.ts.')
   }
 
   console.log('Starting Notion ingestion...')

@@ -25,7 +25,7 @@ importers:
         version: 1.6.28
       '@langchain/community':
         specifier: ^1.0.0
-        version: 1.0.0(@browserbasehq/sdk@2.6.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@16.6.1)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12))(@huggingface/inference@2.8.1)(@ibm-cloud/watsonx-ai@1.7.0)(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(@mozilla/readability@0.6.0)(@opentelemetry/api@1.9.0)(@supabase/supabase-js@2.76.1)(ibm-cloud-sdk-core@5.4.3)(ignore@5.3.2)(ioredis@5.3.2)(jsdom@27.0.1(canvas@3.2.0)(postcss@8.4.31))(jsonwebtoken@9.0.2)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(playwright@1.56.1)(ws@8.18.3)
+        version: 1.0.0(@browserbasehq/sdk@2.6.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@17.2.3)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12))(@huggingface/inference@2.8.1)(@ibm-cloud/watsonx-ai@1.7.0)(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(@mozilla/readability@0.6.0)(@opentelemetry/api@1.9.0)(@supabase/supabase-js@2.76.1)(ibm-cloud-sdk-core@5.4.3)(ignore@5.3.2)(ioredis@5.3.2)(jsdom@27.0.1(canvas@3.2.0)(postcss@8.4.31))(jsonwebtoken@9.0.2)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(playwright@1.56.1)(ws@8.18.3)
       '@langchain/core':
         specifier: ^1.0.1
         version: 1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))
@@ -129,6 +129,9 @@ importers:
       '@next/bundle-analyzer':
         specifier: ^15.3.3
         version: 15.3.3
+      '@types/dotenv':
+        specifier: ^8.2.3
+        version: 8.2.3
       '@types/node':
         specifier: ^24.5.2
         version: 24.5.2
@@ -153,6 +156,9 @@ importers:
       cross-env:
         specifier: ^10.0.0
         version: 10.0.0
+      dotenv:
+        specifier: ^17.2.3
+        version: 17.2.3
       eslint:
         specifier: ^9.35.0
         version: 9.35.0
@@ -1334,6 +1340,10 @@ packages:
   '@types/debug@4.1.12':
     resolution: {integrity: sha512-vIChWdVG3LG1SMxEvI/AK+FWJthlrqlTu7fbrlywTkkaONwk/UAGaULXRlf8vkzFBLVm0zkMdCquhL5aOjhXPQ==}
 
+  '@types/dotenv@8.2.3':
+    resolution: {integrity: sha512-g2FXjlDX/cYuc5CiQvyU/6kkbP1JtmGzh0obW50zD7OKeILVL0NSpPWLXVfqoAGQjom2/SLLx9zHq0KXvD6mbw==}
+    deprecated: This is a stub types definition. dotenv provides its own type definitions, so you do not need this installed.
+
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
@@ -1972,6 +1982,10 @@ packages:
 
   dotenv@16.6.1:
     resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
+    engines: {node: '>=12'}
+
+  dotenv@17.2.3:
+    resolution: {integrity: sha512-JVUnt+DUIzu87TABbhPmNfVdBDt18BLOWjMUFJMSi/Qqg7NTYtabbvSNJGOJ7afbRuv9D/lngizHtP7QyLQ+9w==}
     engines: {node: '>=12'}
 
   dunder-proto@1.0.1:
@@ -4060,13 +4074,13 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@browserbasehq/stagehand@1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@16.6.1)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12)':
+  '@browserbasehq/stagehand@1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@17.2.3)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12)':
     dependencies:
       '@anthropic-ai/sdk': 0.27.3
       '@browserbasehq/sdk': 2.6.0
       '@playwright/test': 1.56.1
       deepmerge: 4.3.1
-      dotenv: 16.6.1
+      dotenv: 17.2.3
       openai: 6.7.0(ws@8.18.3)(zod@4.1.12)
       ws: 8.18.3
       zod: 4.1.12
@@ -4516,9 +4530,9 @@ snapshots:
       - openai
       - ws
 
-  '@langchain/community@1.0.0(@browserbasehq/sdk@2.6.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@16.6.1)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12))(@huggingface/inference@2.8.1)(@ibm-cloud/watsonx-ai@1.7.0)(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(@mozilla/readability@0.6.0)(@opentelemetry/api@1.9.0)(@supabase/supabase-js@2.76.1)(ibm-cloud-sdk-core@5.4.3)(ignore@5.3.2)(ioredis@5.3.2)(jsdom@27.0.1(canvas@3.2.0)(postcss@8.4.31))(jsonwebtoken@9.0.2)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(playwright@1.56.1)(ws@8.18.3)':
+  '@langchain/community@1.0.0(@browserbasehq/sdk@2.6.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@17.2.3)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12))(@huggingface/inference@2.8.1)(@ibm-cloud/watsonx-ai@1.7.0)(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(@mozilla/readability@0.6.0)(@opentelemetry/api@1.9.0)(@supabase/supabase-js@2.76.1)(ibm-cloud-sdk-core@5.4.3)(ignore@5.3.2)(ioredis@5.3.2)(jsdom@27.0.1(canvas@3.2.0)(postcss@8.4.31))(jsonwebtoken@9.0.2)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(playwright@1.56.1)(ws@8.18.3)':
     dependencies:
-      '@browserbasehq/stagehand': 1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@16.6.1)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12)
+      '@browserbasehq/stagehand': 1.14.0(@playwright/test@1.56.1)(deepmerge@4.3.1)(dotenv@17.2.3)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(zod@4.1.12)
       '@ibm-cloud/watsonx-ai': 1.7.0
       '@langchain/classic': 1.0.0(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))(ws@8.18.3)
       '@langchain/core': 1.0.1(@opentelemetry/api@1.9.0)(openai@6.7.0(ws@8.18.3)(zod@4.1.12))
@@ -4748,6 +4762,10 @@ snapshots:
   '@types/debug@4.1.12':
     dependencies:
       '@types/ms': 2.1.0
+
+  '@types/dotenv@8.2.3':
+    dependencies:
+      dotenv: 17.2.3
 
   '@types/estree@1.0.8': {}
 
@@ -5384,6 +5402,8 @@ snapshots:
       esutils: 2.0.3
 
   dotenv@16.6.1: {}
+
+  dotenv@17.2.3: {}
 
   dunder-proto@1.0.1:
     dependencies:

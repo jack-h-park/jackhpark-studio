@@ -31,7 +31,7 @@
     "test": "run-p test:*",
     "lint": "eslint .",
     "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check",
-    "test:gemini": "node --import=tsx --env-file=.env.local scripts/test-gemini.ts"
+    "test:gemini": "node --import=tsx scripts/test-gemini.ts"
   },
   "dependencies": {
     "@fisch0920/use-dark-mode": "^2.4.0",
@@ -76,6 +76,7 @@
   "devDependencies": {
     "@fisch0920/config": "^1.2.1",
     "@next/bundle-analyzer": "^15.3.3",
+    "@types/dotenv": "^8.2.3",
     "@types/node": "^24.5.2",
     "@types/prismjs": "^1.26.5",
     "@types/react": "^19.1.13",
@@ -84,6 +85,7 @@
     "@types/react-modal": "^3.16.3",
     "@types/rss": "^0.0.32",
     "cross-env": "^10.0.0",
+    "dotenv": "^17.2.3",
     "eslint": "^9.35.0",
     "eslint-config-next": "^15.5.4",
     "eslint-plugin-simple-import-sort": "^12.1.1",
