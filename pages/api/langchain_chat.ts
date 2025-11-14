@@ -47,6 +47,7 @@ type Citation = {
   doc_id?: string
   title?: string
   source_url?: string
+  excerpt_count?: number
 }
 type ChatRequestBody = {
   question?: unknown
@@ -260,11 +261,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         memory: memoryValue,
         intent: guardrailMeta
       })
-      const citations: Citation[] = contextResult.included.map((doc: any) => ({
-        doc_id: doc?.metadata?.doc_id,
-        title: doc?.metadata?.title ?? doc?.metadata?.document_meta?.title,
-        source_url: doc?.metadata?.source_url
-      }))
+      const citationMap = new Map<
+        string,
+        {
+          doc_id?: string
+          title?: string
+          source_url?: string
+          excerpt_count: number
+        }
+      >()
+      const includedDocs = contextResult.included as any[]
+      let index = 0
+      for (const doc of includedDocs) {
+        const docId =
+          doc?.metadata?.doc_id ??
+          doc?.metadata?.docId ??
+          doc?.metadata?.page_id ??
+          doc?.metadata?.pageId ??
+          undefined
+        const sourceUrl =
+          doc?.metadata?.source_url ??
+          doc?.metadata?.sourceUrl ??
+          undefined
+        const normalizedUrl = sourceUrl ? sourceUrl.trim().toLowerCase() : ''
+        const key =
+          normalizedUrl.length > 0
+            ? normalizedUrl
+            : docId
+              ? `doc:${docId}`
+              : `idx:${index}`
+        const title =
+          doc?.metadata?.title ?? doc?.metadata?.document_meta?.title ?? undefined
+
+        const existing = citationMap.get(key)
+        if (existing) {
+          existing.excerpt_count += 1
+        } else {
+          citationMap.set(key, {
+            doc_id: docId,
+            title,
+            source_url: sourceUrl,
+            excerpt_count: 1
+          })
+        }
+        index += 1
+      }
+
+      const citations: Citation[] = Array.from(citationMap.values())
 
       return { stream, citations }
     }

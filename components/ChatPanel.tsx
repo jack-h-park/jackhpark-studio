@@ -494,6 +494,11 @@ const styles = css`
   .message-citations a {
     color: #1d4ed8;
   }
+  .citation-count {
+    margin-left: 4px;
+    color: #6b7280;
+    font-size: 0.65rem;
+  }
 
   .chat-input-form {
     display: flex;
@@ -550,8 +555,46 @@ const styles = css`
     }
   }
 `;
+type Citation = { title?: string; source_url?: string; excerpt_count?: number };
 
-type Citation = { title?: string; source_url?: string };
+const mergeCitations = (entries: Citation[]): Citation[] => {
+  const merged = new Map<
+    string,
+    { title?: string; source_url?: string; excerpt_count: number }
+  >();
+
+  let index = 0;
+  for (const entry of entries) {
+    const urlKey = entry.source_url?.trim().toLowerCase();
+    const docKey = entry.title?.trim().toLowerCase();
+    const fallbackKey = `idx:${index}`;
+    const key = urlKey && urlKey.length > 0
+      ? urlKey
+      : docKey && docKey.length > 0
+        ? docKey
+        : fallbackKey;
+
+    const existing = merged.get(key);
+    if (existing) {
+      existing.excerpt_count += entry.excerpt_count ?? 1;
+      if (!existing.title && entry.title) {
+        existing.title = entry.title;
+      }
+      if (!existing.source_url && entry.source_url) {
+        existing.source_url = entry.source_url;
+      }
+    } else {
+      merged.set(key, {
+        title: entry.title,
+        source_url: entry.source_url,
+        excerpt_count: entry.excerpt_count ?? 1,
+      });
+    }
+    index += 1;
+  }
+
+  return Array.from(merged.values());
+};
 
 type ChatMessage = {
   id: string;
@@ -1098,13 +1141,18 @@ export function ChatPanel() {
           </header>
 
           <div className="chat-messages">
-            {messages.map((m) => (
-              <div key={m.id} className="message-group">
-                <div className={`message ${m.role}`}>
-                  {typeof m.content === "string"
-                    ? renderMessageContent(m.content, m.id)
-                    : m.content}
-                </div>
+            {messages.map((m) => {
+              const mergedCitations =
+                m.citations && m.citations.length > 0
+                  ? mergeCitations(m.citations)
+                  : null;
+              return (
+                <div key={m.id} className="message-group">
+                  <div className={`message ${m.role}`}>
+                    {typeof m.content === "string"
+                      ? renderMessageContent(m.content, m.id)
+                      : m.content}
+                  </div>
                 {m.role === "assistant" && m.meta && (
                   <>
                     <div className="message-meta">
@@ -1135,17 +1183,25 @@ export function ChatPanel() {
                     )}
                   </>
                 )}
-                {m.role === "assistant" &&
-                  showCitations &&
-                  m.citations &&
-                  m.citations.length > 0 && (
-                    <ol className="message-citations">
-                      {m.citations.map((citation, index) => {
-                        const title =
-                          (citation.title ?? "").trim() ||
-                          (citation.source_url ?? "").trim() ||
-                          `Source ${index + 1}`;
+                  {m.role === "assistant" &&
+                    showCitations &&
+                    mergedCitations &&
+                    mergedCitations.length > 0 && (
+                      <ol className="message-citations">
+                        {mergedCitations.map((citation, index) => {
+                          const title =
+                            (citation.title ?? "").trim() ||
+                            (citation.source_url ?? "").trim() ||
+                            `Source ${index + 1}`;
                         const url = (citation.source_url ?? "").trim();
+                        const excerptCount =
+                          typeof citation.excerpt_count === "number"
+                            ? citation.excerpt_count
+                            : 1;
+                        const countLabel =
+                          excerptCount > 1
+                            ? `${excerptCount} excerpts`
+                            : null;
                         return (
                           <li key={`${m.id}-citation-${index}`}>
                             {title}
@@ -1161,13 +1217,19 @@ export function ChatPanel() {
                                 </a>
                               </>
                             )}
+                            {countLabel && (
+                              <span className="citation-count">
+                                ({countLabel})
+                              </span>
+                            )}
                           </li>
                         );
                       })}
-                    </ol>
-                  )}
-              </div>
-            ))}
+                      </ol>
+                    )}
+                </div>
+              );
+            })}
             {isLoading && (
               <div className="message assistant">
                 <span>...</span>
