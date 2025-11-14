@@ -9,6 +9,7 @@ import { GiBrain } from "@react-icons/all-files/gi/GiBrain";
 import {
   type ChangeEvent,
   type FormEvent,
+  type JSX,
   useEffect,
   useRef,
   useState,
@@ -30,6 +31,83 @@ const DEFAULT_MODEL_PROVIDER: ModelProvider = normalizeModelProvider(
   process.env.NEXT_PUBLIC_LLM_PROVIDER ?? null,
   "openai",
 );
+
+const URL_REGEX =
+  /(https?:\/\/[^\s<>()"'`]+[^\s.,)<>"'`])/gi;
+
+function formatLinkLabel(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl);
+    const path =
+      parsed.pathname && parsed.pathname !== "/"
+        ? parsed.pathname.length > 24
+          ? `${parsed.pathname.slice(0, 24)}…`
+          : parsed.pathname
+        : "";
+    return `${parsed.hostname}${path}`;
+  } catch {
+    return "Open link";
+  }
+}
+
+function withLineBreaks(text: string, keyPrefix: string): JSX.Element[] {
+  return text.split("\n").flatMap((line, index, array) => {
+    const nodes: JSX.Element[] = [
+      <span key={`${keyPrefix}-line-${index}`}>{line}</span>,
+    ];
+    if (index < array.length - 1) {
+      nodes.push(<br key={`${keyPrefix}-br-${index}`} />);
+    }
+    return nodes;
+  });
+}
+
+function renderMessageContent(
+  content: string,
+  keyPrefix: string,
+): JSX.Element[] {
+  const nodes: JSX.Element[] = [];
+  const regex = new RegExp(URL_REGEX);
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(
+        ...withLineBreaks(
+          content.slice(lastIndex, match.index),
+          `${keyPrefix}-text-${lastIndex}`,
+        ),
+      );
+    }
+
+    const url = match[0];
+    nodes.push(
+      <a
+        key={`${keyPrefix}-link-${match.index}`}
+        href={url}
+        target="_blank"
+        rel="noreferrer noopener"
+        title={url}
+      >
+        {formatLinkLabel(url)}
+      </a>,
+    );
+
+    lastIndex = match.index + url.length;
+  }
+
+  if (lastIndex < content.length) {
+    nodes.push(
+      ...withLineBreaks(
+        content.slice(lastIndex),
+        `${keyPrefix}-text-tail`,
+      ),
+    );
+  }
+
+  return nodes;
+}
 const styles = css`
   .chat-panel-container {
     position: fixed;
@@ -335,6 +413,17 @@ const styles = css`
     font-size: 0.9rem;
   }
 
+  .message a {
+    color: #1d4ed8;
+    text-decoration: underline;
+    word-break: break-word;
+  }
+
+  .message a:hover,
+  .message a:focus {
+    color: #0f172a;
+  }
+
   .message.user {
     background: #007aff;
     color: white;
@@ -540,6 +629,7 @@ export function ChatPanel() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
 
@@ -603,6 +693,15 @@ export function ChatPanel() {
     setShowOptions((prev) => !prev);
   };
 
+  const focusInput = () => {
+    if (!isOpen) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  };
+
   const togglePanelSize = () => {
     setIsExpanded((prev) => !prev);
   };
@@ -614,6 +713,18 @@ export function ChatPanel() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (isOpen) {
+      focusInput();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      focusInput();
+    }
+  }, [isLoading]);
 
   useEffect(() => {
     return () => {
@@ -933,7 +1044,11 @@ export function ChatPanel() {
           <div className="chat-messages">
             {messages.map((m) => (
               <div key={m.id} className="message-group">
-                <div className={`message ${m.role}`}>{m.content}</div>
+                <div className={`message ${m.role}`}>
+                  {typeof m.content === "string"
+                    ? renderMessageContent(m.content, m.id)
+                    : m.content}
+                </div>
                 {m.role === "assistant" && m.meta && (
                   <>
                     <div className="message-meta">
@@ -977,6 +1092,7 @@ export function ChatPanel() {
           <form className="chat-input-form" onSubmit={handleFormSubmit}>
             <input
               className="chat-input"
+              ref={inputRef}
               value={input}
               onChange={handleInputChange}
               placeholder="Ask me anything about Jack..."

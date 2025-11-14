@@ -124,14 +124,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       { createClient },
       { SupabaseVectorStore },
       { PromptTemplate },
-      { RunnableSequence },
-      { StringOutputParser }
+      { RunnableSequence }
     ] = await Promise.all([
       import('@supabase/supabase-js'),
       import('@langchain/community/vectorstores/supabase'),
       import('@langchain/core/prompts'),
-      import('@langchain/core/runnables'),
-      import('@langchain/core/output_parsers')
+      import('@langchain/core/runnables')
     ])
 
     const embeddings = await createEmbeddingsInstance(
@@ -169,11 +167,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const prompt = PromptTemplate.fromTemplate(promptTemplate)
 
     const buildChain = (llmInstance: BaseLanguageModelInterface) =>
-      RunnableSequence.from([
-        prompt,
-        llmInstance,
-        new StringOutputParser()
-      ])
+      RunnableSequence.from([prompt, llmInstance])
 
     let latestMeta: GuardrailMeta | null = null
 
@@ -331,7 +325,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
 
         for await (const chunk of stream) {
-          if (!res.writableEnded) res.write(chunk)
+          const rendered = renderStreamChunk(chunk)
+          if (!rendered) {
+            continue
+          }
+          if (!res.writableEnded) res.write(rendered)
         }
 
         const citationJson = JSON.stringify(citations)
@@ -385,6 +383,43 @@ function parseTemperature(value: unknown): number {
 
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : DEFAULT_TEMPERATURE
+}
+
+function renderStreamChunk(chunk: unknown): string | null {
+  if (!chunk) {
+    return null
+  }
+
+  if (typeof chunk === 'string') {
+    return chunk
+  }
+
+  if (typeof chunk === 'object') {
+    const candidate = chunk as { content?: unknown; text?: unknown }
+    if (typeof candidate.text === 'string') {
+      return candidate.text
+    }
+    if (typeof candidate.content === 'string') {
+      return candidate.content
+    }
+    if (Array.isArray(candidate.content)) {
+      const joined = candidate.content
+        .map((entry) => {
+          if (typeof entry === 'string') {
+            return entry
+          }
+          if (entry && typeof entry === 'object' && 'text' in entry) {
+            const value = (entry as { text?: unknown }).text
+            return typeof value === 'string' ? value : ''
+          }
+          return ''
+        })
+        .join('')
+      return joined.length > 0 ? joined : null
+    }
+  }
+
+  return null
 }
 
 function escapeForPromptTemplate(value: string): string {

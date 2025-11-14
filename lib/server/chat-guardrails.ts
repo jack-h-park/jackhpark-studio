@@ -411,15 +411,24 @@ function isChitChatIntent(
   history: GuardrailChatMessage[],
   keywords: string[]
 ): boolean {
-  const historyTail = history
-    .filter((msg) => msg.role === 'user')
+  const userEntries = history.filter((msg) => msg.role === 'user')
+  const priorEntries = userEntries
+    .slice(0, -1)
     .slice(-2)
     .map((msg) => msg.content.toLowerCase())
 
-  return keywords.some(
-    (keyword) =>
-      matchesChitchatKeyword(canonical, keyword) ||
-      historyTail.some((entry) => matchesChitchatKeyword(entry, keyword))
+  if (
+    keywords.some((keyword) => matchesChitchatKeyword(canonical, keyword))
+  ) {
+    return true
+  }
+
+  if (priorEntries.length === 0) {
+    return false
+  }
+
+  return keywords.some((keyword) =>
+    priorEntries.some((entry) => matchesChitchatKeyword(entry, keyword))
   )
 }
 
