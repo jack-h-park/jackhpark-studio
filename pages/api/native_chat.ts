@@ -1,7 +1,6 @@
 import { type NextApiRequest, type NextApiResponse } from 'next'
 
 import type { ModelProvider } from '@/lib/shared/model-provider'
-import { host } from '@/lib/config'
 import { embedText } from '@/lib/core/embeddings'
 import { getGeminiModelCandidates, shouldRetryGeminiModel } from '@/lib/core/gemini'
 import {
@@ -25,14 +24,14 @@ import { type ChatMessage,sanitizeMessages } from '@/lib/server/chat-messages'
 import { loadSystemPrompt } from '@/lib/server/chat-settings'
 import {
   type CanonicalPageLookup,
-  loadCanonicalPageLookup,
-  normalizePageId,
-  resolvePublicPageUrl} from '@/lib/server/page-url'
+  loadCanonicalPageLookup
+} from '@/lib/server/page-url'
 import {
   type GuardrailMeta,
   serializeGuardrailMeta
 } from '@/lib/shared/guardrail-meta'
 import { getSupabaseAdminClient } from '@/lib/supabase-admin'
+import { resolveRagUrl } from '@/lib/server/rag-url-resolver'
 
 type RagDocumentMetadata = {
   doc_id?: string | null
@@ -77,8 +76,6 @@ type ChatRequestBody = {
 const DEFAULT_MATCH_COUNT = Number(process.env.RAG_TOP_K ?? 5)
 const DEFAULT_TEMPERATURE = Number(process.env.LLM_TEMPERATURE ?? 0)
 const DEFAULT_MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 512)
-const DEBUG_RAG_URLS =
-  (process.env.DEBUG_RAG_URLS ?? '').toLowerCase() === 'true'
 
 export default async function handler(
   req: NextApiRequest,
@@ -319,28 +316,37 @@ function applyPublicPageUrls(
   }
 
   return documents.map((doc: RagDocument, index) => {
-    const docId = getNormalizedDocId(doc)
-    const canonicalUrl =
-      docId !== null ? resolvePublicPageUrl(docId, canonicalLookup) : null
-    const sourceUrl = getDocumentSourceUrl(doc)
-    const rewrittenSource =
-      canonicalUrl ?? rewriteNotionUrl(sourceUrl, docId) ?? sourceUrl ?? null
-    if (DEBUG_RAG_URLS) {
-      console.log('[native_chat:url]', {
-        index,
-        docId,
-        sourceUrl,
-        canonicalUrl,
-        rewrittenSource
-      })
-    }
+    const { docId, sourceUrl } = resolveRagUrl({
+      docIdCandidates: [
+        doc.doc_id,
+        doc.docId,
+        doc.document_id,
+        doc.documentId,
+        doc.id,
+        doc.metadata?.doc_id,
+        doc.metadata?.docId,
+        doc.metadata?.page_id,
+        doc.metadata?.pageId
+      ],
+      sourceUrlCandidates: [
+        doc.source_url,
+        doc.sourceUrl,
+        doc.metadata?.source_url,
+        doc.metadata?.sourceUrl,
+        doc.metadata?.url,
+        doc.url
+      ],
+      canonicalLookup,
+      debugLabel: 'native_chat:url',
+      index
+    })
 
-    if (rewrittenSource) {
-      doc.source_url = rewrittenSource
+    if (sourceUrl) {
+      doc.source_url = sourceUrl
       doc.metadata = {
         ...doc.metadata,
         doc_id: docId ?? doc.metadata?.doc_id ?? null,
-        source_url: rewrittenSource
+        source_url: sourceUrl
       }
     }
 
@@ -350,109 +356,6 @@ function applyPublicPageUrls(
 
     return doc
   })
-}
-
-function getNormalizedDocId(doc: RagDocument): string | null {
-  const candidates = [
-    doc.doc_id,
-    doc.docId,
-    doc.document_id,
-    doc.documentId,
-    doc.id,
-    doc.metadata?.doc_id,
-    doc.metadata?.docId,
-    doc.metadata?.page_id,
-    doc.metadata?.pageId
-  ]
-
-  for (const candidate of candidates) {
-    if (typeof candidate !== 'string') {
-      continue
-    }
-
-    const normalized = normalizePageId(candidate)
-    if (normalized) {
-      return normalized
-    }
-  }
-
-  return null
-}
-
-function getDocumentSourceUrl(doc: RagDocument): string | null {
-  const candidates = [
-    doc.source_url,
-    doc.sourceUrl,
-    doc.metadata?.source_url,
-    doc.metadata?.sourceUrl,
-    doc.metadata?.url,
-    doc.url
-  ]
-
-  for (const candidate of candidates) {
-    if (typeof candidate === 'string') {
-      const trimmed = candidate.trim()
-      if (trimmed.length > 0) {
-        return trimmed
-      }
-    }
-  }
-
-  return null
-}
-
-function rewriteNotionUrl(
-  sourceUrl: string | null,
-  docId: string | null
-): string | null {
-  const baseHost = host.replace(/\/+$/, '')
-
-  if (!sourceUrl) {
-    return docId ? `${baseHost}/${docId}` : null
-  }
-
-  const normalizedUrl = ensureAbsoluteUrl(sourceUrl)
-  let parsed: URL
-
-  try {
-    parsed = new URL(normalizedUrl)
-  } catch {
-    return normalizedUrl
-  }
-
-  const hostname = parsed.hostname.toLowerCase()
-  const derivedDocId =
-    docId ??
-    normalizePageId(parsed.pathname.split('/').filter(Boolean).at(-1) ?? null)
-
-  if (
-    derivedDocId &&
-    (hostname.includes('notion.so') || hostname.includes('notion.site'))
-  ) {
-    const rewritten = `${baseHost}/${derivedDocId}`
-    if (DEBUG_RAG_URLS) {
-      console.log('[native_chat:url:fallback]', {
-        sourceUrl,
-        derivedDocId,
-        rewritten
-      })
-    }
-    return rewritten
-  }
-
-  return normalizedUrl
-}
-
-function ensureAbsoluteUrl(url: string): string {
-  if (!url) {
-    return url
-  }
-
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url
-  }
-
-  return `https://${url.replace(/^\/+/, '')}`
 }
 
 type ChatStreamOptions = {
