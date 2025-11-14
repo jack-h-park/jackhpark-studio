@@ -24,6 +24,10 @@ import { NotionContextProvider } from "react-notion-x";
 import css from "styled-jsx/css";
 
 import {
+  loadCanonicalPageLookup,
+  resolvePublicPageUrl,
+} from "@/lib/server/page-url";
+import {
   MODEL_PROVIDER_LABELS,
   MODEL_PROVIDERS,
   type ModelProvider,
@@ -2703,7 +2707,13 @@ function RecentRunsSection({
                   "rootPageId",
                 );
                 const urlCount = getNumericMetadata(run.metadata, "urlCount");
-                const pageUrl = getStringMetadata(run.metadata, "pageUrl");
+                const publicPageUrl = getStringMetadata(
+                  run.metadata,
+                  "publicPageUrl",
+                );
+                const pageUrl =
+                  publicPageUrl ??
+                  getStringMetadata(run.metadata, "pageUrl");
                 const pageId = getStringMetadata(run.metadata, "pageId");
                 const targetUrl = getStringMetadata(run.metadata, "url");
                 const hostname = getStringMetadata(run.metadata, "hostname");
@@ -4484,6 +4494,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
 ) => {
   const supabase = getSupabaseAdminClient();
   const pageSize = DEFAULT_RUNS_PAGE_SIZE;
+  const canonicalLookup = await loadCanonicalPageLookup();
 
   const { data: snapshotRows } = await supabase
     .from("rag_snapshot")
@@ -4505,6 +4516,16 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   const runs: RunRecord[] = (runsData ?? []).map((run: unknown) =>
     normalizeRunRecord(run),
   );
+  for (const run of runs) {
+    const pageId = getStringMetadata(run.metadata, "pageId");
+    const publicUrl = resolvePublicPageUrl(pageId, canonicalLookup);
+    if (publicUrl) {
+      run.metadata = {
+        ...run.metadata,
+        publicPageUrl: publicUrl,
+      };
+    }
+  }
   const totalCount = runsCount ?? runs.length;
   const totalPages =
     pageSize > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;

@@ -1,4 +1,5 @@
 // pages/api/langchain_chat.ts
+import type { Document } from '@langchain/core/documents'
 import type { EmbeddingsInterface } from '@langchain/core/embeddings'
 import type { BaseLanguageModelInterface } from '@langchain/core/language_models/base'
 import type { NextApiRequest, NextApiResponse } from 'next'
@@ -12,12 +13,7 @@ import {
   normalizeLlmProvider,
   requireProviderApiKey
 } from '@/lib/core/model-provider'
-import {
-  getLcChunksView,
-  getLcMatchFunction,
-  getLegacyLcChunksView,
-  getLegacyLcMatchFunction
-} from '@/lib/core/rag-tables'
+import { getLcChunksView, getLcMatchFunction } from '@/lib/core/rag-tables'
 import {
   applyHistoryWindow,
   buildContextWindow,
@@ -32,6 +28,13 @@ import {
   type GuardrailMeta,
   serializeGuardrailMeta
 } from '@/lib/shared/guardrail-meta'
+import { host } from '@/lib/config'
+import {
+  loadCanonicalPageLookup,
+  resolvePublicPageUrl,
+  normalizePageId,
+  type CanonicalPageLookup
+} from '@/lib/server/page-url'
 
 /**
  * Pages Router API (Node.js runtime).
@@ -64,6 +67,8 @@ const SUPABASE_URL = process.env.SUPABASE_URL as string
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string
 const RAG_TOP_K = Number(process.env.RAG_TOP_K || 5)
 const DEFAULT_TEMPERATURE = Number(process.env.LLM_TEMPERATURE ?? 0)
+const DEBUG_RAG_URLS =
+  (process.env.DEBUG_RAG_URLS ?? '').toLowerCase() === 'true'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -182,17 +187,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       )
 
       if (routingDecision.intent === 'knowledge') {
+        const matchCount = Math.max(RAG_TOP_K, guardrails.ragTopK * 2)
         const store = new SupabaseVectorStore(embeddings, {
           client: supabase,
           tableName,
           queryName
         })
-        const matchCount = Math.max(RAG_TOP_K, guardrails.ragTopK * 2)
         const matches = await store.similaritySearchWithScore(
           normalizedQuestion.normalized,
           matchCount
         )
-        const ragDocs = matches.map(([doc, score]) => ({
+        const canonicalLookup = await loadCanonicalPageLookup()
+        const normalizedMatches = matches.map(([doc, score], index) => {
+          const rewrittenDoc = rewriteLangchainDocument(
+            doc,
+            canonicalLookup,
+            index
+          )
+          return [rewrittenDoc, score] as typeof matches[number]
+        })
+        const ragDocs = normalizedMatches.map(([doc, score]) => ({
           chunk: doc.pageContent,
           metadata: doc.metadata,
           similarity:
@@ -204,7 +218,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }))
         contextResult = buildContextWindow(ragDocs, guardrails)
         console.log('[langchain_chat] context compression', {
-          retrieved: matches.length,
+          retrieved: normalizedMatches.length,
           included: contextResult.included.length,
           dropped: contextResult.dropped,
           totalTokens: contextResult.totalTokens,
@@ -264,38 +278,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const primaryTable = getLcChunksView(embeddingProvider)
     const primaryFunction = getLcMatchFunction(embeddingProvider)
-    const fallbackTable = getLegacyLcChunksView()
-    const fallbackFunction = getLegacyLcMatchFunction()
-
-    const runWithLlm = async (
-      llmInstance: BaseLanguageModelInterface
-    ): Promise<{ stream: AsyncIterable<string>; citations: Citation[] }> => {
-      try {
-        return await executeWithResources(
-          primaryTable,
-          primaryFunction,
-          llmInstance
-        )
-      } catch (err) {
-        console.error(
-          '[langchain_chat] primary match function failed',
-          primaryFunction,
-          err
-        )
-        if (shouldFallbackToLegacyResources(err, primaryFunction)) {
-          console.warn(
-            '[langchain_chat] falling back to legacy LC match resources',
-            primaryFunction
-          )
-          return executeWithResources(
-            fallbackTable,
-            fallbackFunction,
-            llmInstance
-          )
-        }
-        throw err
-      }
-    }
 
     const modelCandidates =
       provider === 'gemini'
@@ -309,7 +291,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const llm = await createChatModel(provider, candidate, temperature)
 
       try {
-        const { stream, citations } = await runWithLlm(llm)
+        const { stream, citations } = await executeWithResources(
+          primaryTable,
+          primaryFunction,
+          llm
+        )
         if (latestMeta) {
           res.setHeader('X-Guardrail-Meta', serializeGuardrailMeta(latestMeta))
         }
@@ -422,25 +408,135 @@ function renderStreamChunk(chunk: unknown): string | null {
   return null
 }
 
-function escapeForPromptTemplate(value: string): string {
-  return value.replaceAll('{', '{{').replaceAll('}', '}}')
-}
+function rewriteLangchainDocument(
+  doc: Document,
+  canonicalLookup: CanonicalPageLookup,
+  index: number
+): Document {
+  const docId = getNormalizedDocId(doc)
+  const canonicalUrl =
+    docId !== null ? resolvePublicPageUrl(docId, canonicalLookup) : null
+  const sourceUrl = getDocumentSourceUrl(doc)
+  const rewrittenSource =
+    canonicalUrl ?? rewriteNotionUrl(sourceUrl, docId) ?? sourceUrl ?? null
 
-function shouldFallbackToLegacyResources(
-  error: unknown,
-  functionName: string
-): boolean {
-  if (!(error instanceof Error)) {
-    return false
+  if (DEBUG_RAG_URLS) {
+    console.log('[langchain_chat:url]', {
+      index,
+      docId,
+      sourceUrl,
+      canonicalUrl,
+      rewrittenSource
+    })
   }
 
-  const message = error.message ?? ''
-  const normalized = message.toLowerCase()
-  return (
-    normalized.includes('could not find the function') ||
-    normalized.includes('pgrst202') ||
-    normalized.includes('pgrst201')
-  ) && normalized.includes(functionName.toLowerCase())
+  if (rewrittenSource) {
+    doc.metadata = {
+      ...(doc.metadata ?? {}),
+      doc_id: docId ?? doc.metadata?.doc_id ?? null,
+      source_url: rewrittenSource
+    }
+  }
+
+  return doc
+}
+
+function getNormalizedDocId(doc: Document): string | null {
+  const meta = doc.metadata ?? {}
+  const candidates = [
+    meta.doc_id,
+    meta.docId,
+    meta.page_id,
+    meta.pageId,
+    meta.document_id,
+    meta.documentId
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') {
+      continue
+    }
+    const normalized = normalizePageId(candidate)
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  return null
+}
+
+function getDocumentSourceUrl(doc: Document): string | null {
+  const meta = doc.metadata ?? {}
+  const candidates = [meta.source_url, meta.sourceUrl, meta.url]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string') {
+      const trimmed = candidate.trim()
+      if (trimmed.length > 0) {
+        return trimmed
+      }
+    }
+  }
+
+  return null
+}
+
+function rewriteNotionUrl(
+  sourceUrl: string | null,
+  docId: string | null
+): string | null {
+  const baseHost = host.replace(/\/+$/, '')
+
+  if (!sourceUrl) {
+    return docId ? `${baseHost}/${docId}` : null
+  }
+
+  const normalizedUrl = ensureAbsoluteUrl(sourceUrl)
+  let parsed: URL
+
+  try {
+    parsed = new URL(normalizedUrl)
+  } catch {
+    return normalizedUrl
+  }
+
+  const hostname = parsed.hostname.toLowerCase()
+  const derivedDocId =
+    docId ??
+    normalizePageId(parsed.pathname.split('/').filter(Boolean).at(-1) ?? null)
+
+  if (
+    derivedDocId &&
+    (hostname.includes('notion.so') || hostname.includes('notion.site'))
+  ) {
+    const rewritten = `${baseHost}/${derivedDocId}`
+    if (DEBUG_RAG_URLS) {
+      console.log('[langchain_chat:url:fallback]', {
+        sourceUrl,
+        derivedDocId,
+        rewritten
+      })
+    }
+    return rewritten
+  }
+
+  return normalizedUrl
+}
+
+function ensureAbsoluteUrl(url: string): string {
+  if (!url) {
+    return url
+  }
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+
+  return `https://${url.replace(/^\/+/, '')}`
+}
+
+function escapeForPromptTemplate(value: string): string {
+  return value.replaceAll('{', '{{').replaceAll('}', '}}')
 }
 
 async function createEmbeddingsInstance(

@@ -1,6 +1,11 @@
 import { encode } from 'gpt-tokenizer'
 
+import { host } from '@/lib/config'
 import { loadGuardrailSettings } from '@/lib/server/chat-settings'
+import { normalizePageId } from '@/lib/server/page-url'
+
+const DEBUG_RAG_URLS =
+  (process.env.DEBUG_RAG_URLS ?? '').toLowerCase() === 'true'
 
 export type GuardrailChatMessage = {
   role: 'user' | 'assistant'
@@ -289,7 +294,7 @@ export function buildContextWindow(
 
   const contextBlock = included
     .map((doc, index) => {
-      const metaLabel = buildMetadataLabel(doc.metadata)
+      const metaLabel = buildDocumentLabel(doc)
       const headerParts = [`(${index + 1})`, metaLabel].filter(Boolean)
       const infoLine = headerParts.join(' ')
       return [infoLine, doc.prunedChunk.trim()].filter(Boolean).join('\n')
@@ -457,18 +462,140 @@ function getDocScore(doc: RagDocument | undefined): number {
   return 0
 }
 
-function buildMetadataLabel(metadata?: Record<string, any> | null): string {
-  if (!metadata) {
-    return ''
-  }
+function buildDocumentLabel(doc: RagDocument): string {
+  const title = getDocumentTitle(doc)
+  const source = getPublicSourceUrl(doc)
 
-  const title = typeof metadata.title === 'string' ? metadata.title : null
-  const source =
-    typeof metadata.source_url === 'string' ? metadata.source_url : null
   if (title && source) {
     return `${title} (${source})`
   }
+
   return title ?? source ?? ''
+}
+
+function getPublicSourceUrl(doc: RagDocument): string | null {
+  const rawSource = getDocumentSourceUrl(doc)
+  if (!rawSource) {
+    return null
+  }
+
+  const normalizedSource = normalizeUrl(rawSource)
+
+  let parsed: URL
+  try {
+    parsed = new URL(normalizedSource)
+  } catch {
+    return normalizedSource
+  }
+
+  const hostname = parsed.hostname.toLowerCase()
+  const derivedDocId =
+    normalizePageId(getDocumentId(doc)) ||
+    normalizePageId(getLastPathSegment(parsed.pathname))
+
+  if (
+    derivedDocId &&
+    (hostname.includes('notion.so') || hostname.includes('notion.site'))
+  ) {
+    const rewritten = `${host.replace(/\/+$/, '')}/${derivedDocId}`
+    if (DEBUG_RAG_URLS) {
+      console.log('[chat-guardrails:url]', {
+        source: rawSource,
+        docId: derivedDocId,
+        rewritten
+      })
+    }
+    return rewritten
+  }
+
+  if (DEBUG_RAG_URLS) {
+    console.log('[chat-guardrails:url:passthrough]', {
+      source: rawSource
+    })
+  }
+
+  return normalizedSource
+}
+
+function getDocumentTitle(doc: RagDocument): string | null {
+  const candidates = [doc.title, doc.metadata?.title]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string') {
+      const trimmed = candidate.trim()
+      if (trimmed) {
+        return trimmed
+      }
+    }
+  }
+
+  return null
+}
+
+function getDocumentSourceUrl(doc: RagDocument): string | null {
+  const candidates = [
+    doc.source_url,
+    doc.sourceUrl,
+    doc.metadata?.source_url,
+    doc.metadata?.sourceUrl
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string') {
+      const trimmed = candidate.trim()
+      if (trimmed) {
+        return trimmed
+      }
+    }
+  }
+
+  return null
+}
+
+function getDocumentId(doc: RagDocument): string | null {
+  const candidates = [
+    doc.doc_id,
+    doc.docId,
+    doc.document_id,
+    doc.documentId,
+    doc.id,
+    doc.metadata?.doc_id,
+    doc.metadata?.docId,
+    doc.metadata?.page_id,
+    doc.metadata?.pageId
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string') {
+      const trimmed = candidate.trim()
+      if (trimmed && normalizePageId(trimmed)) {
+        return trimmed
+      }
+    }
+  }
+
+  return null
+}
+
+function normalizeUrl(url: string): string {
+  if (!url) {
+    return url
+  }
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+
+  return `https://${url.replace(/^\/+/, '')}`
+}
+
+function getLastPathSegment(pathname: string): string | undefined {
+  if (!pathname) {
+    return undefined
+  }
+
+  const segments = pathname.split('/').filter(Boolean)
+  return segments.length > 0 ? segments.at(-1) : undefined
 }
 
 function matchesChitchatKeyword(text: string, keyword: string): boolean {

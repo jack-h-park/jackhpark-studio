@@ -1,11 +1,10 @@
 #!/usr/bin/env ts-node
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import * as dotenv from 'dotenv'
 
 import { getGeminiModelCandidates } from '@/lib/core/gemini'
 import { getLlmModelName, requireProviderApiKey } from '@/lib/core/model-provider'
-
-import * as dotenv from 'dotenv'
 
 if (!process.env.VERCEL && !process.env.CI) {
   dotenv.config({ path: '.env.local' })

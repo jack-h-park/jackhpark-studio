@@ -25,11 +25,6 @@ const LC_MATCH_FUNCTIONS: Record<ModelProvider, string> = {
   huggingface: 'match_lc_chunks_hf'
 }
 
-export const LEGACY_RAG_CHUNKS_TABLE = 'rag_chunks'
-export const LEGACY_LC_CHUNKS_VIEW = 'lc_chunks'
-export const LEGACY_RAG_MATCH_FUNCTION = 'match_rag_chunks'
-export const LEGACY_LC_MATCH_FUNCTION = 'match_lc_chunks'
-
 export function getRagChunksTable(provider?: string | null): string {
   const normalized = normalizeEmbeddingProvider(provider)
   return RAG_CHUNK_TABLES[normalized]
@@ -48,20 +43,4 @@ export function getRagMatchFunction(provider?: string | null): string {
 export function getLcMatchFunction(provider?: string | null): string {
   const normalized = normalizeEmbeddingProvider(provider)
   return LC_MATCH_FUNCTIONS[normalized]
-}
-
-export function getLegacyRagChunksTable(): string {
-  return LEGACY_RAG_CHUNKS_TABLE
-}
-
-export function getLegacyLcChunksView(): string {
-  return LEGACY_LC_CHUNKS_VIEW
-}
-
-export function getLegacyRagMatchFunction(): string {
-  return LEGACY_RAG_MATCH_FUNCTION
-}
-
-export function getLegacyLcMatchFunction(): string {
-  return LEGACY_LC_MATCH_FUNCTION
 }

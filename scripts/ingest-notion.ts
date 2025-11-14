@@ -4,8 +4,8 @@ import { type ExtendedRecordMap } from 'notion-types'
 import { getAllPagesInSpace } from 'notion-utils'
 import pMap from 'p-map' 
 
-import { normalizeEmbeddingProvider } from '../lib/core/model-provider'
 import { rootNotionPageId as configRootNotionPageId } from '../lib/config'
+import { normalizeEmbeddingProvider } from '../lib/core/model-provider'
 import {
   chunkByTokens,
   type ChunkInsert,

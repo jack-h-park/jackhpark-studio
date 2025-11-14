@@ -1,6 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import {
+  loadCanonicalPageLookup,
+  resolvePublicPageUrl,
+} from "@/lib/server/page-url";
+import {
   type ModelProvider,
   toModelProviderId,
 } from "@/lib/shared/model-provider";
@@ -153,6 +157,23 @@ function parseQuery(query: NextApiRequest["query"]): ParsedQuery {
   };
 }
 
+function getStringMetadata(
+  metadata: Record<string, unknown> | null,
+  key: string,
+): string | null {
+  if (!metadata) {
+    return null;
+  }
+
+  const value = metadata[key];
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  return null;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<RunsResponse | { error: string }>,
@@ -235,6 +256,20 @@ export default async function handler(
   const runs = Array.isArray(data)
     ? data.map((run) => normalizeRunRecord(run))
     : [];
+
+  if (runs.length > 0) {
+    const canonicalLookup = await loadCanonicalPageLookup();
+    for (const run of runs) {
+      const pageId = getStringMetadata(run.metadata, "pageId");
+      const publicUrl = resolvePublicPageUrl(pageId, canonicalLookup);
+      if (publicUrl) {
+        run.metadata = {
+          ...run.metadata,
+          publicPageUrl: publicUrl,
+        };
+      }
+    }
+  }
 
   const totalCount = count ?? 0;
   const totalPages =

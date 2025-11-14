@@ -1,6 +1,7 @@
 import { type NextApiRequest, type NextApiResponse } from 'next'
 
 import type { ModelProvider } from '@/lib/shared/model-provider'
+import { host } from '@/lib/config'
 import { embedText } from '@/lib/core/embeddings'
 import { getGeminiModelCandidates, shouldRetryGeminiModel } from '@/lib/core/gemini'
 import {
@@ -11,9 +12,7 @@ import {
   requireProviderApiKey
 } from '@/lib/core/model-provider'
 import { getOpenAIClient } from '@/lib/core/openai'
-import {
-  getLegacyRagMatchFunction,
-  getRagMatchFunction} from '@/lib/core/rag-tables'
+import { getRagMatchFunction } from '@/lib/core/rag-tables'
 import {
   applyHistoryWindow,
   buildContextWindow,
@@ -25,10 +24,45 @@ import {
 import { type ChatMessage,sanitizeMessages } from '@/lib/server/chat-messages'
 import { loadSystemPrompt } from '@/lib/server/chat-settings'
 import {
+  type CanonicalPageLookup,
+  loadCanonicalPageLookup,
+  normalizePageId,
+  resolvePublicPageUrl} from '@/lib/server/page-url'
+import {
   type GuardrailMeta,
   serializeGuardrailMeta
 } from '@/lib/shared/guardrail-meta'
 import { getSupabaseAdminClient } from '@/lib/supabase-admin'
+
+type RagDocumentMetadata = {
+  doc_id?: string | null
+  docId?: string | null
+  page_id?: string | null
+  pageId?: string | null
+  title?: string | null
+  source_url?: string | null
+  sourceUrl?: string | null
+  url?: string | null
+  chunk_hash?: string | null
+  ingested_at?: string | null
+  [key: string]: unknown
+}
+
+type RagDocument = {
+  id?: string | null
+  doc_id?: string | null
+  docId?: string | null
+  document_id?: string | null
+  documentId?: string | null
+  content?: string | null
+  embedding?: number[] | null
+  similarity?: number | null
+  source_url?: string | null
+  sourceUrl?: string | null
+  url?: string | null
+  metadata?: RagDocumentMetadata | null
+  [key: string]: unknown
+}
 
 type ChatRequestBody = {
   messages?: unknown
@@ -43,6 +77,8 @@ type ChatRequestBody = {
 const DEFAULT_MATCH_COUNT = Number(process.env.RAG_TOP_K ?? 5)
 const DEFAULT_TEMPERATURE = Number(process.env.LLM_TEMPERATURE ?? 0)
 const DEFAULT_MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 512)
+const DEBUG_RAG_URLS =
+  (process.env.DEBUG_RAG_URLS ?? '').toLowerCase() === 'true'
 
 export default async function handler(
   req: NextApiRequest,
@@ -141,7 +177,7 @@ export default async function handler(
         DEFAULT_MATCH_COUNT,
         guardrails.ragTopK * 2
       )
-      let { data: documents, error: matchError } = await supabase.rpc(
+      const { data: documents, error: matchError } = await supabase.rpc(
         ragMatchFunction,
         {
           query_embedding: embedding,
@@ -150,25 +186,6 @@ export default async function handler(
         }
       )
 
-      if (
-        matchError &&
-        shouldFallbackToLegacyResources(matchError, ragMatchFunction)
-      ) {
-        console.warn(
-          '[native_chat] falling back to legacy match function',
-          ragMatchFunction
-        )
-        const fallbackFunction = getLegacyRagMatchFunction()
-        const fallback = await supabase.rpc(fallbackFunction, {
-          query_embedding: embedding,
-          similarity_threshold: guardrails.similarityThreshold,
-          match_count: matchCount
-        })
-
-        documents = fallback.data
-        matchError = fallback.error
-      }
-
       if (matchError) {
         console.error('Error matching documents:', matchError)
         return res.status(500).json({
@@ -176,9 +193,17 @@ export default async function handler(
         })
       }
 
-      contextResult = buildContextWindow(documents ?? [], guardrails)
+      const typedDocuments: RagDocument[] = Array.isArray(documents)
+        ? (documents as RagDocument[])
+        : []
+      const canonicalLookup = await loadCanonicalPageLookup()
+      const normalizedDocuments = applyPublicPageUrls(
+        typedDocuments,
+        canonicalLookup
+      )
+      contextResult = buildContextWindow(normalizedDocuments, guardrails)
       console.log('[native_chat] context compression', {
-        retrieved: documents?.length ?? 0,
+        retrieved: normalizedDocuments.length,
         included: contextResult.included.length,
         dropped: contextResult.dropped,
         totalTokens: contextResult.totalTokens,
@@ -285,20 +310,149 @@ function parseNumber(value: unknown, fallback: number): number {
   return fallback
 }
 
-function shouldFallbackToLegacyResources(
-  error: { message?: string } | null | undefined,
-  functionName: string
-): boolean {
-  if (!error?.message) {
-    return false
+function applyPublicPageUrls(
+  documents: RagDocument[],
+  canonicalLookup: CanonicalPageLookup
+): RagDocument[] {
+  if (!documents?.length) {
+    return documents
   }
 
-  const normalized = error.message.toLowerCase()
-  return (
-    normalized.includes('could not find the function') ||
-    normalized.includes('pgrst202') ||
-    normalized.includes('pgrst201')
-  ) && normalized.includes(functionName.toLowerCase())
+  return documents.map((doc: RagDocument, index) => {
+    const docId = getNormalizedDocId(doc)
+    const canonicalUrl =
+      docId !== null ? resolvePublicPageUrl(docId, canonicalLookup) : null
+    const sourceUrl = getDocumentSourceUrl(doc)
+    const rewrittenSource =
+      canonicalUrl ?? rewriteNotionUrl(sourceUrl, docId) ?? sourceUrl ?? null
+    if (DEBUG_RAG_URLS) {
+      console.log('[native_chat:url]', {
+        index,
+        docId,
+        sourceUrl,
+        canonicalUrl,
+        rewrittenSource
+      })
+    }
+
+    if (rewrittenSource) {
+      doc.source_url = rewrittenSource
+      doc.metadata = {
+        ...doc.metadata,
+        doc_id: docId ?? doc.metadata?.doc_id ?? null,
+        source_url: rewrittenSource
+      }
+    }
+
+    if (docId && typeof doc.doc_id !== 'string') {
+      doc.doc_id = docId
+    }
+
+    return doc
+  })
+}
+
+function getNormalizedDocId(doc: RagDocument): string | null {
+  const candidates = [
+    doc.doc_id,
+    doc.docId,
+    doc.document_id,
+    doc.documentId,
+    doc.id,
+    doc.metadata?.doc_id,
+    doc.metadata?.docId,
+    doc.metadata?.page_id,
+    doc.metadata?.pageId
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') {
+      continue
+    }
+
+    const normalized = normalizePageId(candidate)
+    if (normalized) {
+      return normalized
+    }
+  }
+
+  return null
+}
+
+function getDocumentSourceUrl(doc: RagDocument): string | null {
+  const candidates = [
+    doc.source_url,
+    doc.sourceUrl,
+    doc.metadata?.source_url,
+    doc.metadata?.sourceUrl,
+    doc.metadata?.url,
+    doc.url
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string') {
+      const trimmed = candidate.trim()
+      if (trimmed.length > 0) {
+        return trimmed
+      }
+    }
+  }
+
+  return null
+}
+
+function rewriteNotionUrl(
+  sourceUrl: string | null,
+  docId: string | null
+): string | null {
+  const baseHost = host.replace(/\/+$/, '')
+
+  if (!sourceUrl) {
+    return docId ? `${baseHost}/${docId}` : null
+  }
+
+  const normalizedUrl = ensureAbsoluteUrl(sourceUrl)
+  let parsed: URL
+
+  try {
+    parsed = new URL(normalizedUrl)
+  } catch {
+    return normalizedUrl
+  }
+
+  const hostname = parsed.hostname.toLowerCase()
+  const derivedDocId =
+    docId ??
+    normalizePageId(parsed.pathname.split('/').filter(Boolean).at(-1) ?? null)
+
+  if (
+    derivedDocId &&
+    (hostname.includes('notion.so') || hostname.includes('notion.site'))
+  ) {
+    const rewritten = `${baseHost}/${derivedDocId}`
+    if (DEBUG_RAG_URLS) {
+      console.log('[native_chat:url:fallback]', {
+        sourceUrl,
+        derivedDocId,
+        rewritten
+      })
+    }
+    return rewritten
+  }
+
+  return normalizedUrl
+}
+
+function ensureAbsoluteUrl(url: string): string {
+  if (!url) {
+    return url
+  }
+
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+
+  return `https://${url.replace(/^\/+/, '')}`
 }
 
 type ChatStreamOptions = {
