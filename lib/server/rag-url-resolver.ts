@@ -1,9 +1,8 @@
 import { host } from '@/lib/config'
 import {
+  type CanonicalPageLookup,
   normalizePageId,
-  resolvePublicPageUrl,
-  type CanonicalPageLookup
-} from '@/lib/server/page-url'
+  resolvePublicPageUrl} from '@/lib/server/page-url'
 
 const DEBUG_RAG_URLS =
   (process.env.DEBUG_RAG_URLS ?? '').toLowerCase() === 'true'
@@ -101,7 +100,7 @@ function rewriteNotionUrl(
   const hostname = parsed.hostname.toLowerCase()
   const derivedDocId =
     docId ??
-    normalizePageId(parsed.pathname.split('/').filter(Boolean).at(-1) ?? null)
+    normalizePageId(parsed.pathname.split('/').findLast(Boolean) ?? null)
 
   if (
     derivedDocId &&

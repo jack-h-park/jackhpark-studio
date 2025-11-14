@@ -77,31 +77,6 @@ export type HistoryWindowResult = {
   summaryMemory: string | null
 }
 
-const DEFAULT_SIMILARITY_THRESHOLD = Number(
-  process.env.RAG_SIMILARITY_THRESHOLD ?? 0.78
-)
-const DEFAULT_RAG_TOP_K = Number(process.env.RAG_TOP_K ?? 5)
-const DEFAULT_CONTEXT_TOKEN_BUDGET = Number(
-  process.env.CHAT_CONTEXT_TOKEN_BUDGET ?? 1200
-)
-const DEFAULT_CONTEXT_CLIP_TOKENS = Number(
-  process.env.CHAT_CONTEXT_CLIP_TOKENS ?? 320
-)
-const DEFAULT_HISTORY_TOKEN_BUDGET = Number(
-  process.env.CHAT_HISTORY_TOKEN_BUDGET ?? 900
-)
-const DEFAULT_SUMMARY_TRIGGER_TOKENS = Number(
-  process.env.CHAT_SUMMARY_TRIGGER_TOKENS ?? 400
-)
-const DEFAULT_SUMMARY_MAX_TURNS = Number(
-  process.env.CHAT_SUMMARY_MAX_TURNS ?? 6
-)
-const DEFAULT_SUMMARY_MAX_CHARS = Number(
-  process.env.CHAT_SUMMARY_MAX_CHARS ?? 600
-)
-const SUMMARY_ENABLED =
-  (process.env.CHAT_SUMMARY_ENABLED ?? 'true').toLowerCase() !== 'false'
-
 const COMMAND_KEYWORDS = [
   'delete',
   'reset',
@@ -124,22 +99,23 @@ export async function getChatGuardrailConfig(options?: {
   const guardrailSettings = await loadGuardrailSettings({
     forceRefresh: options?.forceRefresh
   })
+  const numeric = guardrailSettings.numeric
 
   return {
     similarityThreshold: clamp(
-      DEFAULT_SIMILARITY_THRESHOLD,
+      numeric.similarityThreshold,
       0,
       1
     ),
-    ragTopK: Math.max(1, DEFAULT_RAG_TOP_K),
-    ragContextTokenBudget: Math.max(200, DEFAULT_CONTEXT_TOKEN_BUDGET),
-    ragContextClipTokens: Math.max(64, DEFAULT_CONTEXT_CLIP_TOKENS),
-    historyTokenBudget: Math.max(200, DEFAULT_HISTORY_TOKEN_BUDGET),
+    ragTopK: Math.max(1, numeric.ragTopK),
+    ragContextTokenBudget: Math.max(200, numeric.ragContextTokenBudget),
+    ragContextClipTokens: Math.max(64, numeric.ragContextClipTokens),
+    historyTokenBudget: Math.max(200, numeric.historyTokenBudget),
     summary: {
-      enabled: SUMMARY_ENABLED,
-      triggerTokens: Math.max(200, DEFAULT_SUMMARY_TRIGGER_TOKENS),
-      maxChars: Math.max(200, DEFAULT_SUMMARY_MAX_CHARS),
-      maxTurns: Math.max(2, DEFAULT_SUMMARY_MAX_TURNS)
+      enabled: numeric.summaryEnabled,
+      triggerTokens: Math.max(200, numeric.summaryTriggerTokens),
+      maxChars: Math.max(200, numeric.summaryMaxChars),
+      maxTurns: Math.max(2, numeric.summaryMaxTurns)
     },
     chitchatKeywords: guardrailSettings.chitchatKeywords,
     fallbacks: {

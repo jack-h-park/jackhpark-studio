@@ -26,12 +26,12 @@ import {
   type CanonicalPageLookup,
   loadCanonicalPageLookup
 } from '@/lib/server/page-url'
+import { resolveRagUrl } from '@/lib/server/rag-url-resolver'
 import {
   type GuardrailMeta,
   serializeGuardrailMeta
 } from '@/lib/shared/guardrail-meta'
 import { getSupabaseAdminClient } from '@/lib/supabase-admin'
-import { resolveRagUrl } from '@/lib/server/rag-url-resolver'
 
 type RagDocumentMetadata = {
   doc_id?: string | null

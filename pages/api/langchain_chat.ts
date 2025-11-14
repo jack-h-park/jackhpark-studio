@@ -25,14 +25,13 @@ import {
 import { type ChatMessage,sanitizeMessages } from '@/lib/server/chat-messages'
 import { loadSystemPrompt } from '@/lib/server/chat-settings'
 import {
+  type CanonicalPageLookup,
+  loadCanonicalPageLookup} from '@/lib/server/page-url'
+import { resolveRagUrl } from '@/lib/server/rag-url-resolver'
+import {
   type GuardrailMeta,
   serializeGuardrailMeta
 } from '@/lib/shared/guardrail-meta'
-import {
-  loadCanonicalPageLookup,
-  type CanonicalPageLookup
-} from '@/lib/server/page-url'
-import { resolveRagUrl } from '@/lib/server/rag-url-resolver'
 
 /**
  * Pages Router API (Node.js runtime).
@@ -261,13 +260,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         memory: memoryValue,
         intent: guardrailMeta
       })
-      const citations: Citation[] = contextResult.included
-        .slice(0, 3)
-        .map((doc: any) => ({
-          doc_id: doc?.metadata?.doc_id,
-          title: doc?.metadata?.title ?? doc?.metadata?.document_meta?.title,
-          source_url: doc?.metadata?.source_url
-        }))
+      const citations: Citation[] = contextResult.included.map((doc: any) => ({
+        doc_id: doc?.metadata?.doc_id,
+        title: doc?.metadata?.title ?? doc?.metadata?.document_meta?.title,
+        source_url: doc?.metadata?.source_url
+      }))
 
       return { stream, citations }
     }

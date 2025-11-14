@@ -478,6 +478,23 @@ const styles = css`
     line-height: 1.3;
   }
 
+  .message-citations {
+    margin-top: 4px;
+    padding-left: 18px;
+    font-size: 0.6rem;
+    line-height: 1.2;
+    color: #4b5563;
+  }
+
+  .message-citations li {
+    margin-bottom: 2px;
+    word-break: break-word;
+  }
+
+  .message-citations a {
+    color: #1d4ed8;
+  }
+
   .chat-input-form {
     display: flex;
     padding: 16px;
@@ -534,16 +551,19 @@ const styles = css`
   }
 `;
 
+type Citation = { title?: string; source_url?: string };
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   meta?: GuardrailMeta | null;
+  citations?: Citation[];
 };
 
 type ChatResponse = {
   answer: string;
-  citations: Array<{ title?: string; source_url?: string }>;
+  citations: Citation[];
 };
 
 type Engine = "native" | "lc";
@@ -644,6 +664,7 @@ export function ChatPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showCitations, setShowCitations] = useState(false);
 
   useEffect(() => {
     const saved =
@@ -676,6 +697,13 @@ export function ChatPanel() {
     setShowDiagnostics(stored === "1");
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    setShowCitations(localStorage.getItem("chat_show_citations") === "1");
+  }, []);
+
   const setProviderAndSave = (next: ModelProvider) => {
     setProvider(next);
     if (typeof window !== "undefined") {
@@ -688,6 +716,16 @@ export function ChatPanel() {
       const next = !prev;
       if (typeof window !== "undefined") {
         localStorage.setItem("chat_guardrail_debug", next ? "1" : "0");
+      }
+      return next;
+    });
+  };
+
+  const toggleCitations = () => {
+    setShowCitations((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("chat_show_citations", next ? "1" : "0");
       }
       return next;
     });
@@ -777,7 +815,11 @@ export function ChatPanel() {
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
-    const updateAssistant = (content?: string, meta?: GuardrailMeta | null) => {
+    const updateAssistant = (
+      content?: string,
+      meta?: GuardrailMeta | null,
+      citations?: ChatResponse["citations"],
+    ) => {
       setMessages((prev) =>
         prev.map((message) =>
           message.id === assistantMessageId
@@ -786,6 +828,7 @@ export function ChatPanel() {
                 content:
                   typeof content === "string" ? content : message.content,
                 ...(meta !== undefined ? { meta } : {}),
+                ...(citations !== undefined ? { citations } : {}),
               }
             : message,
         ),
@@ -847,22 +890,14 @@ export function ChatPanel() {
 
           const [answer, citationsJson] =
             fullContent.split(CITATIONS_SEPARATOR);
-          let finalContent = answer;
+          const finalContent = (answer ?? "").trim();
+          let parsedCitations: ChatResponse["citations"] = [];
 
           if (citationsJson) {
             try {
-              const citations = JSON.parse(
-                citationsJson,
-              ) as ChatResponse["citations"];
-              const citesText =
-                citations
-                  .filter((c) => c?.title || c?.source_url)
-                  .map((c, i) =>
-                    `(${i + 1}) ${c.title ?? ""} ${c.source_url ?? ""}`.trim(),
-                  )
-                  .join("\n") || "";
-              if (citesText) {
-                finalContent = `${answer.trim()}\n\n${citesText}`;
+              const candidate = JSON.parse(citationsJson);
+              if (Array.isArray(candidate)) {
+                parsedCitations = candidate as ChatResponse["citations"];
               }
             } catch {
               // ignore json parse errors
@@ -870,7 +905,7 @@ export function ChatPanel() {
           }
 
           if (isMountedRef.current) {
-            updateAssistant(finalContent, guardrailMeta);
+            updateAssistant(finalContent, guardrailMeta, parsedCitations);
           }
         } else {
           // Native streaming
@@ -1041,6 +1076,23 @@ export function ChatPanel() {
                     </label>
                   </div>
                 </div>
+                <div className="chat-control-block">
+                  <span className="chat-control-label">Citations</span>
+                  <div className="guardrail-toggle-row">
+                    <span className="guardrail-description">
+                      Show every retrieved source (tiny text)
+                    </span>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={showCitations}
+                        onChange={toggleCitations}
+                        aria-label="Toggle citation visibility"
+                      />
+                      <span className="toggle-slider" />
+                    </label>
+                  </div>
+                </div>
               </div>
             )}
           </header>
@@ -1083,6 +1135,37 @@ export function ChatPanel() {
                     )}
                   </>
                 )}
+                {m.role === "assistant" &&
+                  showCitations &&
+                  m.citations &&
+                  m.citations.length > 0 && (
+                    <ol className="message-citations">
+                      {m.citations.map((citation, index) => {
+                        const title =
+                          (citation.title ?? "").trim() ||
+                          (citation.source_url ?? "").trim() ||
+                          `Source ${index + 1}`;
+                        const url = (citation.source_url ?? "").trim();
+                        return (
+                          <li key={`${m.id}-citation-${index}`}>
+                            {title}
+                            {url && (
+                              <>
+                                {" "}
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer noopener"
+                                >
+                                  {formatLinkLabel(url)}
+                                </a>
+                              </>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
               </div>
             ))}
             {isLoading && (

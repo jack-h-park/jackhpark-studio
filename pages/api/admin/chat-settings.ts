@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 
 import { SYSTEM_PROMPT_MAX_LENGTH } from '@/lib/chat-prompts'
 import {
+  type GuardrailNumericSettings,
   loadGuardrailSettings,
   loadSystemPrompt,
   saveGuardrailSettings,
@@ -38,17 +39,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           chitchatKeywords?: unknown
           fallbackChitchat?: unknown
           fallbackCommand?: unknown
+          numeric?: Partial<Record<keyof GuardrailNumericSettings, unknown>>
         }
       }
 
       const hasPrompt = typeof systemPrompt === 'string'
+      const numericPayload = guardrails?.numeric
       const hasGuardrails =
         guardrails &&
         typeof guardrails === 'object' &&
         guardrails !== null &&
         typeof guardrails.chitchatKeywords === 'string' &&
         typeof guardrails.fallbackChitchat === 'string' &&
-        typeof guardrails.fallbackCommand === 'string'
+        typeof guardrails.fallbackCommand === 'string' &&
+        isValidNumericPayload(numericPayload)
 
       if (!hasPrompt && !hasGuardrails) {
         return res.status(400).json({
@@ -77,7 +81,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         guardrailResult = await saveGuardrailSettings({
           chitchatKeywords: guardrails!.chitchatKeywords as string,
           fallbackChitchat: guardrails!.fallbackChitchat as string,
-          fallbackCommand: guardrails!.fallbackCommand as string
+          fallbackCommand: guardrails!.fallbackCommand as string,
+          numeric: numericPayload as GuardrailNumericSettings
         })
       }
 
@@ -100,4 +105,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   res.setHeader('Allow', ['GET', 'PUT', 'PATCH'])
   return res.status(405).json({ error: 'Method Not Allowed' })
+}
+
+const GUARDRAIL_NUMERIC_KEYS: Array<keyof GuardrailNumericSettings> = [
+  'similarityThreshold',
+  'ragTopK',
+  'ragContextTokenBudget',
+  'ragContextClipTokens',
+  'historyTokenBudget',
+  'summaryEnabled',
+  'summaryTriggerTokens',
+  'summaryMaxTurns',
+  'summaryMaxChars'
+]
+
+function isValidNumericPayload(
+  candidate: Partial<Record<keyof GuardrailNumericSettings, unknown>> | undefined
+): candidate is GuardrailNumericSettings {
+  if (!candidate) {
+    return false
+  }
+
+  return GUARDRAIL_NUMERIC_KEYS.every((key) => {
+    const value = candidate[key]
+    if (key === 'summaryEnabled') {
+      return typeof value === 'boolean'
+    }
+    return typeof value === 'number' && Number.isFinite(value)
+  })
 }

@@ -58,7 +58,31 @@
    SUPABASE_URL=https://your-project.supabase.co
     SUPABASE_ANON_KEY=...
    SUPABASE_SERVICE_ROLE_KEY=...
-   ```
+  ```
+
+### 🔧 Advanced LLM/RAG tuning
+
+The assistant ships with sensible defaults, but you can fine‑tune behaviour via the following knobs:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `LLM_MODEL` | `gpt-4o-mini` | Primary chat-completion model ID for the active provider (OpenAI, Gemini, Hugging Face). |
+| `EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model used for ingestion and live queries; must match the vectors stored in Supabase. |
+| `RAG_TOP_K` | `15` | How many chunks to fetch per query before context compression. Raise this when your corpus is small and you want broader coverage. |
+| `LLM_TEMPERATURE` | `0.0` | Sampling temperature for answers. Keep near zero for factual Q&A, raise for more creative tone. |
+| `RAG_SIMILARITY_THRESHOLD` | `0.78` | Minimum cosine similarity required before a chunk can be included in the context window. |
+| `CHAT_CONTEXT_TOKEN_BUDGET` | `1200` | Total token budget earmarked for retrieved excerpts per response. |
+| `CHAT_CONTEXT_CLIP_TOKENS` | `320` | Maximum size of any single excerpt (extra tokens are trimmed). |
+| `CHAT_HISTORY_TOKEN_BUDGET` | `900` | Conversation history token limit before the guardrails collapse older turns into a summary. |
+| `CHAT_SUMMARY_ENABLED` | `true` | Enables the rolling summary feature once the history budget is exceeded. |
+| `CHAT_SUMMARY_TRIGGER_TOKENS` | `400` | When a single conversation surpasses this many tokens, the summary pass is triggered. |
+| `CHAT_SUMMARY_MAX_TURNS` | `6` | Maximum turns (pairs of user/assistant messages) considered when generating a summary. |
+| `CHAT_SUMMARY_MAX_CHARS` | `600` | Hard character cap for the generated summary so it fits inside the prompt. |
+| `CHAT_CHITCHAT_KEYWORDS` | `"hello,hi,how are you,whats up,what is up,tell me a joke"` | Comma-separated phrases treated as lightweight chitchat and answered without hitting Supabase. |
+| `CHAT_FALLBACK_CHITCHAT_CONTEXT` | _(string)_ | Prompt snippet injected whenever a chitchat intent is detected; useful for defining tone. |
+| `CHAT_FALLBACK_COMMAND_CONTEXT` | _(string)_ | Prompt snippet used when the user appears to request an action/command the assistant cannot execute. |
+
+> Tip: keep embeddings and RAG settings aligned—if you re-ingest with a different `EMBEDDING_MODEL`, update `.env.local` before running the ingestion scripts so live queries use the same vectors.
 
 3. **Prepare Supabase chat settings table**
 

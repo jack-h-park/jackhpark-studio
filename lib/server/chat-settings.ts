@@ -13,16 +13,47 @@ const GUARDRAIL_SETTINGS_CACHE_TTL_MS = 60_000
 const CHITCHAT_KEYWORDS_SETTING_KEY = 'guardrail_chitchat_keywords'
 const CHITCHAT_FALLBACK_SETTING_KEY = 'guardrail_fallback_chitchat'
 const COMMAND_FALLBACK_SETTING_KEY = 'guardrail_fallback_command'
+const SIMILARITY_THRESHOLD_SETTING_KEY = 'guardrail_similarity_threshold'
+const RAG_TOP_K_SETTING_KEY = 'guardrail_rag_top_k'
+const CONTEXT_TOKEN_BUDGET_SETTING_KEY = 'guardrail_context_token_budget'
+const CONTEXT_CLIP_TOKENS_SETTING_KEY = 'guardrail_context_clip_tokens'
+const HISTORY_TOKEN_BUDGET_SETTING_KEY = 'guardrail_history_token_budget'
+const SUMMARY_ENABLED_SETTING_KEY = 'guardrail_summary_enabled'
+const SUMMARY_TRIGGER_TOKENS_SETTING_KEY = 'guardrail_summary_trigger_tokens'
+const SUMMARY_MAX_TURNS_SETTING_KEY = 'guardrail_summary_max_turns'
+const SUMMARY_MAX_CHARS_SETTING_KEY = 'guardrail_summary_max_chars'
 const GUARDRAIL_SETTING_KEYS = [
   CHITCHAT_KEYWORDS_SETTING_KEY,
   CHITCHAT_FALLBACK_SETTING_KEY,
-  COMMAND_FALLBACK_SETTING_KEY
+  COMMAND_FALLBACK_SETTING_KEY,
+  SIMILARITY_THRESHOLD_SETTING_KEY,
+  RAG_TOP_K_SETTING_KEY,
+  CONTEXT_TOKEN_BUDGET_SETTING_KEY,
+  CONTEXT_CLIP_TOKENS_SETTING_KEY,
+  HISTORY_TOKEN_BUDGET_SETTING_KEY,
+  SUMMARY_ENABLED_SETTING_KEY,
+  SUMMARY_TRIGGER_TOKENS_SETTING_KEY,
+  SUMMARY_MAX_TURNS_SETTING_KEY,
+  SUMMARY_MAX_CHARS_SETTING_KEY
 ] as const
+
+export type GuardrailNumericSettings = {
+  similarityThreshold: number
+  ragTopK: number
+  ragContextTokenBudget: number
+  ragContextClipTokens: number
+  historyTokenBudget: number
+  summaryEnabled: boolean
+  summaryTriggerTokens: number
+  summaryMaxTurns: number
+  summaryMaxChars: number
+}
 
 export type GuardrailDefaults = {
   chitchatKeywords: string[]
   fallbackChitchat: string
   fallbackCommand: string
+  numeric: GuardrailNumericSettings
 }
 
 const DEFAULT_CHITCHAT_KEYWORDS = parseKeywordList(
@@ -40,10 +71,59 @@ const DEFAULT_COMMAND_FALLBACK = normalizeGuardrailText(
     'The user is asking for an action/command. You must politely decline to execute actions and instead explain what is possible.'
 )
 
+const DEFAULT_SIMILARITY_THRESHOLD = clampNumber(
+  Number(process.env.RAG_SIMILARITY_THRESHOLD ?? 0.78),
+  0,
+  1
+)
+const DEFAULT_RAG_TOP_K = ensureMin(
+  Number(process.env.RAG_TOP_K ?? 5),
+  1
+)
+const DEFAULT_CONTEXT_TOKEN_BUDGET = ensureMin(
+  Number(process.env.CHAT_CONTEXT_TOKEN_BUDGET ?? 1200),
+  200
+)
+const DEFAULT_CONTEXT_CLIP_TOKENS = ensureMin(
+  Number(process.env.CHAT_CONTEXT_CLIP_TOKENS ?? 320),
+  64
+)
+const DEFAULT_HISTORY_TOKEN_BUDGET = ensureMin(
+  Number(process.env.CHAT_HISTORY_TOKEN_BUDGET ?? 900),
+  200
+)
+const DEFAULT_SUMMARY_ENABLED =
+  (process.env.CHAT_SUMMARY_ENABLED ?? 'true').toLowerCase() !== 'false'
+const DEFAULT_SUMMARY_TRIGGER_TOKENS = ensureMin(
+  Number(process.env.CHAT_SUMMARY_TRIGGER_TOKENS ?? 400),
+  200
+)
+const DEFAULT_SUMMARY_MAX_TURNS = ensureMin(
+  Number(process.env.CHAT_SUMMARY_MAX_TURNS ?? 6),
+  2
+)
+const DEFAULT_SUMMARY_MAX_CHARS = ensureMin(
+  Number(process.env.CHAT_SUMMARY_MAX_CHARS ?? 600),
+  200
+)
+
+const DEFAULT_NUMERIC_SETTINGS: GuardrailNumericSettings = {
+  similarityThreshold: DEFAULT_SIMILARITY_THRESHOLD,
+  ragTopK: DEFAULT_RAG_TOP_K,
+  ragContextTokenBudget: DEFAULT_CONTEXT_TOKEN_BUDGET,
+  ragContextClipTokens: DEFAULT_CONTEXT_CLIP_TOKENS,
+  historyTokenBudget: DEFAULT_HISTORY_TOKEN_BUDGET,
+  summaryEnabled: DEFAULT_SUMMARY_ENABLED,
+  summaryTriggerTokens: DEFAULT_SUMMARY_TRIGGER_TOKENS,
+  summaryMaxTurns: DEFAULT_SUMMARY_MAX_TURNS,
+  summaryMaxChars: DEFAULT_SUMMARY_MAX_CHARS
+}
+
 const GUARDRAIL_DEFAULTS: GuardrailDefaults = {
   chitchatKeywords: DEFAULT_CHITCHAT_KEYWORDS,
   fallbackChitchat: DEFAULT_CHITCHAT_FALLBACK,
-  fallbackCommand: DEFAULT_COMMAND_FALLBACK
+  fallbackCommand: DEFAULT_COMMAND_FALLBACK,
+  numeric: { ...DEFAULT_NUMERIC_SETTINGS }
 }
 
 export type SystemPromptResult = {
@@ -56,6 +136,9 @@ export type GuardrailSettingsResult = GuardrailDefaults & {
     chitchatKeywords: boolean
     fallbackChitchat: boolean
     fallbackCommand: boolean
+    numeric: {
+      [K in keyof GuardrailNumericSettings]: boolean
+    }
   }
 }
 
@@ -179,7 +262,8 @@ export function getGuardrailDefaults(): GuardrailDefaults {
   return {
     chitchatKeywords: [...GUARDRAIL_DEFAULTS.chitchatKeywords],
     fallbackChitchat: GUARDRAIL_DEFAULTS.fallbackChitchat,
-    fallbackCommand: GUARDRAIL_DEFAULTS.fallbackCommand
+    fallbackCommand: GUARDRAIL_DEFAULTS.fallbackCommand,
+    numeric: { ...GUARDRAIL_DEFAULTS.numeric }
   }
 }
 
@@ -223,21 +307,36 @@ export async function loadGuardrailSettings(options?: {
   const keywordsRaw = settingsMap.get(CHITCHAT_KEYWORDS_SETTING_KEY)
   const fallbackChitchatRaw = settingsMap.get(CHITCHAT_FALLBACK_SETTING_KEY)
   const fallbackCommandRaw = settingsMap.get(COMMAND_FALLBACK_SETTING_KEY)
+  const numericOverrides = {
+    similarityThreshold: settingsMap.get(SIMILARITY_THRESHOLD_SETTING_KEY),
+    ragTopK: settingsMap.get(RAG_TOP_K_SETTING_KEY),
+    ragContextTokenBudget: settingsMap.get(CONTEXT_TOKEN_BUDGET_SETTING_KEY),
+    ragContextClipTokens: settingsMap.get(CONTEXT_CLIP_TOKENS_SETTING_KEY),
+    historyTokenBudget: settingsMap.get(HISTORY_TOKEN_BUDGET_SETTING_KEY),
+    summaryEnabled: settingsMap.get(SUMMARY_ENABLED_SETTING_KEY),
+    summaryTriggerTokens: settingsMap.get(SUMMARY_TRIGGER_TOKENS_SETTING_KEY),
+    summaryMaxTurns: settingsMap.get(SUMMARY_MAX_TURNS_SETTING_KEY),
+    summaryMaxChars: settingsMap.get(SUMMARY_MAX_CHARS_SETTING_KEY)
+  }
 
   const result = buildGuardrailResult({
     keywords: keywordsRaw,
     fallbackChitchat: fallbackChitchatRaw,
-    fallbackCommand: fallbackCommandRaw
+    fallbackCommand: fallbackCommandRaw,
+    numeric: numericOverrides
   })
 
   cacheGuardrails(result)
   return result
 }
 
+export type GuardrailNumericInput = GuardrailNumericSettings
+
 export type GuardrailSettingsInput = {
   chitchatKeywords: string
   fallbackChitchat: string
   fallbackCommand: string
+  numeric: GuardrailNumericInput
 }
 
 export async function saveGuardrailSettings(
@@ -259,6 +358,8 @@ export async function saveGuardrailSettings(
     throw new Error('Command fallback context cannot be empty.')
   }
 
+  const numeric = validateNumericInput(input.numeric)
+
   const payload = [
     {
       key: CHITCHAT_KEYWORDS_SETTING_KEY,
@@ -271,6 +372,42 @@ export async function saveGuardrailSettings(
     {
       key: COMMAND_FALLBACK_SETTING_KEY,
       value: fallbackCommand
+    },
+    {
+      key: SIMILARITY_THRESHOLD_SETTING_KEY,
+      value: numeric.similarityThreshold.toString()
+    },
+    {
+      key: RAG_TOP_K_SETTING_KEY,
+      value: numeric.ragTopK.toString()
+    },
+    {
+      key: CONTEXT_TOKEN_BUDGET_SETTING_KEY,
+      value: numeric.ragContextTokenBudget.toString()
+    },
+    {
+      key: CONTEXT_CLIP_TOKENS_SETTING_KEY,
+      value: numeric.ragContextClipTokens.toString()
+    },
+    {
+      key: HISTORY_TOKEN_BUDGET_SETTING_KEY,
+      value: numeric.historyTokenBudget.toString()
+    },
+    {
+      key: SUMMARY_ENABLED_SETTING_KEY,
+      value: numeric.summaryEnabled ? 'true' : 'false'
+    },
+    {
+      key: SUMMARY_TRIGGER_TOKENS_SETTING_KEY,
+      value: numeric.summaryTriggerTokens.toString()
+    },
+    {
+      key: SUMMARY_MAX_TURNS_SETTING_KEY,
+      value: numeric.summaryMaxTurns.toString()
+    },
+    {
+      key: SUMMARY_MAX_CHARS_SETTING_KEY,
+      value: numeric.summaryMaxChars.toString()
     }
   ]
 
@@ -307,11 +444,13 @@ function buildGuardrailResult(
     keywords?: string
     fallbackChitchat?: string
     fallbackCommand?: string
+    numeric?: Partial<Record<keyof GuardrailNumericSettings, string | undefined>>
   }
 ): GuardrailSettingsResult {
   const keywordsSource = normalizeOptionalValue(overrides?.keywords)
   const fallbackChitchatSource = normalizeOptionalValue(overrides?.fallbackChitchat)
   const fallbackCommandSource = normalizeOptionalValue(overrides?.fallbackCommand)
+  const numericResult = buildNumericSettings(overrides?.numeric)
 
   const keywordList = keywordsSource
     ? parseKeywordList(keywordsSource)
@@ -328,10 +467,12 @@ function buildGuardrailResult(
     chitchatKeywords: keywords,
     fallbackChitchat,
     fallbackCommand,
+    numeric: numericResult.values,
     isDefault: {
       chitchatKeywords: !keywordsSource,
       fallbackChitchat: !fallbackChitchatSource,
-      fallbackCommand: !fallbackCommandSource
+      fallbackCommand: !fallbackCommandSource,
+      numeric: numericResult.isDefault
     }
   }
 }
@@ -362,4 +503,191 @@ function normalizeOptionalValue(value: string | null | undefined): string | unde
   }
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : undefined
+}
+
+function buildNumericSettings(
+  overrides?: Partial<Record<keyof GuardrailNumericSettings, string | undefined>>
+): {
+  values: GuardrailNumericSettings
+  isDefault: { [K in keyof GuardrailNumericSettings]: boolean }
+} {
+  const defaults = GUARDRAIL_DEFAULTS.numeric
+  const similarity = resolveNumericSetting(overrides?.similarityThreshold, defaults.similarityThreshold, {
+    min: 0,
+    max: 1
+  })
+  const ragTopK = resolveNumericSetting(overrides?.ragTopK, defaults.ragTopK, {
+    min: 1,
+    integer: true
+  })
+  const contextBudget = resolveNumericSetting(
+    overrides?.ragContextTokenBudget,
+    defaults.ragContextTokenBudget,
+    { min: 200, integer: true }
+  )
+  const clipTokens = resolveNumericSetting(
+    overrides?.ragContextClipTokens,
+    defaults.ragContextClipTokens,
+    { min: 64, integer: true }
+  )
+  const historyBudget = resolveNumericSetting(
+    overrides?.historyTokenBudget,
+    defaults.historyTokenBudget,
+    { min: 200, integer: true }
+  )
+  const summaryEnabled = resolveBooleanSetting(overrides?.summaryEnabled, defaults.summaryEnabled)
+  const summaryTrigger = resolveNumericSetting(
+    overrides?.summaryTriggerTokens,
+    defaults.summaryTriggerTokens,
+    { min: 200, integer: true }
+  )
+  const summaryTurns = resolveNumericSetting(
+    overrides?.summaryMaxTurns,
+    defaults.summaryMaxTurns,
+    { min: 2, integer: true }
+  )
+  const summaryChars = resolveNumericSetting(
+    overrides?.summaryMaxChars,
+    defaults.summaryMaxChars,
+    { min: 200, integer: true }
+  )
+
+  return {
+    values: {
+      similarityThreshold: similarity.value,
+      ragTopK: ragTopK.value,
+      ragContextTokenBudget: contextBudget.value,
+      ragContextClipTokens: clipTokens.value,
+      historyTokenBudget: historyBudget.value,
+      summaryEnabled: summaryEnabled.value,
+      summaryTriggerTokens: summaryTrigger.value,
+      summaryMaxTurns: summaryTurns.value,
+      summaryMaxChars: summaryChars.value
+    },
+    isDefault: {
+      similarityThreshold: similarity.isDefault,
+      ragTopK: ragTopK.isDefault,
+      ragContextTokenBudget: contextBudget.isDefault,
+      ragContextClipTokens: clipTokens.isDefault,
+      historyTokenBudget: historyBudget.isDefault,
+      summaryEnabled: summaryEnabled.isDefault,
+      summaryTriggerTokens: summaryTrigger.isDefault,
+      summaryMaxTurns: summaryTurns.isDefault,
+      summaryMaxChars: summaryChars.isDefault
+    }
+  }
+}
+
+function resolveNumericSetting(
+  raw: string | undefined,
+  fallback: number,
+  options?: { min?: number; max?: number; integer?: boolean }
+): { value: number; isDefault: boolean } {
+  if (raw === undefined) {
+    return { value: fallback, isDefault: true }
+  }
+  const parsed = Number(raw)
+  if (!Number.isFinite(parsed)) {
+    return { value: fallback, isDefault: true }
+  }
+  const min = options?.min ?? Number.NEGATIVE_INFINITY
+  const max = options?.max ?? Number.POSITIVE_INFINITY
+  let normalized = clampNumber(parsed, min, max)
+  if (options?.integer) {
+    normalized = clampNumber(Math.round(normalized), min, max)
+  }
+  return { value: normalized, isDefault: false }
+}
+
+function resolveBooleanSetting(
+  raw: string | undefined,
+  fallback: boolean
+): { value: boolean; isDefault: boolean } {
+  if (raw === undefined) {
+    return { value: fallback, isDefault: true }
+  }
+
+  const normalized = raw.trim().toLowerCase()
+  if (normalized === 'true' || normalized === '1') {
+    return { value: true, isDefault: false }
+  }
+  if (normalized === 'false' || normalized === '0') {
+    return { value: false, isDefault: false }
+  }
+
+  return { value: fallback, isDefault: true }
+}
+
+function validateNumericInput(input?: GuardrailNumericInput): GuardrailNumericSettings {
+  if (!input) {
+    throw new Error('Numeric guardrail settings are required.')
+  }
+
+  return {
+    similarityThreshold: clampNumber(
+      ensureNumberField(input.similarityThreshold, 'Similarity threshold'),
+      0,
+      1
+    ),
+    ragTopK: ensureMin(Math.round(ensureNumberField(input.ragTopK, 'RAG top K')), 1),
+    ragContextTokenBudget: ensureMin(
+      Math.round(ensureNumberField(input.ragContextTokenBudget, 'Context token budget')),
+      200
+    ),
+    ragContextClipTokens: ensureMin(
+      Math.round(ensureNumberField(input.ragContextClipTokens, 'Context clip tokens')),
+      64
+    ),
+    historyTokenBudget: ensureMin(
+      Math.round(ensureNumberField(input.historyTokenBudget, 'History token budget')),
+      200
+    ),
+    summaryEnabled: ensureBooleanField(input.summaryEnabled, 'Summary enabled'),
+    summaryTriggerTokens: ensureMin(
+      Math.round(ensureNumberField(input.summaryTriggerTokens, 'Summary trigger tokens')),
+      200
+    ),
+    summaryMaxTurns: ensureMin(
+      Math.round(ensureNumberField(input.summaryMaxTurns, 'Summary max turns')),
+      2
+    ),
+    summaryMaxChars: ensureMin(
+      Math.round(ensureNumberField(input.summaryMaxChars, 'Summary max chars')),
+      200
+    )
+  }
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min
+  }
+  if (value < min) {
+    return min
+  }
+  if (value > max) {
+    return max
+  }
+  return value
+}
+
+function ensureMin(value: number, min: number): number {
+  if (!Number.isFinite(value)) {
+    return min
+  }
+  return Math.max(min, value)
+}
+
+function ensureNumberField(value: number | undefined, label: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new Error(`${label} must be a valid number.`)
+  }
+  return value
+}
+
+function ensureBooleanField(value: boolean | undefined, label: string): boolean {
+  if (typeof value !== 'boolean') {
+    throw new Error(`${label} must be true or false.`)
+  }
+  return value
 }
