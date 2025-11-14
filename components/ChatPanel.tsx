@@ -10,6 +10,7 @@ import {
   type ChangeEvent,
   type FormEvent,
   type JSX,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -577,9 +578,12 @@ const parseErrorPayload = (raw?: string | null) => {
   const trimmed = raw.trim();
   if (!trimmed) return null;
   try {
-    const parsed = JSON.parse(trimmed);
-    if (typeof parsed?.error === "string") return parsed.error;
-    if (typeof parsed?.message === "string") return parsed.message;
+    const parsed: unknown = JSON.parse(trimmed);
+    if (parsed && typeof parsed === "object") {
+      const candidate = parsed as { error?: unknown; message?: unknown };
+      if (typeof candidate.error === "string") return candidate.error;
+      if (typeof candidate.message === "string") return candidate.message;
+    }
   } catch {
     // Swallow JSON parse errors and fall back to the raw text.
   }
@@ -693,14 +697,14 @@ export function ChatPanel() {
     setShowOptions((prev) => !prev);
   };
 
-  const focusInput = () => {
+  const focusInput = useCallback(() => {
     if (!isOpen) {
       return;
     }
     requestAnimationFrame(() => {
       inputRef.current?.focus();
     });
-  };
+  }, [isOpen]);
 
   const togglePanelSize = () => {
     setIsExpanded((prev) => !prev);
@@ -718,13 +722,13 @@ export function ChatPanel() {
     if (isOpen) {
       focusInput();
     }
-  }, [isOpen]);
+  }, [focusInput, isOpen]);
 
   useEffect(() => {
     if (!isLoading) {
       focusInput();
     }
-  }, [isLoading]);
+  }, [focusInput, isLoading]);
 
   useEffect(() => {
     return () => {

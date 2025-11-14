@@ -1,4 +1,4 @@
-import { decode, encode } from 'gpt-tokenizer'
+import { encode } from 'gpt-tokenizer'
 
 import { loadGuardrailSettings } from '@/lib/server/chat-settings'
 
@@ -494,10 +494,15 @@ function matchesChitchatKeyword(text: string, keyword: string): boolean {
 }
 
 function safeDecode(tokens: number[]): string {
-  try {
-    return decode(tokens)
-  } catch (err) {
-    console.warn('[chat-guardrails] failed to decode tokens', err)
-    return ''
+  const decoder = new TextDecoder()
+  while (tokens.length > 0) {
+    try {
+      return decoder.decode(new Uint8Array(tokens))
+    } catch {
+      // The byte sequence is likely invalid, which can happen if a multi-byte
+      // character is cut in the middle. Remove the last token and retry.
+      tokens.pop()
+    }
   }
+  return ''
 }

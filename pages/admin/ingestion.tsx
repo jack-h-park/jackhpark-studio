@@ -4511,7 +4511,10 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
 
   const snapshotRecords: SnapshotRecord[] = (snapshotRows ?? [])
     .map((row: unknown) => normalizeSnapshotRecord(row))
-    .filter((entry): entry is SnapshotRecord => entry !== null);
+    .filter(
+      (entry: SnapshotRecord | null): entry is SnapshotRecord =>
+        entry !== null,
+    );
 
   const snapshotSummaries = snapshotRecords.map((snapshot) =>
     toSnapshotSummary(snapshot),
