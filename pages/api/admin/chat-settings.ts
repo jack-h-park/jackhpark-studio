@@ -3,23 +3,28 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { SYSTEM_PROMPT_MAX_LENGTH } from '@/lib/chat-prompts'
 import {
   type GuardrailNumericSettings,
+  loadChatModelSettings,
   loadGuardrailSettings,
   loadSystemPrompt,
+  saveChatModelSettings,
   saveGuardrailSettings,
   saveSystemPrompt
 } from '@/lib/server/chat-settings'
+import type { ChatEngine, ModelProvider } from '@/lib/shared/model-provider'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     try {
-      const [promptResult, guardrailResult] = await Promise.all([
+      const [promptResult, guardrailResult, chatModelSettings] = await Promise.all([
         loadSystemPrompt({ forceRefresh: true }),
-        loadGuardrailSettings({ forceRefresh: true })
+        loadGuardrailSettings({ forceRefresh: true }),
+        loadChatModelSettings({ forceRefresh: true })
       ])
       return res.status(200).json({
         systemPrompt: promptResult.prompt,
         isDefault: promptResult.isDefault,
-        guardrails: guardrailResult
+        guardrails: guardrailResult,
+        models: chatModelSettings
       })
     } catch (err: any) {
       console.error('[api/admin/chat-settings] failed to load settings', err)
@@ -33,13 +38,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const payload =
         typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {}
-      const { systemPrompt, guardrails } = payload as {
+      const { systemPrompt, guardrails, models } = payload as {
         systemPrompt?: unknown
         guardrails?: {
           chitchatKeywords?: unknown
           fallbackChitchat?: unknown
           fallbackCommand?: unknown
           numeric?: Partial<Record<keyof GuardrailNumericSettings, unknown>>
+        }
+        models?: {
+          engine?: unknown
+          llmProvider?: unknown
+          embeddingProvider?: unknown
+          llmModel?: unknown
+          embeddingModel?: unknown
         }
       }
 
@@ -54,9 +66,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         typeof guardrails.fallbackCommand === 'string' &&
         isValidNumericPayload(numericPayload)
 
-      if (!hasPrompt && !hasGuardrails) {
+      const hasModels =
+        models &&
+        typeof models === 'object' &&
+        models !== null &&
+        typeof models.engine === 'string' &&
+        typeof models.llmProvider === 'string' &&
+        typeof models.embeddingProvider === 'string' &&
+        (typeof models.llmModel === 'string' || models.llmModel === undefined) &&
+        (typeof models.embeddingModel === 'string' || models.embeddingModel === undefined)
+
+      if (!hasPrompt && !hasGuardrails && !hasModels) {
         return res.status(400).json({
-          error: 'Provide systemPrompt or guardrails payload.'
+          error: 'Provide systemPrompt, guardrails, or models payload.'
         })
       }
 
@@ -64,6 +86,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let guardrailResult:
         | Awaited<ReturnType<typeof saveGuardrailSettings>>
         | undefined
+      let chatModelResult: Awaited<ReturnType<typeof saveChatModelSettings>> | undefined
 
       if (hasPrompt) {
         const promptValue = systemPrompt as string
@@ -86,6 +109,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
       }
 
+      if (hasModels) {
+        chatModelResult = await saveChatModelSettings({
+          engine: models!.engine as ChatEngine,
+          llmProvider: models!.llmProvider as ModelProvider,
+          embeddingProvider: models!.embeddingProvider as ModelProvider,
+          llmModel: models!.llmModel as string | undefined,
+          embeddingModel: models!.embeddingModel as string | undefined
+        })
+      }
+
       return res.status(200).json({
         ...(promptResult
           ? {
@@ -93,7 +126,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               isDefault: promptResult.isDefault
             }
           : {}),
-        ...(guardrailResult ? { guardrails: guardrailResult } : {})
+        ...(guardrailResult ? { guardrails: guardrailResult } : {}),
+        ...(chatModelResult ? { models: chatModelResult } : {})
       })
     } catch (err: any) {
       console.error('[api/admin/chat-settings] failed to update settings', err)

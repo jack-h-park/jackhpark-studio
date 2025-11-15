@@ -7,9 +7,24 @@ import {
   SYSTEM_PROMPT_CACHE_TTL_MS,
   SYSTEM_PROMPT_SETTING_KEY
 } from '@/lib/chat-prompts'
+import {
+  DEFAULT_EMBEDDING_PROVIDER,
+  DEFAULT_LLM_PROVIDER,
+  getDefaultModelNames,
+  getEmbeddingModelName,
+  getLlmModelName,
+  normalizeEmbeddingProvider,
+  normalizeLlmProvider
+} from '@/lib/core/model-provider'
 import { supabaseClient } from '@/lib/core/supabase'
+import {
+  type ChatEngine,
+  type ModelProvider,
+  normalizeChatEngine
+} from '@/lib/shared/model-provider'
 
 const GUARDRAIL_SETTINGS_CACHE_TTL_MS = 60_000
+const CHAT_MODEL_SETTINGS_CACHE_TTL_MS = 60_000
 const CHITCHAT_KEYWORDS_SETTING_KEY = 'guardrail_chitchat_keywords'
 const CHITCHAT_FALLBACK_SETTING_KEY = 'guardrail_fallback_chitchat'
 const COMMAND_FALLBACK_SETTING_KEY = 'guardrail_fallback_command'
@@ -36,6 +51,18 @@ const GUARDRAIL_SETTING_KEYS = [
   SUMMARY_MAX_TURNS_SETTING_KEY,
   SUMMARY_MAX_CHARS_SETTING_KEY
 ] as const
+const CHAT_ENGINE_SETTING_KEY = 'chat_engine'
+const CHAT_LLM_PROVIDER_SETTING_KEY = 'chat_llm_provider'
+const CHAT_EMBEDDING_PROVIDER_SETTING_KEY = 'chat_embedding_provider'
+const CHAT_LLM_MODEL_SETTING_KEY = 'chat_llm_model'
+const CHAT_EMBEDDING_MODEL_SETTING_KEY = 'chat_embedding_model'
+const CHAT_MODEL_SETTING_KEYS = [
+  CHAT_ENGINE_SETTING_KEY,
+  CHAT_LLM_PROVIDER_SETTING_KEY,
+  CHAT_EMBEDDING_PROVIDER_SETTING_KEY,
+  CHAT_LLM_MODEL_SETTING_KEY,
+  CHAT_EMBEDDING_MODEL_SETTING_KEY
+] as const
 
 export type GuardrailNumericSettings = {
   similarityThreshold: number
@@ -54,6 +81,29 @@ export type GuardrailDefaults = {
   fallbackChitchat: string
   fallbackCommand: string
   numeric: GuardrailNumericSettings
+}
+
+export type ChatModelSettings = {
+  engine: ChatEngine
+  llmProvider: ModelProvider
+  embeddingProvider: ModelProvider
+  llmModel: string
+  embeddingModel: string
+  isDefault: {
+    engine: boolean
+    llmProvider: boolean
+    embeddingProvider: boolean
+    llmModel: boolean
+    embeddingModel: boolean
+  }
+}
+
+export type ChatModelSettingsInput = {
+  engine: ChatEngine
+  llmProvider: ModelProvider
+  embeddingProvider: ModelProvider
+  llmModel?: string | null
+  embeddingModel?: string | null
 }
 
 const DEFAULT_CHITCHAT_KEYWORDS = parseKeywordList(
@@ -126,6 +176,32 @@ const GUARDRAIL_DEFAULTS: GuardrailDefaults = {
   numeric: { ...DEFAULT_NUMERIC_SETTINGS }
 }
 
+function getDefaultEngine(): ChatEngine {
+  return normalizeChatEngine(process.env.CHAT_ENGINE, 'lc')
+}
+
+export function getChatModelDefaults(): ChatModelSettings {
+  const defaults = getDefaultModelNames()
+  const engine = getDefaultEngine()
+  const llmProvider = DEFAULT_LLM_PROVIDER
+  const embeddingProvider = DEFAULT_EMBEDDING_PROVIDER
+
+  return {
+    engine,
+    llmProvider,
+    embeddingProvider,
+    llmModel: defaults.llm[llmProvider],
+    embeddingModel: defaults.embedding[embeddingProvider],
+    isDefault: {
+      engine: true,
+      llmProvider: true,
+      embeddingProvider: true,
+      llmModel: true,
+      embeddingModel: true
+    }
+  }
+}
+
 export type SystemPromptResult = {
   prompt: string
   isDefault: boolean
@@ -146,6 +222,8 @@ let cachedPrompt: SystemPromptResult | null = null
 let cachedPromptAt = 0
 let cachedGuardrails: GuardrailSettingsResult | null = null
 let cachedGuardrailsAt = 0
+let cachedChatModelSettings: ChatModelSettings | null = null
+let cachedChatModelSettingsAt = 0
 
 function getClient(client?: SupabaseClient) {
   return client ?? supabaseClient
@@ -165,6 +243,10 @@ function cacheGuardrails(settings: GuardrailSettingsResult) {
   cachedGuardrailsAt = Date.now()
 }
 
+function cacheChatModelSettings(settings: ChatModelSettings) {
+  cachedChatModelSettings = settings
+  cachedChatModelSettingsAt = Date.now()
+}
 export async function loadSystemPrompt(options?: {
   forceRefresh?: boolean
   client?: SupabaseClient
@@ -327,6 +409,133 @@ export async function loadGuardrailSettings(options?: {
   })
 
   cacheGuardrails(result)
+  return result
+}
+
+export async function loadChatModelSettings(options?: {
+  forceRefresh?: boolean
+  client?: SupabaseClient
+}): Promise<ChatModelSettings> {
+  const shouldUseCache =
+    !options?.forceRefresh &&
+    cachedChatModelSettings &&
+    Date.now() - cachedChatModelSettingsAt < CHAT_MODEL_SETTINGS_CACHE_TTL_MS
+
+  if (shouldUseCache && cachedChatModelSettings) {
+    return cachedChatModelSettings
+  }
+
+  const client = getClient(options?.client)
+  const { data, error } = await client
+    .from(CHAT_SETTINGS_TABLE)
+    .select('key, value')
+    .in('key', [...CHAT_MODEL_SETTING_KEYS])
+
+  if (error) {
+    if (isMissingChatSettingsTable(error)) {
+      console.warn(
+        '[chat-settings] chat_settings table missing; falling back to default chat model settings'
+      )
+      const fallback = getChatModelDefaults()
+      cacheChatModelSettings(fallback)
+      return fallback
+    }
+
+    console.error('[chat-settings] failed to load chat model settings', error)
+    throw new Error('Failed to load chat model settings')
+  }
+
+  const settingsMap = new Map<string, string>(
+    (data ?? []).map((row: { key: string; value: string }) => [row.key, row.value])
+  )
+
+  const defaults = getChatModelDefaults()
+
+  const engineSetting = resolveEngineSetting(
+    settingsMap.get(CHAT_ENGINE_SETTING_KEY),
+    defaults.engine
+  )
+  const llmProviderSetting = resolveProviderSetting(
+    settingsMap.get(CHAT_LLM_PROVIDER_SETTING_KEY),
+    defaults.llmProvider,
+    normalizeLlmProvider
+  )
+  const embeddingProviderSetting = resolveProviderSetting(
+    settingsMap.get(CHAT_EMBEDDING_PROVIDER_SETTING_KEY),
+    defaults.embeddingProvider,
+    normalizeEmbeddingProvider
+  )
+  const llmModelSetting = resolveModelSetting(
+    settingsMap.get(CHAT_LLM_MODEL_SETTING_KEY),
+    getLlmModelName(llmProviderSetting.value)
+  )
+  const embeddingModelSetting = resolveModelSetting(
+    settingsMap.get(CHAT_EMBEDDING_MODEL_SETTING_KEY),
+    getEmbeddingModelName(embeddingProviderSetting.value)
+  )
+
+  const result: ChatModelSettings = {
+    engine: engineSetting.value,
+    llmProvider: llmProviderSetting.value,
+    embeddingProvider: embeddingProviderSetting.value,
+    llmModel: llmModelSetting.value,
+    embeddingModel: embeddingModelSetting.value,
+    isDefault: {
+      engine: engineSetting.isDefault,
+      llmProvider: llmProviderSetting.isDefault,
+      embeddingProvider: embeddingProviderSetting.isDefault,
+      llmModel: llmModelSetting.isDefault,
+      embeddingModel: embeddingModelSetting.isDefault
+    }
+  }
+
+  cacheChatModelSettings(result)
+  return result
+}
+
+export async function saveChatModelSettings(
+  input: ChatModelSettingsInput,
+  options?: { client?: SupabaseClient }
+): Promise<ChatModelSettings> {
+  const engine = normalizeChatEngine(input.engine, getDefaultEngine())
+  const llmProvider = normalizeLlmProvider(input.llmProvider)
+  const embeddingProvider = normalizeEmbeddingProvider(
+    input.embeddingProvider ?? llmProvider
+  )
+  const llmModel = normalizeModelValue(
+    input.llmModel,
+    getLlmModelName(llmProvider, input.llmModel)
+  )
+  const embeddingModel = normalizeModelValue(
+    input.embeddingModel,
+    getEmbeddingModelName(embeddingProvider, input.embeddingModel)
+  )
+
+  const payload = [
+    { key: CHAT_ENGINE_SETTING_KEY, value: engine },
+    { key: CHAT_LLM_PROVIDER_SETTING_KEY, value: llmProvider },
+    { key: CHAT_EMBEDDING_PROVIDER_SETTING_KEY, value: embeddingProvider },
+    { key: CHAT_LLM_MODEL_SETTING_KEY, value: llmModel },
+    { key: CHAT_EMBEDDING_MODEL_SETTING_KEY, value: embeddingModel }
+  ]
+
+  const client = getClient(options?.client)
+  const { error } = await client
+    .from(CHAT_SETTINGS_TABLE)
+    .upsert(payload, { onConflict: 'key' })
+
+  if (error) {
+    if (isMissingChatSettingsTable(error)) {
+      throw new Error(
+        'chat_settings table is missing. Create it before updating chat model settings.'
+      )
+    }
+
+    console.error('[chat-settings] failed to persist chat model settings', error)
+    throw new Error('Failed to update chat model settings')
+  }
+
+  const result = await loadChatModelSettings({ forceRefresh: true, client })
   return result
 }
 
@@ -503,6 +712,47 @@ function normalizeOptionalValue(value: string | null | undefined): string | unde
   }
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : undefined
+}
+
+function resolveEngineSetting(
+  raw: string | undefined,
+  fallback: ChatEngine
+): { value: ChatEngine; isDefault: boolean } {
+  if (raw === undefined) {
+    return { value: fallback, isDefault: true }
+  }
+  const normalized = normalizeChatEngine(raw, fallback)
+  return { value: normalized, isDefault: normalized === fallback }
+}
+
+function resolveProviderSetting(
+  raw: string | undefined,
+  fallback: ModelProvider,
+  normalizer: (value: string | null | undefined) => ModelProvider
+): { value: ModelProvider; isDefault: boolean } {
+  if (raw === undefined) {
+    return { value: fallback, isDefault: true }
+  }
+
+  const normalized = normalizer(raw)
+  return { value: normalized, isDefault: normalized === fallback }
+}
+
+function resolveModelSetting(
+  raw: string | undefined,
+  fallback: string
+): { value: string; isDefault: boolean } {
+  if (raw === undefined) {
+    return { value: fallback, isDefault: true }
+  }
+
+  const normalized = normalizeModelValue(raw, fallback)
+  return { value: normalized, isDefault: normalized === fallback }
+}
+
+function normalizeModelValue(value: string | null | undefined, fallback: string): string {
+  const normalized = normalizeOptionalValue(value)
+  return normalized ?? fallback
 }
 
 function buildNumericSettings(

@@ -22,15 +22,20 @@ import {
   type GuardrailMeta,
 } from "@/lib/shared/guardrail-meta";
 import {
+  type ChatEngine,
   MODEL_PROVIDER_LABELS,
-  MODEL_PROVIDERS,
   type ModelProvider,
+  normalizeChatEngine,
   normalizeModelProvider,
 } from "@/lib/shared/model-provider";
 
 const DEFAULT_MODEL_PROVIDER: ModelProvider = normalizeModelProvider(
   process.env.NEXT_PUBLIC_LLM_PROVIDER ?? null,
   "openai",
+);
+const DEFAULT_ENGINE: ChatEngine = normalizeChatEngine(
+  process.env.NEXT_PUBLIC_CHAT_ENGINE ?? null,
+  "lc",
 );
 
 const URL_REGEX =
@@ -250,59 +255,6 @@ const styles = css`
     color: #4f5a7d;
   }
 
-  .chat-engine-toggle {
-    display: flex;
-    padding: 4px;
-    border-radius: 10px;
-    background: #fff;
-    border: 1px solid #d3d8ee;
-    gap: 4px;
-  }
-
-  .chat-engine-toggle button {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    background: none;
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: #4a4f68;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .chat-engine-toggle button[aria-pressed="true"] {
-    background: #0a4584;
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(10, 69, 132, 0.2);
-  }
-
-  .chat-engine-toggle button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .chat-provider-select {
-    border: 1px solid #d3d8ee;
-    border-radius: 8px;
-    padding: 6px 12px;
-    font-size: 0.82rem;
-    background: #fff;
-    color: #1f2937;
-    width: 100%;
-    min-height: 34px;
-  }
-
-  .chat-provider-select:focus {
-    outline: none;
-    border-color: #007aff;
-    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2);
-  }
-
   .guardrail-toggle-row {
     display: flex;
     align-items: center;
@@ -465,6 +417,24 @@ const styles = css`
   .meta-chip.warning {
     background: rgba(255, 140, 0, 0.15);
     color: #b45309;
+  }
+
+  .runtime-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .runtime-readonly {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .runtime-readonly__hint {
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: #6b7280;
   }
 
   .meta-debug {
@@ -664,6 +634,7 @@ type ChatMessage = {
   content: string;
   meta?: GuardrailMeta | null;
   citations?: Citation[];
+  runtime?: ChatRuntimeConfig;
 };
 
 type ChatResponse = {
@@ -671,7 +642,13 @@ type ChatResponse = {
   citations: Citation[];
 };
 
-type Engine = "native" | "lc";
+type ChatRuntimeConfig = {
+  engine: ChatEngine;
+  llmProvider: ModelProvider;
+  embeddingProvider: ModelProvider;
+  llmModel?: string | null;
+  embeddingModel?: string | null;
+};
 
 const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
 
@@ -762,36 +739,64 @@ export function ChatPanel() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
 
-  const [engine, setEngine] = useState<Engine>("lc");
-  const [provider, setProvider] = useState<ModelProvider>(
-    DEFAULT_MODEL_PROVIDER,
-  );
+  const [runtimeConfig, setRuntimeConfig] = useState<ChatRuntimeConfig>({
+    engine: DEFAULT_ENGINE,
+    llmProvider: DEFAULT_MODEL_PROVIDER,
+    embeddingProvider: DEFAULT_MODEL_PROVIDER,
+    llmModel: null,
+    embeddingModel: null,
+  });
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [showCitations, setShowCitations] = useState(false);
 
   useEffect(() => {
-    const saved =
-      typeof window !== "undefined"
-        ? (localStorage.getItem("ask_engine") as Engine | null)
-        : null;
-    if (saved === "native" || saved === "lc") setEngine(saved);
-  }, []);
-
-  const setEngineAndSave = (next: Engine) => {
-    setEngine(next);
-    if (typeof window !== "undefined") localStorage.setItem("ask_engine", next);
-  };
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const stored = localStorage.getItem("ask_provider");
-    if (stored) {
-      setProvider(normalizeModelProvider(stored, DEFAULT_MODEL_PROVIDER));
-    }
+    const controller = new AbortController();
+    const loadConfig = async () => {
+      try {
+        const response = await fetch("/api/chat-config", {
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to load chat config (${response.status})`);
+        }
+        const payload = (await response.json()) as {
+          models?: {
+            engine?: string | null;
+            llmProvider?: string | null;
+            embeddingProvider?: string | null;
+            llmModel?: string | null;
+            embeddingModel?: string | null;
+          } | null;
+        };
+        const models = payload?.models;
+        if (!models) {
+          return;
+        }
+        const resolvedLlmProvider = normalizeModelProvider(
+          models.llmProvider,
+          DEFAULT_MODEL_PROVIDER,
+        );
+        const resolvedEmbeddingProvider = normalizeModelProvider(
+          models.embeddingProvider ?? models.llmProvider,
+          resolvedLlmProvider,
+        );
+        setRuntimeConfig({
+          engine: normalizeChatEngine(models.engine, DEFAULT_ENGINE),
+          llmProvider: resolvedLlmProvider,
+          embeddingProvider: resolvedEmbeddingProvider,
+          llmModel: models.llmModel ?? null,
+          embeddingModel: models.embeddingModel ?? null,
+        });
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          console.warn("Failed to load chat model settings; using defaults.", err);
+        }
+      }
+    };
+    void loadConfig();
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -808,13 +813,6 @@ export function ChatPanel() {
     }
     setShowCitations(localStorage.getItem("chat_show_citations") === "1");
   }, []);
-
-  const setProviderAndSave = (next: ModelProvider) => {
-    setProvider(next);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("ask_provider", next);
-    }
-  };
 
   const toggleDiagnostics = () => {
     setShowDiagnostics((prev) => {
@@ -912,6 +910,7 @@ export function ChatPanel() {
           id: assistantMessageId,
           role: "assistant",
           content: "",
+          runtime: runtimeConfig,
         },
       ];
     });
@@ -942,7 +941,8 @@ export function ChatPanel() {
 
     const run = async () => {
       try {
-        const endpoint = `/api/chat?engine=${engine}`;
+        const activeRuntime = runtimeConfig;
+        const endpoint = `/api/chat?engine=${activeRuntime.engine}`;
         const sanitizedMessagesPayload = [...messages, userMessage].map(
           (message) => ({
             role: message.role,
@@ -950,7 +950,7 @@ export function ChatPanel() {
           }),
         );
 
-        if (engine === "lc") {
+        if (activeRuntime.engine === "lc") {
           // LangChain streaming
           const response = await fetch(endpoint, {
             method: "POST",
@@ -958,8 +958,10 @@ export function ChatPanel() {
             body: JSON.stringify({
               question: value,
               messages: sanitizedMessagesPayload,
-              provider,
-              embeddingProvider: provider,
+              provider: activeRuntime.llmProvider,
+              embeddingProvider: activeRuntime.embeddingProvider,
+              model: activeRuntime.llmModel ?? undefined,
+              embeddingModel: activeRuntime.embeddingModel ?? undefined,
             }),
             signal: controller.signal,
           });
@@ -1019,8 +1021,10 @@ export function ChatPanel() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               messages: sanitizedMessagesPayload,
-              provider,
-              embeddingProvider: provider,
+              provider: activeRuntime.llmProvider,
+              embeddingProvider: activeRuntime.embeddingProvider,
+              model: activeRuntime.llmModel ?? undefined,
+              embeddingModel: activeRuntime.embeddingModel ?? undefined,
             }),
             signal: controller.signal,
           });
@@ -1123,46 +1127,28 @@ export function ChatPanel() {
             </div>
             {showOptions && (
               <div className="chat-config-bar">
-                <div className="chat-control-block" role="group">
-                  <span className="chat-control-label">Engine</span>
-                  <div className="chat-engine-toggle">
-                    <button
-                      type="button"
-                      onClick={() => setEngineAndSave("native")}
-                      aria-pressed={engine === "native"}
-                      aria-label="Switch to native engine"
-                      disabled={isLoading}
-                    >
-                      Native
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEngineAndSave("lc")}
-                      aria-pressed={engine === "lc"}
-                      aria-label="Switch to LangChain engine"
-                      disabled={isLoading}
-                    >
-                      LangChain
-                    </button>
-                  </div>
-                </div>
                 <div className="chat-control-block">
-                  <span className="chat-control-label">Model</span>
-                  <select
-                    className="chat-provider-select"
-                    value={provider}
-                    onChange={(event) =>
-                      setProviderAndSave(event.target.value as ModelProvider)
-                    }
-                    disabled={isLoading}
-                    aria-label="Model provider"
-                  >
-                    {MODEL_PROVIDERS.map((option) => (
-                      <option key={option} value={option}>
-                        {MODEL_PROVIDER_LABELS[option]}
-                      </option>
-                    ))}
-                  </select>
+                  <span className="chat-control-label">Engine & model</span>
+                  <div className="runtime-readonly">
+                    <span className="meta-chip">
+                      Engine: {runtimeConfig.engine === "lc" ? "LangChain" : "Native"}
+                    </span>
+                    <span className="meta-chip">
+                      LLM:{" "}
+                      {MODEL_PROVIDER_LABELS[runtimeConfig.llmProvider]}
+                      {runtimeConfig.llmModel ? ` · ${runtimeConfig.llmModel}` : ""}
+                    </span>
+                    <span className="meta-chip">
+                      Embedding:{" "}
+                      {MODEL_PROVIDER_LABELS[runtimeConfig.embeddingProvider]}
+                      {runtimeConfig.embeddingModel
+                        ? ` · ${runtimeConfig.embeddingModel}`
+                        : ""}
+                    </span>
+                  </div>
+                  <p className="runtime-readonly__hint">
+                    Managed in Admin → Chat Configuration.
+                  </p>
                 </div>
                 <div className="chat-control-block">
                   <span className="chat-control-label">Guardrail telemetry</span>
@@ -1238,15 +1224,36 @@ export function ChatPanel() {
                   ? contextStats.highestSimilarity
                   : null
               const historyStats = m.meta?.history
-              const historyLabel = historyStats
-                ? `${historyStats.tokens} / ${historyStats.budget} tokens${
-                    historyStats.trimmedTurns > 0
-                      ? ` (${historyStats.trimmedTurns} trimmed)`
-                      : ""
+            const historyLabel = historyStats
+              ? `${historyStats.tokens} / ${historyStats.budget} tokens${
+                  historyStats.trimmedTurns > 0
+                    ? ` (${historyStats.trimmedTurns} trimmed)`
+                    : ""
+                }`
+              : typeof m.meta?.historyTokens === "number"
+                ? `${m.meta.historyTokens} tokens`
+                : null
+              const runtimeEngineLabel =
+                m.runtime?.engine === "lc"
+                  ? "LangChain"
+                  : m.runtime?.engine === "native"
+                    ? "Native"
+                    : null
+              const runtimeLlmLabel = m.runtime
+                ? `${MODEL_PROVIDER_LABELS[m.runtime.llmProvider]}${
+                    m.runtime.llmModel ? ` · ${m.runtime.llmModel}` : ""
                   }`
-                : typeof m.meta?.historyTokens === "number"
-                  ? `${m.meta.historyTokens} tokens`
-                  : null
+                : null
+              const runtimeEmbeddingLabel = m.runtime
+                ? `${MODEL_PROVIDER_LABELS[m.runtime.embeddingProvider]}${
+                    m.runtime.embeddingModel ? ` · ${m.runtime.embeddingModel}` : ""
+                  }`
+                : null
+              const hasRuntime = Boolean(
+                runtimeEngineLabel || runtimeLlmLabel || runtimeEmbeddingLabel,
+              )
+              const hasGuardrailMeta = Boolean(contextStats)
+              const hasAnyMeta = hasRuntime || hasGuardrailMeta
 
               return (
                 <div key={m.id} className="message-group">
@@ -1255,59 +1262,72 @@ export function ChatPanel() {
                       ? renderMessageContent(m.content, m.id)
                       : m.content}
                   </div>
-                {m.role === "assistant" && m.meta && (
-                  <>
-                    <div className="message-meta">
-                      {contextStats && (
-                        <div className="guardrail-summary">
-                          <div className="guardrail-summary-row">
+                {m.role === "assistant" && hasAnyMeta && (
+                  <div className="message-meta">
+                    {hasRuntime && (
+                      <div className="runtime-summary">
+                        {runtimeEngineLabel && (
+                          <span className="meta-chip">Engine: {runtimeEngineLabel}</span>
+                        )}
+                        {runtimeLlmLabel && (
+                          <span className="meta-chip">LLM: {runtimeLlmLabel}</span>
+                        )}
+                        {runtimeEmbeddingLabel && (
+                          <span className="meta-chip">
+                            Embedding: {runtimeEmbeddingLabel}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {contextStats && (
+                      <div className="guardrail-summary">
+                        <div className="guardrail-summary-row">
+                          <div className="guardrail-summary-entry">
+                            <div className="guardrail-summary-label">Route</div>
+                            <div className="guardrail-summary-value">
+                              {m.meta!.reason ?? m.meta!.intent}
+                            </div>
+                          </div>
+                          <div className="guardrail-summary-entry">
+                            <div className="guardrail-summary-label">Context</div>
+                            <div
+                              className={`guardrail-summary-value ${contextStats.insufficient ? "warning" : ""}`}
+                            >
+                              {contextUsageLabel}
+                              {contextTokensLabel ? ` ${contextTokensLabel}` : ""}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="guardrail-summary-row">
+                          {historyLabel && (
                             <div className="guardrail-summary-entry">
-                              <div className="guardrail-summary-label">Route</div>
+                              <div className="guardrail-summary-label">History</div>
                               <div className="guardrail-summary-value">
-                                {m.meta.reason ?? m.meta.intent}
+                                {historyLabel}
                               </div>
                             </div>
+                          )}
+                          {similarityThreshold !== null && (
                             <div className="guardrail-summary-entry">
-                              <div className="guardrail-summary-label">Context</div>
-                              <div
-                                className={`guardrail-summary-value ${contextStats.insufficient ? "warning" : ""}`}
-                              >
-                                {contextUsageLabel}
-                                {contextTokensLabel ? ` ${contextTokensLabel}` : ""}
+                              <div className="guardrail-summary-label">Similarity</div>
+                              <div className="guardrail-summary-value">
+                                {highestSimilarity !== null
+                                  ? highestSimilarity.toFixed(3)
+                                  : "—"}{" "}
+                                / min {similarityThreshold.toFixed(2)}
+                                {contextStats.insufficient ? " (Insufficient)" : ""}
                               </div>
-                            </div>
-                          </div>
-                          <div className="guardrail-summary-row">
-                            {historyLabel && (
-                              <div className="guardrail-summary-entry">
-                                <div className="guardrail-summary-label">History</div>
-                                <div className="guardrail-summary-value">
-                                  {historyLabel}
-                                </div>
-                              </div>
-                            )}
-                            {similarityThreshold !== null && (
-                              <div className="guardrail-summary-entry">
-                                <div className="guardrail-summary-label">Similarity</div>
-                                <div className="guardrail-summary-value">
-                                  {highestSimilarity !== null
-                                    ? highestSimilarity.toFixed(3)
-                                    : "—"}{" "}
-                                  / min {similarityThreshold.toFixed(2)}
-                                  {contextStats.insufficient ? " (Insufficient)" : ""}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          {m.meta.summaryApplied && (
-                            <div className="guardrail-summary-row summary-chip">
-                              <span className="meta-chip">Summary applied</span>
                             </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                  </>
+                        {m.meta?.summaryApplied && (
+                          <div className="guardrail-summary-row summary-chip">
+                            <span className="meta-chip">Summary applied</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
                   {m.role === "assistant" &&
                     showCitations &&
