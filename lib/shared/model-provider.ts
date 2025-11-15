@@ -1,5 +1,3 @@
-export type ChatEngine = 'native' | 'lc'
-
 export type ModelProvider = 'openai' | 'gemini' | 'huggingface'
 
 export const MODEL_PROVIDERS: readonly ModelProvider[] = [
@@ -11,7 +9,7 @@ export const MODEL_PROVIDERS: readonly ModelProvider[] = [
 export const MODEL_PROVIDER_LABELS: Record<ModelProvider, string> = {
   openai: 'OpenAI',
   gemini: 'Gemini (Google)',
-  huggingface: 'Hugging Face'
+  huggingface: 'Hugging Face (Under Development)'
 }
 
 const PROVIDER_ALIASES: Record<string, ModelProvider> = {
@@ -47,24 +45,10 @@ export function normalizeModelProvider(
   return toModelProviderId(value) ?? fallback
 }
 
-export function normalizeChatEngine(
-  value: string | null | undefined,
-  fallback: ChatEngine = 'lc'
-): ChatEngine {
-  if (!value) return fallback
-  const normalized = value.toLowerCase().trim()
-  return normalized === 'native' || normalized === 'lc' ? (normalized as ChatEngine) : fallback
-}
-
 export function isModelProvider(value: unknown): value is ModelProvider {
   if (typeof value !== 'string') {
     return false
   }
 
   return MODEL_PROVIDERS.includes(value as ModelProvider)
-}
-
-export function isChatEngine(value: unknown): value is ChatEngine {
-  if (typeof value !== 'string') return false
-  return value === 'native' || value === 'lc'
 }
