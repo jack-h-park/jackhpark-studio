@@ -1,4 +1,5 @@
-import { type ModelProvider,normalizeModelProvider } from '@/lib/shared/model-provider'
+import { getOllamaModels, isOllamaEnabled } from '@/lib/core/ollama'
+import { type ModelProvider, normalizeModelProvider } from '@/lib/shared/model-provider'
 
 export type LlmModelOption = {
   id: string
@@ -14,7 +15,7 @@ type LlmModelInput = {
   model?: string | null
 }
 
-const LLM_MODELS: LlmModelOption[] = [
+const BASE_LLM_MODELS: LlmModelOption[] = [
   {
     id: 'openai_gpt-4o-mini',
     label: 'OpenAI gpt-4o-mini',
@@ -55,6 +56,34 @@ const LLM_MODELS: LlmModelOption[] = [
       'hf mixtral'
     ]
   }
+]
+
+function buildOllamaModelOptions(): LlmModelOption[] {
+  if (!isOllamaEnabled()) {
+    return []
+  }
+
+  return getOllamaModels().map((model) => {
+    const aliases = new Set<string>([
+      model.id,
+      `ollama_${model.id}`,
+      `ollama ${model.id}`,
+      `${model.id} (ollama)`,
+      model.label.toLowerCase()
+    ])
+    return {
+      id: `ollama_${model.id}`,
+      label: model.label,
+      provider: 'ollama',
+      model: model.id,
+      aliases: Array.from(aliases)
+    }
+  })
+}
+
+const LLM_MODELS: LlmModelOption[] = [
+  ...BASE_LLM_MODELS,
+  ...buildOllamaModelOptions()
 ]
 
 const DEFAULT_LLM_MODEL_ID =

@@ -4,13 +4,13 @@ import type { EmbeddingsInterface } from '@langchain/core/embeddings'
 import type { BaseLanguageModelInterface } from '@langchain/core/language_models/base'
 import type { NextApiRequest, NextApiResponse } from 'next'
 
-import type { ModelProvider } from '@/lib/shared/model-provider'
-import { type EmbeddingSpace,resolveEmbeddingSpace } from '@/lib/core/embedding-spaces'
+import { type EmbeddingSpace, resolveEmbeddingSpace } from '@/lib/core/embedding-spaces'
 import { getGeminiModelCandidates, shouldRetryGeminiModel } from '@/lib/core/gemini'
-import { resolveLlmModel } from '@/lib/core/llm-registry'
+import { findLlmModelOption, resolveLlmModel } from '@/lib/core/llm-registry'
 import {
   requireProviderApiKey
 } from '@/lib/core/model-provider'
+import { getOllamaRuntimeConfig, isOllamaEnabled } from '@/lib/core/ollama'
 import { getLcChunksView, getLcMatchFunction } from '@/lib/core/rag-tables'
 import {
   applyHistoryWindow,
@@ -19,9 +19,18 @@ import {
   type ContextWindowResult,
   getChatGuardrailConfig,
   normalizeQuestion,
-  routeQuestion} from '@/lib/server/chat-guardrails'
-import { type ChatMessage,sanitizeMessages } from '@/lib/server/chat-messages'
+  routeQuestion
+} from '@/lib/server/chat-guardrails'
+import {
+  type ChatMessage,
+  sanitizeMessages
+} from '@/lib/server/chat-messages'
 import { loadSystemPrompt } from '@/lib/server/chat-settings'
+import {
+  respondWithOllamaUnavailable,
+  respondWithUnsupportedOllamaModel
+} from '@/lib/server/ollama-errors'
+import { OllamaUnavailableError } from '@/lib/server/ollama-provider'
 import {
   type CanonicalPageLookup,
   loadCanonicalPageLookup} from '@/lib/server/page-url'
@@ -30,6 +39,10 @@ import {
   type GuardrailMeta,
   serializeGuardrailMeta
 } from '@/lib/shared/guardrail-meta'
+import {
+  type ModelProvider,
+  toModelProviderId
+} from '@/lib/shared/model-provider'
 
 /**
  * Pages Router API (Node.js runtime).
@@ -108,6 +121,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       first(body.embeddingModel) ?? first(req.query.embeddingModel)
     const requestedEmbeddingSpace =
       first(body.embeddingSpaceId) ?? first(req.query.embeddingSpaceId)
+
+    const requestedProviderId = toModelProviderId(requestedProvider)
+    const requestedModelOption = requestedLlmModel
+      ? findLlmModelOption(requestedLlmModel)
+      : null
+    const inferredOllamaByValue = Boolean(
+      typeof requestedLlmModel === 'string' &&
+        requestedLlmModel.toLowerCase().includes('ollama')
+    )
+    const isOllamaRequested =
+      requestedProviderId === 'ollama' ||
+      requestedModelOption?.provider === 'ollama' ||
+      inferredOllamaByValue
+
+    if (
+      (requestedProviderId === 'ollama' || inferredOllamaByValue) &&
+      typeof requestedLlmModel === 'string' &&
+      (!requestedModelOption || requestedModelOption.provider !== 'ollama')
+    ) {
+      return respondWithUnsupportedOllamaModel(res, requestedLlmModel)
+    }
+
+    if (isOllamaRequested && !isOllamaEnabled()) {
+      return respondWithOllamaUnavailable(res)
+    }
 
     const llmSelection = resolveLlmModel({
       provider: requestedProvider,
@@ -358,22 +396,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           )
         }
 
-        res.writeHead(200, {
-          'Content-Type': 'text/plain; charset=utf-8',
-          'Transfer-Encoding': 'chunked'
-        })
-
-        for await (const chunk of stream) {
-          const rendered = renderStreamChunk(chunk)
-          if (!rendered) {
-            continue
+        let streamHeadersSent = false
+        const ensureStreamHeaders = () => {
+          if (!streamHeadersSent) {
+            res.writeHead(200, {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'Transfer-Encoding': 'chunked'
+            })
+            streamHeadersSent = true
           }
-          if (!res.writableEnded) res.write(rendered)
         }
 
-        const citationJson = JSON.stringify(citations)
-        if (!res.writableEnded) res.write(`${CITATIONS_SEPARATOR}${citationJson}`)
-        return res.end()
+        try {
+          for await (const chunk of stream) {
+            const rendered = renderStreamChunk(chunk)
+            if (!rendered || res.writableEnded) {
+              continue
+            }
+            ensureStreamHeaders()
+            res.write(rendered)
+          }
+
+          ensureStreamHeaders()
+          const citationJson = JSON.stringify(citations)
+          if (!res.writableEnded) {
+            res.write(`${CITATIONS_SEPARATOR}${citationJson}`)
+          }
+          return res.end()
+        } catch (streamErr) {
+          if (!streamHeadersSent) {
+            if (streamErr instanceof OllamaUnavailableError) {
+              return respondWithOllamaUnavailable(res)
+            }
+            throw streamErr
+          }
+          throw streamErr
+        }
       } catch (err) {
         lastGeminiError = err
         const shouldRetry =
@@ -398,6 +456,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     throw new Error('Failed to initialize Gemini model.')
   } catch (err: any) {
     console.error('[api/langchain_chat] error:', err)
+    if (err instanceof OllamaUnavailableError) {
+      return respondWithOllamaUnavailable(res)
+    }
     return res
       .status(500)
       .json({ error: err?.message || 'Internal Server Error' })
@@ -570,6 +631,22 @@ async function createChatModel(
         apiKey,
         temperature
       })
+    }
+    case 'ollama': {
+      const { ChatOllama } = await import(
+        '@langchain/community/chat_models/ollama'
+      )
+      const config = getOllamaRuntimeConfig()
+      if (!config.enabled || !config.baseUrl) {
+        throw new OllamaUnavailableError(
+          'Ollama provider is disabled in this environment.'
+        )
+      }
+      return new ChatOllama({
+        baseUrl: config.baseUrl,
+        model: modelName ?? config.defaultModel,
+        temperature
+      }) as unknown as BaseLanguageModelInterface
     }
     default:
       throw new Error(`Unsupported LLM provider: ${provider}`)

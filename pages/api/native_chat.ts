@@ -1,11 +1,11 @@
 import { type NextApiRequest, type NextApiResponse } from 'next'
 
-import type { ModelProvider } from '@/lib/shared/model-provider'
 import { resolveEmbeddingSpace } from '@/lib/core/embedding-spaces'
 import { embedText } from '@/lib/core/embeddings'
 import { getGeminiModelCandidates, shouldRetryGeminiModel } from '@/lib/core/gemini'
-import { resolveLlmModel } from '@/lib/core/llm-registry'
+import { findLlmModelOption, resolveLlmModel } from '@/lib/core/llm-registry'
 import { requireProviderApiKey } from '@/lib/core/model-provider'
+import { isOllamaEnabled } from '@/lib/core/ollama'
 import { getOpenAIClient } from '@/lib/core/openai'
 import { getRagMatchFunction } from '@/lib/core/rag-tables'
 import {
@@ -15,9 +15,21 @@ import {
   type ContextWindowResult,
   getChatGuardrailConfig,
   normalizeQuestion,
-  routeQuestion} from '@/lib/server/chat-guardrails'
-import { type ChatMessage,sanitizeMessages } from '@/lib/server/chat-messages'
+  routeQuestion
+} from '@/lib/server/chat-guardrails'
+import {
+  type ChatMessage,
+  sanitizeMessages
+} from '@/lib/server/chat-messages'
 import { loadSystemPrompt } from '@/lib/server/chat-settings'
+import {
+  respondWithOllamaUnavailable,
+  respondWithUnsupportedOllamaModel
+} from '@/lib/server/ollama-errors'
+import {
+  OllamaUnavailableError,
+  streamOllamaChat
+} from '@/lib/server/ollama-provider'
 import {
   type CanonicalPageLookup,
   loadCanonicalPageLookup
@@ -27,6 +39,10 @@ import {
   type GuardrailMeta,
   serializeGuardrailMeta
 } from '@/lib/shared/guardrail-meta'
+import {
+  type ModelProvider,
+  toModelProviderId
+} from '@/lib/shared/model-provider'
 import { getSupabaseAdminClient } from '@/lib/supabase-admin'
 
 type RagDocumentMetadata = {
@@ -118,6 +134,31 @@ export default async function handler(
       first(body.embeddingModel) ?? first(req.query.embeddingModel)
     const requestedEmbeddingSpace =
       first((body as any)?.embeddingSpaceId) ?? first(req.query.embeddingSpaceId)
+
+    const requestedProviderId = toModelProviderId(requestedProvider)
+    const requestedModelOption = requestedLlmModel
+      ? findLlmModelOption(requestedLlmModel)
+      : null
+    const inferredOllamaByValue = Boolean(
+      typeof requestedLlmModel === 'string' &&
+        requestedLlmModel.toLowerCase().includes('ollama')
+    )
+    const isOllamaRequested =
+      requestedProviderId === 'ollama' ||
+      requestedModelOption?.provider === 'ollama' ||
+      inferredOllamaByValue
+
+    if (
+      (requestedProviderId === 'ollama' || inferredOllamaByValue) &&
+      typeof requestedLlmModel === 'string' &&
+      (!requestedModelOption || requestedModelOption.provider !== 'ollama')
+    ) {
+      return respondWithUnsupportedOllamaModel(res, requestedLlmModel)
+    }
+
+    if (isOllamaRequested && !isOllamaEnabled()) {
+      return respondWithOllamaUnavailable(res)
+    }
 
     const llmSelection = resolveLlmModel({
       provider: requestedProvider,
@@ -273,31 +314,52 @@ export default async function handler(
       .filter((part) => part !== null && part !== undefined)
       .join('\n')
 
-    res.writeHead(200, {
-      'Content-Type': 'text/plain; charset=utf-8',
-      'Transfer-Encoding': 'chunked'
-    })
-
     const stream = streamChatCompletion({
       provider,
       model: llmModel,
       temperature,
       maxTokens,
       systemPrompt,
-      messages
+      messages,
+      stream: true
     })
-
-    for await (const chunk of stream) {
-      if (!res.writableEnded && chunk) {
-        res.write(chunk)
+    let streamHeadersSent = false
+    const ensureStreamHeaders = () => {
+      if (!streamHeadersSent) {
+        res.writeHead(200, {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Transfer-Encoding': 'chunked'
+        })
+        streamHeadersSent = true
       }
     }
 
-    res.end()
+    try {
+      for await (const chunk of stream) {
+        if (!chunk || res.writableEnded) {
+          continue
+        }
+        ensureStreamHeaders()
+        res.write(chunk)
+      }
+      ensureStreamHeaders()
+      res.end()
+    } catch (streamErr) {
+      if (!streamHeadersSent) {
+        if (streamErr instanceof OllamaUnavailableError) {
+          return respondWithOllamaUnavailable(res)
+        }
+        throw streamErr
+      }
+      throw streamErr
+    }
   } catch (err: any) {
     console.error('Chat API error:', err)
     const errorMessage = err?.message || 'An unexpected error occurred'
     if (!res.headersSent) {
+      if (err instanceof OllamaUnavailableError) {
+        return respondWithOllamaUnavailable(res)
+      }
       res.status(500).json({ error: errorMessage })
     } else {
       res.end()
@@ -385,6 +447,7 @@ type ChatStreamOptions = {
   maxTokens: number
   systemPrompt: string
   messages: ChatMessage[]
+  stream?: boolean
 }
 
 async function* streamChatCompletion(
@@ -399,6 +462,9 @@ async function* streamChatCompletion(
       break
     case 'huggingface':
       yield* streamHuggingFace(options)
+      break
+    case 'ollama':
+      yield* streamOllamaChat(options)
       break
     default:
       throw new Error(`Unsupported provider: ${options.provider}`)

@@ -1,16 +1,19 @@
-export type ModelProvider = 'openai' | 'gemini' | 'huggingface'
+import { isOllamaEnabled } from '@/lib/core/ollama'
+
+export type ModelProvider = 'openai' | 'gemini' | 'huggingface' | 'ollama'
 export type ChatEngine = 'native' | 'lc'
 
-export const MODEL_PROVIDERS: readonly ModelProvider[] = [
-  'openai',
-  'gemini',
-  'huggingface'
-] as const
+const BASE_MODEL_PROVIDERS: ModelProvider[] = ['openai', 'gemini', 'huggingface']
+
+export const MODEL_PROVIDERS: readonly ModelProvider[] = isOllamaEnabled()
+  ? [...BASE_MODEL_PROVIDERS, 'ollama']
+  : BASE_MODEL_PROVIDERS
 
 export const MODEL_PROVIDER_LABELS: Record<ModelProvider, string> = {
   openai: 'OpenAI',
   gemini: 'Gemini (Google)',
-  huggingface: 'Hugging Face (Under Development)'
+  huggingface: 'Hugging Face (Under Development)',
+  ollama: 'Ollama (local)'
 }
 
 const PROVIDER_ALIASES: Record<string, ModelProvider> = {
@@ -27,7 +30,10 @@ const PROVIDER_ALIASES: Record<string, ModelProvider> = {
 
   huggingface: 'huggingface',
   'hugging-face': 'huggingface',
-  hf: 'huggingface'
+  hf: 'huggingface',
+
+  ollama: 'ollama',
+  local: 'ollama'
 }
 
 export function toModelProviderId(value: string | null | undefined): ModelProvider | null {

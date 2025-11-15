@@ -1,3 +1,177 @@
+# RAG Pipeline & LangChain Integration — System Overview (Updated 2025)
+
+## 💬 Project Overview: Hybrid RAG Pipeline + Conversational AI Chat
+
+**Purpose:**  
+This project demonstrates how a modern Retrieval-Augmented Generation (RAG) system works end‑to‑end, including ingestion, embeddings, vector search, multi‑model LLM reasoning, and two execution runtimes: a **Native Engine** and a **LangChain Engine**.
+
+It is designed as a portfolio‑ready explanation for PMs, engineers, and interviewers to understand not only _what_ was built, but _why_.
+
+---
+
+## 🎯 Objectives
+
+This project aims to provide a practical understanding of:
+
+- How **RAG pipelines** ingest, chunk, vectorize, and retrieve knowledge
+- How **semantic embeddings** support accurate similarity search
+- The differences between **custom pipelines** and **framework orchestration (LangChain)**
+- Real‑world architectural trade‑offs: latency, modularity, debugging, and extensibility
+- Multi‑provider LLM workflows, including **OpenAI, Gemini, Hugging Face, and local Ollama (Mistral)**
+
+---
+
+## ⚙️ High-Level Architecture (Updated)
+
+```mermaid
+flowchart TD
+  subgraph "Admin Ingestion"
+    A["Data Sources: Notion / URLs / Files"]
+    B["Text Extraction (jsdom + Readability)"]
+    C["Chunking (gpt-tokenizer)"]
+    D["Embedding Provider API (OpenAI / Gemini / HF)"]
+    E["Supabase Storage (pgvector, space_id-based tables)"]
+    A --> B --> C --> D --> E
+  end
+
+  subgraph "Conversational Chat"
+    U["User Query"]
+    N["Native RAG Engine (Edge Runtime)"]
+    L["LangChain RAG Engine (Node Runtime)"]
+    R["Supabase Vector Search (rag_chunks_{space_id})"]
+    H["LLM Providers (OpenAI / Gemini / HF / Ollama)"]
+    O["Final Response"]
+    U --> N --> R --> H --> O
+    U --> L --> R --> H --> O
+```
+
+---
+
+## 🧩 Key System Components (Updated)
+
+### 1. **Multi‑Provider Embeddings**
+
+Unlike the earlier single‑provider design, the system now supports:
+
+- **OpenAI text-embedding‑3-small**
+- **Gemini embeddings**
+- **Hugging Face inference embeddings**
+
+All embeddings are stored in **Supabase pgvector** under provider‑specific tables:
+
+```
+rag_chunks_{space_id}
+match_chunks_{space_id}
+```
+
+### 2. **Multi‑Provider Reasoning LLMs**
+
+Users can select from:
+
+- OpenAI (gpt‑4o, gpt‑4o‑mini, etc.)
+- Gemini 1.5
+- Hugging Face inference models
+- **Ollama (local Docker runtime, default: Mistral)**
+
+### 3. **Two Execution Engines**
+
+| Engine               | Runtime      | Strength                            | Notes                                                   |
+| -------------------- | ------------ | ----------------------------------- | ------------------------------------------------------- |
+| **Native Engine**    | Edge Runtime | Fastest, streaming-first            | Supports Reverse RAG, HyDE, multi-stage query rewriting |
+| **LangChain Engine** | Node Runtime | Most modular, clearer orchestration | Ideal for debugging, evaluation, chain composition      |
+
+---
+
+## 🧠 Retrieval Pipeline (Updated Workflow)
+
+### 🔄 Full Query Flow (Native Engine Highlights)
+
+1. **Query Rewrite (Reverse RAG)** – small LLM
+2. **HyDE (Hypothetical Document Generation)** – optional
+3. **Embedding + Similarity Search** (Supabase pgvector)
+4. **Context Assembly + Token Budget Enforcement**
+5. **Reasoning LLM Generation**
+6. **Streaming Output to UI**
+
+Native Engine includes advanced retrieval augmentations that LangChain does not perform by default.
+
+---
+
+## 🔗 LangChain RAG Pipeline (Updated)
+
+While the Native Engine includes additional augmentations, the LangChain pipeline remains a clear, modular reference implementation:
+
+```
+User → Retriever → Context Builder → Prompt → Reasoner → Parser → Citation Mapper
+```
+
+Updated steps:
+
+| Step | Component                         | Description                  |
+| ---- | --------------------------------- | ---------------------------- |
+| 1    | SupabaseVectorStore.asRetriever() | Retrieves top‑k chunks       |
+| 2    | Runnable Context Builder          | Prepares clean context text  |
+| 3    | PromptTemplate                    | Injects question + context   |
+| 4    | ChatOpenAI / Gemini / HF          | Multi‑provider LLM reasoning |
+| 5    | StringOutputParser                | Clean parsing                |
+| 6    | Custom Citation Mapper            | Adds source metadata         |
+
+---
+
+## 🚀 End-to-End Workflow (Updated)
+
+1. **Ingestion**  
+   Extract, clean, chunk, and embed using the selected provider.
+
+2. **Storage**  
+   Persist vectors into provider‑specific Supabase tables using a `space_id`.
+
+3. **Retrieval**  
+   Top‑k similarity search via pgvector.
+
+4. **Generation**  
+   The user‑selected engine (Native or LangChain) calls the chosen LLM provider.
+
+5. **Streaming & UX**  
+   Native Engine streams tokens for superior conversational experience.
+
+---
+
+## 📚 PM Learning Outcomes
+
+- Architecting multi‑provider LLM workflows
+- Understanding hybrid runtime design (Edge + Node + local Docker)
+- Practical insights into embeddings, vector search, and token budgeting
+- Comparing FAST vs MODULAR pipelines through real implementation
+- Ability to communicate AI system trade‑offs clearly during interviews
+
+---
+
+## 🧾 Tech Stack (Updated)
+
+| Layer      | Technology                             | Purpose                      |
+| ---------- | -------------------------------------- | ---------------------------- |
+| Frontend   | Next.js (React)                        | Chat UI with streaming       |
+| Vector DB  | Supabase + pgvector                    | Multi‑space embeddings       |
+| Embeddings | OpenAI / Gemini / HF                   | Configurable providers       |
+| LLMs       | OpenAI / Gemini / HF / Ollama          | Multi‑provider reasoning     |
+| Runtimes   | Edge + Node + Docker                   | Native vs LangChain vs Local |
+| Utilities  | jsdom, Readability, gpt-tokenizer, SSE | Ingestion + streaming        |
+
+---
+
+## 🎯 Summary
+
+This project illustrates a **modern, flexible, multi‑provider RAG architecture** that spans:
+
+- **Edge-native streaming**
+- **LangChain orchestration**
+- **Configurable embeddings**
+- **Local LLM runtime support**
+- **Vector-based semantic retrieval**
+
+It is designed to be both a practical learning exercise and a professional portfolio showcase.
+
 # Next.js + Notion Portfolio Framework
 
 ![version](https://img.shields.io/badge/version-v0.1.0-blue)
@@ -22,6 +196,10 @@
 - Semantic embeddings via configurable providers (**OpenAI**, **Gemini**, **Hugging Face**) stored in **Supabase**
 - `/admin/ingestion` dashboard with real-time progress (SSE streaming)
 - Built-in **Chat Assistant** with a floating panel UI and streaming responses
+- Optional **Ollama (local)** provider (Mistral by default) for on-device chat responses via Docker/Ollama
+- Multi-provider embeddings supporting **OpenAI**, **Gemini**, and **Hugging Face**, stored in provider-specific Supabase pgvector spaces.
+- Multi-provider LLM execution across **OpenAI**, **Gemini**, **Hugging Face**, and **local Ollama (Mistral)**.
+- Native Engine includes advanced retrieval features such as **Reverse RAG**, **HyDE**, and multi-stage query rewriting.
 
 ### 🎨 Enhanced UI/UX
 
@@ -59,7 +237,9 @@
    SUPABASE_URL=https://your-project.supabase.co
     SUPABASE_ANON_KEY=...
    SUPABASE_SERVICE_ROLE_KEY=...
-  ```
+   ```
+
+````
 
 ### 🔧 Advanced LLM/RAG tuning
 
@@ -86,17 +266,31 @@ The assistant ships with sensible defaults, but you can fine‑tune behaviour vi
 
 > Tip: keep embeddings and RAG settings aligned—if you re-ingest with a different embedding space, update `EMBEDDING_MODEL`/`EMBEDDING_SPACE_ID` before running the ingestion scripts so live queries use the same vectors.
 
+#### Ollama (local LLM) toggles
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` (dev) | Base URL for your Docker/Ollama host; must be set (and reachable) to expose the provider. |
+| `OLLAMA_MODEL_DEFAULT` | `mistral` | Default Ollama model id when the request does not specify a model. |
+| `OLLAMA_ENABLE_IN_PROD` | `false` | Keeps the local provider hidden in production unless explicitly enabled. |
+| `OLLAMA_TIMEOUT_MS` | `30000` | Timeout (ms) for streaming Ollama responses before the request is aborted. |
+| `OLLAMA_MAX_TOKENS` | _(optional)_ | Hard cap for generated tokens to protect local resources; omit to inherit the chat `maxTokens`. |
+
+> Note: The local Ollama runtime acts as an optional third execution backend in addition to the Edge-native and LangChain Node engines.
+
+Dev builds automatically point to `http://localhost:11434`; production deployments stay disabled until `OLLAMA_BASE_URL` is set and `OLLAMA_ENABLE_IN_PROD=true`.
+
 3. **Prepare Supabase chat settings table**
 
-   ```sql
-   create table if not exists chat_settings (
-     key text primary key,
-     value text not null,
-     updated_at timestamptz not null default timezone('utc', now())
-   );
-   ```
+ ```sql
+ create table if not exists chat_settings (
+   key text primary key,
+   value text not null,
+   updated_at timestamptz not null default timezone('utc', now())
+ );
+````
 
-   > The admin dashboard (`/admin/chat-config`) reads and updates the shared system prompt from this table.
+> The admin dashboard (`/admin/chat-config`) reads and updates the shared system prompt from this table.
 
 4. **Run locally**
 
@@ -121,7 +315,7 @@ flowchart LR
   B --> C["react-notion-x Renderer"];
   C --> D["Notion CMS"];
   B --> E["Vercel Edge / API Routes"];
-  E --> F["LLM Provider (OpenAI / Gemini / Hugging Face)"];
+  E --> F["LLM Provider (OpenAI / Gemini / Hugging Face / Ollama)"];
   E --> G["Supabase (Embeddings DB)"];
   E --> H["Notion Proxy / API Wrapper"];
 ```
@@ -132,7 +326,7 @@ flowchart LR
   flowchart TD
   A["Notion Page or External URL"] --> B["jsdom + Readability"];
   B --> C["gpt-tokenizer"];
-  C --> D["Embedding Model API"];
+  C --> D["Embedding Provider API (OpenAI / Gemini / HF)"];
   D --> E["Supabase: Documents and Chunks"];
 
   subgraph "Admin Interface"
@@ -162,6 +356,19 @@ flowchart LR
 - **Author:** Jack H. Park
 - **Hosting:** [Vercel](https://vercel.com)
 - **CMS:** [Notion](https://www.notion.so)
+
+---
+
+## 🧾 Tech Stack (Updated)
+
+| Layer         | Technology                              | Purpose                      |
+| ------------- | --------------------------------------- | ---------------------------- |
+| Frontend      | Next.js (React)                         | Chat UI with streaming       |
+| Vector DB     | Supabase + pgvector                     | Multi‑space embeddings       |
+| Embeddings    | OpenAI / Gemini / Hugging Face          |
+| LLM Providers | OpenAI / Gemini / Hugging Face / Ollama |
+| Runtimes      | Edge + Node + Docker                    | Native vs LangChain vs Local |
+| Utilities     | jsdom, Readability, gpt-tokenizer, SSE  | Ingestion + streaming        |
 
 ---
 
