@@ -7,8 +7,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { engine } = req.query
 
   if (engine === 'native') {
-    return nativeChat(req, res)
+    await nativeChat(req, res)
+    return
   }
 
-  return langchainChat(req, res)
+  await langchainChat(req, res)
 }
