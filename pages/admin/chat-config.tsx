@@ -500,7 +500,7 @@ export default function ChatConfigPage({
         setModelStatus('error')
       }
     },
-    [modelForm, modelOverrides.llm, modelSaveDisabled]
+    [modelForm, modelOverrides.embedding, modelOverrides.llm, modelSaveDisabled]
   )
 
   const handleGuardrailSubmit = useCallback(
@@ -723,7 +723,7 @@ export default function ChatConfigPage({
               <div className="model-field">
                 <div className="inline-field">
                   <label htmlFor="llmOverride">LLM model override</label>
-                  <label className="toggle">
+                  <label className="toggle" aria-label="Toggle LLM model override">
                     <input
                       id="llmOverride"
                       type="checkbox"
@@ -775,7 +775,7 @@ export default function ChatConfigPage({
               <div className="model-field">
                 <div className="inline-field">
                   <label htmlFor="embeddingOverride">Embedding model override</label>
-                  <label className="toggle">
+                  <label className="toggle" aria-label="Toggle embedding model override">
                     <input
                       id="embeddingOverride"
                       type="checkbox"

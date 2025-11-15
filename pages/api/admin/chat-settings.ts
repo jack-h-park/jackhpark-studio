@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 
+import type { ChatEngine, ModelProvider } from '@/lib/shared/model-provider'
 import { SYSTEM_PROMPT_MAX_LENGTH } from '@/lib/chat-prompts'
 import {
   type GuardrailNumericSettings,
@@ -10,7 +11,6 @@ import {
   saveGuardrailSettings,
   saveSystemPrompt
 } from '@/lib/server/chat-settings'
-import type { ChatEngine, ModelProvider } from '@/lib/shared/model-provider'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
