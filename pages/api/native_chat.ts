@@ -460,9 +460,6 @@ async function* streamChatCompletion(
     case 'gemini':
       yield* streamGemini(options)
       break
-    case 'huggingface':
-      yield* streamHuggingFace(options)
-      break
     case 'ollama':
       yield* streamOllamaChat(options)
       break
@@ -547,35 +544,6 @@ async function* streamGemini(options: ChatStreamOptions): AsyncGenerator<string>
 
   if (lastError) {
     throw lastError
-  }
-}
-
-async function* streamHuggingFace(
-  options: ChatStreamOptions
-): AsyncGenerator<string> {
-  const { HfInference } = await import('@huggingface/inference')
-  const apiKey = requireProviderApiKey('huggingface')
-  const inference = new HfInference(apiKey)
-  const prompt = buildPlainPrompt(options.systemPrompt, options.messages)
-
-  const response = await inference.textGeneration({
-    model: options.model,
-    inputs: prompt,
-    parameters: {
-      temperature: options.temperature,
-      max_new_tokens: options.maxTokens,
-      return_full_text: false,
-      top_p: 0.95
-    }
-  })
-
-  const text =
-    typeof response === 'string'
-      ? response
-      : response?.generated_text ?? ''
-
-  if (text) {
-    yield text
   }
 }
 

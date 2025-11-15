@@ -1,5 +1,3 @@
-import pMap from 'p-map'
-
 import type { ModelProvider } from '@/lib/shared/model-provider'
 import {
   type EmbeddingModelSelectionInput,
@@ -11,11 +9,6 @@ import { getOpenAIClient } from './openai'
 type EmbedTextsOptions = EmbeddingModelSelectionInput & {
   apiKey?: string | null
 }
-
-const DEFAULT_HF_CONCURRENCY = Math.max(
-  1,
-  Number.parseInt(process.env.HUGGINGFACE_EMBEDDING_CONCURRENCY ?? '2', 10)
-)
 
 async function embedOpenAi(
   texts: string[],
@@ -63,41 +56,6 @@ async function embedGemini(
   })
 }
 
-async function embedHuggingFace(
-  texts: string[],
-  model: string,
-  apiKeyOverride?: string | null
-): Promise<number[][]> {
-  if (texts.length === 0) {
-    return []
-  }
-
-  const { HfInference } = await import('@huggingface/inference')
-  const key = apiKeyOverride ?? requireProviderApiKey('huggingface')
-  const inference = new HfInference(key)
-
-  const results = await pMap(
-    texts,
-    async (text) => {
-      const output = await inference.featureExtraction({
-        model,
-        inputs: text
-      })
-
-      if (Array.isArray(output)) {
-        if (Array.isArray(output[0])) {
-          return output[0] as number[]
-        }
-        return output as number[]
-      }
-      return []
-    },
-    { concurrency: DEFAULT_HF_CONCURRENCY }
-  )
-
-  return results
-}
-
 async function embedWithProvider(
   provider: ModelProvider,
   texts: string[],
@@ -109,8 +67,6 @@ async function embedWithProvider(
       return embedOpenAi(texts, model, apiKeyOverride)
     case 'gemini':
       return embedGemini(texts, model, apiKeyOverride)
-    case 'huggingface':
-      return embedHuggingFace(texts, model, apiKeyOverride)
     default:
       throw new Error(`Unsupported embedding provider: ${provider}`)
   }

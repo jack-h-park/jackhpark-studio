@@ -17,7 +17,7 @@ This project aims to provide a practical understanding of:
 - How **semantic embeddings** support accurate similarity search
 - The differences between **custom pipelines** and **framework orchestration (LangChain)**
 - Real‑world architectural trade‑offs: latency, modularity, debugging, and extensibility
-- Multi‑provider LLM workflows, including **OpenAI, Gemini, Hugging Face, and local Ollama (Mistral)**
+- Multi‑provider LLM workflows, including **OpenAI, Gemini, and local Ollama (Mistral)**
 
 ---
 
@@ -29,7 +29,7 @@ flowchart TD
     A["Data Sources: Notion / URLs / Files"]
     B["Text Extraction (jsdom + Readability)"]
     C["Chunking (gpt-tokenizer)"]
-    D["Embedding Provider API (OpenAI / Gemini / HF)"]
+    D["Embedding Provider API (OpenAI / Gemini)"]
     E["Supabase Storage (pgvector, space_id-based tables)"]
     A --> B --> C --> D --> E
   end
@@ -39,7 +39,7 @@ flowchart TD
     N["Native RAG Engine (Edge Runtime)"]
     L["LangChain RAG Engine (Node Runtime)"]
     R["Supabase Vector Search (rag_chunks_{space_id})"]
-    H["LLM Providers (OpenAI / Gemini / HF / Ollama)"]
+    H["LLM Providers (OpenAI / Gemini / Ollama)"]
     O["Final Response"]
     U --> N --> R --> H --> O
     U --> L --> R --> H --> O
@@ -55,7 +55,6 @@ Unlike the earlier single‑provider design, the system now supports:
 
 - **OpenAI text-embedding‑3-small**
 - **Gemini embeddings**
-- **Hugging Face inference embeddings**
 
 All embeddings are stored in **Supabase pgvector** under provider‑specific tables:
 
@@ -70,7 +69,6 @@ Users can select from:
 
 - OpenAI (gpt‑4o, gpt‑4o‑mini, etc.)
 - Gemini 1.5
-- Hugging Face inference models
 - **Ollama (local Docker runtime, default: Mistral)**
 
 ### 3. **Two Execution Engines**
@@ -193,12 +191,12 @@ It is designed to be both a practical learning exercise and a professional portf
 ### 🧩 RAG + Admin Ingestion + Chat Assistant
 
 - End-to-end document ingestion pipeline (manual + batch modes)
-- Semantic embeddings via configurable providers (**OpenAI**, **Gemini**, **Hugging Face**) stored in **Supabase**
+- Semantic embeddings via configurable providers (**OpenAI**, **Gemini**) stored in **Supabase**
 - `/admin/ingestion` dashboard with real-time progress (SSE streaming)
 - Built-in **Chat Assistant** with a floating panel UI and streaming responses
 - Optional **Ollama (local)** provider (Mistral by default) for on-device chat responses via Docker/Ollama
-- Multi-provider embeddings supporting **OpenAI**, **Gemini**, and **Hugging Face**, stored in provider-specific Supabase pgvector spaces.
-- Multi-provider LLM execution across **OpenAI**, **Gemini**, **Hugging Face**, and **local Ollama (Mistral)**.
+- Multi-provider embeddings supporting **OpenAI** and **Gemini**, stored in provider-specific Supabase pgvector spaces.
+- Multi-provider LLM execution across **OpenAI**, **Gemini**, and **local Ollama (Mistral)**.
 - Native Engine includes advanced retrieval features such as **Reverse RAG**, **HyDE**, and multi-stage query rewriting.
 
 ### 🎨 Enhanced UI/UX
@@ -232,7 +230,6 @@ It is designed to be both a practical learning exercise and a professional portf
    EMBEDDING_MODEL="OpenAI text-embedding-3-small (v1)"
    # EMBEDDING_SPACE_ID=openai_te3s_v1
    # GOOGLE_API_KEY=...
-   # HUGGINGFACE_API_KEY=...
    OPENAI_API_KEY=sk-...
    SUPABASE_URL=https://your-project.supabase.co
     SUPABASE_ANON_KEY=...
@@ -315,7 +312,7 @@ flowchart LR
   B --> C["react-notion-x Renderer"];
   C --> D["Notion CMS"];
   B --> E["Vercel Edge / API Routes"];
-  E --> F["LLM Provider (OpenAI / Gemini / Hugging Face / Ollama)"];
+  E --> F["LLM Provider (OpenAI / Gemini / Ollama)"];
   E --> G["Supabase (Embeddings DB)"];
   E --> H["Notion Proxy / API Wrapper"];
 ```
@@ -326,7 +323,7 @@ flowchart LR
   flowchart TD
   A["Notion Page or External URL"] --> B["jsdom + Readability"];
   B --> C["gpt-tokenizer"];
-  C --> D["Embedding Provider API (OpenAI / Gemini / HF)"];
+  C --> D["Embedding Provider API (OpenAI / Gemini)"];
   D --> E["Supabase: Documents and Chunks"];
 
   subgraph "Admin Interface"
@@ -337,13 +334,13 @@ flowchart LR
   G -- "events" --> F;
 ```
 
-> **Supabase 레이어**는 공급자별 테이블/뷰(`rag_chunks_openai`, `rag_chunks_gemini`, `rag_chunks_hf`, `lc_chunks_*`)을 사용합니다. 인제스트 시 선택한 임베딩 공급자와 동일한 테이블/함수를 호출해 주세요.
+> **Supabase 레이어**는 공급자별 테이블/뷰(`rag_chunks_openai`, `rag_chunks_gemini`, `lc_chunks_*`)을 사용합니다. 인제스트 시 선택한 임베딩 공급자와 동일한 테이블/함수를 호출해 주세요.
 
 ---
 
 ## 🧩 Dependencies
 
-- **OpenAI SDK**, **@google/generative-ai**, **@huggingface/inference**, **Supabase JS**, **gpt-tokenizer**
+- **OpenAI SDK**, **@google/generative-ai**, **Supabase JS**, **gpt-tokenizer**
 - **@langchain/openai**, **@langchain/google-genai**, **@langchain/community**
 - **@mozilla/readability**, **jsdom**, **exponential-backoff**
 - **framer-motion**, **react-modal**, **@react-icons/all-files**
@@ -365,8 +362,8 @@ flowchart LR
 | ------------- | --------------------------------------- | ---------------------------- |
 | Frontend      | Next.js (React)                         | Chat UI with streaming       |
 | Vector DB     | Supabase + pgvector                     | Multi‑space embeddings       |
-| Embeddings    | OpenAI / Gemini / Hugging Face          |
-| LLM Providers | OpenAI / Gemini / Hugging Face / Ollama |
+| Embeddings    | OpenAI / Gemini                         |
+| LLM Providers | OpenAI / Gemini / Ollama                |
 | Runtimes      | Edge + Node + Docker                    | Native vs LangChain vs Local |
 | Utilities     | jsdom, Readability, gpt-tokenizer, SSE  | Ingestion + streaming        |
 

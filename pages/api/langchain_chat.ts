@@ -580,16 +580,6 @@ async function createEmbeddingsInstance(
         apiKey
       })
     }
-    case 'huggingface': {
-      const { HuggingFaceInferenceEmbeddings } = await import(
-        '@langchain/community/embeddings/hf'
-      )
-      const apiKey = requireProviderApiKey('huggingface')
-      return new HuggingFaceInferenceEmbeddings({
-        model: selection.model,
-        apiKey
-      })
-    }
     default:
       throw new Error(`Unsupported embedding provider: ${selection.provider}`)
   }
@@ -616,17 +606,6 @@ async function createChatModel(
       )
       const apiKey = requireProviderApiKey('gemini')
       return new ChatGoogleGenerativeAI({
-        model: modelName,
-        apiKey,
-        temperature
-      })
-    }
-    case 'huggingface': {
-      const { HuggingFaceInference } = await import(
-        '@langchain/community/llms/hf'
-      )
-      const apiKey = requireProviderApiKey('huggingface')
-      return new HuggingFaceInference({
         model: modelName,
         apiKey,
         temperature

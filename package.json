@@ -36,7 +36,6 @@
   "dependencies": {
     "@fisch0920/use-dark-mode": "^2.4.0",
     "@google/generative-ai": "^0.11.5",
-    "@huggingface/inference": "^2.8.1",
     "@keyvhq/core": "^1.6.9",
     "@keyvhq/redis": "^1.6.10",
     "@langchain/community": "^1.0.0",

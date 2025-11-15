@@ -1,6 +1,6 @@
 import { type ModelProvider, normalizeModelProvider } from '@/lib/shared/model-provider'
 
-export type EmbeddingSpaceId = 'openai_te3s_v1' | 'gemini_te4_v1' | 'hf_minilm_v1'
+export type EmbeddingSpaceId = 'openai_te3s_v1' | 'gemini_te4_v1'
 export type EmbeddingSpace = {
   embeddingSpaceId: EmbeddingSpaceId
   provider: ModelProvider
@@ -66,29 +66,6 @@ const EMBEDDING_SPACES: Record<EmbeddingSpaceId, EmbeddingSpace> = {
       'match_rag_chunks_gemini',
       'google',
       'gemini'
-    ]
-  },
-  hf_minilm_v1: {
-    embeddingSpaceId: 'hf_minilm_v1',
-    provider: 'huggingface',
-    model: 'sentence-transformers/all-MiniLM-L6-v2',
-    version: 'v1',
-    label: 'Hugging Face all-MiniLM-L6-v2 (v1)',
-    embeddingModelId: 'Hugging Face all-MiniLM-L6-v2 (v1)',
-    table: 'rag_chunks_hf_minilm_v1',
-    matchRpc: 'match_chunks_hf_minilm_v1',
-    lcView: 'lc_chunks_hf_minilm_v1',
-    lcMatchRpc: 'match_lc_chunks_hf_minilm_v1',
-    aliases: [
-      'hf_minilm_v1',
-      'huggingface all-minilm-l6-v2',
-      'all-minilm-l6-v2',
-      'sentence-transformers/all-minilm-l6-v2',
-      'rag_chunks_hf',
-      'rag_chunks_hf_minilm_v1',
-      'match_chunks_hf',
-      'match_rag_chunks_hf',
-      'huggingface'
     ]
   }
 }

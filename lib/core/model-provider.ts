@@ -23,11 +23,6 @@ const PROVIDER_KEY_CONFIG: Record<ModelProvider, ProviderKeyConfig> = {
     missingMessage:
       'Missing Gemini API key. Set GOOGLE_API_KEY or GEMINI_API_KEY environment variable.'
   },
-  huggingface: {
-    envKeys: ['HUGGINGFACE_API_KEY', 'HUGGINGFACEHUB_API_TOKEN'],
-    missingMessage:
-      'Missing Hugging Face API key. Set HUGGINGFACE_API_KEY or HUGGINGFACEHUB_API_TOKEN.'
-  },
   ollama: {
     envKeys: [],
     missingMessage: 'Ollama runs locally and does not require an API key.'

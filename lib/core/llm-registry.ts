@@ -43,18 +43,6 @@ const BASE_LLM_MODELS: LlmModelOption[] = [
     provider: 'gemini',
     model: 'gemini-1.5-pro-latest',
     aliases: ['gemini-1.5-pro-latest', 'gemini-pro', 'gemini pro']
-  },
-  {
-    id: 'hf_mixtral-8x7b-instruct',
-    label: 'Hugging Face Mixtral-8x7B-Instruct',
-    provider: 'huggingface',
-    model: 'mistralai/Mixtral-8x7B-Instruct',
-    aliases: [
-      'mistralai/mixtral-8x7b-instruct',
-      'mixtral-8x7b-instruct',
-      'mixtral',
-      'hf mixtral'
-    ]
   }
 ]
 
