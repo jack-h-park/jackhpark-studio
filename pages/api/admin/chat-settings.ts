@@ -48,10 +48,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
         models?: {
           engine?: unknown
-          llmProvider?: unknown
-          embeddingProvider?: unknown
           llmModel?: unknown
           embeddingModel?: unknown
+          embeddingSpaceId?: unknown
+          llmProvider?: unknown
+          embeddingProvider?: unknown
         }
       }
 
@@ -71,10 +72,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         typeof models === 'object' &&
         models !== null &&
         typeof models.engine === 'string' &&
-        typeof models.llmProvider === 'string' &&
-        typeof models.embeddingProvider === 'string' &&
-        (typeof models.llmModel === 'string' || models.llmModel === undefined) &&
-        (typeof models.embeddingModel === 'string' || models.embeddingModel === undefined)
+        (typeof models.llmModel === 'string' || models.llmModel === undefined || models.llmModel === null) &&
+        (typeof models.embeddingModel === 'string' || models.embeddingModel === undefined || models.embeddingModel === null) &&
+        (typeof models.embeddingSpaceId === 'string' || models.embeddingSpaceId === undefined || models.embeddingSpaceId === null) &&
+        (typeof models.llmProvider === 'string' || models.llmProvider === undefined || models.llmProvider === null) &&
+        (typeof models.embeddingProvider === 'string' || models.embeddingProvider === undefined || models.embeddingProvider === null)
 
       if (!hasPrompt && !hasGuardrails && !hasModels) {
         return res.status(400).json({
@@ -112,10 +114,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (hasModels) {
         chatModelResult = await saveChatModelSettings({
           engine: models!.engine as ChatEngine,
-          llmProvider: models!.llmProvider as ModelProvider,
-          embeddingProvider: models!.embeddingProvider as ModelProvider,
+          llmProvider: models!.llmProvider as ModelProvider | undefined,
+          embeddingProvider: models!.embeddingProvider as ModelProvider | undefined,
           llmModel: models!.llmModel as string | undefined,
-          embeddingModel: models!.embeddingModel as string | undefined
+          embeddingModel: models!.embeddingModel as string | undefined,
+          embeddingSpaceId: models!.embeddingSpaceId as string | undefined
         })
       }
 

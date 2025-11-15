@@ -50,8 +50,9 @@
    ADMIN_DASH_PASS=secret
    NOTION_PAGE_CACHE_TTL=300
 
-   LLM_PROVIDER=openai
-   # EMBEDDING_PROVIDER=
+   LLM_MODEL="OpenAI gpt-4o-mini"
+   EMBEDDING_MODEL="OpenAI text-embedding-3-small (v1)"
+   # EMBEDDING_SPACE_ID=openai_te3s_v1
    # GOOGLE_API_KEY=...
    # HUGGINGFACE_API_KEY=...
    OPENAI_API_KEY=sk-...
@@ -66,8 +67,9 @@ The assistant ships with sensible defaults, but you can fine‑tune behaviour vi
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `LLM_MODEL` | `gpt-4o-mini` | Primary chat-completion model ID for the active provider (OpenAI, Gemini, Hugging Face). |
-| `EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model used for ingestion and live queries; must match the vectors stored in Supabase. |
+| `LLM_MODEL` | `OpenAI gpt-4o-mini` | Combined provider + model alias for chat responses (e.g. `OpenAI gpt-4o-mini`, `Gemini 1.5 Flash`). |
+| `EMBEDDING_MODEL` | `OpenAI text-embedding-3-small (v1)` | Embedding space alias used for ingestion and RAG queries; must match your Supabase vectors. |
+| `EMBEDDING_SPACE_ID` | `openai_te3s_v1` | (Optional) Explicit embedding space identifier (`rag_chunks_{space}` / `match_chunks_{space}`) for advanced setups. |
 | `RAG_TOP_K` | `15` | How many chunks to fetch per query before context compression. Raise this when your corpus is small and you want broader coverage. |
 | `LLM_TEMPERATURE` | `0.0` | Sampling temperature for answers. Keep near zero for factual Q&A, raise for more creative tone. |
 | `RAG_SIMILARITY_THRESHOLD` | `0.78` | Minimum cosine similarity required before a chunk can be included in the context window. |
@@ -82,7 +84,7 @@ The assistant ships with sensible defaults, but you can fine‑tune behaviour vi
 | `CHAT_FALLBACK_CHITCHAT_CONTEXT` | _(string)_ | Prompt snippet injected whenever a chitchat intent is detected; useful for defining tone. |
 | `CHAT_FALLBACK_COMMAND_CONTEXT` | _(string)_ | Prompt snippet used when the user appears to request an action/command the assistant cannot execute. |
 
-> Tip: keep embeddings and RAG settings aligned—if you re-ingest with a different `EMBEDDING_MODEL`, update `.env.local` before running the ingestion scripts so live queries use the same vectors.
+> Tip: keep embeddings and RAG settings aligned—if you re-ingest with a different embedding space, update `EMBEDDING_MODEL`/`EMBEDDING_SPACE_ID` before running the ingestion scripts so live queries use the same vectors.
 
 3. **Prepare Supabase chat settings table**
 
@@ -130,7 +132,7 @@ flowchart LR
   flowchart TD
   A["Notion Page or External URL"] --> B["jsdom + Readability"];
   B --> C["gpt-tokenizer"];
-  C --> D["Embedding Provider API"];
+  C --> D["Embedding Model API"];
   D --> E["Supabase: Documents and Chunks"];
 
   subgraph "Admin Interface"

@@ -5,7 +5,7 @@ import { getAllPagesInSpace } from 'notion-utils'
 import pMap from 'p-map' 
 
 import { rootNotionPageId as configRootNotionPageId } from '../lib/config'
-import { normalizeEmbeddingProvider } from '../lib/core/model-provider'
+import { resolveEmbeddingSpace } from '../lib/core/embedding-spaces'
 import {
   chunkByTokens,
   type ChunkInsert,
@@ -28,9 +28,11 @@ import {
 } from '../lib/rag'
 
 const notion = new NotionAPI()
-const DEFAULT_EMBEDDING_PROVIDER = normalizeEmbeddingProvider(
-  process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null
-)
+const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
+  embeddingSpaceId: process.env.EMBEDDING_SPACE_ID ?? null,
+  embeddingModelId: process.env.EMBEDDING_MODEL ?? null,
+  provider: process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null
+})
 const DEFAULT_ROOT_PAGE_ID = configRootNotionPageId
 
 type RunMode = {
@@ -108,11 +110,11 @@ async function ingestPage(
   const unchanged =
     existingState && existingState.content_hash === pageHash
 
-  const embeddingProvider = DEFAULT_EMBEDDING_PROVIDER
+  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION
   if (unchanged) {
     const providerHasChunks = await hasChunksForProvider(
       pageId,
-      embeddingProvider
+      embeddingSpace
     )
     if (providerHasChunks) {
       console.log(`Skipping unchanged Notion page: ${title}`)
@@ -128,7 +130,11 @@ async function ingestPage(
     return
   }
 
-  const embeddings = await embedBatch(chunks, { provider: embeddingProvider })
+  const embeddings = await embedBatch(chunks, {
+    provider: embeddingSpace.provider,
+    embeddingModelId: embeddingSpace.embeddingModelId,
+    embeddingSpaceId: embeddingSpace.embeddingSpaceId
+  })
   const ingestedAt = new Date().toISOString()
 
   const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
@@ -144,7 +150,11 @@ async function ingestPage(
   const chunkCount = rows.length
   const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0)
 
-  await replaceChunks(pageId, rows, { provider: embeddingProvider })
+  await replaceChunks(pageId, rows, {
+    provider: embeddingSpace.provider,
+    embeddingModelId: embeddingSpace.embeddingModelId,
+    embeddingSpaceId: embeddingSpace.embeddingSpaceId
+  })
   await upsertDocumentState({
     doc_id: pageId,
     source_url: sourceUrl,
@@ -228,11 +238,18 @@ async function main() {
       ? mode.reason ?? 'Partial ingest (CLI override)'
       : null
 
+  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION
+
   const runHandle: IngestRunHandle = await startIngestRun({
     source: 'notion',
     ingestion_type: mode.type,
     partial_reason: resolvedReason,
-    metadata: { rootPageId, embeddingProvider: DEFAULT_EMBEDDING_PROVIDER }
+    metadata: {
+      rootPageId,
+      embeddingProvider: embeddingSpace.provider,
+      embeddingSpaceId: embeddingSpace.embeddingSpaceId,
+      embeddingModelId: embeddingSpace.embeddingModelId
+    }
   })
 
   const stats = createEmptyRunStats()

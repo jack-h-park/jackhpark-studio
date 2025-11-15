@@ -1,13 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
+import { findEmbeddingSpace } from "@/lib/core/embedding-spaces";
 import {
   loadCanonicalPageLookup,
   resolvePublicPageUrl,
 } from "@/lib/server/page-url";
-import {
-  type ModelProvider,
-  toModelProviderId,
-} from "@/lib/shared/model-provider";
 
 import {
   DEFAULT_RUNS_PAGE_SIZE,
@@ -20,6 +17,8 @@ import {
   type RunStatus,
 } from "../../../lib/admin/ingestion-runs";
 import { getSupabaseAdminClient } from "../../../lib/supabase-admin";
+
+const UNKNOWN_EMBEDDING_FILTER_VALUE = "__unknown_embedding__";
 
 type RunsResponse = {
   runs: RunRecord[];
@@ -37,7 +36,8 @@ type ParsedQuery = {
   statuses: RunStatus[];
   sources: string[];
   ingestionTypes: IngestionType[];
-  embeddingProviders: ModelProvider[];
+  embeddingSpaces: string[];
+  includeUnknownEmbedding: boolean;
   startedFrom: string | null;
   startedTo: string | null;
   hideSkipped: boolean;
@@ -64,6 +64,12 @@ function toString(value: string | string[] | undefined): string | undefined {
     return value[0];
   }
   return value;
+}
+
+function formatInList(values: string[]): string {
+  return values
+    .map((value) => `"${value.replaceAll('"', '""')}"`)
+    .join(",");
 }
 
 function normalizeDateParam(
@@ -127,14 +133,27 @@ function parseQuery(query: NextApiRequest["query"]): ParsedQuery {
   }
   const ingestionTypes = Array.from(ingestionTypeSet);
 
-  const embeddingProviderSet = new Set<ModelProvider>();
-  for (const candidate of toList(query.embeddingProvider)) {
-    const provider = toModelProviderId(candidate);
-    if (provider) {
-      embeddingProviderSet.add(provider);
+  const embeddingSpaceSet = new Set<string>();
+  let includeUnknownEmbedding = false;
+  for (const candidate of toList(query.embeddingModel)) {
+    if (candidate === UNKNOWN_EMBEDDING_FILTER_VALUE) {
+      includeUnknownEmbedding = true;
+      continue;
+    }
+    const space = findEmbeddingSpace(candidate);
+    if (space) {
+      embeddingSpaceSet.add(space.embeddingSpaceId);
     }
   }
-  const embeddingProviders = Array.from(embeddingProviderSet);
+  if (embeddingSpaceSet.size === 0 && !includeUnknownEmbedding) {
+    for (const candidate of toList(query.embeddingProvider)) {
+      const space = findEmbeddingSpace(candidate);
+      if (space) {
+        embeddingSpaceSet.add(space.embeddingSpaceId);
+      }
+    }
+  }
+  const embeddingSpaces = Array.from(embeddingSpaceSet);
 
   const startedFrom = normalizeDateParam(
     toString(query.startedFrom),
@@ -150,7 +169,8 @@ function parseQuery(query: NextApiRequest["query"]): ParsedQuery {
     statuses,
     sources,
     ingestionTypes,
-    embeddingProviders,
+    embeddingSpaces,
+    includeUnknownEmbedding,
     startedFrom,
     startedTo,
     hideSkipped,
@@ -190,7 +210,8 @@ export default async function handler(
     statuses,
     sources,
     ingestionTypes,
-    embeddingProviders,
+    embeddingSpaces,
+    includeUnknownEmbedding,
     startedFrom,
     startedTo,
     hideSkipped,
@@ -231,11 +252,34 @@ export default async function handler(
     query = query.in("ingestion_type", ingestionTypes);
   }
 
-  if (embeddingProviders.length > 0) {
-    query = query.in(
-      "metadata->>embeddingProvider",
-      embeddingProviders,
-    );
+  if (embeddingSpaces.length > 0 || includeUnknownEmbedding) {
+    const orClauses: string[] = [];
+    if (embeddingSpaces.length > 0) {
+      orClauses.push(
+        `metadata->>embeddingSpaceId.in.(${formatInList(embeddingSpaces)})`,
+      );
+      const providerFallbacks = new Set<string>();
+      for (const spaceId of embeddingSpaces) {
+        const option = findEmbeddingSpace(spaceId);
+        if (option) {
+          providerFallbacks.add(option.provider);
+        }
+      }
+      if (providerFallbacks.size > 0) {
+        orClauses.push(
+          `metadata->>embeddingProvider.in.(${formatInList(
+            Array.from(providerFallbacks),
+          )})`,
+        );
+      }
+    }
+    if (includeUnknownEmbedding) {
+      orClauses.push("metadata->>embeddingSpaceId.is.null");
+      orClauses.push("metadata->>embeddingSpaceId.eq.");
+    }
+    if (orClauses.length > 0) {
+      query = query.or(orClauses.join(","));
+    }
   }
 
   if (startedFrom) {

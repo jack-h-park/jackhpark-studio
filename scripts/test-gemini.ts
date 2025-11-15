@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import * as dotenv from 'dotenv'
 
 import { getGeminiModelCandidates } from '@/lib/core/gemini'
-import { getLlmModelName, requireProviderApiKey } from '@/lib/core/model-provider'
+import { requireProviderApiKey,resolveLlmModel } from '@/lib/core/model-provider'
 
 if (!process.env.VERCEL && !process.env.CI) {
   dotenv.config({ path: '.env.local' })
@@ -13,10 +13,12 @@ if (!process.env.VERCEL && !process.env.CI) {
 const DEFAULT_PROMPT = 'Can you confirm the Gemini API is reachable?'
 
 const apiKey = requireProviderApiKey('gemini')
-const baseModel =
-  process.env.GOOGLE_LLM_MODEL ??
-  process.env.LLM_MODEL ??
-  getLlmModelName('gemini', null)
+const baseSelection = resolveLlmModel({
+  provider: 'gemini',
+  modelId: process.env.GOOGLE_LLM_MODEL ?? process.env.LLM_MODEL ?? undefined,
+  model: process.env.GOOGLE_LLM_MODEL ?? process.env.LLM_MODEL ?? undefined
+})
+const baseModel = baseSelection.model
 const prompt = process.argv.slice(2).join(' ').trim() || DEFAULT_PROMPT
 
 const candidates = getGeminiModelCandidates(baseModel)

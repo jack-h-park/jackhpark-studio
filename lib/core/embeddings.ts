@@ -2,16 +2,13 @@ import pMap from 'p-map'
 
 import type { ModelProvider } from '@/lib/shared/model-provider'
 import {
-  getEmbeddingModelName,
-  normalizeEmbeddingProvider,
-  requireProviderApiKey
-} from '@/lib/core/model-provider'
+  type EmbeddingModelSelectionInput,
+  resolveEmbeddingSpace} from '@/lib/core/embedding-spaces'
+import { normalizeEmbeddingProvider, requireProviderApiKey } from '@/lib/core/model-provider'
 
 import { getOpenAIClient } from './openai'
 
-type EmbedTextsOptions = {
-  provider?: string | null
-  model?: string | null
+type EmbedTextsOptions = EmbeddingModelSelectionInput & {
   apiKey?: string | null
 }
 
@@ -124,9 +121,15 @@ export async function embedTexts(
   options?: EmbedTextsOptions
 ): Promise<number[][]> {
   const provider = normalizeEmbeddingProvider(options?.provider)
-  const modelName = getEmbeddingModelName(provider, options?.model ?? null)
+  const resolved = resolveEmbeddingSpace({
+    provider,
+    embeddingModelId: options?.embeddingModelId ?? options?.model,
+    model: options?.model,
+    embeddingSpaceId: options?.embeddingSpaceId
+  })
+  const modelName = resolved.model
   const apiKey = options?.apiKey ?? null
-  return embedWithProvider(provider, texts, modelName, apiKey)
+  return embedWithProvider(resolved.provider, texts, modelName, apiKey)
 }
 
 export async function embedText(

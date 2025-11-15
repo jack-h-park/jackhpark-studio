@@ -1,20 +1,15 @@
-import { type ModelProvider,normalizeModelProvider } from '@/lib/shared/model-provider'
+import { type ModelProvider, normalizeModelProvider } from '@/lib/shared/model-provider'
+
+import {
+  resolveEmbeddingSpace
+} from './embedding-spaces'
+import {
+  resolveLlmModel
+} from './llm-registry'
 
 type ProviderKeyConfig = {
   envKeys: string[]
   missingMessage: string
-}
-
-const DEFAULT_LLM_MODELS: Record<ModelProvider, string> = {
-  openai: 'gpt-4o-mini',
-  gemini: 'gemini-1.5-flash-latest',
-  huggingface: 'mistralai/Mixtral-8x7B-Instruct'
-}
-
-const DEFAULT_EMBEDDING_MODELS: Record<ModelProvider, string> = {
-  openai: 'text-embedding-3-small',
-  gemini: 'text-embedding-004',
-  huggingface: 'sentence-transformers/all-MiniLM-L6-v2'
 }
 
 const PROVIDER_KEY_CONFIG: Record<ModelProvider, ProviderKeyConfig> = {
@@ -35,11 +30,8 @@ const PROVIDER_KEY_CONFIG: Record<ModelProvider, ProviderKeyConfig> = {
   }
 }
 
-export const DEFAULT_LLM_PROVIDER = normalizeModelProvider(process.env.LLM_PROVIDER, 'openai')
-export const DEFAULT_EMBEDDING_PROVIDER = normalizeModelProvider(
-  process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER,
-  DEFAULT_LLM_PROVIDER
-)
+export const DEFAULT_LLM_PROVIDER = resolveLlmModel().provider
+export const DEFAULT_EMBEDDING_PROVIDER = resolveEmbeddingSpace().provider
 
 export type ProviderUsage = 'llm' | 'embedding' | 'both'
 
@@ -67,76 +59,38 @@ export function requireProviderApiKey(provider: ModelProvider): string {
 }
 
 export function getLlmModelName(provider: ModelProvider, explicit?: string | null): string {
-  if (explicit && explicit.trim().length > 0) {
-    return explicit.trim()
-  }
-
-  switch (provider) {
-    case 'openai':
-      return (
-        process.env.OPENAI_MODEL ??
-        process.env.LLM_MODEL ??
-        DEFAULT_LLM_MODELS.openai
-      )
-    case 'gemini':
-      return (
-        process.env.GOOGLE_LLM_MODEL ??
-        process.env.LLM_MODEL ??
-        DEFAULT_LLM_MODELS.gemini
-      )
-    case 'huggingface':
-      return (
-        process.env.HUGGINGFACE_LLM_MODEL ??
-        process.env.LLM_MODEL ??
-        DEFAULT_LLM_MODELS.huggingface
-      )
-    default:
-      return DEFAULT_LLM_MODELS[provider]
-  }
+  const resolved = resolveLlmModel({
+    provider,
+    modelId: explicit ?? undefined,
+    model: explicit ?? undefined
+  })
+  return resolved.model
 }
 
 export function getEmbeddingModelName(
   provider: ModelProvider,
   explicit?: string | null
 ): string {
-  if (explicit && explicit.trim().length > 0) {
-    return explicit.trim()
-  }
-
-  switch (provider) {
-    case 'openai':
-      return (
-        process.env.OPENAI_EMBEDDING_MODEL ??
-        process.env.EMBEDDING_MODEL ??
-        DEFAULT_EMBEDDING_MODELS.openai
-      )
-    case 'gemini':
-      return (
-        process.env.GOOGLE_EMBEDDING_MODEL ??
-        process.env.EMBEDDING_MODEL ??
-        DEFAULT_EMBEDDING_MODELS.gemini
-      )
-    case 'huggingface':
-      return (
-        process.env.HUGGINGFACE_EMBEDDING_MODEL ??
-        process.env.EMBEDDING_MODEL ??
-        DEFAULT_EMBEDDING_MODELS.huggingface
-      )
-    default:
-      return DEFAULT_EMBEDDING_MODELS[provider]
-  }
+  const resolved = resolveEmbeddingSpace({
+    provider,
+    embeddingModelId: explicit ?? undefined,
+    model: explicit ?? undefined
+  })
+  return resolved.model
 }
 
 export function normalizeLlmProvider(
   provider: string | null | undefined
 ): ModelProvider {
-  return normalizeModelProvider(provider, DEFAULT_LLM_PROVIDER)
+  const fallback = resolveLlmModel({ provider }).provider
+  return normalizeModelProvider(provider, fallback)
 }
 
 export function normalizeEmbeddingProvider(
   provider: string | null | undefined
 ): ModelProvider {
-  return normalizeModelProvider(provider, DEFAULT_EMBEDDING_PROVIDER)
+  const fallback = resolveEmbeddingSpace({ provider }).provider
+  return normalizeModelProvider(provider, fallback)
 }
 
 export function getProviderDefaults(): {
@@ -149,12 +103,14 @@ export function getProviderDefaults(): {
   }
 }
 
-export function getDefaultModelNames(): {
-  llm: Record<ModelProvider, string>
-  embedding: Record<ModelProvider, string>
-} {
-  return {
-    llm: { ...DEFAULT_LLM_MODELS },
-    embedding: { ...DEFAULT_EMBEDDING_MODELS }
-  }
-}
+export {
+  DEFAULT_EMBEDDING_MODEL_ID,
+  DEFAULT_EMBEDDING_SPACE_ID,
+  listEmbeddingModelOptions,
+  resolveEmbeddingSpace
+} from './embedding-spaces'
+export {
+  DEFAULT_LLM_MODEL_ID,
+  listLlmModelOptions,
+  resolveLlmModel
+} from './llm-registry'

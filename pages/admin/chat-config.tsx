@@ -18,12 +18,9 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   SYSTEM_PROMPT_MAX_LENGTH
 } from '@/lib/chat-prompts'
-import { getDefaultModelNames } from '@/lib/core/model-provider'
-import {
-  type ChatEngine,
-  MODEL_PROVIDER_LABELS,
-  MODEL_PROVIDERS,
-  type ModelProvider} from '@/lib/shared/model-provider'
+import { listEmbeddingModelOptions } from '@/lib/core/embedding-spaces'
+import { listLlmModelOptions } from '@/lib/core/llm-registry'
+import { type ChatEngine } from '@/lib/shared/model-provider'
 
 type PageProps = {
   systemPrompt: string
@@ -51,15 +48,8 @@ type GuardrailNumericFormState = {
 
 type ModelFormState = {
   engine: ChatEngine
-  llmProvider: ModelProvider
-  embeddingProvider: ModelProvider
-  llmModel: string
-  embeddingModel: string
-}
-
-type ModelOverrideState = {
-  llm: boolean
-  embedding: boolean
+  llmModelId: string
+  embeddingSpaceId: string
 }
 
 type NumericFieldKey = Exclude<keyof GuardrailNumericFormState, 'summaryEnabled'>
@@ -105,14 +95,25 @@ const toNumericFormState = (
   }
 }
 
-const toModelFormState = (models?: ChatModelSettings, fallback?: ChatModelSettings): ModelFormState => {
+const LLM_MODEL_OPTIONS = listLlmModelOptions()
+const LLM_MODEL_OPTION_MAP = new Map(LLM_MODEL_OPTIONS.map((option) => [option.id, option]))
+const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions()
+const EMBEDDING_MODEL_OPTION_MAP = new Map(
+  EMBEDDING_MODEL_OPTIONS.map((option) => [option.embeddingSpaceId, option])
+)
+
+const toModelFormState = (
+  models?: ChatModelSettings,
+  fallback?: ChatModelSettings
+): ModelFormState => {
   const source = models ?? fallback
+  const defaultLlm = LLM_MODEL_OPTIONS[0]?.id ?? ''
+  const defaultEmbedding = EMBEDDING_MODEL_OPTIONS[0]?.embeddingSpaceId ?? ''
   return {
     engine: source?.engine ?? 'lc',
-    llmProvider: source?.llmProvider ?? 'openai',
-    embeddingProvider: source?.embeddingProvider ?? source?.llmProvider ?? 'openai',
-    llmModel: source?.llmModel ?? '',
-    embeddingModel: source?.embeddingModel ?? ''
+    llmModelId: source?.llmModelId ?? source?.llmModel ?? defaultLlm,
+    embeddingSpaceId:
+      source?.embeddingSpaceId ?? source?.embeddingModelId ?? defaultEmbedding
   }
 }
 
@@ -213,12 +214,42 @@ export default function ChatConfigPage({
   const [savedModels, setSavedModels] = useState<ModelFormState>(
     toModelFormState(models, modelDefaults)
   )
-  const [modelOverrides, setModelOverrides] = useState<ModelOverrideState>({
-    llm: Boolean(models.llmModel && models.llmModel.trim().length > 0),
-    embedding: Boolean(models.embeddingModel && models.embeddingModel.trim().length > 0)
-  })
   const [modelStatus, setModelStatus] = useState<SaveStatus>('idle')
   const [modelError, setModelError] = useState<string | null>(null)
+  const llmOptions = useMemo(() => {
+    if (!modelForm.llmModelId || LLM_MODEL_OPTION_MAP.has(modelForm.llmModelId)) {
+      return LLM_MODEL_OPTIONS
+    }
+    const fallbackProvider = LLM_MODEL_OPTIONS[0]?.provider ?? 'openai'
+    return [
+      ...LLM_MODEL_OPTIONS,
+      {
+        id: modelForm.llmModelId,
+        label: `${modelForm.llmModelId} (custom)`,
+        provider: fallbackProvider,
+        model: modelForm.llmModelId,
+        aliases: []
+      }
+    ]
+  }, [modelForm.llmModelId])
+  const embeddingOptions = useMemo(() => {
+    if (
+      !modelForm.embeddingSpaceId ||
+      EMBEDDING_MODEL_OPTION_MAP.has(modelForm.embeddingSpaceId)
+    ) {
+      return EMBEDDING_MODEL_OPTIONS
+    }
+    const fallback = EMBEDDING_MODEL_OPTIONS[0]
+    return [
+      ...EMBEDDING_MODEL_OPTIONS,
+      {
+        ...fallback,
+        embeddingSpaceId: modelForm.embeddingSpaceId,
+        embeddingModelId: modelForm.embeddingSpaceId,
+        label: `${modelForm.embeddingSpaceId} (custom)`
+      }
+    ]
+  }, [modelForm.embeddingSpaceId])
 
   const isDirty = value !== savedPrompt
   const isAtLimit = value.length >= SYSTEM_PROMPT_MAX_LENGTH
@@ -259,17 +290,13 @@ export default function ChatConfigPage({
     guardrailNumeric.summaryEnabled === guardrailDefaults.numeric.summaryEnabled
   const modelDirty =
     modelForm.engine !== savedModels.engine ||
-    modelForm.llmProvider !== savedModels.llmProvider ||
-    modelForm.embeddingProvider !== savedModels.embeddingProvider ||
-    modelForm.llmModel !== savedModels.llmModel ||
-    modelForm.embeddingModel !== savedModels.embeddingModel
+    modelForm.llmModelId !== savedModels.llmModelId ||
+    modelForm.embeddingSpaceId !== savedModels.embeddingSpaceId
   const modelSaveDisabled = !modelDirty || modelStatus === 'saving'
   const modelRestoreDisabled =
     modelForm.engine === modelDefaults.engine &&
-    modelForm.llmProvider === modelDefaults.llmProvider &&
-    modelForm.embeddingProvider === modelDefaults.embeddingProvider &&
-    modelForm.llmModel === modelDefaults.llmModel &&
-    modelForm.embeddingModel === modelDefaults.embeddingModel
+    modelForm.llmModelId === modelDefaults.llmModelId &&
+    modelForm.embeddingSpaceId === modelDefaults.embeddingSpaceId
 
   const handleChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => {
     setValue(event.target.value)
@@ -360,43 +387,20 @@ export default function ChatConfigPage({
 
   const handleModelFieldChange = useCallback(
     (field: keyof ModelFormState) =>
-      (event: ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-        const nextValue = event.target.value
+      (event: ChangeEvent<HTMLSelectElement>) => {
+        const nextValue = event.target.value as ModelFormState[typeof field]
         setModelForm((prev) => {
-          if (field === 'llmProvider') {
-            const defaults = getDefaultModelNames()
-            const nextProvider = nextValue as ModelProvider
-            return {
-              ...prev,
-              llmProvider: nextProvider,
-              llmModel: modelOverrides.llm ? prev.llmModel : defaults.llm[nextProvider]
-            }
-          }
-          if (field === 'embeddingProvider') {
-            const defaults = getDefaultModelNames()
-            const nextProvider = nextValue as ModelProvider
-            return {
-              ...prev,
-              embeddingProvider: nextProvider,
-              embeddingModel: modelOverrides.embedding
-                ? prev.embeddingModel
-                : defaults.embedding[nextProvider]
-            }
+          if (prev[field] === nextValue) {
+            return prev
           }
           return {
             ...prev,
             [field]: nextValue
           }
         })
-        if (field === 'llmProvider') {
-          setModelOverrides((prev) => ({ ...prev, llm: prev.llm }))
-        }
-        if (field === 'embeddingProvider') {
-          setModelOverrides((prev) => ({ ...prev, embedding: prev.embedding }))
-        }
         resetModelStatus()
       },
-    [modelOverrides.embedding, modelOverrides.llm, resetModelStatus]
+    [resetModelStatus]
   )
 
   const handleModelRestoreDefaults = useCallback(() => {
@@ -459,18 +463,15 @@ export default function ChatConfigPage({
     setModelError(null)
 
     try {
-      const payloadLlmModel = modelOverrides.llm ? modelForm.llmModel : ''
-      const payloadEmbeddingModel = modelOverrides.embedding ? modelForm.embeddingModel : ''
       const response = await fetch('/api/admin/chat-settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           models: {
             engine: modelForm.engine,
-            llmProvider: modelForm.llmProvider,
-            embeddingProvider: modelForm.embeddingProvider,
-            llmModel: payloadLlmModel,
-            embeddingModel: payloadEmbeddingModel
+            llmModel: modelForm.llmModelId,
+            embeddingModel: modelForm.embeddingSpaceId,
+            embeddingSpaceId: modelForm.embeddingSpaceId
           }
         })
       })
@@ -489,10 +490,6 @@ export default function ChatConfigPage({
         const normalized = toModelFormState(payload.models)
         setSavedModels(normalized)
         setModelForm(normalized)
-        setModelOverrides({
-          llm: Boolean(payload.models.llmModel && payload.models.llmModel.trim().length > 0),
-          embedding: Boolean(payload.models.embeddingModel && payload.models.embeddingModel.trim().length > 0)
-        })
         setModelStatus('saved')
       } catch (err: any) {
         console.error('[admin/chat-config] model save failed', err)
@@ -500,7 +497,7 @@ export default function ChatConfigPage({
         setModelStatus('error')
       }
     },
-    [modelForm, modelOverrides.embedding, modelOverrides.llm, modelSaveDisabled]
+    [modelForm, modelSaveDisabled]
   )
 
   const handleGuardrailSubmit = useCallback(
@@ -617,15 +614,22 @@ export default function ChatConfigPage({
     }
     const usingDefaults =
       savedModels.engine === modelDefaults.engine &&
-      savedModels.llmProvider === modelDefaults.llmProvider &&
-      savedModels.embeddingProvider === modelDefaults.embeddingProvider &&
-      savedModels.llmModel === modelDefaults.llmModel &&
-      savedModels.embeddingModel === modelDefaults.embeddingModel
+      savedModels.llmModelId === modelDefaults.llmModelId &&
+      savedModels.embeddingSpaceId === modelDefaults.embeddingSpaceId
     if (usingDefaults) {
       return 'Currently using environment defaults for engine and model selection.'
     }
-    return 'Choose the chat engine, LLM provider, and embedding provider used by the Chat Panel.'
-  }, [modelDefaults.embeddingModel, modelDefaults.embeddingProvider, modelDefaults.engine, modelDefaults.llmModel, modelDefaults.llmProvider, modelError, modelStatus, savedModels.embeddingModel, savedModels.embeddingProvider, savedModels.engine, savedModels.llmModel, savedModels.llmProvider])
+    return 'Choose the chat engine, LLM model, and embedding space used by the Chat Panel.'
+  }, [
+    modelDefaults.embeddingSpaceId,
+    modelDefaults.engine,
+    modelDefaults.llmModelId,
+    modelError,
+    modelStatus,
+    savedModels.embeddingSpaceId,
+    savedModels.engine,
+    savedModels.llmModelId
+  ])
 
   return (
     <>
@@ -705,107 +709,38 @@ export default function ChatConfigPage({
               </div>
 
               <div className="model-field">
-                <label htmlFor="llmProvider">LLM provider</label>
+                <label htmlFor="llmModel">LLM model</label>
                 <select
-                  id="llmProvider"
-                  value={modelForm.llmProvider}
-                  onChange={handleModelFieldChange('llmProvider')}
+                  id="llmModel"
+                  value={modelForm.llmModelId}
+                  onChange={handleModelFieldChange('llmModelId')}
                 >
-                  {MODEL_PROVIDERS.map((provider) => (
-                    <option key={provider} value={provider}>
-                      {MODEL_PROVIDER_LABELS[provider]}
+                  {llmOptions.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
-                <p className="help-text">Choose the LLM vendor for chat responses.</p>
-              </div>
-
-              <div className="model-field">
-                <div className="inline-field">
-                  <label htmlFor="llmOverride">LLM model override</label>
-                  <label className="toggle" aria-label="Toggle LLM model override">
-                    <input
-                      id="llmOverride"
-                      type="checkbox"
-                      checked={modelOverrides.llm}
-                      onChange={(event) => {
-                        const enabled = event.target.checked
-                        setModelOverrides((prev) => ({ ...prev, llm: enabled }))
-                        if (!enabled) {
-                          const defaults = getDefaultModelNames()
-                          setModelForm((prev) => ({
-                            ...prev,
-                            llmModel: defaults.llm[prev.llmProvider]
-                          }))
-                        }
-                        resetModelStatus()
-                      }}
-                    />
-                    <span />
-                  </label>
-                </div>
-                <input
-                  id="llmModel"
-                  type="text"
-                  value={modelForm.llmModel}
-                  onChange={handleModelFieldChange('llmModel')}
-                  placeholder="Provider default"
-                  readOnly={!modelOverrides.llm}
-                />
                 <p className="help-text">
-                  Override only when you need a specific model; otherwise the provider default is used.
+                  Determines which provider and model generate chat responses.
                 </p>
               </div>
+
               <div className="model-field">
-                <label htmlFor="embeddingProvider">Embedding provider</label>
+                <label htmlFor="embeddingModel">Embedding model</label>
                 <select
-                  id="embeddingProvider"
-                  value={modelForm.embeddingProvider}
-                  onChange={handleModelFieldChange('embeddingProvider')}
+                  id="embeddingModel"
+                  value={modelForm.embeddingSpaceId}
+                  onChange={handleModelFieldChange('embeddingSpaceId')}
                 >
-                  {MODEL_PROVIDERS.map((provider) => (
-                    <option key={provider} value={provider}>
-                      {MODEL_PROVIDER_LABELS[provider]}
+                  {embeddingOptions.map((option) => (
+                    <option key={option.embeddingSpaceId} value={option.embeddingSpaceId}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
-                <p className="help-text">Pick the provider used for retrieval embeddings.</p>
-              </div>
-
-              <div className="model-field">
-                <div className="inline-field">
-                  <label htmlFor="embeddingOverride">Embedding model override</label>
-                  <label className="toggle" aria-label="Toggle embedding model override">
-                    <input
-                      id="embeddingOverride"
-                      type="checkbox"
-                      checked={modelOverrides.embedding}
-                      onChange={(event) => {
-                        const enabled = event.target.checked
-                        setModelOverrides((prev) => ({ ...prev, embedding: enabled }))
-                        if (!enabled) {
-                          const defaults = getDefaultModelNames()
-                          setModelForm((prev) => ({
-                            ...prev,
-                            embeddingModel: defaults.embedding[prev.embeddingProvider]
-                          }))
-                        }
-                        resetModelStatus()
-                      }}
-                    />
-                    <span />
-                  </label>
-                </div>
-                <input
-                  id="embeddingModel"
-                  type="text"
-                  value={modelForm.embeddingModel}
-                  onChange={handleModelFieldChange('embeddingModel')}
-                  placeholder="Provider default"
-                  readOnly={!modelOverrides.embedding}
-                />
                 <p className="help-text">
-                  Must match how your chunks were ingested; leave blank to use the provider default.
+                  Must match the embedding space used when ingesting your content.
                 </p>
               </div>
             </div>

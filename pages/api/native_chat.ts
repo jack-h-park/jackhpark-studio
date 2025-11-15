@@ -1,15 +1,11 @@
 import { type NextApiRequest, type NextApiResponse } from 'next'
 
 import type { ModelProvider } from '@/lib/shared/model-provider'
+import { resolveEmbeddingSpace } from '@/lib/core/embedding-spaces'
 import { embedText } from '@/lib/core/embeddings'
 import { getGeminiModelCandidates, shouldRetryGeminiModel } from '@/lib/core/gemini'
-import {
-  getEmbeddingModelName,
-  getLlmModelName,
-  normalizeEmbeddingProvider,
-  normalizeLlmProvider,
-  requireProviderApiKey
-} from '@/lib/core/model-provider'
+import { resolveLlmModel } from '@/lib/core/llm-registry'
+import { requireProviderApiKey } from '@/lib/core/model-provider'
 import { getOpenAIClient } from '@/lib/core/openai'
 import { getRagMatchFunction } from '@/lib/core/rag-tables'
 import {
@@ -69,6 +65,7 @@ type ChatRequestBody = {
   embeddingProvider?: unknown
   model?: unknown
   embeddingModel?: unknown
+  embeddingSpaceId?: unknown
   temperature?: unknown
   maxTokens?: unknown
 }
@@ -113,22 +110,31 @@ export default async function handler(
     const normalizedQuestion = normalizeQuestion(userQuery)
     const routingDecision = routeQuestion(normalizedQuestion, messages, guardrails)
 
-    const provider = normalizeLlmProvider(
-      first(body.provider) ?? first(req.query.provider)
-    )
-    const embeddingProvider = normalizeEmbeddingProvider(
-      first(body.embeddingProvider) ??
-        first(req.query.embeddingProvider) ??
-        provider
-    )
-    const llmModel = getLlmModelName(
-      provider,
-      first(body.model) ?? first(req.query.model)
-    )
-    const embeddingModel = getEmbeddingModelName(
-      embeddingProvider,
+    const requestedProvider = first(body.provider) ?? first(req.query.provider)
+    const requestedEmbeddingProvider =
+      first(body.embeddingProvider) ?? first(req.query.embeddingProvider)
+    const requestedLlmModel = first(body.model) ?? first(req.query.model)
+    const requestedEmbeddingModel =
       first(body.embeddingModel) ?? first(req.query.embeddingModel)
-    )
+    const requestedEmbeddingSpace =
+      first((body as any)?.embeddingSpaceId) ?? first(req.query.embeddingSpaceId)
+
+    const llmSelection = resolveLlmModel({
+      provider: requestedProvider,
+      modelId: requestedLlmModel,
+      model: requestedLlmModel
+    })
+    const embeddingSelection = resolveEmbeddingSpace({
+      provider: requestedEmbeddingProvider ?? llmSelection.provider,
+      embeddingModelId: requestedEmbeddingModel,
+      embeddingSpaceId: requestedEmbeddingSpace,
+      model: requestedEmbeddingModel
+    })
+
+    const provider = llmSelection.provider
+    const embeddingProvider = embeddingSelection.provider
+    const llmModel = llmSelection.model
+    const embeddingModel = embeddingSelection.model
     const temperature = parseNumber(
       body.temperature ?? first(req.query.temperature),
       DEFAULT_TEMPERATURE
@@ -146,7 +152,8 @@ export default async function handler(
       provider,
       embeddingProvider,
       llmModel,
-      embeddingModel
+      embeddingModel,
+      embeddingSpaceId: embeddingSelection.embeddingSpaceId
     })
 
     let contextResult: ContextWindowResult = {
@@ -160,8 +167,10 @@ export default async function handler(
 
     if (routingDecision.intent === 'knowledge') {
       const embedding = await embedText(normalizedQuestion.normalized, {
-        provider: embeddingProvider,
-        model: embeddingModel
+        provider: embeddingSelection.provider,
+        model: embeddingSelection.model,
+        embeddingModelId: embeddingSelection.embeddingModelId,
+        embeddingSpaceId: embeddingSelection.embeddingSpaceId
       })
 
       if (!embedding || embedding.length === 0) {
@@ -169,7 +178,7 @@ export default async function handler(
       }
 
       const supabase = getSupabaseAdminClient()
-      const ragMatchFunction = getRagMatchFunction(embeddingProvider)
+      const ragMatchFunction = getRagMatchFunction(embeddingSelection)
       const matchCount = Math.max(
         DEFAULT_MATCH_COUNT,
         guardrails.ragTopK * 2

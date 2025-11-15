@@ -5,12 +5,10 @@ import type { BaseLanguageModelInterface } from '@langchain/core/language_models
 import type { NextApiRequest, NextApiResponse } from 'next'
 
 import type { ModelProvider } from '@/lib/shared/model-provider'
+import { type EmbeddingSpace,resolveEmbeddingSpace } from '@/lib/core/embedding-spaces'
 import { getGeminiModelCandidates, shouldRetryGeminiModel } from '@/lib/core/gemini'
+import { resolveLlmModel } from '@/lib/core/llm-registry'
 import {
-  getEmbeddingModelName,
-  getLlmModelName,
-  normalizeEmbeddingProvider,
-  normalizeLlmProvider,
   requireProviderApiKey
 } from '@/lib/core/model-provider'
 import { getLcChunksView, getLcMatchFunction } from '@/lib/core/rag-tables'
@@ -56,6 +54,7 @@ type ChatRequestBody = {
   embeddingProvider?: unknown
   model?: unknown
   embeddingModel?: unknown
+  embeddingSpaceId?: unknown
   temperature?: unknown
 }
 
@@ -101,22 +100,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const normalizedQuestion = normalizeQuestion(question)
     const routingDecision = routeQuestion(normalizedQuestion, messages, guardrails)
 
-    const provider = normalizeLlmProvider(
-      first(body.provider) ?? first(req.query.provider)
-    )
-    const embeddingProvider = normalizeEmbeddingProvider(
-      first(body.embeddingProvider) ??
-        first(req.query.embeddingProvider) ??
-        provider
-    )
-    const llmModel = getLlmModelName(
-      provider,
-      first(body.model) ?? first(req.query.model)
-    )
-    const embeddingModel = getEmbeddingModelName(
-      embeddingProvider,
+    const requestedProvider = first(body.provider) ?? first(req.query.provider)
+    const requestedEmbeddingProvider =
+      first(body.embeddingProvider) ?? first(req.query.embeddingProvider)
+    const requestedLlmModel = first(body.model) ?? first(req.query.model)
+    const requestedEmbeddingModel =
       first(body.embeddingModel) ?? first(req.query.embeddingModel)
-    )
+    const requestedEmbeddingSpace =
+      first(body.embeddingSpaceId) ?? first(req.query.embeddingSpaceId)
+
+    const llmSelection = resolveLlmModel({
+      provider: requestedProvider,
+      modelId: requestedLlmModel,
+      model: requestedLlmModel
+    })
+    const embeddingSelection = resolveEmbeddingSpace({
+      provider: requestedEmbeddingProvider ?? llmSelection.provider,
+      embeddingModelId: requestedEmbeddingModel,
+      embeddingSpaceId: requestedEmbeddingSpace ?? requestedEmbeddingModel,
+      model: requestedEmbeddingModel
+    })
+
+    const provider = llmSelection.provider
+    const embeddingProvider = embeddingSelection.provider
+    const llmModel = llmSelection.model
+    const embeddingModel = embeddingSelection.model
     const temperature = parseTemperature(
       body.temperature ?? first(req.query.temperature)
     )
@@ -133,10 +141,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       import('@langchain/core/runnables')
     ])
 
-    const embeddings = await createEmbeddingsInstance(
-      embeddingProvider,
-      embeddingModel
-    )
+    const embeddings = await createEmbeddingsInstance(embeddingSelection)
     console.log('[langchain_chat] guardrails', {
       intent: routingDecision.intent,
       reason: routingDecision.reason,
@@ -145,7 +150,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       provider,
       embeddingProvider,
       llmModel,
-      embeddingModel
+      embeddingModel,
+      embeddingSpaceId: embeddingSelection.embeddingSpaceId
     })
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -323,8 +329,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return { stream, citations }
     }
 
-    const primaryTable = getLcChunksView(embeddingProvider)
-    const primaryFunction = getLcMatchFunction(embeddingProvider)
+    const primaryTable = getLcChunksView(embeddingSelection)
+    const primaryFunction = getLcMatchFunction(embeddingSelection)
 
     const modelCandidates =
       provider === 'gemini'
@@ -492,15 +498,14 @@ function escapeForPromptTemplate(value: string): string {
 }
 
 async function createEmbeddingsInstance(
-  provider: ModelProvider,
-  modelName: string
+  selection: EmbeddingSpace
 ): Promise<EmbeddingsInterface> {
-  switch (provider) {
+  switch (selection.provider) {
     case 'openai': {
       const { OpenAIEmbeddings } = await import('@langchain/openai')
       const apiKey = requireProviderApiKey('openai')
       return new OpenAIEmbeddings({
-        model: modelName,
+        model: selection.model,
         apiKey
       })
     }
@@ -510,7 +515,7 @@ async function createEmbeddingsInstance(
       )
       const apiKey = requireProviderApiKey('gemini')
       return new GoogleGenerativeAIEmbeddings({
-        model: modelName,
+        model: selection.model,
         apiKey
       })
     }
@@ -520,12 +525,12 @@ async function createEmbeddingsInstance(
       )
       const apiKey = requireProviderApiKey('huggingface')
       return new HuggingFaceInferenceEmbeddings({
-        model: modelName,
+        model: selection.model,
         apiKey
       })
     }
     default:
-      throw new Error(`Unsupported embedding provider: ${provider}`)
+      throw new Error(`Unsupported embedding provider: ${selection.provider}`)
   }
 }
 

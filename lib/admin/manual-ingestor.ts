@@ -3,6 +3,7 @@ import { type ExtendedRecordMap } from 'notion-types'
 import { getAllPagesInSpace, parsePageId } from 'notion-utils'
 
 import type { ModelProvider } from '../shared/model-provider'
+import { resolveEmbeddingSpace } from '../core/embedding-spaces'
 import {
   chunkByTokens,
   type ChunkInsert,
@@ -33,6 +34,8 @@ type ManualIngestionBase = {
   ingestionType?: 'full' | 'partial'
   embeddingProvider?: ModelProvider
   embeddingModel?: string | null
+  embeddingModelId?: string | null
+  embeddingSpaceId?: string | null
 }
 
 export type ManualIngestionRequest =
@@ -64,6 +67,28 @@ export type ManualIngestionEvent =
 
 type EmitFn = (event: ManualIngestionEvent) => Promise<void> | void
 type ManualRunStatus = 'success' | 'completed_with_errors' | 'failed'
+
+const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
+  embeddingSpaceId: process.env.EMBEDDING_SPACE_ID ?? null,
+  embeddingModelId: process.env.EMBEDDING_MODEL ?? null,
+  provider: process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null
+})
+
+function toEmbeddingOptions(request: ManualIngestionRequest): EmbedBatchOptions {
+  const selection = resolveEmbeddingSpace({
+    embeddingSpaceId: request.embeddingSpaceId ?? DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
+    embeddingModelId: request.embeddingModel ?? request.embeddingModelId ?? undefined,
+    provider: request.embeddingProvider ?? DEFAULT_EMBEDDING_SELECTION.provider,
+    model: request.embeddingModel ?? undefined
+  })
+
+  return {
+    provider: selection.provider,
+    model: selection.model,
+    embeddingModelId: selection.embeddingModelId,
+    embeddingSpaceId: selection.embeddingSpaceId
+  }
+}
 
 async function ingestNotionPage({
   pageId,
@@ -137,10 +162,7 @@ async function ingestNotionPage({
 
   let providerHasChunks = false
   if (unchanged) {
-    providerHasChunks = await hasChunksForProvider(
-      pageId,
-      embeddingOptions.provider ?? null
-    )
+    providerHasChunks = await hasChunksForProvider(pageId, embeddingOptions)
   }
 
   if (!isFull && unchanged && providerHasChunks) {
@@ -195,9 +217,7 @@ async function ingestNotionPage({
     step: 'saving',
     percent: 85
   })
-  await replaceChunks(pageId, rows, {
-    provider: embeddingOptions.provider ?? null
-  })
+  await replaceChunks(pageId, rows, embeddingOptions)
   await upsertDocumentState({
     doc_id: pageId,
     source_url: sourceUrl,
@@ -244,7 +264,9 @@ async function runNotionPageIngestion(
       pageUrl,
       ingestionType,
       includeLinkedPages,
-      embeddingProvider: embeddingOptions.provider ?? null
+      embeddingProvider: embeddingOptions.provider ?? null,
+      embeddingSpaceId: embeddingOptions.embeddingSpaceId ?? null,
+      embeddingModelId: embeddingOptions.embeddingModelId ?? null
     }
   })
 
@@ -499,7 +521,9 @@ async function runUrlIngestion(
       url,
       hostname: parsedUrl.hostname,
       ingestionType,
-      embeddingProvider: embeddingOptions.provider ?? null
+      embeddingProvider: embeddingOptions.provider ?? null,
+      embeddingSpaceId: embeddingOptions.embeddingSpaceId ?? null,
+      embeddingModelId: embeddingOptions.embeddingModelId ?? null
     }
   })
 
@@ -553,10 +577,7 @@ async function runUrlIngestion(
 
     let providerHasChunks = false
     if (unchanged) {
-      providerHasChunks = await hasChunksForProvider(
-        url,
-        embeddingOptions.provider ?? null
-      )
+      providerHasChunks = await hasChunksForProvider(url, embeddingOptions)
     }
 
     if (unchanged && ingestionType === 'partial' && providerHasChunks) {
@@ -620,7 +641,9 @@ async function runUrlIngestion(
       percent: 85
     })
     await replaceChunks(url, rows, {
-      provider: embeddingOptions.provider ?? null
+      provider: embeddingOptions.provider ?? null,
+      embeddingModelId: embeddingOptions.embeddingModelId,
+      embeddingSpaceId: embeddingOptions.embeddingSpaceId
     })
     await upsertDocumentState({
       doc_id: url,
@@ -701,10 +724,7 @@ export async function runManualIngestion(
   request: ManualIngestionRequest,
   emit: EmitFn
 ): Promise<void> {
-  const embeddingOptions: EmbedBatchOptions = {
-    provider: request.embeddingProvider ?? null,
-    model: request.embeddingModel ?? null
-  }
+  const embeddingOptions = toEmbeddingOptions(request)
 
   if (request.mode === 'notion_page') {
     const ingestionType = request.ingestionType ?? 'partial'

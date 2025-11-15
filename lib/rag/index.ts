@@ -6,6 +6,9 @@ import { JSDOM } from 'jsdom'
 import { type Decoration, type ExtendedRecordMap } from 'notion-types'
 import { getPageContentBlockIds, getTextContent } from 'notion-utils'
 
+import {
+  type EmbeddingModelSelectionInput,
+  resolveEmbeddingSpace} from '../core/embedding-spaces'
 import { embedTexts } from '../core/embeddings'
 import { USER_AGENT } from '../core/openai'
 import { getRagChunksTable } from '../core/rag-tables'
@@ -357,10 +360,14 @@ export function chunkByTokens(
   return chunks
 }
 
-export type EmbedBatchOptions = {
-  provider?: string | null
-  model?: string | null
-}
+export type EmbedBatchOptions = EmbeddingModelSelectionInput
+
+const resolveEmbeddingSelection = (options?: EmbedBatchOptions | string | null) =>
+  resolveEmbeddingSpace(
+    typeof options === 'string'
+      ? { provider: options, embeddingModelId: options }
+      : options ?? undefined
+  )
 
 export async function embedBatch(
   texts: string[],
@@ -370,7 +377,8 @@ export async function embedBatch(
     return []
   }
 
-  return embedTexts(texts, options)
+  const resolved = resolveEmbeddingSelection(options)
+  return embedTexts(texts, { ...options, provider: resolved.provider, model: resolved.model })
 }
 
 export function hashChunk(input: string): string {
@@ -382,16 +390,15 @@ export function hashChunk(input: string): string {
   return String(hash)
 }
 
-type ReplaceChunksOptions = {
-  provider?: string | null
-}
+type ReplaceChunksOptions = EmbedBatchOptions
 
 export async function replaceChunks(
   docId: string,
   rows: ChunkInsert[],
   options?: ReplaceChunksOptions
 ): Promise<void> {
-  const tableName = getRagChunksTable(options?.provider ?? null)
+  const resolved = resolveEmbeddingSelection(options)
+  const tableName = getRagChunksTable(resolved)
   // 1. Get existing chunk hashes for the document
   const { data: existingChunks, error: selectError } = await retry<{ chunk_hash: string }[]>(
     () =>
@@ -440,9 +447,10 @@ export async function replaceChunks(
 
 export async function hasChunksForProvider(
   docId: string,
-  provider?: string | null
+  selection?: ReplaceChunksOptions | string | null
 ): Promise<boolean> {
-  const tableName = getRagChunksTable(provider ?? null)
+  const resolved = resolveEmbeddingSelection(selection)
+  const tableName = getRagChunksTable(resolved)
   const { count, error } = await supabaseClient
     .from(tableName)
     .select('doc_id', { count: 'exact', head: true })

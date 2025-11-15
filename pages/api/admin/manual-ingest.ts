@@ -1,8 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { parsePageId } from 'notion-utils'
 
-import { normalizeEmbeddingProvider } from '@/lib/core/model-provider'
-
 import {
   type ManualIngestionEvent,
   type ManualIngestionRequest,
@@ -17,6 +15,7 @@ type ManualIngestionBody = ManualIngestionRequest & {
   includeLinkedPages?: unknown
   embeddingProvider?: unknown
   embeddingModel?: unknown
+  embeddingSpaceId?: unknown
 }
 
 function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
@@ -35,22 +34,22 @@ function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
       typeof body.includeLinkedPages === 'boolean'
         ? body.includeLinkedPages
         : true
-    const embeddingProvider =
-      typeof body.embeddingProvider === 'string'
-        ? normalizeEmbeddingProvider(body.embeddingProvider)
-        : undefined
     const embeddingModel =
       typeof body.embeddingModel === 'string' && body.embeddingModel.trim().length > 0
         ? body.embeddingModel.trim()
         : undefined
+    const embeddingSpaceId =
+      typeof body.embeddingSpaceId === 'string' && body.embeddingSpaceId.trim().length > 0
+        ? body.embeddingSpaceId.trim()
+        : embeddingModel
 
     return {
       mode: 'notion_page',
       pageId: parsed,
       ingestionType,
       includeLinkedPages,
-      embeddingProvider,
-      embeddingModel
+      embeddingModel,
+      embeddingSpaceId
     }
   }
 
@@ -73,21 +72,21 @@ function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
     }
 
     const ingestionType = body.ingestionType === 'full' ? 'full' : 'partial'
-    const embeddingProvider =
-      typeof body.embeddingProvider === 'string'
-        ? normalizeEmbeddingProvider(body.embeddingProvider)
-        : undefined
     const embeddingModel =
       typeof body.embeddingModel === 'string' && body.embeddingModel.trim().length > 0
         ? body.embeddingModel.trim()
         : undefined
+    const embeddingSpaceId =
+      typeof body.embeddingSpaceId === 'string' && body.embeddingSpaceId.trim().length > 0
+        ? body.embeddingSpaceId.trim()
+        : embeddingModel
 
     return {
       mode: 'url',
       url: parsed.toString(),
       ingestionType,
-      embeddingProvider,
-      embeddingModel
+      embeddingModel,
+      embeddingSpaceId
     }
   }
 

@@ -8,13 +8,10 @@ import {
   SYSTEM_PROMPT_SETTING_KEY
 } from '@/lib/chat-prompts'
 import {
-  DEFAULT_EMBEDDING_PROVIDER,
-  DEFAULT_LLM_PROVIDER,
-  getDefaultModelNames,
-  getEmbeddingModelName,
-  getLlmModelName,
   normalizeEmbeddingProvider,
-  normalizeLlmProvider
+  normalizeLlmProvider,
+  resolveEmbeddingSpace,
+  resolveLlmModel
 } from '@/lib/core/model-provider'
 import { supabaseClient } from '@/lib/core/supabase'
 import {
@@ -56,12 +53,14 @@ const CHAT_LLM_PROVIDER_SETTING_KEY = 'chat_llm_provider'
 const CHAT_EMBEDDING_PROVIDER_SETTING_KEY = 'chat_embedding_provider'
 const CHAT_LLM_MODEL_SETTING_KEY = 'chat_llm_model'
 const CHAT_EMBEDDING_MODEL_SETTING_KEY = 'chat_embedding_model'
+const CHAT_EMBEDDING_SPACE_SETTING_KEY = 'chat_embedding_space_id'
 const CHAT_MODEL_SETTING_KEYS = [
   CHAT_ENGINE_SETTING_KEY,
   CHAT_LLM_PROVIDER_SETTING_KEY,
   CHAT_EMBEDDING_PROVIDER_SETTING_KEY,
   CHAT_LLM_MODEL_SETTING_KEY,
-  CHAT_EMBEDDING_MODEL_SETTING_KEY
+  CHAT_EMBEDDING_MODEL_SETTING_KEY,
+  CHAT_EMBEDDING_SPACE_SETTING_KEY
 ] as const
 
 export type GuardrailNumericSettings = {
@@ -85,6 +84,9 @@ export type GuardrailDefaults = {
 
 export type ChatModelSettings = {
   engine: ChatEngine
+  llmModelId: string
+  embeddingModelId: string
+  embeddingSpaceId: string
   llmProvider: ModelProvider
   embeddingProvider: ModelProvider
   llmModel: string
@@ -95,13 +97,15 @@ export type ChatModelSettings = {
     embeddingProvider: boolean
     llmModel: boolean
     embeddingModel: boolean
+    embeddingSpaceId: boolean
   }
 }
 
 export type ChatModelSettingsInput = {
   engine: ChatEngine
-  llmProvider: ModelProvider
-  embeddingProvider: ModelProvider
+  llmProvider?: ModelProvider
+  embeddingProvider?: ModelProvider
+  embeddingSpaceId?: string | null
   llmModel?: string | null
   embeddingModel?: string | null
 }
@@ -181,23 +185,26 @@ function getDefaultEngine(): ChatEngine {
 }
 
 export function getChatModelDefaults(): ChatModelSettings {
-  const defaults = getDefaultModelNames()
   const engine = getDefaultEngine()
-  const llmProvider = DEFAULT_LLM_PROVIDER
-  const embeddingProvider = DEFAULT_EMBEDDING_PROVIDER
+  const defaultLlm = resolveLlmModel()
+  const defaultEmbedding = resolveEmbeddingSpace()
 
   return {
     engine,
-    llmProvider,
-    embeddingProvider,
-    llmModel: defaults.llm[llmProvider],
-    embeddingModel: defaults.embedding[embeddingProvider],
+    llmModelId: defaultLlm.id,
+    embeddingModelId: defaultEmbedding.embeddingModelId,
+    embeddingSpaceId: defaultEmbedding.embeddingSpaceId,
+    llmProvider: defaultLlm.provider,
+    embeddingProvider: defaultEmbedding.provider,
+    llmModel: defaultLlm.model,
+    embeddingModel: defaultEmbedding.model,
     isDefault: {
       engine: true,
       llmProvider: true,
       embeddingProvider: true,
       llmModel: true,
-      embeddingModel: true
+      embeddingModel: true,
+      embeddingSpaceId: true
     }
   }
 }
@@ -450,6 +457,8 @@ export async function loadChatModelSettings(options?: {
   )
 
   const defaults = getChatModelDefaults()
+  const defaultLlm = resolveLlmModel()
+  const defaultEmbedding = resolveEmbeddingSpace()
 
   const engineSetting = resolveEngineSetting(
     settingsMap.get(CHAT_ENGINE_SETTING_KEY),
@@ -465,27 +474,45 @@ export async function loadChatModelSettings(options?: {
     defaults.embeddingProvider,
     normalizeEmbeddingProvider
   )
-  const llmModelSetting = resolveModelSetting(
-    settingsMap.get(CHAT_LLM_MODEL_SETTING_KEY),
-    getLlmModelName(llmProviderSetting.value)
-  )
-  const embeddingModelSetting = resolveModelSetting(
-    settingsMap.get(CHAT_EMBEDDING_MODEL_SETTING_KEY),
-    getEmbeddingModelName(embeddingProviderSetting.value)
-  )
+  const llmModelSetting = settingsMap.get(CHAT_LLM_MODEL_SETTING_KEY) ?? null
+  const embeddingModelSetting = settingsMap.get(CHAT_EMBEDDING_MODEL_SETTING_KEY) ?? null
+  const embeddingSpaceSetting = settingsMap.get(CHAT_EMBEDDING_SPACE_SETTING_KEY) ?? null
+
+  const llmSelection = resolveLlmModel({
+    provider: llmProviderSetting.value,
+    modelId: llmModelSetting,
+    model: llmModelSetting
+  })
+  const embeddingSelection = resolveEmbeddingSpace({
+    provider: embeddingProviderSetting.value,
+    embeddingModelId: embeddingModelSetting,
+    embeddingSpaceId: embeddingSpaceSetting,
+    model: embeddingModelSetting
+  })
 
   const result: ChatModelSettings = {
     engine: engineSetting.value,
-    llmProvider: llmProviderSetting.value,
-    embeddingProvider: embeddingProviderSetting.value,
-    llmModel: llmModelSetting.value,
-    embeddingModel: embeddingModelSetting.value,
+    llmModelId: llmSelection.id,
+    embeddingModelId: embeddingSelection.embeddingModelId,
+    embeddingSpaceId: embeddingSelection.embeddingSpaceId,
+    llmProvider: llmSelection.provider,
+    embeddingProvider: embeddingSelection.provider,
+    llmModel: llmSelection.model,
+    embeddingModel: embeddingSelection.model,
     isDefault: {
       engine: engineSetting.isDefault,
       llmProvider: llmProviderSetting.isDefault,
       embeddingProvider: embeddingProviderSetting.isDefault,
-      llmModel: llmModelSetting.isDefault,
-      embeddingModel: embeddingModelSetting.isDefault
+      llmModel:
+        !llmModelSetting || llmSelection.id === defaultLlm.id,
+      embeddingModel:
+        (!embeddingModelSetting ||
+          embeddingSelection.embeddingModelId === defaultEmbedding.embeddingModelId) &&
+        (!embeddingSpaceSetting ||
+          embeddingSelection.embeddingSpaceId === defaultEmbedding.embeddingSpaceId),
+      embeddingSpaceId:
+        !embeddingSpaceSetting ||
+        embeddingSelection.embeddingSpaceId === defaultEmbedding.embeddingSpaceId
     }
   }
 
@@ -498,25 +525,25 @@ export async function saveChatModelSettings(
   options?: { client?: SupabaseClient }
 ): Promise<ChatModelSettings> {
   const engine = normalizeChatEngine(input.engine, getDefaultEngine())
-  const llmProvider = normalizeLlmProvider(input.llmProvider)
-  const embeddingProvider = normalizeEmbeddingProvider(
-    input.embeddingProvider ?? llmProvider
-  )
-  const llmModel = normalizeModelValue(
-    input.llmModel,
-    getLlmModelName(llmProvider, input.llmModel)
-  )
-  const embeddingModel = normalizeModelValue(
-    input.embeddingModel,
-    getEmbeddingModelName(embeddingProvider, input.embeddingModel)
-  )
+  const llmSelection = resolveLlmModel({
+    provider: input.llmProvider,
+    modelId: input.llmModel,
+    model: input.llmModel
+  })
+  const embeddingSelection = resolveEmbeddingSpace({
+    provider: input.embeddingProvider ?? llmSelection.provider,
+    embeddingModelId: input.embeddingModel,
+    embeddingSpaceId: input.embeddingSpaceId,
+    model: input.embeddingModel
+  })
 
   const payload = [
     { key: CHAT_ENGINE_SETTING_KEY, value: engine },
-    { key: CHAT_LLM_PROVIDER_SETTING_KEY, value: llmProvider },
-    { key: CHAT_EMBEDDING_PROVIDER_SETTING_KEY, value: embeddingProvider },
-    { key: CHAT_LLM_MODEL_SETTING_KEY, value: llmModel },
-    { key: CHAT_EMBEDDING_MODEL_SETTING_KEY, value: embeddingModel }
+    { key: CHAT_LLM_PROVIDER_SETTING_KEY, value: llmSelection.provider },
+    { key: CHAT_EMBEDDING_PROVIDER_SETTING_KEY, value: embeddingSelection.provider },
+    { key: CHAT_LLM_MODEL_SETTING_KEY, value: llmSelection.id },
+    { key: CHAT_EMBEDDING_MODEL_SETTING_KEY, value: embeddingSelection.embeddingModelId },
+    { key: CHAT_EMBEDDING_SPACE_SETTING_KEY, value: embeddingSelection.embeddingSpaceId }
   ]
 
   const client = getClient(options?.client)
@@ -736,23 +763,6 @@ function resolveProviderSetting(
 
   const normalized = normalizer(raw)
   return { value: normalized, isDefault: normalized === fallback }
-}
-
-function resolveModelSetting(
-  raw: string | undefined,
-  fallback: string
-): { value: string; isDefault: boolean } {
-  if (raw === undefined) {
-    return { value: fallback, isDefault: true }
-  }
-
-  const normalized = normalizeModelValue(raw, fallback)
-  return { value: normalized, isDefault: normalized === fallback }
-}
-
-function normalizeModelValue(value: string | null | undefined, fallback: string): string {
-  const normalized = normalizeOptionalValue(value)
-  return normalized ?? fallback
 }
 
 function buildNumericSettings(

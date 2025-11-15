@@ -1,7 +1,5 @@
-import {
-  type ModelProvider,
-  normalizeModelProvider,
-} from "@/lib/shared/model-provider";
+import type { ModelProvider } from "@/lib/shared/model-provider";
+import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
 
 import type { RunStatus } from "./ingestion-runs";
 
@@ -43,7 +41,9 @@ export type SnapshotRecord = {
   runDurationMs: number | null;
   runErrorCount: number | null;
   runDocumentsSkipped: number | null;
+  embeddingSpaceId: string;
   embeddingProvider: ModelProvider;
+  embeddingLabel: string;
   ingestionMode: string | null;
   totalDocuments: number;
   totalChunks: number;
@@ -105,10 +105,13 @@ export function normalizeSnapshotRecord(
     return null;
   }
 
-  const embeddingProvider = normalizeModelProvider(
-    toStringOrNull(raw.embedding_provider),
-    "openai",
-  );
+  const rawEmbeddingValue = toStringOrNull(raw.embedding_provider);
+  const embeddingSelection = resolveEmbeddingSpace({
+    embeddingSpaceId: rawEmbeddingValue ?? undefined,
+    embeddingModelId: rawEmbeddingValue ?? undefined,
+    provider: rawEmbeddingValue ?? undefined,
+    model: rawEmbeddingValue ?? undefined,
+  });
 
   return {
     id: toStringOrNull(raw.id) ?? "",
@@ -121,7 +124,9 @@ export function normalizeSnapshotRecord(
     runDurationMs: toNullableNumber(raw.run_duration_ms),
     runErrorCount: toNullableNumber(raw.run_error_count),
     runDocumentsSkipped: toNullableNumber(raw.run_documents_skipped),
-    embeddingProvider,
+    embeddingSpaceId: embeddingSelection.embeddingSpaceId,
+    embeddingProvider: embeddingSelection.provider,
+    embeddingLabel: embeddingSelection.label,
     ingestionMode: toStringOrNull(raw.ingestion_mode),
     totalDocuments: toNumberOrZero(raw.total_documents),
     totalChunks: toNumberOrZero(raw.total_chunks),

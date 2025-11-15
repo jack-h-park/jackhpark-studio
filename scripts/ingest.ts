@@ -1,7 +1,7 @@
 // scripts/ingest.ts
 import pMap from 'p-map'
 
-import { normalizeEmbeddingProvider } from '../lib/core/model-provider'
+import { resolveEmbeddingSpace } from '../lib/core/embedding-spaces'
 import {
   chunkByTokens,
   type ChunkInsert,
@@ -26,9 +26,11 @@ const INGEST_CONCURRENCY = Math.max(
   Number.parseInt(process.env.INGEST_CONCURRENCY ?? '4', 10)
 )
 
-const DEFAULT_EMBEDDING_PROVIDER = normalizeEmbeddingProvider(
-  process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null
-)
+const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
+  embeddingSpaceId: process.env.EMBEDDING_SPACE_ID ?? null,
+  embeddingModelId: process.env.EMBEDDING_MODEL ?? null,
+  provider: process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null
+})
 
 type RunMode = {
   type: 'full' | 'partial'
@@ -102,7 +104,7 @@ async function ingestUrl(
 
   const contentHash = hashChunk(`${url}:${text}`)
   const existingState = await getDocumentState(url)
-  const embeddingProvider = DEFAULT_EMBEDDING_PROVIDER
+  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION
   const unchanged =
     existingState &&
     existingState.content_hash === contentHash &&
@@ -111,7 +113,7 @@ async function ingestUrl(
   if (unchanged) {
     const providerHasChunks = await hasChunksForProvider(
       url,
-      embeddingProvider
+      embeddingSpace
     )
 
     if (providerHasChunks) {
@@ -129,7 +131,11 @@ async function ingestUrl(
     return
   }
 
-  const embeddings = await embedBatch(chunks, { provider: embeddingProvider })
+  const embeddings = await embedBatch(chunks, {
+    provider: embeddingSpace.provider,
+    embeddingModelId: embeddingSpace.embeddingModelId,
+    embeddingSpaceId: embeddingSpace.embeddingSpaceId
+  })
   const ingestedAt = new Date().toISOString()
 
   const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
@@ -145,7 +151,11 @@ async function ingestUrl(
   const chunkCount = rows.length
   const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0)
 
-  await replaceChunks(url, rows, { provider: embeddingProvider })
+  await replaceChunks(url, rows, {
+    provider: embeddingSpace.provider,
+    embeddingModelId: embeddingSpace.embeddingModelId,
+    embeddingSpaceId: embeddingSpace.embeddingSpaceId
+  })
   await upsertDocumentState({
     doc_id: url,
     source_url: url,
@@ -193,13 +203,17 @@ async function main(): Promise<void> {
       ? mode.reason ?? 'Targeted URL ingest'
       : mode.reason ?? null
 
+  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION
+
   const runHandle: IngestRunHandle = await startIngestRun({
     source: 'web',
     ingestion_type: mode.type,
     partial_reason: resolvedReason ?? null,
     metadata: {
       urlCount: targets.length,
-      embeddingProvider: DEFAULT_EMBEDDING_PROVIDER
+      embeddingProvider: embeddingSpace.provider,
+      embeddingSpaceId: embeddingSpace.embeddingSpaceId,
+      embeddingModelId: embeddingSpace.embeddingModelId
     }
   })
 

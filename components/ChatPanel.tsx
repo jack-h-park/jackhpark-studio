@@ -17,6 +17,8 @@ import {
 } from "react";
 import css from "styled-jsx/css";
 
+import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
+import { resolveLlmModel } from "@/lib/core/llm-registry";
 import {
   deserializeGuardrailMeta,
   type GuardrailMeta,
@@ -29,10 +31,25 @@ import {
   normalizeModelProvider,
 } from "@/lib/shared/model-provider";
 
-const DEFAULT_MODEL_PROVIDER: ModelProvider = normalizeModelProvider(
-  process.env.NEXT_PUBLIC_LLM_PROVIDER ?? null,
-  "openai",
-);
+const DEFAULT_LLM_SELECTION = resolveLlmModel({
+  modelId: process.env.NEXT_PUBLIC_LLM_MODEL ?? process.env.LLM_MODEL ?? null,
+  provider: process.env.NEXT_PUBLIC_LLM_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
+  model: process.env.NEXT_PUBLIC_LLM_MODEL ?? null,
+});
+const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
+  embeddingModelId:
+    process.env.NEXT_PUBLIC_EMBEDDING_MODEL ?? process.env.EMBEDDING_MODEL ?? null,
+  embeddingSpaceId:
+    (process.env.NEXT_PUBLIC_EMBEDDING_SPACE_ID as string | undefined) ??
+    process.env.EMBEDDING_SPACE_ID ??
+    null,
+  provider:
+    process.env.NEXT_PUBLIC_EMBEDDING_PROVIDER ??
+    process.env.NEXT_PUBLIC_LLM_PROVIDER ??
+    process.env.EMBEDDING_PROVIDER ??
+    process.env.LLM_PROVIDER ??
+    null,
+});
 const DEFAULT_ENGINE: ChatEngine = normalizeChatEngine(
   process.env.NEXT_PUBLIC_CHAT_ENGINE ?? null,
   "lc",
@@ -646,6 +663,9 @@ type ChatRuntimeConfig = {
   engine: ChatEngine;
   llmProvider: ModelProvider;
   embeddingProvider: ModelProvider;
+  llmModelId: string | null;
+  embeddingModelId: string | null;
+  embeddingSpaceId: string | null;
   llmModel?: string | null;
   embeddingModel?: string | null;
 };
@@ -741,10 +761,13 @@ export function ChatPanel() {
 
   const [runtimeConfig, setRuntimeConfig] = useState<ChatRuntimeConfig>({
     engine: DEFAULT_ENGINE,
-    llmProvider: DEFAULT_MODEL_PROVIDER,
-    embeddingProvider: DEFAULT_MODEL_PROVIDER,
-    llmModel: null,
-    embeddingModel: null,
+    llmProvider: DEFAULT_LLM_SELECTION.provider,
+    embeddingProvider: DEFAULT_EMBEDDING_SELECTION.provider,
+    llmModelId: DEFAULT_LLM_SELECTION.id,
+    embeddingModelId: DEFAULT_EMBEDDING_SELECTION.embeddingModelId,
+    embeddingSpaceId: DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
+    llmModel: DEFAULT_LLM_SELECTION.model,
+    embeddingModel: DEFAULT_EMBEDDING_SELECTION.model,
   });
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
@@ -768,6 +791,9 @@ export function ChatPanel() {
             embeddingProvider?: string | null;
             llmModel?: string | null;
             embeddingModel?: string | null;
+            llmModelId?: string | null;
+            embeddingModelId?: string | null;
+            embeddingSpaceId?: string | null;
           } | null;
         };
         const models = payload?.models;
@@ -775,19 +801,23 @@ export function ChatPanel() {
           return;
         }
         const resolvedLlmProvider = normalizeModelProvider(
-          models.llmProvider,
-          DEFAULT_MODEL_PROVIDER,
+          models.llmProvider ?? DEFAULT_LLM_SELECTION.provider,
+          DEFAULT_LLM_SELECTION.provider,
         );
         const resolvedEmbeddingProvider = normalizeModelProvider(
-          models.embeddingProvider ?? models.llmProvider,
-          resolvedLlmProvider,
+          models.embeddingProvider ?? models.llmProvider ?? DEFAULT_EMBEDDING_SELECTION.provider,
+          DEFAULT_EMBEDDING_SELECTION.provider,
         );
         setRuntimeConfig({
           engine: normalizeChatEngine(models.engine, DEFAULT_ENGINE),
           llmProvider: resolvedLlmProvider,
           embeddingProvider: resolvedEmbeddingProvider,
-          llmModel: models.llmModel ?? null,
-          embeddingModel: models.embeddingModel ?? null,
+          llmModelId: models.llmModelId ?? models.llmModel ?? DEFAULT_LLM_SELECTION.id,
+          embeddingModelId:
+            models.embeddingModelId ?? models.embeddingModel ?? DEFAULT_EMBEDDING_SELECTION.embeddingModelId,
+          embeddingSpaceId: models.embeddingSpaceId ?? DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
+          llmModel: models.llmModel ?? DEFAULT_LLM_SELECTION.model,
+          embeddingModel: models.embeddingModel ?? DEFAULT_EMBEDDING_SELECTION.model,
         });
       } catch (err) {
         if (!controller.signal.aborted) {
@@ -943,6 +973,11 @@ export function ChatPanel() {
       try {
         const activeRuntime = runtimeConfig;
         const endpoint = `/api/chat?engine=${activeRuntime.engine}`;
+        const llmModelPayload =
+          activeRuntime.llmModelId ?? activeRuntime.llmModel ?? undefined;
+        const embeddingModelPayload =
+          activeRuntime.embeddingModelId ?? activeRuntime.embeddingModel ?? undefined;
+        const embeddingSpacePayload = activeRuntime.embeddingSpaceId ?? undefined;
         const sanitizedMessagesPayload = [...messages, userMessage].map(
           (message) => ({
             role: message.role,
@@ -960,8 +995,9 @@ export function ChatPanel() {
               messages: sanitizedMessagesPayload,
               provider: activeRuntime.llmProvider,
               embeddingProvider: activeRuntime.embeddingProvider,
-              model: activeRuntime.llmModel ?? undefined,
-              embeddingModel: activeRuntime.embeddingModel ?? undefined,
+              model: llmModelPayload,
+              embeddingModel: embeddingModelPayload,
+              embeddingSpaceId: embeddingSpacePayload,
             }),
             signal: controller.signal,
           });
@@ -1023,8 +1059,9 @@ export function ChatPanel() {
               messages: sanitizedMessagesPayload,
               provider: activeRuntime.llmProvider,
               embeddingProvider: activeRuntime.embeddingProvider,
-              model: activeRuntime.llmModel ?? undefined,
-              embeddingModel: activeRuntime.embeddingModel ?? undefined,
+              model: llmModelPayload,
+              embeddingModel: embeddingModelPayload,
+              embeddingSpaceId: embeddingSpacePayload,
             }),
             signal: controller.signal,
           });
@@ -1136,14 +1173,20 @@ export function ChatPanel() {
                     <span className="meta-chip">
                       LLM:{" "}
                       {MODEL_PROVIDER_LABELS[runtimeConfig.llmProvider]}
-                      {runtimeConfig.llmModel ? ` · ${runtimeConfig.llmModel}` : ""}
+                      {runtimeConfig.llmModelId
+                        ? ` · ${runtimeConfig.llmModelId}`
+                        : runtimeConfig.llmModel
+                          ? ` · ${runtimeConfig.llmModel}`
+                          : ""}
                     </span>
                     <span className="meta-chip">
                       Embedding:{" "}
                       {MODEL_PROVIDER_LABELS[runtimeConfig.embeddingProvider]}
-                      {runtimeConfig.embeddingModel
-                        ? ` · ${runtimeConfig.embeddingModel}`
-                        : ""}
+                      {runtimeConfig.embeddingModelId
+                        ? ` · ${runtimeConfig.embeddingModelId}`
+                        : runtimeConfig.embeddingModel
+                          ? ` · ${runtimeConfig.embeddingModel}`
+                          : ""}
                     </span>
                   </div>
                   <p className="runtime-readonly__hint">
@@ -1241,12 +1284,20 @@ export function ChatPanel() {
                     : null
               const runtimeLlmLabel = m.runtime
                 ? `${MODEL_PROVIDER_LABELS[m.runtime.llmProvider]}${
-                    m.runtime.llmModel ? ` · ${m.runtime.llmModel}` : ""
+                    m.runtime.llmModelId
+                      ? ` · ${m.runtime.llmModelId}`
+                      : m.runtime.llmModel
+                        ? ` · ${m.runtime.llmModel}`
+                        : ""
                   }`
                 : null
               const runtimeEmbeddingLabel = m.runtime
                 ? `${MODEL_PROVIDER_LABELS[m.runtime.embeddingProvider]}${
-                    m.runtime.embeddingModel ? ` · ${m.runtime.embeddingModel}` : ""
+                    m.runtime.embeddingModelId
+                      ? ` · ${m.runtime.embeddingModelId}`
+                      : m.runtime.embeddingModel
+                        ? ` · ${m.runtime.embeddingModel}`
+                        : ""
                   }`
                 : null
               const hasRuntime = Boolean(
