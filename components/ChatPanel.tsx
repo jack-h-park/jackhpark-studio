@@ -477,6 +477,68 @@ const styles = css`
     color: #374151;
     line-height: 1.3;
   }
+  .meta-debug-item {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  .meta-debug-label {
+    color: #475569;
+  }
+  .meta-debug-value {
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .guardrail-summary {
+    margin-top: 4px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    background: rgba(241, 245, 255, 0.7);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.7rem;
+  }
+
+  .guardrail-summary-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: space-between;
+  }
+
+  .guardrail-summary-entry {
+    flex: 1 1 120px;
+    min-width: 110px;
+  }
+
+  .guardrail-summary-label {
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #5b6476;
+    margin-bottom: 1px;
+  }
+
+  .guardrail-summary-value {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.2;
+  }
+
+  .guardrail-summary-value.warning {
+    color: #b45309;
+  }
+
+  .guardrail-summary-row.summary-chip {
+    justify-content: flex-start;
+    margin-top: 2px;
+  }
 
   .message-citations {
     margin-top: 4px;
@@ -1146,6 +1208,46 @@ export function ChatPanel() {
                 m.citations && m.citations.length > 0
                   ? mergeCitations(m.citations)
                   : null;
+              const contextStats = m.meta?.context
+              const totalExcerptsRaw =
+                contextStats?.retrieved ??
+                (typeof contextStats?.included === "number" &&
+                typeof contextStats?.dropped === "number"
+                  ? contextStats.included + contextStats.dropped
+                  : null)
+              const totalExcerpts =
+                totalExcerptsRaw !== null && totalExcerptsRaw !== undefined
+                  ? Math.max(totalExcerptsRaw, contextStats?.included ?? 0)
+                  : null
+              const contextUsageLabel =
+                contextStats && totalExcerpts !== null && totalExcerpts > 0
+                  ? `${contextStats.included} used out of ${totalExcerpts} excerpts`
+                  : contextStats
+                    ? `${contextStats.included} excerpts`
+                    : null
+              const contextTokensLabel =
+                contextStats && `(${contextStats.totalTokens} tokens)`
+              const similarityThreshold =
+                contextStats &&
+                typeof contextStats.similarityThreshold === "number"
+                  ? contextStats.similarityThreshold
+                  : null
+              const highestSimilarity =
+                contextStats &&
+                typeof contextStats.highestSimilarity === "number"
+                  ? contextStats.highestSimilarity
+                  : null
+              const historyStats = m.meta?.history
+              const historyLabel = historyStats
+                ? `${historyStats.tokens} / ${historyStats.budget} tokens${
+                    historyStats.trimmedTurns > 0
+                      ? ` (${historyStats.trimmedTurns} trimmed)`
+                      : ""
+                  }`
+                : typeof m.meta?.historyTokens === "number"
+                  ? `${m.meta.historyTokens} tokens`
+                  : null
+
               return (
                 <div key={m.id} className="message-group">
                   <div className={`message ${m.role}`}>
@@ -1156,31 +1258,55 @@ export function ChatPanel() {
                 {m.role === "assistant" && m.meta && (
                   <>
                     <div className="message-meta">
-                      <span className="meta-chip">
-                        Intent: {m.meta.intent}
-                      </span>
-                      <span
-                        className={`meta-chip ${
-                          m.meta.context.insufficient ? "warning" : ""
-                        }`}
-                      >
-                        Context: {m.meta.context.included} kept ·{" "}
-                        {m.meta.context.totalTokens} tokens
-                      </span>
-                      {m.meta.summaryApplied && (
-                        <span className="meta-chip">Summary applied</span>
+                      {contextStats && (
+                        <div className="guardrail-summary">
+                          <div className="guardrail-summary-row">
+                            <div className="guardrail-summary-entry">
+                              <div className="guardrail-summary-label">Route</div>
+                              <div className="guardrail-summary-value">
+                                {m.meta.reason ?? m.meta.intent}
+                              </div>
+                            </div>
+                            <div className="guardrail-summary-entry">
+                              <div className="guardrail-summary-label">Context</div>
+                              <div
+                                className={`guardrail-summary-value ${contextStats.insufficient ? "warning" : ""}`}
+                              >
+                                {contextUsageLabel}
+                                {contextTokensLabel ? ` ${contextTokensLabel}` : ""}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="guardrail-summary-row">
+                            {historyLabel && (
+                              <div className="guardrail-summary-entry">
+                                <div className="guardrail-summary-label">History</div>
+                                <div className="guardrail-summary-value">
+                                  {historyLabel}
+                                </div>
+                              </div>
+                            )}
+                            {similarityThreshold !== null && (
+                              <div className="guardrail-summary-entry">
+                                <div className="guardrail-summary-label">Similarity</div>
+                                <div className="guardrail-summary-value">
+                                  {highestSimilarity !== null
+                                    ? highestSimilarity.toFixed(3)
+                                    : "—"}{" "}
+                                  / min {similarityThreshold.toFixed(2)}
+                                  {contextStats.insufficient ? " (Insufficient)" : ""}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          {m.meta.summaryApplied && (
+                            <div className="guardrail-summary-row summary-chip">
+                              <span className="meta-chip">Summary applied</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
-                    {showDiagnostics && (
-                      <div className="meta-debug">
-                        <div>Reason: {m.meta.reason}</div>
-                        <div>History tokens: {m.meta.historyTokens}</div>
-                        <div>
-                          Dropped excerpts: {m.meta.context.dropped} ·
-                          Insufficient: {m.meta.context.insufficient ? "Yes" : "No"}
-                        </div>
-                      </div>
-                    )}
                   </>
                 )}
                   {m.role === "assistant" &&

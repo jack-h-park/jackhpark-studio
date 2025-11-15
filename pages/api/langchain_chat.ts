@@ -232,11 +232,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         reason: routingDecision.reason,
         historyTokens: historyWindow.tokenCount,
         summaryApplied: Boolean(historyWindow.summaryMemory),
+        history: {
+          tokens: historyWindow.tokenCount,
+          budget: guardrails.historyTokenBudget,
+          trimmedTurns: historyWindow.trimmed.length,
+          preservedTurns: historyWindow.preserved.length
+        },
         context: {
           included: contextResult.included.length,
           dropped: contextResult.dropped,
           totalTokens: contextResult.totalTokens,
-          insufficient: contextResult.insufficient
+          insufficient: contextResult.insufficient,
+          retrieved: contextResult.included.length + contextResult.dropped,
+          similarityThreshold: guardrails.similarityThreshold,
+          highestSimilarity: Number.isFinite(contextResult.highestScore)
+            ? contextResult.highestScore
+            : undefined
         }
       }
 

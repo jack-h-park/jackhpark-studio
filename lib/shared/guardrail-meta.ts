@@ -3,6 +3,16 @@ export type GuardrailMetaContext = {
   dropped: number
   totalTokens: number
   insufficient: boolean
+  retrieved?: number
+  similarityThreshold?: number
+  highestSimilarity?: number
+}
+
+export type GuardrailMetaHistory = {
+  tokens: number
+  budget: number
+  trimmedTurns: number
+  preservedTurns: number
 }
 
 export type GuardrailMeta = {
@@ -10,6 +20,7 @@ export type GuardrailMeta = {
   reason: string
   historyTokens: number
   summaryApplied: boolean
+  history?: GuardrailMetaHistory
   context: GuardrailMetaContext
 }
 
