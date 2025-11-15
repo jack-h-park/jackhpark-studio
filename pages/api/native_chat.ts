@@ -547,7 +547,7 @@ async function* streamGemini(options: ChatStreamOptions): AsyncGenerator<string>
   }
 }
 
-function buildPlainPrompt(systemPrompt: string, messages: ChatMessage[]): string {
+function _buildPlainPrompt(systemPrompt: string, messages: ChatMessage[]): string {
   const parts: string[] = [`System:\n${systemPrompt.trim()}`]
 
   for (const message of messages) {

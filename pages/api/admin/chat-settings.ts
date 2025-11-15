@@ -6,25 +6,29 @@ import {
   type GuardrailNumericSettings,
   loadChatModelSettings,
   loadGuardrailSettings,
+  loadLangfuseSettings,
   loadSystemPrompt,
   saveChatModelSettings,
   saveGuardrailSettings,
+  saveLangfuseSettings,
   saveSystemPrompt
 } from '@/lib/server/chat-settings'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
     try {
-      const [promptResult, guardrailResult, chatModelSettings] = await Promise.all([
+      const [promptResult, guardrailResult, chatModelSettings, langfuseSettings] = await Promise.all([
         loadSystemPrompt({ forceRefresh: true }),
         loadGuardrailSettings({ forceRefresh: true }),
-        loadChatModelSettings({ forceRefresh: true })
+        loadChatModelSettings({ forceRefresh: true }),
+        loadLangfuseSettings({ forceRefresh: true })
       ])
       return res.status(200).json({
         systemPrompt: promptResult.prompt,
         isDefault: promptResult.isDefault,
         guardrails: guardrailResult,
-        models: chatModelSettings
+        models: chatModelSettings,
+        langfuse: langfuseSettings
       })
     } catch (err: any) {
       console.error('[api/admin/chat-settings] failed to load settings', err)
@@ -38,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       const payload =
         typeof req.body === 'string' ? JSON.parse(req.body) : req.body ?? {}
-      const { systemPrompt, guardrails, models } = payload as {
+      const { systemPrompt, guardrails, models, langfuse } = payload as {
         systemPrompt?: unknown
         guardrails?: {
           chitchatKeywords?: unknown
@@ -53,6 +57,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           embeddingSpaceId?: unknown
           llmProvider?: unknown
           embeddingProvider?: unknown
+        }
+        langfuse?: {
+          envTag?: unknown
+          sampleRateDev?: unknown
+          sampleRatePreview?: unknown
+          attachProviderMetadata?: unknown
         }
       }
 
@@ -78,9 +88,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         (typeof models.llmProvider === 'string' || models.llmProvider === undefined || models.llmProvider === null) &&
         (typeof models.embeddingProvider === 'string' || models.embeddingProvider === undefined || models.embeddingProvider === null)
 
-      if (!hasPrompt && !hasGuardrails && !hasModels) {
+      const hasLangfuse =
+        langfuse &&
+        typeof langfuse === 'object' &&
+        langfuse !== null &&
+        typeof langfuse.envTag === 'string' &&
+        typeof langfuse.sampleRateDev === 'number' &&
+        typeof langfuse.sampleRatePreview === 'number' &&
+        typeof langfuse.attachProviderMetadata === 'boolean'
+
+      if (!hasPrompt && !hasGuardrails && !hasModels && !hasLangfuse) {
         return res.status(400).json({
-          error: 'Provide systemPrompt, guardrails, or models payload.'
+          error: 'Provide systemPrompt, guardrails, models, or langfuse payload.'
         })
       }
 
@@ -89,6 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         | Awaited<ReturnType<typeof saveGuardrailSettings>>
         | undefined
       let chatModelResult: Awaited<ReturnType<typeof saveChatModelSettings>> | undefined
+      let langfuseResult: Awaited<ReturnType<typeof saveLangfuseSettings>> | undefined
 
       if (hasPrompt) {
         const promptValue = systemPrompt as string
@@ -122,6 +142,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
       }
 
+      if (hasLangfuse) {
+        langfuseResult = await saveLangfuseSettings({
+          envTag: (langfuse!.envTag as string).trim(),
+          sampleRateDev: langfuse!.sampleRateDev as number,
+          sampleRatePreview: langfuse!.sampleRatePreview as number,
+          attachProviderMetadata: langfuse!.attachProviderMetadata as boolean
+        })
+      }
+
       return res.status(200).json({
         ...(promptResult
           ? {
@@ -130,7 +159,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
           : {}),
         ...(guardrailResult ? { guardrails: guardrailResult } : {}),
-        ...(chatModelResult ? { models: chatModelResult } : {})
+        ...(chatModelResult ? { models: chatModelResult } : {}),
+        ...(langfuseResult ? { langfuse: langfuseResult } : {})
       })
     } catch (err: any) {
       console.error('[api/admin/chat-settings] failed to update settings', err)

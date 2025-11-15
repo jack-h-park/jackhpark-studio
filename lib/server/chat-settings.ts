@@ -62,6 +62,16 @@ const CHAT_MODEL_SETTING_KEYS = [
   CHAT_EMBEDDING_MODEL_SETTING_KEY,
   CHAT_EMBEDDING_SPACE_SETTING_KEY
 ] as const
+const LANGFUSE_ENV_SETTING_KEY = "langfuse_env";
+const LANGFUSE_SAMPLE_RATE_DEV_SETTING_KEY = "langfuse_sample_rate_dev";
+const LANGFUSE_SAMPLE_RATE_PREVIEW_SETTING_KEY = "langfuse_sample_rate_preview";
+const LANGFUSE_PROVIDER_METADATA_SETTING_KEY = "langfuse_attach_provider_metadata";
+const LANGFUSE_SETTING_KEYS = [
+  LANGFUSE_ENV_SETTING_KEY,
+  LANGFUSE_SAMPLE_RATE_DEV_SETTING_KEY,
+  LANGFUSE_SAMPLE_RATE_PREVIEW_SETTING_KEY,
+  LANGFUSE_PROVIDER_METADATA_SETTING_KEY,
+] as const;
 
 export type GuardrailNumericSettings = {
   similarityThreshold: number
@@ -109,6 +119,26 @@ export type ChatModelSettingsInput = {
   llmModel?: string | null
   embeddingModel?: string | null
 }
+
+export type LangfuseSettings = {
+  envTag: string;
+  sampleRateDev: number;
+  sampleRatePreview: number;
+  attachProviderMetadata: boolean;
+  isDefault: {
+    envTag: boolean;
+    sampleRateDev: boolean;
+    sampleRatePreview: boolean;
+    attachProviderMetadata: boolean;
+  };
+};
+
+export type LangfuseSettingsInput = {
+  envTag: string;
+  sampleRateDev: number;
+  sampleRatePreview: number;
+  attachProviderMetadata: boolean;
+};
 
 const DEFAULT_CHITCHAT_KEYWORDS = parseKeywordList(
   process.env.CHAT_CHITCHAT_KEYWORDS ??
@@ -184,6 +214,23 @@ function getDefaultEngine(): ChatEngine {
   return normalizeChatEngine(process.env.CHAT_ENGINE, 'lc')
 }
 
+function clampSampleRate(
+  candidate: string | number | undefined,
+  fallback: number,
+): number {
+  if (candidate === undefined || candidate === null) {
+    return fallback;
+  }
+  const parsed =
+    typeof candidate === "number" ? candidate : Number(candidate);
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+  if (parsed < 0) return 0;
+  if (parsed > 1) return 1;
+  return parsed;
+}
+
 export function getChatModelDefaults(): ChatModelSettings {
   const engine = getDefaultEngine()
   const defaultLlm = resolveLlmModel()
@@ -231,6 +278,8 @@ let cachedGuardrails: GuardrailSettingsResult | null = null
 let cachedGuardrailsAt = 0
 let cachedChatModelSettings: ChatModelSettings | null = null
 let cachedChatModelSettingsAt = 0
+let cachedLangfuseSettings: LangfuseSettings | null = null;
+let cachedLangfuseSettingsAt = 0;
 
 function getClient(client?: SupabaseClient) {
   return client ?? supabaseClient
@@ -253,6 +302,10 @@ function cacheGuardrails(settings: GuardrailSettingsResult) {
 function cacheChatModelSettings(settings: ChatModelSettings) {
   cachedChatModelSettings = settings
   cachedChatModelSettingsAt = Date.now()
+}
+function cacheLangfuseSettings(settings: LangfuseSettings) {
+  cachedLangfuseSettings = settings;
+  cachedLangfuseSettingsAt = Date.now();
 }
 export async function loadSystemPrompt(options?: {
   forceRefresh?: boolean
@@ -670,6 +723,167 @@ export async function saveGuardrailSettings(
   return result
 }
 
+export function getLangfuseDefaults(): LangfuseSettings {
+  return {
+    envTag: DEFAULT_LANGFUSE_SETTINGS.envTag,
+    sampleRateDev: DEFAULT_LANGFUSE_SETTINGS.sampleRateDev,
+    sampleRatePreview: DEFAULT_LANGFUSE_SETTINGS.sampleRatePreview,
+    attachProviderMetadata: DEFAULT_LANGFUSE_SETTINGS.attachProviderMetadata,
+    isDefault: {
+      envTag: true,
+      sampleRateDev: true,
+      sampleRatePreview: true,
+      attachProviderMetadata: true,
+    },
+  };
+}
+
+export async function loadLangfuseSettings(options?: {
+  forceRefresh?: boolean;
+  client?: SupabaseClient;
+}): Promise<LangfuseSettings> {
+  const shouldUseCache =
+    !options?.forceRefresh &&
+    cachedLangfuseSettings &&
+    Date.now() - cachedLangfuseSettingsAt <
+      LANGFUSE_SETTINGS_CACHE_TTL_MS;
+
+  if (shouldUseCache && cachedLangfuseSettings) {
+    return cachedLangfuseSettings;
+  }
+
+  const client = getClient(options?.client);
+  const { data, error } = await client
+    .from(CHAT_SETTINGS_TABLE)
+    .select("key, value")
+    .in("key", [...LANGFUSE_SETTING_KEYS]);
+
+  if (error) {
+    if (isMissingChatSettingsTable(error)) {
+      console.warn(
+        "[chat-settings] chat_settings table missing; using default Langfuse settings",
+      );
+      const fallback = getLangfuseDefaults();
+      cacheLangfuseSettings(fallback);
+      return fallback;
+    }
+    console.error(
+      "[chat-settings] failed to load Langfuse settings",
+      error,
+    );
+    throw new Error("Failed to load Langfuse settings");
+  }
+
+  const map = new Map<string, string>(
+    (data ?? []).map((row: { key: string; value: string }) => [
+      row.key,
+      row.value,
+    ]),
+  );
+  const result = buildLangfuseSettings(map);
+  cacheLangfuseSettings(result);
+  return result;
+}
+
+export async function saveLangfuseSettings(
+  input: LangfuseSettingsInput,
+  options?: { client?: SupabaseClient },
+): Promise<LangfuseSettings> {
+  const envTag = input.envTag.trim();
+  if (!envTag) {
+    throw new Error("Environment tag cannot be empty.");
+  }
+
+  const devRate = clampSampleRate(input.sampleRateDev, DEFAULT_LANGFUSE_SAMPLE_RATE_DEV);
+  const previewRate = clampSampleRate(
+    input.sampleRatePreview,
+    DEFAULT_LANGFUSE_SAMPLE_RATE_PREVIEW,
+  );
+
+  const payload = [
+    { key: LANGFUSE_ENV_SETTING_KEY, value: envTag },
+    {
+      key: LANGFUSE_SAMPLE_RATE_DEV_SETTING_KEY,
+      value: devRate.toString(),
+    },
+    {
+      key: LANGFUSE_SAMPLE_RATE_PREVIEW_SETTING_KEY,
+      value: previewRate.toString(),
+    },
+    {
+      key: LANGFUSE_PROVIDER_METADATA_SETTING_KEY,
+      value: input.attachProviderMetadata ? "true" : "false",
+    },
+  ];
+
+  const client = getClient(options?.client);
+  const { error } = await client
+    .from(CHAT_SETTINGS_TABLE)
+    .upsert(payload, { onConflict: "key" });
+
+  if (error) {
+    if (isMissingChatSettingsTable(error)) {
+      throw new Error(
+        "chat_settings table is missing. Create it before updating Langfuse settings.",
+      );
+    }
+    console.error(
+      "[chat-settings] failed to persist Langfuse settings",
+      error,
+    );
+    throw new Error("Failed to update Langfuse settings");
+  }
+
+  const result = await loadLangfuseSettings({
+    forceRefresh: true,
+    client,
+  });
+  return result;
+}
+
+function buildLangfuseSettings(
+  map?: Map<string, string>,
+): LangfuseSettings {
+  const envOverride = map?.get(LANGFUSE_ENV_SETTING_KEY);
+  const sampleRateDevOverride = map?.get(
+    LANGFUSE_SAMPLE_RATE_DEV_SETTING_KEY,
+  );
+  const sampleRatePreviewOverride = map?.get(
+    LANGFUSE_SAMPLE_RATE_PREVIEW_SETTING_KEY,
+  );
+  const metadataOverride = map?.get(LANGFUSE_PROVIDER_METADATA_SETTING_KEY);
+
+  const envTag =
+    envOverride?.trim().length
+      ? envOverride.trim()
+      : DEFAULT_LANGFUSE_SETTINGS.envTag;
+  const sampleRateDev = clampSampleRate(
+    sampleRateDevOverride,
+    DEFAULT_LANGFUSE_SETTINGS.sampleRateDev,
+  );
+  const sampleRatePreview = clampSampleRate(
+    sampleRatePreviewOverride,
+    DEFAULT_LANGFUSE_SETTINGS.sampleRatePreview,
+  );
+  const attachProviderMetadata =
+    metadataOverride === undefined
+      ? DEFAULT_LANGFUSE_SETTINGS.attachProviderMetadata
+      : metadataOverride.toLowerCase() !== "false";
+
+  return {
+    envTag,
+    sampleRateDev,
+    sampleRatePreview,
+    attachProviderMetadata,
+    isDefault: {
+      envTag: !envOverride,
+      sampleRateDev: !sampleRateDevOverride,
+      sampleRatePreview: !sampleRatePreviewOverride,
+      attachProviderMetadata: !metadataOverride,
+    },
+  };
+}
+
 export function clearGuardrailSettingsCache() {
   cachedGuardrails = null
   cachedGuardrailsAt = 0
@@ -951,3 +1165,27 @@ function ensureBooleanField(value: boolean | undefined, label: string): boolean 
   }
   return value
 }
+const LANGFUSE_SETTINGS_CACHE_TTL_MS = 60_000;
+const DEFAULT_LANGFUSE_ENV_TAG =
+  process.env.LANGFUSE_ENV_TAG ??
+  process.env.APP_ENV ??
+  process.env.NODE_ENV ??
+  "dev";
+const DEFAULT_LANGFUSE_SAMPLE_RATE_DEV = clampSampleRate(
+  process.env.LANGFUSE_SAMPLE_RATE_DEV,
+  0.3,
+);
+const DEFAULT_LANGFUSE_SAMPLE_RATE_PREVIEW = clampSampleRate(
+  process.env.LANGFUSE_SAMPLE_RATE_PREVIEW,
+  1,
+);
+const DEFAULT_LANGFUSE_ATTACH_PROVIDER_METADATA =
+  (process.env.LANGFUSE_ATTACH_PROVIDER_METADATA ?? "true").toLowerCase() !==
+  "false";
+
+const DEFAULT_LANGFUSE_SETTINGS = {
+  envTag: DEFAULT_LANGFUSE_ENV_TAG,
+  sampleRateDev: DEFAULT_LANGFUSE_SAMPLE_RATE_DEV,
+  sampleRatePreview: DEFAULT_LANGFUSE_SAMPLE_RATE_PREVIEW,
+  attachProviderMetadata: DEFAULT_LANGFUSE_ATTACH_PROVIDER_METADATA,
+} as const;
