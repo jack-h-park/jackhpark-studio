@@ -12,6 +12,7 @@ import {
 } from '@/lib/core/model-provider'
 import { getOllamaRuntimeConfig, isOllamaEnabled } from '@/lib/core/ollama'
 import { getLcChunksView, getLcMatchFunction } from '@/lib/core/rag-tables'
+import { getAppEnv, langfuse } from '@/lib/langfuse'
 import {
   applyHistoryWindow,
   buildContextWindow,
@@ -60,7 +61,6 @@ import {
   parseRankerMode,
   parseReverseRagMode
 } from '@/lib/shared/rag-config'
-import { getAppEnv, langfuse } from '@/lib/langfuse'
 
 /**
  * Pages Router API (Node.js runtime).

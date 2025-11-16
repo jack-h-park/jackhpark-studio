@@ -8,6 +8,7 @@ import { requireProviderApiKey } from '@/lib/core/model-provider'
 import { isOllamaEnabled } from '@/lib/core/ollama'
 import { getOpenAIClient } from '@/lib/core/openai'
 import { getRagMatchFunction } from '@/lib/core/rag-tables'
+import { getAppEnv, langfuse } from '@/lib/langfuse'
 import {
   applyHistoryWindow,
   buildContextWindow,
@@ -61,7 +62,6 @@ import {
   parseReverseRagMode
 } from '@/lib/shared/rag-config'
 import { getSupabaseAdminClient } from '@/lib/supabase-admin'
-import { getAppEnv, langfuse } from '@/lib/langfuse'
 
 type RagDocumentMetadata = {
   doc_id?: string | null
