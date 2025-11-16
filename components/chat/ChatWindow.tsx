@@ -1431,7 +1431,7 @@ export function ChatWindow({
                   className="chat-config-toggle"
                   onClick={toggleOptions}
                 >
-                  {showOptions ? "Hide Options" : "Show Options"}
+                 {showOptions ? "Hide Settings" : "Show Settings"}
                 </button>
                 {headerAction}
                 {showExpandButton && (

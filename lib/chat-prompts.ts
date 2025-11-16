@@ -1,4 +1,4 @@
-export const CHAT_SETTINGS_TABLE = 'chat_settings'
+export const SYSTEM_SETTINGS_TABLE = 'system_settings'
 export const SYSTEM_PROMPT_SETTING_KEY = 'system_prompt'
 export const SYSTEM_PROMPT_CACHE_TTL_MS = 60_000
 export const SYSTEM_PROMPT_MAX_LENGTH = 4000

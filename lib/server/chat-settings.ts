@@ -1,12 +1,11 @@
 import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js'
 
 import {
-  CHAT_SETTINGS_TABLE,
   DEFAULT_SYSTEM_PROMPT,
   normalizeSystemPrompt,
   SYSTEM_PROMPT_CACHE_TTL_MS,
-  SYSTEM_PROMPT_SETTING_KEY
-} from '@/lib/chat-prompts'
+  SYSTEM_PROMPT_SETTING_KEY,
+  SYSTEM_SETTINGS_TABLE} from '@/lib/chat-prompts'
 import {
   normalizeEmbeddingProvider,
   normalizeLlmProvider,
@@ -364,7 +363,7 @@ export async function loadSystemPrompt(options?: {
 
   const client = getClient(options?.client)
   const { data, error } = await client
-    .from(CHAT_SETTINGS_TABLE)
+    .from(SYSTEM_SETTINGS_TABLE)
     .select('value')
     .eq('key', SYSTEM_PROMPT_SETTING_KEY)
     .maybeSingle()
@@ -407,7 +406,7 @@ export async function saveSystemPrompt(
 
   const client = getClient(options?.client)
   const { data, error } = await client
-    .from(CHAT_SETTINGS_TABLE)
+    .from(SYSTEM_SETTINGS_TABLE)
     .upsert(
       {
         key: SYSTEM_PROMPT_SETTING_KEY,
@@ -466,7 +465,7 @@ export async function loadGuardrailSettings(options?: {
 
   const client = getClient(options?.client)
   const { data, error } = await client
-    .from(CHAT_SETTINGS_TABLE)
+    .from(SYSTEM_SETTINGS_TABLE)
     .select('key, value')
     .in('key', [...GUARDRAIL_SETTING_KEYS])
 
@@ -529,7 +528,7 @@ export async function loadChatModelSettings(options?: {
 
   const client = getClient(options?.client)
   const { data, error } = await client
-    .from(CHAT_SETTINGS_TABLE)
+    .from(SYSTEM_SETTINGS_TABLE)
     .select('key, value')
     .in('key', [...CHAT_RUNTIME_SETTING_KEYS])
 
@@ -698,7 +697,7 @@ export async function saveChatModelSettings(
 
   const client = getClient(options?.client)
   const { error } = await client
-    .from(CHAT_SETTINGS_TABLE)
+    .from(SYSTEM_SETTINGS_TABLE)
     .upsert(payload, { onConflict: 'key' })
 
   if (error) {
@@ -799,7 +798,7 @@ export async function saveGuardrailSettings(
 
   const client = getClient(options?.client)
   const { error } = await client
-    .from(CHAT_SETTINGS_TABLE)
+    .from(SYSTEM_SETTINGS_TABLE)
     .upsert(payload, { onConflict: 'key' })
 
   if (error) {
@@ -851,7 +850,7 @@ export async function loadLangfuseSettings(options?: {
 
   const client = getClient(options?.client);
   const { data, error } = await client
-    .from(CHAT_SETTINGS_TABLE)
+    .from(SYSTEM_SETTINGS_TABLE)
     .select("key, value")
     .in("key", [...LANGFUSE_SETTING_KEYS]);
 
@@ -915,7 +914,7 @@ export async function saveLangfuseSettings(
 
   const client = getClient(options?.client);
   const { error } = await client
-    .from(CHAT_SETTINGS_TABLE)
+    .from(SYSTEM_SETTINGS_TABLE)
     .upsert(payload, { onConflict: "key" });
 
   if (error) {
