@@ -425,6 +425,49 @@ const styles = css`
     gap: 4px;
   }
 
+  .message.assistant.is-loading {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .assistant-loading-indicator {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    pointer-events: none;
+  }
+
+  .assistant-loading-indicator span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(10, 69, 132, 0.6);
+    animation: assistant-pulse 0.8s infinite ease-in-out;
+  }
+
+  .assistant-loading-indicator span:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+
+  .assistant-loading-indicator span:nth-child(3) {
+    animation-delay: 0.2s;
+  }
+
+  @keyframes assistant-pulse {
+    0%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.3;
+    }
+    50% {
+      transform: translateY(-4px);
+      opacity: 1;
+    }
+  }
+
   .message-meta {
     display: flex;
     flex-direction: column;
@@ -951,6 +994,8 @@ export function ChatPanel() {
   const [showTelemetry, setShowTelemetry] = useState(false);
   const [telemetryExpanded, setTelemetryExpanded] = useState(false);
   const [telemetryAutoExpand, setTelemetryAutoExpand] = useState(false);
+  const [loadingAssistantId, setLoadingAssistantId] = useState<string | null>(null);
+  const loadingAssistantRef = useRef<string | null>(null);
   const [showCitations, setShowCitations] = useState(false);
 
   useEffect(() => {
@@ -1027,6 +1072,10 @@ export function ChatPanel() {
     void loadConfig();
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    loadingAssistantRef.current = loadingAssistantId;
+  }, [loadingAssistantId]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1163,16 +1212,17 @@ export function ChatPanel() {
         return prev;
       }
 
-      return [
-        ...prev,
-        userMessage,
-        {
-          id: assistantMessageId,
-          role: "assistant",
-          content: "",
-          runtime: runtimeConfig,
-        },
-      ];
+            setLoadingAssistantId(assistantMessageId)
+            return [
+              ...prev,
+              userMessage,
+              {
+                id: assistantMessageId,
+                role: "assistant",
+                content: "",
+                runtime: runtimeConfig,
+              },
+            ];
     });
     setInput("");
     setIsLoading(true);
@@ -1263,6 +1313,12 @@ export function ChatPanel() {
             if (!chunk) continue;
 
             const chunkText = decoder.decode(chunk, { stream: !done });
+            if (
+              loadingAssistantRef.current === assistantMessageId &&
+              chunkText.trim().length > 0
+            ) {
+              setLoadingAssistantId(null);
+            }
             fullContent += chunkText;
             clientChunkIndex += 1;
             if (DEBUG_LANGCHAIN_STREAM) {
@@ -1342,6 +1398,12 @@ export function ChatPanel() {
             if (!chunk) continue;
 
             const decodedChunk = decoder.decode(chunk, { stream: !done });
+            if (
+              loadingAssistantRef.current === assistantMessageId &&
+              decodedChunk.trim().length > 0
+            ) {
+              setLoadingAssistantId(null);
+            }
             console.debug("[chat-panel] chunk", {
               engine: activeRuntime.engine,
               length: decodedChunk.length,
@@ -1367,6 +1429,7 @@ export function ChatPanel() {
         );
       } finally {
         abortControllerRef.current = null;
+        setLoadingAssistantId(null);
         if (isMountedRef.current) {
           setIsLoading(false);
         }
@@ -1635,14 +1698,27 @@ export function ChatPanel() {
               const showEnhancementCard = telemetryActive && hasEnhancements;
               const hasAnyMeta =
                 hasRuntime || hasGuardrailMeta || hasEnhancements;
+              const isStreamingAssistant =
+                m.role === "assistant" &&
+                isLoading &&
+                loadingAssistantId === m.id;
 
               return (
                 <div key={m.id} className="message-group">
-                  <div className={`message ${m.role}`}>
-                    {typeof m.content === "string"
-                      ? renderMessageContent(m.content, m.id)
-                      : m.content}
-                  </div>
+                <div className={`message ${m.role} ${
+                  isStreamingAssistant ? "is-loading" : ""
+                }`}>
+                  {typeof m.content === "string"
+                    ? renderMessageContent(m.content, m.id)
+                    : m.content}
+                  {isStreamingAssistant && (
+                    <div className="assistant-loading-indicator">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                  )}
+                </div>
                   {m.role === "assistant" && hasAnyMeta && (
                     <div className="message-meta">
                       {showTelemetry && (
