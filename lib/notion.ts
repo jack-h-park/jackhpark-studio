@@ -18,6 +18,10 @@ import {
   notionPageCacheKeyPrefix,
   notionPageCacheTTL} from './config'
 import { db } from './db'
+import {
+  debugNotionXEnabled,
+  debugNotionXLogger
+} from './debug-notion-x'
 import { getTweetsMap } from './get-tweets'
 import { notion } from './notion-api'
 import { getPreviewImageMap } from './preview-images'
@@ -378,13 +382,15 @@ const hydrateGroupedCollectionData = async (
         return null
       }
 
-      console.debug('[grouped-collection] hydration scheduled', {
-        viewId,
-        collectionId,
-        viewType: sanitizedView?.type,
-        hasGrouping,
-        hasExistingResult: Boolean(existingEntry)
-      })
+      if (debugNotionXEnabled) {
+        debugNotionXLogger.debug('[grouped-collection] hydration scheduled', {
+          viewId,
+          collectionId,
+          viewType: sanitizedView?.type,
+          hasGrouping,
+          hasExistingResult: Boolean(existingEntry)
+        })
+      }
 
       return {
         viewId,
@@ -449,12 +455,16 @@ const hydrateGroupedCollectionData = async (
             viewValue?.format?.collection_group_by?.type ?? schemaType ?? 'select'
 
           if (!hasGroupedBlocks(normalizedResult) && groupByProperty) {
-            console.debug('[grouped-collection] list groups raw', {
-              viewId,
-              collectionId,
-              listGroups: normalizedResult?.list_groups,
-              reducerKeys: Object.keys(normalizedResult?.reducerResults || {})
-            })
+            if (debugNotionXEnabled) {
+              debugNotionXLogger.debug('[grouped-collection] list groups raw', {
+                viewId,
+                collectionId,
+                listGroups: normalizedResult?.list_groups,
+                reducerKeys: Object.keys(
+                  normalizedResult?.reducerResults || {}
+                )
+              })
+            }
             const bucketMap = new Map<string, Set<string>>()
             const UNCATEGORIZED_KEY = 'uncategorized'
             const UNCATEGORIZED_LABEL = 'Uncategorized'
@@ -470,12 +480,19 @@ const hydrateGroupedCollectionData = async (
               const propertyValue = blockValue.properties?.[groupByProperty]
 
               if (!propertyValue) {
-                console.debug('[grouped-collection] missing property value', {
-                  viewId,
-                  collectionId,
-                  blockId,
-                  availableProperties: Object.keys(blockValue.properties ?? {})
-                })
+                if (debugNotionXEnabled) {
+                  debugNotionXLogger.debug(
+                    '[grouped-collection] missing property value',
+                    {
+                      viewId,
+                      collectionId,
+                      blockId,
+                      availableProperties: Object.keys(
+                        blockValue.properties ?? {}
+                      )
+                    }
+                  )
+                }
               }
 
               const labels: string[] = []
@@ -525,14 +542,16 @@ const hydrateGroupedCollectionData = async (
               const listGroupResults: any[] = []
               const allBlockIds = new Set<string>()
 
-              console.debug('[grouped-collection] buckets built', {
-                viewId,
-                collectionId,
-                buckets: bucketEntries.map(({ displayLabel, set }) => ({
-                  label: displayLabel,
-                  count: set.size
-                }))
-              })
+              if (debugNotionXEnabled) {
+                debugNotionXLogger.debug('[grouped-collection] buckets built', {
+                  viewId,
+                  collectionId,
+                  buckets: bucketEntries.map(({ displayLabel, set }) => ({
+                    label: displayLabel,
+                    count: set.size
+                  }))
+                })
+              }
 
               for (const { originalLabel, displayLabel, set } of bucketEntries) {
                 const blockIds = Array.from(set)
@@ -736,4 +755,3 @@ export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
 export async function search(params: SearchParams): Promise<SearchResults> {
   return notion.search(params)
 }
-

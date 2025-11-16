@@ -18,6 +18,10 @@ import { useSearchParam } from "react-use";
 
 import type * as types from "@/lib/types";
 import * as config from "@/lib/config";
+import {
+  debugNotionXEnabled,
+  debugNotionXLogger,
+} from "@/lib/debug-notion-x";
 import { mapImageUrl } from "@/lib/map-image-url";
 import { getCanonicalPageUrl, mapPageUrl } from "@/lib/map-page-url";
 import { useDarkMode } from "@/lib/use-dark-mode";
@@ -45,8 +49,8 @@ const PREVIEW_DATABASE_IDS = new Set<string>(
   ),
 );
 
-if (process.env.NODE_ENV !== "production") {
-  console.debug(
+if (debugNotionXEnabled) {
+  debugNotionXLogger.debug(
     "[GalleryPreview] PREVIEW_DATABASE_IDS size:",
     PREVIEW_DATABASE_IDS.size,
     Array.from(PREVIEW_DATABASE_IDS).slice(0, 5),
@@ -97,11 +101,11 @@ const markPreviewEligibleCollections = () => {
       }
     }
   }
-  if (process.env.NODE_ENV !== "production") {
+  if (debugNotionXEnabled) {
     const count = document.querySelectorAll(
       '.notion-gallery-view[data-gallery-preview="1"]',
     ).length;
-    console.debug("[GalleryPreview] marked gallery views:", count);
+    debugNotionXLogger.debug("[GalleryPreview] marked gallery views:", count);
   }
 };
 
@@ -233,7 +237,11 @@ const propertyDateValue = (
   { data, schema, pageHeader }: any,
   defaultFn: () => React.ReactNode,
 ) => {
-  console.log("🤪 propertyDateValue called:", schema?.name, schema?.type);
+  debugNotionXLogger.log(
+    "🤪 propertyDateValue called:",
+    schema?.name,
+    schema?.type,
+  );
 
   if (pageHeader && schema?.name?.toLowerCase() === "published") {
     const publishDate = data?.[0]?.[1]?.[0]?.[1]?.start_date;
@@ -266,7 +274,7 @@ const propertyTextValue = (
     defaultFn()?.toString() ??
     "";
 
-  console.log("[propertyTextValue → CleanText]", {
+  debugNotionXLogger.log("[propertyTextValue → CleanText]", {
     schemaName: schema?.name,
     raw,
   });
@@ -377,7 +385,7 @@ const propertyTitleValue = (props: any, defaultFn: () => React.ReactNode) => {
   return stripBoldFromNode(rendered);
 };
 
-console.log("[Injecting CleanText]");
+debugNotionXLogger.log("[Injecting CleanText]");
 // Safer text renderer: normalize react-notion-x rich text → plain inline text
 function renderRichText(item: any): string {
   if (!Array.isArray(item)) return typeof item === "string" ? item : "";
@@ -415,7 +423,7 @@ function renderRichText(item: any): string {
 
 function CleanText(props: any) {
   const raw: any = props?.value ?? props?.text ?? props?.children ?? "";
-  console.log("[CleanText called]", props);
+  debugNotionXLogger.log("[CleanText called]", props);
   let html = "";
   try {
     if (Array.isArray(raw)) {
@@ -442,7 +450,7 @@ function CleanText(props: any) {
     .replaceAll("&quot;", '"')
     .replaceAll("&#39;", "'");
 
-  console.log("[HTML preview]", html);
+  debugNotionXLogger.log("[HTML preview]", html);
 
   return (
     <span data-clean-text="1" dangerouslySetInnerHTML={{ __html: html }} />
@@ -522,14 +530,14 @@ export function NotionPage({
 
   const handleOpenGalleryPreview = React.useCallback(
     (preview: GalleryPreviewState) => {
-      console.log("[GalleryPreview] open modal request", preview);
+      debugNotionXLogger.log("[GalleryPreview] open modal request", preview);
       setGalleryPreview(preview);
     },
     [],
   );
 
   const handleCloseGalleryPreview = React.useCallback(() => {
-    console.log("[GalleryPreview] close modal request");
+    debugNotionXLogger.log("[GalleryPreview] close modal request");
     setGalleryPreview(null);
     setIsZoomed(false); // Reset zoom state
   }, []);
@@ -587,8 +595,8 @@ export function NotionPage({
       // Whitelist check: only intercept clicks for specific inline database (collection) IDs
       const collectionBlockId = getEnclosingBlockId(anchor);
       const normalizedCollectionId = normalizeId(collectionBlockId);
-      if (process.env.NODE_ENV !== "production") {
-        console.debug(
+      if (debugNotionXEnabled) {
+        debugNotionXLogger.debug(
           "[GalleryClick] collectionBlockId:",
           collectionBlockId,
           "normalized:",
@@ -872,9 +880,12 @@ export function NotionPage({
 
   React.useEffect(() => {
     if (components) {
-      console.log("[Notion components override]", Object.keys(components));
+      debugNotionXLogger.log(
+        "[Notion components override]",
+        Object.keys(components),
+      );
       if (Object.keys(components).includes("Text")) {
-        console.info("✅ CleanText successfully registered");
+        debugNotionXLogger.info("✅ CleanText successfully registered");
       } else {
         console.warn("⚠️ CleanText not injected");
       }
@@ -887,9 +898,9 @@ export function NotionPage({
       for (const col of Object.values(recordMap.collection)) {
         const schema = col?.value?.schema;
         if (schema) {
-          console.log("🧩 Schema detected:");
+          debugNotionXLogger.log("🧩 Schema detected:");
           for (const [key, val] of Object.entries(schema)) {
-            console.log(`${key} - ${val.name}: ${val.type}`);
+            debugNotionXLogger.log(`${key} - ${val.name}: ${val.type}`);
           }
         }
       }
@@ -922,7 +933,7 @@ export function NotionPage({
     g.block = block;
   }
 
-  console.log("[Render check]", { isPeekOpen, peekRecordMap });
+  debugNotionXLogger.log("[Render check]", { isPeekOpen, peekRecordMap });
 
   return (
     <>

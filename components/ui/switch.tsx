@@ -1,7 +1,7 @@
 import * as React from "react";
 
-import { cn } from "./utils";
 import styles from "./switch.module.css";
+import { cn } from "./utils";
 
 export type SwitchProps = Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,

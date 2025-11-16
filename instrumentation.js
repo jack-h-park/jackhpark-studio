@@ -1,30 +1,22 @@
 import { LangfuseSpanProcessor } from "@langfuse/otel";
-import { NodeTracerProvider, type SpanProcessor } from "@opentelemetry/sdk-trace-node";
-
-const debugEnabled = (process.env.DEBUG_LANGFUSE ?? "")
-  .toLowerCase()
-  .startsWith("true");
-const logDebug = (...args: unknown[]) => {
+import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
+const debugEnabled = (process.env.DEBUG_LANGFUSE ?? "").toLowerCase().startsWith("true");
+const logDebug = (...args) => {
   if (debugEnabled) {
     console.log("[langfuse]", ...args);
   }
 };
-
-const hasLangfuseConfig =
-  Boolean(process.env.LANGFUSE_PUBLIC_KEY) &&
-  Boolean(process.env.LANGFUSE_SECRET_KEY);
-
+const hasLangfuseConfig = Boolean(process.env.LANGFUSE_PUBLIC_KEY) && Boolean(process.env.LANGFUSE_SECRET_KEY);
 if (!hasLangfuseConfig) {
   logDebug("Tracing disabled: Langfuse keys missing.");
 } else {
-  logDebug("Initializing Langfuse span processor…", {
+  logDebug("Initializing Langfuse span processor\u2026", {
     env: process.env.APP_ENV ?? process.env.NODE_ENV,
-    exportMode: process.env.VERCEL ? "immediate" : "batched",
+    exportMode: process.env.VERCEL ? "immediate" : "batched"
   });
-
   const processor = new LangfuseSpanProcessor({
-    publicKey: process.env.LANGFUSE_PUBLIC_KEY!,
-    secretKey: process.env.LANGFUSE_SECRET_KEY!,
+    publicKey: process.env.LANGFUSE_PUBLIC_KEY,
+    secretKey: process.env.LANGFUSE_SECRET_KEY,
     baseUrl: process.env.LANGFUSE_HOST,
     environment: process.env.APP_ENV ?? process.env.NODE_ENV,
     exportMode: process.env.VERCEL ? "immediate" : "batched",
@@ -33,23 +25,17 @@ if (!hasLangfuseConfig) {
     // while still capturing traces created via @langfuse/tracing and Vercel AI SDK telemetry.
     shouldExportSpan: ({ otelSpan }) => {
       const scopeName = otelSpan.instrumentationScope.name;
-
       logDebug("OTEL span captured", {
         scope: scopeName,
         spanName: otelSpan.name,
-        spanKind: otelSpan.kind,
+        spanKind: otelSpan.kind
       });
-
-      // "langfuse-sdk" → spans created by @langfuse/tracing (observe/updateActiveTrace/etc.)
-      // "ai"           → spans created by Vercel AI SDK when experimental_telemetry is enabled.
       return scopeName === "langfuse-sdk" || scopeName === "ai";
-    },
+    }
   });
-
   const provider = new NodeTracerProvider({
-    spanProcessors: [processor as unknown as SpanProcessor],
+    spanProcessors: [processor]
   });
-
   provider.register();
   logDebug("Langfuse span processor registered.");
 }
