@@ -1,11 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
-import {
-  getAppEnv,
-  observe,
-  updateActiveTrace,
-} from "@/lib/langfuse";
+import { getAppEnv, langfuse } from "@/lib/langfuse";
 
 export const runtime = "nodejs";
 
@@ -21,7 +17,7 @@ const handler = async (req: Request): Promise<Response> => {
   const userId = body.userId ?? "anonymous";
   const prompt = body.message ?? "Hello from Langfuse demo!";
 
-  updateActiveTrace({
+  langfuse.trace({
     name: "minimal-chat",
     sessionId: chatId,
     userId,
@@ -38,7 +34,4 @@ const handler = async (req: Request): Promise<Response> => {
   return result.toTextStreamResponse();
 };
 
-export const POST = observe(handler, {
-  name: "chat-handler",
-  endOnExit: false,
-});
+export const POST = handler;

@@ -38,7 +38,7 @@ importers:
       '@langchain/openai':
         specifier: ^1.0.0
         version: 1.0.0(@langchain/core@1.0.1(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.7.0(ws@8.18.3)(zod@4.1.12)))(ws@8.18.3)
-      '@langfuse/tracing':
+      '@langfuse/client':
         specifier: ^4.4.2
         version: 4.4.2(@opentelemetry/api@1.9.0)
       '@mozilla/readability':
@@ -1368,6 +1368,11 @@ packages:
     engines: {node: '>=20'}
     peerDependencies:
       '@langchain/core': ^1.0.0
+
+  '@langfuse/client@4.4.2':
+    resolution: {integrity: sha512-T0AvkCDkze3mhFbix6sC6y1FzQTBxKI3vCa8q8kErcwH8nIpr0Efo6XbT/qQEpiKBCPE2ys6aFhqfbjJ64XAmw==}
+    peerDependencies:
+      '@opentelemetry/api': ^1.9.0
 
   '@langfuse/core@4.4.2':
     resolution: {integrity: sha512-LfWyyLXTdnAikkXobWJ9ZMoF0RMC/WJqkk5mvyS7WI0SNwigueLulHzX1ixr8Q/vnaabFO+XREy2ftSiwnQxng==}
@@ -4964,6 +4969,13 @@ snapshots:
     dependencies:
       '@langchain/core': 1.0.1(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@2.2.0(@opentelemetry/api@1.9.0))(openai@6.7.0(ws@8.18.3)(zod@4.1.12))
       js-tiktoken: 1.0.21
+
+  '@langfuse/client@4.4.2(@opentelemetry/api@1.9.0)':
+    dependencies:
+      '@langfuse/core': 4.4.2(@opentelemetry/api@1.9.0)
+      '@langfuse/tracing': 4.4.2(@opentelemetry/api@1.9.0)
+      '@opentelemetry/api': 1.9.0
+      mustache: 4.2.0
 
   '@langfuse/core@4.4.2(@opentelemetry/api@1.9.0)':
     dependencies:

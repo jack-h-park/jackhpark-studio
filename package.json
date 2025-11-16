@@ -45,7 +45,7 @@
     "@langchain/core": "^1.0.1",
     "@langchain/google-genai": "^0.1.12",
     "@langchain/openai": "^1.0.0",
-    "@langfuse/tracing": "^4.4.2",
+    "@langfuse/client": "^4.4.2",
     "@mozilla/readability": "^0.6.0",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/sdk-trace-node": "^1.29.0",

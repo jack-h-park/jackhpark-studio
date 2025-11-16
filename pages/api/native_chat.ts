@@ -61,6 +61,7 @@ import {
   parseReverseRagMode
 } from '@/lib/shared/rag-config'
 import { getSupabaseAdminClient } from '@/lib/supabase-admin'
+import { getAppEnv, langfuse } from '@/lib/langfuse'
 
 type RagDocumentMetadata = {
   doc_id?: string | null
@@ -213,6 +214,34 @@ export default async function handler(
     const embeddingProvider = embeddingSelection.provider
     const llmModel = llmSelection.model
     const embeddingModel = embeddingSelection.model
+    const env = getAppEnv()
+    const sessionId =
+      (req.headers['x-chat-id'] as string) ??
+      (req.headers['x-request-id'] as string) ??
+      normalizedQuestion.normalized
+    const userId =
+      typeof req.headers['x-user-id'] === 'string'
+        ? req.headers['x-user-id']
+        : undefined
+    const trace = langfuse.trace({
+      name: 'native-chat-turn',
+      sessionId,
+      userId,
+      input: normalizedQuestion.normalized,
+      metadata: {
+        env,
+        provider,
+        model: llmModel,
+        embeddingProvider,
+        embeddingModel,
+        config: {
+          reverseRagEnabled,
+          reverseRagMode,
+          hydeEnabled,
+          rankerMode
+        }
+      }
+    })
     const temperature = parseNumber(
       body.temperature ?? first(req.query.temperature),
       DEFAULT_TEMPERATURE
@@ -275,6 +304,21 @@ export default async function handler(
         original: normalizedQuestion.normalized,
         rewritten: reversedQuery
       }
+      if (trace && reverseRagEnabled) {
+        void trace.observation({
+          name: 'reverse_rag',
+          input: normalizedQuestion.normalized,
+          output: reversedQuery,
+          metadata: {
+            env,
+            provider,
+            model: llmModel,
+            mode: reverseRagMode,
+            stage: 'reverse-rag',
+            type: 'reverse_rag'
+          }
+        })
+      }
       logDebugRag('reverse-query', {
         enabled: reverseRagEnabled,
         mode: reverseRagMode,
@@ -289,6 +333,20 @@ export default async function handler(
       enhancements.hyde = {
         enabled: hydeEnabled,
         generated: hydeDocument ?? null
+      }
+      if (trace) {
+        void trace.observation({
+          name: 'hyde',
+          input: reversedQuery,
+          output: hydeDocument,
+          metadata: {
+            env,
+            provider,
+            model: llmModel,
+            enabled: hydeEnabled,
+            stage: 'hyde'
+          }
+        })
       }
       logDebugRag('hyde', {
         enabled: hydeEnabled,
@@ -338,12 +396,42 @@ export default async function handler(
         typedDocuments,
         canonicalLookup
       )
+      if (trace) {
+        void trace.observation({
+          name: 'retrieval',
+          input: embeddingInput,
+          output: normalizedDocuments,
+          metadata: {
+            env,
+            provider,
+            model: llmModel,
+            source: 'supabase',
+            stage: 'retrieval',
+            results: normalizedDocuments.length
+          }
+        })
+      }
       const rankedDocuments = await applyRanker(normalizedDocuments, {
         mode: rankerMode,
         maxResults: Math.max(guardrails.ragTopK, 1),
         embeddingSelection,
         queryEmbedding: embedding
       })
+      if (trace) {
+        void trace.observation({
+          name: 'reranker',
+          input: normalizedDocuments,
+          output: rankedDocuments,
+          metadata: {
+            env,
+            provider,
+            model: llmModel,
+            mode: rankerMode,
+            stage: 'reranker',
+            results: rankedDocuments.length
+          }
+        })
+      }
       contextResult = buildContextWindow(rankedDocuments, guardrails)
       console.log('[native_chat] context compression', {
         retrieved: normalizedDocuments.length,
@@ -439,6 +527,23 @@ export default async function handler(
     ]
       .filter((part) => part !== null && part !== undefined)
       .join('\n')
+    if (trace) {
+      void trace.observation({
+        name: 'generation',
+        input: {
+          systemPrompt,
+          context: contextResult.contextBlock
+        },
+        metadata: {
+          env,
+          provider,
+          model: llmModel,
+          temperature,
+          maxTokens,
+          stage: 'generation'
+        }
+      })
+    }
 
     const stream = streamChatCompletion({
       provider,
@@ -449,6 +554,7 @@ export default async function handler(
       messages,
       stream: true
     })
+    let finalOutput = ''
     let streamHeadersSent = false
     const ensureStreamHeaders = () => {
       if (!streamHeadersSent) {
@@ -466,10 +572,16 @@ export default async function handler(
           continue
         }
         ensureStreamHeaders()
+        finalOutput += chunk
         res.write(chunk)
       }
       ensureStreamHeaders()
       res.end()
+      if (trace) {
+        void trace.update({
+          output: finalOutput
+        })
+      }
     } catch (streamErr) {
       if (!streamHeadersSent) {
         if (streamErr instanceof OllamaUnavailableError) {

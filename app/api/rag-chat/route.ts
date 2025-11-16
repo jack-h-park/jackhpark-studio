@@ -3,12 +3,7 @@ import { openai } from "@ai-sdk/openai";
 import { type CoreMessage, streamText } from "ai";
 
 import { getDefaultOllamaModelId } from "@/lib/core/ollama";
-import {
-  getAppEnv,
-  observe,
-  updateActiveObservation,
-  updateActiveTrace,
-} from "@/lib/langfuse";
+import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { ollamaModel } from "@/lib/ollama-provider";
 import { type ModelProvider, normalizeModelProvider } from "@/lib/shared/model-provider";
 
@@ -72,31 +67,33 @@ const handler = async (req: Request): Promise<Response> => {
   const { identifier: generationModelIdentifier, model: generationModel } =
     resolveLanguageModel(provider, body.model);
   const lastUserMessage = extractLastUserMessage(messages);
-  const traceActive = true;
-
-  // Trace metadata for the entire chat turn.
-  if (traceActive) {
-    updateActiveTrace({
-      name: "rag-chat-turn",
-      sessionId: chatId,
-      userId,
-      input: lastUserMessage,
-      metadata: {
-        env,
-        client: CLIENT_NAME,
-        provider,
-        model: generationModelIdentifier,
+  const trace = langfuse.trace({
+    name: "rag-chat-turn",
+    id: chatId,
+    sessionId: chatId,
+    userId,
+    input: lastUserMessage,
+    metadata: {
+      env,
+      client: CLIENT_NAME,
+      provider,
+      model: generationModelIdentifier,
+      config: {
+        reverseRagEnabled,
+        hydeEnabled,
+        rerankerEnabled,
       },
-    });
-  }
+    },
+  });
 
   const rewrittenQuery = reverseRagEnabled
     ? rewriteQueryForReverseRag(lastUserMessage)
     : lastUserMessage;
 
   // Reverse RAG: rewrite the user query to improve recall.
-  if (traceActive && reverseRagEnabled) {
-    updateActiveObservation({
+  if (trace && reverseRagEnabled) {
+    void trace.observation({
+      name: "reverse_rag",
       input: lastUserMessage,
       output: rewrittenQuery,
       metadata: {
@@ -110,8 +107,9 @@ const handler = async (req: Request): Promise<Response> => {
 
   const hydeDocs = hydeEnabled ? buildHypotheticalDocs(rewrittenQuery) : [];
   // HyDE: generate hypothetical documents to enrich retrieval recall.
-  if (traceActive) {
-    updateActiveObservation({
+  if (trace) {
+    void trace.observation({
+      name: "hyde",
       input: rewrittenQuery,
       output: hydeDocs,
       metadata: {
@@ -128,8 +126,9 @@ const handler = async (req: Request): Promise<Response> => {
   const retrievedDocs = retrieveDocuments(retrievalQuery);
 
   // Retrieval step: log which documents were selected for grounding.
-  if (traceActive) {
-    updateActiveObservation({
+  if (trace) {
+    void trace.observation({
+      name: "retrieval",
       input: retrievalQuery,
       output: retrievedDocs,
       metadata: {
@@ -144,8 +143,9 @@ const handler = async (req: Request): Promise<Response> => {
 
   const rerankedDocs = rerankDocuments(retrievedDocs);
   // Future reranker placeholder – retains structure for Cohere or similar rerankers.
-  if (traceActive) {
-    updateActiveObservation({
+  if (trace) {
+    void trace.observation({
+      name: "reranker",
       input: retrievedDocs,
       output: rerankedDocs,
       metadata: {
@@ -161,8 +161,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   // Generation metadata: capture which model + strategy was selected.
-  if (traceActive) {
-    updateActiveObservation({
+  if (trace) {
+    void trace.observation({
+      name: "generation",
       input: {
         query: retrievalQuery,
         context: rerankedDocs,
@@ -197,11 +198,12 @@ const handler = async (req: Request): Promise<Response> => {
   });
 
   // Guardrail step: record checks on the raw LLM output once streaming completes.
-  if (traceActive) {
+  if (trace) {
     void textPromise
       .then((rawOutput) => {
         const guardrailResult = applyGuardrail(rawOutput);
-        updateActiveObservation({
+        void trace.observation({
+          name: "guardrail",
           input: rawOutput,
           output: guardrailResult.sanitizedOutput,
           metadata: {
@@ -213,6 +215,9 @@ const handler = async (req: Request): Promise<Response> => {
             stage: "guardrail",
           },
         });
+        void trace.update({
+          output: guardrailResult.sanitizedOutput,
+        });
       })
       .catch((err) => {
         console.error("Guardrail observation failed", err);
@@ -222,10 +227,7 @@ const handler = async (req: Request): Promise<Response> => {
   return result.toTextStreamResponse();
 };
 
-export const POST = observe(handler, {
-  name: "chat-handler",
-  endOnExit: false,
-});
+export const POST = handler;
 
 function extractLastUserMessage(messages: CoreMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i -= 1) {

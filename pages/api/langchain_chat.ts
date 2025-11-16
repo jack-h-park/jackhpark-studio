@@ -60,6 +60,7 @@ import {
   parseRankerMode,
   parseReverseRagMode
 } from '@/lib/shared/rag-config'
+import { getAppEnv, langfuse } from '@/lib/langfuse'
 
 /**
  * Pages Router API (Node.js runtime).
@@ -227,6 +228,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const temperature = parseTemperature(
       body.temperature ?? first(req.query.temperature)
     )
+    const env = getAppEnv()
+    const sessionId =
+      (req.headers['x-chat-id'] as string) ??
+      (req.headers['x-request-id'] as string) ??
+      normalizedQuestion.normalized
+    const userId =
+      typeof req.headers['x-user-id'] === 'string'
+        ? req.headers['x-user-id']
+        : undefined
+    const trace = langfuse.trace({
+      name: 'langchain-chat-turn',
+      sessionId,
+      userId,
+      input: normalizedQuestion.normalized,
+      metadata: {
+        env,
+        provider,
+        model: llmModel,
+        embeddingProvider,
+        embeddingModel,
+        config: {
+          reverseRagEnabled,
+          reverseRagMode,
+          hydeEnabled,
+          rankerMode
+        }
+      }
+    })
 
     const [
       { createClient },
@@ -308,6 +337,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           provider,
           model: llmModel
         })
+        if (trace && reverseRagEnabled) {
+          void trace.observation({
+            name: 'reverse_rag',
+            input: normalizedQuestion.normalized,
+            output: rewrittenQuery,
+            metadata: {
+              env,
+              provider,
+              model: llmModel,
+              mode: reverseRagMode,
+              stage: 'reverse-rag',
+              type: 'reverse_rag'
+            }
+          })
+        }
         logDebugRag('reverse-query', {
           enabled: reverseRagEnabled,
           mode: reverseRagMode,
@@ -333,6 +377,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ranker: {
             mode: rankerMode
           }
+        }
+        if (trace) {
+          void trace.observation({
+            name: 'hyde',
+            input: rewrittenQuery,
+            output: hydeDocument,
+            metadata: {
+              env,
+              provider,
+              model: llmModel,
+              enabled: hydeEnabled,
+              stage: 'hyde'
+            }
+          })
         }
         logDebugRag('hyde', {
           enabled: hydeEnabled,
@@ -373,12 +431,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 ? (doc.metadata.similarity as number)
                 : undefined
         }))
+        if (trace) {
+          void trace.observation({
+            name: 'retrieval',
+            input: embeddingTarget,
+            output: ragDocs,
+            metadata: {
+              env,
+              provider,
+              model: llmModel,
+              stage: 'retrieval',
+              source: 'supabase',
+              results: ragDocs.length
+            }
+          })
+        }
         const rankedDocs = await applyRanker(ragDocs, {
           mode: rankerMode,
           maxResults: Math.max(guardrails.ragTopK, 1),
           embeddingSelection,
           queryEmbedding
         })
+        if (trace) {
+          void trace.observation({
+            name: 'reranker',
+            input: ragDocs,
+            output: rankedDocs,
+            metadata: {
+              env,
+              provider,
+              model: llmModel,
+              mode: rankerMode,
+              stage: 'reranker',
+              results: rankedDocs.length
+            }
+          })
+        }
         contextResult = buildContextWindow(rankedDocs, guardrails)
         console.log('[langchain_chat] context compression', {
           retrieved: normalizedMatches.length,
@@ -465,6 +553,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         memory: memoryValue,
         intent: guardrailMeta
       })
+      if (trace) {
+        void trace.observation({
+          name: 'generation',
+          input: {
+            prompt: promptInput,
+            context: contextValue
+          },
+          metadata: {
+            env,
+            provider,
+            model: llmModel,
+            temperature,
+            stage: 'generation'
+          }
+        })
+      }
       const stream = await llmInstance.stream(promptInput)
       const citationMap = new Map<
         string,
@@ -551,6 +655,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         let streamHeadersSent = false
+        let finalOutput = ''
         let chunkIndex = 0
         const ensureStreamHeaders = () => {
           if (!streamHeadersSent) {
@@ -588,6 +693,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 )
               }
               ensureStreamHeaders()
+              finalOutput += segment
               res.write(segment)
               if (delayBetweenChunks > 0) {
                 await wait(delayBetweenChunks)
@@ -604,6 +710,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const citationJson = JSON.stringify(citations)
           if (!res.writableEnded) {
             res.write(`${CITATIONS_SEPARATOR}${citationJson}`)
+          }
+          if (trace) {
+            void trace.update({
+              output: finalOutput
+            })
           }
           return res.end()
         } catch (streamErr) {

@@ -377,7 +377,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
       tracingConfigured:
         Boolean(process.env.LANGFUSE_PUBLIC_KEY?.trim()) &&
         Boolean(process.env.LANGFUSE_SECRET_KEY?.trim()) &&
-        Boolean(process.env.LANGFUSE_HOST?.trim()),
+        Boolean(process.env.LANGFUSE_BASE_URL?.trim()),
     },
   };
 };
