@@ -6,6 +6,17 @@ import { ChatGenerationChunk } from '@langchain/core/outputs'
 import { getOllamaRuntimeConfig } from '@/lib/core/ollama'
 import { OllamaUnavailableError } from '@/lib/server/ollama-provider'
 
+const debugOllamaTiming = (process.env.DEBUG_OLLAMA_TIMING ?? '').toLowerCase() === 'true'
+const logOllamaTiming = (durationMs: number, completed: boolean) => {
+  if (!debugOllamaTiming) {
+    return
+  }
+  console.info('[chat-ollama] /api/chat response time', {
+    durationMs,
+    completed
+  })
+}
+
 export type ChatOllamaFields = {
   baseUrl?: string | null
   model?: string | null
@@ -78,6 +89,8 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
     options: BaseChatModelCallOptions,
     runManager?: CallbackManagerForLLMRun
   ): AsyncGenerator<ChatGenerationChunk> {
+    const startedAt = Date.now()
+    let streamCompleted = false
     const controller = new AbortController()
     const signal = options?.signal ?? controller.signal
     const payload = this.buildPayload(messages)
@@ -129,6 +142,7 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
         yield generation
         await runManager?.handleLLMNewToken(text)
       }
+      streamCompleted = true
     } catch (err: any) {
       if (err instanceof OllamaUnavailableError) {
         throw err
@@ -142,6 +156,7 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
       )
     } finally {
       controller.abort()
+      logOllamaTiming(Date.now() - startedAt, streamCompleted)
     }
   }
 

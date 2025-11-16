@@ -31,6 +31,16 @@ import {
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { listLlmModelOptions } from "@/lib/core/llm-registry";
 import { type ChatEngine } from "@/lib/shared/model-provider";
+import {
+  DEFAULT_HYDE_ENABLED,
+  DEFAULT_RANKER_MODE,
+  DEFAULT_REVERSE_RAG_ENABLED,
+  DEFAULT_REVERSE_RAG_MODE,
+  RANKER_MODES,
+  type RankerMode,
+  REVERSE_RAG_MODES,
+  type ReverseRagMode,
+} from "@/lib/shared/rag-config";
 
 type PageProps = {
   systemPrompt: string;
@@ -64,6 +74,10 @@ type ModelFormState = {
   engine: ChatEngine;
   llmModelId: string;
   embeddingSpaceId: string;
+  reverseRagEnabled: boolean;
+  reverseRagMode: ReverseRagMode;
+  hydeEnabled: boolean;
+  rankerMode: RankerMode;
 };
 
 type LangfuseFormState = {
@@ -99,6 +113,17 @@ const CLIENT_NUMERIC_DEFAULTS: GuardrailNumericSettings = {
   summaryTriggerTokens: 400,
   summaryMaxTurns: 6,
   summaryMaxChars: 600,
+};
+
+const REVERSE_RAG_MODE_LABELS: Record<ReverseRagMode, string> = {
+  precision: "Precision (focused topics only)",
+  recall: "Recall (synonyms & broader recall)",
+};
+
+const RANKER_MODE_LABELS: Record<RankerMode, string> = {
+  none: "None (vector order)",
+  mmr: "MMR (diversity + relevance)",
+  cohere: "Cohere (external reranker)",
 };
 
 const toNumericFormState = (
@@ -237,6 +262,10 @@ const toModelFormState = (
     llmModelId: source?.llmModelId ?? source?.llmModel ?? defaultLlm,
     embeddingSpaceId:
       source?.embeddingSpaceId ?? source?.embeddingModelId ?? defaultEmbedding,
+    reverseRagEnabled: source?.reverseRagEnabled ?? DEFAULT_REVERSE_RAG_ENABLED,
+    reverseRagMode: source?.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE,
+    hydeEnabled: source?.hydeEnabled ?? DEFAULT_HYDE_ENABLED,
+    rankerMode: source?.rankerMode ?? DEFAULT_RANKER_MODE,
   };
 };
 
@@ -488,12 +517,20 @@ export default function ChatConfigPage({
   const modelDirty =
     modelForm.engine !== savedModels.engine ||
     modelForm.llmModelId !== savedModels.llmModelId ||
-    modelForm.embeddingSpaceId !== savedModels.embeddingSpaceId;
+    modelForm.embeddingSpaceId !== savedModels.embeddingSpaceId ||
+    modelForm.reverseRagEnabled !== savedModels.reverseRagEnabled ||
+    modelForm.reverseRagMode !== savedModels.reverseRagMode ||
+    modelForm.hydeEnabled !== savedModels.hydeEnabled ||
+    modelForm.rankerMode !== savedModels.rankerMode;
   const modelSaveDisabled = !modelDirty || modelStatus === "saving";
   const modelRestoreDisabled =
     modelForm.engine === modelDefaults.engine &&
     modelForm.llmModelId === modelDefaults.llmModelId &&
-    modelForm.embeddingSpaceId === modelDefaults.embeddingSpaceId;
+    modelForm.embeddingSpaceId === modelDefaults.embeddingSpaceId &&
+    modelForm.reverseRagEnabled === modelDefaults.reverseRagEnabled &&
+    modelForm.reverseRagMode === modelDefaults.reverseRagMode &&
+    modelForm.hydeEnabled === modelDefaults.hydeEnabled &&
+    modelForm.rankerMode === modelDefaults.rankerMode;
   const langfuseDirty =
     langfuseForm.envTag.trim() !== savedLangfuse.envTag ||
     Number(langfuseForm.sampleRateDev) !== savedLangfuse.sampleRateDev ||
@@ -724,6 +761,10 @@ export default function ChatConfigPage({
               llmModel: modelForm.llmModelId,
               embeddingModel: modelForm.embeddingSpaceId,
               embeddingSpaceId: modelForm.embeddingSpaceId,
+              reverseRagEnabled: modelForm.reverseRagEnabled,
+              reverseRagMode: modelForm.reverseRagMode,
+              hydeEnabled: modelForm.hydeEnabled,
+              rankerMode: modelForm.rankerMode,
             },
           }),
         });
@@ -963,7 +1004,11 @@ export default function ChatConfigPage({
     const usingDefaults =
       savedModels.engine === modelDefaults.engine &&
       savedModels.llmModelId === modelDefaults.llmModelId &&
-      savedModels.embeddingSpaceId === modelDefaults.embeddingSpaceId;
+      savedModels.embeddingSpaceId === modelDefaults.embeddingSpaceId &&
+      savedModels.reverseRagEnabled === modelDefaults.reverseRagEnabled &&
+      savedModels.reverseRagMode === modelDefaults.reverseRagMode &&
+      savedModels.hydeEnabled === modelDefaults.hydeEnabled &&
+      savedModels.rankerMode === modelDefaults.rankerMode;
     if (usingDefaults) {
       return "Currently using environment defaults for engine and model selection.";
     }
@@ -972,11 +1017,19 @@ export default function ChatConfigPage({
     modelDefaults.embeddingSpaceId,
     modelDefaults.engine,
     modelDefaults.llmModelId,
+    modelDefaults.hydeEnabled,
+    modelDefaults.rankerMode,
+    modelDefaults.reverseRagEnabled,
+    modelDefaults.reverseRagMode,
     modelError,
     modelStatus,
     savedModels.embeddingSpaceId,
     savedModels.engine,
     savedModels.llmModelId,
+    savedModels.hydeEnabled,
+    savedModels.rankerMode,
+    savedModels.reverseRagEnabled,
+    savedModels.reverseRagMode,
   ]);
 
   const langfuseHelperText = useMemo(() => {
@@ -1217,7 +1270,6 @@ export default function ChatConfigPage({
                         className="chat-input"
                         type="number"
                         min="1"
-                        step="50"
                         value={guardrailNumeric.ragContextTokenBudget}
                         onChange={handleNumericFieldChange(
                           "ragContextTokenBudget",
@@ -1239,7 +1291,6 @@ export default function ChatConfigPage({
                         className="chat-input"
                         type="number"
                         min="1"
-                        step="50"
                         value={guardrailNumeric.ragContextClipTokens}
                         onChange={handleNumericFieldChange(
                           "ragContextClipTokens",
@@ -1262,7 +1313,6 @@ export default function ChatConfigPage({
                         className="chat-input"
                         type="number"
                         min="0"
-                        step="50"
                         value={guardrailNumeric.historyTokenBudget}
                         onChange={handleNumericFieldChange(
                           "historyTokenBudget",
@@ -1308,7 +1358,6 @@ export default function ChatConfigPage({
                           className="chat-input"
                           type="number"
                           min="50"
-                          step="50"
                           value={guardrailNumeric.summaryTriggerTokens}
                           onChange={handleNumericFieldChange(
                             "summaryTriggerTokens",
@@ -1354,7 +1403,6 @@ export default function ChatConfigPage({
                           className="chat-input"
                           type="number"
                           min="100"
-                          step="50"
                           value={guardrailNumeric.summaryMaxChars}
                           onChange={handleNumericFieldChange("summaryMaxChars")}
                           disabled={!guardrailNumeric.summaryEnabled}
@@ -1468,6 +1516,105 @@ export default function ChatConfigPage({
                         Must match the embedding space used when ingesting your
                         content.
                       </p>
+                    </div>
+                  </div>
+
+                  <div className="chat-stack">
+                    <div className="chat-toggle-row">
+                      <Switch
+                        id="reverseRagEnabled"
+                        checked={modelForm.reverseRagEnabled}
+                        onCheckedChange={(checked) =>
+                          handleModelFieldChange("reverseRagEnabled")(checked)
+                        }
+                        aria-labelledby="reverseRagEnabled-label"
+                      />
+                      <div>
+                        <p
+                          id="reverseRagEnabled-label"
+                          className="chat-toggle__title"
+                        >
+                          Reverse RAG (query rewriting)
+                        </p>
+                        <p className="chat-helper">
+                          Rewrite the user question before retrieval to improve
+                          precision or recall.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="chat-grid chat-grid--two">
+                      <div className="chat-field">
+                        <label className="chat-label" htmlFor="reverseRagMode">
+                          Reverse RAG mode
+                        </label>
+                        <select
+                          id="reverseRagMode"
+                          className="chat-input chat-input--select"
+                          value={modelForm.reverseRagMode}
+                          disabled={!modelForm.reverseRagEnabled}
+                          onChange={(event) =>
+                            handleModelFieldChange("reverseRagMode")(
+                              event.target.value as ReverseRagMode,
+                            )
+                          }
+                        >
+                          {REVERSE_RAG_MODES.map((mode) => (
+                            <option key={mode} value={mode}>
+                              {REVERSE_RAG_MODE_LABELS[mode]}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="chat-helper">
+                          Choose whether the rewrite stays narrow (precision) or
+                          broadens recall.
+                        </p>
+                      </div>
+                      <div className="chat-field">
+                        <label className="chat-label" htmlFor="rankerMode">
+                          Post-retrieval ranker
+                        </label>
+                        <select
+                          id="rankerMode"
+                          className="chat-input chat-input--select"
+                          value={modelForm.rankerMode}
+                          onChange={(event) =>
+                            handleModelFieldChange("rankerMode")(
+                              event.target.value as RankerMode,
+                            )
+                          }
+                        >
+                          {RANKER_MODES.map((mode) => (
+                            <option key={mode} value={mode}>
+                              {RANKER_MODE_LABELS[mode]}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="chat-helper">
+                          Re-rank retrieved passages before grounding answers.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="chat-toggle-row">
+                      <Switch
+                        id="hydeEnabled"
+                        checked={modelForm.hydeEnabled}
+                        onCheckedChange={(checked) =>
+                          handleModelFieldChange("hydeEnabled")(checked)
+                        }
+                        aria-labelledby="hydeEnabled-label"
+                      />
+                      <div>
+                        <p
+                          id="hydeEnabled-label"
+                          className="chat-toggle__title"
+                        >
+                          HyDE (hypothetical docs)
+                        </p>
+                        <p className="chat-helper">
+                          Generate a short hypothetical doc and index its
+                          embedding instead of the raw query.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

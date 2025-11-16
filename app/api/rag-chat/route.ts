@@ -6,7 +6,6 @@ import { getDefaultOllamaModelId } from "@/lib/core/ollama";
 import {
   getAppEnv,
   observe,
-  telemetry,
   updateActiveObservation,
   updateActiveTrace,
 } from "@/lib/langfuse";
@@ -14,6 +13,21 @@ import { ollamaModel } from "@/lib/ollama-provider";
 import { type ModelProvider, normalizeModelProvider } from "@/lib/shared/model-provider";
 
 export const runtime = "nodejs";
+
+const debugRagChatTiming = (process.env.DEBUG_OLLAMA_TIMING ?? "").toLowerCase() === "true";
+const logRagChatTiming = (durationMs: number, completed: boolean, error?: unknown) => {
+  if (!debugRagChatTiming) {
+    return;
+  }
+  const payload: Record<string, unknown> = {
+    durationMs,
+    completed,
+  };
+  if (error) {
+    payload.error = error instanceof Error ? error.message : String(error);
+  }
+  console.info("[rag-chat] /api/rag-chat/route response time", payload);
+};
 
 type ChatRequestBody = {
   chatId: string;
@@ -58,7 +72,7 @@ const handler = async (req: Request): Promise<Response> => {
   const { identifier: generationModelIdentifier, model: generationModel } =
     resolveLanguageModel(provider, body.model);
   const lastUserMessage = extractLastUserMessage(messages);
-  const traceActive = telemetry.isTraceActive();
+  const traceActive = true;
 
   // Trace metadata for the entire chat turn.
   if (traceActive) {
@@ -166,19 +180,25 @@ const handler = async (req: Request): Promise<Response> => {
     });
   }
 
+  const startedAt = Date.now();
   const result = streamText({
     model: generationModel,
     system:
       "You are a helpful assistant that cites retrieved documents when possible.",
     messages,
-    experimental_telemetry: {
-      isEnabled: traceActive,
-    },
+  });
+  const textPromise = result.text;
+
+  void textPromise.then(() => {
+    logRagChatTiming(Date.now() - startedAt, true);
+  });
+  void textPromise.catch((err) => {
+    logRagChatTiming(Date.now() - startedAt, false, err);
   });
 
   // Guardrail step: record checks on the raw LLM output once streaming completes.
   if (traceActive) {
-    result.text
+    void textPromise
       .then((rawOutput) => {
         const guardrailResult = applyGuardrail(rawOutput);
         updateActiveObservation({

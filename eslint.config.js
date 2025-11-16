@@ -2,6 +2,9 @@ import { config } from '@fisch0920/config/eslint'
 import simpleImportSort from 'eslint-plugin-simple-import-sort' // <-- 1. Import the plugin.
 
 export default [
+  {
+    ignores: ["instrumentation.js"]
+  },
   ...config,
   {
     files: ['**/*.ts', '**/*.tsx'],

@@ -13,6 +13,15 @@ import {
   saveLangfuseSettings,
   saveSystemPrompt
 } from '@/lib/server/chat-settings'
+import {
+  DEFAULT_HYDE_ENABLED,
+  DEFAULT_RANKER_MODE,
+  DEFAULT_REVERSE_RAG_ENABLED,
+  DEFAULT_REVERSE_RAG_MODE,
+  parseBooleanFlag,
+  parseRankerMode,
+  parseReverseRagMode
+} from '@/lib/shared/rag-config'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'GET') {
@@ -50,14 +59,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           fallbackCommand?: unknown
           numeric?: Partial<Record<keyof GuardrailNumericSettings, unknown>>
         }
-        models?: {
-          engine?: unknown
-          llmModel?: unknown
-          embeddingModel?: unknown
-          embeddingSpaceId?: unknown
-          llmProvider?: unknown
-          embeddingProvider?: unknown
-        }
+      models?: {
+        engine?: unknown
+        llmModel?: unknown
+        embeddingModel?: unknown
+        embeddingSpaceId?: unknown
+        llmProvider?: unknown
+        embeddingProvider?: unknown
+        reverseRagEnabled?: unknown
+        reverseRagMode?: unknown
+        hydeEnabled?: unknown
+        rankerMode?: unknown
+      }
         langfuse?: {
           envTag?: unknown
           sampleRateDev?: unknown
@@ -132,13 +145,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       if (hasModels) {
+        const reverseRagEnabledValue = parseBooleanFlag(
+          models!.reverseRagEnabled,
+          DEFAULT_REVERSE_RAG_ENABLED
+        )
+        const reverseRagModeValue = parseReverseRagMode(
+          models!.reverseRagMode,
+          DEFAULT_REVERSE_RAG_MODE
+        )
+        const hydeEnabledValue = parseBooleanFlag(
+          models!.hydeEnabled,
+          DEFAULT_HYDE_ENABLED
+        )
+        const rankerModeValue = parseRankerMode(
+          models!.rankerMode,
+          DEFAULT_RANKER_MODE
+        )
+
         chatModelResult = await saveChatModelSettings({
           engine: models!.engine as ChatEngine,
           llmProvider: models!.llmProvider as ModelProvider | undefined,
           embeddingProvider: models!.embeddingProvider as ModelProvider | undefined,
           llmModel: models!.llmModel as string | undefined,
           embeddingModel: models!.embeddingModel as string | undefined,
-          embeddingSpaceId: models!.embeddingSpaceId as string | undefined
+          embeddingSpaceId: models!.embeddingSpaceId as string | undefined,
+          reverseRagEnabled: reverseRagEnabledValue,
+          reverseRagMode: reverseRagModeValue,
+          hydeEnabled: hydeEnabledValue,
+          rankerMode: rankerModeValue
         })
       }
 

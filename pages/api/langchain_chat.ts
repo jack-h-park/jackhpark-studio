@@ -17,6 +17,7 @@ import {
   buildContextWindow,
   buildIntentContextFallback,
   type ContextWindowResult,
+  estimateTokens,
   getChatGuardrailConfig,
   normalizeQuestion,
   routeQuestion
@@ -34,8 +35,15 @@ import { OllamaUnavailableError } from '@/lib/server/ollama-provider'
 import {
   type CanonicalPageLookup,
   loadCanonicalPageLookup} from '@/lib/server/page-url'
+import {
+  applyRanker,
+  generateHydeDocument,
+  rewriteQuery
+} from '@/lib/server/rag-enhancements'
+import { logDebugRag } from '@/lib/server/rag-logger'
 import { resolveRagUrl } from '@/lib/server/rag-url-resolver'
 import {
+  type GuardrailEnhancements,
   type GuardrailMeta,
   serializeGuardrailMeta
 } from '@/lib/shared/guardrail-meta'
@@ -43,6 +51,15 @@ import {
   type ModelProvider,
   toModelProviderId
 } from '@/lib/shared/model-provider'
+import {
+  DEFAULT_HYDE_ENABLED,
+  DEFAULT_RANKER_MODE,
+  DEFAULT_REVERSE_RAG_ENABLED,
+  DEFAULT_REVERSE_RAG_MODE,
+  parseBooleanFlag,
+  parseRankerMode,
+  parseReverseRagMode
+} from '@/lib/shared/rag-config'
 
 /**
  * Pages Router API (Node.js runtime).
@@ -69,6 +86,10 @@ type ChatRequestBody = {
   embeddingModel?: unknown
   embeddingSpaceId?: unknown
   temperature?: unknown
+  reverseRagEnabled?: unknown
+  reverseRagMode?: unknown
+  hydeEnabled?: unknown
+  rankerMode?: unknown
 }
 
 const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`
@@ -112,6 +133,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const question = lastMessage.content
     const normalizedQuestion = normalizeQuestion(question)
     const routingDecision = routeQuestion(normalizedQuestion, messages, guardrails)
+    const reverseRagEnabled = parseBooleanFlag(
+      body.reverseRagEnabled ?? first(req.query.reverseRagEnabled),
+      DEFAULT_REVERSE_RAG_ENABLED
+    )
+    const reverseRagMode = parseReverseRagMode(
+      body.reverseRagMode ?? first(req.query.reverseRagMode),
+      DEFAULT_REVERSE_RAG_MODE
+    )
+    const hydeEnabled = parseBooleanFlag(
+      body.hydeEnabled ?? first(req.query.hydeEnabled),
+      DEFAULT_HYDE_ENABLED
+    )
+    const rankerMode = parseRankerMode(
+      body.rankerMode ?? first(req.query.rankerMode),
+      DEFAULT_RANKER_MODE
+    )
 
     const requestedProvider = first(body.provider) ?? first(req.query.provider)
     const requestedEmbeddingProvider =
@@ -170,13 +207,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const [
       { createClient },
       { SupabaseVectorStore },
-      { PromptTemplate },
-      { RunnableSequence }
+      { PromptTemplate }
     ] = await Promise.all([
       import('@supabase/supabase-js'),
       import('@langchain/community/vectorstores/supabase'),
       import('@langchain/core/prompts'),
-      import('@langchain/core/runnables')
     ])
 
     const embeddings = await createEmbeddingsInstance(embeddingSelection)
@@ -189,7 +224,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       embeddingProvider,
       llmModel,
       embeddingModel,
-      embeddingSpaceId: embeddingSelection.embeddingSpaceId
+      embeddingSpaceId: embeddingSelection.embeddingSpaceId,
+      reverseRagEnabled,
+      reverseRagMode,
+      hydeEnabled,
+      rankerMode
     })
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
@@ -211,10 +250,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     ].join('\n')
     const prompt = PromptTemplate.fromTemplate(promptTemplate)
 
-    const buildChain = (llmInstance: BaseLanguageModelInterface) =>
-      RunnableSequence.from([prompt, llmInstance])
-
     let latestMeta: GuardrailMeta | null = null
+    let enhancementSummary: GuardrailEnhancements = {
+      reverseRag: {
+        enabled: reverseRagEnabled,
+        mode: reverseRagMode,
+        original: normalizedQuestion.normalized,
+        rewritten: normalizedQuestion.normalized
+      },
+      hyde: {
+        enabled: hydeEnabled,
+        generated: null
+      },
+      ranker: {
+        mode: rankerMode
+      }
+    }
 
     const executeWithResources = async (
       tableName: string,
@@ -227,14 +278,56 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       )
 
       if (routingDecision.intent === 'knowledge') {
+        const rewrittenQuery = await rewriteQuery(normalizedQuestion.normalized, {
+          enabled: reverseRagEnabled,
+          mode: reverseRagMode,
+          provider,
+          model: llmModel
+        })
+        logDebugRag('reverse-query', {
+          enabled: reverseRagEnabled,
+          mode: reverseRagMode,
+          original: normalizedQuestion.normalized,
+          rewritten: rewrittenQuery
+        })
+        const hydeDocument = await generateHydeDocument(rewrittenQuery, {
+          enabled: hydeEnabled,
+          provider,
+          model: llmModel
+        })
+        enhancementSummary = {
+          reverseRag: {
+            enabled: reverseRagEnabled,
+            mode: reverseRagMode,
+            original: normalizedQuestion.normalized,
+            rewritten: rewrittenQuery
+          },
+          hyde: {
+            enabled: hydeEnabled,
+            generated: hydeDocument ?? null
+          },
+          ranker: {
+            mode: rankerMode
+          }
+        }
+        logDebugRag('hyde', {
+          enabled: hydeEnabled,
+          generated: hydeDocument
+        })
+        const embeddingTarget = hydeDocument ?? rewrittenQuery
+        logDebugRag('retrieval', {
+          query: embeddingTarget,
+          mode: rankerMode
+        })
+        const queryEmbedding = await embeddings.embedQuery(embeddingTarget)
         const matchCount = Math.max(RAG_TOP_K, guardrails.ragTopK * 2)
         const store = new SupabaseVectorStore(embeddings, {
           client: supabase,
           tableName,
           queryName
         })
-        const matches = await store.similaritySearchWithScore(
-          normalizedQuestion.normalized,
+        const matches = await store.similaritySearchVectorWithScore(
+          queryEmbedding,
           matchCount
         )
         const canonicalLookup = await loadCanonicalPageLookup()
@@ -256,20 +349,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 ? (doc.metadata.similarity as number)
                 : undefined
         }))
-        contextResult = buildContextWindow(ragDocs, guardrails)
+        const rankedDocs = await applyRanker(ragDocs, {
+          mode: rankerMode,
+          maxResults: Math.max(guardrails.ragTopK, 1),
+          embeddingSelection,
+          queryEmbedding
+        })
+        contextResult = buildContextWindow(rankedDocs, guardrails)
         console.log('[langchain_chat] context compression', {
           retrieved: normalizedMatches.length,
+          ranked: rankedDocs.length,
           included: contextResult.included.length,
           dropped: contextResult.dropped,
           totalTokens: contextResult.totalTokens,
           highestScore: Number(contextResult.highestScore.toFixed(3)),
-          insufficient: contextResult.insufficient
+          insufficient: contextResult.insufficient,
+          rankerMode
         })
       } else {
         console.log('[langchain_chat] intent fallback', {
           intent: routingDecision.intent
         })
       }
+
+      const summaryTokens =
+        historyWindow.summaryMemory && historyWindow.summaryMemory.length > 0
+          ? estimateTokens(historyWindow.summaryMemory)
+          : null
+      const summaryInfo =
+        summaryTokens !== null
+          ? {
+              originalTokens: historyWindow.tokenCount,
+              summaryTokens,
+              trimmedTurns: historyWindow.trimmed.length,
+              maxTurns: guardrails.summary.maxTurns
+            }
+          : undefined
 
       latestMeta = {
         intent: routingDecision.intent,
@@ -291,8 +406,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           similarityThreshold: guardrails.similarityThreshold,
           highestSimilarity: Number.isFinite(contextResult.highestScore)
             ? contextResult.highestScore
-            : undefined
+            : undefined,
+          contextTokenBudget: guardrails.ragContextTokenBudget,
+          contextClipTokens: guardrails.ragContextClipTokens
+        },
+        enhancements: enhancementSummary,
+        summaryConfig: {
+          enabled: guardrails.summary.enabled,
+          triggerTokens: guardrails.summary.triggerTokens,
+          maxTurns: guardrails.summary.maxTurns,
+          maxChars: guardrails.summary.maxChars
         }
+        ,
+        summaryInfo
       }
 
       const guardrailMeta = [
@@ -309,13 +435,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         historyWindow.summaryMemory ??
         '(No summarized prior turns. Treat this as a standalone exchange.)'
 
-      const chain = buildChain(llmInstance)
-      const stream = await chain.stream({
+      const promptInput = await prompt.format({
         question,
         context: contextValue,
         memory: memoryValue,
         intent: guardrailMeta
       })
+      const stream = await llmInstance.stream(promptInput)
       const citationMap = new Map<
         string,
         {
@@ -597,7 +723,8 @@ async function createChatModel(
       return new ChatOpenAI({
         model: modelName,
         apiKey,
-        temperature
+        temperature,
+        streaming: true
       })
     }
     case 'gemini': {
@@ -608,7 +735,8 @@ async function createChatModel(
       return new ChatGoogleGenerativeAI({
         model: modelName,
         apiKey,
-        temperature
+        temperature,
+        streaming: true
       })
     }
     case 'ollama': {

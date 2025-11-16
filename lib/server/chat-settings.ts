@@ -19,6 +19,17 @@ import {
   type ModelProvider,
   normalizeChatEngine
 } from '@/lib/shared/model-provider'
+import {
+  DEFAULT_HYDE_ENABLED,
+  DEFAULT_RANKER_MODE,
+  DEFAULT_REVERSE_RAG_ENABLED,
+  DEFAULT_REVERSE_RAG_MODE,
+  parseBooleanFlag,
+  parseRankerMode,
+  parseReverseRagMode,
+  type RankerMode,
+  type ReverseRagMode
+} from '@/lib/shared/rag-config'
 
 const GUARDRAIL_SETTINGS_CACHE_TTL_MS = 60_000
 const CHAT_MODEL_SETTINGS_CACHE_TTL_MS = 60_000
@@ -62,6 +73,17 @@ const CHAT_MODEL_SETTING_KEYS = [
   CHAT_EMBEDDING_MODEL_SETTING_KEY,
   CHAT_EMBEDDING_SPACE_SETTING_KEY
 ] as const
+const CHAT_REVERSE_RAG_ENABLED_SETTING_KEY = 'chat_reverse_rag_enabled'
+const CHAT_REVERSE_RAG_MODE_SETTING_KEY = 'chat_reverse_rag_mode'
+const CHAT_HYDE_ENABLED_SETTING_KEY = 'chat_hyde_enabled'
+const CHAT_RANKER_MODE_SETTING_KEY = 'chat_ranker_mode'
+const CHAT_RUNTIME_SETTING_KEYS = [
+  ...CHAT_MODEL_SETTING_KEYS,
+  CHAT_REVERSE_RAG_ENABLED_SETTING_KEY,
+  CHAT_REVERSE_RAG_MODE_SETTING_KEY,
+  CHAT_HYDE_ENABLED_SETTING_KEY,
+  CHAT_RANKER_MODE_SETTING_KEY
+] as const
 const LANGFUSE_ENV_SETTING_KEY = "langfuse_env";
 const LANGFUSE_SAMPLE_RATE_DEV_SETTING_KEY = "langfuse_sample_rate_dev";
 const LANGFUSE_SAMPLE_RATE_PREVIEW_SETTING_KEY = "langfuse_sample_rate_preview";
@@ -101,12 +123,20 @@ export type ChatModelSettings = {
   embeddingProvider: ModelProvider
   llmModel: string
   embeddingModel: string
+  reverseRagEnabled: boolean
+  reverseRagMode: ReverseRagMode
+  hydeEnabled: boolean
+  rankerMode: RankerMode
   isDefault: {
     engine: boolean
     llmProvider: boolean
     embeddingProvider: boolean
     llmModel: boolean
     embeddingModel: boolean
+    reverseRagEnabled: boolean
+    reverseRagMode: boolean
+    hydeEnabled: boolean
+    rankerMode: boolean
     embeddingSpaceId: boolean
   }
 }
@@ -118,6 +148,10 @@ export type ChatModelSettingsInput = {
   embeddingSpaceId?: string | null
   llmModel?: string | null
   embeddingModel?: string | null
+  reverseRagEnabled?: boolean
+  reverseRagMode?: ReverseRagMode
+  hydeEnabled?: boolean
+  rankerMode?: RankerMode
 }
 
 export type LangfuseSettings = {
@@ -245,12 +279,20 @@ export function getChatModelDefaults(): ChatModelSettings {
     embeddingProvider: defaultEmbedding.provider,
     llmModel: defaultLlm.model,
     embeddingModel: defaultEmbedding.model,
+    reverseRagEnabled: DEFAULT_REVERSE_RAG_ENABLED,
+    reverseRagMode: DEFAULT_REVERSE_RAG_MODE,
+    hydeEnabled: DEFAULT_HYDE_ENABLED,
+    rankerMode: DEFAULT_RANKER_MODE,
     isDefault: {
       engine: true,
       llmProvider: true,
       embeddingProvider: true,
       llmModel: true,
       embeddingModel: true,
+      reverseRagEnabled: true,
+      reverseRagMode: true,
+      hydeEnabled: true,
+      rankerMode: true,
       embeddingSpaceId: true
     }
   }
@@ -489,7 +531,7 @@ export async function loadChatModelSettings(options?: {
   const { data, error } = await client
     .from(CHAT_SETTINGS_TABLE)
     .select('key, value')
-    .in('key', [...CHAT_MODEL_SETTING_KEYS])
+    .in('key', [...CHAT_RUNTIME_SETTING_KEYS])
 
   if (error) {
     if (isMissingChatSettingsTable(error)) {
@@ -531,6 +573,23 @@ export async function loadChatModelSettings(options?: {
   const embeddingModelSetting = settingsMap.get(CHAT_EMBEDDING_MODEL_SETTING_KEY) ?? null
   const embeddingSpaceSetting = settingsMap.get(CHAT_EMBEDDING_SPACE_SETTING_KEY) ?? null
 
+  const reverseRagEnabledSetting = parseBooleanFlag(
+    settingsMap.get(CHAT_REVERSE_RAG_ENABLED_SETTING_KEY),
+    DEFAULT_REVERSE_RAG_ENABLED
+  )
+  const reverseRagModeSetting = parseReverseRagMode(
+    settingsMap.get(CHAT_REVERSE_RAG_MODE_SETTING_KEY),
+    DEFAULT_REVERSE_RAG_MODE
+  )
+  const hydeEnabledSetting = parseBooleanFlag(
+    settingsMap.get(CHAT_HYDE_ENABLED_SETTING_KEY),
+    DEFAULT_HYDE_ENABLED
+  )
+  const rankerModeSetting = parseRankerMode(
+    settingsMap.get(CHAT_RANKER_MODE_SETTING_KEY),
+    DEFAULT_RANKER_MODE
+  )
+
   const llmSelection = resolveLlmModel({
     provider: llmProviderSetting.value,
     modelId: llmModelSetting,
@@ -552,6 +611,10 @@ export async function loadChatModelSettings(options?: {
     embeddingProvider: embeddingSelection.provider,
     llmModel: llmSelection.model,
     embeddingModel: embeddingSelection.model,
+    reverseRagEnabled: reverseRagEnabledSetting,
+    reverseRagMode: reverseRagModeSetting,
+    hydeEnabled: hydeEnabledSetting,
+    rankerMode: rankerModeSetting,
     isDefault: {
       engine: engineSetting.isDefault,
       llmProvider: llmProviderSetting.isDefault,
@@ -563,6 +626,14 @@ export async function loadChatModelSettings(options?: {
           embeddingSelection.embeddingModelId === defaultEmbedding.embeddingModelId) &&
         (!embeddingSpaceSetting ||
           embeddingSelection.embeddingSpaceId === defaultEmbedding.embeddingSpaceId),
+      reverseRagEnabled:
+        reverseRagEnabledSetting === DEFAULT_REVERSE_RAG_ENABLED,
+      reverseRagMode:
+        reverseRagModeSetting === DEFAULT_REVERSE_RAG_MODE,
+      hydeEnabled:
+        hydeEnabledSetting === DEFAULT_HYDE_ENABLED,
+      rankerMode:
+        rankerModeSetting === DEFAULT_RANKER_MODE,
       embeddingSpaceId:
         !embeddingSpaceSetting ||
         embeddingSelection.embeddingSpaceId === defaultEmbedding.embeddingSpaceId
@@ -590,6 +661,13 @@ export async function saveChatModelSettings(
     model: input.embeddingModel
   })
 
+  const reverseRagEnabledValue =
+    input.reverseRagEnabled ?? DEFAULT_REVERSE_RAG_ENABLED
+  const reverseRagModeValue =
+    input.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE
+  const hydeEnabledValue = input.hydeEnabled ?? DEFAULT_HYDE_ENABLED
+  const rankerModeValue = input.rankerMode ?? DEFAULT_RANKER_MODE
+
   const payload = [
     { key: CHAT_ENGINE_SETTING_KEY, value: engine },
     { key: CHAT_LLM_PROVIDER_SETTING_KEY, value: llmSelection.provider },
@@ -598,6 +676,25 @@ export async function saveChatModelSettings(
     { key: CHAT_EMBEDDING_MODEL_SETTING_KEY, value: embeddingSelection.embeddingModelId },
     { key: CHAT_EMBEDDING_SPACE_SETTING_KEY, value: embeddingSelection.embeddingSpaceId }
   ]
+
+  payload.push(
+    {
+      key: CHAT_REVERSE_RAG_ENABLED_SETTING_KEY,
+      value: reverseRagEnabledValue ? 'true' : 'false'
+    },
+    {
+      key: CHAT_REVERSE_RAG_MODE_SETTING_KEY,
+      value: reverseRagModeValue
+    },
+    {
+      key: CHAT_HYDE_ENABLED_SETTING_KEY,
+      value: hydeEnabledValue ? 'true' : 'false'
+    },
+    {
+      key: CHAT_RANKER_MODE_SETTING_KEY,
+      value: rankerModeValue
+    }
+  )
 
   const client = getClient(options?.client)
   const { error } = await client

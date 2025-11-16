@@ -13,6 +13,7 @@ import {
   buildContextWindow,
   buildIntentContextFallback,
   type ContextWindowResult,
+  estimateTokens,
   getChatGuardrailConfig,
   normalizeQuestion,
   routeQuestion
@@ -34,8 +35,15 @@ import {
   type CanonicalPageLookup,
   loadCanonicalPageLookup
 } from '@/lib/server/page-url'
+import {
+  applyRanker,
+  generateHydeDocument,
+  rewriteQuery
+} from '@/lib/server/rag-enhancements'
+import { logDebugRag } from '@/lib/server/rag-logger'
 import { resolveRagUrl } from '@/lib/server/rag-url-resolver'
 import {
+  type GuardrailEnhancements,
   type GuardrailMeta,
   serializeGuardrailMeta
 } from '@/lib/shared/guardrail-meta'
@@ -43,6 +51,15 @@ import {
   type ModelProvider,
   toModelProviderId
 } from '@/lib/shared/model-provider'
+import {
+  DEFAULT_HYDE_ENABLED,
+  DEFAULT_RANKER_MODE,
+  DEFAULT_REVERSE_RAG_ENABLED,
+  DEFAULT_REVERSE_RAG_MODE,
+  parseBooleanFlag,
+  parseRankerMode,
+  parseReverseRagMode
+} from '@/lib/shared/rag-config'
 import { getSupabaseAdminClient } from '@/lib/supabase-admin'
 
 type RagDocumentMetadata = {
@@ -84,6 +101,10 @@ type ChatRequestBody = {
   embeddingSpaceId?: unknown
   temperature?: unknown
   maxTokens?: unknown
+  reverseRagEnabled?: unknown
+  reverseRagMode?: unknown
+  hydeEnabled?: unknown
+  rankerMode?: unknown
 }
 
 const DEFAULT_MATCH_COUNT = Number(process.env.RAG_TOP_K ?? 5)
@@ -125,6 +146,22 @@ export default async function handler(
 
     const normalizedQuestion = normalizeQuestion(userQuery)
     const routingDecision = routeQuestion(normalizedQuestion, messages, guardrails)
+    const reverseRagEnabled = parseBooleanFlag(
+      body.reverseRagEnabled ?? first(req.query.reverseRagEnabled),
+      DEFAULT_REVERSE_RAG_ENABLED
+    )
+    const reverseRagMode = parseReverseRagMode(
+      body.reverseRagMode ?? first(req.query.reverseRagMode),
+      DEFAULT_REVERSE_RAG_MODE
+    )
+    const hydeEnabled = parseBooleanFlag(
+      body.hydeEnabled ?? first(req.query.hydeEnabled),
+      DEFAULT_HYDE_ENABLED
+    )
+    const rankerMode = parseRankerMode(
+      body.rankerMode ?? first(req.query.rankerMode),
+      DEFAULT_RANKER_MODE
+    )
 
     const requestedProvider = first(body.provider) ?? first(req.query.provider)
     const requestedEmbeddingProvider =
@@ -184,6 +221,21 @@ export default async function handler(
       16,
       parseNumber(body.maxTokens ?? first(req.query.maxTokens), DEFAULT_MAX_TOKENS)
     )
+    const enhancements: GuardrailEnhancements = {
+      reverseRag: {
+        enabled: reverseRagEnabled,
+        mode: reverseRagMode,
+        original: normalizedQuestion.normalized,
+        rewritten: normalizedQuestion.normalized
+      },
+      hyde: {
+        enabled: hydeEnabled,
+        generated: null
+      },
+      ranker: {
+        mode: rankerMode
+      }
+    }
 
     console.log('[native_chat] guardrails', {
       intent: routingDecision.intent,
@@ -194,7 +246,11 @@ export default async function handler(
       embeddingProvider,
       llmModel,
       embeddingModel,
-      embeddingSpaceId: embeddingSelection.embeddingSpaceId
+      embeddingSpaceId: embeddingSelection.embeddingSpaceId,
+      reverseRagEnabled,
+      reverseRagMode,
+      hydeEnabled,
+      rankerMode
     })
 
     let contextResult: ContextWindowResult = {
@@ -207,7 +263,39 @@ export default async function handler(
     }
 
     if (routingDecision.intent === 'knowledge') {
-      const embedding = await embedText(normalizedQuestion.normalized, {
+      const reversedQuery = await rewriteQuery(normalizedQuestion.normalized, {
+        enabled: reverseRagEnabled,
+        mode: reverseRagMode,
+        provider,
+        model: llmModel
+      })
+      enhancements.reverseRag = {
+        enabled: reverseRagEnabled,
+        mode: reverseRagMode,
+        original: normalizedQuestion.normalized,
+        rewritten: reversedQuery
+      }
+      logDebugRag('reverse-query', {
+        enabled: reverseRagEnabled,
+        mode: reverseRagMode,
+        original: normalizedQuestion.normalized,
+        rewritten: reversedQuery
+      })
+      const hydeDocument = await generateHydeDocument(reversedQuery, {
+        enabled: hydeEnabled,
+        provider,
+        model: llmModel
+      })
+      enhancements.hyde = {
+        enabled: hydeEnabled,
+        generated: hydeDocument ?? null
+      }
+      logDebugRag('hyde', {
+        enabled: hydeEnabled,
+        generated: hydeDocument
+      })
+      const embeddingInput = hydeDocument ?? reversedQuery
+      const embedding = await embedText(embeddingInput, {
         provider: embeddingSelection.provider,
         model: embeddingSelection.model,
         embeddingModelId: embeddingSelection.embeddingModelId,
@@ -220,10 +308,12 @@ export default async function handler(
 
       const supabase = getSupabaseAdminClient()
       const ragMatchFunction = getRagMatchFunction(embeddingSelection)
-      const matchCount = Math.max(
-        DEFAULT_MATCH_COUNT,
-        guardrails.ragTopK * 2
-      )
+      const matchCount = Math.max(DEFAULT_MATCH_COUNT, guardrails.ragTopK * 2)
+      logDebugRag('retrieval', {
+        query: embeddingInput,
+        matchCount,
+        similarityThreshold: guardrails.similarityThreshold
+      })
       const { data: documents, error: matchError } = await supabase.rpc(
         ragMatchFunction,
         {
@@ -248,14 +338,22 @@ export default async function handler(
         typedDocuments,
         canonicalLookup
       )
-      contextResult = buildContextWindow(normalizedDocuments, guardrails)
+      const rankedDocuments = await applyRanker(normalizedDocuments, {
+        mode: rankerMode,
+        maxResults: Math.max(guardrails.ragTopK, 1),
+        embeddingSelection,
+        queryEmbedding: embedding
+      })
+      contextResult = buildContextWindow(rankedDocuments, guardrails)
       console.log('[native_chat] context compression', {
         retrieved: normalizedDocuments.length,
+        ranked: rankedDocuments.length,
         included: contextResult.included.length,
         dropped: contextResult.dropped,
         totalTokens: contextResult.totalTokens,
         highestScore: Number(contextResult.highestScore.toFixed(3)),
-        insufficient: contextResult.insufficient
+        insufficient: contextResult.insufficient,
+        rankerMode
       })
     } else {
       contextResult = buildIntentContextFallback(routingDecision.intent, guardrails)
@@ -263,6 +361,20 @@ export default async function handler(
         intent: routingDecision.intent
       })
     }
+
+    const summaryTokens =
+      historyWindow.summaryMemory && historyWindow.summaryMemory.length > 0
+        ? estimateTokens(historyWindow.summaryMemory)
+        : null
+    const summaryInfo =
+      summaryTokens !== null
+        ? {
+            originalTokens: historyWindow.tokenCount,
+            summaryTokens,
+            trimmedTurns: historyWindow.trimmed.length,
+            maxTurns: guardrails.summary.maxTurns
+          }
+        : undefined
 
     const responseMeta: GuardrailMeta = {
       intent: routingDecision.intent,
@@ -284,8 +396,18 @@ export default async function handler(
         similarityThreshold: guardrails.similarityThreshold,
         highestSimilarity: Number.isFinite(contextResult.highestScore)
           ? contextResult.highestScore
-          : undefined
-      }
+          : undefined,
+        contextTokenBudget: guardrails.ragContextTokenBudget,
+        contextClipTokens: guardrails.ragContextClipTokens
+      },
+      summaryConfig: {
+        enabled: guardrails.summary.enabled,
+        triggerTokens: guardrails.summary.triggerTokens,
+        maxTurns: guardrails.summary.maxTurns,
+        maxChars: guardrails.summary.maxChars
+      },
+      summaryInfo,
+      enhancements
     }
     res.setHeader('X-Guardrail-Meta', serializeGuardrailMeta(responseMeta))
 

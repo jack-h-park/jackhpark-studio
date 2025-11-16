@@ -8,5 +8,19 @@
       "source": "/security",
       "destination": "https://mcp-security-incidents.vercel.app"
     }
+  ],
+
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/chat",
+      "permanent": false,
+      "has": [
+        {
+          "type": "host",
+          "value": "chat.jackhpark.com"
+        }
+      ]
+    }
   ]
 }

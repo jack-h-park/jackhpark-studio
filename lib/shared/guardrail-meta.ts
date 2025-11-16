@@ -1,3 +1,8 @@
+import {
+  type RankerMode,
+  type ReverseRagMode
+} from '@/lib/shared/rag-config'
+
 export type GuardrailMetaContext = {
   included: number
   dropped: number
@@ -6,6 +11,8 @@ export type GuardrailMetaContext = {
   retrieved?: number
   similarityThreshold?: number
   highestSimilarity?: number
+  contextTokenBudget?: number
+  contextClipTokens?: number
 }
 
 export type GuardrailMetaHistory = {
@@ -15,6 +22,22 @@ export type GuardrailMetaHistory = {
   preservedTurns: number
 }
 
+export type GuardrailEnhancements = {
+  reverseRag?: {
+    enabled: boolean
+    mode: ReverseRagMode
+    original: string
+    rewritten: string
+  }
+  hyde?: {
+    enabled: boolean
+    generated: string | null
+  }
+  ranker?: {
+    mode: RankerMode
+  }
+}
+
 export type GuardrailMeta = {
   intent: string
   reason: string
@@ -22,6 +45,19 @@ export type GuardrailMeta = {
   summaryApplied: boolean
   history?: GuardrailMetaHistory
   context: GuardrailMetaContext
+  enhancements?: GuardrailEnhancements
+  summaryConfig?: {
+    enabled: boolean
+    triggerTokens: number
+    maxTurns: number
+    maxChars: number
+  }
+  summaryInfo?: {
+    originalTokens: number
+    summaryTokens: number
+    trimmedTurns: number
+    maxTurns: number
+  }
 }
 
 export function serializeGuardrailMeta(meta: GuardrailMeta): string {

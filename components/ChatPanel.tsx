@@ -30,15 +30,26 @@ import {
   normalizeChatEngine,
   normalizeModelProvider,
 } from "@/lib/shared/model-provider";
+import {
+  DEFAULT_HYDE_ENABLED,
+  DEFAULT_RANKER_MODE,
+  DEFAULT_REVERSE_RAG_ENABLED,
+  DEFAULT_REVERSE_RAG_MODE,
+  type RankerMode,
+  type ReverseRagMode,
+} from "@/lib/shared/rag-config";
 
 const DEFAULT_LLM_SELECTION = resolveLlmModel({
   modelId: process.env.NEXT_PUBLIC_LLM_MODEL ?? process.env.LLM_MODEL ?? null,
-  provider: process.env.NEXT_PUBLIC_LLM_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
+  provider:
+    process.env.NEXT_PUBLIC_LLM_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
   model: process.env.NEXT_PUBLIC_LLM_MODEL ?? null,
 });
 const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
   embeddingModelId:
-    process.env.NEXT_PUBLIC_EMBEDDING_MODEL ?? process.env.EMBEDDING_MODEL ?? null,
+    process.env.NEXT_PUBLIC_EMBEDDING_MODEL ??
+    process.env.EMBEDDING_MODEL ??
+    null,
   embeddingSpaceId:
     (process.env.NEXT_PUBLIC_EMBEDDING_SPACE_ID as string | undefined) ??
     process.env.EMBEDDING_SPACE_ID ??
@@ -55,8 +66,7 @@ const DEFAULT_ENGINE: ChatEngine = normalizeChatEngine(
   "lc",
 );
 
-const URL_REGEX =
-  /(https?:\/\/[^\s<>()"'`]+[^\s.,)<>"'`])/gi;
+const URL_REGEX = /(https?:\/\/[^\s<>()"'`]+[^\s.,)<>"'`])/gi;
 
 function formatLinkLabel(rawUrl: string): string {
   try {
@@ -122,10 +132,7 @@ function renderMessageContent(
 
   if (lastIndex < content.length) {
     nodes.push(
-      ...withLineBreaks(
-        content.slice(lastIndex),
-        `${keyPrefix}-text-tail`,
-      ),
+      ...withLineBreaks(content.slice(lastIndex), `${keyPrefix}-text-tail`),
     );
   }
 
@@ -313,7 +320,7 @@ const styles = css`
 
   .toggle-slider::before {
     position: absolute;
-    content: '';
+    content: "";
     height: 18px;
     width: 18px;
     left: 2px;
@@ -416,19 +423,119 @@ const styles = css`
 
   .message-meta {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 6px;
-    margin-top: 6px;
+    margin-top: 4px;
   }
 
-  .meta-chip {
-    font-size: 0.7rem;
+  .meta-card {
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 8px 10px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  }
+
+  .meta-card--runtime {
+    border-color: #cbd5f5;
+    background: #edf2ff;
+  }
+
+  .meta-card--guardrail {
+    border-color: #cbd5f5;
+    background: #f8fafc;
+  }
+
+  .meta-card--enhancements {
+    border-color: #fcd34d;
+    background: #fff7ed;
+  }
+
+  .meta-card__heading {
+    font-size: 0.6rem;
+    letter-spacing: 0.25em;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 3px 6px;
-    border-radius: 999px;
-    background: rgba(10, 69, 132, 0.1);
-    color: #0a4584;
+    color: #475569;
+  }
+
+  .meta-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  .meta-card-block {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .meta-card-block--summary {
+    margin-top: 10px;
+  }
+
+  .meta-card-block__label {
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #6b7280;
+  }
+
+  .meta-card-block__value {
+    font-weight: 600;
+    font-size: 0.55rem;
+    color: #0f172a;
+  }
+
+  .meta-card-block__secondary {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #475569;
+    line-height: 1.3;
+    margin-top: 4px;
+  }
+
+  .meta-card-block__value.warning {
+    color: #b45309;
+  }
+
+  .meta-card-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+
+  .enhancement-chip {
+    position: relative;
+    cursor: help;
+  }
+
+  .enhancement-chip[data-tooltip]:not([data-tooltip=""])::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 6px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.9);
+    color: #fff;
+    font-size: 0.65rem;
+    white-space: pre-line;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      opacity 0.2s ease,
+      visibility 0.2s ease;
+    z-index: 3;
+  }
+
+  .enhancement-chip[data-tooltip]:not([data-tooltip=""]):hover::after {
+    visibility: visible;
+    opacity: 1;
   }
 
   .meta-chip.warning {
@@ -436,22 +543,48 @@ const styles = css`
     color: #b45309;
   }
 
-  .runtime-summary {
+  .chat-runtime-summary {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 0.82rem;
+  }
+
+  .chat-runtime-summary__row {
+    display: flex;
+    align-items: center;
     gap: 6px;
   }
 
-  .runtime-readonly {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .runtime-readonly__hint {
-    margin-top: 4px;
-    font-size: 0.75rem;
+  .chat-runtime-summary__label {
+    font-size: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
     color: #6b7280;
+    min-width: 70px;
+  }
+
+  .chat-runtime-summary__value {
+    font-weight: 600;
+    color: #0f172a;
+    font-size: 0.8rem;
+  }
+
+  .chat-runtime-flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .chat-runtime-flag {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(37, 99, 235, 0.1);
+    color: #1d4ed8;
   }
 
   .meta-debug {
@@ -617,11 +750,12 @@ const mergeCitations = (entries: Citation[]): Citation[] => {
     const urlKey = entry.source_url?.trim().toLowerCase();
     const docKey = entry.title?.trim().toLowerCase();
     const fallbackKey = `idx:${index}`;
-    const key = urlKey && urlKey.length > 0
-      ? urlKey
-      : docKey && docKey.length > 0
-        ? docKey
-        : fallbackKey;
+    const key =
+      urlKey && urlKey.length > 0
+        ? urlKey
+        : docKey && docKey.length > 0
+          ? docKey
+          : fallbackKey;
 
     const existing = merged.get(key);
     if (existing) {
@@ -668,6 +802,15 @@ type ChatRuntimeConfig = {
   embeddingSpaceId: string | null;
   llmModel?: string | null;
   embeddingModel?: string | null;
+  reverseRagEnabled: boolean;
+  reverseRagMode: ReverseRagMode;
+  hydeEnabled: boolean;
+  rankerMode: RankerMode;
+};
+
+const truncateText = (value: string | null | undefined, max = 60) => {
+  if (!value) return "";
+  return value.length <= max ? value : `${value.slice(0, max)}…`;
 };
 
 const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
@@ -716,7 +859,10 @@ const buildResponseError = async (response: Response) => {
   const fallback = `Request failed with status ${response.status}`;
   try {
     const raw = await response.text();
-    return new ChatRequestError(parseErrorPayload(raw) ?? fallback, response.status);
+    return new ChatRequestError(
+      parseErrorPayload(raw) ?? fallback,
+      response.status,
+    );
   } catch {
     return new ChatRequestError(fallback, response.status);
   }
@@ -768,10 +914,14 @@ export function ChatPanel() {
     embeddingSpaceId: DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
     llmModel: DEFAULT_LLM_SELECTION.model,
     embeddingModel: DEFAULT_EMBEDDING_SELECTION.model,
+    reverseRagEnabled: DEFAULT_REVERSE_RAG_ENABLED,
+    reverseRagMode: DEFAULT_REVERSE_RAG_MODE,
+    hydeEnabled: DEFAULT_HYDE_ENABLED,
+    rankerMode: DEFAULT_RANKER_MODE,
   });
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
-  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showTelemetry, setShowTelemetry] = useState(false);
   const [showCitations, setShowCitations] = useState(false);
 
   useEffect(() => {
@@ -794,6 +944,10 @@ export function ChatPanel() {
             llmModelId?: string | null;
             embeddingModelId?: string | null;
             embeddingSpaceId?: string | null;
+            reverseRagEnabled?: boolean | null;
+            reverseRagMode?: ReverseRagMode | null;
+            hydeEnabled?: boolean | null;
+            rankerMode?: RankerMode | null;
           } | null;
         };
         const models = payload?.models;
@@ -805,23 +959,39 @@ export function ChatPanel() {
           DEFAULT_LLM_SELECTION.provider,
         );
         const resolvedEmbeddingProvider = normalizeModelProvider(
-          models.embeddingProvider ?? models.llmProvider ?? DEFAULT_EMBEDDING_SELECTION.provider,
+          models.embeddingProvider ??
+            models.llmProvider ??
+            DEFAULT_EMBEDDING_SELECTION.provider,
           DEFAULT_EMBEDDING_SELECTION.provider,
         );
         setRuntimeConfig({
           engine: normalizeChatEngine(models.engine, DEFAULT_ENGINE),
           llmProvider: resolvedLlmProvider,
           embeddingProvider: resolvedEmbeddingProvider,
-          llmModelId: models.llmModelId ?? models.llmModel ?? DEFAULT_LLM_SELECTION.id,
+          llmModelId:
+            models.llmModelId ?? models.llmModel ?? DEFAULT_LLM_SELECTION.id,
           embeddingModelId:
-            models.embeddingModelId ?? models.embeddingModel ?? DEFAULT_EMBEDDING_SELECTION.embeddingModelId,
-          embeddingSpaceId: models.embeddingSpaceId ?? DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
+            models.embeddingModelId ??
+            models.embeddingModel ??
+            DEFAULT_EMBEDDING_SELECTION.embeddingModelId,
+          embeddingSpaceId:
+            models.embeddingSpaceId ??
+            DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
           llmModel: models.llmModel ?? DEFAULT_LLM_SELECTION.model,
-          embeddingModel: models.embeddingModel ?? DEFAULT_EMBEDDING_SELECTION.model,
+          embeddingModel:
+            models.embeddingModel ?? DEFAULT_EMBEDDING_SELECTION.model,
+          reverseRagEnabled:
+            models.reverseRagEnabled ?? DEFAULT_REVERSE_RAG_ENABLED,
+          reverseRagMode: models.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE,
+          hydeEnabled: models.hydeEnabled ?? DEFAULT_HYDE_ENABLED,
+          rankerMode: models.rankerMode ?? DEFAULT_RANKER_MODE,
         });
       } catch (err) {
         if (!controller.signal.aborted) {
-          console.warn("Failed to load chat model settings; using defaults.", err);
+          console.warn(
+            "Failed to load chat model settings; using defaults.",
+            err,
+          );
         }
       }
     };
@@ -834,7 +1004,7 @@ export function ChatPanel() {
       return;
     }
     const stored = localStorage.getItem("chat_guardrail_debug");
-    setShowDiagnostics(stored === "1");
+    setShowTelemetry(stored === "1");
   }, []);
 
   useEffect(() => {
@@ -844,8 +1014,8 @@ export function ChatPanel() {
     setShowCitations(localStorage.getItem("chat_show_citations") === "1");
   }, []);
 
-  const toggleDiagnostics = () => {
-    setShowDiagnostics((prev) => {
+  const toggleTelemetry = () => {
+    setShowTelemetry((prev) => {
       const next = !prev;
       if (typeof window !== "undefined") {
         localStorage.setItem("chat_guardrail_debug", next ? "1" : "0");
@@ -976,8 +1146,11 @@ export function ChatPanel() {
         const llmModelPayload =
           activeRuntime.llmModelId ?? activeRuntime.llmModel ?? undefined;
         const embeddingModelPayload =
-          activeRuntime.embeddingModelId ?? activeRuntime.embeddingModel ?? undefined;
-        const embeddingSpacePayload = activeRuntime.embeddingSpaceId ?? undefined;
+          activeRuntime.embeddingModelId ??
+          activeRuntime.embeddingModel ??
+          undefined;
+        const embeddingSpacePayload =
+          activeRuntime.embeddingSpaceId ?? undefined;
         const sanitizedMessagesPayload = [...messages, userMessage].map(
           (message) => ({
             role: message.role,
@@ -998,6 +1171,10 @@ export function ChatPanel() {
               model: llmModelPayload,
               embeddingModel: embeddingModelPayload,
               embeddingSpaceId: embeddingSpacePayload,
+              reverseRagEnabled: activeRuntime.reverseRagEnabled,
+              reverseRagMode: activeRuntime.reverseRagMode,
+              hydeEnabled: activeRuntime.hydeEnabled,
+              rankerMode: activeRuntime.rankerMode,
             }),
             signal: controller.signal,
           });
@@ -1062,6 +1239,10 @@ export function ChatPanel() {
               model: llmModelPayload,
               embeddingModel: embeddingModelPayload,
               embeddingSpaceId: embeddingSpacePayload,
+              reverseRagEnabled: activeRuntime.reverseRagEnabled,
+              reverseRagMode: activeRuntime.reverseRagMode,
+              hydeEnabled: activeRuntime.hydeEnabled,
+              rankerMode: activeRuntime.rankerMode,
             }),
             signal: controller.signal,
           });
@@ -1144,7 +1325,9 @@ export function ChatPanel() {
                 <button
                   type="button"
                   className="chat-expand-button"
-                  aria-label={isExpanded ? "Shrink chat panel" : "Expand chat panel"}
+                  aria-label={
+                    isExpanded ? "Shrink chat panel" : "Expand chat panel"
+                  }
                   onClick={togglePanelSize}
                 >
                   {isExpanded ? (
@@ -1165,46 +1348,76 @@ export function ChatPanel() {
             {showOptions && (
               <div className="chat-config-bar">
                 <div className="chat-control-block">
-                  <span className="chat-control-label">Engine & model</span>
-                  <div className="runtime-readonly">
-                    <span className="meta-chip">
-                      Engine: {runtimeConfig.engine === "lc" ? "LangChain" : "Native"}
+                  <span className="chat-control-label">Engine &amp; model</span>
+                  <div className="chat-runtime-summary">
+                    <div className="chat-runtime-summary__row">
+                      <span className="chat-runtime-summary__label">
+                        Engine
+                      </span>
+                      <span className="chat-runtime-summary__value">
+                        {runtimeConfig.engine === "lc" ? "LangChain" : "Native"}
+                      </span>
+                    </div>
+                    <div className="chat-runtime-summary__row">
+                      <span className="chat-runtime-summary__label">LLM</span>
+                      <span className="chat-runtime-summary__value">
+                        {runtimeConfig.llmProvider === "openai"
+                          ? "OpenAI"
+                          : MODEL_PROVIDER_LABELS[
+                              runtimeConfig.llmProvider
+                            ]}{" "}
+                        {runtimeConfig.llmModel ?? "custom model"}
+                      </span>
+                    </div>
+                    <div className="chat-runtime-summary__row">
+                      <span className="chat-runtime-summary__label">
+                        Embedding
+                      </span>
+                      <span className="chat-runtime-summary__value">
+                        {runtimeConfig.embeddingModelId ??
+                          runtimeConfig.embeddingModel ??
+                          "custom embedding"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="chat-runtime-flags">
+                    <span
+                      className="chat-runtime-flag"
+                      title="Reverse RAG enables query rewriting before retrieval"
+                    >
+                      Reverse RAG:{" "}
+                      {runtimeConfig.reverseRagEnabled
+                        ? `on (${runtimeConfig.reverseRagMode})`
+                        : "off"}
                     </span>
-                    <span className="meta-chip">
-                      LLM:{" "}
-                      {MODEL_PROVIDER_LABELS[runtimeConfig.llmProvider]}
-                      {runtimeConfig.llmModelId
-                        ? ` · ${runtimeConfig.llmModelId}`
-                        : runtimeConfig.llmModel
-                          ? ` · ${runtimeConfig.llmModel}`
-                          : ""}
+                    <span
+                      className="chat-runtime-flag"
+                      title="Ranker mode applied after the initial retrieval"
+                    >
+                      Ranker: {runtimeConfig.rankerMode.toUpperCase()}
                     </span>
-                    <span className="meta-chip">
-                      Embedding:{" "}
-                      {MODEL_PROVIDER_LABELS[runtimeConfig.embeddingProvider]}
-                      {runtimeConfig.embeddingModelId
-                        ? ` · ${runtimeConfig.embeddingModelId}`
-                        : runtimeConfig.embeddingModel
-                          ? ` · ${runtimeConfig.embeddingModel}`
-                          : ""}
+                    <span
+                      className="chat-runtime-flag"
+                      title="HyDE generates a hypothetical document before embedding"
+                    >
+                      HyDE: {runtimeConfig.hydeEnabled ? "on" : "off"}
                     </span>
                   </div>
-                  <p className="runtime-readonly__hint">
-                    Managed in Admin → Chat Configuration.
-                  </p>
                 </div>
                 <div className="chat-control-block">
-                  <span className="chat-control-label">Guardrail telemetry</span>
+                  <span className="chat-control-label">
+                    Telemetry badges
+                  </span>
                   <div className="guardrail-toggle-row">
                     <span className="guardrail-description">
-                      Show intent, context, and summary badges
+                      Show engine, guardrail, and enhancement insights
                     </span>
                     <label className="toggle-switch">
                       <input
                         type="checkbox"
-                        checked={showDiagnostics}
-                        onChange={toggleDiagnostics}
-                        aria-label="Toggle guardrail telemetry visibility"
+                        checked={showTelemetry}
+                        onChange={toggleTelemetry}
+                        aria-label="Toggle telemetry visibility"
                       />
                       <span className="toggle-slider" />
                     </label>
@@ -1237,74 +1450,89 @@ export function ChatPanel() {
                 m.citations && m.citations.length > 0
                   ? mergeCitations(m.citations)
                   : null;
-              const contextStats = m.meta?.context
+              const contextStats = m.meta?.context;
               const totalExcerptsRaw =
                 contextStats?.retrieved ??
                 (typeof contextStats?.included === "number" &&
                 typeof contextStats?.dropped === "number"
                   ? contextStats.included + contextStats.dropped
-                  : null)
+                  : null);
               const totalExcerpts =
                 totalExcerptsRaw !== null && totalExcerptsRaw !== undefined
                   ? Math.max(totalExcerptsRaw, contextStats?.included ?? 0)
-                  : null
+                  : null;
               const contextUsageLabel =
                 contextStats && totalExcerpts !== null && totalExcerpts > 0
                   ? `${contextStats.included} used out of ${totalExcerpts} excerpts`
                   : contextStats
                     ? `${contextStats.included} excerpts`
-                    : null
-              const contextTokensLabel =
-                contextStats && `(${contextStats.totalTokens} tokens)`
+                    : null;
+              const contextTokensLabel = contextStats
+                ? `(${contextStats.totalTokens}${
+                    contextStats.contextTokenBudget
+                      ? ` / ${contextStats.contextTokenBudget}`
+                      : ""
+                  } tokens)`
+                : null;
               const similarityThreshold =
                 contextStats &&
                 typeof contextStats.similarityThreshold === "number"
                   ? contextStats.similarityThreshold
-                  : null
+                  : null;
               const highestSimilarity =
                 contextStats &&
                 typeof contextStats.highestSimilarity === "number"
                   ? contextStats.highestSimilarity
-                  : null
-              const historyStats = m.meta?.history
-            const historyLabel = historyStats
-              ? `${historyStats.tokens} / ${historyStats.budget} tokens${
-                  historyStats.trimmedTurns > 0
-                    ? ` (${historyStats.trimmedTurns} trimmed)`
-                    : ""
-                }`
-              : typeof m.meta?.historyTokens === "number"
-                ? `${m.meta.historyTokens} tokens`
-                : null
+                  : null;
+              const historyStats = m.meta?.history;
+              const historyLabel = historyStats
+                ? `${historyStats.tokens} / ${historyStats.budget} tokens${
+                    historyStats.trimmedTurns > 0
+                      ? ` (${historyStats.trimmedTurns} trimmed)`
+                      : ""
+                  }`
+                : typeof m.meta?.historyTokens === "number"
+                  ? `${m.meta.historyTokens} tokens`
+                  : null;
+              const historyTokensCount =
+                historyStats?.tokens ?? m.meta?.historyTokens ?? null;
+              const historyBudgetCount = historyStats?.budget ?? null;
               const runtimeEngineLabel =
                 m.runtime?.engine === "lc"
                   ? "LangChain"
                   : m.runtime?.engine === "native"
                     ? "Native"
-                    : null
-              const runtimeLlmLabel = m.runtime
-                ? `${MODEL_PROVIDER_LABELS[m.runtime.llmProvider]}${
-                    m.runtime.llmModelId
-                      ? ` · ${m.runtime.llmModelId}`
-                      : m.runtime.llmModel
-                        ? ` · ${m.runtime.llmModel}`
-                        : ""
-                  }`
-                : null
-              const runtimeEmbeddingLabel = m.runtime
-                ? `${MODEL_PROVIDER_LABELS[m.runtime.embeddingProvider]}${
-                    m.runtime.embeddingModelId
-                      ? ` · ${m.runtime.embeddingModelId}`
-                      : m.runtime.embeddingModel
-                        ? ` · ${m.runtime.embeddingModel}`
-                        : ""
-                  }`
-                : null
+                    : null;
+              const runtimeLlmProviderLabel = m.runtime
+                ? m.runtime.llmProvider === "openai"
+                  ? "Open AI"
+                  : MODEL_PROVIDER_LABELS[m.runtime.llmProvider]
+                : null;
+              const runtimeLlmModelLabel =
+                m.runtime?.llmModelId ?? m.runtime?.llmModel ?? null;
+              const runtimeLlmDisplay =
+                runtimeLlmProviderLabel && runtimeLlmModelLabel
+                  ? `${runtimeLlmProviderLabel} / ${runtimeLlmModelLabel}`
+                  : (runtimeLlmModelLabel ?? runtimeLlmProviderLabel);
+              const runtimeEmbeddingModelLabel =
+                m.runtime?.embeddingModelId ??
+                m.runtime?.embeddingModel ??
+                null;
               const hasRuntime = Boolean(
-                runtimeEngineLabel || runtimeLlmLabel || runtimeEmbeddingLabel,
-              )
-              const hasGuardrailMeta = Boolean(contextStats)
-              const hasAnyMeta = hasRuntime || hasGuardrailMeta
+                runtimeEngineLabel ||
+                  runtimeLlmDisplay ||
+                  runtimeEmbeddingModelLabel,
+              );
+              const summaryInfo = m.meta?.summaryInfo;
+              const summaryConfig = m.meta?.summaryConfig;
+              const showSummaryBlock = Boolean(summaryConfig?.enabled);
+              const hasGuardrailMeta = Boolean(contextStats);
+              const enhancements = m.meta?.enhancements;
+              const hasEnhancements = Boolean(enhancements);
+              const showTelemetryCards = showTelemetry && hasGuardrailMeta;
+              const showEnhancementCard = showTelemetry && hasEnhancements;
+              const hasAnyMeta =
+                hasRuntime || hasGuardrailMeta || hasEnhancements;
 
               return (
                 <div key={m.id} className="message-group">
@@ -1313,73 +1541,188 @@ export function ChatPanel() {
                       ? renderMessageContent(m.content, m.id)
                       : m.content}
                   </div>
-                {m.role === "assistant" && hasAnyMeta && (
-                  <div className="message-meta">
-                    {hasRuntime && (
-                      <div className="runtime-summary">
-                        {runtimeEngineLabel && (
-                          <span className="meta-chip">Engine: {runtimeEngineLabel}</span>
-                        )}
-                        {runtimeLlmLabel && (
-                          <span className="meta-chip">LLM: {runtimeLlmLabel}</span>
-                        )}
-                        {runtimeEmbeddingLabel && (
-                          <span className="meta-chip">
-                            Embedding: {runtimeEmbeddingLabel}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {contextStats && (
-                      <div className="guardrail-summary">
-                        <div className="guardrail-summary-row">
-                          <div className="guardrail-summary-entry">
-                            <div className="guardrail-summary-label">Route</div>
-                            <div className="guardrail-summary-value">
-                              {m.meta!.reason ?? m.meta!.intent}
-                            </div>
+                  {m.role === "assistant" && hasAnyMeta && (
+                    <div className="message-meta">
+                      {showTelemetryCards && hasRuntime && (
+                        <div className="meta-card meta-card--runtime">
+                          <div className="meta-card__heading">
+                            Engine &amp; Model
                           </div>
-                          <div className="guardrail-summary-entry">
-                            <div className="guardrail-summary-label">Context</div>
-                            <div
-                              className={`guardrail-summary-value ${contextStats.insufficient ? "warning" : ""}`}
-                            >
-                              {contextUsageLabel}
-                              {contextTokensLabel ? ` ${contextTokensLabel}` : ""}
+                          <div className="meta-card-grid">
+                            {runtimeEngineLabel && (
+                              <div className="meta-card-block">
+                                <div className="meta-card-block__label">
+                                  ENGINE
+                                </div>
+                                <div className="meta-card-block__value">
+                                  {runtimeEngineLabel}
+                                </div>
+                              </div>
+                            )}
+                            {runtimeLlmDisplay && (
+                              <div className="meta-card-block">
+                                <div className="meta-card-block__label">
+                                  LLM
+                                </div>
+                                <div className="meta-card-block__value">
+                                  {runtimeLlmDisplay}
+                                </div>
+                              </div>
+                            )}
+                            {runtimeEmbeddingModelLabel && (
+                              <div className="meta-card-block">
+                                <div className="meta-card-block__label">
+                                  EMBEDDING
+                                </div>
+                                <div className="meta-card-block__value">
+                                  {runtimeEmbeddingModelLabel}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {showTelemetryCards && contextStats && (
+                        <div className="meta-card meta-card--guardrail">
+                          <div className="meta-card__heading">Guardrails</div>
+                          <div className="meta-card-grid">
+                            <div className="meta-card-block">
+                              <div className="meta-card-block__label">
+                                ROUTE
+                              </div>
+                              <div className="meta-card-block__value">
+                                {m.meta!.reason ?? m.meta!.intent}
+                              </div>
+                            </div>
+                            <div className="meta-card-block">
+                              <div className="meta-card-block__label">
+                                CONTEXT
+                              </div>
+                              <div
+                                className={`meta-card-block__value ${contextStats.insufficient ? "warning" : ""}`}
+                              >
+                                {contextUsageLabel}
+                                {contextTokensLabel
+                                  ? ` ${contextTokensLabel}`
+                                  : ""}
+                              </div>
+                            </div>
+                            {historyLabel && (
+                              <div className="meta-card-block">
+                                <div className="meta-card-block__label">
+                                  HISTORY
+                                </div>
+                                <div className="meta-card-block__value">
+                                  {historyLabel}
+                                </div>
+                              </div>
+                            )}
+                            {similarityThreshold !== null && (
+                              <div className="meta-card-block">
+                                <div className="meta-card-block__label">
+                                  SIMILARITY
+                                </div>
+                                <div
+                                  className={`meta-card-block__value ${contextStats.insufficient ? "warning" : ""}`}
+                                >
+                                  {highestSimilarity !== null
+                                    ? highestSimilarity.toFixed(3)
+                                    : "—"}{" "}
+                                  / min {similarityThreshold.toFixed(2)}
+                                  {contextStats.insufficient
+                                    ? " (Insufficient)"
+                                    : ""}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          {showSummaryBlock && (
+                            <div className="meta-card-block meta-card-block--summary">
+                              <div className="meta-card-block__label">
+                                SUMMARY
+                              </div>
+                              <div className="meta-card-block__value">
+                                {summaryInfo
+                                  ? `History summarized (${summaryInfo.originalTokens} → ${summaryInfo.summaryTokens} tokens)`
+                                  : historyTokensCount !== null &&
+                                      historyBudgetCount !== null
+                                    ? `History not summarized (${historyTokensCount} / ${historyBudgetCount} tokens)`
+                                    : "History not summarized"}
+                              </div>
+                              {summaryInfo ? (
+                                <div className="meta-card-block__secondary">
+                                  {summaryInfo.trimmedTurns} of{" "}
+                                  {summaryInfo.maxTurns} turns summarized
+                                </div>
+                              ) : null}
+                            </div>
+                          )}
+                          {m.meta?.summaryApplied && (
+                            <div className="meta-card-footer">
+                              <span className="meta-chip">Summary applied</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {showEnhancementCard && (
+                        <div className="meta-card meta-card--enhancements">
+                          <div className="meta-card__heading">Enhancements</div>
+                          <div className="meta-card-grid">
+                            <div className="meta-card-block">
+                              <div className="meta-card-block__label">
+                                REVERSE RAG
+                              </div>
+                              <div
+                                className="meta-card-block__value enhancement-chip"
+                                data-tooltip={
+                                  enhancements?.reverseRag
+                                    ? `mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`
+                                    : ""
+                                }
+                              >
+                                {enhancements?.reverseRag?.enabled
+                                  ? enhancements.reverseRag.mode
+                                  : "off"}
+                              </div>
+                              {enhancements?.reverseRag?.enabled && (
+                                <div className="meta-card-block__secondary">
+                                  {`original: ${truncateText(enhancements.reverseRag.original, 40)}`}
+                                  <br />
+                                  {`rewritten: ${truncateText(enhancements.reverseRag.rewritten, 40)}`}
+                                </div>
+                              )}
+                            </div>
+                            <div className="meta-card-block">
+                              <div className="meta-card-block__label">HyDE</div>
+                              <div
+                                className="meta-card-block__value enhancement-chip"
+                                data-tooltip={
+                                  enhancements?.hyde?.generated ?? ""
+                                }
+                              >
+                                {enhancements?.hyde?.enabled
+                                  ? enhancements.hyde.generated
+                                    ? truncateText(
+                                        enhancements.hyde.generated,
+                                        40,
+                                      )
+                                    : "generated"
+                                  : "off"}
+                              </div>
+                            </div>
+                            <div className="meta-card-block">
+                              <div className="meta-card-block__label">
+                                RANKER
+                              </div>
+                              <div className="meta-card-block__value">
+                                {enhancements?.ranker?.mode ?? "none"}
+                              </div>
                             </div>
                           </div>
                         </div>
-                        <div className="guardrail-summary-row">
-                          {historyLabel && (
-                            <div className="guardrail-summary-entry">
-                              <div className="guardrail-summary-label">History</div>
-                              <div className="guardrail-summary-value">
-                                {historyLabel}
-                              </div>
-                            </div>
-                          )}
-                          {similarityThreshold !== null && (
-                            <div className="guardrail-summary-entry">
-                              <div className="guardrail-summary-label">Similarity</div>
-                              <div className="guardrail-summary-value">
-                                {highestSimilarity !== null
-                                  ? highestSimilarity.toFixed(3)
-                                  : "—"}{" "}
-                                / min {similarityThreshold.toFixed(2)}
-                                {contextStats.insufficient ? " (Insufficient)" : ""}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        {m.meta?.summaryApplied && (
-                          <div className="guardrail-summary-row summary-chip">
-                            <span className="meta-chip">Summary applied</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
                   {m.role === "assistant" &&
                     showCitations &&
                     mergedCitations &&
@@ -1390,38 +1733,38 @@ export function ChatPanel() {
                             (citation.title ?? "").trim() ||
                             (citation.source_url ?? "").trim() ||
                             `Source ${index + 1}`;
-                        const url = (citation.source_url ?? "").trim();
-                        const excerptCount =
-                          typeof citation.excerpt_count === "number"
-                            ? citation.excerpt_count
-                            : 1;
-                        const countLabel =
-                          excerptCount > 1
-                            ? `${excerptCount} excerpts`
-                            : null;
-                        return (
-                          <li key={`${m.id}-citation-${index}`}>
-                            {title}
-                            {url && (
-                              <>
-                                {" "}
-                                <a
-                                  href={url}
-                                  target="_blank"
-                                  rel="noreferrer noopener"
-                                >
-                                  {formatLinkLabel(url)}
-                                </a>
-                              </>
-                            )}
-                            {countLabel && (
-                              <span className="citation-count">
-                                ({countLabel})
-                              </span>
-                            )}
-                          </li>
-                        );
-                      })}
+                          const url = (citation.source_url ?? "").trim();
+                          const excerptCount =
+                            typeof citation.excerpt_count === "number"
+                              ? citation.excerpt_count
+                              : 1;
+                          const countLabel =
+                            excerptCount > 1
+                              ? `${excerptCount} excerpts`
+                              : null;
+                          return (
+                            <li key={`${m.id}-citation-${index}`}>
+                              {title}
+                              {url && (
+                                <>
+                                  {" "}
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                  >
+                                    {formatLinkLabel(url)}
+                                  </a>
+                                </>
+                              )}
+                              {countLabel && (
+                                <span className="citation-count">
+                                  ({countLabel})
+                                </span>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ol>
                     )}
                 </div>
