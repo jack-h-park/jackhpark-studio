@@ -409,7 +409,11 @@ export default async function handler(
       summaryInfo,
       enhancements
     }
-    res.setHeader('X-Guardrail-Meta', serializeGuardrailMeta(responseMeta))
+    res.setHeader('Content-Encoding', 'identity')
+    res.setHeader(
+      'X-Guardrail-Meta',
+      encodeURIComponent(serializeGuardrailMeta(responseMeta))
+    )
 
     const { prompt: basePrompt } = await loadSystemPrompt()
     const contextBlock =

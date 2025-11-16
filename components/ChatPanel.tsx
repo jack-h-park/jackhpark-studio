@@ -290,6 +290,10 @@ const styles = css`
     padding: 10px 12px;
   }
 
+  .guardrail-toggle-row--auto {
+    background: #f9fafb;
+  }
+
   .guardrail-description {
     flex: 1;
     font-size: 0.8rem;
@@ -495,6 +499,27 @@ const styles = css`
     color: #475569;
     line-height: 1.3;
     margin-top: 4px;
+  }
+
+  .telemetry-collapse-row {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .telemetry-collapse-btn {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    background: none;
+    border: none;
+    color: #2563eb;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .telemetry-collapse-row--top,
+  .telemetry-collapse-row--config {
+    margin-top: 6px;
   }
 
   .meta-card-block__value.warning {
@@ -814,6 +839,8 @@ const truncateText = (value: string | null | undefined, max = 60) => {
 };
 
 const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
+const DEBUG_LANGCHAIN_STREAM =
+  process.env.NEXT_PUBLIC_DEBUG_LANGCHAIN_STREAM === "true";
 
 class ChatRequestError extends Error {
   status?: number;
@@ -922,6 +949,8 @@ export function ChatPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [showTelemetry, setShowTelemetry] = useState(false);
+  const [telemetryExpanded, setTelemetryExpanded] = useState(false);
+  const [telemetryAutoExpand, setTelemetryAutoExpand] = useState(false);
   const [showCitations, setShowCitations] = useState(false);
 
   useEffect(() => {
@@ -1003,9 +1032,25 @@ export function ChatPanel() {
     if (typeof window === "undefined") {
       return;
     }
-    const stored = localStorage.getItem("chat_guardrail_debug");
-    setShowTelemetry(stored === "1");
+    const storedTelemetry = localStorage.getItem("chat_guardrail_debug");
+    const storedAutoExpand = localStorage.getItem("telemetry_auto_expand");
+    const autoExpand = storedAutoExpand === "1";
+    setShowTelemetry(storedTelemetry === "1");
+    setTelemetryAutoExpand(autoExpand);
+    if (storedTelemetry === "1" && autoExpand) {
+      setTelemetryExpanded(true);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!showTelemetry) {
+      setTelemetryExpanded(false);
+      return;
+    }
+    if (telemetryAutoExpand) {
+      setTelemetryExpanded(true);
+    }
+  }, [showTelemetry, telemetryAutoExpand]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1020,8 +1065,23 @@ export function ChatPanel() {
       if (typeof window !== "undefined") {
         localStorage.setItem("chat_guardrail_debug", next ? "1" : "0");
       }
+      setTelemetryExpanded(next ? true : false);
       return next;
     });
+  };
+
+  const toggleTelemetryExpanded = () => {
+    setTelemetryExpanded((prev) => !prev);
+  };
+
+  const handleAutoExpandChange = (checked: boolean) => {
+    setTelemetryAutoExpand(checked);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("telemetry_auto_expand", checked ? "1" : "0");
+    }
+    if (checked && showTelemetry) {
+      setTelemetryExpanded(true);
+    }
   };
 
   const toggleCitations = () => {
@@ -1193,6 +1253,7 @@ export function ChatPanel() {
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let fullContent = "";
+          let clientChunkIndex = 0;
 
           let done = false;
           while (!done) {
@@ -1201,7 +1262,18 @@ export function ChatPanel() {
             const chunk = result.value;
             if (!chunk) continue;
 
-            fullContent += decoder.decode(chunk, { stream: !done });
+            const chunkText = decoder.decode(chunk, { stream: !done });
+            fullContent += chunkText;
+            clientChunkIndex += 1;
+            if (DEBUG_LANGCHAIN_STREAM) {
+              // eslint-disable-next-line unicorn/prefer-string-replace-all
+              const preview = chunkText.replace(/\s+/g, " ").trim();
+              console.debug(
+                `[langchain_chat:client] chunk ${clientChunkIndex} (${chunkText.length} chars): ${
+                  preview.length > 0 ? preview.slice(0, 40) : "<empty>"
+                }`,
+              );
+            }
             if (!isMountedRef.current) return;
 
             const [answer] = fullContent.split(CITATIONS_SEPARATOR);
@@ -1269,7 +1341,12 @@ export function ChatPanel() {
             const chunk = result.value;
             if (!chunk) continue;
 
-            assistantContent += decoder.decode(chunk, { stream: !done });
+            const decodedChunk = decoder.decode(chunk, { stream: !done });
+            console.debug("[chat-panel] chunk", {
+              engine: activeRuntime.engine,
+              length: decodedChunk.length,
+            });
+            assistantContent += decodedChunk;
             if (!isMountedRef.current) return;
 
             updateAssistant(assistantContent, guardrailMeta);
@@ -1405,9 +1482,7 @@ export function ChatPanel() {
                   </div>
                 </div>
                 <div className="chat-control-block">
-                  <span className="chat-control-label">
-                    Telemetry badges
-                  </span>
+                  <span className="chat-control-label">Telemetry badges</span>
                   <div className="guardrail-toggle-row">
                     <span className="guardrail-description">
                       Show engine, guardrail, and enhancement insights
@@ -1418,6 +1493,22 @@ export function ChatPanel() {
                         checked={showTelemetry}
                         onChange={toggleTelemetry}
                         aria-label="Toggle telemetry visibility"
+                      />
+                      <span className="toggle-slider" />
+                    </label>
+                  </div>
+                  <div className="guardrail-toggle-row guardrail-toggle-row--auto">
+                    <span className="guardrail-description">
+                      Auto expand telemetry on toggle
+                    </span>
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={telemetryAutoExpand}
+                        onChange={(event) =>
+                          handleAutoExpandChange(event.target.checked)
+                        }
+                        aria-label="Toggle auto expand telemetry"
                       />
                       <span className="toggle-slider" />
                     </label>
@@ -1497,6 +1588,18 @@ export function ChatPanel() {
               const historyTokensCount =
                 historyStats?.tokens ?? m.meta?.historyTokens ?? null;
               const historyBudgetCount = historyStats?.budget ?? null;
+              const summaryInfo = m.meta?.summaryInfo;
+              const summaryConfig = m.meta?.summaryConfig;
+              const summaryTriggerTokens = summaryConfig?.triggerTokens ?? null;
+              const showSummaryBlock = Boolean(summaryConfig?.enabled);
+              const historySummaryLabel =
+                historyTokensCount !== null && summaryTriggerTokens !== null
+                  ? `History not summarized (${historyTokensCount} / ${summaryTriggerTokens} tokens)`
+                  : historyTokensCount !== null && historyBudgetCount !== null
+                    ? `History not summarized (${historyTokensCount} / ${historyBudgetCount} tokens)`
+                    : historyTokensCount !== null
+                      ? `History not summarized (${historyTokensCount} tokens)`
+                      : "History not summarized";
               const runtimeEngineLabel =
                 m.runtime?.engine === "lc"
                   ? "LangChain"
@@ -1523,14 +1626,13 @@ export function ChatPanel() {
                   runtimeLlmDisplay ||
                   runtimeEmbeddingModelLabel,
               );
-              const summaryInfo = m.meta?.summaryInfo;
-              const summaryConfig = m.meta?.summaryConfig;
-              const showSummaryBlock = Boolean(summaryConfig?.enabled);
               const hasGuardrailMeta = Boolean(contextStats);
               const enhancements = m.meta?.enhancements;
               const hasEnhancements = Boolean(enhancements);
-              const showTelemetryCards = showTelemetry && hasGuardrailMeta;
-              const showEnhancementCard = showTelemetry && hasEnhancements;
+              const telemetryActive = showTelemetry && telemetryExpanded;
+              const showRuntimeCard = telemetryActive && hasRuntime;
+              const showGuardrailCards = telemetryActive && contextStats;
+              const showEnhancementCard = telemetryActive && hasEnhancements;
               const hasAnyMeta =
                 hasRuntime || hasGuardrailMeta || hasEnhancements;
 
@@ -1543,7 +1645,20 @@ export function ChatPanel() {
                   </div>
                   {m.role === "assistant" && hasAnyMeta && (
                     <div className="message-meta">
-                      {showTelemetryCards && hasRuntime && (
+                      {showTelemetry && (
+                        <div className="telemetry-collapse-row">
+                          <button
+                            type="button"
+                            className="telemetry-collapse-btn"
+                            onClick={toggleTelemetryExpanded}
+                          >
+                            {telemetryExpanded
+                              ? "Hide telemetry details"
+                              : "Show telemetry details"}
+                          </button>
+                        </div>
+                      )}
+                      {showRuntimeCard && (
                         <div className="meta-card meta-card--runtime">
                           <div className="meta-card__heading">
                             Engine &amp; Model
@@ -1582,7 +1697,7 @@ export function ChatPanel() {
                           </div>
                         </div>
                       )}
-                      {showTelemetryCards && contextStats && (
+                      {showGuardrailCards && (
                         <div className="meta-card meta-card--guardrail">
                           <div className="meta-card__heading">Guardrails</div>
                           <div className="meta-card-grid">
@@ -1644,10 +1759,7 @@ export function ChatPanel() {
                               <div className="meta-card-block__value">
                                 {summaryInfo
                                   ? `History summarized (${summaryInfo.originalTokens} → ${summaryInfo.summaryTokens} tokens)`
-                                  : historyTokensCount !== null &&
-                                      historyBudgetCount !== null
-                                    ? `History not summarized (${historyTokensCount} / ${historyBudgetCount} tokens)`
-                                    : "History not summarized"}
+                                  : historySummaryLabel}
                               </div>
                               {summaryInfo ? (
                                 <div className="meta-card-block__secondary">
@@ -1770,11 +1882,7 @@ export function ChatPanel() {
                 </div>
               );
             })}
-            {isLoading && (
-              <div className="message assistant">
-                <span>...</span>
-              </div>
-            )}
+
             <div ref={messagesEndRef} />
           </div>
 

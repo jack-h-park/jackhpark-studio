@@ -9,6 +9,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 })
 
 export default withBundleAnalyzer({
+  compress: false,
   staticPageGenerationTimeout: 300,
   images: {
     remotePatterns: [

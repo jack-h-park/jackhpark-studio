@@ -93,6 +93,30 @@ type ChatRequestBody = {
 }
 
 const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`
+const DEBUG_LANGCHAIN_STREAM =
+  (process.env.DEBUG_LANGCHAIN_STREAM ?? "").toLowerCase() === "true"
+
+const DEBUG_LANGCHAIN_SEGMENT_SIZE = 60
+
+function splitIntoSegments(value: string, size: number): string[] {
+  if (!value || size <= 0) {
+    return [value]
+  }
+  const segments: string[] = []
+  for (let index = 0; index < value.length; index += size) {
+    segments.push(value.slice(index, index + size))
+  }
+  return segments
+}
+
+function formatChunkPreview(value: string) {
+  // eslint-disable-next-line unicorn/prefer-string-replace-all
+  const collapsed = value.replace(/\s+/g, " ").trim()
+  if (collapsed.length <= 60) {
+    return collapsed
+  }
+  return `${collapsed.slice(0, 60)}…`
+}
 
 const SUPABASE_URL = process.env.SUPABASE_URL as string
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string
@@ -513,8 +537,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           primaryFunction,
           llm
         )
+        res.setHeader('Content-Encoding', 'identity')
         if (latestMeta) {
-          res.setHeader('X-Guardrail-Meta', serializeGuardrailMeta(latestMeta))
+          res.setHeader(
+            'X-Guardrail-Meta',
+            encodeURIComponent(serializeGuardrailMeta(latestMeta))
+          )
         }
         if (candidate !== llmModel) {
           console.warn(
@@ -523,6 +551,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         let streamHeadersSent = false
+        let chunkIndex = 0
         const ensureStreamHeaders = () => {
           if (!streamHeadersSent) {
             res.writeHead(200, {
@@ -533,17 +562,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
 
+        const delayBetweenChunks = DEBUG_LANGCHAIN_STREAM ? 75 : 0
+        const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
         try {
           for await (const chunk of stream) {
             const rendered = renderStreamChunk(chunk)
             if (!rendered || res.writableEnded) {
               continue
             }
-            ensureStreamHeaders()
-            res.write(rendered)
+            const segments = DEBUG_LANGCHAIN_STREAM
+              ? splitIntoSegments(rendered, DEBUG_LANGCHAIN_SEGMENT_SIZE)
+              : [rendered]
+
+            for (const segment of segments) {
+              if (!segment || res.writableEnded) {
+                continue
+              }
+              chunkIndex += 1
+              if (DEBUG_LANGCHAIN_STREAM) {
+                const preview =
+                  segment.length > 0 ? formatChunkPreview(segment) : '<empty>'
+                console.debug(
+                  `[langchain_chat] chunk ${chunkIndex} (${segment.length} chars): ${preview}`
+                )
+              }
+              ensureStreamHeaders()
+              res.write(segment)
+              if (delayBetweenChunks > 0) {
+                await wait(delayBetweenChunks)
+              }
+            }
           }
 
           ensureStreamHeaders()
+          if (DEBUG_LANGCHAIN_STREAM) {
+            console.debug(
+              `[langchain_chat] stream completed after ${chunkIndex} chunk(s)`
+            )
+          }
           const citationJson = JSON.stringify(citations)
           if (!res.writableEnded) {
             res.write(`${CITATIONS_SEPARATOR}${citationJson}`)
