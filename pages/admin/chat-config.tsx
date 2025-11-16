@@ -8,6 +8,7 @@ import type {
   SessionChatConfigPreset,
   SummaryLevel,
 } from "@/types/chat-config";
+import { AiPageChrome } from "@/components/AiPageChrome";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,11 +30,15 @@ import {
   getAdminChatConfig,
   getAdminChatConfigMetadata,
 } from "@/lib/server/admin-chat-config";
+import {
+  loadNotionNavigationHeader,
+  type NotionNavigationHeader,
+} from "@/lib/server/notion-header";
 
 type PageProps = {
   adminConfig: AdminChatConfig;
   lastUpdatedAt: string | null;
-};
+} & NotionNavigationHeader;
 
 type SaveStatus = "idle" | "saving" | "success" | "error";
 type SaveConfigResponse = {
@@ -81,14 +86,12 @@ function textToArray(value: string) {
     .filter((line) => line.length > 0);
 }
 
-function AdminChatConfigForm({ adminConfig, lastUpdatedAt }: PageProps) {
+function AdminChatConfigForm({
+  adminConfig,
+  lastUpdatedAt,
+}: Pick<PageProps, "adminConfig" | "lastUpdatedAt">) {
   const [config, setConfig] = useState<AdminChatConfig>(() => ({
     ...adminConfig,
-    langfuse_config: adminConfig.langfuse_config ?? {
-      host: "",
-      publicKey: "",
-      secretKey: "",
-    },
   }));
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -96,14 +99,7 @@ function AdminChatConfigForm({ adminConfig, lastUpdatedAt }: PageProps) {
   const [isRawModalOpen, setIsRawModalOpen] = useState(false);
 
   useEffect(() => {
-    setConfig({
-      ...adminConfig,
-      langfuse_config: adminConfig.langfuse_config ?? {
-        host: "",
-        publicKey: "",
-        secretKey: "",
-      },
-    });
+    setConfig(adminConfig);
   }, [adminConfig]);
 
   const updateConfig = useCallback(
@@ -216,16 +212,10 @@ function AdminChatConfigForm({ adminConfig, lastUpdatedAt }: PageProps) {
     }));
   };
 
-  const langfuseConfig = config.langfuse_config ?? {
-    host: "",
-    publicKey: "",
-    secretKey: "",
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 py-10">
-      <div className="max-w-6xl mx-auto space-y-6 px-4">
-        <header className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm sm:flex-row sm:items-center">
+    <>
+      <div className="admin-chat-config-page__inner">
+        <header className="admin-chat-config-page__hero">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
               Admin
@@ -259,9 +249,7 @@ function AdminChatConfigForm({ adminConfig, lastUpdatedAt }: PageProps) {
         </header>
 
         {errorMessage && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errorMessage}
-          </div>
+          <div className="admin-chat-config-page__error">{errorMessage}</div>
         )}
 
         <Card>
@@ -330,97 +318,111 @@ function AdminChatConfigForm({ adminConfig, lastUpdatedAt }: PageProps) {
               Guardrail the possible values session presets can reach.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {(
-                Object.keys(config.numericLimits) as Array<
-                  keyof AdminChatConfig["numericLimits"]
+          <CardContent className="space-y-5">
+            {(
+              Object.keys(config.numericLimits) as Array<
+                keyof AdminChatConfig["numericLimits"]
+              >
+            ).map((key) => {
+              const limit = config.numericLimits[key];
+              return (
+                <div
+                  key={key}
+                  className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm sm:p-5"
                 >
-              ).map((key) => {
-                const limit = config.numericLimits[key];
-                return (
-                  <div
-                    key={key}
-                    className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4"
-                  >
-                    <div className="flex items-center justify-between text-sm font-semibold text-slate-700">
-                      <span>{numericLimitLabels[key]}</span>
-                      <span className="text-xs text-slate-500">
-                        Min ≤ Default ≤ Max
-                      </span>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">
+                        {numericLimitLabels[key]}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Set guardrails for this value across presets.
+                      </p>
                     </div>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                      <div>
-                        <Label htmlFor={`${key}-min`} className="text-xs">
-                          Min
-                        </Label>
-                        <Input
-                          id={`${key}-min`}
-                          type="number"
-                          value={limit.min}
-                          onChange={(event) =>
-                            updateNumericLimit(
-                              key,
-                              "min",
-                              Number(event.target.value) || 0,
-                            )
-                          }
-                          min={key === "similarityThreshold" ? 0 : undefined}
-                          max={
-                            key === "similarityThreshold" ? 1 : undefined
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor={`${key}-default`} className="text-xs">
-                          Default
-                        </Label>
-                        <Input
-                          id={`${key}-default`}
-                          type="number"
-                          value={limit.default}
-                          onChange={(event) =>
-                            updateNumericLimit(
-                              key,
-                              "default",
-                              Number(event.target.value) || 0,
-                            )
-                          }
-                          min={key === "similarityThreshold" ? 0 : undefined}
-                          max={
-                            key === "similarityThreshold" ? 1 : undefined
-                          }
-                          step={key === "similarityThreshold" ? 0.01 : 1}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor={`${key}-max`} className="text-xs">
-                          Max
-                        </Label>
-                        <Input
-                          id={`${key}-max`}
-                          type="number"
-                          value={limit.max}
-                          onChange={(event) =>
-                            updateNumericLimit(
-                              key,
-                              "max",
-                              Number(event.target.value) || 0,
-                            )
-                          }
-                          min={key === "similarityThreshold" ? 0 : undefined}
-                          max={
-                            key === "similarityThreshold" ? 1 : undefined
-                          }
-                        />
-                      </div>
+                    <span className="text-[0.62rem] font-semibold uppercase tracking-[0.5em] text-slate-400 sm:text-right">
+                      Min ≤ Default ≤ Max
+                    </span>
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor={`${key}-min`}
+                        className="text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-slate-500"
+                      >
+                        Min
+                      </Label>
+                      <Input
+                        id={`${key}-min`}
+                        type="number"
+                        value={limit.min}
+                        onChange={(event) =>
+                          updateNumericLimit(
+                            key,
+                            "min",
+                            Number(event.target.value) || 0,
+                          )
+                        }
+                        min={key === "similarityThreshold" ? 0 : undefined}
+                        max={
+                          key === "similarityThreshold" ? 1 : undefined
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor={`${key}-default`}
+                        className="text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-slate-500"
+                      >
+                        Default
+                      </Label>
+                      <Input
+                        id={`${key}-default`}
+                        type="number"
+                        value={limit.default}
+                        onChange={(event) =>
+                          updateNumericLimit(
+                            key,
+                            "default",
+                            Number(event.target.value) || 0,
+                          )
+                        }
+                        min={key === "similarityThreshold" ? 0 : undefined}
+                        max={
+                          key === "similarityThreshold" ? 1 : undefined
+                        }
+                        step={key === "similarityThreshold" ? 0.01 : 1}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label
+                        htmlFor={`${key}-max`}
+                        className="text-[0.65rem] font-semibold uppercase tracking-[0.25em] text-slate-500"
+                      >
+                        Max
+                      </Label>
+                      <Input
+                        id={`${key}-max`}
+                        type="number"
+                        value={limit.max}
+                        onChange={(event) =>
+                          updateNumericLimit(
+                            key,
+                            "max",
+                            Number(event.target.value) || 0,
+                          )
+                        }
+                        min={key === "similarityThreshold" ? 0 : undefined}
+                        max={
+                          key === "similarityThreshold" ? 1 : undefined
+                        }
+                      />
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              );
+            })}
             {hasNumericErrors && (
-              <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+              <p className="mt-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
                 {numericLimitErrors[0]}
               </p>
             )}
@@ -435,21 +437,23 @@ function AdminChatConfigForm({ adminConfig, lastUpdatedAt }: PageProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {allowlistArrayFields.map((field) => (
-              <div key={field} className="space-y-2">
-                <Label htmlFor={`allowlist-${field}`}>
-                  {allowlistFieldLabels[field]}
-                </Label>
-                <Textarea
-                  id={`allowlist-${field}`}
-                  rows={3}
-                  value={arrayToText(config.allowlist[field] ?? [])}
-                  onChange={(event) =>
-                    updateAllowlistArray(field, textToArray(event.target.value))
-                  }
-                />
-              </div>
-            ))}
+            <div className="grid gap-6 md:grid-cols-2">
+              {allowlistArrayFields.map((field) => (
+                <div key={field} className="space-y-2">
+                  <Label htmlFor={`allowlist-${field}`}>
+                    {allowlistFieldLabels[field]}
+                  </Label>
+                  <Textarea
+                    id={`allowlist-${field}`}
+                    rows={3}
+                    value={arrayToText(config.allowlist[field] ?? [])}
+                    onChange={(event) =>
+                      updateAllowlistArray(field, textToArray(event.target.value))
+                    }
+                  />
+                </div>
+              ))}
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="inline-flex items-center gap-2 text-sm">
                 <input
@@ -860,109 +864,79 @@ function AdminChatConfigForm({ adminConfig, lastUpdatedAt }: PageProps) {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Langfuse &amp; Observability</CardTitle>
-            <CardDescription>
-              Optional tracing configuration (not used in the public chat).
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="langfuse-host">Host</Label>
-              <Input
-                id="langfuse-host"
-                value={langfuseConfig.host}
-                onChange={(event) =>
-                  updateConfig((prev) => ({
-                    ...prev,
-                    langfuse_config: {
-                      ...langfuseConfig,
-                      host: event.target.value,
-                    },
-                  }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="langfuse-public">Public key</Label>
-              <Input
-                id="langfuse-public"
-                value={langfuseConfig.publicKey}
-                onChange={(event) =>
-                  updateConfig((prev) => ({
-                    ...prev,
-                    langfuse_config: {
-                      ...langfuseConfig,
-                      publicKey: event.target.value,
-                    },
-                  }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="langfuse-secret">Secret key</Label>
-              <Input
-                id="langfuse-secret"
-                type="password"
-                value={langfuseConfig.secretKey}
-                onChange={(event) =>
-                  updateConfig((prev) => ({
-                    ...prev,
-                    langfuse_config: {
-                      ...langfuseConfig,
-                      secretKey: event.target.value,
-                    },
-                  }))
-                }
-              />
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {isRawModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-4xl rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Raw Admin Chat Config
-              </h2>
+        <div className="admin-chat-config-page__raw-overlay">
+          <div
+            className="admin-chat-config-page__raw-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Raw admin chat config"
+          >
+            <div className="admin-chat-config-page__raw-modal-header">
+              <div className="admin-chat-config-page__raw-modal-title-block">
+                <h2>
+                  <strong>Raw Admin Chat Config Data</strong>{" "}
+                  <span>(JSON)</span>
+                </h2>
+                <p className="admin-chat-config-page__raw-modal-description">
+                  This is for read-only.
+                </p>
+              </div>
               <button
-                className="rounded-full border border-slate-200 px-3 py-1 text-sm"
+                className="admin-chat-config-page__raw-modal-close"
                 onClick={() => setIsRawModalOpen(false)}
+                type="button"
               >
                 Close
               </button>
             </div>
-            <pre className="mt-4 max-h-[65vh] overflow-auto rounded-xl border border-slate-200 bg-slate-900/90 p-4 text-xs text-white">
+            <pre className="admin-chat-config-page__raw-modal-body">
               {JSON.stringify(config, null, 2)}
             </pre>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
-export default function ChatConfigPage(props: PageProps) {
+export default function ChatConfigPage({
+  adminConfig,
+  lastUpdatedAt,
+  headerRecordMap,
+  headerBlockId,
+}: PageProps) {
   return (
     <>
       <Head>
         <title>Chat Configuration · Admin</title>
       </Head>
-      <AdminChatConfigForm {...props} />
+      <AiPageChrome
+        headerRecordMap={headerRecordMap}
+        headerBlockId={headerBlockId}
+      >
+        <AdminChatConfigForm
+          adminConfig={adminConfig}
+          lastUpdatedAt={lastUpdatedAt}
+        />
+      </AiPageChrome>
     </>
   );
 }
 
 export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
-  const adminConfig = await getAdminChatConfig();
-  const metadata = await getAdminChatConfigMetadata();
+  const [adminConfig, metadata, header] = await Promise.all([
+    getAdminChatConfig(),
+    getAdminChatConfigMetadata(),
+    loadNotionNavigationHeader(),
+  ]);
   return {
     props: {
       adminConfig,
       lastUpdatedAt: metadata.updatedAt,
+      ...header,
     },
   };
 };

@@ -5,7 +5,7 @@ import {
   type SearchParams,
   type SearchResults
 } from 'notion-types'
-import { mergeRecordMaps } from 'notion-utils'
+import { mergeRecordMaps, parsePageId } from 'notion-utils'
 import pMap from 'p-map'
 import pMemoize from 'p-memoize'
 
@@ -194,9 +194,25 @@ const mergeCollectionQuery = (
 
 const getNavigationLinkPages = pMemoize(
   async (): Promise<ExtendedRecordMap[]> => {
-    const navigationLinkPageIds = (navigationLinks || [])
-      .map((link) => link?.pageId)
-      .filter(Boolean)
+    const navigationLinkPageIds = (navigationLinks || []).reduce<string[]>(
+      (acc, link) => {
+        if (!link?.pageId) {
+          return acc
+        }
+
+        const normalized = parsePageId(link.pageId, { uuid: true })
+        if (!normalized) {
+          console.warn(
+            `[notion] skipping invalid navigation link pageId "${link.pageId}"`
+          )
+          return acc
+        }
+
+        acc.push(normalized)
+        return acc
+      },
+      []
+    )
 
     if (navigationStyle !== 'default' && navigationLinkPageIds.length) {
       return pMap(

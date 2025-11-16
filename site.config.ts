@@ -9,12 +9,12 @@ export default siteConfig({
   rootNotionSpaceId: null,
 
   // basic site info (required)
-  name: 'Jack H. Park\'s Personal Landing Page',
+  name: 'Jack H. Park Studio',
   domain: 'www.jackhpark.com',
   author: 'Jack H. Park',
 
   // open graph metadata (optional)
-  description: 'Jack H. Park\'s Personal Landing Page Built with Next.js (as a frontend framework), react-notion-x (as a component library), Notion (as a CMS) and Velcel (as a hosting provider)',
+  description: 'Jack H. Park\'s  personal studio of work, ideas, and experiments, crafting products, sharing stories, and exploring curiosity.',
 
   inlineCollectionTitleBold: false,
 
@@ -68,6 +68,10 @@ export default siteConfig({
      {
        title: 'Personal Life',
        pageId: '28299029c0b4816e89c0c4f17a39963b'
+     },
+     {
+       title: 'Jack\'s AI Assistant',
+       url: '/chat'
      }
   ]
 })

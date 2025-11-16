@@ -20,12 +20,6 @@ import {
 
 export const ADMIN_CONFIG_SETTING_KEY = "admin_chat_config";
 
-const DEFAULT_LANGFUSE_CONFIG = {
-  host: process.env.LANGFUSE_BASE_URL ?? "",
-  publicKey: process.env.LANGFUSE_PUBLIC_KEY ?? "",
-  secretKey: process.env.LANGFUSE_SECRET_KEY ?? "",
-};
-
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
@@ -203,11 +197,18 @@ function mergeAllowlist(
   if (!override) {
     return base;
   }
+  const allowedRankers = new Set(base.rankers);
+  let rankers =
+    override.rankers?.filter((ranker) => allowedRankers.has(ranker)) ??
+    base.rankers;
+  if (allowedRankers.has("mmr") && !rankers.includes("mmr")) {
+    rankers = [...rankers, "mmr"];
+  }
   return {
     chatEngines: override.chatEngines ?? base.chatEngines,
     llmModels: override.llmModels ?? base.llmModels,
     embeddingModels: override.embeddingModels ?? base.embeddingModels,
-    rankers: override.rankers ?? base.rankers,
+    rankers,
     allowReverseRAG: override.allowReverseRAG ?? base.allowReverseRAG,
     allowHyde: override.allowHyde ?? base.allowHyde,
   };
@@ -306,8 +307,6 @@ export async function getAdminChatConfig(): Promise<AdminChatConfig> {
       storedConfig.summaryPresets,
     ),
     presets: mergePresets(baseConfig.presets, storedConfig.presets),
-    langfuse_config:
-      storedConfig.langfuse_config ?? baseConfig.langfuse_config,
   };
 }
 
@@ -434,6 +433,5 @@ function buildComputedAdminConfig(
       summaryMaxChars: guardrails.numeric.summaryMaxChars,
     }),
     presets,
-    langfuse_config: DEFAULT_LANGFUSE_CONFIG,
   };
 }

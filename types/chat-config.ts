@@ -70,9 +70,4 @@ export interface AdminChatConfig {
     fast: SessionChatConfigPreset;
     highRecall: SessionChatConfigPreset;
   };
-  langfuse_config?: {
-    host: string;
-    publicKey: string;
-    secretKey: string;
-  };
 }

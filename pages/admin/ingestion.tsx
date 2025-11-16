@@ -24,11 +24,14 @@ import { NotionContextProvider } from "react-notion-x";
 import css from "styled-jsx/css";
 
 import type { ModelProvider } from "@/lib/shared/model-provider";
+import { rootNotionPageId, site } from "@/lib/config";
 import {   DEFAULT_EMBEDDING_SPACE_ID,
 type EmbeddingSpace ,
   findEmbeddingSpace,
   listEmbeddingModelOptions,
 } from "@/lib/core/embedding-spaces";
+import { mapImageUrl } from "@/lib/map-image-url";
+import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import {
   loadCanonicalPageLookup,
   resolvePublicPageUrl,
@@ -113,6 +116,8 @@ type PageProps = {
   datasetSnapshot: DatasetSnapshotOverview;
   systemHealth: SystemHealthOverview;
   recentRuns: RecentRunsSnapshot;
+  headerRecordMap: ExtendedRecordMap | null;
+  headerBlockId: string;
 };
 
 type ManualRunStats = {
@@ -168,47 +173,6 @@ const LOG_ICONS: Record<
   warn: FiAlertTriangle,
   error: FiAlertCircle,
 };
-
-const ADMIN_PAGE_ID = "admin-ingestion";
-const ADMIN_PAGE_BLOCK: PageBlock = {
-  id: ADMIN_PAGE_ID,
-  type: "page",
-  parent_id: "admin-root",
-  parent_table: "space",
-  alive: true,
-  created_time: 0,
-  last_edited_time: 0,
-  created_by_table: "notion_user",
-  created_by_id: "admin",
-  last_edited_by_table: "notion_user",
-  last_edited_by_id: "admin",
-  space_id: "admin-space",
-  version: 1,
-  properties: {
-    title: [["Ingestion Dashboard"]],
-  },
-  format: {},
-} as PageBlock;
-
-const ADMIN_RECORD_MAP: ExtendedRecordMap = {
-  block: {
-    [ADMIN_PAGE_BLOCK.id]: {
-      role: "reader",
-      value: ADMIN_PAGE_BLOCK,
-    },
-  },
-  collection: {},
-  collection_query: {},
-  collection_view: {},
-  notion_user: {},
-  space: {},
-  space_view: {},
-  user_root: {},
-  user_settings: {},
-  discussion: {},
-  discussion_comment: {},
-  signed_urls: {},
-} as ExtendedRecordMap;
 
 const MANUAL_TABS = [
   {
@@ -3005,7 +2969,17 @@ function IngestionDashboard({
   datasetSnapshot,
   systemHealth,
   recentRuns,
+  headerRecordMap,
+  headerBlockId,
 }: PageProps): JSX.Element {
+  const canonicalHeaderBlockId = headerBlockId?.replaceAll("-", "");
+  const headerBlockEntry =
+    headerRecordMap?.block?.[headerBlockId] ??
+    (canonicalHeaderBlockId
+      ? headerRecordMap?.block?.[canonicalHeaderBlockId]
+      : undefined);
+  const headerBlock = headerBlockEntry?.value as PageBlock | undefined;
+
   return (
     <>
       <Head>
@@ -3014,22 +2988,36 @@ function IngestionDashboard({
 
       <div className="admin-ingestion-page notion">
         <div className="admin-header-shell">
-          <NotionContextProvider
-            recordMap={ADMIN_RECORD_MAP}
-            fullPage
-            darkMode={false}
-            previewImages={false}
-            forceCustomImages={false}
-            showCollectionViewDropdown={false}
-            showTableOfContents={false}
-            minTableOfContentsItems={0}
-            linkTableTitleProperties={false}
-            isLinkCollectionToUrlProperty={false}
-            mapPageUrl={(pageId: string) => `/${pageId}`}
-            mapImageUrl={() => undefined}
-          >
-            <NotionPageHeader block={ADMIN_PAGE_BLOCK} />
-          </NotionContextProvider>
+          {headerRecordMap && headerBlock ? (
+            <NotionContextProvider
+              recordMap={headerRecordMap}
+              fullPage
+              darkMode={false}
+              previewImages={false}
+              forceCustomImages={false}
+              showCollectionViewDropdown={false}
+              showTableOfContents={false}
+              minTableOfContentsItems={0}
+              linkTableTitleProperties={false}
+              isLinkCollectionToUrlProperty={false}
+              mapPageUrl={(pageId: string) => `/${pageId}`}
+              mapImageUrl={mapImageUrl}
+            >
+              <NotionPageHeader block={headerBlock} />
+            </NotionContextProvider>
+          ) : (
+            <header className="notion-header">
+              <div className="notion-nav-header">
+                <div className="breadcrumbs">
+                  <div className="breadcrumb active">
+                    <Link href="/" className="breadcrumb-link">
+                      {site.name}
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </header>
+          )}
         </div>
 
         <main className="notion-page-content admin-ingestion-content">
@@ -3088,9 +3076,42 @@ const styles = css.global`
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    /* Use a slightly darker background for better contrast with dense elements */
-    background: var(--bg-color, #f9f8f6);
+    --ai-bg: 38 40% 96%;
+    --ai-bg-muted: 36 32% 91%;
+    --ai-fg: 31 24% 26%;
+    --ai-fg-muted: 32 17% 47%;
+    --ai-border: 35 25% 80%;
+    background: hsl(var(--ai-bg));
+    color: hsl(var(--ai-fg));
+    --bg-color: hsl(var(--ai-bg));
+    --bg-color-1: hsl(var(--ai-bg-muted));
+    --fg-color: hsl(var(--ai-fg));
+    --fg-color-0: hsl(var(--ai-fg));
+    --fg-color-1: hsl(var(--ai-fg-muted));
+    --border-color: hsl(var(--ai-border));
+    --border-color-0: hsl(var(--ai-border));
+    --surface-color: hsl(var(--ai-bg));
+    --surface-muted-color: hsl(var(--ai-bg-muted));
     --notion-max-width: 1320px;
+  }
+
+  .dark-mode .admin-ingestion-page {
+    --ai-bg: 220 19% 9%;
+    --ai-bg-muted: 220 16% 15%;
+    --ai-fg: 220 12% 93%;
+    --ai-fg-muted: 220 9% 65%;
+    --ai-border: 220 10% 28%;
+    background: hsl(var(--ai-bg));
+    color: hsl(var(--ai-fg));
+    --bg-color: hsl(var(--ai-bg));
+    --bg-color-1: hsl(var(--ai-bg-muted));
+    --fg-color: hsl(var(--ai-fg));
+    --fg-color-0: hsl(var(--ai-fg));
+    --fg-color-1: hsl(var(--ai-fg-muted));
+    --border-color: hsl(var(--ai-border));
+    --border-color-0: hsl(var(--ai-border));
+    --surface-color: hsl(var(--ai-bg));
+    --surface-muted-color: hsl(var(--ai-bg-muted));
   }
 
   .admin-header-shell,
@@ -3102,18 +3123,25 @@ const styles = css.global`
   }
 
   .admin-header-shell {
+    position: sticky;
+    top: 0;
+    z-index: 40;
     padding: 0 clamp(28px, 6vw, 96px);
     box-sizing: border-box;
+    background: transparent;
   }
 
   .admin-header-shell :global(.notion-header) {
-    width: min(100%, 1320px);
-    margin: 0 auto;
+    width: 100%;
+    margin: 0;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .admin-header-shell :global(.notion-nav-header) {
     width: 100%;
-    padding: 0 clamp(4px, 1vw, 12px);
+    padding: 0 clamp(16px, 4vw, 72px);
+    background: transparent !important;
   }
 
   .admin-header-shell :global(.notion-nav-header-rhs) {
@@ -4577,6 +4605,11 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   _context,
   // No changes needed here for now, filtering will be client-driven
 ) => {
+  const canonicalRootPageId =
+    parsePageId(rootNotionPageId, { uuid: true }) ?? rootNotionPageId;
+
+  const headerRecordMapPromise = loadNotionNavigationHeader();
+
   const supabase = getSupabaseAdminClient();
   const pageSize = DEFAULT_RUNS_PAGE_SIZE;
   const canonicalLookup = await loadCanonicalPageLookup();
@@ -4669,6 +4702,8 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
     snapshotCapturedAt: latestSnapshotRecord?.capturedAt ?? null,
   };
 
+  const { headerRecordMap, headerBlockId } = await headerRecordMapPromise;
+
   return {
     props: {
       datasetSnapshot,
@@ -4680,6 +4715,8 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
         totalCount,
         totalPages,
       },
+      headerRecordMap,
+      headerBlockId,
     },
   };
 };

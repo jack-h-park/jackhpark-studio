@@ -2,21 +2,19 @@ import * as React from "react";
 
 import { cn } from "./utils";
 
-const baseStyles =
-  "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+const baseStyles = "ai-button";
 
 const variantStyles: Record<string, string> = {
-  default: "bg-primary text-primary-foreground shadow hover:bg-primary/90",
-  outline:
-    "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
-  ghost: "hover:bg-accent hover:text-accent-foreground",
+  default: "ai-button-default",
+  outline: "ai-button-outline",
+  ghost: "ai-button-ghost",
 };
 
 const sizeStyles: Record<string, string> = {
-  default: "h-10 px-4 py-2",
-  sm: "h-9 rounded-md px-3",
-  lg: "h-11 rounded-md px-8",
-  icon: "h-10 w-10",
+  default: "ai-button-size-default",
+  sm: "ai-button-size-sm",
+  lg: "ai-button-size-lg",
+  icon: "ai-button-size-icon",
 };
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -45,4 +43,3 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   },
 );
 Button.displayName = "Button";
-
