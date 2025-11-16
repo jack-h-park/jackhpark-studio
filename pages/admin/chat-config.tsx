@@ -56,6 +56,8 @@ type PageProps = {
   error?: string;
 };
 
+export type ChatConfigFormProps = PageProps;
+
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 type GuardrailNumericFormState = {
@@ -382,7 +384,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
   };
 };
 
-export default function ChatConfigPage({
+export function ChatConfigForm({
   systemPrompt,
   isDefault,
   defaultPrompt,
@@ -394,7 +396,7 @@ export default function ChatConfigPage({
   langfuseDefaults,
   tracingConfigured,
   error: pageError,
-}: PageProps) {
+}: ChatConfigFormProps) {
   const [value, setValue] = useState(systemPrompt);
   const [savedPrompt, setSavedPrompt] = useState(systemPrompt);
   const [persistedIsDefault, setPersistedIsDefault] = useState(isDefault);
@@ -1052,10 +1054,6 @@ export default function ChatConfigPage({
 
   return (
     <>
-      <Head>
-        <title>Chat Configuration · Admin</title>
-      </Head>
-
       <main className="chat-config-page">
         <div className="chat-config-shell">
           <header className="chat-config__header">
@@ -1765,6 +1763,17 @@ export default function ChatConfigPage({
         </div>
       </main>
       <style jsx>{styles}</style>
+    </>
+  );
+}
+
+export default function ChatConfigPage(props: ChatConfigFormProps) {
+  return (
+    <>
+      <Head>
+        <title>Chat Configuration · Admin</title>
+      </Head>
+      <ChatConfigForm {...props} />
     </>
   );
 }

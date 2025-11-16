@@ -1,26 +1,22 @@
 {
   "rewrites": [
     {
-      "source": "/security/(.*)",
-      "destination": "https://mcp-security-incidents.vercel.app/$1"
-    },
-    {
-      "source": "/security",
-      "destination": "https://mcp-security-incidents.vercel.app"
-    }
-  ],
-
-  "redirects": [
-    {
       "source": "/",
-      "destination": "/chat",
-      "permanent": false,
+      "destination": "https://www.jackhpark.com/chat",
       "has": [
         {
           "type": "host",
           "value": "chat.jackhpark.com"
         }
       ]
+    },
+    {
+      "source": "/security/(.*)",
+      "destination": "https://mcp-security-incidents.vercel.app/$1"
+    },
+    {
+      "source": "/security",
+      "destination": "https://mcp-security-incidents.vercel.app"
     }
   ]
 }

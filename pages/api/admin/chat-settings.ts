@@ -3,6 +3,9 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import type { ChatEngine, ModelProvider } from '@/lib/shared/model-provider'
 import { SYSTEM_PROMPT_MAX_LENGTH } from '@/lib/chat-prompts'
 import {
+  getChatModelDefaults,
+  getGuardrailDefaults,
+  getLangfuseDefaults,
   type GuardrailNumericSettings,
   loadChatModelSettings,
   loadGuardrailSettings,
@@ -33,12 +36,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         loadLangfuseSettings({ forceRefresh: true })
       ])
       return res.status(200).json({
-        systemPrompt: promptResult.prompt,
-        isDefault: promptResult.isDefault,
-        guardrails: guardrailResult,
-        models: chatModelSettings,
-        langfuse: langfuseSettings
-      })
+      systemPrompt: promptResult.prompt,
+      isDefault: promptResult.isDefault,
+      guardrails: guardrailResult,
+      models: chatModelSettings,
+      langfuse: langfuseSettings,
+      guardrailDefaults: getGuardrailDefaults(),
+      modelDefaults: getChatModelDefaults(),
+      langfuseDefaults: getLangfuseDefaults(),
+      tracingConfigured:
+        Boolean(process.env.LANGFUSE_PUBLIC_KEY?.trim()) &&
+        Boolean(process.env.LANGFUSE_SECRET_KEY?.trim()) &&
+        Boolean(process.env.LANGFUSE_BASE_URL?.trim())
+    })
     } catch (err: any) {
       console.error('[api/admin/chat-settings] failed to load settings', err)
       return res.status(500).json({
