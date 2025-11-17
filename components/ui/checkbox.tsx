@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { cn } from "./utils";
 
-export type SwitchProps = Omit<
+export type CheckboxProps = Omit<
   React.ButtonHTMLAttributes<HTMLButtonElement>,
   "onChange"
 > & {
@@ -10,7 +10,7 @@ export type SwitchProps = Omit<
   onCheckedChange?: (checked: boolean) => void;
 };
 
-export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
+export const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
   (
     { className, checked = false, onCheckedChange, disabled, ...props },
     ref,
@@ -18,10 +18,10 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
     return (
       <button
         type="button"
-        role="switch"
+        role="checkbox"
         aria-checked={checked}
         data-state={checked ? "checked" : "unchecked"}
-        className={cn("ai-switch-control", className)}
+        className={cn("ai-checkbox-control", className)}
         onClick={(event) => {
           event.preventDefault();
           if (disabled) {
@@ -33,13 +33,22 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
         ref={ref}
         {...props}
       >
-        <span
-          className="ai-switch-control__thumb"
-          data-state={checked ? "checked" : "unchecked"}
-          aria-hidden="true"
-        />
+        <span className="ai-checkbox-control__icon" aria-hidden="true">
+          <svg
+            viewBox="0 0 14 14"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="2 7 5.5 10.5 12 3" />
+          </svg>
+        </span>
       </button>
     );
   },
 );
-Switch.displayName = "Switch";
+Checkbox.displayName = "Checkbox";

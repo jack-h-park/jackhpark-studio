@@ -1,13 +1,20 @@
 import type { GetServerSideProps } from "next";
+import { FiActivity } from "@react-icons/all-files/fi/FiActivity";
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiAlertTriangle } from "@react-icons/all-files/fi/FiAlertTriangle";
+import { FiBarChart2 } from "@react-icons/all-files/fi/FiBarChart2";
+import { FiClock } from "@react-icons/all-files/fi/FiClock";
+import { FiDatabase } from "@react-icons/all-files/fi/FiDatabase";
 import { FiFileText } from "@react-icons/all-files/fi/FiFileText";
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
+import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 import { FiLink } from "@react-icons/all-files/fi/FiLink";
+import { FiList } from "@react-icons/all-files/fi/FiList";
+import { FiPlayCircle } from "@react-icons/all-files/fi/FiPlayCircle";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { type ExtendedRecordMap, type PageBlock } from "notion-types";
+import { type ExtendedRecordMap } from "notion-types";
 import { parsePageId } from "notion-utils";
 import {
   type ChangeEvent,
@@ -20,17 +27,15 @@ import {
   useRef,
   useState,
 } from "react";
-import { NotionContextProvider } from "react-notion-x";
-import css from "styled-jsx/css";
 
 import type { ModelProvider } from "@/lib/shared/model-provider";
-import { rootNotionPageId, site } from "@/lib/config";
+import { AiPageChrome } from "@/components/AiPageChrome";
+import { Checkbox } from "@/components/ui/checkbox";
 import {   DEFAULT_EMBEDDING_SPACE_ID,
 type EmbeddingSpace ,
   findEmbeddingSpace,
   listEmbeddingModelOptions,
 } from "@/lib/core/embedding-spaces";
-import { mapImageUrl } from "@/lib/map-image-url";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import {
   loadCanonicalPageLookup,
@@ -38,8 +43,6 @@ import {
 } from "@/lib/server/page-url";
 
 import type { ManualIngestionRequest } from "../../lib/admin/manual-ingestor";
-import { Footer } from "../../components/Footer";
-import { NotionPageHeader } from "../../components/NotionPageHeader";
 import {
   DEFAULT_RUNS_PAGE_SIZE,
   INGESTION_TYPE_VALUES,
@@ -1152,15 +1155,13 @@ function ManualIngestionPanel(): JSX.Element {
 
   return (
     <>
-      {/*
-        This style block is necessary for styled-jsx to apply styles to this component,
-        as it's defined separately from the main page component where the styles are declared.
-      */}
-      <style jsx>{styles}</style>
       <section className="manual-ingestion admin-card">
         <header className="manual-ingestion__header">
           <div>
-            <h2>Manual Ingestion</h2>
+            <h2 className="heading-with-icon">
+              <FiPlayCircle aria-hidden="true" />
+              Manual Ingestion
+            </h2>
             <p>
               Trigger manual ingestion for a Notion page or external URL and
               track the progress here.
@@ -1290,23 +1291,21 @@ function ManualIngestionPanel(): JSX.Element {
 
               {mode === "notion_page" ? (
                 <div className="manual-toggle">
-                  <input
-                    id="manual-linked-pages"
-                    type="checkbox"
-                    checked={includeLinkedPages}
-                    onChange={(event) =>
-                      setIncludeLinkedPages(event.target.checked)
-                    }
-                    disabled={isRunning}
+                  <Checkbox
+                    className="manual-toggle__checkbox"
+                    aria-labelledby="manual-linked-pages-label"
                     aria-describedby="manual-linked-pages-hint"
+                    checked={includeLinkedPages}
+                    onCheckedChange={setIncludeLinkedPages}
+                    disabled={isRunning}
                   />
                   <div className="manual-toggle__content">
-                    <label
+                    <span
                       className="manual-toggle__label"
-                      htmlFor="manual-linked-pages"
+                      id="manual-linked-pages-label"
                     >
                       Include linked pages
-                    </label>
+                    </span>
                     <p
                       className="manual-toggle__hint"
                       id="manual-linked-pages-hint"
@@ -1439,23 +1438,25 @@ function ManualIngestionPanel(): JSX.Element {
         <section className="manual-logs" aria-live="polite">
           <header className="manual-logs__header">
             <div className="manual-logs__title">
-              <h3>Run Log</h3>
+              <h3 className="heading-with-icon">
+                <FiList aria-hidden="true" />
+                Run Log
+              </h3>
               <span className="manual-logs__meta">
                 {logs.length === 0
                   ? "Awaiting events"
                   : `${logs.length} entr${logs.length === 1 ? "y" : "ies"}`}
               </span>
             </div>
-            <label className="manual-logs__autoscroll">
-              <input
-                type="checkbox"
+            <div className="manual-logs__autoscroll">
+              <Checkbox
+                className="manual-logs__autoscroll-checkbox"
+                aria-label="Toggle auto-scroll to newest log entries"
                 checked={autoScrollLogs}
-                onChange={(event) =>
-                  handleToggleAutoScroll(event.target.checked)
-                }
+                onCheckedChange={handleToggleAutoScroll}
               />
               <span>Auto-scroll to latest</span>
-            </label>
+            </div>
           </header>
           {logs.length === 0 ? (
             <div className="manual-logs__empty">
@@ -1499,7 +1500,10 @@ function ManualIngestionPanel(): JSX.Element {
 
         {stats ? (
           <section className="manual-summary">
-            <h3>Run Summary</h3>
+            <h3 className="heading-with-icon">
+              <FiBarChart2 aria-hidden="true" />
+              Run Summary
+            </h3>
             <dl className="summary-grid">
               <div className="summary-item">
                 <dt>Documents Processed</dt>
@@ -1625,7 +1629,10 @@ function DatasetSnapshotSection({
   return (
     <section className="admin-card admin-section dataset-section">
       <header className="admin-section__header">
-        <h2>Dataset Snapshot</h2>
+        <h2 className="heading-with-icon">
+          <FiDatabase aria-hidden="true" />
+          Dataset Snapshot
+        </h2>
         <p className="admin-section__description">
           Latest captured totals from the `rag_snapshot` rollup.
         </p>
@@ -1709,7 +1716,8 @@ function DatasetSnapshotSection({
 
       <section className="snapshot-history">
         <header className="snapshot-history__header">
-          <h3>
+          <h3 className="heading-with-icon">
+            <FiClock aria-hidden="true" />
             Recent Snapshots <span>({historyList.length})</span>
           </h3>
           <p>Comparing the most recent {historyList.length} captures.</p>
@@ -1769,7 +1777,10 @@ function SystemHealthSection({
   return (
     <section className="admin-card admin-section system-health">
       <header className="admin-section__header">
-        <h2>System Health</h2>
+        <h2 className="heading-with-icon">
+          <FiActivity aria-hidden="true" />
+          System Health
+        </h2>
         <p className="admin-section__description">
           Operational signals from the latest ingestion run and queue state.
         </p>
@@ -2404,8 +2415,7 @@ function RecentRunsSection({
   );
 
   const handleHideSkippedChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const nextHideSkipped = event.target.checked;
+    (nextHideSkipped: boolean) => {
       setHideSkipped(nextHideSkipped);
       updateQuery({
         page,
@@ -2603,7 +2613,10 @@ function RecentRunsSection({
   return (
     <section className="admin-card admin-section">
       <header className="admin-section__header">
-        <h2>Recent Runs</h2>
+        <h2 className="heading-with-icon">
+          <FiLayers aria-hidden="true" />
+          Recent Runs
+        </h2>
         <p className="admin-section__description">
           Latest ingestion activity from manual and scheduled jobs.
         </p>
@@ -2698,15 +2711,16 @@ function RecentRunsSection({
           </label>
         </div>
         <div className="recent-runs__actions">
-          <label className="recent-runs__checkbox-filter">
-            <input
-              type="checkbox"
+          <div className="recent-runs__checkbox-filter">
+            <Checkbox
+              className="recent-runs__checkbox-control"
               checked={hideSkipped}
-              onChange={handleHideSkippedChange}
+              onCheckedChange={handleHideSkippedChange}
               disabled={isLoading}
+              aria-label="Hide skipped runs"
             />
             <span>Hide skipped runs</span>
-          </label>
+          </div>
 
           <button
             type="button"
@@ -2972,84 +2986,38 @@ function IngestionDashboard({
   headerRecordMap,
   headerBlockId,
 }: PageProps): JSX.Element {
-  const canonicalHeaderBlockId = headerBlockId?.replaceAll("-", "");
-  const headerBlockEntry =
-    headerRecordMap?.block?.[headerBlockId] ??
-    (canonicalHeaderBlockId
-      ? headerRecordMap?.block?.[canonicalHeaderBlockId]
-      : undefined);
-  const headerBlock = headerBlockEntry?.value as PageBlock | undefined;
-
   return (
     <>
       <Head>
         <title>Ingestion Dashboard</title>
       </Head>
 
-      <div className="admin-ingestion-page notion">
-        <div className="admin-header-shell">
-          {headerRecordMap && headerBlock ? (
-            <NotionContextProvider
-              recordMap={headerRecordMap}
-              fullPage
-              darkMode={false}
-              previewImages={false}
-              forceCustomImages={false}
-              showCollectionViewDropdown={false}
-              showTableOfContents={false}
-              minTableOfContentsItems={0}
-              linkTableTitleProperties={false}
-              isLinkCollectionToUrlProperty={false}
-              mapPageUrl={(pageId: string) => `/${pageId}`}
-              mapImageUrl={mapImageUrl}
-            >
-              <NotionPageHeader block={headerBlock} />
-            </NotionContextProvider>
-          ) : (
-            <header className="notion-header">
-              <div className="notion-nav-header">
-                <div className="breadcrumbs">
-                  <div className="breadcrumb active">
-                    <Link href="/" className="breadcrumb-link">
-                      {site.name}
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            </header>
-          )}
-        </div>
-
-        <main className="notion-page-content admin-ingestion-content">
-          <header className="admin-hero">
-            <div className="admin-hero__body">
-              <h1>Ingestion Dashboard</h1>
-              <p>
-                Monitor ingestion health, trigger manual runs, and review the
-                latest dataset snapshot.
-              </p>
-            </div>
-            <Link href="/admin/chat-config" className="admin-hero__cta">
-              Chat Configuration
-            </Link>
-          </header>
-
-          <div className="admin-stack">
-            <ManualIngestionPanel />
-
-            <DatasetSnapshotSection overview={datasetSnapshot} />
-            <SystemHealthSection health={systemHealth} />
-
-            <RecentRunsSection initial={recentRuns} />
+      <AiPageChrome
+        headerRecordMap={headerRecordMap}
+        headerBlockId={headerBlockId}
+      >
+        <header className="admin-hero">
+          <div className="admin-hero__body">
+            <h1>Ingestion Dashboard</h1>
+            <p>
+              Monitor ingestion health, trigger manual runs, and review the
+              latest dataset snapshot.
+            </p>
           </div>
-        </main>
+          <Link href="/admin/chat-config" className="admin-hero__cta">
+            Chat Configuration
+          </Link>
+        </header>
 
-        <div className="admin-footer-shell">
-          <Footer />
+        <div className="admin-stack">
+          <ManualIngestionPanel />
+
+          <DatasetSnapshotSection overview={datasetSnapshot} />
+          <SystemHealthSection health={systemHealth} />
+
+          <RecentRunsSection initial={recentRuns} />
         </div>
-      </div>
-
-      <style jsx>{styles}</style>
+      </AiPageChrome>
     </>
   );
 }
@@ -3070,1544 +3038,12 @@ function ClientSideDate({ value }: { value: string | null | undefined }) {
   return <>{formatDate(value)}</>;
 }
 
-const styles = css.global`
-  .admin-ingestion-page {
-    width: 100%;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    --ai-bg: 38 40% 96%;
-    --ai-bg-muted: 36 32% 91%;
-    --ai-fg: 31 24% 26%;
-    --ai-fg-muted: 32 17% 47%;
-    --ai-border: 35 25% 80%;
-    background: hsl(var(--ai-bg));
-    color: hsl(var(--ai-fg));
-    --bg-color: hsl(var(--ai-bg));
-    --bg-color-1: hsl(var(--ai-bg-muted));
-    --fg-color: hsl(var(--ai-fg));
-    --fg-color-0: hsl(var(--ai-fg));
-    --fg-color-1: hsl(var(--ai-fg-muted));
-    --border-color: hsl(var(--ai-border));
-    --border-color-0: hsl(var(--ai-border));
-    --surface-color: hsl(var(--ai-bg));
-    --surface-muted-color: hsl(var(--ai-bg-muted));
-    --notion-max-width: 1320px;
-  }
 
-  .dark-mode .admin-ingestion-page {
-    --ai-bg: 220 19% 9%;
-    --ai-bg-muted: 220 16% 15%;
-    --ai-fg: 220 12% 93%;
-    --ai-fg-muted: 220 9% 65%;
-    --ai-border: 220 10% 28%;
-    background: hsl(var(--ai-bg));
-    color: hsl(var(--ai-fg));
-    --bg-color: hsl(var(--ai-bg));
-    --bg-color-1: hsl(var(--ai-bg-muted));
-    --fg-color: hsl(var(--ai-fg));
-    --fg-color-0: hsl(var(--ai-fg));
-    --fg-color-1: hsl(var(--ai-fg-muted));
-    --border-color: hsl(var(--ai-border));
-    --border-color-0: hsl(var(--ai-border));
-    --surface-color: hsl(var(--ai-bg));
-    --surface-muted-color: hsl(var(--ai-bg-muted));
-  }
-
-  .admin-header-shell,
-  .admin-footer-shell {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    background: transparent;
-  }
-
-  .admin-header-shell {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    padding: 0 clamp(28px, 6vw, 96px);
-    box-sizing: border-box;
-    background: transparent;
-  }
-
-  .admin-header-shell :global(.notion-header) {
-    width: 100%;
-    margin: 0;
-    background: transparent !important;
-    box-shadow: none !important;
-  }
-
-  .admin-header-shell :global(.notion-nav-header) {
-    width: 100%;
-    padding: 0 clamp(16px, 4vw, 72px);
-    background: transparent !important;
-  }
-
-  .admin-header-shell :global(.notion-nav-header-rhs) {
-    justify-content: flex-end;
-  }
-
-  .admin-footer-shell {
-    padding: 0 clamp(28px, 6vw, 96px);
-    box-sizing: border-box;
-  }
-
-  .admin-footer-shell :global(footer) {
-    width: min(100%, 1320px);
-    margin: 3rem auto 0;
-    padding: 25px clamp(0.5rem, 2vw, 1.75rem);
-    box-sizing: border-box;
-  }
-
-  .admin-ingestion-content {
-    width: min(100%, 1320px);
-    max-width: 1320px;
-    margin: 0 auto;
-    /* Reduced overall padding for a denser layout */
-    padding: clamp(2.5rem, 5vw, 4rem) clamp(1.5rem, 3vw, 2.5rem) 4.5rem;
-    color: var(--fg-color, rgba(55, 53, 47, 0.95));
-    line-height: 1.6;
-  }
-
-  .admin-hero {
-    margin-bottom: 2rem; /* Reduced bottom margin */
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 1.5rem;
-  }
-
-  .admin-hero__body {
-    flex: 1;
-    min-width: 16rem;
-  }
-
-  .admin-hero h1 {
-    margin: 0;
-    font-size: 2.35rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    color: var(--fg-color, rgba(55, 53, 47, 0.98));
-  }
-
-  .admin-hero p {
-    margin: 0.75rem 0 0;
-    max-width: 48rem;
-    font-size: 1.05rem;
-    color: rgba(55, 53, 47, 0.6);
-  }
-
-  .admin-hero__cta {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: fit-content;
-    padding: 0.65rem 1.15rem;
-    border-radius: 12px;
-    border: 1px solid rgba(37, 99, 235, 0.28);
-    background: rgba(37, 99, 235, 0.12);
-    color: rgba(37, 41, 78, 0.92);
-    font-weight: 600;
-    font-size: 0.95rem;
-    text-decoration: none;
-    box-shadow: 0 18px 40px -30px rgba(37, 99, 235, 0.9);
-    transition:
-      background 0.18s ease,
-      box-shadow 0.18s ease,
-      transform 0.18s ease;
-  }
-
-  .admin-hero__cta:hover,
-  .admin-hero__cta:focus {
-    background: rgba(37, 99, 235, 0.2);
-    box-shadow: 0 20px 42px -30px rgba(37, 99, 235, 0.95);
-    transform: translateY(-1px);
-  }
-
-  .admin-stack {
-    display: flex;
-    flex-direction: column;
-    /* Reduced gap between stacked cards */
-    gap: clamp(1.5rem, 2.5vw, 2rem);
-  }
-
-  .admin-card {
-    background: rgba(255, 255, 255, 0.97);
-    border: 1px solid rgba(55, 53, 47, 0.16);
-    border-radius: 18px;
-    /* Reduced padding inside cards */
-    padding: 1.8rem 2rem;
-    box-shadow: 0 26px 60px -36px rgba(15, 15, 15, 0.28);
-    backdrop-filter: blur(10px);
-  }
-
-  .admin-section__header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    /* Reduced bottom margin for section headers */
-    margin-bottom: 1.25rem;
-  }
-
-  .admin-section__header h2 {
-    margin: 0;
-    font-size: 1.45rem;
-    font-weight: 600;
-    color: var(--fg-color, rgba(55, 53, 47, 0.92));
-  }
-
-  .admin-section__description {
-    margin: 0;
-    font-size: 0.95rem;
-    color: rgba(55, 53, 47, 0.55);
-  }
-
-  .snapshot-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.1rem;
-  }
-
-  .snapshot-card {
-    border: 1px solid rgba(55, 53, 47, 0.12);
-    border-radius: 14px;
-    padding: 1rem 1.1rem;
-    background: rgba(255, 255, 255, 0.96);
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-  }
-
-  .snapshot-card__label {
-    font-size: 0.78rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgba(55, 53, 47, 0.55);
-  }
-
-  .snapshot-card__value {
-    font-size: 1.45rem;
-    font-weight: 600;
-    color: rgba(55, 53, 47, 0.92);
-  }
-
-  .snapshot-card__delta {
-    font-size: 0.85rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .snapshot-card--trend {
-    grid-column: span 2;
-  }
-
-  .snapshot-sparkline {
-    width: 100%;
-    height: 80px;
-  }
-
-  .snapshot-sparkline path {
-    fill: none;
-    stroke: rgba(46, 170, 220, 0.9);
-    stroke-width: 2;
-  }
-
-  .snapshot-card__trend-meta {
-    margin-top: 0.35rem;
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.8rem;
-    color: rgba(55, 53, 47, 0.6);
-  }
-
-  .snapshot-card__delta--positive {
-    color: rgba(16, 185, 129, 0.95);
-  }
-
-  .snapshot-card__delta--negative {
-    color: rgba(239, 68, 68, 0.95);
-  }
-
-  .snapshot-card__delta--muted {
-    color: rgba(55, 53, 47, 0.45);
-  }
-
-  .snapshot-meta {
-    margin-top: 1.4rem;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
-  }
-
-  .snapshot-meta div {
-    border: 1px solid rgba(55, 53, 47, 0.1);
-    border-radius: 12px;
-    padding: 0.9rem 1rem;
-    background: rgba(248, 248, 246, 0.9);
-  }
-
-  .snapshot-meta dt {
-    margin: 0;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: rgba(55, 53, 47, 0.55);
-  }
-
-  .snapshot-meta dd {
-    margin: 0.15rem 0 0;
-    font-size: 0.95rem;
-    color: rgba(55, 53, 47, 0.85);
-  }
-
-  .snapshot-empty {
-    border: 1px dashed rgba(55, 53, 47, 0.25);
-    border-radius: 14px;
-    padding: 1.5rem;
-    background: rgba(248, 248, 246, 0.65);
-    color: rgba(55, 53, 47, 0.7);
-    display: grid;
-    gap: 0.35rem;
-  }
-
-  .snapshot-run-id {
-    font-family: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
-    font-size: 0.82rem;
-    background: rgba(55, 53, 47, 0.08);
-    padding: 0.1rem 0.4rem;
-    border-radius: 0.35rem;
-  }
-
-  .snapshot-history {
-    margin-top: 1.5rem;
-    border: 1px solid rgba(55, 53, 47, 0.1);
-    border-radius: 14px;
-    padding: 1.1rem 1.2rem;
-    background: rgba(255, 255, 255, 0.96);
-  }
-
-  .snapshot-history__header {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    margin-bottom: 0.85rem;
-  }
-
-  .snapshot-history__header h3 {
-    margin: 0;
-    font-size: 1.05rem;
-    font-weight: 600;
-    color: rgba(55, 53, 47, 0.92);
-  }
-
-  .snapshot-history__header h3 span {
-    font-size: 0.85rem;
-    color: rgba(55, 53, 47, 0.55);
-    margin-left: 0.4rem;
-  }
-
-  .snapshot-history__header p {
-    margin: 0;
-    font-size: 0.85rem;
-    color: rgba(55, 53, 47, 0.6);
-  }
-
-  .snapshot-history__list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: grid;
-    gap: 0.7rem;
-  }
-
-  .snapshot-history__item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.6rem 0;
-    border-bottom: 1px solid rgba(55, 53, 47, 0.08);
-  }
-
-  .snapshot-history__item:last-child {
-    border-bottom: none;
-  }
-
-  .snapshot-history__row {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-
-  .snapshot-history__timestamp {
-    font-size: 0.9rem;
-    color: rgba(55, 53, 47, 0.8);
-  }
-
-  .snapshot-history__provider {
-    font-size: 0.8rem;
-    color: rgba(55, 53, 47, 0.55);
-  }
-
-  .snapshot-history__stats {
-    display: flex;
-    gap: 0.6rem;
-    font-size: 0.8rem;
-    color: rgba(55, 53, 47, 0.65);
-  }
-
-  .snapshot-history__badge {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 0.25rem 0.5rem;
-    border-radius: 999px;
-    background: rgba(46, 170, 220, 0.12);
-    color: rgba(46, 170, 220, 0.85);
-    font-weight: 600;
-  }
-
-  .snapshot-history__badge--muted {
-    background: rgba(55, 53, 47, 0.08);
-    color: rgba(55, 53, 47, 0.6);
-  }
-
-  .health-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 1.1rem;
-  }
-
-  .health-card {
-    border: 1px solid rgba(55, 53, 47, 0.12);
-    border-radius: 14px;
-    padding: 1rem 1.1rem;
-    background: rgba(255, 255, 255, 0.96);
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-  }
-
-  .health-card__label {
-    font-size: 0.78rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgba(55, 53, 47, 0.55);
-  }
-
-  .health-card__value {
-    font-size: 1.35rem;
-    font-weight: 600;
-    color: rgba(55, 53, 47, 0.92);
-  }
-
-  .health-card__stack {
-    display: grid;
-    gap: 0.2rem;
-    font-size: 0.95rem;
-    color: rgba(55, 53, 47, 0.85);
-  }
-
-  .health-card__meta {
-    font-size: 0.85rem;
-    color: rgba(55, 53, 47, 0.55);
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-
-  .health-status-pill {
-    align-self: flex-start;
-    padding: 0.35rem 0.85rem;
-    border-radius: 999px;
-    font-size: 0.88rem;
-    font-weight: 600;
-    text-transform: capitalize;
-    background: rgba(55, 53, 47, 0.08);
-    color: rgba(55, 53, 47, 0.85);
-  }
-
-  .health-status-pill--success {
-    background: rgba(16, 185, 129, 0.16);
-    color: rgba(6, 95, 70, 0.95);
-  }
-
-  .health-status-pill--failed {
-    background: rgba(239, 68, 68, 0.15);
-    color: rgba(153, 27, 27, 0.95);
-  }
-
-  .health-status-pill--completed_with_errors {
-    background: rgba(249, 115, 22, 0.15);
-    color: rgba(154, 52, 18, 0.95);
-  }
-
-  .health-status-pill--in_progress {
-    background: rgba(59, 130, 246, 0.18);
-    color: rgba(37, 99, 235, 0.95);
-  }
-
-  .health-status-pill--unknown {
-    background: rgba(55, 53, 47, 0.12);
-    color: rgba(55, 53, 47, 0.75);
-  }
-
-  .recent-runs__toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 1rem;
-    /* Reduced bottom margin for the toolbar */
-    margin-bottom: 0.8rem;
-  }
-
-  .recent-runs__filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    align-items: flex-end;
-  }
-
-  .recent-runs__filter {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    min-width: 140px;
-  }
-
-  .recent-runs__filter span {
-    font-size: 0.8rem;
-    color: rgba(55, 53, 47, 0.55);
-  }
-
-  .recent-runs__filter select,
-  .recent-runs__filter input {
-    /* Reduced padding for filter controls */
-    padding: 0.4rem 0.6rem;
-    border-radius: 8px;
-    border: 1px solid rgba(55, 53, 47, 0.18);
-    font-size: 0.9rem;
-    background: #fff;
-    color: rgba(55, 53, 47, 0.9);
-    transition:
-      border-color 0.15s ease,
-      box-shadow 0.15s ease;
-  }
-
-  .recent-runs__filter select:focus,
-  .recent-runs__filter input:focus {
-    outline: none;
-    border-color: rgba(46, 170, 220, 0.7);
-    box-shadow: 0 0 0 3px rgba(46, 170, 220, 0.18);
-  }
-
-  .recent-runs__actions {
-    display: flex;
-    align-items: flex-end;
-  }
-
-  .recent-runs__checkbox-filter {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-    color: rgba(55, 53, 47, 0.75);
-    cursor: pointer;
-    padding: 0.45rem 0.5rem;
-    user-select: none;
-  }
-
-  .recent-runs__checkbox-filter input {
-    width: 1rem;
-    height: 1rem;
-    cursor: pointer;
-  }
-
-  .recent-runs__checkbox-filter input:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-  }
-
-  .recent-runs__reset {
-    /* Reduced padding for reset button */
-    padding: 0.45rem 0.9rem;
-    border-radius: 8px;
-    border: 1px solid rgba(55, 53, 47, 0.18);
-    background: rgba(55, 53, 47, 0.05);
-    color: rgba(55, 53, 47, 0.75);
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition:
-      background 0.15s ease,
-      border-color 0.15s ease,
-      color 0.15s ease;
-  }
-
-  .recent-runs__reset:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .recent-runs__reset:not(:disabled):hover,
-  .recent-runs__reset:not(:disabled):focus {
-    background: rgba(46, 170, 220, 0.1);
-    border-color: rgba(46, 170, 220, 0.5);
-    color: rgba(46, 170, 220, 0.95);
-  }
-
-  .admin-table__error {
-    margin-bottom: 0.75rem;
-    padding: 0.75rem 1rem;
-    border-radius: 10px;
-    background: rgba(248, 113, 113, 0.16);
-    color: rgba(153, 27, 27, 0.95);
-    font-size: 0.92rem;
-  }
-
-  .admin-table {
-    border: 1px solid rgba(55, 53, 47, 0.14);
-    border-radius: 16px;
-    overflow-x: auto;
-    background: rgba(255, 255, 255, 0.95);
-    position: relative;
-  }
-
-  .admin-table--loading::after {
-    content: "Loading…";
-    position: absolute;
-    top: 12px;
-    right: 18px;
-    font-size: 0.85rem;
-    color: rgba(55, 53, 47, 0.45);
-  }
-
-  .admin-table__grid {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    min-width: 720px;
-  }
-
-  .admin-table__grid thead th {
-    background: rgba(55, 53, 47, 0.06);
-    text-align: left;
-    /* Further reduced padding for a denser table header */
-    padding: 0.5rem 1rem;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: rgba(55, 53, 47, 0.6);
-  }
-
-  .admin-table__grid tbody td {
-    /* Further reduced padding and line-height for denser table cells */
-    padding: 0.5rem 1rem;
-    border-top: 1px solid rgba(55, 53, 47, 0.08);
-    vertical-align: top;
-    font-size: 0.9rem;
-    line-height: 1.4;
-    color: rgba(55, 53, 47, 0.85);
-  }
-
-  .admin-table__grid tbody tr:first-child td {
-    border-top: none;
-  }
-
-  /* Add a subtle hover effect */
-  .admin-table__grid tbody tr:hover {
-    background: rgba(46, 170, 220, 0.08);
-  }
-
-  .admin-table__empty {
-    text-align: center;
-    padding: 2.4rem 1rem;
-    color: rgba(55, 53, 47, 0.55);
-    font-size: 0.95rem;
-  }
-
-  .admin-table__meta {
-    /* Further reduced margin for meta text in cells */
-    margin-top: 0.2rem;
-    font-size: 0.82rem;
-    color: rgba(55, 53, 47, 0.55);
-  }
-
-  .admin-table__meta a {
-    color: rgba(46, 170, 220, 0.85);
-    text-decoration: none;
-  }
-
-  .admin-table__meta a:hover,
-  .admin-table__meta a:focus {
-    text-decoration: underline;
-  }
-
-  .admin-table__actions {
-    white-space: nowrap;
-  }
-
-  .admin-table__delete-button {
-    padding: 0.35rem 0.75rem;
-    border-radius: 8px;
-    border: 1px solid rgba(239, 68, 68, 0.4);
-    background: rgba(239, 68, 68, 0.08);
-    color: rgba(185, 28, 28, 0.95);
-    font-size: 0.85rem;
-    cursor: pointer;
-    transition:
-      background 0.15s ease,
-      border-color 0.15s ease,
-      color 0.15s ease;
-  }
-
-  .admin-table__delete-button:hover,
-  .admin-table__delete-button:focus {
-    background: rgba(239, 68, 68, 0.18);
-    border-color: rgba(239, 68, 68, 0.6);
-    outline: none;
-  }
-
-  .admin-table__delete-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  .admin-issues {
-    /* Reduced top margin for issue details */
-    margin-top: 0.3rem;
-  }
-
-  .admin-issues summary {
-    cursor: pointer;
-    color: rgba(46, 170, 220, 0.85);
-    font-size: 0.85rem;
-  }
-
-  .admin-issues ul {
-    margin: 0.4rem 0 0;
-    padding-left: 1.25rem;
-    color: rgba(55, 53, 47, 0.7);
-    font-size: 0.85rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.3rem;
-  }
-
-  .status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.35rem 0.85rem;
-    border-radius: 16px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    text-transform: capitalize;
-  }
-
-  .status-pill--success {
-    background: rgba(16, 185, 129, 0.16);
-    color: rgba(6, 95, 70, 0.95);
-  }
-
-  .status-pill--completed_with_errors {
-    background: rgba(234, 179, 8, 0.18);
-    color: rgba(133, 77, 14, 0.95);
-  }
-
-  .status-pill--failed {
-    background: rgba(248, 113, 113, 0.2);
-    color: rgba(153, 27, 27, 0.95);
-  }
-
-  .status-pill--in_progress {
-    background: rgba(96, 165, 250, 0.2);
-    color: rgba(30, 64, 175, 0.95);
-  }
-
-  .status-pill--skipped {
-    background: rgba(55, 53, 47, 0.1);
-    color: rgba(55, 53, 47, 0.7);
-    text-transform: none;
-  }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.25rem 0.7rem;
-    border-radius: 999px;
-    background: rgba(55, 53, 47, 0.08);
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: rgba(55, 53, 47, 0.75);
-  }
-
-  .recent-runs__footer {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.75rem;
-    /* Reduced padding in table footer */
-    padding: 0.7rem 1rem;
-    border-top: 1px solid rgba(55, 53, 47, 0.08);
-  }
-
-  .recent-runs__summary {
-    font-size: 0.9rem;
-    color: rgba(55, 53, 47, 0.7);
-  }
-
-  .recent-runs__pagination {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-  }
-
-  .recent-runs__page-button {
-    /* Reduced padding for pagination buttons */
-    padding: 0.4rem 0.8rem;
-    border-radius: 8px;
-    border: 1px solid rgba(55, 53, 47, 0.18);
-    background: rgba(255, 255, 255, 0.92);
-    font-size: 0.88rem;
-    color: rgba(55, 53, 47, 0.78);
-    cursor: pointer;
-    transition:
-      background 0.15s ease,
-      border-color 0.15s ease,
-      color 0.15s ease;
-  }
-
-  .recent-runs__page-button:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-
-  .recent-runs__page-button:not(:disabled):hover,
-  .recent-runs__page-button:not(:disabled):focus {
-    background: rgba(46, 170, 220, 0.1);
-    border-color: rgba(46, 170, 220, 0.5);
-    color: rgba(46, 170, 220, 0.95);
-  }
-
-  .recent-runs__page-indicator {
-    font-size: 0.9rem;
-    color: rgba(55, 53, 47, 0.7);
-  }
-
-  @media (max-width: 960px) {
-    .recent-runs__toolbar {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .recent-runs__actions {
-      justify-content: flex-end;
-    }
-  }
-
-  .manual-ingestion {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-  }
-
-  .manual-ingestion__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1.5rem;
-    flex-wrap: wrap;
-  }
-
-  .manual-ingestion__header h2 {
-    margin: 0;
-    font-size: 1.55rem;
-    font-weight: 600;
-    color: var(--fg-color, rgba(55, 53, 47, 0.94));
-  }
-
-  .manual-ingestion__header p {
-    margin: 0.5rem 0 0;
-    font-size: 0.95rem;
-    color: rgba(55, 53, 47, 0.6);
-    max-width: 38rem;
-  }
-
-  .manual-ingestion__status {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.9rem;
-    color: rgba(55, 53, 47, 0.55);
-  }
-
-  .status-pill__meta {
-    font-size: 0.85rem;
-  }
-
-  .manual-ingestion__layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1.75rem;
-  }
-
-  .manual-ingestion__primary {
-    display: grid;
-    gap: 1.5rem;
-    border: 1px solid rgba(55, 53, 47, 0.16); /* New */
-    border-radius: 14px; /* New */
-  }
-
-  .manual-ingestion__tabs {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    border-radius: 14px;
-    border: 1px solid rgba(55, 53, 47, 0.16);
-    background: transparent; /* Changed */
-    overflow: visible; /* Changed */
-    border: none; /* Changed */
-    border-bottom: 1px solid rgba(55, 53, 47, 0.16); /* New */
-    border-radius: 0; /* New */
-    padding: 0 1.5rem; /* New */
-  }
-
-  .manual-tab {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    padding: 1rem 1.2rem;
-    background: transparent;
-    border: none;
-    text-align: left;
-    font-weight: 600;
-    font-size: 0.92rem;
-    color: rgba(55, 53, 47, 0.55);
-    cursor: pointer;
-    transition:
-      color 0.2s ease,
-      border-color 0.2s ease; /* Changed */
-    border-bottom: 2px solid transparent; /* New */
-  }
-
-  .manual-tab__icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 50%;
-    background: rgba(46, 170, 220, 0.12);
-    color: rgba(46, 170, 220, 0.95);
-  }
-
-  .manual-tab__subtitle {
-    display: block;
-    font-size: 0.8rem;
-    font-weight: 500;
-    opacity: 0.75;
-  }
-
-  .manual-tab--active {
-    color: rgba(55, 53, 47, 0.92);
-    border-bottom-color: #2ea8dc; /* Changed */
-  }
-
-  .manual-tab:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-  .manual-tab:not(.manual-tab--active):hover:not(:disabled) {
-    color: rgba(55, 53, 47, 0.75); /* New */
-  }
-
-  .manual-form {
-    display: grid;
-    gap: 1.15rem;
-    padding: 1.5rem; /* New */
-  }
-
-  .manual-field {
-    display: grid;
-    gap: 0.45rem;
-  }
-
-  .manual-field label {
-    font-weight: 600;
-    font-size: 0.95rem;
-    color: rgba(55, 53, 47, 0.68);
-  }
-
-  .manual-field input,
-  .manual-field select {
-    border: 1px solid rgba(55, 53, 47, 0.18);
-    border-radius: 12px;
-    padding: 0.78rem 1rem;
-    font-size: 0.95rem;
-    color: rgba(55, 53, 47, 0.9);
-    background: #fff; /* Changed */
-    transition:
-      border-color 0.15s ease,
-      box-shadow 0.15s ease;
-  }
-
-  .manual-field input:focus,
-  .manual-field select:focus {
-    outline: none;
-    border-color: rgba(46, 170, 220, 0.65);
-    box-shadow: 0 0 0 2px rgba(46, 170, 220, 0.18);
-  }
-
-  .manual-field input:disabled,
-  .manual-field select:disabled {
-    background: rgba(245, 244, 240, 0.7);
-    color: rgba(55, 53, 47, 0.5);
-  }
-
-  .manual-field__hint {
-    font-size: 0.8rem;
-    color: rgba(55, 53, 47, 0.6);
-  }
-
-  .manual-scope {
-    border: 1px solid rgba(55, 53, 47, 0.14);
-    border-radius: 12px;
-    padding: 0.9rem 1rem;
-    background: rgba(55, 53, 47, 0.04);
-    display: grid;
-    gap: 0.75rem;
-  }
-
-  .manual-scope__label {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: rgba(55, 53, 47, 0.68);
-  }
-
-  .manual-scope__controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-  }
-
-  .manual-scope__option {
-    flex: 1 1 200px;
-    min-width: 160px;
-    border: 1px solid rgba(55, 53, 47, 0.18);
-    border-radius: 12px;
-    padding: 0.75rem 1rem;
-    background: #fff;
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    cursor: pointer;
-    transition:
-      border-color 0.15s ease,
-      box-shadow 0.15s ease,
-      background 0.15s ease;
-    position: relative;
-    text-align: left;
-  }
-
-  .manual-scope__option input {
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .manual-scope__option.is-active {
-    border-color: rgba(46, 170, 220, 0.55);
-    background: rgba(46, 170, 220, 0.12);
-    box-shadow: 0 0 0 1px rgba(46, 170, 220, 0.25);
-  }
-
-  .manual-scope__option.is-disabled {
-    cursor: not-allowed;
-    opacity: 0.65;
-  }
-
-  .manual-scope__option:focus-within {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(46, 170, 220, 0.2);
-  }
-
-  .manual-scope__title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: rgba(55, 53, 47, 0.78);
-    display: block;
-  }
-
-  .manual-scope__desc {
-    font-size: 0.82rem;
-    color: rgba(55, 53, 47, 0.6);
-    display: block;
-  }
-
-  .manual-scope__hint {
-    margin: 0;
-    font-size: 0.8rem;
-    color: rgba(55, 53, 47, 0.55);
-  }
-
-  .manual-toggle {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.85rem 1rem;
-    border: 1px solid rgba(55, 53, 47, 0.18);
-    border-radius: 12px;
-    background: rgba(55, 53, 47, 0.04);
-  }
-
-  .manual-toggle input {
-    margin-top: 0.2rem;
-    width: 1.1rem;
-    height: 1.1rem;
-    accent-color: rgba(46, 170, 220, 0.85);
-  }
-
-  .manual-toggle input:disabled {
-    cursor: not-allowed;
-  }
-
-  .manual-toggle__content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .manual-toggle__label {
-    font-weight: 600;
-    font-size: 0.95rem;
-    color: rgba(55, 53, 47, 0.78);
-    cursor: pointer;
-  }
-
-  .manual-toggle__hint {
-    margin: 0;
-    font-size: 0.85rem;
-    color: rgba(55, 53, 47, 0.6);
-    max-width: 48ch;
-  }
-
-  .manual-hint {
-    margin: -0.2rem 0 0;
-    font-size: 0.85rem;
-    color: rgba(55, 53, 47, 0.55);
-  }
-
-  .manual-error {
-    font-size: 0.85rem;
-    color: #b71c1c;
-  }
-
-  .manual-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 1rem;
-    margin-top: 0.4rem;
-  }
-
-  .manual-button {
-    border: 1px solid rgba(55, 53, 47, 0.18);
-    background: rgba(55, 53, 47, 0.92);
-    color: #fff;
-    padding: 0.7rem 1.75rem;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition:
-      transform 0.15s ease,
-      box-shadow 0.15s ease,
-      background 0.15s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.6rem;
-  }
-
-  .manual-button:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 12px 26px -14px rgba(55, 53, 47, 0.55);
-    background: rgba(55, 53, 47, 0.96);
-  }
-
-  .manual-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  .manual-button.is-loading::after {
-    content: "";
-    width: 1rem;
-    height: 1rem;
-    border: 2px solid currentColor;
-    border-top-color: transparent;
-    border-radius: 999px;
-    animation: spin 0.75s linear infinite;
-  }
-
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  .manual-progress {
-    flex: 1 1 260px;
-    min-width: 240px;
-    display: grid;
-    gap: 0.85rem;
-  }
-
-  .progress-group {
-    display: grid;
-    gap: 0.45rem;
-  }
-
-  .progress-group__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 0.75rem;
-  }
-
-  .progress-group__title {
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: rgba(55, 53, 47, 0.72);
-  }
-
-  .progress-group__meta {
-    font-size: 0.82rem;
-    color: rgba(55, 53, 47, 0.55);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-  }
-
-  .progress-bar {
-    height: 10px;
-    border-radius: 999px;
-    background: rgba(55, 53, 47, 0.12);
-    overflow: hidden;
-  }
-
-  .progress-bar__value {
-    height: 100%;
-    border-radius: 999px;
-    background: linear-gradient(
-      90deg,
-      rgba(46, 170, 220, 0.85),
-      rgba(46, 170, 220, 0.55)
-    );
-    transition: width 0.25s ease;
-  }
-
-  .progress-meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.6rem;
-    font-size: 0.88rem;
-    color: rgba(55, 53, 47, 0.65);
-  }
-
-  .progress-message {
-    color: rgba(55, 53, 47, 0.7);
-  }
-
-  .progress-id {
-    font-family:
-      "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-      "Liberation Mono", "Courier New", monospace;
-    font-size: 0.78rem;
-    padding: 0.1rem 0.4rem;
-    border-radius: 0.4rem;
-    background: rgba(55, 53, 47, 0.08);
-    color: rgba(55, 53, 47, 0.6);
-  }
-
-  .manual-ingestion__aside {
-    border: 1px solid rgba(55, 53, 47, 0.12);
-    border-radius: 14px;
-    padding: 1.5rem 1.6rem;
-    background: rgba(245, 244, 240, 0.9);
-    display: grid;
-    gap: 1rem;
-  }
-
-  .manual-ingestion__aside h3 {
-    margin: 0;
-    font-size: 1.05rem;
-    font-weight: 600;
-    color: rgba(55, 53, 47, 0.82);
-  }
-
-  .manual-ingestion__aside ul {
-    margin: 0;
-    padding-left: 1.2rem;
-    display: grid;
-    gap: 0.55rem;
-    font-size: 0.9rem;
-    color: rgba(55, 53, 47, 0.7);
-  }
-
-  .tip-callout {
-    border-radius: 12px;
-    background: rgba(46, 170, 220, 0.14);
-    border: 1px solid rgba(46, 170, 220, 0.3);
-    padding: 0.9rem 1rem;
-    display: grid;
-    gap: 0.35rem;
-  }
-
-  .tip-callout strong {
-    font-size: 0.82rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: rgba(46, 146, 200, 0.95);
-  }
-
-  .tip-callout p {
-    margin: 0;
-    font-size: 0.9rem;
-    color: rgba(55, 53, 47, 0.68);
-  }
-
-  .manual-logs {
-    margin-top: 2rem;
-  }
-
-  .manual-logs__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 0.85rem;
-  }
-
-  .manual-logs__title {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-
-  .manual-logs__title h3 {
-    margin: 0;
-    font-size: 1.15rem;
-    font-weight: 600;
-    color: rgba(55, 53, 47, 0.9);
-  }
-
-  .manual-logs__meta {
-    font-size: 0.85rem;
-    color: rgba(55, 53, 47, 0.55);
-  }
-
-  .manual-logs__autoscroll {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    font-size: 0.82rem;
-    color: rgba(55, 53, 47, 0.65);
-    user-select: none;
-  }
-
-  .manual-logs__autoscroll input {
-    width: 1rem;
-    height: 1rem;
-    accent-color: rgba(46, 170, 220, 0.85);
-    margin: 0;
-  }
-
-  .manual-logs__autoscroll span {
-    display: inline-block;
-  }
-
-  .manual-logs__refresh-button {
-    border: 1px solid rgba(55, 53, 47, 0.18);
-    background: rgba(255, 255, 255, 0.9);
-    color: rgba(55, 53, 47, 0.8);
-    padding: 0.35rem 0.85rem;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition:
-      background 0.15s ease,
-      border-color 0.15s ease;
-  }
-
-  .manual-logs__refresh-button:hover {
-    background: rgba(245, 244, 240, 0.9);
-    border-color: rgba(55, 53, 47, 0.25);
-  }
-
-  .manual-logs__empty {
-    padding: 1.1rem 0;
-    text-align: center;
-    font-size: 0.9rem;
-    color: rgba(55, 53, 47, 0.55);
-  }
-
-  .manual-logs__scroll {
-    max-height: 260px;
-    overflow-y: auto;
-    padding-right: 0.4rem;
-  }
-
-  .manual-logs__list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    gap: 0.8rem;
-  }
-
-  .manual-log-entry {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.8rem;
-    padding: 0.8rem 1rem;
-    border-radius: 12px;
-    border: 1px solid rgba(55, 53, 47, 0.1);
-    background: rgba(55, 53, 47, 0.05);
-    font-size: 0.9rem;
-  }
-
-  .manual-log-entry--info {
-    border-color: rgba(46, 170, 220, 0.2);
-    background: rgba(46, 170, 220, 0.08);
-  }
-
-  .manual-log-entry--warn {
-    border-color: rgba(219, 155, 28, 0.28);
-    background: rgba(219, 155, 28, 0.1);
-  }
-
-  .manual-log-entry--error {
-    border-color: rgba(208, 72, 72, 0.28);
-    background: rgba(208, 72, 72, 0.1);
-  }
-
-  .manual-log-entry__icon {
-    font-size: 1rem;
-    color: inherit;
-  }
-
-  .manual-log-entry__time {
-    font-family:
-      "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo,
-      monospace;
-    font-size: 0.8rem;
-    color: rgba(55, 53, 47, 0.45);
-    display: block;
-    margin-bottom: 0.15rem;
-  }
-
-  .manual-summary {
-    margin-top: 2rem;
-  }
-
-  .manual-summary h3 {
-    margin: 0 0 1.15rem;
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: rgba(55, 53, 47, 0.9);
-  }
-
-  .summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 1rem;
-    margin: 0;
-    padding: 0;
-  }
-
-  .summary-item {
-    border: 1px solid rgba(55, 53, 47, 0.12);
-    border-radius: 12px;
-    padding: 0.9rem;
-    background: rgba(255, 255, 255, 0.94);
-    display: grid;
-    gap: 0.3rem;
-  }
-
-  .summary-item dt {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: rgba(55, 53, 47, 0.55);
-    margin: 0;
-  }
-
-  .summary-item dd {
-    margin: 0;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: rgba(55, 53, 47, 0.95);
-  }
-
-  .manual-refresh-card {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1.5rem;
-    padding: 1.2rem 1.8rem;
-  }
-
-  .manual-refresh-card p {
-    margin: 0;
-    font-size: 0.95rem;
-    color: rgba(55, 53, 47, 0.7);
-  }
-
-  @media (min-width: 960px) {
-    .manual-ingestion__layout {
-      grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr);
-      align-items: start;
-    }
-  }
-
-  @media (max-width: 720px) {
-    .admin-ingestion-content {
-      padding: 3.25rem 1.2rem 4rem;
-    }
-
-    .admin-card {
-      padding: 1.6rem 1.5rem;
-    }
-
-    .manual-actions {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .manual-button {
-      width: 100%;
-    }
-
-    .manual-progress {
-      width: 100%;
-      min-width: 0;
-    }
-  }
-`;
 
 export const getServerSideProps: GetServerSideProps<PageProps> = async (
   _context,
   // No changes needed here for now, filtering will be client-driven
 ) => {
-  const canonicalRootPageId =
-    parsePageId(rootNotionPageId, { uuid: true }) ?? rootNotionPageId;
-
   const headerRecordMapPromise = loadNotionNavigationHeader();
 
   const supabase = getSupabaseAdminClient();

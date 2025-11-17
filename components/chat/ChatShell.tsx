@@ -1,5 +1,7 @@
 "use client";
 
+import { FiMessageCircle } from "@react-icons/all-files/fi/FiMessageCircle";
+import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import { useMemo, useState } from "react";
 
 import type { AdminChatConfig } from "@/types/chat-config";
@@ -113,7 +115,10 @@ function ChatShellContent() {
       <div className="ai-chat-panel">
         <header className="ai-chat-header">
           <div>
-            <p className="ai-chat-title">Jack’s AI Assistant</p>
+            <p className="ai-chat-title heading-with-icon">
+              <FiMessageCircle aria-hidden="true" />
+              Jack’s AI Assistant
+            </p>
             <p className="ai-chat-summary">{renderPromptSummary}</p>
           </div>
           <Button
@@ -123,6 +128,7 @@ function ChatShellContent() {
             className="ai-chat-settings-button"
             type="button"
           >
+            <FiSliders aria-hidden="true" />
             Advanced Settings
           </Button>
         </header>

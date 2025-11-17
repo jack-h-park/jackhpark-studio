@@ -1,13 +1,12 @@
 "use client";
 
+import { FiCpu } from "@react-icons/all-files/fi/FiCpu";
 import { useMemo } from "react";
 
-import type {
-  AdminChatConfig,
-  SessionChatConfig,
-} from "@/types/chat-config";
+import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { listLlmModelOptions } from "@/lib/core/llm-registry";
+import { Switch } from "@/components/ui/switch";
 
 const ENGINE_LABELS: Record<string, string> = {
   lc: "LangChain",
@@ -57,7 +56,10 @@ export function SettingsSectionModelEngine({
 
   return (
     <section className="settings-section">
-      <p className="settings-section__title">Model &amp; Engine</p>
+      <p className="settings-section__title heading-with-icon">
+        <FiCpu aria-hidden="true" />
+        Model &amp; Engine
+      </p>
       <div className="settings-section__field">
         <label>
           LLM Model
@@ -119,43 +121,45 @@ export function SettingsSectionModelEngine({
           </select>
         </label>
 
-        <div className="settings-section__grid">
-          {adminConfig.allowlist.allowReverseRAG && (
-            <label className="settings-section__checkbox">
-              <input
-                type="checkbox"
+        <div className="settings-section__switches">
+          {adminConfig.allowlist.allowReverseRAG ? (
+            <div className="settings-section__switch">
+              <p className="settings-section__switch-label">Reverse RAG</p>
+              <Switch
+                className="settings-section__switch-control"
                 checked={sessionConfig.features.reverseRAG}
-                onChange={(event) =>
+                onCheckedChange={(checked) =>
                   handleFieldChange((prev) => ({
                     ...prev,
                     features: {
                       ...prev.features,
-                      reverseRAG: event.target.checked,
+                      reverseRAG: checked,
                     },
                   }))
                 }
+                aria-label="Toggle Reverse RAG"
               />
-              Reverse RAG
-            </label>
-          )}
-          {adminConfig.allowlist.allowHyde && (
-            <label className="settings-section__checkbox">
-              <input
-                type="checkbox"
+            </div>
+          ) : null}
+          {adminConfig.allowlist.allowHyde ? (
+            <div className="settings-section__switch">
+              <p className="settings-section__switch-label">HyDE</p>
+              <Switch
+                className="settings-section__switch-control"
                 checked={sessionConfig.features.hyde}
-                onChange={(event) =>
+                onCheckedChange={(checked) =>
                   handleFieldChange((prev) => ({
                     ...prev,
                     features: {
                       ...prev.features,
-                      hyde: event.target.checked,
+                      hyde: checked,
                     },
                   }))
                 }
+                aria-label="Toggle HyDE"
               />
-              HyDE
-            </label>
-          )}
+            </div>
+          ) : null}
         </div>
 
         <label>

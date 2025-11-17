@@ -16,6 +16,8 @@ import {
 } from "react";
 import css from "styled-jsx/css";
 
+import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
+import { Switch } from "@/components/ui/switch";
 import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
 import { resolveLlmModel } from "@/lib/core/llm-registry";
 import {
@@ -208,8 +210,8 @@ const styles = css`
     color: #0a4584;
     border: 1px solid #d0dbff;
     border-radius: 999px;
-    padding: 6px 12px;
-    font-size: 0.75rem;
+    padding: 5px 10px;
+    font-size: 0.7rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -222,22 +224,22 @@ const styles = css`
   .chat-config-bar {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     background: #f4f6fb;
     border: 1px solid #e3e7f2;
-    border-radius: 12px;
-    padding: 14px;
-    margin-top: 12px;
+    border-radius: 10px;
+    padding: 11px;
+    margin-top: 10px;
   }
 
   .chat-control-block {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
   }
 
   .chat-control-label {
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -248,11 +250,11 @@ const styles = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
     background: #fff;
     border: 1px solid #d3d8ee;
-    border-radius: 10px;
-    padding: 10px 12px;
+    border-radius: 8px;
+    padding: 8px 10px;
   }
 
   .guardrail-toggle-row--auto {
@@ -261,51 +263,12 @@ const styles = css`
 
   .guardrail-description {
     flex: 1;
-    font-size: 0.8rem;
+    font-size: 0.74rem;
     color: #374151;
   }
 
-  .toggle-switch {
-    position: relative;
-    display: inline-flex;
-    width: 42px;
-    height: 22px;
-  }
-
-  .toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-
-  .toggle-slider {
-    position: absolute;
-    cursor: pointer;
-    inset: 0;
-    background-color: #d1d5db;
-    transition: 0.2s;
-    border-radius: 999px;
-  }
-
-  .toggle-slider::before {
-    position: absolute;
-    content: "";
-    height: 18px;
-    width: 18px;
-    left: 2px;
-    top: 2px;
-    background-color: #fff;
-    transition: 0.2s;
-    border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  }
-
-  .toggle-switch input:checked + .toggle-slider {
-    background-color: #0a4584;
-  }
-
-  .toggle-switch input:checked + .toggle-slider::before {
-    transform: translateX(20px);
+  .guardrail-toggle-row__switch {
+    margin-left: auto;
   }
 
   .chat-header h3 {
@@ -963,12 +926,17 @@ export function ChatWindow({
   });
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
-  const [showTelemetry, setShowTelemetry] = useState(false);
+  const {
+    showTelemetry,
+    telemetryAutoExpand,
+    showCitations,
+    setShowTelemetry: setDisplayShowTelemetry,
+    setTelemetryAutoExpand: setDisplayTelemetryAutoExpand,
+    setShowCitations: setDisplayShowCitations,
+  } = useChatDisplaySettings();
   const [telemetryExpanded, setTelemetryExpanded] = useState(false);
-  const [telemetryAutoExpand, setTelemetryAutoExpand] = useState(false);
   const [loadingAssistantId, setLoadingAssistantId] = useState<string | null>(null);
   const loadingAssistantRef = useRef<string | null>(null);
-  const [showCitations, setShowCitations] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -1050,20 +1018,6 @@ export function ChatWindow({
   }, [loadingAssistantId]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const storedTelemetry = localStorage.getItem("chat_guardrail_debug");
-    const storedAutoExpand = localStorage.getItem("telemetry_auto_expand");
-    const autoExpand = storedAutoExpand === "1";
-    setShowTelemetry(storedTelemetry === "1");
-    setTelemetryAutoExpand(autoExpand);
-    if (storedTelemetry === "1" && autoExpand) {
-      setTelemetryExpanded(true);
-    }
-  }, []);
-
-  useEffect(() => {
     if (!showTelemetry) {
       setTelemetryExpanded(false);
       return;
@@ -1073,22 +1027,10 @@ export function ChatWindow({
     }
   }, [showTelemetry, telemetryAutoExpand]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    setShowCitations(localStorage.getItem("chat_show_citations") === "1");
-  }, []);
-
   const toggleTelemetry = () => {
-    setShowTelemetry((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        localStorage.setItem("chat_guardrail_debug", next ? "1" : "0");
-      }
-      setTelemetryExpanded(next ? true : false);
-      return next;
-    });
+    const next = !showTelemetry;
+    setDisplayShowTelemetry(next);
+    setTelemetryExpanded(next ? true : false);
   };
 
   const toggleTelemetryExpanded = () => {
@@ -1096,23 +1038,26 @@ export function ChatWindow({
   };
 
   const handleAutoExpandChange = (checked: boolean) => {
-    setTelemetryAutoExpand(checked);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("telemetry_auto_expand", checked ? "1" : "0");
-    }
+    setDisplayTelemetryAutoExpand(checked);
     if (checked && showTelemetry) {
       setTelemetryExpanded(true);
     }
   };
 
   const toggleCitations = () => {
-    setShowCitations((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        localStorage.setItem("chat_show_citations", next ? "1" : "0");
-      }
-      return next;
-    });
+    setDisplayShowCitations(!showCitations);
+  };
+
+  const handleTelemetrySwitchChange = (checked: boolean) => {
+    if (checked !== showTelemetry) {
+      toggleTelemetry();
+    }
+  };
+
+  const handleCitationsSwitchChange = (checked: boolean) => {
+    if (checked !== showCitations) {
+      toggleCitations();
+    }
   };
 
   const toggleOptions = () => {
@@ -1527,31 +1472,23 @@ export function ChatWindow({
                     <span className="guardrail-description">
                       Show engine, guardrail, and enhancement insights
                     </span>
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={showTelemetry}
-                        onChange={toggleTelemetry}
-                        aria-label="Toggle telemetry visibility"
-                      />
-                      <span className="toggle-slider" />
-                    </label>
+                    <Switch
+                      className="guardrail-toggle-row__switch"
+                      checked={showTelemetry}
+                      onCheckedChange={handleTelemetrySwitchChange}
+                      aria-label="Toggle telemetry visibility"
+                    />
                   </div>
                   <div className="guardrail-toggle-row guardrail-toggle-row--auto">
                     <span className="guardrail-description">
                       Auto expand telemetry on toggle
                     </span>
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={telemetryAutoExpand}
-                        onChange={(event) =>
-                          handleAutoExpandChange(event.target.checked)
-                        }
-                        aria-label="Toggle auto expand telemetry"
-                      />
-                      <span className="toggle-slider" />
-                    </label>
+                    <Switch
+                      className="guardrail-toggle-row__switch"
+                      checked={telemetryAutoExpand}
+                      onCheckedChange={handleAutoExpandChange}
+                      aria-label="Toggle auto expand telemetry"
+                    />
                   </div>
                 </div>
                 <div className="chat-control-block">
@@ -1560,15 +1497,12 @@ export function ChatWindow({
                     <span className="guardrail-description">
                       Show every retrieved source (tiny text)
                     </span>
-                    <label className="toggle-switch">
-                      <input
-                        type="checkbox"
-                        checked={showCitations}
-                        onChange={toggleCitations}
-                        aria-label="Toggle citation visibility"
-                      />
-                      <span className="toggle-slider" />
-                    </label>
+                    <Switch
+                      className="guardrail-toggle-row__switch"
+                      checked={showCitations}
+                      onCheckedChange={handleCitationsSwitchChange}
+                      aria-label="Toggle citation visibility"
+                    />
                   </div>
                 </div>
               </div>

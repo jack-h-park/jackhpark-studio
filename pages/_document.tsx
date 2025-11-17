@@ -49,11 +49,17 @@ export default class MyDocument extends Document {
 /** Inlined version of noflash.js from use-dark-mode */
 ;(function () {
   var storageKey = 'darkMode'
-  var classNameDark = 'dark-mode'
-  var classNameLight = 'light-mode'
+  var darkClasses = ['dark-mode', 'dark']
+  var lightClasses = ['light-mode']
   function setClassOnDocumentBody(darkMode) {
-    document.body.classList.add(darkMode ? classNameDark : classNameLight)
-    document.body.classList.remove(darkMode ? classNameLight : classNameDark)
+    var addClasses = darkMode ? darkClasses : lightClasses
+    var removeClasses = darkMode ? lightClasses : darkClasses
+    addClasses.forEach(function (cls) {
+      document.body.classList.add(cls)
+    })
+    removeClasses.forEach(function (cls) {
+      document.body.classList.remove(cls)
+    })
   }
   var preferDarkQuery = '(prefers-color-scheme: dark)'
   var mql = window.matchMedia(preferDarkQuery)
@@ -76,7 +82,7 @@ export default class MyDocument extends Document {
     localStorage.setItem(storageKey, mql.matches)
   } else {
     // source of truth from document.body
-    var isDarkMode = document.body.classList.contains(classNameDark)
+    var isDarkMode = document.body.classList.contains('dark-mode')
     localStorage.setItem(storageKey, JSON.stringify(isDarkMode))
   }
 })();

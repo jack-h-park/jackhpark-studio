@@ -423,20 +423,22 @@ export function NotionPageRenderer({
 
   //NotionRendereer
   return (
-    <div className="notion-frame">
-      {mounted ? (
-        <NotionRenderer
-          recordMap={sanitizedRecordMap}
-          darkMode={darkMode}
-          fullPage={fullPage}
-          rootPageId={rootPageId}
-          mapPageUrl={mapPageUrl}
-          mapImageUrl={mapImageUrl}
-          pageAside={pageAside}
-          footer={footer}
-          components={components}
-        />
-      ) : null}
+    <div className="notion-wrapper">
+      <div className="notion-frame">
+        {mounted ? (
+          <NotionRenderer
+            recordMap={sanitizedRecordMap}
+            darkMode={darkMode}
+            fullPage={fullPage}
+            rootPageId={rootPageId}
+            mapPageUrl={mapPageUrl}
+            mapImageUrl={mapImageUrl}
+            pageAside={pageAside}
+            footer={footer}
+            components={components}
+          />
+        ) : null}
+      </div>
     </div>
   );
 }

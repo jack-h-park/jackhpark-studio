@@ -1,6 +1,9 @@
 "use client";
 
+import { FiTarget } from "@react-icons/all-files/fi/FiTarget";
+
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import { Switch } from "@/components/ui/switch";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -31,20 +34,21 @@ export function SettingsSectionRagRetrieval({
   return (
     <section className="settings-section">
       <div className="settings-section__header">
-        <p className="settings-section__title">RAG &amp; Retrieval</p>
-        <label className="settings-section__checkbox">
-          <input
-            type="checkbox"
-            checked={sessionConfig.rag.enabled}
-            onChange={(event) =>
-              updateSession((prev) => ({
-                ...prev,
-                rag: { ...prev.rag, enabled: event.target.checked },
-              }))
-            }
-          />
-          Enabled
-        </label>
+        <p className="settings-section__title heading-with-icon">
+          <FiTarget aria-hidden="true" />
+          RAG &amp; Retrieval
+        </p>
+        <Switch
+          className="settings-section__switch-control"
+          checked={sessionConfig.rag.enabled}
+          onCheckedChange={(checked) =>
+            updateSession((prev) => ({
+              ...prev,
+              rag: { ...prev.rag, enabled: checked },
+            }))
+          }
+          aria-label="Toggle RAG retrieval"
+        />
       </div>
 
       <div className="settings-section__field">
@@ -52,41 +56,43 @@ export function SettingsSectionRagRetrieval({
           <span>Top K</span>
           <span>{sessionConfig.rag.topK}</span>
         </div>
-        <input
-          type="range"
-          className="settings-section__range"
-          min={ragTopK.min}
-          max={ragTopK.max}
-          step={1}
-          disabled={!sessionConfig.rag.enabled}
-          value={sessionConfig.rag.topK}
-          onChange={(event) =>
-            updateSession((prev) => ({
-              ...prev,
-              rag: {
-                ...prev.rag,
-                topK: Number(event.target.value),
-              },
-            }))
-          }
-        />
-        <input
-          type="number"
-          className="settings-section__number"
-          min={ragTopK.min}
-          max={ragTopK.max}
-          disabled={!sessionConfig.rag.enabled}
-          value={sessionConfig.rag.topK}
-          onChange={(event) =>
-            updateSession((prev) => ({
-              ...prev,
-              rag: {
-                ...prev.rag,
-                topK: Math.round(Number(event.target.value) || 0),
-              },
-            }))
-          }
-        />
+        <div className="settings-section__slider-row">
+          <input
+            type="range"
+            className="settings-section__range"
+            min={ragTopK.min}
+            max={ragTopK.max}
+            step={1}
+            disabled={!sessionConfig.rag.enabled}
+            value={sessionConfig.rag.topK}
+            onChange={(event) =>
+              updateSession((prev) => ({
+                ...prev,
+                rag: {
+                  ...prev.rag,
+                  topK: Number(event.target.value),
+                },
+              }))
+            }
+          />
+          <input
+            type="number"
+            className="settings-section__number settings-section__number--compact"
+            min={ragTopK.min}
+            max={ragTopK.max}
+            disabled={!sessionConfig.rag.enabled}
+            value={sessionConfig.rag.topK}
+            onChange={(event) =>
+              updateSession((prev) => ({
+                ...prev,
+                rag: {
+                  ...prev.rag,
+                  topK: Math.round(Number(event.target.value) || 0),
+                },
+              }))
+            }
+          />
+        </div>
       </div>
 
       <div className="settings-section__field">
@@ -94,42 +100,44 @@ export function SettingsSectionRagRetrieval({
           <span>Similarity Threshold</span>
           <span>{formatSimilarity(sessionConfig.rag.similarity)}</span>
         </div>
-        <input
-          type="range"
-          className="settings-section__range"
-          min={similarityThreshold.min}
-          max={similarityThreshold.max}
-          step={0.01}
-          disabled={!sessionConfig.rag.enabled}
-          value={sessionConfig.rag.similarity}
-          onChange={(event) =>
-            updateSession((prev) => ({
-              ...prev,
-              rag: {
-                ...prev.rag,
-                similarity: Number(event.target.value),
-              },
-            }))
-          }
-        />
-        <input
-          type="number"
-          className="settings-section__number"
-          min={similarityThreshold.min}
-          max={similarityThreshold.max}
-          step={0.01}
-          disabled={!sessionConfig.rag.enabled}
-          value={sessionConfig.rag.similarity}
-          onChange={(event) =>
-            updateSession((prev) => ({
-              ...prev,
-              rag: {
-                ...prev.rag,
-                similarity: Number(event.target.value),
-              },
-            }))
-          }
-        />
+        <div className="settings-section__slider-row">
+          <input
+            type="range"
+            className="settings-section__range"
+            min={similarityThreshold.min}
+            max={similarityThreshold.max}
+            step={0.01}
+            disabled={!sessionConfig.rag.enabled}
+            value={sessionConfig.rag.similarity}
+            onChange={(event) =>
+              updateSession((prev) => ({
+                ...prev,
+                rag: {
+                  ...prev.rag,
+                  similarity: Number(event.target.value),
+                },
+              }))
+            }
+          />
+          <input
+            type="number"
+            className="settings-section__number settings-section__number--compact"
+            min={similarityThreshold.min}
+            max={similarityThreshold.max}
+            step={0.01}
+            disabled={!sessionConfig.rag.enabled}
+            value={sessionConfig.rag.similarity}
+            onChange={(event) =>
+              updateSession((prev) => ({
+                ...prev,
+                rag: {
+                  ...prev.rag,
+                  similarity: Number(event.target.value),
+                },
+              }))
+            }
+          />
+        </div>
       </div>
     </section>
   );

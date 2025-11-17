@@ -940,7 +940,7 @@ export function NotionPage({
       {header}
 
       {isLiteMode && <BodyClassName className="notion-lite" />}
-      {isDarkMode && <BodyClassName className="dark-mode" />}
+      {isDarkMode && <BodyClassName className="dark dark-mode" />}
 
       {recordMap && (
         <NotionPageRenderer

@@ -1,9 +1,13 @@
 "use client";
 
+import { FiSettings } from "@react-icons/all-files/fi/FiSettings";
+import { useEffect } from "react";
+
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
 
 import { SettingsSectionContextHistory } from "./SettingsSectionContextHistory";
 import { SettingsSectionCoreSummary } from "./SettingsSectionCoreSummary";
+import { SettingsSectionDisplay } from "./SettingsSectionDisplay";
 import { SettingsSectionModelEngine } from "./SettingsSectionModelEngine";
 import { SettingsSectionPresets } from "./SettingsSectionPresets";
 import { SettingsSectionRagRetrieval } from "./SettingsSectionRagRetrieval";
@@ -17,6 +21,27 @@ type DrawerProps = {
 
 export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
   const { adminConfig, sessionConfig, setSessionConfig } = useChatConfig();
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    const previousPadding = document.body.style.paddingRight;
+    const scrollBarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = "hidden";
+    if (scrollBarWidth > 0) {
+      document.body.style.paddingRight = `${scrollBarWidth}px`;
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPadding;
+    };
+  }, [open]);
 
   const resetToDefault = () =>
     setSessionConfig(() => ({
@@ -39,7 +64,10 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
         <div className="ai-settings-drawer__panel">
           <div className="ai-settings-drawer__inner">
             <div className="ai-settings-drawer__header">
-              <h2 className="ai-settings-drawer__title">Advanced Settings</h2>
+              <h2 className="ai-settings-drawer__title heading-with-icon">
+                <FiSettings aria-hidden="true" />
+                Advanced Settings
+              </h2>
               <button
                 onClick={onClose}
                 className="ai-settings-drawer__close"
@@ -58,6 +86,8 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
                 sessionConfig={sessionConfig}
                 setSessionConfig={setSessionConfig}
               />
+
+              <SettingsSectionDisplay />
 
               <SettingsSectionRagRetrieval
                 adminConfig={adminConfig}

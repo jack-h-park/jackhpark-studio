@@ -1,5 +1,7 @@
 "use client";
 
+import { FiCommand } from "@react-icons/all-files/fi/FiCommand";
+
 type Props = {
   summary: string;
 };
@@ -7,7 +9,10 @@ type Props = {
 export function SettingsSectionCoreSummary({ summary }: Props) {
   return (
     <section className="settings-section">
-      <p className="settings-section__title">Core System Behavior</p>
+      <p className="settings-section__title heading-with-icon">
+        <FiCommand aria-hidden="true" />
+        Core System Behavior
+      </p>
       <p className="settings-section__description">{summary}</p>
     </section>
   );

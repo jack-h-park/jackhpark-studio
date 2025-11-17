@@ -1,5 +1,7 @@
 "use client";
 
+import { FiType } from "@react-icons/all-files/fi/FiType";
+
 import type {
   AdminChatConfig,
   SessionChatConfig,
@@ -20,7 +22,10 @@ export function SettingsSectionUserPrompt({
 }: Props) {
   return (
     <section className="settings-section">
-      <p className="settings-section__title">User System Prompt</p>
+      <p className="settings-section__title heading-with-icon">
+        <FiType aria-hidden="true" />
+        User System Prompt
+      </p>
       <textarea
         className="settings-section__textarea"
         value={sessionConfig.userSystemPrompt}

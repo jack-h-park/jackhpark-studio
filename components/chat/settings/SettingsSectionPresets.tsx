@@ -1,5 +1,7 @@
 "use client";
 
+import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
+
 import type {
   AdminChatConfig,
   SessionChatConfig,
@@ -35,7 +37,10 @@ export function SettingsSectionPresets({
 
   return (
     <section className="settings-section">
-      <p className="settings-section__title">Presets</p>
+      <p className="settings-section__title heading-with-icon">
+        <FiLayers aria-hidden="true" />
+        Presets
+      </p>
       <div className="settings-section__grid">
         {(["default", "fast", "highRecall"] as PresetKey[]).map((key) => (
           <button

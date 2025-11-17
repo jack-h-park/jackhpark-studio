@@ -1,5 +1,7 @@
 "use client";
 
+import { FiBookOpen } from "@react-icons/all-files/fi/FiBookOpen";
+
 import type {
   AdminChatConfig,
   SessionChatConfig,
@@ -63,7 +65,10 @@ export function SettingsSectionSummaries({
 
   return (
     <section className="settings-section">
-      <p className="settings-section__title">Summaries</p>
+      <p className="settings-section__title heading-with-icon">
+        <FiBookOpen aria-hidden="true" />
+        Summaries
+      </p>
       <div className="settings-section__radio-group">
         {summaryOptions.map((option) => (
           <label key={option.value} className="settings-section__radio">

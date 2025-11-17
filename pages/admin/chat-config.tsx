@@ -1,4 +1,9 @@
 import type { GetServerSideProps } from "next";
+import { FiBookOpen } from "@react-icons/all-files/fi/FiBookOpen";
+import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
+import { FiSettings } from "@react-icons/all-files/fi/FiSettings";
+import { FiShield } from "@react-icons/all-files/fi/FiShield";
+import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import Head from "next/head";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -10,6 +15,7 @@ import type {
 } from "@/types/chat-config";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -254,7 +260,10 @@ function AdminChatConfigForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Core Behavior &amp; User Prompt Defaults</CardTitle>
+            <CardTitle className="heading-with-icon">
+              <FiSettings aria-hidden="true" />
+              Core Behavior &amp; User Prompt Defaults
+            </CardTitle>
             <CardDescription>
               Update the language that describes the assistant’s job and the
               default system prompt that each visitor sees.
@@ -313,7 +322,10 @@ function AdminChatConfigForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Numeric Limits</CardTitle>
+            <CardTitle className="heading-with-icon">
+              <FiSliders aria-hidden="true" />
+              Numeric Limits
+            </CardTitle>
             <CardDescription>
               Guardrail the possible values session presets can reach.
             </CardDescription>
@@ -431,7 +443,10 @@ function AdminChatConfigForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Allowlist</CardTitle>
+            <CardTitle className="heading-with-icon">
+              <FiShield aria-hidden="true" />
+              Allowlist
+            </CardTitle>
             <CardDescription>
               Control which models, engines, and rankers visitors can pick.
             </CardDescription>
@@ -455,45 +470,50 @@ function AdminChatConfigForm({
               ))}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
+              <div className="inline-flex items-center gap-2 text-sm">
+                <Checkbox
+                  className="shrink-0"
+                  aria-label="Allow Reverse RAG"
                   checked={config.allowlist.allowReverseRAG}
-                  onChange={(event) =>
+                  onCheckedChange={(checked) =>
                     updateConfig((prev) => ({
                       ...prev,
                       allowlist: {
                         ...prev.allowlist,
-                        allowReverseRAG: event.target.checked,
+                        allowReverseRAG: checked,
                       },
                     }))
                   }
                 />
-                Allow Reverse RAG
-              </label>
-              <label className="inline-flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
+                <span>Allow Reverse RAG</span>
+              </div>
+              <div className="inline-flex items-center gap-2 text-sm">
+                <Checkbox
+                  className="shrink-0"
+                  aria-label="Allow HyDE"
                   checked={config.allowlist.allowHyde}
-                  onChange={(event) =>
+                  onCheckedChange={(checked) =>
                     updateConfig((prev) => ({
                       ...prev,
                       allowlist: {
                         ...prev.allowlist,
-                        allowHyde: event.target.checked,
+                        allowHyde: checked,
                       },
                     }))
                   }
                 />
-                Allow HyDE
-              </label>
+                <span>Allow HyDE</span>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Summary Presets</CardTitle>
+            <CardTitle className="heading-with-icon">
+              <FiBookOpen aria-hidden="true" />
+              Summary Presets
+            </CardTitle>
             <CardDescription>
               Choose how often summaries run for each level.
             </CardDescription>
@@ -543,7 +563,10 @@ function AdminChatConfigForm({
 
         <Card>
           <CardHeader>
-            <CardTitle>Session Presets</CardTitle>
+            <CardTitle className="heading-with-icon">
+              <FiLayers aria-hidden="true" />
+              Session Presets
+            </CardTitle>
             <CardDescription>
               Customize each preset so it stays within the allowed limits.
             </CardDescription>
@@ -650,22 +673,23 @@ function AdminChatConfigForm({
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label>RAG enabled</Label>
-                      <label className="inline-flex items-center gap-2">
-                        <input
-                          type="checkbox"
+                      <div className="inline-flex items-center gap-2">
+                        <Checkbox
+                          className="shrink-0"
+                          aria-label="Enable RAG for preset"
                           checked={preset.rag.enabled}
-                          onChange={(event) =>
+                          onCheckedChange={(checked) =>
                             updatePreset(presetKey, (prev) => ({
                               ...prev,
                               rag: {
                                 ...prev.rag,
-                                enabled: event.target.checked,
+                                enabled: checked,
                               },
                             }))
                           }
                         />
-                        Enabled
-                      </label>
+                        <span>Enabled</span>
+                      </div>
                     </div>
                     <div className="grid gap-3">
                       <div className="space-y-1">
@@ -766,46 +790,48 @@ function AdminChatConfigForm({
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="inline-flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
+                    <div className="inline-flex items-center gap-2 text-sm">
+                      <Checkbox
+                        className="shrink-0"
+                        aria-label="Reverse RAG"
                         checked={
                           config.allowlist.allowReverseRAG
                             ? preset.features.reverseRAG
                             : false
                         }
                         disabled={!config.allowlist.allowReverseRAG}
-                        onChange={(event) =>
+                        onCheckedChange={(checked) =>
                           updatePreset(presetKey, (prev) => ({
                             ...prev,
                             features: {
                               ...prev.features,
-                              reverseRAG: event.target.checked,
+                              reverseRAG: checked,
                             },
                           }))
                         }
                       />
-                      Reverse RAG
-                    </label>
-                    <label className="inline-flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
+                      <span>Reverse RAG</span>
+                    </div>
+                    <div className="inline-flex items-center gap-2 text-sm">
+                      <Checkbox
+                        className="shrink-0"
+                        aria-label="HyDE"
                         checked={
                           config.allowlist.allowHyde ? preset.features.hyde : false
                         }
                         disabled={!config.allowlist.allowHyde}
-                        onChange={(event) =>
+                        onCheckedChange={(checked) =>
                           updatePreset(presetKey, (prev) => ({
                             ...prev,
                             features: {
                               ...prev.features,
-                              hyde: event.target.checked,
+                              hyde: checked,
                             },
                           }))
                         }
                       />
-                      HyDE
-                    </label>
+                      <span>HyDE</span>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
