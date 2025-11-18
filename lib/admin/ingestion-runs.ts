@@ -6,6 +6,12 @@ export type RunStatus =
 
 export type IngestionType = "full" | "partial";
 
+export type ErrorLogEntry = {
+  context: string | null;
+  doc_id: string | null;
+  message: string;
+};
+
 export type RunRecord = {
   id: string;
   source: string;
@@ -24,11 +30,7 @@ export type RunRecord = {
   characters_added: number | null;
   characters_updated: number | null;
   error_count: number | null;
-  error_logs: Array<{
-    context?: string | null;
-    doc_id?: string | null;
-    message: string;
-  }> | null;
+  error_logs: Array<ErrorLogEntry> | null;
   metadata: Record<string, unknown> | null;
 };
 
@@ -100,13 +102,13 @@ function toIsoStringOrNull(value: unknown): string | null {
   return null;
 }
 
-function normalizeErrorLogs(value: unknown): RunRecord["error_logs"] {
+function normalizeErrorLogs(value: unknown): Array<ErrorLogEntry> {
   if (!Array.isArray(value)) {
     return [];
   }
 
   return value
-    .map((entry) => {
+    .map((entry): ErrorLogEntry | null => {
       if (!isPlainRecord(entry)) {
         return null;
       }
@@ -126,13 +128,7 @@ function normalizeErrorLogs(value: unknown): RunRecord["error_logs"] {
       };
     })
     .filter(
-      (
-        entry,
-      ): entry is {
-        message: string;
-        context: string | null;
-        doc_id: string | null;
-      } => entry !== null,
+      (entry): entry is ErrorLogEntry => entry !== null,
     );
 }
 

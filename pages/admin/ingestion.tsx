@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { ErrorLogSummary } from "@/components/ui/error-log-summary";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { Input } from "@/components/ui/input";
@@ -2709,23 +2710,11 @@ function RecentRunsSection({
               >
                 {displayStatusLabel}
               </StatusPill>
-              {errorCount > 0 ? (
-                <details className="mt-1">
-                  <summary>{errorCount} issue(s)</summary>
-                  <ul>
-                    {logs.slice(0, 5).map((log, index) => (
-                      <li key={index}>
-                        {log.doc_id ? <strong>{log.doc_id}: </strong> : null}
-                        {log.context ? <span>{log.context}: </span> : null}
-                        {log.message}
-                      </li>
-                    ))}
-                    {logs.length > 5 ? (
-                      <li>{`${logs.length - 5} more`}</li>
-                    ) : null}
-                  </ul>
-                </details>
-              ) : null}
+              <ErrorLogSummary
+                errorCount={errorCount}
+                logs={logs}
+                runId={run.id}
+              />
             </div>
           );
         },
