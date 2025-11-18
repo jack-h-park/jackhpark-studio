@@ -36,7 +36,7 @@ export function SettingsSectionPresets({
   };
 
   return (
-    <section className="ai-panel ai-settings-section">
+    <section className="ai-panel ai-settings-section ai-settings-section--cascade-start">
       <HeadingWithIcon
         as="p"
         icon={<FiLayers aria-hidden="true" />}
@@ -64,13 +64,6 @@ export function SettingsSectionPresets({
             </button>
           );
         })}
-      </div>
-      <div className="ai-settings-section__cascade" aria-hidden="true">
-        <span>Model &amp; Engine</span>
-        <span>RAG &amp; Retrieval</span>
-        <span>Context &amp; History</span>
-        <span>Summaries</span>
-        <span>User Prompt</span>
       </div>
     </section>
   );

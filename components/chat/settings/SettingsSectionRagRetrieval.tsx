@@ -6,6 +6,7 @@ import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { SliderNumberField } from "@/components/ui/slider-number-field";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -102,49 +103,25 @@ export function SettingsSectionRagRetrieval({
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="flex justify-between items-baseline gap-3">
-          <span>Similarity Threshold</span>
-          {/* <span>{formatSimilarity(sessionConfig.rag.similarity)}</span> */}
-        </div>
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            className="w-full"
-            min={similarityThreshold.min}
-            max={similarityThreshold.max}
-            step={0.01}
-            disabled={!sessionConfig.rag.enabled}
-            value={sessionConfig.rag.similarity}
-            onChange={(event) =>
-              updateSession((prev) => ({
-                ...prev,
-                rag: {
-                  ...prev.rag,
-                  similarity: Number(event.target.value),
-                },
-              }))
-            }
-          />
-          <Input
-            type="number"
-            className="ai-field-sm ai-settings-section__number ai-settings-section__number--compact max-w-[110px] text-right"
-            min={similarityThreshold.min}
-            max={similarityThreshold.max}
-            step={0.01}
-            disabled={!sessionConfig.rag.enabled}
-            value={sessionConfig.rag.similarity}
-            aria-label="Similarity value"
-            onChange={(event) =>
-              updateSession((prev) => ({
-                ...prev,
-                rag: {
-                  ...prev.rag,
-                  similarity: Number(event.target.value),
-                },
-              }))
-            }
-          />
-        </div>
+        <SliderNumberField
+          id="settings-similarity-threshold"
+          label="Similarity Threshold"
+          value={sessionConfig.rag.similarity}
+          min={similarityThreshold.min}
+          max={similarityThreshold.max}
+          step={0.01}
+          disabled={!sessionConfig.rag.enabled}
+          formatValue={formatSimilarity}
+          onChange={(similarity) =>
+            updateSession((prev) => ({
+              ...prev,
+              rag: {
+                ...prev.rag,
+                similarity,
+              },
+            }))
+          }
+        />
       </div>
     </section>
   );

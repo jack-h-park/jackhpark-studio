@@ -93,35 +93,37 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
                 setSessionConfig={setSessionConfig}
               />
 
-              <SettingsSectionModelEngine
-                adminConfig={adminConfig}
-                sessionConfig={sessionConfig}
-                setSessionConfig={setSessionConfig}
-              />
+              <div className="ai-settings-cascade">
+                <SettingsSectionModelEngine
+                  adminConfig={adminConfig}
+                  sessionConfig={sessionConfig}
+                  setSessionConfig={setSessionConfig}
+                />
 
-              <SettingsSectionRagRetrieval
-                adminConfig={adminConfig}
-                sessionConfig={sessionConfig}
-                setSessionConfig={setSessionConfig}
-              />
+                <SettingsSectionRagRetrieval
+                  adminConfig={adminConfig}
+                  sessionConfig={sessionConfig}
+                  setSessionConfig={setSessionConfig}
+                />
 
-              <SettingsSectionContextHistory
-                adminConfig={adminConfig}
-                sessionConfig={sessionConfig}
-                setSessionConfig={setSessionConfig}
-              />
+                <SettingsSectionContextHistory
+                  adminConfig={adminConfig}
+                  sessionConfig={sessionConfig}
+                  setSessionConfig={setSessionConfig}
+                />
 
-              <SettingsSectionSummaries
-                summaryPresets={adminConfig.summaryPresets}
-                sessionConfig={sessionConfig}
-                setSessionConfig={setSessionConfig}
-              />
+                <SettingsSectionSummaries
+                  summaryPresets={adminConfig.summaryPresets}
+                  sessionConfig={sessionConfig}
+                  setSessionConfig={setSessionConfig}
+                />
 
-              <SettingsSectionUserPrompt
-                adminConfig={adminConfig}
-                sessionConfig={sessionConfig}
-                setSessionConfig={setSessionConfig}
-              />
+                <SettingsSectionUserPrompt
+                  adminConfig={adminConfig}
+                  sessionConfig={sessionConfig}
+                  setSessionConfig={setSessionConfig}
+                />
+              </div>
 
               <Button
                 variant="outline"
