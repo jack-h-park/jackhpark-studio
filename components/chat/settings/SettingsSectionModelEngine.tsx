@@ -50,7 +50,7 @@ export function SettingsSectionModelEngine({
     const allowlist = new Set(adminConfig.allowlist.embeddingModels);
     const availableSpaces = listEmbeddingModelOptions();
     const filtered = availableSpaces.filter((space) =>
-      allowlist.has(space.model),
+      allowlist.has(space.embeddingSpaceId),
     );
     return filtered.length > 0 ? filtered : availableSpaces;
   }, [adminConfig.allowlist.embeddingModels]);
@@ -121,7 +121,7 @@ export function SettingsSectionModelEngine({
             />
             <SelectContent>
               {embeddingOptions.map((space) => (
-              <SelectItem key={space.embeddingSpaceId} value={space.model}>
+                <SelectItem key={space.embeddingSpaceId} value={space.embeddingSpaceId}>
                   {space.label}
                 </SelectItem>
               ))}

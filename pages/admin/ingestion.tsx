@@ -60,6 +60,7 @@ import {
   type EmbeddingSpace,
   findEmbeddingSpace,
   listEmbeddingModelOptions,
+  resolveEmbeddingSpace,
 } from "@/lib/core/embedding-spaces";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import {
@@ -390,22 +391,48 @@ function getEmbeddingSpaceIdFromMetadata(
     return null;
   }
 
-  const candidates = [
-    getStringMetadata(metadata, "embeddingSpaceId"),
-    getStringMetadata(metadata, "embedding_space_id"),
-    getStringMetadata(metadata, "embeddingModelId"),
-    getStringMetadata(metadata, "embedding_model_id"),
-    getStringMetadata(metadata, "embeddingModel"),
-    getStringMetadata(metadata, "embedding_model"),
-    getStringMetadata(metadata, "embeddingProvider"),
+  const directKeys = [
+    "embeddingSpaceId",
+    "embedding_space_id",
+    "embeddingModelId",
+    "embedding_model_id",
+    "embeddingModel",
+    "embedding_model",
   ];
 
-  for (const value of candidates) {
-    if (!value) continue;
+  for (const key of directKeys) {
+    const value = getStringMetadata(metadata, key);
+    if (!value) {
+      continue;
+    }
     const option = getEmbeddingSpaceOption(value);
     if (option) {
       return option.embeddingSpaceId;
     }
+  }
+
+  const provider =
+    getStringMetadata(metadata, "embeddingProvider") ??
+    getStringMetadata(metadata, "embedding_provider") ??
+    null;
+  const model =
+    getStringMetadata(metadata, "embeddingModel") ??
+    getStringMetadata(metadata, "embedding_model") ??
+    getStringMetadata(metadata, "embeddingModelId") ??
+    getStringMetadata(metadata, "embedding_model_id") ??
+    null;
+  const version =
+    getStringMetadata(metadata, "embeddingVersion") ??
+    getStringMetadata(metadata, "embedding_version") ??
+    null;
+
+  if (model) {
+    const resolved = resolveEmbeddingSpace({
+      provider,
+      model,
+      version,
+    });
+    return resolved.embeddingSpaceId;
   }
 
   return null;

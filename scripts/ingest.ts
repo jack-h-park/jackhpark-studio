@@ -29,7 +29,8 @@ const INGEST_CONCURRENCY = Math.max(
 const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
   embeddingSpaceId: process.env.EMBEDDING_SPACE_ID ?? null,
   embeddingModelId: process.env.EMBEDDING_MODEL ?? null,
-  provider: process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null
+  provider: process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
+  version: process.env.EMBEDDING_VERSION ?? null,
 })
 
 type RunMode = {
@@ -134,7 +135,8 @@ async function ingestUrl(
   const embeddings = await embedBatch(chunks, {
     provider: embeddingSpace.provider,
     embeddingModelId: embeddingSpace.embeddingModelId,
-    embeddingSpaceId: embeddingSpace.embeddingSpaceId
+    embeddingSpaceId: embeddingSpace.embeddingSpaceId,
+    version: embeddingSpace.version,
   })
   const ingestedAt = new Date().toISOString()
 
@@ -154,7 +156,8 @@ async function ingestUrl(
   await replaceChunks(url, rows, {
     provider: embeddingSpace.provider,
     embeddingModelId: embeddingSpace.embeddingModelId,
-    embeddingSpaceId: embeddingSpace.embeddingSpaceId
+    embeddingSpaceId: embeddingSpace.embeddingSpaceId,
+    version: embeddingSpace.version,
   })
   await upsertDocumentState({
     doc_id: url,
@@ -213,7 +216,8 @@ async function main(): Promise<void> {
       urlCount: targets.length,
       embeddingProvider: embeddingSpace.provider,
       embeddingSpaceId: embeddingSpace.embeddingSpaceId,
-      embeddingModelId: embeddingSpace.embeddingModelId
+      embeddingModelId: embeddingSpace.embeddingModelId,
+      embeddingVersion: embeddingSpace.version,
     }
   })
 

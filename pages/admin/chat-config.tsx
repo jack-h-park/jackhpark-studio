@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/components/ui/utils";
+import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import {
   getAdminChatConfig,
   getAdminChatConfigMetadata,
@@ -56,7 +57,6 @@ import {
   type ChatEngine,
 } from "@/lib/shared/model-provider";
 import {
-  EMBEDDING_MODEL_DEFINITIONS,
   type EmbeddingModelId,
   LLM_MODEL_DEFINITIONS,
   type LlmModelDefinition,
@@ -104,6 +104,8 @@ const LLM_MODEL_DEFINITIONS_MAP = new Map<LlmModelId, LlmModelDefinition>(
     definition as LlmModelDefinition,
   ]),
 );
+
+const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
 
 type PresetKey = keyof AdminChatConfig["presets"];
 
@@ -709,16 +711,16 @@ function AdminChatConfigForm({
           <div className="space-y-2">
             <Label>Embedding Models</Label>
             <div className="grid gap-2 sm:grid-cols-2">
-              {EMBEDDING_MODEL_DEFINITIONS.map((definition) => {
+              {EMBEDDING_MODEL_OPTIONS.map((space) => {
                 const isSelected = config.allowlist.embeddingModels.includes(
-                  definition.id,
+                  space.embeddingSpaceId,
                 );
                 return (
                   <button
-                    key={definition.id}
+                    key={space.embeddingSpaceId}
                     type="button"
                     aria-pressed={isSelected}
-                    title={`Use ${definition.id}`}
+                    title={`Enable ${space.label}`}
                     className={cn(
                       "rounded-2xl border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--ai-primary)]",
                       isSelected
@@ -728,22 +730,22 @@ function AdminChatConfigForm({
                     onClick={() =>
                       toggleAllowlistValue(
                         "embeddingModels",
-                        definition.id,
+                        space.embeddingSpaceId,
                         !isSelected,
                       )
                     }
                   >
-                    <span className="font-semibold">{definition.label}</span>
+                    <span className="font-semibold">{space.label}</span>
                     <span className="block text-[0.65rem] font-mono uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
-                      {definition.id}
+                      {space.embeddingSpaceId}
                     </span>
                   </button>
                 );
               })}
             </div>
             <p className="ai-meta-text">
-              Embedding model used for RAG. This is a canonical model ID, such
-              as “text-embedding-3-small.”
+              Embedding model used for RAG. This is a canonical space ID, such
+              as “openai_te3s_v1.”
             </p>
           </div>
 
@@ -965,9 +967,17 @@ function AdminChatConfigForm({
                     aria-label={`Embedding Model for ${presetDisplayNames[presetKey]}`}
                   />
                   <SelectContent>
-                    {config.allowlist.embeddingModels.map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
+                    {EMBEDDING_MODEL_OPTIONS.map((space) => (
+                      <SelectItem
+                        key={space.embeddingSpaceId}
+                        value={space.embeddingSpaceId}
+                        disabled={
+                          !config.allowlist.embeddingModels.includes(
+                            space.embeddingSpaceId,
+                          )
+                        }
+                      >
+                        {space.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

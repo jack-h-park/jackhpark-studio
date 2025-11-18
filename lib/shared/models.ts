@@ -1,3 +1,5 @@
+import type { ModelProvider } from "@/lib/shared/model-provider";
+
 export const LLM_MODEL_DEFINITIONS = [
   {
     id: "gpt-4o-mini",
@@ -159,55 +161,97 @@ export const LLM_MODELS = LLM_MODEL_DEFINITIONS.map(
   (definition) => definition.id,
 ) as LlmModelId[];
 
-export const EMBEDDING_MODEL_DEFINITIONS = [
+export type EmbeddingModelDefinition = {
+  id: string;
+  provider: ModelProvider;
+  version: string;
+  model: string;
+  slug: string;
+  aliases?: readonly string[];
+};
+
+export const EMBEDDING_MODEL_DEFINITIONS: readonly EmbeddingModelDefinition[] = [
   {
     id: "text-embedding-3-small",
-    label: "OpenAI text-embedding-3-small (v1)",
     provider: "openai",
     version: "v1",
     model: "text-embedding-3-small",
-    embeddingSpaceId: "openai_te3s_v1",
-    embeddingModelId: "OpenAI text-embedding-3-small (v1)",
-    table: "rag_chunks_openai_te3s_v1",
-    matchRpc: "match_chunks_openai_te3s_v1",
-    lcView: "lc_chunks_openai_te3s_v1",
-    lcMatchRpc: "match_lc_chunks_openai_te3s_v1",
+    slug: "te3s",
     aliases: [
+      "OpenAI text-embedding-3-small (v1)",
       "openai text-embedding-3-small",
       "text-embedding-3-small",
       "openai_te3s_v1",
+      "rag_chunks_openai",
       "rag_chunks_openai_te3s_v1",
       "match_chunks_openai",
+      "match_chunks_openai_te3s_v1",
+      "match_rag_chunks_openai",
+      "match_rag_chunks_openai_te3s_v1",
     ],
   },
   {
     id: "text-embedding-004",
-    label: "Gemini text-embedding-004 (v1)",
     provider: "gemini",
     version: "v1",
     model: "text-embedding-004",
-    embeddingSpaceId: "gemini_te4_v1",
-    embeddingModelId: "Gemini text-embedding-004 (v1)",
-    table: "rag_chunks_gemini_te4_v1",
-    matchRpc: "match_chunks_gemini_te4_v1",
-    lcView: "lc_chunks_gemini_te4_v1",
-    lcMatchRpc: "match_lc_chunks_gemini_te4_v1",
+    slug: "te4",
     aliases: [
+      "Gemini text-embedding-004 (v1)",
       "gemini text-embedding-004",
       "text-embedding-004",
       "gemini_te4_v1",
+      "rag_chunks_gemini",
+      "rag_chunks_gemini_te4_v1",
       "match_chunks_gemini",
+      "match_chunks_gemini_te4_v1",
+      "match_rag_chunks_gemini",
+      "match_rag_chunks_gemini_te4_v1",
     ],
   },
 ] as const;
 
-export type EmbeddingModelDefinition = (typeof EMBEDDING_MODEL_DEFINITIONS)[number];
-export type EmbeddingModelId = EmbeddingModelDefinition["id"];
+export function normalizeEmbeddingModelSlug(value: string): string {
+  return value
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "_")
+    .replaceAll(/^_+|_+$/g, "");
+}
+
+export function getEmbeddingSpaceId(
+  provider: ModelProvider,
+  modelSlug: string,
+  version: string,
+): string {
+  const slug = normalizeEmbeddingModelSlug(modelSlug);
+  const normalizedVersion = normalizeEmbeddingModelSlug(version);
+  return `${provider}_${slug}_${normalizedVersion}`;
+}
+
+export function getRagChunksTableName(embeddingSpaceId: string): string {
+  return `rag_chunks_${embeddingSpaceId}`;
+}
+
+export function getLcChunksViewName(embeddingSpaceId: string): string {
+  return `lc_chunks_${embeddingSpaceId}`;
+}
+
+export function getMatchChunksFunctionName(embeddingSpaceId: string): string {
+  return `match_chunks_${embeddingSpaceId}`;
+}
+
+export function getMatchLcChunksFunctionName(
+  embeddingSpaceId: string,
+): string {
+  return `match_lc_chunks_${embeddingSpaceId}`;
+}
+
+export type EmbeddingModelId = string;
 export const EMBEDDING_MODELS = EMBEDDING_MODEL_DEFINITIONS.map(
   (definition) => definition.id,
 ) as EmbeddingModelId[];
 
-export type EmbeddingSpaceId = EmbeddingModelDefinition["embeddingSpaceId"];
+export type EmbeddingSpaceId = string;
 
 export const RANKER_OPTIONS = ["none", "mmr", "cohere-rerank"] as const;
 export type RankerId = (typeof RANKER_OPTIONS)[number];

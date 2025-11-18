@@ -36,6 +36,7 @@ type ManualIngestionBase = {
   embeddingModel?: string | null
   embeddingModelId?: string | null
   embeddingSpaceId?: string | null
+  embeddingVersion?: string | null
 }
 
 export type ManualIngestionRequest =
@@ -71,7 +72,8 @@ type ManualRunStatus = 'success' | 'completed_with_errors' | 'failed'
 const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
   embeddingSpaceId: process.env.EMBEDDING_SPACE_ID ?? null,
   embeddingModelId: process.env.EMBEDDING_MODEL ?? null,
-  provider: process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null
+  provider: process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
+  version: process.env.EMBEDDING_VERSION ?? null,
 })
 
 function toEmbeddingOptions(request: ManualIngestionRequest): EmbedBatchOptions {
@@ -79,14 +81,19 @@ function toEmbeddingOptions(request: ManualIngestionRequest): EmbedBatchOptions 
     embeddingSpaceId: request.embeddingSpaceId ?? DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
     embeddingModelId: request.embeddingModel ?? request.embeddingModelId ?? undefined,
     provider: request.embeddingProvider ?? DEFAULT_EMBEDDING_SELECTION.provider,
-    model: request.embeddingModel ?? undefined
+    model: request.embeddingModel ?? undefined,
+    version:
+      request.embeddingVersion ??
+      DEFAULT_EMBEDDING_SELECTION.version ??
+      undefined,
   })
 
   return {
     provider: selection.provider,
     model: selection.model,
     embeddingModelId: selection.embeddingModelId,
-    embeddingSpaceId: selection.embeddingSpaceId
+    embeddingSpaceId: selection.embeddingSpaceId,
+    version: selection.version,
   }
 }
 
@@ -266,7 +273,8 @@ async function runNotionPageIngestion(
       includeLinkedPages,
       embeddingProvider: embeddingOptions.provider ?? null,
       embeddingSpaceId: embeddingOptions.embeddingSpaceId ?? null,
-      embeddingModelId: embeddingOptions.embeddingModelId ?? null
+      embeddingModelId: embeddingOptions.embeddingModelId ?? null,
+      embeddingVersion: embeddingOptions.version ?? null
     }
   })
 
@@ -523,7 +531,8 @@ async function runUrlIngestion(
       ingestionType,
       embeddingProvider: embeddingOptions.provider ?? null,
       embeddingSpaceId: embeddingOptions.embeddingSpaceId ?? null,
-      embeddingModelId: embeddingOptions.embeddingModelId ?? null
+      embeddingModelId: embeddingOptions.embeddingModelId ?? null,
+      embeddingVersion: embeddingOptions.version ?? null
     }
   })
 

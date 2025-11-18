@@ -1,31 +1,45 @@
 import {
   type EmbeddingModelSelectionInput,
-  resolveEmbeddingSpace} from '@/lib/core/embedding-spaces'
+  resolveEmbeddingSpace,
+} from '@/lib/core/embedding-spaces'
+import {
+  getLcChunksViewName,
+  getMatchChunksFunctionName,
+  getMatchLcChunksFunctionName,
+  getRagChunksTableName,
+} from '@/lib/shared/models'
 
 type Selection = EmbeddingModelSelectionInput | string | null | undefined
 
-function resolve(selection?: Selection) {
+function resolveSelection(selection?: Selection) {
   return resolveEmbeddingSpace(
-    typeof selection === 'string' ? { provider: selection, embeddingModelId: selection } : selection
+    typeof selection === 'string'
+      ? {
+          embeddingSpaceId: selection,
+          embeddingModelId: selection,
+          provider: selection,
+          model: selection,
+        }
+      : selection,
   )
 }
 
 export function getRagChunksTable(selection?: Selection): string {
-  const resolved = resolve(selection)
-  return resolved.table
+  const resolved = resolveSelection(selection)
+  return getRagChunksTableName(resolved.embeddingSpaceId)
 }
 
 export function getLcChunksView(selection?: Selection): string {
-  const resolved = resolve(selection)
-  return resolved.lcView
+  const resolved = resolveSelection(selection)
+  return getLcChunksViewName(resolved.embeddingSpaceId)
 }
 
 export function getRagMatchFunction(selection?: Selection): string {
-  const resolved = resolve(selection)
-  return resolved.matchRpc
+  const resolved = resolveSelection(selection)
+  return getMatchChunksFunctionName(resolved.embeddingSpaceId)
 }
 
 export function getLcMatchFunction(selection?: Selection): string {
-  const resolved = resolve(selection)
-  return resolved.lcMatchRpc
+  const resolved = resolveSelection(selection)
+  return getMatchLcChunksFunctionName(resolved.embeddingSpaceId)
 }

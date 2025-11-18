@@ -5,7 +5,10 @@ import {
   SYSTEM_PROMPT_MAX_LENGTH,
   SYSTEM_SETTINGS_TABLE,
 } from "@/lib/chat-prompts";
-import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
+import {
+  findEmbeddingSpace,
+  listEmbeddingModelOptions,
+} from "@/lib/core/embedding-spaces";
 import { listLlmModelOptions } from "@/lib/core/llm-registry";
 import { supabaseClient } from "@/lib/core/supabase";
 import {
@@ -208,6 +211,20 @@ const normalizeChatEngineList = (values: string[] | undefined): ChatEngine[] => 
   return [...seen];
 };
 
+const normalizeEmbeddingAllowlist = (values?: string[] | undefined): string[] => {
+  if (!values || values.length === 0) {
+    return [];
+  }
+  const normalized = new Set<string>();
+  for (const value of values) {
+    const space = findEmbeddingSpace(value);
+    if (space) {
+      normalized.add(space.embeddingSpaceId);
+    }
+  }
+  return Array.from(normalized).toSorted((a, b) => a.localeCompare(b));
+};
+
 function mergeAllowlist(
   base: AdminChatConfig["allowlist"],
   override?: Partial<AdminChatConfig["allowlist"]>,
@@ -225,10 +242,17 @@ function mergeAllowlist(
   const chatEngines = normalizeChatEngineList(
     override.chatEngines ?? base.chatEngines,
   );
+  const overrideEmbeddingModels = normalizeEmbeddingAllowlist(
+    override.embeddingModels,
+  );
+  const embeddingModels =
+    overrideEmbeddingModels.length > 0
+      ? overrideEmbeddingModels
+      : base.embeddingModels;
   return {
     chatEngines: chatEngines.length > 0 ? chatEngines : base.chatEngines,
     llmModels: override.llmModels ?? base.llmModels,
-    embeddingModels: override.embeddingModels ?? base.embeddingModels,
+    embeddingModels,
     rankers,
     allowReverseRAG: override.allowReverseRAG ?? base.allowReverseRAG,
     allowHyde: override.allowHyde ?? base.allowHyde,
@@ -355,7 +379,7 @@ function buildComputedAdminConfig(
 ): AdminChatConfig {
   const llmAllowlist = listLlmModelOptions().map((option) => option.id);
   const embeddingAllowlist = listEmbeddingModelOptions().map(
-    (space) => space.model,
+    (space) => space.embeddingSpaceId,
   );
 
   const allowlist: AdminChatConfig["allowlist"] = {
