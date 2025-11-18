@@ -301,8 +301,10 @@ export async function applyRanker<T extends RankerInputDoc>(
         console.warn('[rag-enhancements] MMR ranking failed', err)
         return docs.slice(0, trimmedMax)
       }
-    case 'cohere':
-      console.warn('[rag-enhancements] Cohere reranker requested but not implemented. Falling back to vector order.')
+    case 'cohere-rerank':
+      console.warn(
+        '[rag-enhancements] cohere-rerank reranker requested but not implemented. Falling back to vector order.',
+      )
       return docs.slice(0, trimmedMax)
     default:
       return docs.slice(0, trimmedMax)

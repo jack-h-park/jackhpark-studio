@@ -54,7 +54,7 @@ export function GridPanelItem<T extends React.ElementType = "button">({
 
   if (Component === "button") {
     const buttonProps = elementProps as React.ButtonHTMLAttributes<HTMLButtonElement>;
-    if (typeof active !== "undefined") {
+    if (active !== undefined) {
       buttonProps["aria-pressed"] = active;
     }
     if (!buttonProps.type) {

@@ -3,6 +3,11 @@
 import { FiCpu } from "@react-icons/all-files/fi/FiCpu";
 import { useMemo } from "react";
 
+import type {
+  EmbeddingModelId,
+  LlmModelId,
+  RankerId,
+} from "@/lib/shared/models";
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { Label } from "@/components/ui/label";
@@ -15,11 +20,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { listLlmModelOptions } from "@/lib/core/llm-registry";
-
-const ENGINE_LABELS: Record<string, string> = {
-  lc: "LangChain",
-  native: "Native",
-};
+import { CHAT_ENGINE_LABELS, type ChatEngine } from "@/lib/shared/model-provider";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -40,7 +41,7 @@ export function SettingsSectionModelEngine({
     const allowlist = new Set(adminConfig.allowlist.llmModels);
     const availableOptions = listLlmModelOptions();
     const filtered = availableOptions.filter((option) =>
-      allowlist.has(option.id),
+      allowlist.has(option.id as LlmModelId),
     );
     return filtered.length > 0 ? filtered : availableOptions;
   }, [adminConfig.allowlist.llmModels]);
@@ -49,7 +50,7 @@ export function SettingsSectionModelEngine({
     const allowlist = new Set(adminConfig.allowlist.embeddingModels);
     const availableSpaces = listEmbeddingModelOptions();
     const filtered = availableSpaces.filter((space) =>
-      allowlist.has(space.embeddingSpaceId),
+      allowlist.has(space.model),
     );
     return filtered.length > 0 ? filtered : availableSpaces;
   }, [adminConfig.allowlist.embeddingModels]);
@@ -83,7 +84,7 @@ export function SettingsSectionModelEngine({
             onValueChange={(value) =>
               handleFieldChange((prev) => ({
                 ...prev,
-                llmModel: value,
+                llmModel: value as LlmModelId,
               }))
             }
           >
@@ -109,7 +110,7 @@ export function SettingsSectionModelEngine({
             onValueChange={(value) =>
               handleFieldChange((prev) => ({
                 ...prev,
-                embeddingModel: value,
+                embeddingModel: value as EmbeddingModelId,
               }))
             }
           >
@@ -120,7 +121,7 @@ export function SettingsSectionModelEngine({
             />
             <SelectContent>
               {embeddingOptions.map((space) => (
-                <SelectItem key={space.embeddingSpaceId} value={space.embeddingSpaceId}>
+              <SelectItem key={space.embeddingSpaceId} value={space.model}>
                   {space.label}
                 </SelectItem>
               ))}
@@ -135,7 +136,7 @@ export function SettingsSectionModelEngine({
             onValueChange={(value) =>
               handleFieldChange((prev) => ({
                 ...prev,
-                chatEngine: value,
+                chatEngine: value as ChatEngine,
               }))
             }
           >
@@ -147,7 +148,7 @@ export function SettingsSectionModelEngine({
             <SelectContent>
               {adminConfig.allowlist.chatEngines.map((engine) => (
                 <SelectItem key={engine} value={engine}>
-                  {ENGINE_LABELS[engine] ?? engine}
+                  {CHAT_ENGINE_LABELS[engine] ?? engine}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -204,15 +205,15 @@ export function SettingsSectionModelEngine({
           <Label htmlFor="settings-ranker">Ranker</Label>
           <Select
             value={sessionConfig.features.ranker}
-            onValueChange={(value) =>
-              handleFieldChange((prev) => ({
-                ...prev,
-                features: {
-                  ...prev.features,
-                  ranker: value,
-                },
-              }))
-            }
+          onValueChange={(value) =>
+            handleFieldChange((prev) => ({
+              ...prev,
+              features: {
+                ...prev.features,
+                ranker: value as RankerId,
+              },
+            }))
+          }
           >
             <SelectTrigger
               id="settings-ranker"

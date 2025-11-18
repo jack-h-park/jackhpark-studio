@@ -33,13 +33,13 @@ const summaryLevels = new Set<SummaryLevel>(["off", "low", "medium", "high"]);
 const clampValue = (value: number, limit: AdminNumericLimit): number =>
   Math.min(limit.max, Math.max(limit.min, value));
 
-const sanitizeModel = (
-  value: string,
-  allowlistValues: string[],
-  fallback: string,
-) => {
-  if (allowlistValues.includes(value)) {
-    return value;
+const sanitizeModel = <T extends string>(
+  value: string | undefined,
+  allowlistValues: readonly T[],
+  fallback: T,
+): T => {
+  if (value && allowlistValues.includes(value as T)) {
+    return value as T;
   }
   return allowlistValues[0] ?? fallback;
 };

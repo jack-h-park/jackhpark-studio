@@ -1,3 +1,10 @@
+import type { ChatEngine } from "@/lib/shared/model-provider";
+import type {
+  EmbeddingModelId,
+  LlmModelId,
+  RankerId,
+} from "@/lib/shared/models";
+
 export type SummaryLevel = "off" | "low" | "medium" | "high";
 
 export interface AdminNumericLimit {
@@ -8,9 +15,9 @@ export interface AdminNumericLimit {
 
 export interface SessionChatConfig {
   userSystemPrompt: string;
-  llmModel: string;
-  embeddingModel: string;
-  chatEngine: string;
+  llmModel: LlmModelId;
+  embeddingModel: EmbeddingModelId;
+  chatEngine: ChatEngine;
   rag: {
     enabled: boolean;
     topK: number;
@@ -24,7 +31,7 @@ export interface SessionChatConfig {
   features: {
     reverseRAG: boolean;
     hyde: boolean;
-    ranker: string;
+    ranker: RankerId;
   };
   summaryLevel: SummaryLevel;
   appliedPreset?: "default" | "fast" | "highRecall";
@@ -47,10 +54,10 @@ export interface AdminChatConfig {
     clipTokens: AdminNumericLimit;
   };
   allowlist: {
-    chatEngines: string[];
-    llmModels: string[];
-    embeddingModels: string[];
-    rankers: string[];
+    chatEngines: ChatEngine[];
+    llmModels: LlmModelId[];
+    embeddingModels: EmbeddingModelId[];
+    rankers: RankerId[];
     allowReverseRAG: boolean;
     allowHyde: boolean;
   };

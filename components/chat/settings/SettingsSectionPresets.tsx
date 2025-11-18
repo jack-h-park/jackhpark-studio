@@ -3,8 +3,8 @@
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
-import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { GridPanel, GridPanelItem } from "@/components/ui/grid-panel";
+import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 
 type PresetKey = "default" | "fast" | "highRecall";
 

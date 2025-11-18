@@ -1,3 +1,4 @@
+import type { EmbeddingModelId, LlmModelId } from "@/lib/shared/models";
 import type { AdminChatConfig, SessionChatConfigPreset } from "@/types/chat-config";
 import {
   DEFAULT_SYSTEM_PROMPT,
@@ -11,6 +12,11 @@ import {
   getChatModelDefaults,
   loadGuardrailSettings,
 } from "@/lib/server/chat-settings";
+import {
+  CHAT_ENGINE_OPTIONS,
+  type ChatEngine,
+  normalizeChatEngine,
+} from "@/lib/shared/model-provider";
 import {
   DEFAULT_HYDE_ENABLED,
   DEFAULT_RANKER_MODE,
@@ -47,8 +53,8 @@ const buildBasePreset = (
   modelDefaults: ReturnType<typeof getChatModelDefaults>,
 ): SessionChatConfigPreset => ({
   userSystemPrompt: DEFAULT_SYSTEM_PROMPT,
-  llmModel: modelDefaults.llmModelId,
-  embeddingModel: modelDefaults.embeddingSpaceId,
+  llmModel: modelDefaults.llmModelId as LlmModelId,
+  embeddingModel: modelDefaults.embeddingModel as EmbeddingModelId,
   chatEngine: modelDefaults.engine,
   rag: {
     enabled: true,
@@ -190,6 +196,18 @@ function mergeNumericLimits(
   }, {} as AdminChatConfig["numericLimits"]);
 }
 
+const normalizeChatEngineList = (values: string[] | undefined): ChatEngine[] => {
+  const seen = new Set<ChatEngine>();
+  const list = values ?? [];
+  for (const value of list) {
+    const normalized = normalizeChatEngine(value);
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+    }
+  }
+  return [...seen];
+};
+
 function mergeAllowlist(
   base: AdminChatConfig["allowlist"],
   override?: Partial<AdminChatConfig["allowlist"]>,
@@ -204,8 +222,11 @@ function mergeAllowlist(
   if (allowedRankers.has("mmr") && !rankers.includes("mmr")) {
     rankers = [...rankers, "mmr"];
   }
+  const chatEngines = normalizeChatEngineList(
+    override.chatEngines ?? base.chatEngines,
+  );
   return {
-    chatEngines: override.chatEngines ?? base.chatEngines,
+    chatEngines: chatEngines.length > 0 ? chatEngines : base.chatEngines,
     llmModels: override.llmModels ?? base.llmModels,
     embeddingModels: override.embeddingModels ?? base.embeddingModels,
     rankers,
@@ -334,11 +355,11 @@ function buildComputedAdminConfig(
 ): AdminChatConfig {
   const llmAllowlist = listLlmModelOptions().map((option) => option.id);
   const embeddingAllowlist = listEmbeddingModelOptions().map(
-    (space) => space.embeddingSpaceId,
+    (space) => space.model,
   );
 
-  const allowlist = {
-    chatEngines: ["lc", "native"],
+  const allowlist: AdminChatConfig["allowlist"] = {
+    chatEngines: CHAT_ENGINE_OPTIONS,
     llmModels: llmAllowlist,
     embeddingModels: embeddingAllowlist,
     rankers: [...RANKER_MODES],

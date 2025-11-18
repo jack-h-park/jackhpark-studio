@@ -1,8 +1,8 @@
 import * as React from "react";
 
-import { cn } from "./utils";
 import { Input } from "./input";
 import { Label } from "./label";
+import { cn } from "./utils";
 
 export type SliderNumberFieldProps = {
   id: string;

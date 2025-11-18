@@ -68,3 +68,9 @@ export function isChatEngine(value: unknown): value is ChatEngine {
   if (typeof value !== 'string') return false
   return value === 'native' || value === 'lc'
 }
+
+export const CHAT_ENGINE_OPTIONS: ChatEngine[] = ['lc', 'native']
+export const CHAT_ENGINE_LABELS: Record<ChatEngine, string> = {
+  lc: 'LangChain',
+  native: 'Native',
+}

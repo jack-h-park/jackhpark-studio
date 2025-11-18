@@ -41,6 +41,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/components/ui/utils";
 import {
   getAdminChatConfig,
   getAdminChatConfigMetadata,
@@ -49,6 +50,21 @@ import {
   loadNotionNavigationHeader,
   type NotionNavigationHeader,
 } from "@/lib/server/notion-header";
+import {
+  CHAT_ENGINE_LABELS,
+  CHAT_ENGINE_OPTIONS,
+  type ChatEngine,
+} from "@/lib/shared/model-provider";
+import {
+  EMBEDDING_MODEL_DEFINITIONS,
+  type EmbeddingModelId,
+  LLM_MODEL_DEFINITIONS,
+  type LlmModelDefinition,
+  type LlmModelId,
+  RANKER_DESCRIPTIONS,
+  RANKER_OPTIONS,
+  type RankerId,
+} from "@/lib/shared/models";
 
 type PageProps = {
   adminConfig: AdminChatConfig;
@@ -72,20 +88,6 @@ const numericLimitLabels: Record<
   clipTokens: "Clip Tokens",
 };
 
-const allowlistArrayFields: Array<
-  Exclude<keyof AdminChatConfig["allowlist"], "allowReverseRAG" | "allowHyde">
-> = ["chatEngines", "llmModels", "embeddingModels", "rankers"];
-
-const allowlistFieldLabels: Record<
-  (typeof allowlistArrayFields)[number],
-  string
-> = {
-  chatEngines: "Chat Engines",
-  llmModels: "LLM Models",
-  embeddingModels: "Embedding Models",
-  rankers: "Rankers",
-};
-
 const summaryLevelOptions: SummaryLevel[] = ["off", "low", "medium", "high"];
 
 const presetDisplayNames: Record<PresetKey, string> = {
@@ -95,6 +97,13 @@ const presetDisplayNames: Record<PresetKey, string> = {
 };
 
 const presetDisplayOrder: PresetKey[] = ["default", "fast", "highRecall"];
+
+const LLM_MODEL_DEFINITIONS_MAP = new Map<LlmModelId, LlmModelDefinition>(
+  LLM_MODEL_DEFINITIONS.map((definition) => [
+    definition.id as LlmModelId,
+    definition as LlmModelDefinition,
+  ]),
+);
 
 type PresetKey = keyof AdminChatConfig["presets"];
 
@@ -214,17 +223,45 @@ function AdminChatConfigForm({
     }));
   };
 
-  const updateAllowlistArray = (
-    key: keyof AdminChatConfig["allowlist"],
-    values: string[],
+  type AllowlistKey = "llmModels" | "embeddingModels" | "rankers" | "chatEngines";
+  type AllowlistValueMap = {
+    llmModels: LlmModelId;
+    embeddingModels: EmbeddingModelId;
+    rankers: RankerId;
+    chatEngines: ChatEngine;
+  };
+
+  const toggleAllowlistValue = <K extends AllowlistKey>(
+    key: K,
+    value: AllowlistValueMap[K],
+    enable = true,
   ) => {
-    updateConfig((prev) => ({
-      ...prev,
-      allowlist: {
-        ...prev.allowlist,
-        [key]: values,
-      },
-    }));
+    updateConfig((prev) => {
+      const current = prev.allowlist[key] as AllowlistValueMap[K][];
+      const includesValue = current.includes(value);
+      if (enable && includesValue) {
+        return prev;
+      }
+      if (!enable && !includesValue) {
+        return prev;
+      }
+      const next = enable
+        ? [...current, value]
+        : current.filter((item) => item !== value);
+      const sortedNext =
+        key === "chatEngines"
+          ? (CHAT_ENGINE_OPTIONS.filter((engine) =>
+              (next as ChatEngine[]).includes(engine),
+            ) as AllowlistValueMap[K][])
+          : next.toSorted((a, b) => String(a).localeCompare(String(b)));
+      return {
+        ...prev,
+        allowlist: {
+          ...prev.allowlist,
+          [key]: sortedNext as AdminChatConfig["allowlist"][K],
+        },
+      };
+    });
   };
 
   const updatePreset = (
@@ -239,6 +276,23 @@ function AdminChatConfigForm({
       },
     }));
   };
+
+  const llmModelUnionIds = useMemo(() => {
+    const baseIds = LLM_MODEL_DEFINITIONS.map(
+      (definition) => definition.id,
+    ) as LlmModelId[];
+    const union = new Set<string>([...baseIds, ...config.allowlist.llmModels]);
+    return [...union].toSorted((a, b) => a.localeCompare(b)) as LlmModelId[];
+  }, [config.allowlist.llmModels]);
+
+  const llmModelOptions = useMemo(
+    () =>
+      llmModelUnionIds.map((id) => ({
+        id,
+        label: LLM_MODEL_DEFINITIONS_MAP.get(id)?.label ?? id,
+      })),
+    [llmModelUnionIds],
+  );
 
   const sessionGridLabelClass =
     "flex items-center text-[0.85rem] font-semibold text-[color:var(--ai-text-muted)]";
@@ -578,24 +632,155 @@ function AdminChatConfigForm({
             Control which models, engines, and rankers visitors can pick.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-2 md:grid-cols-2">
-            {allowlistArrayFields.map((field) => (
-              <div key={field} className="space-y-2">
-                <Label htmlFor={`allowlist-${field}`}>
-                  {allowlistFieldLabels[field]}
-                </Label>
-                <Textarea
-                  id={`allowlist-${field}`}
-                  rows={3}
-                  value={arrayToText(config.allowlist[field] ?? [])}
-                  onChange={(event) =>
-                    updateAllowlistArray(field, textToArray(event.target.value))
-                  }
-                />
-              </div>
-            ))}
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label>Chat Engines</Label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {CHAT_ENGINE_OPTIONS.map((engine) => {
+                const isSelected = config.allowlist.chatEngines.includes(engine);
+                return (
+                  <button
+                    key={engine}
+                    type="button"
+                    aria-pressed={isSelected}
+                    title={`Enable ${CHAT_ENGINE_LABELS[engine] ?? engine}`}
+                    className={cn(
+                      "rounded-2xl border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--ai-primary)]",
+                      isSelected
+                        ? "border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)] text-[color:var(--ai-text-strong)] shadow-inner"
+                        : "border-[color:var(--ai-border-muted)] bg-[color:var(--ai-bg-subtle)] text-[color:var(--ai-text-muted)] hover:border-[color:var(--ai-border)]",
+                    )}
+                    onClick={() =>
+                      toggleAllowlistValue("chatEngines", engine, !isSelected)
+                    }
+                  >
+                    <span className="font-semibold">
+                      {CHAT_ENGINE_LABELS[engine] ?? engine}
+                    </span>
+                    <span className="block text-[0.65rem] font-mono uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
+                      {engine}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="ai-meta-text">
+              Choose which chat engines visitors can use.
+            </p>
           </div>
+
+          <div className="space-y-2">
+            <Label>LLM Models</Label>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {llmModelOptions.map((option) => {
+                const isSelected = config.allowlist.llmModels.includes(
+                  option.id,
+                );
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    title={`Use ${option.id}`}
+                    className={cn(
+                      "rounded-2xl border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--ai-primary)]",
+                      isSelected
+                        ? "border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)] text-[color:var(--ai-text-strong)] shadow-inner"
+                        : "border-[color:var(--ai-border-muted)] bg-[color:var(--ai-bg-subtle)] text-[color:var(--ai-text-muted)] hover:border-[color:var(--ai-border)]",
+                    )}
+                    onClick={() =>
+                      toggleAllowlistValue("llmModels", option.id, !isSelected)
+                    }
+                  >
+                    <span className="font-semibold">{option.label}</span>
+                    <span className="block text-[0.65rem] font-mono uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
+                      {option.id}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="ai-meta-text">
+              Choose which LLM models visitors can select. Values like
+              “gpt-4o-mini” or “mistral” are stored and used directly.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Embedding Models</Label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {EMBEDDING_MODEL_DEFINITIONS.map((definition) => {
+                const isSelected = config.allowlist.embeddingModels.includes(
+                  definition.id,
+                );
+                return (
+                  <button
+                    key={definition.id}
+                    type="button"
+                    aria-pressed={isSelected}
+                    title={`Use ${definition.id}`}
+                    className={cn(
+                      "rounded-2xl border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--ai-primary)]",
+                      isSelected
+                        ? "border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)] text-[color:var(--ai-text-strong)] shadow-inner"
+                        : "border-[color:var(--ai-border-muted)] bg-[color:var(--ai-bg-subtle)] text-[color:var(--ai-text-muted)] hover:border-[color:var(--ai-border)]",
+                    )}
+                    onClick={() =>
+                      toggleAllowlistValue(
+                        "embeddingModels",
+                        definition.id,
+                        !isSelected,
+                      )
+                    }
+                  >
+                    <span className="font-semibold">{definition.label}</span>
+                    <span className="block text-[0.65rem] font-mono uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
+                      {definition.id}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="ai-meta-text">
+              Embedding model used for RAG. This is a canonical model ID, such
+              as “text-embedding-3-small.”
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Ranker Allowlist</Label>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {RANKER_OPTIONS.map((ranker) => {
+                const isSelected = config.allowlist.rankers.includes(ranker);
+                return (
+                  <button
+                    key={ranker}
+                    type="button"
+                    aria-pressed={isSelected}
+                    title={RANKER_DESCRIPTIONS[ranker]}
+                    className={cn(
+                      "rounded-2xl border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--ai-primary)]",
+                      isSelected
+                        ? "border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)] text-[color:var(--ai-text-strong)] shadow-inner"
+                        : "border-[color:var(--ai-border-muted)] bg-[color:var(--ai-bg-subtle)] text-[color:var(--ai-text-muted)] hover:border-[color:var(--ai-border)]",
+                    )}
+                    onClick={() =>
+                      toggleAllowlistValue("rankers", ranker, !isSelected)
+                    }
+                  >
+                    <span className="font-semibold">{ranker}</span>
+                    <span className="block text-[0.65rem] uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
+                      {RANKER_DESCRIPTIONS[ranker]}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="ai-meta-text">
+              Reranking strategy. Use “none”, “mmr”, or “cohere-rerank”.
+            </p>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-1">
             <div className="inline-flex items-center gap-2 text-sm">
               <Checkbox
@@ -744,7 +929,7 @@ function AdminChatConfigForm({
                   onValueChange={(value) =>
                     updatePreset(presetKey, (prev) => ({
                       ...prev,
-                      llmModel: value,
+                      llmModel: value as LlmModelId,
                     }))
                   }
                 >
@@ -752,9 +937,15 @@ function AdminChatConfigForm({
                     aria-label={`LLM Model for ${presetDisplayNames[presetKey]}`}
                   />
                   <SelectContent>
-                    {config.allowlist.llmModels.map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
+                    {llmModelOptions.map((option) => (
+                      <SelectItem
+                        key={option.id}
+                        value={option.id}
+                        disabled={
+                          !config.allowlist.llmModels.includes(option.id)
+                        }
+                      >
+                        {option.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -766,7 +957,7 @@ function AdminChatConfigForm({
                   onValueChange={(value) =>
                     updatePreset(presetKey, (prev) => ({
                       ...prev,
-                      embeddingModel: value,
+                      embeddingModel: value as EmbeddingModelId,
                     }))
                   }
                 >
@@ -788,7 +979,7 @@ function AdminChatConfigForm({
                   onValueChange={(value) =>
                     updatePreset(presetKey, (prev) => ({
                       ...prev,
-                      chatEngine: value,
+                      chatEngine: value as ChatEngine,
                     }))
                   }
                 >
@@ -798,7 +989,7 @@ function AdminChatConfigForm({
                   <SelectContent>
                     {config.allowlist.chatEngines.map((engine) => (
                       <SelectItem key={engine} value={engine}>
-                        {engine}
+                        {CHAT_ENGINE_LABELS[engine] ?? engine}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -979,7 +1170,7 @@ function AdminChatConfigForm({
                       ...prev,
                       features: {
                         ...prev.features,
-                        ranker: value,
+                        ranker: value as RankerId,
                       },
                     }))
                   }

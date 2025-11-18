@@ -1,13 +1,11 @@
-import { getOllamaModels, isOllamaEnabled } from '@/lib/core/ollama'
-import { type ModelProvider, normalizeModelProvider } from '@/lib/shared/model-provider'
+import { isOllamaEnabled } from '@/lib/core/ollama'
+import { normalizeModelProvider } from '@/lib/shared/model-provider'
+import {
+  LLM_MODEL_DEFINITIONS,
+  type LlmModelDefinition,
+} from '@/lib/shared/models'
 
-export type LlmModelOption = {
-  id: string
-  label: string
-  provider: ModelProvider
-  model: string
-  aliases: string[]
-}
+type LlmModelOption = Omit<LlmModelDefinition, 'requiresOllama'>
 
 type LlmModelInput = {
   modelId?: string | null
@@ -15,85 +13,46 @@ type LlmModelInput = {
   model?: string | null
 }
 
-const BASE_LLM_MODELS: LlmModelOption[] = [
-  {
-    id: 'openai_gpt-4o-mini',
-    label: 'OpenAI gpt-4o-mini',
-    provider: 'openai',
-    model: 'gpt-4o-mini',
-    aliases: ['gpt-4o-mini', 'openai gpt-4o-mini', 'gpt4o-mini', 'gpt-4o_mini']
-  },
-  {
-    id: 'openai_gpt-4o',
-    label: 'OpenAI gpt-4o',
-    provider: 'openai',
-    model: 'gpt-4o',
-    aliases: ['gpt-4o', 'openai gpt-4o']
-  },
-  {
-    id: 'gemini_1.5-flash',
-    label: 'Gemini 1.5 Flash',
-    provider: 'gemini',
-    model: 'gemini-1.5-flash-latest',
-    aliases: ['gemini-1.5-flash-latest', 'gemini-flash', 'gemini flash']
-  },
-  {
-    id: 'gemini_1.5-pro',
-    label: 'Gemini 1.5 Pro',
-    provider: 'gemini',
-    model: 'gemini-1.5-pro-latest',
-    aliases: ['gemini-1.5-pro-latest', 'gemini-pro', 'gemini pro']
-  }
-]
-
-function buildOllamaModelOptions(): LlmModelOption[] {
-  if (!isOllamaEnabled()) {
-    return []
-  }
-
-  return getOllamaModels().map((model) => {
-    const aliases = new Set<string>([
-      model.id,
-      `ollama_${model.id}`,
-      `ollama ${model.id}`,
-      `${model.id} (ollama)`,
-      model.label.toLowerCase()
-    ])
-    return {
-      id: `ollama_${model.id}`,
-      label: model.label,
-      provider: 'ollama',
-      model: model.id,
-      aliases: Array.from(aliases)
-    }
-  })
+const mapToOption = (definition: LlmModelDefinition): LlmModelOption => {
+  const { requiresOllama: _requiresOllama, ...rest } = definition
+  return rest
 }
 
-const LLM_MODELS: LlmModelOption[] = [
-  ...BASE_LLM_MODELS,
-  ...buildOllamaModelOptions()
-]
+const ALL_LLM_MODEL_OPTIONS = LLM_MODEL_DEFINITIONS.map(mapToOption)
+const AVAILABLE_LLM_MODEL_OPTIONS = LLM_MODEL_DEFINITIONS.filter(
+  (definition) => !definition.requiresOllama || isOllamaEnabled(),
+).map(mapToOption)
 
 const DEFAULT_LLM_MODEL_ID =
   process.env.LLM_MODEL?.trim() && process.env.LLM_MODEL.trim().length > 0
     ? process.env.LLM_MODEL.trim()
-    : 'openai_gpt-4o-mini'
+    : 'gpt-4o-mini'
 
 const LLM_ALIAS_LOOKUP = new Map<string, LlmModelOption>()
-for (const option of LLM_MODELS) {
-  const keys = new Set<string>([option.id, option.label, ...option.aliases, option.model])
+for (const option of ALL_LLM_MODEL_OPTIONS) {
+  const keys = new Set<string>([
+    option.id,
+    option.label,
+    ...option.aliases,
+    option.model,
+  ])
   for (const key of keys) {
     LLM_ALIAS_LOOKUP.set(key.toLowerCase(), option)
   }
 }
 
-function findByProvider(provider: string | null | undefined): LlmModelOption | null {
+function findByProvider(
+  provider: string | null | undefined,
+): LlmModelOption | null {
   if (!provider) {
     return null
   }
   const normalized = normalizeModelProvider(provider)
-  const match = LLM_MODELS.find((entry) => entry.provider === normalized)
-  return match ?? null
+  return (
+    AVAILABLE_LLM_MODEL_OPTIONS.find((entry) => entry.provider === normalized) ??
+    ALL_LLM_MODEL_OPTIONS.find((entry) => entry.provider === normalized) ??
+    null
+  )
 }
 
 function findById(value: string | null | undefined): LlmModelOption | null {
@@ -102,9 +61,13 @@ function findById(value: string | null | undefined): LlmModelOption | null {
   return LLM_ALIAS_LOOKUP.get(key) ?? null
 }
 
-export function resolveLlmModel(input?: LlmModelInput | string | null): LlmModelOption {
+export function resolveLlmModel(
+  input?: LlmModelInput | string | null,
+): LlmModelOption {
   const candidate: LlmModelInput =
-    typeof input === 'string' ? { modelId: input, provider: input, model: input } : input ?? {}
+    typeof input === 'string'
+      ? { modelId: input, provider: input, model: input }
+      : input ?? {}
 
   const byId = findById(candidate.modelId) ?? findById(candidate.model)
   if (byId) {
@@ -126,14 +89,20 @@ export function resolveLlmModel(input?: LlmModelInput | string | null): LlmModel
     return envProviderModel
   }
 
-  return findById(DEFAULT_LLM_MODEL_ID) ?? LLM_MODELS[0]!
+  return (
+    findById(DEFAULT_LLM_MODEL_ID) ??
+    AVAILABLE_LLM_MODEL_OPTIONS[0] ??
+    ALL_LLM_MODEL_OPTIONS[0]!
+  )
 }
 
 export function listLlmModelOptions(): LlmModelOption[] {
-  return [...LLM_MODELS]
+  return [...AVAILABLE_LLM_MODEL_OPTIONS]
 }
 
-export function findLlmModelOption(value: string | null | undefined): LlmModelOption | null {
+export function findLlmModelOption(
+  value: string | null | undefined,
+): LlmModelOption | null {
   if (!value) {
     return null
   }
@@ -141,4 +110,6 @@ export function findLlmModelOption(value: string | null | undefined): LlmModelOp
   return LLM_ALIAS_LOOKUP.get(normalized) ?? null
 }
 
+export type { LlmModelOption }
 export { DEFAULT_LLM_MODEL_ID }
+export type { LlmModelId } from '@/lib/shared/models'

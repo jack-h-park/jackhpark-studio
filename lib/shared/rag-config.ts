@@ -1,8 +1,10 @@
+import { RANKER_OPTIONS, type RankerId } from '@/lib/shared/models'
+
 export type ReverseRagMode = 'precision' | 'recall'
 export const REVERSE_RAG_MODES: ReverseRagMode[] = ['precision', 'recall']
 
-export type RankerMode = 'none' | 'mmr' | 'cohere'
-export const RANKER_MODES: RankerMode[] = ['none', 'mmr', 'cohere']
+export type RankerMode = RankerId
+export const RANKER_MODES: RankerMode[] = [...RANKER_OPTIONS]
 
 export type RagEnhancementConfig = {
   reverseRagEnabled: boolean
@@ -59,8 +61,8 @@ export function parseRankerMode(
   if (normalized === 'mmr') {
     return 'mmr'
   }
-  if (normalized === 'cohere') {
-    return 'cohere'
+  if (normalized === 'cohere-rerank' || normalized === 'cohererank') {
+    return 'cohere-rerank'
   }
   if (normalized === 'none') {
     return 'none'

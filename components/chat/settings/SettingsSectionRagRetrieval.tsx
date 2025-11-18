@@ -4,9 +4,8 @@ import { FiTarget } from "@react-icons/all-files/fi/FiTarget";
 
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { SliderNumberField } from "@/components/ui/slider-number-field";
+import { Switch } from "@/components/ui/switch";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -15,8 +14,6 @@ type Props = {
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
   ) => void;
 };
-
-const formatSimilarity = (value: number) => value.toFixed(2);
 
 export function SettingsSectionRagRetrieval({
   adminConfig,
