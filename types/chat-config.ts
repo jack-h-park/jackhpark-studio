@@ -54,6 +54,11 @@ export interface AdminChatConfig {
     allowReverseRAG: boolean;
     allowHyde: boolean;
   };
+  guardrails: {
+    chitchatKeywords: string[];
+    fallbackChitchat: string;
+    fallbackCommand: string;
+  };
   summaryPresets: {
     low: {
       every_n_turns: number;

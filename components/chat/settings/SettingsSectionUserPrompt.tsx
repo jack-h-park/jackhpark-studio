@@ -6,6 +6,8 @@ import type {
   AdminChatConfig,
   SessionChatConfig,
 } from "@/types/chat-config";
+import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import { Textarea } from "@/components/ui/textarea";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -21,15 +23,19 @@ export function SettingsSectionUserPrompt({
   setSessionConfig,
 }: Props) {
   return (
-    <section className="settings-section">
-      <p className="settings-section__title heading-with-icon">
-        <FiType aria-hidden="true" />
+    <section className="ai-panel ai-settings-section">
+      <HeadingWithIcon
+        as="p"
+        icon={<FiType aria-hidden="true" />}
+        className="ai-settings-section__title"
+      >
         User System Prompt
-      </p>
-      <textarea
-        className="settings-section__textarea"
+      </HeadingWithIcon>
+      <Textarea
+        className="min-h-[110px]"
         value={sessionConfig.userSystemPrompt}
         maxLength={adminConfig.userSystemPromptMaxLength}
+        rows={4}
         onChange={(event) =>
           setSessionConfig((prev) => ({
             ...prev,
@@ -38,7 +44,7 @@ export function SettingsSectionUserPrompt({
           }))
         }
       />
-      <p className="settings-section__hint">
+      <p className="ai-meta-text">
         {sessionConfig.userSystemPrompt.length}/
         {adminConfig.userSystemPromptMaxLength} characters
       </p>

@@ -27,14 +27,32 @@ export function CardHeader({
   );
 }
 
+export type CardTitleProps = React.HTMLAttributes<HTMLHeadingElement> & {
+  icon?: React.ReactNode;
+};
+
 export function CardTitle({
   className,
+  icon,
   children,
   ...props
-}: React.HTMLAttributes<HTMLHeadingElement>) {
+}: CardTitleProps) {
+  const hasIcon = Boolean(icon);
   return (
-    <h3 className={cn("ai-card-title", className)} {...props}>
-      {children}
+    <h3
+      className={cn(
+        "ai-card-title",
+        hasIcon ? "flex items-center gap-2" : undefined,
+        className,
+      )}
+      {...props}
+    >
+      {icon && (
+        <span className="flex items-center justify-center flex-shrink-0 w-[1.1em] h-[1.1em] text-[color:var(--ai-accent)]">
+          {icon}
+        </span>
+      )}
+      <span>{children}</span>
     </h3>
   );
 }

@@ -37,7 +37,6 @@ export function ChatInputBar({
   return (
     <form className="ai-chat-input-bar" onSubmit={handleSubmit}>
       <Textarea
-        className="ai-chat-input-bar__textarea"
         placeholder="Ask anything about Jack’s work..."
         value={value}
         onChange={(event) => onChange(event.target.value)}

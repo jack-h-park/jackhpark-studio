@@ -13,6 +13,8 @@ import {
 } from "@/components/chat/context/ChatConfigContext";
 import { ChatAdvancedSettingsDrawer } from "@/components/chat/settings/ChatAdvancedSettingsDrawer";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 
 type ChatMessage = {
   id: string;
@@ -112,21 +114,23 @@ function ChatShellContent() {
 
   return (
     <div className="ai-chat-shell">
-      <div className="ai-chat-panel">
+      <Card className="ai-chat-panel">
         <header className="ai-chat-header">
           <div>
-            <p className="ai-chat-title heading-with-icon">
-              <FiMessageCircle aria-hidden="true" />
+            <HeadingWithIcon
+              as="p"
+              icon={<FiMessageCircle aria-hidden="true" />}
+            >
               Jack’s AI Assistant
-            </p>
-            <p className="ai-chat-summary">{renderPromptSummary}</p>
+            </HeadingWithIcon>
+            <p className="ai-section-caption">{renderPromptSummary}</p>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setDrawerOpen(true)}
-            className="ai-chat-settings-button"
             type="button"
+            className="gap-2"
           >
             <FiSliders aria-hidden="true" />
             Advanced Settings
@@ -141,7 +145,7 @@ function ChatShellContent() {
             disabled={isSending}
           />
         </div>
-      </div>
+      </Card>
       <ChatAdvancedSettingsDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}

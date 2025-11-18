@@ -19,9 +19,10 @@ export type SelectProps = {
   value?: string;
   onValueChange?: (value: string) => void;
   children: React.ReactNode;
+  disabled?: boolean;
 };
 
-export function Select({ value, onValueChange, children }: SelectProps) {
+export function Select({ value, onValueChange, children, disabled }: SelectProps) {
   let triggerProps: SelectTriggerProps | undefined;
   let placeholder: string | undefined;
   const options: Option[] = [];
@@ -49,8 +50,12 @@ export function Select({ value, onValueChange, children }: SelectProps) {
     }
   });
 
-  const { children: _triggerChildren, className, ...restTrigger } =
-    triggerProps ?? {};
+  const {
+    children: _triggerChildren,
+    className,
+    disabled: triggerDisabled,
+    ...restTrigger
+  } = triggerProps ?? {};
 
   return (
     <select
@@ -58,6 +63,7 @@ export function Select({ value, onValueChange, children }: SelectProps) {
       className={cn("ai-select", className)}
       value={value ?? ""}
       onChange={(event) => onValueChange?.(event.target.value)}
+      disabled={disabled ?? triggerDisabled}
     >
       {placeholder && (
         <option value="" disabled>

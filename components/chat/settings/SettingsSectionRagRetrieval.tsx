@@ -3,6 +3,8 @@
 import { FiTarget } from "@react-icons/all-files/fi/FiTarget";
 
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
 type Props = {
@@ -32,14 +34,17 @@ export function SettingsSectionRagRetrieval({
   const { ragTopK, similarityThreshold } = adminConfig.numericLimits;
 
   return (
-    <section className="settings-section">
-      <div className="settings-section__header">
-        <p className="settings-section__title heading-with-icon">
-          <FiTarget aria-hidden="true" />
+    <section className="ai-panel ai-settings-section">
+      <div className="ai-settings-section__header flex items-center justify-between gap-3">
+        <HeadingWithIcon
+          as="p"
+          icon={<FiTarget aria-hidden="true" />}
+          className="ai-settings-section__title"
+        >
           RAG &amp; Retrieval
-        </p>
+        </HeadingWithIcon>
         <Switch
-          className="settings-section__switch-control"
+          className="flex-shrink-0"
           checked={sessionConfig.rag.enabled}
           onCheckedChange={(checked) =>
             updateSession((prev) => ({
@@ -51,15 +56,15 @@ export function SettingsSectionRagRetrieval({
         />
       </div>
 
-      <div className="settings-section__field">
-        <div className="settings-section__field-row">
+      <div className="flex flex-col gap-3">
+        <div className="flex justify-between items-baseline gap-3">
           <span>Top K</span>
           <span>{sessionConfig.rag.topK}</span>
         </div>
-        <div className="settings-section__slider-row">
+        <div className="flex items-center gap-3">
           <input
             type="range"
-            className="settings-section__range"
+            className="w-full"
             min={ragTopK.min}
             max={ragTopK.max}
             step={1}
@@ -75,13 +80,14 @@ export function SettingsSectionRagRetrieval({
               }))
             }
           />
-          <input
+          <Input
             type="number"
-            className="settings-section__number settings-section__number--compact"
+            className="ai-field-sm ai-settings-section__number ai-settings-section__number--compact max-w-[110px] text-right"
             min={ragTopK.min}
             max={ragTopK.max}
             disabled={!sessionConfig.rag.enabled}
             value={sessionConfig.rag.topK}
+            aria-label="Top K value"
             onChange={(event) =>
               updateSession((prev) => ({
                 ...prev,
@@ -95,15 +101,15 @@ export function SettingsSectionRagRetrieval({
         </div>
       </div>
 
-      <div className="settings-section__field">
-        <div className="settings-section__field-row">
+      <div className="flex flex-col gap-3">
+        <div className="flex justify-between items-baseline gap-3">
           <span>Similarity Threshold</span>
           <span>{formatSimilarity(sessionConfig.rag.similarity)}</span>
         </div>
-        <div className="settings-section__slider-row">
+        <div className="flex items-center gap-3">
           <input
             type="range"
-            className="settings-section__range"
+            className="w-full"
             min={similarityThreshold.min}
             max={similarityThreshold.max}
             step={0.01}
@@ -119,14 +125,15 @@ export function SettingsSectionRagRetrieval({
               }))
             }
           />
-          <input
+          <Input
             type="number"
-            className="settings-section__number settings-section__number--compact"
+            className="ai-field-sm ai-settings-section__number ai-settings-section__number--compact max-w-[110px] text-right"
             min={similarityThreshold.min}
             max={similarityThreshold.max}
             step={0.01}
             disabled={!sessionConfig.rag.enabled}
             value={sessionConfig.rag.similarity}
+            aria-label="Similarity value"
             onChange={(event) =>
               updateSession((prev) => ({
                 ...prev,

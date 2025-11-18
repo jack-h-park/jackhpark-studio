@@ -5,14 +5,11 @@ import { FiAlertTriangle } from "@react-icons/all-files/fi/FiAlertTriangle";
 import { FiBarChart2 } from "@react-icons/all-files/fi/FiBarChart2";
 import { FiClock } from "@react-icons/all-files/fi/FiClock";
 import { FiDatabase } from "@react-icons/all-files/fi/FiDatabase";
-import { FiFileText } from "@react-icons/all-files/fi/FiFileText";
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
-import { FiLink } from "@react-icons/all-files/fi/FiLink";
 import { FiList } from "@react-icons/all-files/fi/FiList";
 import { FiPlayCircle } from "@react-icons/all-files/fi/FiPlayCircle";
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import { type ExtendedRecordMap } from "notion-types";
 import { parsePageId } from "notion-utils";
@@ -21,6 +18,7 @@ import {
   type ComponentType,
   type FormEvent,
   type JSX,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -30,9 +28,35 @@ import {
 
 import type { ModelProvider } from "@/lib/shared/model-provider";
 import { AiPageChrome } from "@/components/AiPageChrome";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {   DEFAULT_EMBEDDING_SPACE_ID,
-type EmbeddingSpace ,
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { GridPanel } from "@/components/ui/grid-panel";
+import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { LinkButton } from "@/components/ui/link-button";
+import { ManualLogEntry } from "@/components/ui/manual-log-entry";
+import { ProgressGroup } from "@/components/ui/progress-group";
+import { ScopeTile } from "@/components/ui/scope-tile";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
+import { StatCard } from "@/components/ui/stat-card";
+import {
+  StatusPill,
+  type StatusPillVariant,
+} from "@/components/ui/status-pill";
+import { TabPill } from "@/components/ui/tab-pill";
+import { TabPanel } from "@/components/ui/tabs";
+import { TipCallout } from "@/components/ui/tip-callout";
+import {
+  DEFAULT_EMBEDDING_SPACE_ID,
+  type EmbeddingSpace,
   findEmbeddingSpace,
   listEmbeddingModelOptions,
 } from "@/lib/core/embedding-spaces";
@@ -142,6 +166,27 @@ type ManualIngestionStatus =
   | "completed_with_errors"
   | "failed";
 
+const manualStatusVariantMap: Record<ManualIngestionStatus, StatusPillVariant> =
+  {
+    idle: "muted",
+    in_progress: "info",
+    success: "success",
+    completed_with_errors: "warning",
+    failed: "error",
+  };
+
+const runStatusVariantMap: Record<
+  RunStatus | "unknown" | "skipped",
+  StatusPillVariant
+> = {
+  success: "success",
+  completed_with_errors: "warning",
+  failed: "error",
+  in_progress: "info",
+  skipped: "muted",
+  unknown: "muted",
+};
+
 type ManualEvent =
   | { type: "run"; runId: string | null }
   | { type: "log"; message: string; level?: "info" | "warn" | "error" }
@@ -161,7 +206,7 @@ type ManualEvent =
       stats: ManualRunStats;
     };
 
-type ManualLogEntry = {
+type ManualLogEvent = {
   id: string;
   message: string;
   level: "info" | "warn" | "error";
@@ -169,28 +214,13 @@ type ManualLogEntry = {
 };
 
 const LOG_ICONS: Record<
-  ManualLogEntry["level"],
+  ManualLogEvent["level"],
   ComponentType<{ "aria-hidden"?: boolean }>
 > = {
   info: FiInfo,
   warn: FiAlertTriangle,
   error: FiAlertCircle,
 };
-
-const MANUAL_TABS = [
-  {
-    id: "notion_page" as const,
-    label: "Notion Page",
-    subtitle: "Sync from your workspace",
-    icon: FiFileText,
-  },
-  {
-    id: "url" as const,
-    label: "External URL",
-    subtitle: "Fetch a public article",
-    icon: FiLink,
-  },
-] as const;
 
 const manualStatusLabels: Record<ManualIngestionStatus, string> = {
   idle: "Idle",
@@ -341,10 +371,7 @@ function getEmbeddingSpaceOption(value: string | null | undefined) {
   if (!value) {
     return null;
   }
-  return (
-    EMBEDDING_MODEL_OPTION_MAP.get(value) ??
-    findEmbeddingSpace(value)
-  );
+  return EMBEDDING_MODEL_OPTION_MAP.get(value) ?? findEmbeddingSpace(value);
 }
 
 function formatEmbeddingSpaceLabel(value: string | null | undefined): string {
@@ -418,10 +445,7 @@ function collectEmbeddingModels(runs: RunRecord[]): string[] {
   return sorted;
 }
 
-function mergeEmbeddingModels(
-  existing: string[],
-  runs: RunRecord[],
-): string[] {
+function mergeEmbeddingModels(existing: string[], runs: RunRecord[]): string[] {
   const spaces = new Set(existing);
   let hasUnknown = existing.includes(UNKNOWN_EMBEDDING_FILTER_VALUE);
 
@@ -434,9 +458,9 @@ function mergeEmbeddingModels(
     }
   }
 
-  const sorted = Array.from(spaces).filter(
-    (value) => value !== UNKNOWN_EMBEDDING_FILTER_VALUE,
-  ).toSorted((a, b) => a.localeCompare(b));
+  const sorted = Array.from(spaces)
+    .filter((value) => value !== UNKNOWN_EMBEDDING_FILTER_VALUE)
+    .toSorted((a, b) => a.localeCompare(b));
 
   if (hasUnknown) {
     sorted.push(UNKNOWN_EMBEDDING_FILTER_VALUE);
@@ -462,7 +486,7 @@ function mergeSources(existing: string[], runs: RunRecord[]): string[] {
 function createLogEntry(
   message: string,
   level: "info" | "warn" | "error",
-): ManualLogEntry {
+): ManualLogEvent {
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     message,
@@ -526,15 +550,6 @@ function formatDeltaLabel(delta: number | null): string | null {
   }
   const formatted = numberFormatter.format(Math.abs(delta));
   return delta > 0 ? `+${formatted}` : `-${formatted}`;
-}
-
-function getDeltaClass(delta: number | null): string {
-  if (delta === null || delta === 0) {
-    return "snapshot-card__delta--muted";
-  }
-  return delta > 0
-    ? "snapshot-card__delta--positive"
-    : "snapshot-card__delta--negative";
 }
 
 function formatPercentChange(current: number, previous: number): string | null {
@@ -630,21 +645,25 @@ function buildSparklineData(
 function ManualIngestionPanel(): JSX.Element {
   const router = useRouter();
   const [mode, setMode] = useState<"notion_page" | "url">("notion_page");
+  const handleModeChange = (tabId: string) => {
+    if (tabId === "notion_page" || tabId === "url") {
+      setMode(tabId);
+    }
+  };
   const [notionInput, setNotionInput] = useState("");
   const [notionScope, setNotionScope] = useState<"partial" | "full">("partial");
   const [urlScope, setUrlScope] = useState<"partial" | "full">("partial");
   const [urlInput, setUrlInput] = useState("");
   const [includeLinkedPages, setIncludeLinkedPages] = useState(true);
-  const [manualEmbeddingProvider, setManualEmbeddingProvider] = useState<string>(
-    DEFAULT_MANUAL_EMBEDDING_SPACE_ID,
-  );
+  const [manualEmbeddingProvider, setManualEmbeddingProvider] =
+    useState<string>(DEFAULT_MANUAL_EMBEDDING_SPACE_ID);
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<ManualIngestionStatus>("idle");
   const [runId, setRunId] = useState<string | null>(null);
   const [finalMessage, setFinalMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [logs, setLogs] = useState<ManualLogEntry[]>([]);
+  const [logs, setLogs] = useState<ManualLogEvent[]>([]);
   const [stats, setStats] = useState<ManualRunStats | null>(null);
   const [hasCompleted, setHasCompleted] = useState(false);
   const [overallProgress, setOverallProgress] = useState<{
@@ -1064,73 +1083,54 @@ function ManualIngestionPanel(): JSX.Element {
     [startManualIngestion],
   );
 
-  const activeTabId = `manual-tab-${mode}`;
   const renderScopeSelector = (
     scope: "partial" | "full",
     setScope: (value: "partial" | "full") => void,
     groupName: string,
     labelId: string,
   ) => (
-    <fieldset
-      className="manual-scope"
+    <GridPanel
+      as="fieldset"
+      className="px-4 py-4"
       role="radiogroup"
       aria-labelledby={labelId}
     >
-      <legend id={labelId} className="manual-scope__label">
-        {scopeCopy.label}
-      </legend>
-      <div className="manual-scope__controls">
-        <label
-          className={`manual-scope__option ${scope === "partial" ? "is-active" : ""} ${
-            isRunning ? "is-disabled" : ""
-          }`}
+      <div className="space-y-3">
+        <legend
+          id={labelId}
+          className="ai-section-caption uppercase tracking-[0.15em]"
         >
-          <input
-            type="radio"
+          {"Ingestion scope"}
+        </legend>
+        <div className="grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center">
+          <ScopeTile
             name={groupName}
             value="partial"
+            label="Only pages with changes"
+            description="Run ingestion only if new content is detected since the last run."
             checked={scope === "partial"}
-            onChange={() => setScope("partial")}
             disabled={isRunning}
+            onChange={setScope}
           />
-          <span className="manual-scope__title">{scopeCopy.partialTitle}</span>
-          <span className="manual-scope__desc">{scopeCopy.partialDesc}</span>
-        </label>
-        <label
-          className={`manual-scope__option ${scope === "full" ? "is-active" : ""} ${
-            isRunning ? "is-disabled" : ""
-          }`}
-        >
-          <input
-            type="radio"
+          <ScopeTile
             name={groupName}
             value="full"
+            label="For any pages"
+            description="Force ingestion even when nothing appears to have changed."
             checked={scope === "full"}
-            onChange={() => setScope("full")}
             disabled={isRunning}
+            onChange={setScope}
           />
-          <span className="manual-scope__title">{scopeCopy.fullTitle}</span>
-          <span className="manual-scope__desc">{scopeCopy.fullDesc}</span>
-        </label>
-      </div>
-      <p className="manual-scope__hint">
-        {scope === "full" ? scopeCopy.hintFull : scopeCopy.hintPartial}
-      </p>
-    </fieldset>
-  );
+        </div>
 
-  const scopeCopy = {
-    label: "Ingestion scope",
-    partialTitle: "Only pages with changes",
-    partialDesc:
-      "Run ingestion only if new content is detected since the last run.",
-    fullTitle: "For any pages",
-    fullDesc: "Force ingestion even when nothing appears to have changed.",
-    hintPartial:
-      "Best when you update content occasionally and want to skip no-op runs.",
-    hintFull:
-      "Use to refresh embeddings manually; runs even without detected changes.",
-  };
+        <p className="ai-meta-text">
+          {scope === "full"
+            ? "Use to refresh embeddings manually; runs even without detected changes."
+            : "Best when you update content occasionally and want to skip no-op runs."}
+        </p>
+      </div>
+    </GridPanel>
+  );
 
   const totalPages = overallProgress.total;
   const completedPages =
@@ -1155,413 +1155,402 @@ function ManualIngestionPanel(): JSX.Element {
 
   return (
     <>
-      <section className="manual-ingestion admin-card">
-        <header className="manual-ingestion__header">
-          <div>
-            <h2 className="heading-with-icon">
-              <FiPlayCircle aria-hidden="true" />
-              Manual Ingestion
-            </h2>
-            <p>
+      <section className="ai-card space-y-6">
+        <CardHeader className="flex flex-wrap items-start justify-between gap-5">
+            <div>
+              <CardTitle icon={<FiPlayCircle aria-hidden="true" />}>
+                Manual Ingestion
+              </CardTitle>
+            <p className="ai-card-description max-w-[38rem]">
               Trigger manual ingestion for a Notion page or external URL and
               track the progress here.
             </p>
           </div>
-          <div className="manual-ingestion__status">
-            <span className={`status-pill status-pill--${status}`}>
+          <div className="flex items-center gap-2">
+            <StatusPill variant={manualStatusVariantMap[status]}>
               {manualStatusLabels[status]}
-            </span>
+            </StatusPill>
             {runId ? (
-              <span className="status-pill__meta">Run ID: {runId}</span>
+              <span className="ai-meta-text">Run ID: {runId}</span>
             ) : null}
           </div>
-        </header>
+        </CardHeader>
 
-        <div className="manual-ingestion__layout">
-          <div className="manual-ingestion__primary">
-            <div
-              className="manual-ingestion__tabs"
-              role="tablist"
-              aria-label="Manual ingestion source"
-            >
-              {MANUAL_TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = mode === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    id={`manual-tab-${tab.id}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    aria-controls={`manual-panel-${tab.id}`}
-                    className={`manual-tab ${isActive ? "manual-tab--active" : ""}`}
-                    onClick={() => setMode(tab.id)}
-                    disabled={isRunning}
-                  >
-                    <span className="manual-tab__icon" aria-hidden="true">
-                      <Icon />
-                    </span>
-                    <span className="manual-tab__copy">
-                      <span className="manual-tab__title">{tab.label}</span>
-                      <span className="manual-tab__subtitle">
-                        {tab.subtitle}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+        <div className="ai-card-content space-y-6">
+          <div className="grid gap-6 md:grid-cols-[minmax(0,2.1fr)_minmax(0,1fr)] md:items-start">
+            <div className="grid gap-5">
+              <div
+                className="ai-tab-pill-group w-full"
+                role="tablist"
+                aria-label="Manual ingestion source"
+              >
+                <TabPill
+                  id="tabs-notion_page"
+                  aria-controls="tabpanel-notion_page"
+                  title="Notion Page"
+                  subtitle="Sync from your workspace"
+                  active={mode === "notion_page"}
+                  onClick={() => handleModeChange("notion_page")}
+                  disabled={isRunning}
+                />
+                <TabPill
+                  id="tabs-url"
+                  aria-controls="tabpanel-url"
+                  title="External URL"
+                  subtitle="Fetch a public article"
+                  active={mode === "url"}
+                  onClick={() => handleModeChange("url")}
+                  disabled={isRunning}
+                />
+              </div>
 
-            <form
-              className="manual-form"
-              aria-labelledby={activeTabId}
-              id={`manual-panel-${mode}`}
-              role="tabpanel"
-              onSubmit={handleSubmit}
-              noValidate
-            >
-              {mode === "notion_page" ? (
-                <div className="manual-field">
-                  <label htmlFor="manual-notion-input">
-                    Notion Page ID or URL
-                  </label>
-                  <input
-                    id="manual-notion-input"
-                    type="text"
-                    placeholder="https://www.notion.so/... or page ID"
-                    value={notionInput}
-                    onChange={(event) => setNotionInput(event.target.value)}
-                    disabled={isRunning}
-                  />
-                </div>
-              ) : (
-                <div className="manual-field">
-                  <label htmlFor="manual-url-input">URL to ingest</label>
-                  <input
-                    id="manual-url-input"
-                    type="url"
-                    placeholder="https://example.com/article"
-                    value={urlInput}
-                    onChange={(event) => setUrlInput(event.target.value)}
-                    disabled={isRunning}
-                  />
-                </div>
-              )}
-
-              {mode === "notion_page"
-                ? renderScopeSelector(
+              <form
+                className="grid gap-4 p-5"
+                onSubmit={handleSubmit}
+                noValidate
+              >
+                <TabPanel
+                  tabId="notion_page"
+                  activeTabId={mode}
+                  className="space-y-3"
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="manual-notion-input">
+                      Notion Page ID or URL
+                    </Label>
+                    <Input
+                      id="manual-notion-input"
+                      type="text"
+                      placeholder="https://www.notion.so/... or page ID"
+                      value={notionInput}
+                      onChange={(event) => setNotionInput(event.target.value)}
+                      disabled={isRunning}
+                    />
+                  </div>
+                  {renderScopeSelector(
                     notionScope,
                     setNotionScope,
                     "manual-scope-notion",
                     "manual-scope-label-notion",
-                  )
-                : renderScopeSelector(
+                  )}
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      aria-labelledby="manual-linked-pages-label"
+                      aria-describedby="manual-linked-pages-hint"
+                      checked={includeLinkedPages}
+                      onCheckedChange={setIncludeLinkedPages}
+                      disabled={isRunning}
+                    />
+                    <div className="flex flex-col gap-1">
+                      <Label size="sm" id="manual-linked-pages-label">
+                        Include linked pages
+                      </Label>
+                      <p className="ai-meta-text" id="manual-linked-pages-hint">
+                        Also ingest child pages and any pages referenced via
+                        Notion link-to-page blocks.
+                      </p>
+                    </div>
+                  </div>
+                  <p className="ai-meta-text">
+                    Paste the full shared link or the 32-character page ID from
+                    Notion. Use the controls above to define scope and whether
+                    linked pages are included.
+                  </p>
+                </TabPanel>
+
+                <TabPanel tabId="url" activeTabId={mode} className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="manual-url-input">URL to ingest</Label>
+                    <Input
+                      id="manual-url-input"
+                      type="url"
+                      placeholder="https://example.com/article"
+                      value={urlInput}
+                      onChange={(event) => setUrlInput(event.target.value)}
+                      disabled={isRunning}
+                    />
+                  </div>
+                  {renderScopeSelector(
                     urlScope,
                     setUrlScope,
                     "manual-scope-url",
                     "manual-scope-label-url",
                   )}
+                  <p className="ai-meta-text">
+                    Enter a public HTTP(S) link. Use the scope above to skip
+                    unchanged articles or force a full refresh.
+                  </p>
+                </TabPanel>
 
-              <div className="manual-field">
-                <label htmlFor="manual-provider-select">
-                  Embedding model
-                </label>
-                <select
-                  id="manual-provider-select"
-                  value={manualEmbeddingProvider}
-                  onChange={(event) =>
-                    setEmbeddingProviderAndSave(event.target.value)
-                  }
-                  disabled={isRunning}
-                >
-                  {EMBEDDING_MODEL_OPTIONS.map((option) => (
-                    <option
-                      key={option.embeddingSpaceId}
-                      value={option.embeddingSpaceId}
-                    >
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="manual-field__hint">
-                  Determines which embedding space is used for this run.
-                </p>
-              </div>
-
-              {mode === "notion_page" ? (
-                <div className="manual-toggle">
-                  <Checkbox
-                    className="manual-toggle__checkbox"
-                    aria-labelledby="manual-linked-pages-label"
-                    aria-describedby="manual-linked-pages-hint"
-                    checked={includeLinkedPages}
-                    onCheckedChange={setIncludeLinkedPages}
+                <div className="space-y-2">
+                  <Label htmlFor="manual-provider-select">
+                    Embedding model
+                  </Label>
+                  <Select
+                    value={manualEmbeddingProvider}
+                    onValueChange={(value) =>
+                      setEmbeddingProviderAndSave(value)
+                    }
                     disabled={isRunning}
-                  />
-                  <div className="manual-toggle__content">
-                    <span
-                      className="manual-toggle__label"
-                      id="manual-linked-pages-label"
-                    >
-                      Include linked pages
-                    </span>
-                    <p
-                      className="manual-toggle__hint"
-                      id="manual-linked-pages-hint"
-                    >
-                      Also ingest child pages and any pages referenced via
-                      Notion link-to-page blocks.
+                  >
+                    <SelectTrigger
+                      id="manual-provider-select"
+                      aria-label="Select embedding model"
+                    />
+                    <SelectContent>
+                      {EMBEDDING_MODEL_OPTIONS.map((option) => (
+                        <SelectItem
+                          key={option.embeddingSpaceId}
+                          value={option.embeddingSpaceId}
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="ai-meta-text">
+                    Determines which embedding space is used for this run.
+                  </p>
+                </div>
+
+                {errorMessage ? (
+                  <div role="alert">
+                    <p className="ai-meta-text text-[color:var(--ai-error)]">
+                      {errorMessage}
                     </p>
                   </div>
-                </div>
-              ) : null}
+                ) : null}
 
-              <p className="manual-hint">
-                {mode === "notion_page"
-                  ? "Paste the full shared link or the 32-character page ID from Notion. Use the controls above to define scope and whether linked pages are included."
-                  : "Enter a public HTTP(S) link. Use the scope above to skip unchanged articles or force a full refresh."}
-              </p>
+                <div className="mt-4 flex flex-wrap items-center gap-4">
+                  <Button type="submit" disabled={isRunning}>
+                    {isRunning ? "Running" : "Run manually"}
+                  </Button>
 
-              {errorMessage ? (
-                <div className="manual-error" role="alert">
-                  {errorMessage}
-                </div>
-              ) : null}
-
-              <div className="manual-actions">
-                <button
-                  type="submit"
-                  className={`manual-button ${isRunning ? "is-loading" : ""}`}
-                  disabled={isRunning}
-                >
-                  {isRunning ? "Running" : "Run manually"}
-                </button>
-
-                <div className="manual-progress" aria-live="polite">
-                  {showOverallProgress ? (
-                    <div className="progress-group" ref={overallProgressRef}>
-                      <div className="progress-group__header">
-                        <span className="progress-group__title">
-                          Overall Progress
-                        </span>
-                        <span className="progress-group__meta">
-                          {overallCurrentLabel} / {totalPages}
-                        </span>
-                      </div>
-                      <div
-                        className="progress-bar"
-                        role="progressbar"
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={Math.round(overallPercent)}
-                      >
-                        <div
-                          className="progress-bar__value"
-                          style={{ width: `${overallPercent}%` }}
+                  <div
+                    className="flex-1 min-w-[240px] flex flex-col gap-4 text-sm"
+                    aria-live="polite"
+                  >
+                    {showOverallProgress ? (
+                      <div ref={overallProgressRef}>
+                        <ProgressGroup
+                          label="Overall Progress"
+                          meta={`${overallCurrentLabel} / ${totalPages}`}
+                          value={overallPercent}
                         />
                       </div>
-                    </div>
-                  ) : null}
+                    ) : null}
 
-                  <div className="progress-group">
-                    <div className="progress-group__header">
-                      <span className="progress-group__title">
-                        {showOverallProgress ? "Current Page" : "Progress"}
-                      </span>
-                      {stageSubtitle ? (
-                        <span className="progress-group__meta">
-                          {stageSubtitle}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div
-                      className="progress-bar"
-                      role="progressbar"
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={Math.round(stagePercent)}
-                    >
-                      <div
-                        className="progress-bar__value"
-                        style={{ width: `${stagePercent}%` }}
-                      />
-                    </div>
-                    <div className="progress-meta">
-                      <span className="progress-percent">
-                        {Math.round(stagePercent)}%
-                      </span>
-                      {showOverallProgress &&
-                      activePageId &&
-                      activePageTitle ? (
-                        <span className="progress-id">{activePageId}</span>
-                      ) : null}
-                      {finalMessage ? (
-                        <span className="progress-message">{finalMessage}</span>
-                      ) : null}
-                    </div>
+                    <ProgressGroup
+                      label={showOverallProgress ? "Current Page" : "Progress"}
+                      meta={stageSubtitle ?? undefined}
+                      value={stagePercent}
+                      footer={
+                        <div className="flex flex-wrap items-center gap-3 text-sm">
+                          <span className="ai-meta-text font-semibold">
+                            {Math.round(stagePercent)}%
+                          </span>
+                          {showOverallProgress &&
+                          activePageId &&
+                          activePageTitle ? (
+                            <span className="ai-meta-text rounded-full bg-[color:var(--ai-border-soft)] px-2 py-0.5 text-xs font-mono">
+                              {activePageId}
+                            </span>
+                          ) : null}
+                          {finalMessage ? (
+                            <span className="ai-meta-text">{finalMessage}</span>
+                          ) : null}
+                        </div>
+                      }
+                    />
                   </div>
                 </div>
-              </div>
-            </form>
-          </div>
-
-          <aside
-            className="manual-ingestion__aside"
-            aria-label="Manual ingestion tips"
-          >
-            <h3>Tips</h3>
-            <ul>
-              <li>
-                Ensure the Notion page is shared and accessible with the
-                integration token.
-              </li>
-              <li>
-                Long articles are chunked automatically; you can rerun to
-                refresh the data.
-              </li>
-              <li>
-                External URLs should be static pages without paywalls or heavy
-                scripts.
-              </li>
-            </ul>
-            <div className="tip-callout">
-              <strong>Heads up</strong>
-              <p>
-                Manual runs are processed immediately and may take a few seconds
-                depending on the content size.
-              </p>
+              </form>
             </div>
-          </aside>
+
+            <Card className="space-y-4" aria-label="Manual ingestion tips">
+              <CardContent className="space-y-4">
+                <h3 className="ai-section-title text-lg">Tips</h3>
+                <ul className="grid gap-2 pl-4 text-sm text-[color:var(--ai-text-muted)]">
+                  <li>
+                    Ensure the Notion page is shared and accessible with the
+                    integration token.
+                  </li>
+                  <li>
+                    Long articles are chunked automatically; you can rerun to
+                    refresh the data.
+                  </li>
+                  <li>
+                    External URLs should be static pages without paywalls or
+                    heavy scripts.
+                  </li>
+                </ul>
+                <TipCallout title="Heads up">
+                  Manual runs are processed immediately and may take a few
+                  seconds depending on the content size.
+                </TipCallout>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        <section className="manual-logs" aria-live="polite">
-          <header className="manual-logs__header">
-            <div className="manual-logs__title">
-              <h3 className="heading-with-icon">
-                <FiList aria-hidden="true" />
-                Run Log
-              </h3>
-              <span className="manual-logs__meta">
-                {logs.length === 0
-                  ? "Awaiting events"
-                  : `${logs.length} entr${logs.length === 1 ? "y" : "ies"}`}
-              </span>
-            </div>
-            <div className="manual-logs__autoscroll">
-              <Checkbox
-                className="manual-logs__autoscroll-checkbox"
-                aria-label="Toggle auto-scroll to newest log entries"
-                checked={autoScrollLogs}
-                onCheckedChange={handleToggleAutoScroll}
-              />
-              <span>Auto-scroll to latest</span>
-            </div>
-          </header>
-          {logs.length === 0 ? (
-            <div className="manual-logs__empty">
-              Execution logs will appear here.
-            </div>
-          ) : (
-            <div
-              className="manual-logs__scroll"
-              ref={logsContainerRef}
-              onScroll={handleLogsScroll}
-            >
-              <ul className="manual-logs__list">
-                {logs.map((log) => {
-                  const Icon = LOG_ICONS[log.level];
-                  return (
-                    <li
-                      key={log.id}
-                      className={`manual-log-entry manual-log-entry--${log.level}`}
-                    >
-                      <span
-                        className="manual-log-entry__icon"
-                        aria-hidden="true"
-                      >
-                        <Icon />
-                      </span>
-                      <div className="manual-log-entry__body">
-                        <span className="manual-log-entry__time">
-                          {logTimeFormatter.format(new Date(log.timestamp))}
-                        </span>
-                        <span className="manual-log-entry__message">
-                          {log.message}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
+        <section className="space-y-4 p-6 border-none">
+          <Card>
+            <CardHeader className="flex flex-wrap items-left justify-between gap-4">
+              <div className="flex flex-col gap-1">
+                <CardTitle icon={<FiList aria-hidden="true" />}>
+                  Run Log
+                </CardTitle>
+                <span className="ai-card-description">
+                  {logs.length === 0
+                    ? "Awaiting events"
+                    : `${logs.length} entr${logs.length === 1 ? "y" : "ies"}`}
+                </span>
+              </div>
+              <div className="inline-flex items-center gap-2 text-xs text-[color:var(--ai-text-muted)] select-none">
+                <Checkbox
+                  className="shrink-0"
+                  aria-label="Toggle auto-scroll to newest log entries"
+                  checked={autoScrollLogs}
+                  onCheckedChange={handleToggleAutoScroll}
+                />
+                <span>Auto-scroll to latest</span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {logs.length === 0 ? (
+                <div className="text-center py-3 ai-meta-text">
+                  Execution logs will appear here.
+                </div>
+              ) : (
+                <div
+                  className="max-h-[260px] overflow-y-auto pr-2"
+                  ref={logsContainerRef}
+                  onScroll={handleLogsScroll}
+                >
+                  <ul className="grid list-none gap-3 p-0">
+                    {logs.map((log) => {
+                      const Icon = LOG_ICONS[log.level];
+                      return (
+                        <ManualLogEntry
+                          key={log.id}
+                          level={log.level}
+                          icon={<Icon aria-hidden={true} />}
+                          timestamp={logTimeFormatter.format(
+                            new Date(log.timestamp),
+                          )}
+                          message={log.message}
+                        />
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </section>
 
         {stats ? (
-          <section className="manual-summary">
-            <h3 className="heading-with-icon">
-              <FiBarChart2 aria-hidden="true" />
+          <Card className="mt-8">
+            <CardHeader>
+            <CardTitle icon={<FiBarChart2 aria-hidden="true" />}>
               Run Summary
-            </h3>
-            <dl className="summary-grid">
-              <div className="summary-item">
-                <dt>Documents Processed</dt>
-                <dd>{numberFormatter.format(stats.documentsProcessed)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Documents Added</dt>
-                <dd>{numberFormatter.format(stats.documentsAdded)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Documents Updated</dt>
-                <dd>{numberFormatter.format(stats.documentsUpdated)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Documents Skipped</dt>
-                <dd>{numberFormatter.format(stats.documentsSkipped)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Chunks Added</dt>
-                <dd>{numberFormatter.format(stats.chunksAdded)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Chunks Updated</dt>
-                <dd>{numberFormatter.format(stats.chunksUpdated)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Characters Added</dt>
-                <dd>{numberFormatter.format(stats.charactersAdded)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Characters Updated</dt>
-                <dd>{numberFormatter.format(stats.charactersUpdated)}</dd>
-              </div>
-              <div className="summary-item">
-                <dt>Errors</dt>
-                <dd>{numberFormatter.format(stats.errorCount)}</dd>
-              </div>
-            </dl>
-          </section>
+            </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <dl className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4 m-0 p-0">
+                <Card className="px-4 py-3">
+                  <CardContent className="space-y-1">
+                    <dt className="text-[0.65rem] uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
+                      Documents Processed
+                    </dt>
+                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
+                      {numberFormatter.format(stats.documentsProcessed)}
+                    </dd>
+                  </CardContent>
+                </Card>
+                <Card className="px-4 py-3">
+                  <CardContent className="space-y-1">
+                    <dt className="text-[0.65rem] uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
+                      Documents Added
+                    </dt>
+                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
+                      {numberFormatter.format(stats.documentsAdded)}
+                    </dd>
+                  </CardContent>
+                </Card>
+                <Card className="px-4 py-3">
+                  <CardContent className="space-y-1">
+                    <dt className="text-[0.65rem] uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
+                      Documents Updated
+                    </dt>
+                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
+                      {numberFormatter.format(stats.documentsUpdated)}
+                    </dd>
+                  </CardContent>
+                </Card>
+                <Card className="px-4 py-3">
+                  <CardContent className="space-y-1">
+                    <dt>Documents Skipped</dt>
+                    <dd>{numberFormatter.format(stats.documentsSkipped)}</dd>
+                  </CardContent>
+                </Card>
+                <Card className="px-4 py-3">
+                  <CardContent className="space-y-1">
+                    <dt>Chunks Added</dt>
+                    <dd>{numberFormatter.format(stats.chunksAdded)}</dd>
+                  </CardContent>
+                </Card>
+                <Card className="px-4 py-3">
+                  <CardContent className="space-y-1">
+                    <dt>Chunks Updated</dt>
+                    <dd>{numberFormatter.format(stats.chunksUpdated)}</dd>
+                  </CardContent>
+                </Card>
+                <Card className="px-4 py-3">
+                  <CardContent className="space-y-1">
+                    <dt>Characters Added</dt>
+                    <dd>{numberFormatter.format(stats.charactersAdded)}</dd>
+                  </CardContent>
+                </Card>
+                <Card className="px-4 py-3">
+                  <CardContent className="space-y-1">
+                    <dt>Characters Updated</dt>
+                    <dd>{numberFormatter.format(stats.charactersUpdated)}</dd>
+                  </CardContent>
+                </Card>
+                <Card className="px-4 py-3">
+                  <CardContent className="space-y-1">
+                    <dt className="text-xs uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
+                      Errors
+                    </dt>
+                    <dd className="text-lg font-semibold text-[color:var(--ai-text-strong)]">
+                      {numberFormatter.format(stats.errorCount)}
+                    </dd>
+                  </CardContent>
+                </Card>
+              </dl>
+            </CardContent>
+          </Card>
         ) : null}
       </section>
 
       {hasCompleted && !isRunning ? (
-        <div className="admin-card manual-refresh-card">
-          <p>
+        <Card className="mt-6 flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+          <p className="ai-meta-text">
             Ingestion run completed. Refresh the dashboard to see the latest
             data.
           </p>
-          <button
+          <Button
             type="button"
-            className="manual-logs__refresh-button"
+            variant="outline"
+            size="sm"
             onClick={() => {
               void router.replace(router.asPath);
             }}
           >
             Refresh Dashboard
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : null}
     </>
   );
@@ -1589,18 +1578,22 @@ function DatasetSnapshotSection({
 
   if (!latest) {
     return (
-      <section className="admin-card admin-section dataset-section">
-        <header className="admin-section__header">
-          <h2>Dataset Snapshot</h2>
-          <p className="admin-section__description">
+      <section className="ai-card space-y-4 p-6">
+        <CardHeader>
+          <CardTitle icon={<FiDatabase aria-hidden="true" />}>
+            Dataset Snapshot
+          </CardTitle>
+          <p className="ai-card-description">
             Snapshot history will appear after the next successful ingestion
             run.
           </p>
-        </header>
-        <div className="snapshot-empty">
-          <p>No snapshot records found.</p>
-          <p>Run an ingestion job to capture the initial dataset state.</p>
-        </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-[0.35rem] border border-dashed border-[color:var(--ai-border-accent)] rounded-[14px] px-6 py-4 bg-[color-mix(in_srgb,var(--ai-surface)_75%,transparent)] text-[color:var(--ai-text-soft)]">
+            <p>No snapshot records found.</p>
+            <p>Run an ingestion job to capture the initial dataset state.</p>
+          </div>
+        </CardContent>
       </section>
     );
   }
@@ -1627,139 +1620,190 @@ function DatasetSnapshotSection({
   ];
 
   return (
-    <section className="admin-card admin-section dataset-section">
-      <header className="admin-section__header">
-        <h2 className="heading-with-icon">
-          <FiDatabase aria-hidden="true" />
+    <section className="ai-card space-y-6 p-6">
+      <CardHeader>
+        <CardTitle icon={<FiDatabase aria-hidden="true" />}>
           Dataset Snapshot
-        </h2>
-        <p className="admin-section__description">
+        </CardTitle>
+        <p className="ai-card-description">
           Latest captured totals from the `rag_snapshot` rollup.
         </p>
-      </header>
-      <div className="snapshot-grid">
-        {metrics.map((metric) => {
-          const deltaLabel = formatDeltaLabel(metric.delta);
-          return (
-            <article key={metric.key} className="snapshot-card">
-              <span className="snapshot-card__label">{metric.label}</span>
-              <span className="snapshot-card__value">{metric.value}</span>
-              <span
-                className={`snapshot-card__delta ${getDeltaClass(metric.delta)}`}
-              >
-                {deltaLabel ?? "No change"}
-              </span>
-            </article>
-          );
-        })}
-        <article className="snapshot-card snapshot-card--trend">
-          <span className="snapshot-card__label">Trend</span>
-          {sparklineData ? (
-            <>
-              <svg
-                className="snapshot-sparkline"
-                viewBox="0 0 100 100"
-                role="img"
-                aria-label="Snapshot trend sparkline"
-              >
-                <path d={sparklineData.path} />
-              </svg>
-              <div className="snapshot-card__trend-meta">
-                <span>
-                  Min: {numberFormatter.format(sparklineData.min)} · Max:{" "}
-                  {numberFormatter.format(sparklineData.max)}
-                </span>
-                {percentChange ? <span>{percentChange} vs prev.</span> : null}
-              </div>
-            </>
-          ) : (
-            <span className="snapshot-card__delta snapshot-card__delta--muted">
-              More history needed for trend
-            </span>
-          )}
-        </article>
-      </div>
-      <dl className="snapshot-meta">
-        <div>
-          <dt>Embedding Model</dt>
-          <dd>{embeddingLabel}</dd>
-        </div>
-        <div>
-          <dt>Ingestion Mode</dt>
-          <dd>{latest.ingestionMode ?? "—"}</dd>
-        </div>
-        <div>
-          <dt>Captured</dt>
-          <dd>
-            {latest.capturedAt ? (
-              <ClientSideDate value={latest.capturedAt} />
-            ) : (
-              "—"
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Source Run</dt>
-          <dd>
-            {latest.runId ? (
-              <code className="snapshot-run-id">{latest.runId}</code>
-            ) : (
-              "—"
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Schema Version</dt>
-          <dd>{latest.schemaVersion ?? "—"}</dd>
-        </div>
-      </dl>
-
-      <section className="snapshot-history">
-        <header className="snapshot-history__header">
-          <h3 className="heading-with-icon">
-            <FiClock aria-hidden="true" />
-            Recent Snapshots <span>({historyList.length})</span>
-          </h3>
-          <p>Comparing the most recent {historyList.length} captures.</p>
-        </header>
-        <ul className="snapshot-history__list">
-          {historyList.map((entry, index) => (
-            <li key={entry.id} className="snapshot-history__item">
-              <div className="snapshot-history__row">
-                <div>
-                  <span className="snapshot-history__timestamp">
-                    {entry.capturedAt ? (
-                      <ClientSideDate value={entry.capturedAt} />
-                    ) : (
-                      "—"
-                    )}
-                  </span>
-                  <span className="snapshot-history__provider">
-                    {formatEmbeddingSpaceLabel(entry.embeddingSpaceId)}
-                  </span>
-                </div>
-                <div className="snapshot-history__stats">
-                  <span>
-                    Docs: {numberFormatter.format(entry.totalDocuments)} (
-                    {formatDeltaLabel(entry.deltaDocuments) ?? "0"})
-                  </span>
-                  <span>
-                    Chunks: {numberFormatter.format(entry.totalChunks)} (
-                    {formatDeltaLabel(entry.deltaChunks) ?? "0"})
-                  </span>
-                </div>
-              </div>
-              {index === 0 ? (
-                <span className="snapshot-history__badge">Latest</span>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <GridPanel className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-[1.1rem]">
+          {metrics.map((metric) => {
+            const deltaLabel = formatDeltaLabel(metric.delta);
+            const tone =
+              metric.delta === null
+                ? undefined
+                : metric.delta > 0
+                  ? "success"
+                  : "error";
+            return (
+              <StatCard
+                key={metric.key}
+                label={metric.label}
+                value={metric.value}
+                delta={
+                  deltaLabel
+                    ? { text: deltaLabel, tone: tone ?? "muted" }
+                    : undefined
+                }
+              />
+            );
+          })}
+          <Card className="md:col-span-2">
+            <CardContent className="space-y-3">
+              <p className="text-[0.65rem] uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]">
+                Trend
+              </p>
+              {sparklineData ? (
+                <>
+                  <svg
+                    className="w-full h-[80px]"
+                    viewBox="0 0 100 100"
+                    role="img"
+                    aria-label="Snapshot trend sparkline"
+                  >
+                    <path
+                      className="fill-none stroke-[color-mix(in_srgb,var(--ai-accent)_90%,transparent)] stroke-2"
+                      d={sparklineData.path}
+                    />
+                  </svg>
+                  <div className="mt-[0.35rem] flex justify-between text-[0.8rem] text-[color:var(--ai-text-muted)]">
+                    <span className="ai-meta-text">
+                      Min: {numberFormatter.format(sparklineData.min)} · Max:{" "}
+                      {numberFormatter.format(sparklineData.max)}
+                    </span>
+                    {percentChange ? (
+                      <span className="ai-meta-text">
+                        {percentChange} vs prev.
+                      </span>
+                    ) : null}
+                  </div>
+                </>
               ) : (
-                <span className="snapshot-history__badge snapshot-history__badge--muted">
-                  #{index + 1}
+                <span className="ai-meta-text">
+                  More history needed for trend
                 </span>
               )}
-            </li>
-          ))}
-        </ul>
-      </section>
+            </CardContent>
+          </Card>
+        </GridPanel>
+        <dl className="mt-6">
+          <GridPanel className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+            <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
+              <dt className="m-0 text-[0.72rem] uppercase tracking-[0.06em] text-[color:var(--ai-text-muted)]">
+                Embedding Model
+              </dt>
+              <dd className="mt-[0.15rem] text-[0.95rem] text-[color:var(--ai-text-soft)]">
+                {embeddingLabel}
+              </dd>
+            </div>
+            <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
+              <dt className="m-0 text-[0.72rem] uppercase tracking-[0.06em] text-[color:var(--ai-text-muted)]">
+                Ingestion Mode
+              </dt>
+              <dd className="mt-[0.15rem] text-[0.95rem] text-[color:var(--ai-text-soft)]">
+                {latest.ingestionMode ?? "—"}
+              </dd>
+            </div>
+            <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
+              <dt className="m-0 text-[0.72rem] uppercase tracking-[0.06em] text-[color:var(--ai-text-muted)]">
+                Captured
+              </dt>
+              <dd className="mt-[0.15rem] text-[0.95rem] text-[color:var(--ai-text-soft)]">
+                {latest.capturedAt ? (
+                  <ClientSideDate value={latest.capturedAt} />
+                ) : (
+                  "—"
+                )}
+              </dd>
+            </div>
+            <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
+              <dt className="m-0 text-[0.72rem] uppercase tracking-[0.06em] text-[color:var(--ai-text-muted)]">
+                Source Run
+              </dt>
+              <dd className="mt-[0.15rem] text-[0.95rem] text-[color:var(--ai-text-soft)]">
+                {latest.runId ? (
+                  <code className="font-mono text-[0.82rem] bg-[color:var(--ai-border-soft)] px-1.5 py-0.5 rounded-md">
+                    {latest.runId}
+                  </code>
+                ) : (
+                  "—"
+                )}
+              </dd>
+            </div>
+            <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
+              <dt className="m-0 text-[0.72rem] uppercase tracking-[0.06em] text-[color:var(--ai-text-muted)]">
+                Schema Version
+              </dt>
+              <dd className="mt-[0.15rem] text-[0.95rem] text-[color:var(--ai-text-soft)]">
+                {latest.schemaVersion ?? "—"}
+              </dd>
+            </div>
+          </GridPanel>
+        </dl>
+        <section className="ai-panel mt-6 space-y-3 shadow-none border-[color:var(--ai-border-muted)] rounded-[14px] bg-[color:var(--ai-surface)] px-5 py-4">
+          <header className="flex flex-col gap-1 mb-3">
+            <HeadingWithIcon
+              as="h3"
+              icon={<FiClock aria-hidden="true" />}
+              className="text-[1.05rem] font-semibold text-[color:var(--ai-text-strong)]"
+            >
+              Recent Snapshots{" "}
+              <span className="ml-1.5 text-[0.85rem] text-[color:var(--ai-text-muted)]">
+                ({historyList.length})
+              </span>
+            </HeadingWithIcon>
+            <p className="m-0 text-[0.85rem] text-[color:var(--ai-text-muted)]">
+              Comparing the most recent {historyList.length} captures.
+            </p>
+          </header>
+          <ul className="list-none p-0 m-0 grid gap-[0.7rem]">
+            {historyList.map((entry, index) => (
+              <li
+                key={entry.id}
+                className="flex items-center justify-between gap-3 py-2 border-b border-[color:var(--ai-border-soft)] last:border-b-0"
+              >
+                <div className="flex flex-col gap-[0.2rem]">
+                  <div>
+                    <span className="block text-[0.9rem] text-[color:var(--ai-text-soft)]">
+                      {entry.capturedAt ? (
+                        <ClientSideDate value={entry.capturedAt} />
+                      ) : (
+                        "—"
+                      )}
+                    </span>
+                    <span className="block text-[0.8rem] text-[color:var(--ai-text-muted)]">
+                      {formatEmbeddingSpaceLabel(entry.embeddingSpaceId)}
+                    </span>
+                  </div>
+                  <div className="flex gap-2.5 text-[0.8rem] text-[color:var(--ai-text-muted)]">
+                    <span>
+                      Docs: {numberFormatter.format(entry.totalDocuments)} (
+                      {formatDeltaLabel(entry.deltaDocuments) ?? "0"})
+                    </span>
+                    <span>
+                      Chunks: {numberFormatter.format(entry.totalChunks)} (
+                      {formatDeltaLabel(entry.deltaChunks) ?? "0"})
+                    </span>
+                  </div>
+                </div>
+                {index === 0 ? (
+                  <span className="text-[0.75rem] uppercase tracking-[0.05em] px-2 py-1 rounded-full bg-[color:var(--ai-accent-bg)] text-[color:var(--ai-accent-strong)] font-semibold">
+                    Latest
+                  </span>
+                ) : (
+                  <span className="text-[0.75rem] uppercase tracking-[0.05em] px-2 py-1 rounded-full bg-[color:var(--ai-border-soft)] text-[color:var(--ai-text-muted)] font-semibold">
+                    #{index + 1}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      </CardContent>
     </section>
   );
 }
@@ -1775,120 +1819,150 @@ function SystemHealthSection({
   const lastFailureTimestamp = health.lastFailureAt;
 
   return (
-    <section className="admin-card admin-section system-health">
-      <header className="admin-section__header">
-        <h2 className="heading-with-icon">
-          <FiActivity aria-hidden="true" />
+    <section className="ai-card space-y-6 p-6">
+      <CardHeader>
+        <CardTitle icon={<FiActivity aria-hidden="true" />}>
           System Health
-        </h2>
-        <p className="admin-section__description">
+        </CardTitle>
+        <p className="ai-card-description">
           Operational signals from the latest ingestion run and queue state.
         </p>
-      </header>
-      <div className="health-grid">
-        <article className="health-card">
-          <span className="health-card__label">Last Run</span>
-          <span
-            className={`health-status-pill health-status-pill--${health.status}`}
-          >
-            {statusLabel}
-          </span>
-          <div className="health-card__meta">
-            {health.runId ? (
-              <>
-                <div>
-                  Run ID:{" "}
-                  <code className="snapshot-run-id">{health.runId}</code>
-                </div>
-                <div>
-                  Updated:{" "}
-                  {runTimestamp ? <ClientSideDate value={runTimestamp} /> : "—"}
-                </div>
-                {health.snapshotCapturedAt ? (
-                  <div>
-                    Snapshot:{" "}
-                    <ClientSideDate value={health.snapshotCapturedAt} />
+      </CardHeader>
+      <CardContent>
+        <GridPanel className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-[1.1rem]">
+          <StatCard
+            label="Last Run"
+            value={
+              <StatusPill
+                variant={runStatusVariantMap[health.status] ?? "muted"}
+              >
+                {statusLabel}
+              </StatusPill>
+            }
+            meta={
+              health.runId ? (
+                <div className="space-y-1">
+                  <div className="ai-meta-text">
+                    Run ID:{" "}
+                    <code className="font-mono text-[0.82rem] bg-[color:var(--ai-border-soft)] px-1.5 py-0.5 rounded-md">
+                      {health.runId}
+                    </code>
                   </div>
-                ) : null}
-              </>
-            ) : (
-              <div>No runs recorded yet.</div>
-            )}
-          </div>
-        </article>
-        <article className="health-card">
-          <span className="health-card__label">Duration</span>
-          <span className="health-card__value">
-            {formatDuration(health.durationMs)}
-          </span>
-          <div className="health-card__meta">
-            {health.startedAt ? (
-              <>
-                <div>Started:</div>
-                <div>
-                  <ClientSideDate value={health.startedAt} />
+                  <div className="ai-meta-text">
+                    Updated:{" "}
+                    {runTimestamp ? (
+                      <ClientSideDate value={runTimestamp} />
+                    ) : (
+                      "—"
+                    )}
+                  </div>
+                  {health.snapshotCapturedAt ? (
+                    <div className="ai-meta-text">
+                      Snapshot:{" "}
+                      <ClientSideDate value={health.snapshotCapturedAt} />
+                    </div>
+                  ) : null}
                 </div>
-              </>
-            ) : (
-              <div>—</div>
-            )}
-          </div>
-        </article>
-        <article className="health-card">
-          <span className="health-card__label">Data Quality</span>
-          <div className="health-card__stack">
-            <div>Errors: {numberFormatter.format(health.errorCount ?? 0)}</div>
-            <div>
-              Skipped Docs:{" "}
-              {numberFormatter.format(health.documentsSkipped ?? 0)}
-            </div>
-          </div>
-          <div className="health-card__meta">
-            Derived from the latest recorded run.
-          </div>
-        </article>
-        <article className="health-card">
-          <span className="health-card__label">Queue Health</span>
-          <div className="health-card__stack">
-            <div>Queue Depth: {health.queueDepth ?? "—"}</div>
-            <div>Pending Runs: {health.pendingRuns ?? "—"}</div>
-            <div>Retry Count: {health.retryCount ?? "—"}</div>
-          </div>
-          <div className="health-card__meta">
-            Values are captured when the snapshot was recorded.
-          </div>
-        </article>
-        <article className="health-card">
-          <span className="health-card__label">Last Failure</span>
-          {health.lastFailureRunId ? (
-            <>
-              <div className="health-card__value">
-                {health.lastFailureStatus
-                  ? getStatusLabel(health.lastFailureStatus)
-                  : "Failed"}
+              ) : (
+                <span className="ai-meta-text">No runs recorded yet.</span>
+              )
+            }
+          />
+          <StatCard
+            label="Duration"
+            value={formatDuration(health.durationMs)}
+            meta={
+              health.startedAt ? (
+                <div className="space-y-1">
+                  <span className="ai-meta-text">Started:</span>
+                  <span className="ai-meta-text">
+                    <ClientSideDate value={health.startedAt} />
+                  </span>
+                </div>
+              ) : (
+                <span className="ai-meta-text">—</span>
+              )
+            }
+          />
+          <StatCard
+            label="Data Quality"
+            value={
+              <div className="space-y-1">
+                <span className="ai-meta-text">
+                  Errors: {numberFormatter.format(health.errorCount ?? 0)}
+                </span>
+                <span className="ai-meta-text">
+                  Skipped Docs:{" "}
+                  {numberFormatter.format(health.documentsSkipped ?? 0)}
+                </span>
               </div>
-              <div className="health-card__meta">
-                <div>
-                  Run ID:{" "}
-                  <code className="snapshot-run-id">
-                    {health.lastFailureRunId}
-                  </code>
-                </div>
-                <div>
-                  At:{" "}
-                  {lastFailureTimestamp ? (
-                    <ClientSideDate value={lastFailureTimestamp} />
-                  ) : (
-                    "—"
-                  )}
-                </div>
+            }
+            meta={
+              <span className="ai-meta-text">Derived from the latest run.</span>
+            }
+          />
+          <StatCard
+            label="Queue Health"
+            value={
+              <div className="space-y-1">
+                <span className="ai-meta-text">
+                  Queue Depth: {health.queueDepth ?? "—"}
+                </span>
+                <span className="ai-meta-text">
+                  Pending Runs: {health.pendingRuns ?? "—"}
+                </span>
+                <span className="ai-meta-text">
+                  Retry Count: {health.retryCount ?? "—"}
+                </span>
               </div>
-            </>
-          ) : (
-            <div className="health-card__meta">No failures recorded.</div>
-          )}
-        </article>
-      </div>
+            }
+            meta={
+              <span className="ai-meta-text">
+                Values are captured when the snapshot was recorded.
+              </span>
+            }
+          />
+          <StatCard
+            label="Last Failure"
+            value={
+              health.lastFailureRunId ? (
+                <StatusPill
+                  variant={
+                    runStatusVariantMap[health.lastFailureStatus ?? "failed"] ??
+                    "muted"
+                  }
+                >
+                  {health.lastFailureStatus
+                    ? getStatusLabel(health.lastFailureStatus)
+                    : "Failed"}
+                </StatusPill>
+              ) : (
+                <span className="ai-meta-text">No failures recorded.</span>
+              )
+            }
+            meta={
+              health.lastFailureRunId ? (
+                <div className="space-y-1">
+                  <span className="ai-meta-text">
+                    Run ID:{" "}
+                    <code className="font-mono text-[0.82rem] bg-[color:var(--ai-border-soft)] px-1.5 py-0.5 rounded-md">
+                      {health.lastFailureRunId}
+                    </code>
+                  </span>
+                  <span className="ai-meta-text">
+                    At:{" "}
+                    {lastFailureTimestamp ? (
+                      <ClientSideDate value={lastFailureTimestamp} />
+                    ) : (
+                      "—"
+                    )}
+                  </span>
+                </div>
+              ) : null
+            }
+          />
+        </GridPanel>
+      </CardContent>
     </section>
   );
 }
@@ -2219,10 +2293,7 @@ function RecentRunsSection({
   ]);
 
   const handleStatusChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const nextStatus = event.target.value as
-        | RunStatus
-        | typeof ALL_FILTER_VALUE;
+    (nextStatus: RunStatus | typeof ALL_FILTER_VALUE) => {
       setStatusFilter(nextStatus);
       const nextPage = 1;
       if (page !== nextPage) {
@@ -2252,10 +2323,7 @@ function RecentRunsSection({
   );
 
   const handleIngestionTypeChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const nextType = event.target.value as
-        | IngestionType
-        | typeof ALL_FILTER_VALUE;
+    (nextType: IngestionType | typeof ALL_FILTER_VALUE) => {
       setIngestionTypeFilter(nextType);
       const nextPage = 1;
       if (page !== nextPage) {
@@ -2285,10 +2353,7 @@ function RecentRunsSection({
   );
 
   const handleSourceChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const rawValue = event.target.value;
-      const nextSource =
-        rawValue === ALL_FILTER_VALUE ? ALL_FILTER_VALUE : rawValue;
+    (nextSource: string | typeof ALL_FILTER_VALUE) => {
       setSourceFilter(nextSource);
       const nextPage = 1;
       if (page !== nextPage) {
@@ -2318,12 +2383,7 @@ function RecentRunsSection({
   );
 
   const handleEmbeddingProviderChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const rawValue = event.target.value;
-      const resolved =
-        rawValue === ALL_FILTER_VALUE
-          ? ALL_FILTER_VALUE
-          : rawValue;
+    (resolved: string | typeof ALL_FILTER_VALUE) => {
       setEmbeddingProviderFilter(resolved);
       const nextPage = 1;
       if (page !== nextPage) {
@@ -2609,372 +2669,431 @@ function RecentRunsSection({
     totalCount === 0
       ? "No runs to display yet."
       : `Showing ${numberFormatter.format(startIndex)}-${numberFormatter.format(endIndex)} of ${numberFormatter.format(totalCount)} run${totalCount === 1 ? "" : "s"}.`;
+  const columns = useMemo<DataTableColumn<RunRecord>[]>(() => {
+    return [
+      {
+        header: "Started",
+        render: (run) => <ClientSideDate value={run.started_at} />,
+      },
+      {
+        header: "Status",
+        render: (run) => {
+          const errorCount = run.error_count ?? 0;
+          const logs = run.error_logs ?? [];
+          const isFullySkipped =
+            run.status === "success" &&
+            (run.documents_processed ?? 0) > 0 &&
+            run.documents_processed === run.documents_skipped &&
+            (run.chunks_added ?? 0) === 0 &&
+            (run.chunks_updated ?? 0) === 0;
+          const displayStatus = isFullySkipped ? "skipped" : run.status;
+          const displayStatusLabel = isFullySkipped
+            ? "Skipped"
+            : run.status.replaceAll("_", " ");
+          const statusVariant =
+            runStatusVariantMap[
+              (displayStatus ?? "unknown") as RunStatus | "unknown"
+            ];
+
+          return (
+            <div className="flex flex-col gap-2">
+              <StatusPill variant={statusVariant}>
+                {displayStatusLabel}
+              </StatusPill>
+              {errorCount > 0 ? (
+                <details className="mt-1">
+                  <summary>{errorCount} issue(s)</summary>
+                  <ul>
+                    {logs.slice(0, 5).map((log, index) => (
+                      <li key={index}>
+                        {log.doc_id ? <strong>{log.doc_id}: </strong> : null}
+                        {log.context ? <span>{log.context}: </span> : null}
+                        {log.message}
+                      </li>
+                    ))}
+                    {logs.length > 5 ? (
+                      <li>{`${logs.length - 5} more`}</li>
+                    ) : null}
+                  </ul>
+                </details>
+              ) : null}
+            </div>
+          );
+        },
+      },
+      {
+        header: "Type",
+        render: (run) => (
+          <div className="space-y-1">
+            <StatusPill
+              variant={run.ingestion_type === "full" ? "info" : "warning"}
+            >
+              {run.ingestion_type === "full" ? "Full" : "Partial"}
+            </StatusPill>
+            {run.partial_reason ? (
+              <p className="ai-meta-text font-normal normal-case">
+                {run.partial_reason}
+              </p>
+            ) : null}
+          </div>
+        ),
+      },
+      {
+        header: "Embedding Model",
+        render: (run) => {
+          const embeddingSpaceId = getEmbeddingSpaceIdFromMetadata(
+            run.metadata,
+          );
+          const embeddingModelLabel =
+            embeddingSpaceId === null
+              ? "Unknown"
+              : formatEmbeddingSpaceLabel(embeddingSpaceId);
+          return embeddingModelLabel;
+        },
+      },
+      {
+        header: "Duration",
+        render: (run) => formatDuration(run.duration_ms ?? 0),
+        align: "right",
+      },
+      {
+        header: "Chunks",
+        render: (run) => (
+          <div className="space-y-1 text-xs text-[color:var(--ai-text-muted)] whitespace-nowrap">
+            <div>Added: {numberFormatter.format(run.chunks_added ?? 0)}</div>
+            <div>
+              Updated: {numberFormatter.format(run.chunks_updated ?? 0)}
+            </div>
+          </div>
+        ),
+        align: "right",
+      },
+      {
+        header: "Docs",
+        render: (run) => (
+          <div className="space-y-1 text-xs text-[color:var(--ai-text-muted)] whitespace-nowrap">
+            <div>Added: {numberFormatter.format(run.documents_added ?? 0)}</div>
+            <div>
+              Updated: {numberFormatter.format(run.documents_updated ?? 0)}
+            </div>
+            <div>
+              Skipped: {numberFormatter.format(run.documents_skipped ?? 0)}
+            </div>
+          </div>
+        ),
+        align: "right",
+      },
+      {
+        header: "Data Added",
+        render: (run) => formatCharacters(run.characters_added ?? 0),
+        align: "right",
+      },
+      {
+        header: "Data Updated",
+        render: (run) => formatCharacters(run.characters_updated ?? 0),
+        align: "right",
+      },
+      {
+        header: "Notes",
+        render: (run) => {
+          const rootPageId = getStringMetadata(run.metadata, "rootPageId");
+          const pageUrl =
+            getStringMetadata(run.metadata, "publicPageUrl") ??
+            getStringMetadata(run.metadata, "pageUrl");
+          const pageId = getStringMetadata(run.metadata, "pageId");
+          const targetUrl = getStringMetadata(run.metadata, "url");
+          const hostname = getStringMetadata(run.metadata, "hostname");
+          const urlCount = getNumericMetadata(run.metadata, "urlCount");
+          const finishedAt = run.ended_at;
+          const entries: Array<{ label: string; value: ReactNode }> = [];
+          if (rootPageId) {
+            entries.push({ label: "Root", value: rootPageId });
+          }
+          if (pageId) {
+            entries.push({ label: "Page ID", value: pageId });
+          }
+          if (pageUrl) {
+            entries.push({
+              label: "Page",
+              value: (
+                <a
+                  className="text-[color:var(--ai-accent-strong)] underline"
+                  href={pageUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {pageUrl}
+                </a>
+              ),
+            });
+          }
+          if (targetUrl) {
+            entries.push({
+              label: "URL",
+              value: (
+                <a
+                  className="text-[color:var(--ai-accent-strong)] underline"
+                  href={targetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {targetUrl}
+                </a>
+              ),
+            });
+          }
+          if (hostname) {
+            entries.push({ label: "Host", value: hostname });
+          }
+          if (urlCount !== null) {
+            entries.push({
+              label: "URLs",
+              value: numberFormatter.format(urlCount),
+            });
+          }
+          if (finishedAt) {
+            entries.push({
+              label: "Finished",
+              value: <ClientSideDate value={finishedAt} />,
+            });
+          }
+          if (entries.length === 0) {
+            return <span className="ai-meta-text">—</span>;
+          }
+          return (
+            <div className="space-y-1 text-xs text-[color:var(--ai-text-muted)]">
+              {entries.map((entry, index) => (
+                <div key={`${entry.label}-${index}`}>
+                  <span className="font-semibold text-[color:var(--ai-text-strong)]">
+                    {entry.label}:
+                  </span>{" "}
+                  {entry.value}
+                </div>
+              ))}
+            </div>
+          );
+        },
+      },
+      {
+        header: "Actions",
+        render: (run) => {
+          const isDeleting = deletingRunIds[run.id] === true;
+          return (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void handleDeleteRun(run);
+              }}
+              disabled={isDeleting}
+              className="text-[color:var(--ai-error)] border-[color:var(--ai-error)] hover:bg-[color:var(--ai-error-muted)]"
+            >
+              {isDeleting ? "Deleting…" : "Delete"}
+            </Button>
+          );
+        },
+        align: "center",
+      },
+    ];
+  }, [deletingRunIds, handleDeleteRun]);
 
   return (
-    <section className="admin-card admin-section">
-      <header className="admin-section__header">
-        <h2 className="heading-with-icon">
-          <FiLayers aria-hidden="true" />
+    <section className="ai-card space-y-6 p-6">
+      <CardHeader>
+        <CardTitle icon={<FiLayers aria-hidden="true" />}>
           Recent Runs
-        </h2>
-        <p className="admin-section__description">
+        </CardTitle>
+        <p className="ai-card-description">
           Latest ingestion activity from manual and scheduled jobs.
         </p>
-      </header>
-      <div className="recent-runs__toolbar">
-        <div className="recent-runs__filters">
-          <label className="recent-runs__filter">
-            <span>Status</span>
-            <select
-              value={statusFilter}
-              onChange={handleStatusChange}
-              aria-label="Filter runs by status"
-            >
-              <option value={ALL_FILTER_VALUE}>All statuses</option>
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {getStatusLabel(status)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="recent-runs__filter">
-            <span>Type</span>
-            <select
-              value={ingestionTypeFilter}
-              onChange={handleIngestionTypeChange}
-              aria-label="Filter runs by ingestion type"
-            >
-              <option value={ALL_FILTER_VALUE}>All types</option>
-              {ingestionTypeOptions.map((type) => (
-                <option key={type} value={type}>
-                  {getIngestionTypeLabel(type)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="recent-runs__filter">
-            <span>Source</span>
-            <select
-              value={sourceFilter}
-              onChange={handleSourceChange}
-              aria-label="Filter runs by source"
-            >
-              <option value={ALL_FILTER_VALUE}>All sources</option>
-              {sourceOptions.map((source) => (
-                <option key={source} value={source}>
-                  {source}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="recent-runs__filter">
-            <span>Embedding model</span>
-            <select
-              value={embeddingProviderFilter}
-              onChange={handleEmbeddingProviderChange}
-              aria-label="Filter runs by embedding model"
-            >
-              <option value={ALL_FILTER_VALUE}>All models</option>
-              {embeddingProviderOptions.map((provider) => (
-                <option key={provider} value={provider}>
-                  {getEmbeddingFilterLabel(provider)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="recent-runs__filter">
-            <span>Started After</span>
-            <input
-              type="date"
-              value={startedFromFilter}
-              max={
-                startedToFilter && startedToFilter.length > 0
-                  ? startedToFilter
-                  : undefined
-              }
-              onChange={handleStartedFromChange}
-            />
-          </label>
-          <label className="recent-runs__filter">
-            <span>Started Before</span>
-            <input
-              type="date"
-              value={startedToFilter}
-              min={
-                startedFromFilter && startedFromFilter.length > 0
-                  ? startedFromFilter
-                  : undefined
-              }
-              onChange={handleStartedToChange}
-            />
-          </label>
-        </div>
-        <div className="recent-runs__actions">
-          <div className="recent-runs__checkbox-filter">
-            <Checkbox
-              className="recent-runs__checkbox-control"
-              checked={hideSkipped}
-              onCheckedChange={handleHideSkippedChange}
-              disabled={isLoading}
-              aria-label="Hide skipped runs"
-            />
-            <span>Hide skipped runs</span>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="flex flex-wrap gap-3 mb-3 flex-col items-stretch md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap items-start gap-2.5">
+            <div className="flex flex-col gap-1 min-w-[180px]">
+              <Label htmlFor="recent-status-filter">Status</Label>
+              <Select
+                value={statusFilter}
+                onValueChange={(value) =>
+                  handleStatusChange(
+                    value as RunStatus | typeof ALL_FILTER_VALUE,
+                  )
+                }
+              >
+                <SelectTrigger
+                  id="recent-status-filter"
+                  aria-label="Filter runs by status"
+                />
+                <SelectContent>
+                  <SelectItem value={ALL_FILTER_VALUE}>All statuses</SelectItem>
+                  {statusOptions.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {getStatusLabel(status)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1 min-w-[180px]">
+              <Label htmlFor="recent-type-filter">Type</Label>
+              <Select
+                value={ingestionTypeFilter}
+                onValueChange={(value) =>
+                  handleIngestionTypeChange(
+                    value as IngestionType | typeof ALL_FILTER_VALUE,
+                  )
+                }
+              >
+                <SelectTrigger
+                  id="recent-type-filter"
+                  aria-label="Filter runs by ingestion type"
+                />
+                <SelectContent>
+                  <SelectItem value={ALL_FILTER_VALUE}>All types</SelectItem>
+                  {ingestionTypeOptions.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {getIngestionTypeLabel(type)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1 min-w-[180px]">
+              <Label htmlFor="recent-source-filter">Source</Label>
+              <Select
+                value={sourceFilter}
+                onValueChange={(value) => handleSourceChange(value)}
+              >
+                <SelectTrigger
+                  id="recent-source-filter"
+                  aria-label="Filter runs by source"
+                />
+                <SelectContent>
+                  <SelectItem value={ALL_FILTER_VALUE}>All sources</SelectItem>
+                  {sourceOptions.map((source) => (
+                    <SelectItem key={source} value={source}>
+                      {source}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1 min-w-[180px]">
+              <Label htmlFor="recent-embedding-filter">Embedding model</Label>
+              <Select
+                value={embeddingProviderFilter}
+                onValueChange={(value) => handleEmbeddingProviderChange(value)}
+              >
+                <SelectTrigger
+                  id="recent-embedding-filter"
+                  aria-label="Filter runs by embedding model"
+                />
+                <SelectContent>
+                  <SelectItem value={ALL_FILTER_VALUE}>All models</SelectItem>
+                  {embeddingProviderOptions.map((provider) => (
+                    <SelectItem key={provider} value={provider}>
+                      {getEmbeddingFilterLabel(provider)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1 min-w-[180px]">
+              <Label htmlFor="recent-started-from">Started After</Label>
+              <Input
+                id="recent-started-from"
+                type="date"
+                value={startedFromFilter}
+                max={
+                  startedToFilter && startedToFilter.length > 0
+                    ? startedToFilter
+                    : undefined
+                }
+                onChange={handleStartedFromChange}
+              />
+            </div>
+            <div className="flex flex-col gap-1 min-w-[180px]">
+              <Label htmlFor="recent-started-to">Started Before</Label>
+              <Input
+                id="recent-started-to"
+                type="date"
+                value={startedToFilter}
+                min={
+                  startedFromFilter && startedFromFilter.length > 0
+                    ? startedFromFilter
+                    : undefined
+                }
+                onChange={handleStartedToChange}
+              />
+            </div>
           </div>
-
-          <button
-            type="button"
-            onClick={handleResetFilters}
-            disabled={!canReset}
-            className="recent-runs__reset"
-          >
-            Reset view
-          </button>
-        </div>
-      </div>
-      {error ? (
-        <div className="admin-table__error" role="alert">
-          {error}
-        </div>
-      ) : null}
-      <div
-        className={`admin-table${isLoading ? " admin-table--loading" : ""}`}
-        aria-busy={isLoading}
-      >
-        <table className="admin-table__grid">
-          <thead>
-            <tr>
-              <th>Started</th>
-              <th>Status</th>
-              <th>Type</th>
-              <th>Embedding Model</th>
-              <th>Duration</th>
-              <th>Chunks</th>
-              <th>Docs</th>
-              <th>Data Added</th>
-              <th>Data Updated</th>
-              <th>Notes</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {runs.length === 0 ? (
-              <tr>
-                <td colSpan={11} className="admin-table__empty">
-                  {emptyMessage}
-                </td>
-              </tr>
-            ) : (
-              runs.map((run) => {
-                const errorCount = run.error_count ?? 0;
-                const logs = run.error_logs ?? [];
-                const rootPageId = getStringMetadata(
-                  run.metadata,
-                  "rootPageId",
-                );
-                const urlCount = getNumericMetadata(run.metadata, "urlCount");
-                const publicPageUrl = getStringMetadata(
-                  run.metadata,
-                  "publicPageUrl",
-                );
-                const pageUrl =
-                  publicPageUrl ??
-                  getStringMetadata(run.metadata, "pageUrl");
-                const pageId = getStringMetadata(run.metadata, "pageId");
-                const targetUrl = getStringMetadata(run.metadata, "url");
-                const hostname = getStringMetadata(run.metadata, "hostname");
-                const embeddingSpaceId = getEmbeddingSpaceIdFromMetadata(
-                  run.metadata,
-                );
-                const embeddingModelLabel =
-                  embeddingSpaceId === null
-                    ? "Unknown"
-                    : formatEmbeddingSpaceLabel(embeddingSpaceId);
-                const isFullySkipped =
-                  run.status === "success" &&
-                  (run.documents_processed ?? 0) > 0 &&
-                  run.documents_processed === run.documents_skipped &&
-                  (run.chunks_added ?? 0) === 0 &&
-                  (run.chunks_updated ?? 0) === 0;
-                const isDeleting = deletingRunIds[run.id] === true;
-
-                const displayStatus = isFullySkipped ? "skipped" : run.status;
-                const displayStatusLabel = isFullySkipped
-                  ? "Skipped"
-                  : run.status.replaceAll("_", " ");
-
-                return (
-                  <tr key={run.id}>
-                    <td>
-                      <ClientSideDate value={run.started_at} />
-                    </td>
-                    <td>
-                      <span
-                        className={`status-pill status-pill--${displayStatus}`}
-                      >
-                        {displayStatusLabel}
-                      </span>
-                      {errorCount > 0 && (
-                        <details className="admin-issues">
-                          <summary>{errorCount} issue(s)</summary>
-                          <ul>
-                            {logs.slice(0, 5).map((log, index) => (
-                              <li key={index}>
-                                {log.doc_id ? (
-                                  <strong>{log.doc_id}: </strong>
-                                ) : null}
-                                {log.context ? (
-                                  <span>{log.context}: </span>
-                                ) : null}
-                                {log.message}
-                              </li>
-                            ))}
-                            {logs.length > 5 ? (
-                              <li>{`${logs.length - 5} more`}</li>
-                            ) : null}
-                          </ul>
-                        </details>
-                      )}
-                    </td>
-                    <td>
-                      <span className="badge">
-                        {run.ingestion_type === "full" ? "Full" : "Partial"}
-                      </span>
-                      {run.partial_reason ? (
-                        <div className="admin-table__meta">
-                          {run.partial_reason}
-                        </div>
-                      ) : null}
-                    </td>
-                    <td>{embeddingModelLabel}</td>
-                    <td>{formatDuration(run.duration_ms ?? 0)}</td>
-                    <td style={{ whiteSpace: "nowrap" }}>
-                      <div>
-                        Added: {numberFormatter.format(run.chunks_added ?? 0)}
-                      </div>
-                      <div>
-                        Updated:{" "}
-                        {numberFormatter.format(run.chunks_updated ?? 0)}
-                      </div>
-                    </td>
-                    <td style={{ whiteSpace: "nowrap" }}>
-                      <div>
-                        Added:{" "}
-                        {numberFormatter.format(run.documents_added ?? 0)}
-                      </div>
-                      <div>
-                        Updated:{" "}
-                        {numberFormatter.format(run.documents_updated ?? 0)}
-                      </div>
-                      <div>
-                        Skipped:{" "}
-                        {numberFormatter.format(run.documents_skipped ?? 0)}
-                      </div>
-                    </td>
-                    <td>{formatCharacters(run.characters_added ?? 0)}</td>
-                    <td>{formatCharacters(run.characters_updated ?? 0)}</td>
-                    <td>
-                      {rootPageId ? (
-                        <div className="admin-table__meta">
-                          Root: {rootPageId}
-                        </div>
-                      ) : null}
-                      {pageId ? (
-                        <div className="admin-table__meta">
-                          Page ID: {pageId}
-                        </div>
-                      ) : null}
-                      {pageUrl ? (
-                        <div className="admin-table__meta">
-                          Page:{" "}
-                          <a href={pageUrl} target="_blank" rel="noreferrer">
-                            {pageUrl}
-                          </a>
-                        </div>
-                      ) : null}
-                      {targetUrl ? (
-                        <div className="admin-table__meta">
-                          URL:{" "}
-                          <a href={targetUrl} target="_blank" rel="noreferrer">
-                            {targetUrl}
-                          </a>
-                        </div>
-                      ) : null}
-                      {hostname ? (
-                        <div className="admin-table__meta">
-                          Host: {hostname}
-                        </div>
-                      ) : null}
-                      {urlCount !== null ? (
-                        <div className="admin-table__meta">
-                          URLs: {numberFormatter.format(urlCount)}
-                        </div>
-                      ) : null}
-                      {run.ended_at ? (
-                        <div className="admin-table__meta">
-                          Finished: <ClientSideDate value={run.ended_at} />
-                        </div>
-                      ) : null}
-                      {!rootPageId &&
-                      !pageId &&
-                      !pageUrl &&
-                      !targetUrl &&
-                      !hostname && // Check if any meta info exists
-                      urlCount === null &&
-                      !run.ended_at ? (
-                        <div className="admin-table__meta">—</div>
-                      ) : null}
-                    </td>
-                    <td className="admin-table__actions">
-                      <button
-                        type="button"
-                        className="admin-table__delete-button"
-                        onClick={() => {
-                          void handleDeleteRun(run);
-                        }}
-                        disabled={isDeleting}
-                        aria-label={`Delete ingestion run ${run.id}`}
-                      >
-                        {isDeleting ? "Deleting…" : "Delete"}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-        <div className="recent-runs__footer">
-          <div className="recent-runs__summary">{summaryText}</div>
-          <div className="recent-runs__pagination">
-            <button
+          <div className="flex items-center gap-3 justify-end md:justify-start">
+            <div className="inline-flex items-center gap-1.5 text-sm text-[color:var(--ai-text-soft)] select-none">
+              <Checkbox
+                className="flex-shrink-0"
+                checked={hideSkipped}
+                onCheckedChange={handleHideSkippedChange}
+                disabled={isLoading}
+                aria-label="Hide skipped runs"
+              />
+              <span className="ai-meta-text">Hide skipped runs</span>
+            </div>
+            <Button
               type="button"
-              onClick={handlePreviousPage}
-              disabled={page <= 1 || isLoading || totalCount === 0}
-              className="recent-runs__page-button"
+              variant="ghost"
+              size="sm"
+              onClick={handleResetFilters}
+              disabled={!canReset}
             >
-              Previous
-            </button>
-            <span className="recent-runs__page-indicator">
-              Page {numberFormatter.format(page)} of{" "}
-              {numberFormatter.format(totalPagesSafe)}
-            </span>
-            <button
-              type="button"
-              onClick={handleNextPage}
-              disabled={
-                page >= totalPagesSafe ||
-                runs.length === 0 ||
-                isLoading ||
-                totalCount === 0
-              }
-              className="recent-runs__page-button"
-            >
-              Next
-            </button>
+              Reset view
+            </Button>
           </div>
         </div>
-      </div>
+        <div className="space-y-4">
+          <DataTable
+            columns={columns}
+            data={runs}
+            emptyMessage={emptyMessage}
+            errorMessage={error}
+            isLoading={isLoading}
+            rowKey={(run) => run.id}
+          />
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ai-border-soft)] px-4 py-3">
+            <div>
+              <span className="ai-meta-text">{summaryText}</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={page <= 1 || isLoading || totalCount === 0}
+              >
+                Previous
+              </Button>
+              <span className="ai-meta-text whitespace-nowrap">
+                Page {numberFormatter.format(page)} of{" "}
+                {numberFormatter.format(totalPagesSafe)}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={
+                  page >= totalPagesSafe ||
+                  runs.length === 0 ||
+                  isLoading ||
+                  totalCount === 0
+                }
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
     </section>
   );
 }
@@ -2996,27 +3115,29 @@ function IngestionDashboard({
         headerRecordMap={headerRecordMap}
         headerBlockId={headerBlockId}
       >
-        <header className="admin-hero">
-          <div className="admin-hero__body">
-            <h1>Ingestion Dashboard</h1>
-            <p>
-              Monitor ingestion health, trigger manual runs, and review the
-              latest dataset snapshot.
-            </p>
-          </div>
-          <Link href="/admin/chat-config" className="admin-hero__cta">
-            Chat Configuration
-          </Link>
-        </header>
+        <Card className="mb-6">
+          <CardHeader className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+            <CardTitle icon={<FiPlayCircle aria-hidden="true" />}>
+              Ingestion Dashboard
+            </CardTitle>
+              <p className="ai-card-description">
+                Monitor ingestion health, trigger manual runs, and review the
+                latest dataset snapshot.
+              </p>
+            </div>
+            <LinkButton href="/admin/chat-config" variant="outline">
+              Chat Configuration
+            </LinkButton>
+          </CardHeader>
+        </Card>
 
-        <div className="admin-stack">
-          <ManualIngestionPanel />
+        <ManualIngestionPanel />
 
-          <DatasetSnapshotSection overview={datasetSnapshot} />
-          <SystemHealthSection health={systemHealth} />
+        <DatasetSnapshotSection overview={datasetSnapshot} />
+        <SystemHealthSection health={systemHealth} />
 
-          <RecentRunsSection initial={recentRuns} />
-        </div>
+        <RecentRunsSection initial={recentRuns} />
       </AiPageChrome>
     </>
   );
@@ -3037,8 +3158,6 @@ function ClientSideDate({ value }: { value: string | null | undefined }) {
 
   return <>{formatDate(value)}</>;
 }
-
-
 
 export const getServerSideProps: GetServerSideProps<PageProps> = async (
   _context,
@@ -3087,8 +3206,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   const snapshotRecords: SnapshotRecord[] = (snapshotRows ?? [])
     .map((row: unknown) => normalizeSnapshotRecord(row))
     .filter(
-      (entry: SnapshotRecord | null): entry is SnapshotRecord =>
-        entry !== null,
+      (entry: SnapshotRecord | null): entry is SnapshotRecord => entry !== null,
     );
 
   const snapshotSummaries = snapshotRecords.map((snapshot) =>

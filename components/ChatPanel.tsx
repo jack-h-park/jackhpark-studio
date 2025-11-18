@@ -1,6 +1,5 @@
 "use client";
 
-import { FcAssistant } from "@react-icons/all-files/fc/FcAssistant";
 import { useState } from "react";
 
 import { ChatWindow } from "@/components/chat/ChatWindow";
@@ -17,7 +16,11 @@ export function ChatPanel() {
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label={isOpen ? "Close chat assistant" : "Open chat assistant"}
       >
-        <FcAssistant />
+        <img
+          src="/android-chrome-512x512.png"
+          alt="Assistant Icon"
+          style={{ width: "100%", height: "100%" }}
+        />
       </button>
     </div>
   );

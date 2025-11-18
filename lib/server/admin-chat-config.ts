@@ -214,6 +214,20 @@ function mergeAllowlist(
   };
 }
 
+function mergeGuardrails(
+  base: AdminChatConfig["guardrails"],
+  override?: Partial<AdminChatConfig["guardrails"]>,
+): AdminChatConfig["guardrails"] {
+  if (!override) {
+    return base;
+  }
+  return {
+    chitchatKeywords: override.chitchatKeywords ?? base.chitchatKeywords,
+    fallbackChitchat: override.fallbackChitchat ?? base.fallbackChitchat,
+    fallbackCommand: override.fallbackCommand ?? base.fallbackCommand,
+  };
+}
+
 function mergeSummaryPresets(
   base: AdminChatConfig["summaryPresets"],
   override?: Partial<AdminChatConfig["summaryPresets"]>,
@@ -302,6 +316,10 @@ export async function getAdminChatConfig(): Promise<AdminChatConfig> {
       storedConfig.numericLimits,
     ),
     allowlist: mergeAllowlist(baseConfig.allowlist, storedConfig.allowlist),
+    guardrails: mergeGuardrails(
+      baseConfig.guardrails,
+      storedConfig.guardrails,
+    ),
     summaryPresets: mergeSummaryPresets(
       baseConfig.summaryPresets,
       storedConfig.summaryPresets,
@@ -427,6 +445,11 @@ function buildComputedAdminConfig(
     userSystemPromptMaxLength: SYSTEM_PROMPT_MAX_LENGTH,
     numericLimits,
     allowlist,
+    guardrails: {
+      chitchatKeywords: guardrails.chitchatKeywords,
+      fallbackChitchat: guardrails.fallbackChitchat,
+      fallbackCommand: guardrails.fallbackCommand,
+    },
     summaryPresets: buildSummaryPresets({
       summaryTriggerTokens: guardrails.numeric.summaryTriggerTokens,
       summaryMaxTurns: guardrails.numeric.summaryMaxTurns,

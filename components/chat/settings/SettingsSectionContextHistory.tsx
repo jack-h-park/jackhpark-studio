@@ -3,6 +3,8 @@
 import { FiClock } from "@react-icons/all-files/fi/FiClock";
 
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import { Input } from "@/components/ui/input";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -52,22 +54,25 @@ export function SettingsSectionContextHistory({
   ];
 
   return (
-    <section className="settings-section">
-      <p className="settings-section__title heading-with-icon">
-        <FiClock aria-hidden="true" />
+    <section className="ai-panel ai-settings-section">
+      <HeadingWithIcon
+        as="p"
+        icon={<FiClock aria-hidden="true" />}
+        className="ai-settings-section__title"
+      >
         Context &amp; History
-      </p>
-      <div className="settings-section__field">
+      </HeadingWithIcon>
+      <div className="flex flex-col gap-3">
         {inputs.map(({ key, label, limit }) => (
-          <div key={key} className="settings-section__slider-field">
-            <div className="settings-section__field-row">
+          <div key={key} className="flex flex-col gap-1.5">
+            <div className="flex justify-between items-baseline gap-3">
               <span>{label}</span>
               <span>{sessionConfig.context[key]}</span>
             </div>
-            <div className="settings-section__slider-row">
+            <div className="flex items-center gap-3">
               <input
                 type="range"
-                className="settings-section__range"
+                className="w-full"
                 min={limit.min}
                 max={limit.max}
                 step={1}
@@ -82,18 +87,21 @@ export function SettingsSectionContextHistory({
                   }))
                 }
               />
-              <input
+              <Input
                 type="number"
                 min={limit.min}
                 max={limit.max}
-                className="settings-section__number settings-section__number--compact"
+                className="ai-field-sm ai-settings-section__number ai-settings-section__number--compact max-w-[110px] text-right"
                 value={sessionConfig.context[key]}
+                aria-label={`${label} value`}
                 onChange={(event) =>
                   updateSession((prev) => ({
                     ...prev,
                     context: {
                       ...prev.context,
-                      [key]: Math.round(Number(event.target.value) || limit.min),
+                      [key]: Math.round(
+                        Number(event.target.value) || limit.min,
+                      ),
                     },
                   }))
                 }

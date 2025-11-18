@@ -3,6 +3,7 @@
 import { FiMonitor } from "@react-icons/all-files/fi/FiMonitor";
 
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
+import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { Switch } from "@/components/ui/switch";
 
 export function SettingsSectionDisplay() {
@@ -16,54 +17,70 @@ export function SettingsSectionDisplay() {
   } = useChatDisplaySettings();
 
   return (
-    <section className="settings-section">
-      <p className="settings-section__title heading-with-icon">
-        <FiMonitor aria-hidden="true" />
-        Display
-      </p>
-      <div className="settings-section__field">
-        <div className="settings-toggle">
-          <div className="settings-toggle__content">
-            <p className="settings-toggle__label">Telemetry badges</p>
-            <p className="settings-toggle__description">
+    <section className="ai-panel ai-settings-section">
+      <HeadingWithIcon
+        as="p"
+        icon={<FiMonitor aria-hidden="true" />}
+        className="ai-settings-section__title"
+      >
+        Diagnostics Display
+      </HeadingWithIcon>
+      <div className="flex flex-col gap-3">
+        <div className="ai-settings-toggle flex items-center justify-between gap-3 px-3 py-2 rounded-2xl border border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)]">
+          <div className="ai-settings-toggle__content flex-1">
+            <span id="telemetry-label" className="ai-section-title">
+              Telemetry badges
+            </span>
+            <p className="ai-settings-toggle__description mt-0.5 text-xs text-slate-500">
               Show engine, guardrail, and enhancement insights.
             </p>
           </div>
           <Switch
-            className="settings-toggle__switch"
+            id="telemetry-switch"
+            className="ai-settings-toggle__switch inline-flex flex-shrink-0"
             checked={showTelemetry}
-            onCheckedChange={setShowTelemetry}
+            aria-labelledby="telemetry-label"
             aria-label="Toggle telemetry badges"
+            onCheckedChange={setShowTelemetry}
           />
         </div>
 
-        <div className="settings-toggle settings-toggle--muted">
-          <div className="settings-toggle__content">
-            <p className="settings-toggle__label">Auto expand telemetry on toggle</p>
-            <p className="settings-toggle__description">
+        <div className="ai-settings-toggle flex items-center justify-between gap-3 px-3 py-2 rounded-2xl border border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)]">
+          <div className="ai-settings-toggle__content flex-1">
+            <span
+              id="telemetry-expand-label"
+              className="ai-section-title"
+            >
+              Auto expand telemetry on toggle
+            </span>
+            <p className="ai-settings-toggle__description mt-0.5 text-xs text-slate-500">
               Expand the telemetry drawer whenever telemetry badges are enabled.
             </p>
           </div>
           <Switch
-            className="settings-toggle__switch"
+            className="ai-settings-toggle__switch inline-flex flex-shrink-0"
             checked={telemetryAutoExpand}
-            onCheckedChange={setTelemetryAutoExpand}
+            aria-labelledby="telemetry-expand-label"
             aria-label="Toggle auto expand telemetry"
+            onCheckedChange={setTelemetryAutoExpand}
           />
         </div>
 
-        <div className="settings-toggle">
-          <div className="settings-toggle__content">
-            <p className="settings-toggle__label">Citations</p>
-            <p className="settings-toggle__description">
+        <div className="ai-settings-toggle flex items-center justify-between gap-3 px-3 py-2 rounded-2xl border border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)]">
+          <div className="ai-settings-toggle__content flex-1">
+            <span id="citations-label" className="ai-section-title">
+              Citations
+            </span>
+            <p className="ai-settings-toggle__description mt-0.5 text-xs text-slate-500">
               Show every retrieved source (may include tiny text excerpts).
             </p>
           </div>
           <Switch
-            className="settings-toggle__switch"
+            className="ai-settings-toggle__switch inline-flex flex-shrink-0"
             checked={showCitations}
-            onCheckedChange={setShowCitations}
+            aria-labelledby="citations-label"
             aria-label="Toggle citations"
+            onCheckedChange={setShowCitations}
           />
         </div>
       </div>

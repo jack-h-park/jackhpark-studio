@@ -7,6 +7,8 @@ import type {
   SessionChatConfig,
   SummaryLevel,
 } from "@/types/chat-config";
+import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import { Radiobutton } from "@/components/ui/radiobutton";
 
 type Props = {
   summaryPresets: AdminChatConfig["summaryPresets"];
@@ -64,24 +66,26 @@ export function SettingsSectionSummaries({
   };
 
   return (
-    <section className="settings-section">
-      <p className="settings-section__title heading-with-icon">
-        <FiBookOpen aria-hidden="true" />
+    <section className="ai-panel ai-settings-section">
+      <HeadingWithIcon
+        as="p"
+        icon={<FiBookOpen aria-hidden="true" />}
+        className="ai-settings-section__title"
+      >
         Summaries
-      </p>
-      <div className="settings-section__radio-group">
+      </HeadingWithIcon>
+      <div className="grid gap-3">
         {summaryOptions.map((option) => (
-          <label key={option.value} className="settings-section__radio">
-            <span>{option.label}</span>
-            <input
-              type="radio"
-              name="summary-level"
-              value={option.value}
-              checked={sessionConfig.summaryLevel === option.value}
-              onChange={() => updateSummaryLevel(option.value)}
-            />
-            <span className="description">{option.description}</span>
-          </label>
+          <Radiobutton
+            key={option.value}
+            variant="tile"
+            name="session-summary-level"
+            value={option.value}
+            label={option.label}
+            description={option.description}
+            checked={sessionConfig.summaryLevel === option.value}
+            onChange={() => updateSummaryLevel(option.value)}
+          />
         ))}
       </div>
     </section>

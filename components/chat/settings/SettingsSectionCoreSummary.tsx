@@ -2,18 +2,23 @@
 
 import { FiCommand } from "@react-icons/all-files/fi/FiCommand";
 
+import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+
 type Props = {
   summary: string;
 };
 
 export function SettingsSectionCoreSummary({ summary }: Props) {
   return (
-    <section className="settings-section">
-      <p className="settings-section__title heading-with-icon">
-        <FiCommand aria-hidden="true" />
+    <section className="ai-panel ai-settings-section">
+      <HeadingWithIcon
+        as="p"
+        icon={<FiCommand aria-hidden="true" />}
+        className="ai-settings-section__title"
+      >
         Core System Behavior
-      </p>
-      <p className="settings-section__description">{summary}</p>
+      </HeadingWithIcon>
+      <p className="ai-section-caption">{summary}</p>
     </section>
   );
 }

@@ -4,6 +4,9 @@ import { FiSettings } from "@react-icons/all-files/fi/FiSettings";
 import { useEffect } from "react";
 
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 
 import { SettingsSectionContextHistory } from "./SettingsSectionContextHistory";
 import { SettingsSectionCoreSummary } from "./SettingsSectionCoreSummary";
@@ -62,23 +65,32 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
         className={`ai-settings-drawer ${open ? "ai-settings-drawer--visible" : ""}`}
       >
         <div className="ai-settings-drawer__panel">
-          <div className="ai-settings-drawer__inner">
+          <Card className="ai-settings-drawer__inner">
             <div className="ai-settings-drawer__header">
-              <h2 className="ai-settings-drawer__title heading-with-icon">
-                <FiSettings aria-hidden="true" />
+              <HeadingWithIcon as="h2" icon={<FiSettings aria-hidden="true" />}>
                 Advanced Settings
-              </h2>
-              <button
+              </HeadingWithIcon>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={onClose}
-                className="ai-settings-drawer__close"
                 aria-label="Close advanced settings"
               >
                 ✕
-              </button>
+              </Button>
             </div>
             <div className="ai-settings-drawer__content">
               <SettingsSectionCoreSummary
                 summary={adminConfig.coreSystemPromptSummary}
+              />
+
+              <SettingsSectionDisplay />
+
+              <SettingsSectionPresets
+                adminConfig={adminConfig}
+                sessionConfig={sessionConfig}
+                helperText="The chosen preset cascades into the following engine, retrieval, and prompt controls."
+                setSessionConfig={setSessionConfig}
               />
 
               <SettingsSectionModelEngine
@@ -86,8 +98,6 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
                 sessionConfig={sessionConfig}
                 setSessionConfig={setSessionConfig}
               />
-
-              <SettingsSectionDisplay />
 
               <SettingsSectionRagRetrieval
                 adminConfig={adminConfig}
@@ -113,21 +123,15 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
                 setSessionConfig={setSessionConfig}
               />
 
-              <SettingsSectionPresets
-                adminConfig={adminConfig}
-                sessionConfig={sessionConfig}
-                setSessionConfig={setSessionConfig}
-              />
-
-              <button
-                type="button"
-                className="settings-section__reset"
+              <Button
+                variant="outline"
+                className="w-full"
                 onClick={resetToDefault}
               >
                 Reset to Default
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </>
