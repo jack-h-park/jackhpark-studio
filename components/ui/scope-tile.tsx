@@ -12,6 +12,7 @@ export type ScopeTileProps = {
   checked: boolean;
   disabled?: boolean;
   onChange: (value: ScopeTileValue) => void;
+  className?: string;
 };
 
 export function ScopeTile({
@@ -22,15 +23,15 @@ export function ScopeTile({
   checked,
   disabled,
   onChange,
+  className,
 }: ScopeTileProps) {
   return (
     <label
       className={cn(
-        "relative block w-full cursor-pointer rounded-2xl border px-4 py-3 transition focus-within:outline focus-within:outline-2 focus-within:outline-[color:var(--ai-accent)]",
-        checked
-          ? "border-[color:var(--ai-accent)] bg-[color:var(--ai-accent-bg)] shadow-sm"
-          : "border-[color:var(--ai-border)] bg-[color:var(--ai-bg)]",
-        disabled && "pointer-events-none opacity-60",
+        "ai-control-tile",
+        checked ? "ai-control-tile--active" : "ai-control-tile--inactive",
+        disabled && "ai-control-tile--disabled",
+        className,
       )}
     >
       <input
@@ -42,10 +43,10 @@ export function ScopeTile({
         disabled={disabled}
         onChange={() => onChange(value)}
       />
-      <span className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
+      <span className="ai-control-tile__label">
         {label}
       </span>
-      <span className="block text-xs text-[color:var(--ai-text-muted)]">
+      <span className="ai-control-tile__description">
         {description}
       </span>
     </label>

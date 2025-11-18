@@ -33,23 +33,17 @@ export function DataTable<T>({
 
   return (
     <div
-      className={cn(
-        "relative w-full overflow-hidden rounded-2xl border border-[color:var(--ai-border)] bg-[color:var(--ai-surface)]",
-        className,
-      )}
+      className={cn("ai-panel ai-data-table-wrapper relative", className)}
       aria-busy={isLoading}
     >
       {errorMessage ? (
-        <div
-          role="alert"
-          className="px-4 py-3 text-sm font-semibold text-[color:var(--ai-error)]"
-        >
+        <div role="alert" className="ai-data-table__error">
           {errorMessage}
         </div>
       ) : null}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-[color:var(--ai-border)]">
-          <thead className="bg-[color:var(--ai-bg-muted)]">
+      <div className="ai-data-table__scroll">
+        <table className="ai-data-table">
+          <thead className="ai-data-table__head">
             <tr>
               {columns.map((column, index) => {
                 const alignment =
@@ -63,7 +57,7 @@ export function DataTable<T>({
                     key={`column-${index}`}
                     scope="col"
                     className={cn(
-                      "px-4 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]",
+                      "ai-data-table__header-cell",
                       alignment,
                       column.className,
                     )}
@@ -77,10 +71,10 @@ export function DataTable<T>({
           </thead>
           <tbody>
             {!hasData ? (
-              <tr>
+              <tr className="ai-data-table__empty-row">
                 <td
                   colSpan={columns.length}
-                  className="px-4 py-6 text-center text-sm text-[color:var(--ai-text-muted)]"
+                  className="ai-data-table__empty-cell"
                 >
                   {emptyMessage ?? "No records to display yet."}
                 </td>
@@ -92,16 +86,15 @@ export function DataTable<T>({
                   (typeof item === "object" && item !== null
                     ? (item as { id?: string | number }).id ?? rowIndex
                     : rowIndex);
-                const background =
-                  rowIndex % 2 === 0
-                    ? "bg-[color:var(--ai-surface)]"
-                    : "bg-[color:var(--ai-bg-muted)]";
                 return (
                   <tr
                     key={`row-${rowId}`}
                     className={cn(
-                      "transition-colors hover:bg-[color:var(--ai-bg)]",
-                      background,
+                      "ai-data-table__row",
+                      rowIndex % 2 === 0
+                        ? "ai-data-table__row--even"
+                        : "ai-data-table__row--odd",
+                      "ai-data-table__row--hover",
                     )}
                   >
                     {columns.map((column, cellIndex) => {
@@ -115,7 +108,7 @@ export function DataTable<T>({
                         <td
                           key={`cell-${rowId}-${cellIndex}`}
                           className={cn(
-                            "px-4 py-3 align-top text-sm text-[color:var(--ai-text)]",
+                            "ai-data-table__cell",
                             alignment,
                             column.className,
                           )}
@@ -132,9 +125,7 @@ export function DataTable<T>({
           </tbody>
         </table>
       </div>
-      {isLoading ? (
-        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[color:var(--ai-bg)]/60" />
-      ) : null}
+      {isLoading ? <div className="ai-loading-overlay" /> : null}
     </div>
   );
 }

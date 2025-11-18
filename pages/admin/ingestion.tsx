@@ -1157,10 +1157,10 @@ function ManualIngestionPanel(): JSX.Element {
     <>
       <section className="ai-card space-y-6">
         <CardHeader className="flex flex-wrap items-start justify-between gap-5">
-            <div>
-              <CardTitle icon={<FiPlayCircle aria-hidden="true" />}>
-                Manual Ingestion
-              </CardTitle>
+          <div>
+            <CardTitle icon={<FiPlayCircle aria-hidden="true" />}>
+              Manual Ingestion
+            </CardTitle>
             <p className="ai-card-description max-w-[38rem]">
               Trigger manual ingestion for a Notion page or external URL and
               track the progress here.
@@ -1452,9 +1452,9 @@ function ManualIngestionPanel(): JSX.Element {
         {stats ? (
           <Card className="mt-8">
             <CardHeader>
-            <CardTitle icon={<FiBarChart2 aria-hidden="true" />}>
-              Run Summary
-            </CardTitle>
+              <CardTitle icon={<FiBarChart2 aria-hidden="true" />}>
+                Run Summary
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <dl className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4 m-0 p-0">
@@ -2697,7 +2697,14 @@ function RecentRunsSection({
 
           return (
             <div className="flex flex-col gap-2">
-              <StatusPill variant={statusVariant}>
+              <StatusPill
+                variant={statusVariant}
+                className={
+                  displayStatus === "completed_with_errors"
+                    ? "ai-status-pill--block"
+                    : undefined
+                }
+              >
                 {displayStatusLabel}
               </StatusPill>
               {errorCount > 0 ? (
@@ -3118,9 +3125,9 @@ function IngestionDashboard({
         <Card className="mb-6">
           <CardHeader className="flex flex-wrap items-center justify-between gap-4">
             <div>
-            <CardTitle icon={<FiPlayCircle aria-hidden="true" />}>
-              Ingestion Dashboard
-            </CardTitle>
+              <CardTitle icon={<FiPlayCircle aria-hidden="true" />}>
+                Ingestion Dashboard
+              </CardTitle>
               <p className="ai-card-description">
                 Monitor ingestion health, trigger manual runs, and review the
                 latest dataset snapshot.

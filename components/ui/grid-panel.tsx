@@ -16,7 +16,10 @@ export function GridPanel<T extends React.ElementType = "div">({
 }: GridPanelProps<T>) {
   const Component = as ?? "div";
   return (
-    <Component className={cn("ai-grid-panel", className)} {...(props as React.ComponentPropsWithoutRef<T>)}>
+    <Component
+      className={cn("ai-grid-panel", className)}
+      {...(props as React.ComponentPropsWithoutRef<T>)}
+    >
       {children}
     </Component>
   );
@@ -36,18 +39,12 @@ export function GridPanelItem<T extends React.ElementType = "button">({
   ...props
 }: GridPanelItemProps<T>) {
   const Component = as ?? "button";
-
-  const base =
-    "rounded-2xl border px-4 py-3 text-left font-semibold text-sm transition";
-  const activeClasses =
-    "border-[color:var(--ai-accent)] bg-[color:var(--ai-accent-bg)] text-[color:var(--ai-accent-strong)] shadow-[0_8px_20px_rgba(15,15,15,0.2)]";
-  const inactiveClasses =
-    "border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)] text-[color:var(--ai-text)] hover:border-[color:var(--ai-text-strong)]";
-
+  const isDisabled = Boolean(props.disabled);
   const mergedClassName = cn(
-    base,
-    active ? activeClasses : inactiveClasses,
-    className
+    "ai-grid-panel__item",
+    active ? "ai-grid-panel__item--active" : "ai-grid-panel__item--inactive",
+    isDisabled && "ai-grid-panel__item--disabled",
+    className,
   );
 
   const elementProps = {

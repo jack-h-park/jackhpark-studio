@@ -32,11 +32,11 @@ export function ProgressGroup({
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
+        <p className="text-sm font-semibold ai-text-strong">
           {label}
         </p>
         {meta ? (
-          <span className="text-xs text-[color:var(--ai-text-muted)]">{meta}</span>
+          <span className="text-xs ai-text-muted">{meta}</span>
         ) : null}
       </div>
       <div className="h-2 rounded-full bg-[color:var(--ai-border-muted)] overflow-hidden">

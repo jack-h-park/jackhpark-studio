@@ -32,7 +32,7 @@ export function TabPill({
       tabIndex={tabIndex}
       aria-selected={isActive}
       className={cn(
-        "ai-tab-pill",
+        "ai-button ai-button-size-default ai-button-pill ai-tab-pill",
         isActive ? "ai-tab-pill--active" : "ai-tab-pill--inactive",
         className,
       )}

@@ -17,11 +17,11 @@ export type StatCardProps = {
 };
 
 const toneClasses: Record<StatCardTone, string> = {
-  success: "text-[color:var(--ai-success)]",
-  warning: "text-[color:var(--ai-warning)]",
-  error: "text-[color:var(--ai-error)]",
-  info: "text-[color:var(--ai-accent)]",
-  muted: "text-[color:var(--ai-text-soft)]",
+  success: "ai-text-success",
+  warning: "ai-text-warning",
+  error: "ai-text-error",
+  info: "ai-text-info",
+  muted: "ai-text-soft",
 };
 
 export function StatCard({
@@ -32,26 +32,17 @@ export function StatCard({
   className,
 }: StatCardProps) {
   return (
-    <Card className={cn("space-y-3", className)}>
-      <CardContent className="space-y-6">
-        <p className="text-[0.65rem] uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]">
-          {label}
-        </p>
-        <div className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-          {value}
-        </div>
+    <Card className={cn("ai-stat-card", className)}>
+      <CardContent className="ai-stat-card__content">
+        <p className="ai-stat-card__label">{label}</p>
+        <div className="ai-stat-card__value">{value}</div>
         {delta ? (
-          <p
-            className={cn(
-              "text-sm font-semibold",
-              toneClasses[delta.tone ?? "muted"],
-            )}
-          >
+          <p className={cn("ai-stat-card__delta", toneClasses[delta.tone ?? "muted"])}>
             {delta.text}
           </p>
         ) : null}
         {meta ? (
-          <div className="text-sm text-[color:var(--ai-text-muted)]">
+          <div className="ai-stat-card__meta">
             {meta}
           </div>
         ) : null}

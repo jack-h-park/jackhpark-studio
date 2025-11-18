@@ -39,13 +39,13 @@ export function SliderNumberField({
         <Label htmlFor={id}>{label}</Label>
       </div>
       {description ? (
-        <p className="text-xs text-muted-foreground">{description}</p>
+        <p className="text-xs ai-text-muted">{description}</p>
       ) : null}
       <div className="flex items-center gap-3">
         <input
           id={`${id}-range`}
           type="range"
-          className="w-full"
+          className="ai-range"
           min={min}
           max={max}
           step={stepValue}
@@ -57,7 +57,7 @@ export function SliderNumberField({
         <Input
           id={id}
           type="number"
-          className="ai-field-sm ai-settings-section__number ai-settings-section__number--compact max-w-[110px] text-right"
+          className="ai-field-sm ai-settings-section__number ai-settings-section__number--compact"
           min={min}
           max={max}
           step={stepValue}

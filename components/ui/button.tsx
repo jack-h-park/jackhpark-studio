@@ -4,22 +4,25 @@ import { cn } from "./utils";
 
 const baseStyles = "ai-button";
 
-const variantStyles: Record<string, string> = {
+export const buttonVariantStyles = {
   default: "ai-button-default",
   outline: "ai-button-outline",
   ghost: "ai-button-ghost",
-};
+} as const;
 
-const sizeStyles: Record<string, string> = {
+export const buttonSizeStyles = {
   default: "ai-button-size-default",
   sm: "ai-button-size-sm",
   lg: "ai-button-size-lg",
   icon: "ai-button-size-icon",
-};
+} as const;
+
+export type ButtonVariant = keyof typeof buttonVariantStyles;
+export type ButtonSize = keyof typeof buttonSizeStyles;
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: keyof typeof variantStyles;
-  size?: keyof typeof sizeStyles;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -32,8 +35,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         type={type}
         className={cn(
           baseStyles,
-          variantStyles[variant] ?? variantStyles.default,
-          sizeStyles[size] ?? sizeStyles.default,
+          buttonVariantStyles[variant] ?? buttonVariantStyles.default,
+          buttonSizeStyles[size] ?? buttonSizeStyles.default,
           className,
         )}
         ref={ref}

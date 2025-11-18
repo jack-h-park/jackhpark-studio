@@ -12,10 +12,10 @@ export type ManualLogEntryProps = {
   className?: string;
 };
 
-const levelBorders: Record<ManualLogLevel, string> = {
-  info: "border-l-4 border-l-[color:var(--ai-accent)]",
-  warn: "border-l-4 border-l-[color:var(--ai-warning)]",
-  error: "border-l-4 border-l-[color:var(--ai-error)]",
+const levelClasses: Record<ManualLogLevel, string> = {
+  info: "ai-manual-log-entry--info",
+  warn: "ai-manual-log-entry--warn",
+  error: "ai-manual-log-entry--error",
 };
 
 export function ManualLogEntry({
@@ -28,15 +28,17 @@ export function ManualLogEntry({
   return (
     <li
       className={cn(
-        "grid grid-cols-[auto_1fr] gap-3 rounded-md bg-[color:var(--ai-bg)] px-3 py-3 shadow-[0_10px_30px_rgba(15,15,15,0.08)] border border-[color:var(--ai-border-muted)]",
-        levelBorders[level],
+        "ai-manual-log-entry",
+        levelClasses[level],
         className,
       )}
     >
-      <span className="text-[color:var(--ai-text-strong)]">{icon}</span>
+      <span className="ai-manual-log-entry__icon" aria-hidden="true">
+        {icon}
+      </span>
       <div className="space-y-1">
-        <p className="ai-meta-text">{timestamp}</p>
-        <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">{message}</p>
+        <p className="ai-manual-log-entry__timestamp">{timestamp}</p>
+        <p className="ai-manual-log-entry__message">{message}</p>
       </div>
     </li>
   );
