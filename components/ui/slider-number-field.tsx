@@ -13,8 +13,6 @@ export type SliderNumberFieldProps = {
   step?: number;
   disabled?: boolean;
   onChange: (value: number) => void;
-  /** Optional formatter for the value badge, e.g. v.toFixed(2) */
-  formatValue?: (value: number) => string;
   /** Optional helper text below the label */
   description?: string;
   /** Optional container className */
@@ -30,7 +28,6 @@ export function SliderNumberField({
   step,
   disabled,
   onChange,
-  formatValue,
   description,
   className,
 }: SliderNumberFieldProps) {
@@ -40,9 +37,6 @@ export function SliderNumberField({
     <div className={cn("space-y-1", className)}>
       <div className="flex items-baseline justify-between gap-3">
         <Label htmlFor={id}>{label}</Label>
-        <span className="text-xs text-muted-foreground">
-          {formatValue ? formatValue(value) : value}
-        </span>
       </div>
       {description ? (
         <p className="text-xs text-muted-foreground">{description}</p>

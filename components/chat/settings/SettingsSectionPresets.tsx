@@ -4,6 +4,7 @@ import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import { GridPanel, GridPanelItem } from "@/components/ui/grid-panel";
 
 type PresetKey = "default" | "fast" | "highRecall";
 
@@ -45,26 +46,20 @@ export function SettingsSectionPresets({
         AI Orchestration Presets
       </HeadingWithIcon>
       {helperText && <p className="ai-meta-text">{helperText}</p>}
-      <div className="presets-grid">
+      <GridPanel className="grid grid-cols-3 gap-[0.3rem]">
         {(["default", "fast", "highRecall"] as PresetKey[]).map((key) => {
           const isActive = sessionConfig.appliedPreset === key;
           return (
-            <button
+            <GridPanelItem
               key={key}
-              type="button"
+              active={isActive}
               onClick={() => applyPreset(key)}
-              aria-pressed={isActive}
-              className={`presets-grid__item rounded-2xl border px-4 py-3 text-left font-semibold text-sm transition ${
-                isActive
-                  ? "border-[color:var(--ai-accent)] bg-[color:var(--ai-accent-bg)] text-[color:var(--ai-accent-strong)] shadow-[0_8px_20px_rgba(15,15,15,0.2)]"
-                  : "border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)] text-[color:var(--ai-text)] hover:border-[color:var(--ai-text-strong)]"
-              }`}
             >
               {PRESET_LABELS[key]}
-            </button>
+            </GridPanelItem>
           );
         })}
-      </div>
+      </GridPanel>
     </section>
   );
 }

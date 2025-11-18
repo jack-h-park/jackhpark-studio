@@ -58,48 +58,28 @@ export function SettingsSectionRagRetrieval({
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="flex justify-between items-baseline gap-3">
-          <span>Top K</span>
-          {/* <span>{sessionConfig.rag.topK}</span> */}
-        </div>
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            className="w-full"
-            min={ragTopK.min}
-            max={ragTopK.max}
-            step={1}
-            disabled={!sessionConfig.rag.enabled}
-            value={sessionConfig.rag.topK}
-            onChange={(event) =>
-              updateSession((prev) => ({
-                ...prev,
-                rag: {
-                  ...prev.rag,
-                  topK: Number(event.target.value),
-                },
-              }))
-            }
-          />
-          <Input
-            type="number"
-            className="ai-field-sm ai-settings-section__number ai-settings-section__number--compact max-w-[110px] text-right"
-            min={ragTopK.min}
-            max={ragTopK.max}
-            disabled={!sessionConfig.rag.enabled}
-            value={sessionConfig.rag.topK}
-            aria-label="Top K value"
-            onChange={(event) =>
-              updateSession((prev) => ({
-                ...prev,
-                rag: {
-                  ...prev.rag,
-                  topK: Math.round(Number(event.target.value) || 0),
-                },
-              }))
-            }
-          />
-        </div>
+        <SliderNumberField
+          id="settings-top-k"
+          label="Top K"
+          value={sessionConfig.rag.topK}
+          min={ragTopK.min}
+          max={ragTopK.max}
+          step={1}
+          disabled={!sessionConfig.rag.enabled}
+          onChange={(topK) => {
+            const sanitized = Math.max(
+              ragTopK.min,
+              Math.min(ragTopK.max, Math.round(topK)),
+            );
+            updateSession((prev) => ({
+              ...prev,
+              rag: {
+                ...prev.rag,
+                topK: sanitized,
+              },
+            }));
+          }}
+        />
       </div>
 
       <div className="flex flex-col gap-3">
@@ -111,7 +91,6 @@ export function SettingsSectionRagRetrieval({
           max={similarityThreshold.max}
           step={0.01}
           disabled={!sessionConfig.rag.enabled}
-          formatValue={formatSimilarity}
           onChange={(similarity) =>
             updateSession((prev) => ({
               ...prev,

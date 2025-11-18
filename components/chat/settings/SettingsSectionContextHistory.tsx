@@ -4,7 +4,7 @@ import { FiClock } from "@react-icons/all-files/fi/FiClock";
 
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
-import { Input } from "@/components/ui/input";
+import { SliderNumberField } from "@/components/ui/slider-number-field";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -64,50 +64,28 @@ export function SettingsSectionContextHistory({
       </HeadingWithIcon>
       <div className="flex flex-col gap-3">
         {inputs.map(({ key, label, limit }) => (
-          <div key={key} className="flex flex-col gap-1.5">
-            <div className="flex justify-between items-baseline gap-3">
-              <span>{label}</span>
-              {/* <span>{sessionConfig.context[key]}</span> */}
-            </div>
-            <div className="flex items-center gap-3">
-              <input
-                type="range"
-                className="w-full"
-                min={limit.min}
-                max={limit.max}
-                step={1}
-                value={sessionConfig.context[key]}
-                onChange={(event) =>
-                  updateSession((prev) => ({
-                    ...prev,
-                    context: {
-                      ...prev.context,
-                      [key]: Number(event.target.value),
-                    },
-                  }))
-                }
-              />
-              <Input
-                type="number"
-                min={limit.min}
-                max={limit.max}
-                className="ai-field-sm ai-settings-section__number ai-settings-section__number--compact max-w-[110px] text-right"
-                value={sessionConfig.context[key]}
-                aria-label={`${label} value`}
-                onChange={(event) =>
-                  updateSession((prev) => ({
-                    ...prev,
-                    context: {
-                      ...prev.context,
-                      [key]: Math.round(
-                        Number(event.target.value) || limit.min,
-                      ),
-                    },
-                  }))
-                }
-              />
-            </div>
-          </div>
+          <SliderNumberField
+            key={key}
+            id={`settings-${key}`}
+            label={label}
+            value={sessionConfig.context[key]}
+            min={limit.min}
+            max={limit.max}
+            step={1}
+            onChange={(value) => {
+              const sanitized = Math.max(
+                limit.min,
+                Math.min(limit.max, Math.round(value)),
+              );
+              updateSession((prev) => ({
+                ...prev,
+                context: {
+                  ...prev.context,
+                  [key]: sanitized,
+                },
+              }));
+            }}
+          />
         ))}
       </div>
     </section>
