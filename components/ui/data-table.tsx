@@ -8,6 +8,8 @@ export type DataTableColumn<T> = {
   align?: "left" | "center" | "right";
   className?: string;
   width?: string;
+  variant?: "primary" | "muted" | "numeric" | "code";
+  size?: "sm" | "xs";
 };
 
 export type DataTableProps<T> = {
@@ -30,6 +32,22 @@ export function DataTable<T>({
   className,
 }: DataTableProps<T>) {
   const hasData = data.length > 0;
+  const variantClassMap: Record<
+    NonNullable<DataTableColumn<any>["variant"]>,
+    string
+  > = {
+    primary: "text-[color:var(--ai-text-soft)]",
+    muted: "text-[color:var(--ai-text-muted)]",
+    numeric: "text-[color:var(--ai-text-soft)] font-mono",
+    code: "font-mono text-[color:var(--ai-text-soft)]",
+  };
+  const sizeClassMap: Record<
+    NonNullable<DataTableColumn<any>["size"]>,
+    string
+  > = {
+    sm: "text-sm",
+    xs: "text-xs",
+  };
 
   return (
     <div
@@ -110,6 +128,8 @@ export function DataTable<T>({
                           className={cn(
                             "ai-data-table__cell",
                             alignment,
+                            sizeClassMap[column.size ?? "sm"],
+                            variantClassMap[column.variant ?? "primary"],
                             column.className,
                           )}
                           style={column.width ? { width: column.width } : undefined}

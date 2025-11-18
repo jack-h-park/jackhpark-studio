@@ -2674,6 +2674,8 @@ function RecentRunsSection({
       {
         header: "Started",
         render: (run) => <ClientSideDate value={run.started_at} />,
+        variant: "muted",
+        size: "xs",
       },
       {
         header: "Status",
@@ -2757,11 +2759,15 @@ function RecentRunsSection({
               : formatEmbeddingSpaceLabel(embeddingSpaceId);
           return embeddingModelLabel;
         },
+        variant: "primary",
+        size: "xs",
       },
       {
         header: "Duration",
         render: (run) => formatDuration(run.duration_ms ?? 0),
         align: "right",
+        variant: "numeric",
+        size: "xs",
       },
       {
         header: "Chunks",
@@ -2774,6 +2780,8 @@ function RecentRunsSection({
           </div>
         ),
         align: "right",
+        variant: "muted",
+        size: "xs",
       },
       {
         header: "Docs",
@@ -2789,16 +2797,22 @@ function RecentRunsSection({
           </div>
         ),
         align: "right",
+        variant: "muted",
+        size: "xs",
       },
       {
         header: "Data Added",
         render: (run) => formatCharacters(run.characters_added ?? 0),
         align: "right",
+        variant: "numeric",
+        size: "xs",
       },
       {
         header: "Data Updated",
         render: (run) => formatCharacters(run.characters_updated ?? 0),
         align: "right",
+        variant: "numeric",
+        size: "xs",
       },
       {
         header: "Notes",
@@ -2880,6 +2894,7 @@ function RecentRunsSection({
             </div>
           );
         },
+        size: "xs",
       },
       {
         header: "Actions",

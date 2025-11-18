@@ -471,8 +471,6 @@ footer {
 
 .ai-data-table__cell {
   padding: 0.65rem 1rem;
-  font-size: 0.95rem;
-  color: var(--ai-text);
   vertical-align: top;
 }
 
