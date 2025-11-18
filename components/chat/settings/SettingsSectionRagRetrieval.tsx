@@ -59,7 +59,7 @@ export function SettingsSectionRagRetrieval({
       <div className="flex flex-col gap-3">
         <div className="flex justify-between items-baseline gap-3">
           <span>Top K</span>
-          <span>{sessionConfig.rag.topK}</span>
+          {/* <span>{sessionConfig.rag.topK}</span> */}
         </div>
         <div className="flex items-center gap-3">
           <input
@@ -104,7 +104,7 @@ export function SettingsSectionRagRetrieval({
       <div className="flex flex-col gap-3">
         <div className="flex justify-between items-baseline gap-3">
           <span>Similarity Threshold</span>
-          <span>{formatSimilarity(sessionConfig.rag.similarity)}</span>
+          {/* <span>{formatSimilarity(sessionConfig.rag.similarity)}</span> */}
         </div>
         <div className="flex items-center gap-3">
           <input

@@ -65,6 +65,13 @@ export function SettingsSectionPresets({
           );
         })}
       </div>
+      <div className="ai-settings-section__cascade" aria-hidden="true">
+        <span>Model &amp; Engine</span>
+        <span>RAG &amp; Retrieval</span>
+        <span>Context &amp; History</span>
+        <span>Summaries</span>
+        <span>User Prompt</span>
+      </div>
     </section>
   );
 }

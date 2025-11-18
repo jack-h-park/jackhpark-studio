@@ -67,7 +67,7 @@ export function SettingsSectionContextHistory({
           <div key={key} className="flex flex-col gap-1.5">
             <div className="flex justify-between items-baseline gap-3">
               <span>{label}</span>
-              <span>{sessionConfig.context[key]}</span>
+              {/* <span>{sessionConfig.context[key]}</span> */}
             </div>
             <div className="flex items-center gap-3">
               <input
