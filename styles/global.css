@@ -1707,3 +1707,28 @@ footer {
   cursor: not-allowed;
   opacity: 0.65;
 }
+
+@layer components {
+  .ai-allowlist-tile {
+    @apply rounded-2xl border px-3 py-2 text-left text-sm transition;
+    @apply focus-visible:outline-none focus-visible:ring-2;
+    --tw-ring-color: var(--ai-primary);
+  }
+
+  .ai-allowlist-tile--selected {
+    @apply shadow-inner;
+    border-color: var(--ai-border);
+    background: var(--ai-bg-muted);
+    color: var(--ai-text-strong);
+  }
+
+  .ai-allowlist-tile--idle {
+    border-color: var(--ai-border-muted);
+    background: var(--ai-bg-subtle);
+    color: var(--ai-text-muted);
+  }
+
+  .ai-allowlist-tile--idle:hover {
+    border-color: var(--ai-border);
+  }
+}

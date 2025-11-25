@@ -29,6 +29,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AllowlistTile } from "@/components/ui/allowlist-tile";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
@@ -41,7 +42,6 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/components/ui/utils";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import {
   getAdminChatConfig,
@@ -640,29 +640,19 @@ function AdminChatConfigForm({
             <div className="grid gap-2 sm:grid-cols-2">
               {CHAT_ENGINE_OPTIONS.map((engine) => {
                 const isSelected = config.allowlist.chatEngines.includes(engine);
+                const label = CHAT_ENGINE_LABELS[engine] ?? engine;
                 return (
-                  <button
+                  <AllowlistTile
                     key={engine}
-                    type="button"
-                    aria-pressed={isSelected}
-                    title={`Enable ${CHAT_ENGINE_LABELS[engine] ?? engine}`}
-                    className={cn(
-                      "rounded-2xl border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--ai-primary)]",
-                      isSelected
-                        ? "border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)] text-[color:var(--ai-text-strong)] shadow-inner"
-                        : "border-[color:var(--ai-border-muted)] bg-[color:var(--ai-bg-subtle)] text-[color:var(--ai-text-muted)] hover:border-[color:var(--ai-border)]",
-                    )}
+                    id={engine}
+                    label={label}
+                    subtitle={engine}
+                    description={`Enable ${label}`}
+                    selected={isSelected}
                     onClick={() =>
                       toggleAllowlistValue("chatEngines", engine, !isSelected)
                     }
-                  >
-                    <span className="font-semibold">
-                      {CHAT_ENGINE_LABELS[engine] ?? engine}
-                    </span>
-                    <span className="block text-[0.65rem] font-mono uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
-                      {engine}
-                    </span>
-                  </button>
+                  />
                 );
               })}
             </div>
@@ -675,30 +665,19 @@ function AdminChatConfigForm({
             <Label>LLM Models</Label>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {llmModelOptions.map((option) => {
-                const isSelected = config.allowlist.llmModels.includes(
-                  option.id,
-                );
+                const isSelected = config.allowlist.llmModels.includes(option.id);
                 return (
-                  <button
+                  <AllowlistTile
                     key={option.id}
-                    type="button"
-                    aria-pressed={isSelected}
-                    title={`Use ${option.id}`}
-                    className={cn(
-                      "rounded-2xl border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--ai-primary)]",
-                      isSelected
-                        ? "border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)] text-[color:var(--ai-text-strong)] shadow-inner"
-                        : "border-[color:var(--ai-border-muted)] bg-[color:var(--ai-bg-subtle)] text-[color:var(--ai-text-muted)] hover:border-[color:var(--ai-border)]",
-                    )}
+                    id={option.id}
+                    label={option.label}
+                    subtitle={option.id}
+                    description={`Use ${option.id}`}
+                    selected={isSelected}
                     onClick={() =>
                       toggleAllowlistValue("llmModels", option.id, !isSelected)
                     }
-                  >
-                    <span className="font-semibold">{option.label}</span>
-                    <span className="block text-[0.65rem] font-mono uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
-                      {option.id}
-                    </span>
-                  </button>
+                  />
                 );
               })}
             </div>
@@ -716,17 +695,13 @@ function AdminChatConfigForm({
                   space.embeddingSpaceId,
                 );
                 return (
-                  <button
+                  <AllowlistTile
                     key={space.embeddingSpaceId}
-                    type="button"
-                    aria-pressed={isSelected}
-                    title={`Enable ${space.label}`}
-                    className={cn(
-                      "rounded-2xl border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--ai-primary)]",
-                      isSelected
-                        ? "border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)] text-[color:var(--ai-text-strong)] shadow-inner"
-                        : "border-[color:var(--ai-border-muted)] bg-[color:var(--ai-bg-subtle)] text-[color:var(--ai-text-muted)] hover:border-[color:var(--ai-border)]",
-                    )}
+                    id={space.embeddingSpaceId}
+                    label={space.label}
+                    subtitle={space.embeddingSpaceId}
+                    description={`Enable ${space.label}`}
+                    selected={isSelected}
                     onClick={() =>
                       toggleAllowlistValue(
                         "embeddingModels",
@@ -734,12 +709,7 @@ function AdminChatConfigForm({
                         !isSelected,
                       )
                     }
-                  >
-                    <span className="font-semibold">{space.label}</span>
-                    <span className="block text-[0.65rem] font-mono uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
-                      {space.embeddingSpaceId}
-                    </span>
-                  </button>
+                  />
                 );
               })}
             </div>
@@ -754,27 +724,19 @@ function AdminChatConfigForm({
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {RANKER_OPTIONS.map((ranker) => {
                 const isSelected = config.allowlist.rankers.includes(ranker);
+                const description = RANKER_DESCRIPTIONS[ranker];
                 return (
-                  <button
+                  <AllowlistTile
                     key={ranker}
-                    type="button"
-                    aria-pressed={isSelected}
-                    title={RANKER_DESCRIPTIONS[ranker]}
-                    className={cn(
-                      "rounded-2xl border px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[color:var(--ai-primary)]",
-                      isSelected
-                        ? "border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)] text-[color:var(--ai-text-strong)] shadow-inner"
-                        : "border-[color:var(--ai-border-muted)] bg-[color:var(--ai-bg-subtle)] text-[color:var(--ai-text-muted)] hover:border-[color:var(--ai-border)]",
-                    )}
+                    id={ranker}
+                    label={ranker}
+                    subtitle={description}
+                    description={description}
+                    selected={isSelected}
                     onClick={() =>
                       toggleAllowlistValue("rankers", ranker, !isSelected)
                     }
-                  >
-                    <span className="font-semibold">{ranker}</span>
-                    <span className="block text-[0.65rem] uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
-                      {RANKER_DESCRIPTIONS[ranker]}
-                    </span>
-                  </button>
+                  />
                 );
               })}
             </div>

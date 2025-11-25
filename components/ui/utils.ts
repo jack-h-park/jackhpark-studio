@@ -1,4 +1,1 @@
-export function cn(...classes: Array<string | undefined | null | false>) {
-  return classes.filter(Boolean).join(" ");
-}
-
+export { cn } from "@/lib/utils";
