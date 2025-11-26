@@ -17,10 +17,13 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { listLlmModelOptions } from "@/lib/core/llm-registry";
-import { CHAT_ENGINE_LABELS, type ChatEngine } from "@/lib/shared/model-provider";
+import {
+  CHAT_ENGINE_LABELS,
+  type ChatEngine,
+} from "@/lib/shared/model-provider";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -121,7 +124,10 @@ export function SettingsSectionModelEngine({
             />
             <SelectContent>
               {embeddingOptions.map((space) => (
-                <SelectItem key={space.embeddingSpaceId} value={space.embeddingSpaceId}>
+                <SelectItem
+                  key={space.embeddingSpaceId}
+                  value={space.embeddingSpaceId}
+                >
                   {space.label}
                 </SelectItem>
               ))}
@@ -157,11 +163,11 @@ export function SettingsSectionModelEngine({
 
         <div className="ai-settings-section__switches flex flex-wrap gap-3 mt-1.5">
           {adminConfig.allowlist.allowReverseRAG && (
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)] px-3 py-2">
+            <div className="flex items-center justify-between gap-3 rounded-2xl bg-[color:var(--ai-bg-muted)]">
               <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
                 Reverse RAG
               </p>
-              <Switch
+              <Checkbox
                 className="flex-shrink-0"
                 checked={sessionConfig.features.reverseRAG}
                 onCheckedChange={(checked) =>
@@ -173,17 +179,17 @@ export function SettingsSectionModelEngine({
                     },
                   }))
                 }
-                aria-label="Toggle Reverse RAG"
+                aria-label="Enable Reverse RAG"
               />
             </div>
           )}
 
           {adminConfig.allowlist.allowHyde && (
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-[color:var(--ai-border)] bg-[color:var(--ai-bg-muted)] px-3 py-2">
+            <div className="flex items-center justify-between gap-3 rounded-2xl">
               <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
                 HyDE
               </p>
-              <Switch
+              <Checkbox
                 className="flex-shrink-0"
                 checked={sessionConfig.features.hyde}
                 onCheckedChange={(checked) =>
@@ -195,7 +201,7 @@ export function SettingsSectionModelEngine({
                     },
                   }))
                 }
-                aria-label="Toggle HyDE"
+                aria-label="Enable HyDE"
               />
             </div>
           )}
@@ -205,15 +211,15 @@ export function SettingsSectionModelEngine({
           <Label htmlFor="settings-ranker">Ranker</Label>
           <Select
             value={sessionConfig.features.ranker}
-          onValueChange={(value) =>
-            handleFieldChange((prev) => ({
-              ...prev,
-              features: {
-                ...prev.features,
-                ranker: value as RankerId,
-              },
-            }))
-          }
+            onValueChange={(value) =>
+              handleFieldChange((prev) => ({
+                ...prev,
+                features: {
+                  ...prev.features,
+                  ranker: value as RankerId,
+                },
+              }))
+            }
           >
             <SelectTrigger
               id="settings-ranker"

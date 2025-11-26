@@ -1002,8 +1002,8 @@ footer {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
-  width: 46px;
-  height: 24px;
+  width: 37px;
+  height: 19px;
   padding: 2px;
   border-radius: var(--ai-radius-pill);
   border: 1px solid hsl(var(--ai-border));
@@ -1025,8 +1025,8 @@ footer {
 }
 
 .ai-switch-control__thumb {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 999px;
   background: hsl(var(--ai-bg));
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.2);
@@ -1041,7 +1041,7 @@ footer {
 
 .ai-switch-control[data-state="checked"] .ai-switch-control__thumb {
   background: color-mix(in srgb, var(--ai-accent) 90%, white);
-  transform: translateX(22px);
+  transform: translateX(17px);
 }
 
 /* Checkbox primitive for dense admin filters */

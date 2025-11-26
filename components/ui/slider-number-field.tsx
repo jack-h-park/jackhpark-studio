@@ -45,7 +45,7 @@ export function SliderNumberField({
         <input
           id={`${id}-range`}
           type="range"
-          className="ai-range"
+          className="ai-range flex-[3]"
           min={min}
           max={max}
           step={stepValue}
@@ -57,7 +57,7 @@ export function SliderNumberField({
         <Input
           id={id}
           type="number"
-          className="ai-field-sm ai-settings-section__number ai-settings-section__number--compact"
+          className="ai-field-sm flex-[1] ai-settings-section__number ai-settings-section__number--compact"
           min={min}
           max={max}
           step={stepValue}
