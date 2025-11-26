@@ -225,7 +225,11 @@ function AdminChatConfigForm({
     }));
   };
 
-  type AllowlistKey = "llmModels" | "embeddingModels" | "rankers" | "chatEngines";
+  type AllowlistKey =
+    | "llmModels"
+    | "embeddingModels"
+    | "rankers"
+    | "chatEngines";
   type AllowlistValueMap = {
     llmModels: LlmModelId;
     embeddingModels: EmbeddingModelId;
@@ -527,11 +531,11 @@ function AdminChatConfigForm({
             return (
               <div
                 key={key}
-                className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm sm:p-5"
+                className="rounded-2xl border border-slate-200 p-4 shadow-sm sm:p-5"
               >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold ">
                       {numericLimitLabels[key]}
                     </p>
                     <p className="ai-meta-text">
@@ -639,7 +643,8 @@ function AdminChatConfigForm({
             <Label>Chat Engines</Label>
             <div className="grid gap-2 sm:grid-cols-2">
               {CHAT_ENGINE_OPTIONS.map((engine) => {
-                const isSelected = config.allowlist.chatEngines.includes(engine);
+                const isSelected =
+                  config.allowlist.chatEngines.includes(engine);
                 const label = CHAT_ENGINE_LABELS[engine] ?? engine;
                 return (
                   <AllowlistTile
@@ -665,7 +670,9 @@ function AdminChatConfigForm({
             <Label>LLM Models</Label>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {llmModelOptions.map((option) => {
-                const isSelected = config.allowlist.llmModels.includes(option.id);
+                const isSelected = config.allowlist.llmModels.includes(
+                  option.id,
+                );
                 return (
                   <AllowlistTile
                     key={option.id}
