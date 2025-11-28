@@ -72,13 +72,13 @@ export function Tabs({
                   {tab.icon}
                 </span>
               ) : null}
-              <span className="flex flex-col items-start gap-0.5 text-left">
-                <span>{tab.label}</span>
-                {tab.subtitle ? (
-                  <span className="text-xs font-normal ai-text-muted">
+              <span className="ai-choice items-start text-left">
+                <span className="ai-choice__label">{tab.label}</span>
+                {tab.subtitle && (
+                  <span className="ai-choice__description">
                     {tab.subtitle}
                   </span>
-                ) : null}
+                )}
               </span>
             </span>
           </button>

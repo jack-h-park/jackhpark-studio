@@ -138,10 +138,13 @@ function AdminChatConfigForm({
   const [contextHistoryEnabled, setContextHistoryEnabled] = useState<
     Record<PresetKey, boolean>
   >(() =>
-    presetDisplayOrder.reduce<Record<PresetKey, boolean>>((acc, presetKey) => {
-      acc[presetKey] = true;
-      return acc;
-    }, {} as Record<PresetKey, boolean>),
+    presetDisplayOrder.reduce<Record<PresetKey, boolean>>(
+      (acc, presetKey) => {
+        acc[presetKey] = true;
+        return acc;
+      },
+      {} as Record<PresetKey, boolean>,
+    ),
   );
 
   useEffect(() => {
@@ -424,8 +427,10 @@ function AdminChatConfigForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="coreSummary">System Core Behavior</Label>
+          <div className="ai-field">
+            <Label htmlFor="coreSummary" className="ai-field__label">
+              System Core Behavior
+            </Label>
             <Textarea
               id="coreSummary"
               value={config.coreSystemPromptSummary}
@@ -437,13 +442,15 @@ function AdminChatConfigForm({
               }
               rows={3}
             />
-            <p className="ai-meta-text">
+            <p className="ai-field__description">
               Shown as the “System Core Behavior” description in the chat
               settings drawer.
             </p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="userPromptDefault">User System Prompt</Label>
+          <div className="ai-field">
+            <Label htmlFor="userPromptDefault" className="ai-field__label">
+              User System Prompt
+            </Label>
             <Textarea
               id="userPromptDefault"
               value={config.userSystemPromptDefault}
@@ -456,8 +463,13 @@ function AdminChatConfigForm({
               rows={4}
             />
           </div>
-          <div className="grid max-w-sm items-center gap-2">
-            <Label htmlFor="userPromptMaxLength">Prompt max length</Label>
+          <div className="ai-field max-w-sm">
+            <Label
+              htmlFor="userPromptMaxLength"
+              className="ai-field__label"
+            >
+              Prompt max length
+            </Label>
             <Input
               id="userPromptMaxLength"
               type="number"
@@ -485,8 +497,13 @@ function AdminChatConfigForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="guardrailKeywords">Chit-chat keywords</Label>
+          <div className="ai-field">
+            <Label
+              htmlFor="guardrailKeywords"
+              className="ai-field__label"
+            >
+              Chit-chat keywords
+            </Label>
             <Textarea
               id="guardrailKeywords"
               rows={3}
@@ -501,13 +518,16 @@ function AdminChatConfigForm({
                 }))
               }
             />
-            <p className="ai-meta-text">
+            <p className="ai-field__description">
               Add keywords or phrases that should be treated as lightweight
               chit-chat and handled without hitting the knowledge base.
             </p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="guardrailFallbackChitchat">
+          <div className="ai-field">
+            <Label
+              htmlFor="guardrailFallbackChitchat"
+              className="ai-field__label"
+            >
               Chit-chat fallback context
             </Label>
             <Textarea
@@ -524,13 +544,16 @@ function AdminChatConfigForm({
               }
               rows={3}
             />
-            <p className="ai-meta-text">
+            <p className="ai-field__description">
               The concise, friendly prompt injected whenever a chit-chat intent
               is detected.
             </p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="guardrailFallbackCommand">
+          <div className="ai-field">
+            <Label
+              htmlFor="guardrailFallbackCommand"
+              className="ai-field__label"
+            >
               Command fallback context
             </Label>
             <Textarea
@@ -581,7 +604,7 @@ function AdminChatConfigForm({
                     <p className="text-sm font-semibold ">
                       {numericLimitLabels[key]}
                     </p>
-                    <p className="ai-meta-text">
+                    <p className="ai-field__description">
                       Set guardrails for this value across presets.
                     </p>
                   </div>
@@ -590,11 +613,10 @@ function AdminChatConfigForm({
                   </span>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <div className="space-y-1">
+                  <div className="ai-field">
                     <Label
                       htmlFor={`${key}-min`}
-                      size="xs"
-                      className="font-semibold text-slate-500"
+                      className="ai-field__label"
                     >
                       Min
                     </Label>
@@ -613,11 +635,10 @@ function AdminChatConfigForm({
                       max={key === "similarityThreshold" ? 1 : undefined}
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="ai-field">
                     <Label
                       htmlFor={`${key}-default`}
-                      size="xs"
-                      className="font-semibold text-slate-500"
+                      className="ai-field__label"
                     >
                       Default
                     </Label>
@@ -637,11 +658,10 @@ function AdminChatConfigForm({
                       step={key === "similarityThreshold" ? 0.01 : 1}
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="ai-field">
                     <Label
                       htmlFor={`${key}-max`}
-                      size="xs"
-                      className="font-semibold text-slate-500"
+                      className="ai-field__label"
                     >
                       Max
                     </Label>
@@ -695,7 +715,7 @@ function AdminChatConfigForm({
                     id={engine}
                     label={label}
                     subtitle={engine}
-                    description={`Enable ${label}`}
+                    // description={`Enable ${label}`}
                     selected={isSelected}
                     onClick={() =>
                       toggleAllowlistValue("chatEngines", engine, !isSelected)
@@ -722,7 +742,7 @@ function AdminChatConfigForm({
                     id={option.id}
                     label={option.label}
                     subtitle={option.id}
-                    description={`Use ${option.id}`}
+                    // description={`Use ${option.id}`}
                     selected={isSelected}
                     onClick={() =>
                       toggleAllowlistValue("llmModels", option.id, !isSelected)
@@ -1024,9 +1044,10 @@ function AdminChatConfigForm({
                   const preset = config.presets[presetKey];
                   const toggleLabelId = `${headerLabelId}-toggle-${presetKey}`;
                   return (
-                    <div className="inline-flex items-center gap-2 text-sm">
+                    <div className="inline-flex items-center gap-2">
                       <span className="sr-only" id={toggleLabelId}>
-                        Toggle Retrieval (RAG) for {presetDisplayNames[presetKey]}
+                        Toggle Retrieval (RAG) for{" "}
+                        {presetDisplayNames[presetKey]}
                       </span>
                       <Switch
                         className="flex-shrink-0"
@@ -1042,7 +1063,9 @@ function AdminChatConfigForm({
                           }))
                         }
                       />
-                      <span>Enabled</span>
+                      <div className="ai-choice">
+                        <span className="ai-choice__label">Enabled</span>
+                      </div>
                     </div>
                   );
                 }}
@@ -1179,7 +1202,9 @@ function AdminChatConfigForm({
                         name={`${presetKey}-summary`}
                         value={level}
                         label={level}
-                        checked={config.presets[presetKey].summaryLevel === level}
+                        checked={
+                          config.presets[presetKey].summaryLevel === level
+                        }
                         disabled={!config.presets[presetKey].rag.enabled}
                         onChange={() =>
                           updatePreset(presetKey, (prev) => ({
@@ -1199,9 +1224,10 @@ function AdminChatConfigForm({
                   const toggleLabelId = `${headerLabelId}-toggle-${presetKey}`;
                   const isEnabled = contextHistoryEnabled[presetKey] ?? true;
                   return (
-                    <div className="inline-flex items-center gap-2 text-sm">
+                    <div className="inline-flex items-center gap-2">
                       <span className="sr-only" id={toggleLabelId}>
-                        Toggle Context & History editing for {presetDisplayNames[presetKey]}
+                        Toggle Context & History editing for{" "}
+                        {presetDisplayNames[presetKey]}
                       </span>
                       <Switch
                         className="flex-shrink-0"
@@ -1214,7 +1240,9 @@ function AdminChatConfigForm({
                           }))
                         }
                       />
-                      <span>Enabled</span>
+                      <div className="ai-choice">
+                        <span className="ai-choice__label">Enabled</span>
+                      </div>
                     </div>
                   );
                 }}
@@ -1311,20 +1339,25 @@ function AdminChatConfigForm({
                   This is for read-only.
                 </p>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Switch
-                    id="word-wrap-toggle"
-                    checked={isWordWrapEnabled}
-                    onCheckedChange={setIsWordWrapEnabled}
-                  />
-                  <Label htmlFor="word-wrap-toggle" className="text-sm cursor-pointer">
-                    Word Wrap
-                  </Label>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="word-wrap-toggle"
+                      checked={isWordWrapEnabled}
+                      onCheckedChange={setIsWordWrapEnabled}
+                    />
+                    <div className="ai-choice">
+                      <Label
+                        htmlFor="word-wrap-toggle"
+                        className="ai-choice__label cursor-pointer"
+                      >
+                        Word Wrap
+                      </Label>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                   className="shrink-0"
                   type="button"
                   onClick={() => setIsRawModalOpen(false)}
@@ -1336,13 +1369,13 @@ function AdminChatConfigForm({
             <div
               className={cn(
                 "flex-1 w-full min-w-0 p-6 bg-[hsl(var(--ai-bg))]",
-                isWordWrapEnabled ? "overflow-y-auto" : "overflow-auto"
+                isWordWrapEnabled ? "overflow-y-auto" : "overflow-auto",
               )}
             >
               <pre
                 className={cn(
                   "text-xs font-mono text-[var(--ai-text)]",
-                  isWordWrapEnabled ? "whitespace-pre-wrap" : "whitespace-pre"
+                  isWordWrapEnabled ? "whitespace-pre-wrap" : "whitespace-pre",
                 )}
               >
                 {JSON.stringify(config, null, 2)}

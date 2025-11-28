@@ -376,8 +376,10 @@ body {
   color: var(--ai-text);
 }
 
-.dark .ai-radio__description,
-.dark-mode .ai-radio__description,
+.dark .ai-choice__description,
+.dark-mode .ai-choice__description,
+.dark .ai-field__description,
+.dark-mode .ai-field__description,
 .dark .ai-control-tile__description,
 .dark-mode .ai-control-tile__description {
   color: var(--ai-text);
@@ -549,6 +551,55 @@ footer {
 }
 
 /* Radio controls */
+
+/* Shared choice primitives (radio, tiles, switches with label+description) */
+.ai-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.ai-choice__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ai-choice__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ai-text-strong);
+}
+
+.ai-choice__description {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--ai-text-muted);
+  margin: 0;
+}
+
+/* Shared field primitives (form labels + descriptions) */
+.ai-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ai-field__label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ai-text-muted);
+}
+
+.ai-field__description {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--ai-text-soft);
+}
 
 /* Button primitives for AI forms and controls. */
 .ai-button {
@@ -1217,6 +1268,37 @@ footer {
 .ai-tab-control--disabled {
   cursor: not-allowed;
   opacity: 0.65;
+}
+
+/* Shared selectable surface primitives (tiles, option cards, chips) */
+.ai-selectable {
+  border-radius: var(--ai-radius-md);
+  border: 1px solid var(--ai-border-soft);
+  background-color: hsl(var(--ai-bg-muted));
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    color 0.15s ease;
+}
+
+.ai-selectable--hoverable:hover:not(:disabled):not(.ai-selectable--disabled) {
+  border-color: var(--ai-border-strong);
+  background-color: hsl(var(--ai-bg-muted));
+}
+
+.ai-selectable--active {
+  border-color: var(--ai-accent-strong);
+  background-color: var(--ai-accent-soft);
+  box-shadow: var(--ai-shadow-soft);
+}
+
+.ai-selectable--disabled {
+  border-color: var(--ai-border-muted);
+  background-color: hsl(var(--ai-bg-muted));
+  color: var(--ai-text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 @layer components {

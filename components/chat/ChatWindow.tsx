@@ -1467,11 +1467,13 @@ export function ChatWindow({
                   </div>
                 </div>
                 <div className="chat-control-block">
-                  <span className="chat-control-label">Telemetry badges</span>
                   <div className="guardrail-toggle-row">
-                    <span className="guardrail-description">
-                      Show engine, guardrail, and enhancement insights
-                    </span>
+                    <div className="guardrail-description ai-choice">
+                      <span className="ai-choice__label">Telemetry badges</span>
+                      <p className="ai-choice__description">
+                        Show engine, guardrail, and enhancement insights
+                      </p>
+                    </div>
                     <Switch
                       className="guardrail-toggle-row__switch"
                       checked={showTelemetry}
@@ -1480,9 +1482,11 @@ export function ChatWindow({
                     />
                   </div>
                   <div className="guardrail-toggle-row guardrail-toggle-row--auto">
-                    <span className="guardrail-description">
-                      Auto expand telemetry on toggle
-                    </span>
+                    <div className="guardrail-description ai-choice">
+                      <span className="ai-choice__label">
+                        Auto expand telemetry on toggle
+                      </span>
+                    </div>
                     <Switch
                       className="guardrail-toggle-row__switch"
                       checked={telemetryAutoExpand}
@@ -1492,11 +1496,13 @@ export function ChatWindow({
                   </div>
                 </div>
                 <div className="chat-control-block">
-                  <span className="chat-control-label">Citations</span>
                   <div className="guardrail-toggle-row">
-                    <span className="guardrail-description">
-                      Show every retrieved source (tiny text)
-                    </span>
+                    <div className="guardrail-description ai-choice">
+                      <span className="ai-choice__label">Citations</span>
+                      <p className="ai-choice__description">
+                        Show every retrieved source (tiny text)
+                      </p>
+                    </div>
                     <Switch
                       className="guardrail-toggle-row__switch"
                       checked={showCitations}

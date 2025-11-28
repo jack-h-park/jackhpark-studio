@@ -195,8 +195,10 @@ export function SettingsSectionRagRetrieval({
         )}
       </div>
 
-      <div className="space-y-1 pt-2">
-        <Label htmlFor="settings-ranker">Ranker</Label>
+      <div className="ai-field pt-2">
+        <Label htmlFor="settings-ranker" className="ai-field__label">
+          Ranker
+        </Label>
         <Select
           value={sessionConfig.features.ranker}
           onValueChange={(value) =>
@@ -250,6 +252,7 @@ export function SettingsSectionRagRetrieval({
           ))}
         </div>
       </div>
+
     </section>
   );
 }

@@ -37,19 +37,24 @@ export function AllowlistTile({
       onClick={onClick}
       disabled={disabled}
     >
-      <span className="ai-allowlist-tile__label-row">
-        <span className="font-semibold ai-allowlist-tile__label-text">
-          {label}
-        </span>
-        {selected && (
-          <span
-            className="ai-allowlist-tile__check align-middle"
-            aria-hidden="true"
-          >
-            ✓
+      <div className="ai-choice">
+        <span className="ai-choice__label-row ai-allowlist-tile__label-row">
+          <span className="ai-choice__label ai-allowlist-tile__label-text">
+            {label}
           </span>
+          {selected && (
+            <span
+              className="ai-allowlist-tile__check align-middle"
+              aria-hidden="true"
+            >
+              ✓
+            </span>
+          )}
+        </span>
+        {description && (
+          <p className="ai-choice__description">{description}</p>
         )}
-      </span>
+      </div>
       {subtitle && (
         <span className="block text-[0.65rem] font-mono uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
           {subtitle}

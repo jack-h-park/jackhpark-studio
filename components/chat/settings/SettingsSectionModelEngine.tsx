@@ -75,8 +75,13 @@ export function SettingsSectionModelEngine({
         Model &amp; Engine
       </HeadingWithIcon>
       <div className="flex flex-col gap-3">
-        <div className="space-y-1">
-          <Label htmlFor="settings-llm-model">LLM Model</Label>
+        <div className="ai-field">
+          <Label
+            htmlFor="settings-llm-model"
+            className="ai-field__label"
+          >
+            LLM Model
+          </Label>
           <Select
             value={sessionConfig.llmModel}
             onValueChange={(value) =>
@@ -101,8 +106,13 @@ export function SettingsSectionModelEngine({
           </Select>
         </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="settings-embedding-model">Embedding Model</Label>
+        <div className="ai-field">
+          <Label
+            htmlFor="settings-embedding-model"
+            className="ai-field__label"
+          >
+            Embedding Model
+          </Label>
           <Select
             value={sessionConfig.embeddingModel}
             onValueChange={(value) =>
@@ -130,8 +140,13 @@ export function SettingsSectionModelEngine({
           </Select>
         </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="settings-chat-engine">Chat Engine</Label>
+        <div className="ai-field">
+          <Label
+            htmlFor="settings-chat-engine"
+            className="ai-field__label"
+          >
+            Chat Engine
+          </Label>
           <Select
             value={sessionConfig.chatEngine}
             onValueChange={(value) =>

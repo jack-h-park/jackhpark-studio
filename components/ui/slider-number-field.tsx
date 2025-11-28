@@ -34,12 +34,12 @@ export function SliderNumberField({
   const stepValue = step ?? 1;
 
   return (
-    <div className={cn("space-y-1", className)}>
-      <div className="flex items-baseline justify-between gap-3">
-        <Label htmlFor={id}>{label}</Label>
-      </div>
+    <div className={cn("ai-field", className)}>
+      <Label htmlFor={id} className="ai-field__label">
+        {label}
+      </Label>
       {description ? (
-        <p className="text-xs ai-text-muted">{description}</p>
+        <p className="ai-field__description">{description}</p>
       ) : null}
       <div className="flex items-center gap-3">
         <input
