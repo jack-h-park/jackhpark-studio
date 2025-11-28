@@ -50,10 +50,12 @@ export function Radiobutton({
         disabled={disabled}
         onChange={onChange}
       />
-      <span className="ai-radio__label">{label}</span>
-      {description ? (
-        <p className="ai-radio__description ai-meta-text">{description}</p>
-      ) : null}
+      <div className="flex flex-col">
+        <span className="ai-radio__label block mb-1">{label}</span>
+        {description ? (
+          <p className="ai-radio__description ai-meta-text">{description}</p>
+        ) : null}
+      </div>
     </label>
   );
 }

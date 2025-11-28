@@ -58,22 +58,22 @@ export function SettingsSectionRagRetrieval({
     {
       value: "off" as const,
       label: SUMMARY_LEVELS.off,
-      description: "Disable conversation summaries.",
+      description: "No summaries",
     },
     {
       value: "low" as const,
       label: SUMMARY_LEVELS.low,
-      description: `Summaries run every ${summaryPresets.low.every_n_turns} turns.`,
+      description: `Run every ${summaryPresets.low.every_n_turns} turns`,
     },
     {
       value: "medium" as const,
       label: SUMMARY_LEVELS.medium,
-      description: `Summaries run every ${summaryPresets.medium.every_n_turns} turns.`,
+      description: `Run every ${summaryPresets.medium.every_n_turns} turns`,
     },
     {
       value: "high" as const,
       label: SUMMARY_LEVELS.high,
-      description: `Summaries run every ${summaryPresets.high.every_n_turns} turns.`,
+      description: `Run every ${summaryPresets.high.every_n_turns} turns`,
     },
   ];
 
@@ -147,12 +147,9 @@ export function SettingsSectionRagRetrieval({
         />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 pt-2">
         {adminConfig.allowlist.allowReverseRAG && (
-          <div className="flex items-center justify-between gap-3 rounded-2xl bg-[color:var(--ai-bg-muted)] px-3 py-2">
-            <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
-              Reverse RAG
-            </p>
+          <div className="inline-flex items-center gap-2 text-sm">
             <Checkbox
               className="flex-shrink-0"
               checked={sessionConfig.features.reverseRAG}
@@ -168,14 +165,14 @@ export function SettingsSectionRagRetrieval({
               }
               aria-label="Enable Reverse RAG"
             />
+            <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
+              Reverse RAG
+            </p>
           </div>
         )}
 
         {adminConfig.allowlist.allowHyde && (
-          <div className="flex items-center justify-between gap-3 rounded-2xl bg-[color:var(--ai-bg-muted)] px-3 py-2">
-            <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
-              HyDE
-            </p>
+          <div className="inline-flex items-center gap-2 text-sm">
             <Checkbox
               className="flex-shrink-0"
               checked={sessionConfig.features.hyde}
@@ -191,11 +188,14 @@ export function SettingsSectionRagRetrieval({
               }
               aria-label="Enable HyDE"
             />
+            <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
+              HyDE
+            </p>
           </div>
         )}
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-1 pt-2">
         <Label htmlFor="settings-ranker">Ranker</Label>
         <Select
           value={sessionConfig.features.ranker}
@@ -225,7 +225,7 @@ export function SettingsSectionRagRetrieval({
         </Select>
       </div>
 
-      <div className="space-y-2 border-t border-[color:var(--ai-border-muted)] pt-3">
+      <div className="space-y-2 border-t border-[color:var(--ai-border-muted)] pt-2">
         <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
           Summaries
         </p>

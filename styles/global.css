@@ -362,6 +362,10 @@ body {
 
 .dark .ai-allowlist-tile--idle,
 .dark-mode .ai-allowlist-tile--idle {
+  border-color: hsl(
+    var(--ai-border)
+  ); /* 또는 더 연하게 쓰려면 color-mix 사용 */
+  background: hsl(var(--ai-bg)); /* bg-subtle 대신 확실한 값으로 */
   color: var(--ai-text);
 }
 
@@ -472,7 +476,7 @@ footer {
 /* Custom Overrides */
 
 .ai-meta-text {
-  @apply text-xs text-slate-500;
+  @apply text-xs text-slate-500 leading-snug;
 }
 
 .ai-panel,
@@ -521,7 +525,7 @@ footer {
 .ai-card-description {
   margin: 0;
   color: hsl(var(--ai-fg-muted));
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   line-height: 1.4;
 }
 
@@ -759,15 +763,16 @@ footer {
   background: var(--ai-accent-bg);
   color: var(--ai-text-muted);
   box-shadow: none;
+  padding: 0.6rem;
 }
 
-/* .ai-tip-callout__content {
+.ai-tip-callout__content {
   display: flex;
   flex-direction: column;
-  font-size: 0.5rem;
+  font-size: 0.6rem;
   gap: 0.5rem;
-  padding: 1rem;
-} */
+  padding: 0.25rem;
+}
 
 .ai-tip-callout__title {
   margin-bottom: 5px;
@@ -819,12 +824,12 @@ footer {
 .ai-radio {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.2rem;
   border-radius: var(--ai-radius-lg);
   border: 1px solid hsl(var(--ai-border));
   background: hsl(var(--ai-bg));
   color: var(--ai-text);
-  padding: 0.75rem 1rem;
+  padding: 0.6rem 0.8rem;
   cursor: pointer;
   transition:
     border-color 0.2s ease,
@@ -838,13 +843,14 @@ footer {
 }
 
 .ai-radio--chip {
-  flex-direction: row;
+  /* flex-direction: row;
   align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0.9rem; /* override base .ai-radio padding for a thinner pill */
+  justify-content: left; */
+  gap: 0.7rem;
+  padding: 0.6rem 0.8rem; /* override base .ai-radio padding for a thinner pill */
   border-radius: var(--ai-radius-pill);
   font-size: 0.85rem;
+  line-height: 0.9rem;
 }
 
 .ai-radio--active {
@@ -1492,6 +1498,7 @@ footer {
   font-size: 0.85rem;
   color: hsl(var(--ai-fg));
   line-height: 1.4;
+  color: hsl(var(--ai-fg-muted));
 }
 
 .ai-settings-section__header {
@@ -1613,7 +1620,9 @@ footer {
   width: 100%;
   display: flex;
   justify-content: center;
-  padding: 0 clamp(16px, 4vw, 72px);
+  /* Let inner Notion / footer containers control horizontal padding
+     so the header matches .notion-header .notion-nav-header spacing */
+  padding: 0;
   box-sizing: border-box;
   background: transparent;
 }
@@ -1634,10 +1643,10 @@ footer {
   margin: 0 auto;
 }
 
-.ai-page-chrome__header .notion-nav-header {
+/* .ai-page-chrome__header .notion-nav-header {
   width: 100%;
   padding: 0 clamp(12px, 3vw, 56px);
-}
+} */
 
 .ai-page-chrome__body {
   width: min(1160px, 100%);
@@ -1676,8 +1685,6 @@ footer {
 .ai-tab-pill-group {
   display: flex;
   align-items: stretch;
-  border: 1px solid hsl(var(--ai-border));
-  background: hsl(var(--ai-bg-muted));
   border-radius: var(--ai-radius-lg);
   overflow: hidden;
   gap: 0;
@@ -1707,6 +1714,8 @@ footer {
   gap: 0.35rem;
   line-height: 1.2;
   white-space: normal;
+  position: relative;
+  z-index: 5;
 }
 
 .ai-tab-pill__content {
@@ -1759,19 +1768,30 @@ footer {
 }
 
 .ai-tab-pill--active {
-  background: var(--ai-accent-bg);
-  color: var(--ai-accent-strong);
-  border-color: color-mix(in srgb, var(--ai-accent) 70%, transparent);
+  background: var(--ai-surface);
+  color: var(--ai-text-strong);
+  border-color: color-mix(in srgb, var(--ai-border-soft) 80%, transparent);
+  border-bottom-color: transparent;
+  margin-bottom: -2px;
+  /* box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ai-border-muted) 80%, transparent),
+    0 6px 16px rgba(15, 23, 42, 0.16); */
+  z-index: 10;
 }
 
 .ai-tab-pill--inactive {
-  color: var(--ai-text-muted);
-  background: var(--ai-surface);
-  border-color: color-mix(in srgb, var(--ai-border) 60%, transparent);
+  color: color-mix(in srgb, var(--ai-text-muted) 80%, #000 20%);
+  background: var(--ai-bg);
+  border-color: color-mix(in srgb, var(--ai-border-soft) 80%, transparent);
+  border-bottom-color: color-mix(
+    in srgb,
+    var(--ai-border-soft) 80%,
+    transparent
+  );
+  z-index: 1;
 }
 
 .ai-tab-pill-group .ai-tab-pill {
-  border: none;
   border-radius: 0;
   background: transparent;
 }
@@ -1787,8 +1807,8 @@ footer {
 .ai-tab-pill-group .ai-tab-pill--active {
   background: var(--ai-accent-bg);
   color: var(--ai-accent-strong);
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--ai-accent) 45%, transparent);
+  /* box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--ai-accent) 45%, transparent); */
 }
 
 .ai-tab-pill-group .ai-tab-pill:first-child {

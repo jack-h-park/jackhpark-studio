@@ -6,10 +6,7 @@ export type CardProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function Card({ className, children, ...props }: CardProps) {
   return (
-    <div
-      className={cn("ai-card", className)}
-      {...props}
-    >
+    <div className={cn("ai-card", className)} {...props}>
       {children}
     </div>
   );
@@ -42,15 +39,15 @@ export function CardTitle({
     <h3
       className={cn(
         "ai-card-title",
-        hasIcon ? "flex items-center gap-2" : undefined,
+        hasIcon ? "flex items-center gap-1" : undefined,
         className,
       )}
       {...props}
     >
       {icon && (
-      <span className="flex items-center justify-center flex-shrink-0 w-[1.1em] h-[1.1em] ai-text-info">
-        {icon}
-      </span>
+        <span className="flex items-center justify-center flex-shrink-0 w-[1.1em] h-[1.1em] ai-text-info">
+          {icon}
+        </span>
       )}
       <span>{children}</span>
     </h3>
