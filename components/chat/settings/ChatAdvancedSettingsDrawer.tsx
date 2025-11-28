@@ -14,7 +14,6 @@ import { SettingsSectionDisplay } from "./SettingsSectionDisplay";
 import { SettingsSectionModelEngine } from "./SettingsSectionModelEngine";
 import { SettingsSectionPresets } from "./SettingsSectionPresets";
 import { SettingsSectionRagRetrieval } from "./SettingsSectionRagRetrieval";
-import { SettingsSectionSummaries } from "./SettingsSectionSummaries";
 import { SettingsSectionUserPrompt } from "./SettingsSectionUserPrompt";
 
 type DrawerProps = {
@@ -108,12 +107,6 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
 
                 <SettingsSectionContextHistory
                   adminConfig={adminConfig}
-                  sessionConfig={sessionConfig}
-                  setSessionConfig={setSessionConfig}
-                />
-
-                <SettingsSectionSummaries
-                  summaryPresets={adminConfig.summaryPresets}
                   sessionConfig={sessionConfig}
                   setSessionConfig={setSessionConfig}
                 />

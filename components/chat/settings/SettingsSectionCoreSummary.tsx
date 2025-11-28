@@ -18,7 +18,7 @@ export function SettingsSectionCoreSummary({ summary }: Props) {
       >
         Core System Behavior
       </HeadingWithIcon>
-      <p className="ai-section-caption">{summary}</p>
+      <p className="ai-settings-section__description">{summary}</p>
     </section>
   );
 }

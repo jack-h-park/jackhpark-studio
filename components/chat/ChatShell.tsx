@@ -123,7 +123,9 @@ function ChatShellContent() {
             >
               Jack’s AI Assistant
             </HeadingWithIcon>
-            <p className="ai-section-caption">{renderPromptSummary}</p>
+            <p className="ai-settings-section__description">
+              {renderPromptSummary}
+            </p>
           </div>
           <Button
             variant="outline"

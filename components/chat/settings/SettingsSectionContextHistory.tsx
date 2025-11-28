@@ -1,10 +1,12 @@
 "use client";
 
 import { FiClock } from "@react-icons/all-files/fi/FiClock";
+import { useState } from "react";
 
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { SliderNumberField } from "@/components/ui/slider-number-field";
+import { Switch } from "@/components/ui/switch";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -30,6 +32,7 @@ export function SettingsSectionContextHistory({
 
   const { contextBudget, historyBudget, clipTokens } =
     adminConfig.numericLimits;
+  const [isContextEnabled, setIsContextEnabled] = useState(true);
 
   const inputs: Array<{
     key: keyof SessionChatConfig["context"];
@@ -55,13 +58,27 @@ export function SettingsSectionContextHistory({
 
   return (
     <section className="ai-panel ai-settings-section">
-      <HeadingWithIcon
-        as="p"
-        icon={<FiClock aria-hidden="true" />}
-        className="ai-settings-section__title"
-      >
-        Context &amp; History
-      </HeadingWithIcon>
+      <div className="ai-settings-section__header flex items-center justify-between gap-3">
+        <HeadingWithIcon
+          id="settings-context-history-title"
+          as="p"
+          icon={<FiClock aria-hidden="true" />}
+          className="ai-settings-section__title"
+        >
+          Context &amp; History
+        </HeadingWithIcon>
+        <div className="flex items-center gap-2">
+          <span className="sr-only" id="settings-context-history-toggle">
+            Toggle Context &amp; History editing
+          </span>
+          <Switch
+            className="flex-shrink-0"
+            checked={isContextEnabled}
+            aria-labelledby="settings-context-history-title settings-context-history-toggle"
+            onCheckedChange={setIsContextEnabled}
+          />
+        </div>
+      </div>
       <div className="flex flex-col gap-3">
         {inputs.map(({ key, label, limit }) => (
           <SliderNumberField
@@ -85,6 +102,7 @@ export function SettingsSectionContextHistory({
                 },
               }));
             }}
+            disabled={!isContextEnabled}
           />
         ))}
       </div>

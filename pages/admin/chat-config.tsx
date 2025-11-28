@@ -35,6 +35,7 @@ import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Radiobutton } from "@/components/ui/radiobutton";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -131,6 +132,14 @@ function AdminChatConfigForm({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(lastUpdatedAt);
   const [isRawModalOpen, setIsRawModalOpen] = useState(false);
+  const [contextHistoryEnabled, setContextHistoryEnabled] = useState<
+    Record<PresetKey, boolean>
+  >(() =>
+    presetDisplayOrder.reduce<Record<PresetKey, boolean>>((acc, presetKey) => {
+      acc[presetKey] = true;
+      return acc;
+    }, {} as Record<PresetKey, boolean>),
+  );
 
   useEffect(() => {
     setConfig(adminConfig);
@@ -310,6 +319,40 @@ function AdminChatConfigForm({
   const summaryGridHeaderClass =
     "text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]";
   const summaryGridValueClass = "flex flex-col gap-1";
+
+  const PresetSettingsGroup = ({
+    title,
+    groupId,
+    renderHeaderCell,
+    children,
+  }: {
+    title: string;
+    groupId: string;
+    renderHeaderCell: (
+      presetKey: PresetKey,
+      headerLabelId: string,
+    ) => ReactNode;
+    children: ReactNode;
+  }) => {
+    const headerLabelId = `${groupId}-label`;
+
+    return (
+      <Fragment key={`group-${groupId}`}>
+        <div id={headerLabelId} className={sessionGridLabelClass}>
+          {title}
+        </div>
+        {presetDisplayOrder.map((presetKey) => (
+          <div
+            key={`${groupId}-header-${presetKey}`}
+            className={sessionGridValueClass}
+          >
+            {renderHeaderCell(presetKey, headerLabelId)}
+          </div>
+        ))}
+        {children}
+      </Fragment>
+    );
+  };
 
   const renderPresetRow = (
     label: string,
@@ -974,218 +1017,275 @@ function AdminChatConfigForm({
                   </SelectContent>
                 </Select>
               ))}
-              {renderPresetRow("RAG Enabled", (presetKey) => {
-                const preset = config.presets[presetKey];
-                return (
-                  <div className="inline-flex items-center gap-2 text-sm">
-                    <Checkbox
-                      className="shrink-0"
-                      aria-label={`Enable RAG for ${presetDisplayNames[presetKey]}`}
-                      checked={preset.rag.enabled}
-                      onCheckedChange={(checked) =>
-                        updatePreset(presetKey, (prev) => ({
-                          ...prev,
-                          rag: {
-                            ...prev.rag,
-                            enabled: checked,
-                          },
-                        }))
-                      }
-                    />
-                    <span>Enabled</span>
-                  </div>
-                );
-              })}
-              {renderPresetRow("RAG Top K", (presetKey) => (
-                <Input
-                  type="number"
-                  min={config.numericLimits.ragTopK.min}
-                  max={config.numericLimits.ragTopK.max}
-                  aria-label={`RAG Top K for ${presetDisplayNames[presetKey]}`}
-                  value={config.presets[presetKey].rag.topK}
-                  onChange={(event) =>
-                    updatePreset(presetKey, (prev) => ({
-                      ...prev,
-                      rag: {
-                        ...prev.rag,
-                        topK: Number(event.target.value) || 0,
-                      },
-                    }))
-                  }
-                />
-              ))}
-              {renderPresetRow("Similarity", (presetKey) => (
-                <Input
-                  type="number"
-                  step={0.01}
-                  min={config.numericLimits.similarityThreshold.min}
-                  max={config.numericLimits.similarityThreshold.max}
-                  aria-label={`Similarity for ${presetDisplayNames[presetKey]}`}
-                  value={config.presets[presetKey].rag.similarity}
-                  onChange={(event) =>
-                    updatePreset(presetKey, (prev) => ({
-                      ...prev,
-                      rag: {
-                        ...prev.rag,
-                        similarity: Number(event.target.value) || 0,
-                      },
-                    }))
-                  }
-                />
-              ))}
-              {renderPresetRow("Token Budget", (presetKey) => (
-                <Input
-                  type="number"
-                  min={config.numericLimits.contextBudget.min}
-                  max={config.numericLimits.contextBudget.max}
-                  aria-label={`Token Budget for ${presetDisplayNames[presetKey]}`}
-                  value={config.presets[presetKey].context.tokenBudget}
-                  onChange={(event) =>
-                    updatePreset(presetKey, (prev) => ({
-                      ...prev,
-                      context: {
-                        ...prev.context,
-                        tokenBudget: Number(event.target.value) || 0,
-                      },
-                    }))
-                  }
-                />
-              ))}
-              {renderPresetRow("History Budget", (presetKey) => (
-                <Input
-                  type="number"
-                  min={config.numericLimits.historyBudget.min}
-                  max={config.numericLimits.historyBudget.max}
-                  aria-label={`History Budget for ${presetDisplayNames[presetKey]}`}
-                  value={config.presets[presetKey].context.historyBudget}
-                  onChange={(event) =>
-                    updatePreset(presetKey, (prev) => ({
-                      ...prev,
-                      context: {
-                        ...prev.context,
-                        historyBudget: Number(event.target.value) || 0,
-                      },
-                    }))
-                  }
-                />
-              ))}
-              {renderPresetRow("Clip Tokens", (presetKey) => (
-                <Input
-                  type="number"
-                  min={config.numericLimits.clipTokens.min}
-                  max={config.numericLimits.clipTokens.max}
-                  aria-label={`Clip Tokens for ${presetDisplayNames[presetKey]}`}
-                  value={config.presets[presetKey].context.clipTokens}
-                  onChange={(event) =>
-                    updatePreset(presetKey, (prev) => ({
-                      ...prev,
-                      context: {
-                        ...prev.context,
-                        clipTokens: Number(event.target.value) || 0,
-                      },
-                    }))
-                  }
-                />
-              ))}
-              {renderPresetRow("Reverse RAG", (presetKey) => {
-                const preset = config.presets[presetKey];
-                return (
-                  <div className="inline-flex items-center gap-2 text-sm">
-                    <Checkbox
-                      className="shrink-0"
-                      aria-label={`Reverse RAG for ${presetDisplayNames[presetKey]}`}
-                      checked={
-                        config.allowlist.allowReverseRAG
-                          ? preset.features.reverseRAG
-                          : false
-                      }
-                      disabled={!config.allowlist.allowReverseRAG}
-                      onCheckedChange={(checked) =>
-                        updatePreset(presetKey, (prev) => ({
-                          ...prev,
-                          features: {
-                            ...prev.features,
-                            reverseRAG: checked,
-                          },
-                        }))
-                      }
-                    />
-                    <span>Enabled</span>
-                  </div>
-                );
-              })}
-              {renderPresetRow("HyDE", (presetKey) => {
-                const preset = config.presets[presetKey];
-                return (
-                  <div className="inline-flex items-center gap-2 text-sm">
-                    <Checkbox
-                      className="shrink-0"
-                      aria-label={`HyDE for ${presetDisplayNames[presetKey]}`}
-                      checked={
-                        config.allowlist.allowHyde
-                          ? preset.features.hyde
-                          : false
-                      }
-                      disabled={!config.allowlist.allowHyde}
-                      onCheckedChange={(checked) =>
-                        updatePreset(presetKey, (prev) => ({
-                          ...prev,
-                          features: {
-                            ...prev.features,
-                            hyde: checked,
-                          },
-                        }))
-                      }
-                    />
-                    <span>Enabled</span>
-                  </div>
-                );
-              })}
-              {renderPresetRow("Ranker", (presetKey) => (
-                <Select
-                  value={config.presets[presetKey].features.ranker}
-                  onValueChange={(value) =>
-                    updatePreset(presetKey, (prev) => ({
-                      ...prev,
-                      features: {
-                        ...prev.features,
-                        ranker: value as RankerId,
-                      },
-                    }))
-                  }
-                >
-                  <SelectTrigger
-                    aria-label={`Ranker for ${presetDisplayNames[presetKey]}`}
+              <PresetSettingsGroup
+                title="Retrieval (RAG)"
+                groupId="retrieval-rag"
+                renderHeaderCell={(presetKey, headerLabelId) => {
+                  const preset = config.presets[presetKey];
+                  const toggleLabelId = `${headerLabelId}-toggle-${presetKey}`;
+                  return (
+                    <div className="inline-flex items-center gap-2 text-sm">
+                      <span className="sr-only" id={toggleLabelId}>
+                        Toggle Retrieval (RAG) for {presetDisplayNames[presetKey]}
+                      </span>
+                      <Switch
+                        className="flex-shrink-0"
+                        aria-labelledby={`${headerLabelId} ${toggleLabelId}`}
+                        checked={preset.rag.enabled}
+                        onCheckedChange={(checked) =>
+                          updatePreset(presetKey, (prev) => ({
+                            ...prev,
+                            rag: {
+                              ...prev.rag,
+                              enabled: checked,
+                            },
+                          }))
+                        }
+                      />
+                      <span>Enabled</span>
+                    </div>
+                  );
+                }}
+              >
+                {renderPresetRow("RAG Top K", (presetKey) => (
+                  <Input
+                    type="number"
+                    min={config.numericLimits.ragTopK.min}
+                    max={config.numericLimits.ragTopK.max}
+                    aria-label={`RAG Top K for ${presetDisplayNames[presetKey]}`}
+                    value={config.presets[presetKey].rag.topK}
+                    disabled={!config.presets[presetKey].rag.enabled}
+                    onChange={(event) =>
+                      updatePreset(presetKey, (prev) => ({
+                        ...prev,
+                        rag: {
+                          ...prev.rag,
+                          topK: Number(event.target.value) || 0,
+                        },
+                      }))
+                    }
                   />
-                  <SelectContent>
-                    {config.allowlist.rankers.map((ranker) => (
-                      <SelectItem key={ranker} value={ranker}>
-                        {ranker}
-                      </SelectItem>
+                ))}
+                {renderPresetRow("Similarity", (presetKey) => (
+                  <Input
+                    type="number"
+                    step={0.01}
+                    min={config.numericLimits.similarityThreshold.min}
+                    max={config.numericLimits.similarityThreshold.max}
+                    aria-label={`Similarity for ${presetDisplayNames[presetKey]}`}
+                    value={config.presets[presetKey].rag.similarity}
+                    disabled={!config.presets[presetKey].rag.enabled}
+                    onChange={(event) =>
+                      updatePreset(presetKey, (prev) => ({
+                        ...prev,
+                        rag: {
+                          ...prev.rag,
+                          similarity: Number(event.target.value) || 0,
+                        },
+                      }))
+                    }
+                  />
+                ))}
+                {renderPresetRow("Reverse RAG", (presetKey) => {
+                  const preset = config.presets[presetKey];
+                  const ragDisabled = !preset.rag.enabled;
+                  return (
+                    <div className="inline-flex items-center gap-2 text-sm">
+                      <Checkbox
+                        className="shrink-0"
+                        aria-label={`Reverse RAG for ${presetDisplayNames[presetKey]}`}
+                        checked={
+                          config.allowlist.allowReverseRAG
+                            ? preset.features.reverseRAG
+                            : false
+                        }
+                        disabled={
+                          !config.allowlist.allowReverseRAG || ragDisabled
+                        }
+                        onCheckedChange={(checked) =>
+                          updatePreset(presetKey, (prev) => ({
+                            ...prev,
+                            features: {
+                              ...prev.features,
+                              reverseRAG: checked,
+                            },
+                          }))
+                        }
+                      />
+                      <span>Enabled</span>
+                    </div>
+                  );
+                })}
+                {renderPresetRow("HyDE", (presetKey) => {
+                  const preset = config.presets[presetKey];
+                  const ragDisabled = !preset.rag.enabled;
+                  return (
+                    <div className="inline-flex items-center gap-2 text-sm">
+                      <Checkbox
+                        className="shrink-0"
+                        aria-label={`HyDE for ${presetDisplayNames[presetKey]}`}
+                        checked={
+                          config.allowlist.allowHyde
+                            ? preset.features.hyde
+                            : false
+                        }
+                        disabled={!config.allowlist.allowHyde || ragDisabled}
+                        onCheckedChange={(checked) =>
+                          updatePreset(presetKey, (prev) => ({
+                            ...prev,
+                            features: {
+                              ...prev.features,
+                              hyde: checked,
+                            },
+                          }))
+                        }
+                      />
+                      <span>Enabled</span>
+                    </div>
+                  );
+                })}
+                {renderPresetRow("Ranker", (presetKey) => (
+                  <Select
+                    value={config.presets[presetKey].features.ranker}
+                    disabled={!config.presets[presetKey].rag.enabled}
+                    onValueChange={(value) =>
+                      updatePreset(presetKey, (prev) => ({
+                        ...prev,
+                        features: {
+                          ...prev.features,
+                          ranker: value as RankerId,
+                        },
+                      }))
+                    }
+                  >
+                    <SelectTrigger
+                      aria-label={`Ranker for ${presetDisplayNames[presetKey]}`}
+                    />
+                    <SelectContent>
+                      {config.allowlist.rankers.map((ranker) => (
+                        <SelectItem key={ranker} value={ranker}>
+                          {ranker}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ))}
+                {renderPresetRow("Summary Level", (presetKey) => (
+                  <div className="flex flex-wrap gap-2 text-sm">
+                    {summaryLevelOptions.map((level) => (
+                      <Radiobutton
+                        key={level}
+                        variant="chip"
+                        name={`${presetKey}-summary`}
+                        value={level}
+                        label={level}
+                        checked={config.presets[presetKey].summaryLevel === level}
+                        disabled={!config.presets[presetKey].rag.enabled}
+                        onChange={() =>
+                          updatePreset(presetKey, (prev) => ({
+                            ...prev,
+                            summaryLevel: level,
+                          }))
+                        }
+                      />
                     ))}
-                  </SelectContent>
-                </Select>
-              ))}
-              {renderPresetRow("Summary Level", (presetKey) => (
-                <div className="flex flex-wrap gap-2 text-sm">
-                  {summaryLevelOptions.map((level) => (
-                    <Radiobutton
-                      key={level}
-                      variant="chip"
-                      name={`${presetKey}-summary`}
-                      value={level}
-                      label={level}
-                      checked={config.presets[presetKey].summaryLevel === level}
-                      onChange={() =>
+                  </div>
+                ))}
+              </PresetSettingsGroup>
+              <PresetSettingsGroup
+                title="Context & History"
+                groupId="context-history"
+                renderHeaderCell={(presetKey, headerLabelId) => {
+                  const toggleLabelId = `${headerLabelId}-toggle-${presetKey}`;
+                  const isEnabled = contextHistoryEnabled[presetKey] ?? true;
+                  return (
+                    <div className="inline-flex items-center gap-2 text-sm">
+                      <span className="sr-only" id={toggleLabelId}>
+                        Toggle Context & History editing for {presetDisplayNames[presetKey]}
+                      </span>
+                      <Switch
+                        className="flex-shrink-0"
+                        checked={isEnabled}
+                        aria-labelledby={`${headerLabelId} ${toggleLabelId}`}
+                        onCheckedChange={(checked) =>
+                          setContextHistoryEnabled((prev) => ({
+                            ...prev,
+                            [presetKey]: checked,
+                          }))
+                        }
+                      />
+                      <span>Enabled</span>
+                    </div>
+                  );
+                }}
+              >
+                {renderPresetRow("Token Budget", (presetKey) => {
+                  const fieldEnabled = contextHistoryEnabled[presetKey] ?? true;
+                  return (
+                    <Input
+                      type="number"
+                      min={config.numericLimits.contextBudget.min}
+                      max={config.numericLimits.contextBudget.max}
+                      aria-label={`Token Budget for ${presetDisplayNames[presetKey]}`}
+                      value={config.presets[presetKey].context.tokenBudget}
+                      disabled={!fieldEnabled}
+                      onChange={(event) =>
                         updatePreset(presetKey, (prev) => ({
                           ...prev,
-                          summaryLevel: level,
+                          context: {
+                            ...prev.context,
+                            tokenBudget: Number(event.target.value) || 0,
+                          },
                         }))
                       }
                     />
-                  ))}
-                </div>
-              ))}
+                  );
+                })}
+                {renderPresetRow("History Budget", (presetKey) => {
+                  const fieldEnabled = contextHistoryEnabled[presetKey] ?? true;
+                  return (
+                    <Input
+                      type="number"
+                      min={config.numericLimits.historyBudget.min}
+                      max={config.numericLimits.historyBudget.max}
+                      aria-label={`History Budget for ${presetDisplayNames[presetKey]}`}
+                      value={config.presets[presetKey].context.historyBudget}
+                      disabled={!fieldEnabled}
+                      onChange={(event) =>
+                        updatePreset(presetKey, (prev) => ({
+                          ...prev,
+                          context: {
+                            ...prev.context,
+                            historyBudget: Number(event.target.value) || 0,
+                          },
+                        }))
+                      }
+                    />
+                  );
+                })}
+                {renderPresetRow("Clip Tokens", (presetKey) => {
+                  const fieldEnabled = contextHistoryEnabled[presetKey] ?? true;
+                  return (
+                    <Input
+                      type="number"
+                      min={config.numericLimits.clipTokens.min}
+                      max={config.numericLimits.clipTokens.max}
+                      aria-label={`Clip Tokens for ${presetDisplayNames[presetKey]}`}
+                      value={config.presets[presetKey].context.clipTokens}
+                      disabled={!fieldEnabled}
+                      onChange={(event) =>
+                        updatePreset(presetKey, (prev) => ({
+                          ...prev,
+                          context: {
+                            ...prev.context,
+                            clipTokens: Number(event.target.value) || 0,
+                          },
+                        }))
+                      }
+                    />
+                  );
+                })}
+              </PresetSettingsGroup>
             </div>
           </GridPanel>
         </CardContent>

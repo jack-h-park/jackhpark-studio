@@ -3,11 +3,7 @@
 import { FiCpu } from "@react-icons/all-files/fi/FiCpu";
 import { useMemo } from "react";
 
-import type {
-  EmbeddingModelId,
-  LlmModelId,
-  RankerId,
-} from "@/lib/shared/models";
+import type { EmbeddingModelId, LlmModelId } from "@/lib/shared/models";
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { Label } from "@/components/ui/label";
@@ -17,7 +13,6 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { listLlmModelOptions } from "@/lib/core/llm-registry";
 import {
@@ -161,80 +156,6 @@ export function SettingsSectionModelEngine({
           </Select>
         </div>
 
-        <div className="ai-settings-section__switches flex flex-wrap gap-3 mt-1.5">
-          {adminConfig.allowlist.allowReverseRAG && (
-            <div className="flex items-center justify-between gap-3 rounded-2xl bg-[color:var(--ai-bg-muted)]">
-              <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
-                Reverse RAG
-              </p>
-              <Checkbox
-                className="flex-shrink-0"
-                checked={sessionConfig.features.reverseRAG}
-                onCheckedChange={(checked) =>
-                  handleFieldChange((prev) => ({
-                    ...prev,
-                    features: {
-                      ...prev.features,
-                      reverseRAG: checked,
-                    },
-                  }))
-                }
-                aria-label="Enable Reverse RAG"
-              />
-            </div>
-          )}
-
-          {adminConfig.allowlist.allowHyde && (
-            <div className="flex items-center justify-between gap-3 rounded-2xl">
-              <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
-                HyDE
-              </p>
-              <Checkbox
-                className="flex-shrink-0"
-                checked={sessionConfig.features.hyde}
-                onCheckedChange={(checked) =>
-                  handleFieldChange((prev) => ({
-                    ...prev,
-                    features: {
-                      ...prev.features,
-                      hyde: checked,
-                    },
-                  }))
-                }
-                aria-label="Enable HyDE"
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-1">
-          <Label htmlFor="settings-ranker">Ranker</Label>
-          <Select
-            value={sessionConfig.features.ranker}
-            onValueChange={(value) =>
-              handleFieldChange((prev) => ({
-                ...prev,
-                features: {
-                  ...prev.features,
-                  ranker: value as RankerId,
-                },
-              }))
-            }
-          >
-            <SelectTrigger
-              id="settings-ranker"
-              aria-label="Ranker selection"
-              className="ai-field-sm w-full"
-            />
-            <SelectContent>
-              {adminConfig.allowlist.rankers.map((ranker) => (
-                <SelectItem key={ranker} value={ranker}>
-                  {ranker.toUpperCase()}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
       </div>
     </section>
   );

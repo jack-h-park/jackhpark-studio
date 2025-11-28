@@ -9,6 +9,7 @@ type AllowlistTileProps = {
   description?: string;
   selected: boolean;
   onClick: MouseEventHandler<HTMLButtonElement>;
+  disabled?: boolean;
   className?: string;
 };
 
@@ -19,6 +20,7 @@ export function AllowlistTile({
   description,
   selected,
   onClick,
+  disabled = false,
   className,
 }: AllowlistTileProps) {
   return (
@@ -31,11 +33,22 @@ export function AllowlistTile({
         selected
           ? "ai-allowlist-tile--selected"
           : "ai-allowlist-tile--idle",
+        disabled && "ai-allowlist-tile--disabled",
         className,
       )}
       onClick={onClick}
+      disabled={disabled}
     >
-      <span className="font-semibold">{label}</span>
+      <span className="ai-allowlist-tile__label-row">
+        <span className="font-semibold ai-allowlist-tile__label-text">
+          {label}
+        </span>
+        {selected && (
+          <span className="ai-allowlist-tile__check" aria-hidden="true">
+            ✓
+          </span>
+        )}
+      </span>
       {subtitle && (
         <span className="block text-[0.65rem] font-mono uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">
           {subtitle}

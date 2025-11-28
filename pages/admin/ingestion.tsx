@@ -1126,7 +1126,7 @@ function ManualIngestionPanel(): JSX.Element {
       <div className="space-y-3">
         <legend
           id={labelId}
-          className="ai-section-caption uppercase tracking-[0.15em]"
+          className="ai-settings-section__description uppercase tracking-[0.15em]"
         >
           {"Ingestion scope"}
         </legend>
@@ -1395,8 +1395,8 @@ function ManualIngestionPanel(): JSX.Element {
               </form>
             </div>
 
-            <Card className="space-y-4" aria-label="Manual ingestion tips">
-              <CardContent className="space-y-4">
+            <Card className="space-y-2" aria-label="Manual ingestion tips">
+              <CardContent className="space-y-2">
                 <h3 className="ai-section-title text-lg">Tips</h3>
                 <ul className="grid gap-2 pl-4 text-sm text-[color:var(--ai-text-muted)]">
                   <li>
