@@ -46,7 +46,7 @@ import { Label } from "@/components/ui/label";
 import { LinkButton } from "@/components/ui/link-button";
 import { ManualLogEntry } from "@/components/ui/manual-log-entry";
 import { ProgressGroup } from "@/components/ui/progress-group";
-import { ScopeTile } from "@/components/ui/scope-tile";
+import { Radiobutton } from "@/components/ui/radiobutton";
 import {
   Select,
   SelectContent,
@@ -1117,52 +1117,6 @@ function ManualIngestionPanel(): JSX.Element {
     [startManualIngestion],
   );
 
-  const renderScopeSelector = (
-    scope: "partial" | "full",
-    setScope: (value: "partial" | "full") => void,
-    groupName: string,
-    labelId: string,
-  ) => (
-    <GridPanel
-      as="fieldset"
-      className="py-4"
-      role="radiogroup"
-      aria-labelledby={labelId}
-    >
-      <div className="space-y-3">
-        <Label id={labelId} htmlFor="manual-ingestion-scope">
-          Ingestion Scope
-        </Label>
-        <div className="grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center">
-          <ScopeTile
-            name={groupName}
-            value="partial"
-            label="Only pages with changes"
-            description="Run ingestion only if new content is detected since the last run."
-            checked={scope === "partial"}
-            disabled={isRunning}
-            onChange={setScope}
-          />
-          <ScopeTile
-            name={groupName}
-            value="full"
-            label="For any pages"
-            description="Force ingestion even when nothing appears to have changed."
-            checked={scope === "full"}
-            disabled={isRunning}
-            onChange={setScope}
-          />
-        </div>
-
-        <p className="ai-meta-text">
-          {scope === "full"
-            ? "Use to refresh embeddings manually; runs even without detected changes."
-            : "Best when you update content occasionally and want to skip no-op runs."}
-        </p>
-      </div>
-    </GridPanel>
-  );
-
   const totalPages = overallProgress.total;
   const completedPages =
     totalPages > 0 ? Math.max(0, overallProgress.current - 1) : 0;
@@ -1183,6 +1137,14 @@ function ManualIngestionPanel(): JSX.Element {
   const activePageId = overallProgress.pageId ?? null;
   const showOverallProgress = totalPages > 1;
   const stageSubtitle = activePageTitle ?? activePageId;
+  const currentScope = mode === "notion_page" ? notionScope : urlScope;
+  const setCurrentScope = mode === "notion_page" ? setNotionScope : setUrlScope;
+  const currentScopeGroupName =
+    mode === "notion_page" ? "manual-scope-notion" : "manual-scope-url";
+  const currentScopeLabelId =
+    mode === "notion_page"
+      ? "manual-scope-label-notion"
+      : "manual-scope-label-url";
 
   return (
     <>
@@ -1205,109 +1167,145 @@ function ManualIngestionPanel(): JSX.Element {
           {runId ? <span className="ai-meta-text">Run ID: {runId}</span> : null}
         </CardHeader>
         <section>
-          <div
-            className="ai-tab-pill-group w-full bg-[color:var(--ai-surface)] px-4 py-1"
-            role="tablist"
-            aria-label="Manual ingestion source"
+          <form
+            className="grid gap-4 p-5 pt-1"
+            onSubmit={handleSubmit}
+            noValidate
           >
-            <TabPill
-              id="tabs-notion_page"
-              aria-controls="tabpanel-notion_page"
-              title="Notion Page"
-              subtitle="Sync from your workspace"
-              active={mode === "notion_page"}
-              onClick={() => handleModeChange("notion_page")}
-              disabled={isRunning}
-            />
-            <TabPill
-              id="tabs-url"
-              aria-controls="tabpanel-url"
-              title="External URL"
-              subtitle="Fetch a public article"
-              active={mode === "url"}
-              onClick={() => handleModeChange("url")}
-              disabled={isRunning}
-            />
-          </div>
-          <Card className="space-y-2" aria-label="Manual ingestion tabs">
-            <form
-              className="grid gap-4 p-5 bg-[color:var(--ai-surface)] pt-6 md:pt-7"
-              onSubmit={handleSubmit}
-              noValidate
-            >
-              <TabPanel
-                tabId="notion_page"
-                activeTabId={mode}
-                className="space-y-3 bg-[color:var(--ai-surface)]"
+            <div className="space-y-0">
+              <div
+                className="ai-tab-pill-group px-4 pt-4 pb-1 border-b border-[color:var(--ai-border-soft)] bg-[color:var(--ai-surface)]"
+                role="tablist"
+                aria-label="Manual ingestion source"
               >
-                <div className="space-y-2">
-                  <Label htmlFor="manual-notion-input">
-                    Notion Page ID or URL
-                  </Label>
-                  <Input
-                    id="manual-notion-input"
-                    type="text"
-                    placeholder="https://www.notion.so/... or page ID"
-                    value={notionInput}
-                    onChange={(event) => setNotionInput(event.target.value)}
-                    disabled={isRunning}
-                  />
-                </div>
-                {renderScopeSelector(
-                  notionScope,
-                  setNotionScope,
-                  "manual-scope-notion",
-                  "manual-scope-label-notion",
-                )}
-                <div className="flex items-start gap-2">
-                  <Checkbox
-                    aria-labelledby="manual-linked-pages-label"
-                    aria-describedby="manual-linked-pages-hint"
-                    checked={includeLinkedPages}
-                    onCheckedChange={setIncludeLinkedPages}
-                    disabled={isRunning}
-                  />
-                  <div className="flex flex-col gap-1">
-                    <Label size="sm" id="manual-linked-pages-label">
-                      Include linked pages
+                <TabPill
+                  id="tabs-notion_page"
+                  aria-controls="tabpanel-notion_page"
+                  title="Notion Page"
+                  subtitle="Sync from your workspace"
+                  active={mode === "notion_page"}
+                  onClick={() => handleModeChange("notion_page")}
+                  disabled={isRunning}
+                />
+                <TabPill
+                  id="tabs-url"
+                  aria-controls="tabpanel-url"
+                  title="External URL"
+                  subtitle="Fetch a public article"
+                  active={mode === "url"}
+                  onClick={() => handleModeChange("url")}
+                  disabled={isRunning}
+                />
+              </div>
+
+              <Card
+                className="ai-card--tab-panel overflow-hidden p-0"
+                aria-label="Manual ingestion tabs"
+              >
+                <TabPanel
+                  tabId="notion_page"
+                  activeTabId={mode}
+                  className="ai-tab-panel space-y-2 px-5 pt-4 pb-5"
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="manual-notion-input">
+                      Notion Page ID or URL
                     </Label>
-                    <p className="ai-meta-text" id="manual-linked-pages-hint">
-                      Also ingest child pages and any pages referenced via
-                      Notion link-to-page blocks.
+                    <Input
+                      id="manual-notion-input"
+                      type="text"
+                      placeholder="https://www.notion.so/... or page ID"
+                      value={notionInput}
+                      onChange={(event) => setNotionInput(event.target.value)}
+                      disabled={isRunning}
+                    />
+                    <p className="ai-meta-text">
+                      Paste the full shared link or the 32-character page ID
+                      from Notion. Use the controls above to define scope and
+                      whether linked pages are included.
                     </p>
                   </div>
-                </div>
-                <p className="ai-meta-text">
-                  Paste the full shared link or the 32-character page ID from
-                  Notion. Use the controls above to define scope and whether
-                  linked pages are included.
-                </p>
-              </TabPanel>
 
-              <TabPanel tabId="url" activeTabId={mode} className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="manual-url-input">URL to ingest</Label>
-                  <Input
-                    id="manual-url-input"
-                    type="url"
-                    placeholder="https://example.com/article"
-                    value={urlInput}
-                    onChange={(event) => setUrlInput(event.target.value)}
-                    disabled={isRunning}
-                  />
-                </div>
-                {renderScopeSelector(
-                  urlScope,
-                  setUrlScope,
-                  "manual-scope-url",
-                  "manual-scope-label-url",
-                )}
-                <p className="ai-meta-text">
-                  Enter a public HTTP(S) link. Use the scope above to skip
-                  unchanged articles or force a full refresh.
-                </p>
-              </TabPanel>
+                  <div className="flex items-start gap-2">
+                    <Checkbox
+                      aria-labelledby="manual-linked-pages-label"
+                      aria-describedby="manual-linked-pages-hint"
+                      checked={includeLinkedPages}
+                      onCheckedChange={setIncludeLinkedPages}
+                      disabled={isRunning}
+                    />
+                    <div className="flex flex-col gap-1">
+                      <Label size="sm" id="manual-linked-pages-label">
+                        Include linked pages
+                      </Label>
+                      <p className="ai-meta-text" id="manual-linked-pages-hint">
+                        Also ingest child pages and any pages referenced via
+                        Notion link-to-page blocks.
+                      </p>
+                    </div>
+                  </div>
+                </TabPanel>
 
+                <TabPanel
+                  tabId="url"
+                  activeTabId={mode}
+                  className="ai-tab-panel space-y-2 px-5 pt-4 pb-5"
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="manual-url-input">URL to ingest</Label>
+                    <Input
+                      id="manual-url-input"
+                      type="url"
+                      placeholder="https://example.com/article"
+                      value={urlInput}
+                      onChange={(event) => setUrlInput(event.target.value)}
+                      disabled={isRunning}
+                    />
+                    <p className="ai-meta-text">
+                      Enter a public HTTP(S) link. Use the scope above to skip
+                      unchanged articles or force a full refresh.
+                    </p>
+                  </div>
+                </TabPanel>
+              </Card>
+            </div>
+
+            <Card className="space-y-4" aria-label="Manual ingestion controls">
+              <GridPanel
+                as="fieldset"
+                className=""
+                role="radiogroup"
+                aria-labelledby={currentScopeLabelId}
+              >
+                <div className="space-y-3">
+                  <Label
+                    id={currentScopeLabelId}
+                    htmlFor="manual-ingestion-scope"
+                  >
+                    Ingestion Scope
+                  </Label>
+                  <div className="grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center">
+                    <Radiobutton
+                      name={currentScopeGroupName}
+                      value="partial"
+                      label="Only pages with changes"
+                      description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
+                      checked={currentScope === "partial"}
+                      disabled={isRunning}
+                      onChange={setCurrentScope}
+                    />
+                    <Radiobutton
+                      name={currentScopeGroupName}
+                      value="full"
+                      label="For any pages"
+                      description="Re-ingest all pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
+                      checked={currentScope === "full"}
+                      disabled={isRunning}
+                      onChange={setCurrentScope}
+                    />
+                  </div>
+                </div>
+              </GridPanel>
               <div className="space-y-2">
                 <Label htmlFor="manual-provider-select">Embedding Model</Label>
                 <Select
@@ -1343,7 +1341,7 @@ function ManualIngestionPanel(): JSX.Element {
                 </div>
               ) : null}
 
-              <div className="mt-4 flex flex-wrap items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4">
                 <Button type="submit" disabled={isRunning}>
                   {isRunning ? "Running" : "Run manually"}
                 </Button>
@@ -1386,34 +1384,35 @@ function ManualIngestionPanel(): JSX.Element {
                   />
                 </div>
               </div>
-            </form>
+            </Card>
+          </form>
+
+          <Card className="space-y-2" aria-label="Manual ingestion tips">
+            <CardTitle icon={<FiInfo aria-hidden="true" />}>Tips</CardTitle>
+            <CardContent className="space-y-4">
+              <div className="ai-card-description">
+                <ul className="space-y-2">
+                  <li>
+                    Ensure the Notion page is shared and accessible with the
+                    integration token.
+                  </li>
+                  <li>
+                    Long articles are chunked automatically; you can rerun to
+                    refresh the data.
+                  </li>
+                  <li>
+                    External URLs should be static pages without paywalls or
+                    heavy scripts.
+                  </li>
+                </ul>
+              </div>
+              <TipCallout title="Heads up">
+                Manual runs are processed immediately and may take a few seconds
+                depending on the content size.
+              </TipCallout>
+            </CardContent>
           </Card>
         </section>
-        <Card className="space-y-2" aria-label="Manual ingestion tips">
-          <CardTitle icon={<FiInfo aria-hidden="true" />}>Tips</CardTitle>
-          <CardContent className="space-y-4">
-            <div className="ai-card-description">
-              <ul className="space-y-2">
-                <li>
-                  Ensure the Notion page is shared and accessible with the
-                  integration token.
-                </li>
-                <li>
-                  Long articles are chunked automatically; you can rerun to
-                  refresh the data.
-                </li>
-                <li>
-                  External URLs should be static pages without paywalls or heavy
-                  scripts.
-                </li>
-              </ul>
-            </div>
-            <TipCallout title="Heads up">
-              Manual runs are processed immediately and may take a few seconds
-              depending on the content size.
-            </TipCallout>
-          </CardContent>
-        </Card>
 
         <section className="space-y-4 p-6 border-none">
           <Card>
