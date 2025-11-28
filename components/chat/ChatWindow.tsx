@@ -238,13 +238,7 @@ const styles = css`
     gap: 4px;
   }
 
-  .chat-control-label {
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: #4f5a7d;
-  }
+
 
   .guardrail-toggle-row {
     display: flex;
@@ -263,8 +257,6 @@ const styles = css`
 
   .guardrail-description {
     flex: 1;
-    font-size: 0.74rem;
-    color: #374151;
   }
 
   .guardrail-toggle-row__switch {
@@ -1410,7 +1402,7 @@ export function ChatWindow({
             {showOptions && (
               <div className="chat-config-bar">
                 <div className="chat-control-block">
-                  <span className="chat-control-label">Engine &amp; model</span>
+                  <span className="ai-field__label">Engine &amp; model</span>
                   <div className="chat-runtime-summary">
                     <div className="chat-runtime-summary__row">
                       <span className="chat-runtime-summary__label">

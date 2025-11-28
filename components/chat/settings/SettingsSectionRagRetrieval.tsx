@@ -165,14 +165,14 @@ export function SettingsSectionRagRetrieval({
               }
               aria-label="Enable Reverse RAG"
             />
-            <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
+            <span className="ai-choice__label">
               Reverse RAG
-            </p>
+            </span>
           </div>
         )}
 
         {adminConfig.allowlist.allowHyde && (
-          <div className="inline-flex items-center gap-2 text-sm">
+          <div className="inline-flex items-center gap-2">
             <Checkbox
               className="flex-shrink-0"
               checked={sessionConfig.features.hyde}
@@ -188,9 +188,9 @@ export function SettingsSectionRagRetrieval({
               }
               aria-label="Enable HyDE"
             />
-            <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
+            <span className="ai-choice__label">
               HyDE
-            </p>
+            </span>
           </div>
         )}
       </div>

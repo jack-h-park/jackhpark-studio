@@ -8,7 +8,7 @@ export function Card({ className, children, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        "bg-[hsl(var(--ai-bg))] border border-[hsl(var(--ai-border))] rounded-[var(--ai-radius-lg)] shadow-[var(--ai-shadow-soft)] text-[hsl(var(--ai-fg))] p-4",
+        "ai-card",
         className,
       )}
       {...props}

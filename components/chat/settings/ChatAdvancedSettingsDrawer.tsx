@@ -5,7 +5,6 @@ import { useEffect } from "react";
 
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 
 import { SettingsSectionContextHistory } from "./SettingsSectionContextHistory";
@@ -39,11 +38,21 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
       document.body.style.paddingRight = `${scrollBarWidth}px`;
     }
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
     return () => {
       document.body.style.overflow = previousOverflow;
       document.body.style.paddingRight = previousPadding;
+      window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [open]);
+  }, [open, onClose]);
 
   const resetToDefault = () =>
     setSessionConfig(() => ({
@@ -62,9 +71,12 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
       />
       <div
         className={`ai-settings-drawer ${open ? "ai-settings-drawer--visible" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Advanced chat settings"
       >
         <div className="ai-settings-drawer__panel">
-          <Card className="ai-settings-drawer__inner">
+          <div className="ai-settings-drawer__inner">
             <div className="ai-settings-drawer__header">
               <HeadingWithIcon as="h2" icon={<FiSettings aria-hidden="true" />}>
                 Advanced Settings
@@ -78,7 +90,7 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
                 ✕
               </Button>
             </div>
-            <div className="ai-settings-drawer__content">
+            <div className="ai-settings-drawer__content space-y-4">
               <SettingsSectionCoreSummary
                 summary={adminConfig.coreSystemPromptSummary}
               />
@@ -92,7 +104,7 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
                 setSessionConfig={setSessionConfig}
               />
 
-              <div className="ai-settings-cascade">
+              <div className="ai-settings-cascade space-y-4">
                 <SettingsSectionModelEngine
                   adminConfig={adminConfig}
                   sessionConfig={sessionConfig}
@@ -126,7 +138,7 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
                 Reset to Default
               </Button>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     </>

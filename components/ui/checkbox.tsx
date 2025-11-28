@@ -22,7 +22,7 @@ export const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
         aria-checked={checked}
         data-state={checked ? "checked" : "unchecked"}
         className={cn(
-          "inline-flex items-center justify-center w-5 h-5 rounded border border-[hsl(var(--ai-border))] bg-[hsl(var(--ai-bg-muted))] text-[var(--ai-accent-contrast)] transition-colors focus-ring disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-[var(--ai-accent)] data-[state=checked]:border-[var(--ai-accent)]",
+          "ai-checkbox focus-ring",
           className,
         )}
         onClick={(event) => {

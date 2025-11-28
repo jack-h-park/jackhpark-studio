@@ -54,7 +54,7 @@ export function Select({
       <select
         {...restTrigger}
         className={cn(
-          "flex h-9 w-full appearance-none items-center justify-between rounded-[var(--ai-radius-lg)] border border-[hsl(var(--ai-border))] bg-[hsl(var(--ai-bg-muted))] px-3 py-2 pr-8 text-sm shadow-[var(--ai-shadow-soft)] ring-offset-[hsl(var(--ai-bg))] placeholder:text-[var(--ai-text-muted)] focus-ring disabled:cursor-not-allowed disabled:opacity-50",
+          "ai-select focus-ring",
           className,
         )}
         value={value ?? ""}

@@ -29,22 +29,22 @@ export function AllowlistTile({
       aria-pressed={selected}
       title={description ?? `Use ${id}`}
       className={cn(
-        "ai-allowlist-tile",
-        selected ? "ai-allowlist-tile--selected" : "ai-allowlist-tile--idle",
-        disabled && "ai-allowlist-tile--disabled",
+        "ai-selectable ai-selectable--hoverable flex flex-col items-start justify-center gap-2 px-3 py-2 text-left transition focus-ring",
+        selected ? "ai-selectable--active shadow-inner" : "",
+        disabled && "ai-selectable--disabled",
         className,
       )}
       onClick={onClick}
       disabled={disabled}
     >
       <div className="ai-choice">
-        <span className="ai-choice__label-row ai-allowlist-tile__label-row">
-          <span className="ai-choice__label ai-allowlist-tile__label-text">
+        <span className="ai-choice__label-row w-full">
+          <span className="ai-choice__label">
             {label}
           </span>
           {selected && (
             <span
-              className="ai-allowlist-tile__check align-middle"
+              className="ai-check-circle align-middle"
               aria-hidden="true"
             >
               ✓

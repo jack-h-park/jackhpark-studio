@@ -41,8 +41,8 @@ export function GridPanelItem<T extends React.ElementType = "button">({
   const Component = as ?? "button";
   const isDisabled = Boolean(props.disabled);
   const mergedClassName = cn(
-    "ai-selectable ai-selectable--hoverable p-[0.6rem] px-[0.7rem] text-[0.8rem] font-semibold text-[var(--ai-text)] text-left shadow-none cursor-pointer",
-    active && "ai-selectable--active text-[var(--ai-accent-strong)]",
+    "ai-selectable ai-selectable--hoverable p-[0.6rem] px-[0.7rem] text-left shadow-none cursor-pointer",
+    active && "ai-selectable--active",
     isDisabled && "ai-selectable--disabled",
     className,
   );

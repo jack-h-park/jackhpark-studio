@@ -55,7 +55,7 @@ export function SettingsSectionPresets({
               active={isActive}
               onClick={() => applyPreset(key)}
             >
-              {PRESET_LABELS[key]}
+              <span className="ai-choice__label">{PRESET_LABELS[key]}</span>
             </GridPanelItem>
           );
         })}
