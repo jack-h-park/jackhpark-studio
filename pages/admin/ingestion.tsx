@@ -44,6 +44,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LinkButton } from "@/components/ui/link-button";
 import { ManualLogEntry } from "@/components/ui/manual-log-entry";
+import { PageHeaderCard } from "@/components/ui/page-header-card";
 import { ProgressGroup } from "@/components/ui/progress-group";
 import { Radiobutton } from "@/components/ui/radiobutton";
 import { RecentRunsFilters } from "@/components/ui/recent-runs-filters";
@@ -2952,22 +2953,17 @@ function IngestionDashboard({
         headerRecordMap={headerRecordMap}
         headerBlockId={headerBlockId}
       >
-        <Card className="mb-6">
-          <CardHeader className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <CardTitle icon={<FiPlayCircle aria-hidden="true" />}>
-                Ingestion Dashboard
-              </CardTitle>
-              <p className="ai-card-description">
-                Monitor ingestion health, trigger manual runs, and review the
-                latest dataset snapshot.
-              </p>
-            </div>
+        <PageHeaderCard
+          icon={<FiPlayCircle aria-hidden="true" />}
+          overline="Admin"
+          title="Ingestion Dashboard"
+          description="Monitor ingestion health, trigger manual runs, and review the latest dataset snapshot."
+          actions={
             <LinkButton href="/admin/chat-config" variant="outline">
               Chat Configuration
             </LinkButton>
-          </CardHeader>
-        </Card>
+          }
+        />
 
         <ManualIngestionPanel />
 

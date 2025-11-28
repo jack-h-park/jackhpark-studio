@@ -43,6 +43,7 @@ export function Tabs({
       {tabs.map((tab) => {
         const isActive = activeTabId === tab.id;
         const isDisabled = Boolean(disabled || tab.disabled);
+        const tabIndex = !isDisabled && isActive ? 0 : -1;
         return (
           <button
             key={tab.id}
@@ -52,6 +53,7 @@ export function Tabs({
             aria-controls={`tabpanel-${tab.id}`}
             aria-selected={isActive}
             disabled={isDisabled}
+            tabIndex={tabIndex}
             onClick={() => {
               if (!isDisabled) {
                 onTabChange(tab.id);
@@ -106,7 +108,7 @@ export function TabPanel({
       id={`tabpanel-${tabId}`}
       aria-labelledby={`tabs-${tabId}`}
       hidden={!isActive}
-      className={className}
+      className={cn("ai-tab-panel", className)}
     >
       {children}
     </div>

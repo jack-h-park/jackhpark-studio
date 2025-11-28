@@ -198,6 +198,33 @@ body {
   color: var(--ai-accent);
 }
 
+.ai-page-header-card {
+  padding: 0;
+  border-width: 1.5px;
+  border-color: color-mix(in srgb, hsl(var(--ai-border)) 70%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, hsl(var(--ai-bg)) 94%, hsl(var(--ai-bg-muted)) 6%),
+    color-mix(in srgb, hsl(var(--ai-bg)) 88%, hsl(var(--ai-bg-muted)) 12%)
+  );
+  box-shadow:
+    0 32px 65px rgba(15, 15, 15, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.dark .ai-page-header-card,
+.dark-mode .ai-page-header-card {
+  border-color: color-mix(in srgb, hsl(var(--ai-border)) 55%, transparent);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, hsl(var(--ai-bg)) 86%, hsl(var(--ai-bg-muted)) 14%),
+    color-mix(in srgb, hsl(var(--ai-bg)) 78%, hsl(var(--ai-bg-muted)) 22%)
+  );
+  box-shadow:
+    0 28px 60px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
 .dark,
 .dark-mode {
   --fg-color: rgba(255, 255, 255, 0.9);
@@ -482,20 +509,13 @@ footer {
   @apply text-xs text-slate-500 leading-snug;
 }
 
-
-
 /* Data table primitives */
-
 
 /* Grid panel primitives */
 
-
 /* Manual log entry */
 
-
 /* Pills and callouts */
-
-
 
 .ai-tip-callout {
   border-color: color-mix(in srgb, var(--ai-accent) 70%, transparent);
@@ -528,10 +548,7 @@ footer {
   margin: 0;
 }
 
-
-
 /* Radio controls */
-
 
 /* Button primitives for AI forms and controls. */
 .ai-button {
@@ -552,8 +569,6 @@ footer {
   box-shadow: var(--ai-shadow-soft);
   border-color: color-mix(in srgb, var(--ai-accent) 65%, transparent);
 }
-
-
 
 .ai-button-default:hover:not(:disabled) {
   opacity: 0.92;
@@ -604,14 +619,62 @@ footer {
 }
 
 /* Compact switch primitive shared across admin/chat UI */
+.ai-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 24px;
+  width: 44px;
+  padding: 2px;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--ai-border));
+  background-color: hsl(var(--ai-bg-muted));
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
 
+.ai-switch[data-state="checked"] {
+  border-color: var(--ai-accent-strong);
+  background-color: var(--ai-accent-soft);
+}
+
+.ai-switch[data-state="unchecked"] {
+  border-color: hsl(var(--ai-border));
+  background-color: hsl(var(--ai-bg-muted));
+}
+
+.ai-switch[data-disabled="true"] {
+  border-color: hsl(var(--ai-border-muted));
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ai-switch-thumb {
+  pointer-events: none;
+  display: block;
+  height: 20px;
+  width: 20px;
+  border-radius: 9999px;
+  background-color: hsl(var(--ai-bg));
+  box-shadow: 0 0 0 1px hsl(var(--ai-border-soft));
+  transition: transform 0.2s ease;
+}
+
+.ai-switch-thumb[data-state="checked"] {
+  transform: translateX(18px);
+  background-color: var(--ai-accent);
+}
+
+.ai-switch-thumb[data-state="unchecked"] {
+  transform: translateX(2px);
+}
 
 /* Checkbox primitive for dense admin filters */
 /* Checkbox primitive for dense admin filters */
-
 
 /* Shared field styles for AI form inputs and selects. */
-
 
 .ai-range {
   width: 100%;
@@ -1082,8 +1145,6 @@ footer {
   }
 }
 
-
-
 .ai-tabs-container {
   display: flex;
   width: 100%;
@@ -1092,17 +1153,18 @@ footer {
 }
 
 .ai-tabs-surface {
-  border-color: color-mix(in srgb, var(--ai-border) 60%, transparent);
+  border: 1px solid hsl(var(--ai-border));
   background-color: hsl(var(--ai-bg-muted));
   box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--ai-border) 35%, transparent);
+    color-mix(in srgb, hsl(var(--ai-border)) 35%, transparent);
 }
 
 .ai-tab-control {
   flex: 1 1 0;
   min-width: 10rem;
-  border: 0;
-  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+  background-color: transparent;
   color: var(--ai-text-strong);
   display: flex;
   flex-direction: column;
@@ -1119,7 +1181,6 @@ footer {
     background-color 0.2s ease,
     border-color 0.2s ease,
     box-shadow 0.2s ease;
-  border-bottom: 2px solid transparent;
   padding: 0;
   white-space: nowrap;
 }
@@ -1130,20 +1191,27 @@ footer {
 }
 
 .ai-tab-control--active {
-  border-bottom-color: var(--ai-accent);
+  border-color: hsl(var(--ai-border));
+  border-bottom: 1px solid hsl(var(--ai-bg));
   color: var(--ai-accent-strong);
   background-color: hsl(var(--ai-bg));
   box-shadow: var(--ai-shadow-elevated);
+  position: relative;
+  z-index: 1;
+  margin-bottom: -1px;
+  border-radius: var(--ai-radius-md) var(--ai-radius-md) 0 0;
 }
 
 .ai-tab-control--inactive {
   color: var(--ai-text-strong);
   background-color: transparent;
+  border-color: transparent;
   box-shadow: none;
 }
 
 .ai-tab-control--inactive:hover:not(:disabled) {
-  background-color: var(--ai-surface-tint);
+  background-color: color-mix(in srgb, hsl(var(--ai-bg)) 94%, transparent);
+  border-color: color-mix(in srgb, hsl(var(--ai-border)) 80%, transparent);
 }
 
 .ai-tab-control--disabled {
@@ -1155,24 +1223,24 @@ footer {
   .ai-allowlist-tile {
     @apply rounded-2xl border px-3 py-2 text-left text-sm transition;
     @apply focus-visible:outline-none focus-visible:ring-2;
-    --tw-ring-color: var(--ai-primary);
+    --tw-ring-color: var(--ai-ring);
   }
 
   .ai-allowlist-tile--selected {
     @apply shadow-inner;
-    border-color: var(--ai-border);
-    background: var(--ai-bg-muted);
+    border-color: var(--ai-accent-strong);
+    background: var(--ai-accent-soft);
     color: var(--ai-text-strong);
   }
 
   .ai-allowlist-tile--idle {
-    border-color: var(--ai-border-muted);
-    background: var(--ai-bg-subtle);
+    border-color: var(--ai-border-soft);
+    background: hsl(var(--ai-bg-muted));
     color: var(--ai-text-muted);
   }
 
   .ai-allowlist-tile--idle:hover {
-    border-color: var(--ai-border);
+    border-color: var(--ai-border-strong);
   }
 
   .ai-allowlist-tile--disabled {
@@ -1210,7 +1278,6 @@ footer {
 
 /* Connects tab panel content visually to active tab */
 
-
 /* Restored ai-card styles */
 .ai-card {
   background-color: hsl(var(--ai-bg));
@@ -1241,6 +1308,16 @@ footer {
 
 .ai-tab-panel {
   outline: none;
+  border-radius: 0 0 var(--ai-radius-lg) var(--ai-radius-lg);
+  border: 1px solid hsl(var(--ai-border));
+  border-top: none;
+  background-color: hsl(var(--ai-bg));
+}
+
+.ai-tab-panel > .ai-card {
+  border: none;
+  border-radius: inherit;
+  box-shadow: none;
 }
 
 /* Custom focus ring utility */
@@ -1249,9 +1326,8 @@ footer {
 }
 
 .focus-ring:focus-visible {
-  box-shadow: 
-    0 0 0 2px hsl(var(--ai-bg)), 
-    0 0 0 4px var(--ai-ring), 
+  box-shadow:
+    0 0 0 2px hsl(var(--ai-bg)),
+    0 0 0 4px var(--ai-ring),
     0 0 8px 1px var(--ai-ring);
 }
-

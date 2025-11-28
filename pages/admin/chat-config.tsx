@@ -34,6 +34,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeaderCard } from "@/components/ui/page-header-card";
 import { Radiobutton } from "@/components/ui/radiobutton";
 import {
   Select,
@@ -372,28 +373,25 @@ function AdminChatConfigForm({
 
   return (
     <>
-      <Card className="mb-6">
-        <CardHeader className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]">
-              Admin
-            </p>
-            <h1 className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-              Chat Configuration (Admin)
-            </h1>
-            <p className="text-sm text-[color:var(--ai-text-muted)]">
-              {lastSavedAt
-                ? `Last saved ${new Date(lastSavedAt).toLocaleString()}`
-                : "Not saved yet."}
-            </p>
-          </div>
-          <div className="ml-auto flex gap-2">
+      <PageHeaderCard
+        overline="Admin"
+        title="Chat Configuration"
+        description="Configure chat behavior, guardrails, and session presets."
+        meta={
+          <span>
+            {lastSavedAt
+              ? `Last saved ${new Date(lastSavedAt).toLocaleString()}`
+              : "Not saved yet."}
+          </span>
+        }
+        actions={
+          <>
             <Button
               variant="ghost"
               type="button"
               onClick={() => setIsRawModalOpen(true)}
             >
-              View as JSON
+              View raw JSON
             </Button>
             <Button
               variant="default"
@@ -403,9 +401,9 @@ function AdminChatConfigForm({
             >
               {saveStatus === "saving" ? "Saving…" : "Save"}
             </Button>
-          </div>
-        </CardHeader>
-      </Card>
+          </>
+        }
+      />
 
       {errorMessage && (
         <Card className="border-l-4 border-[color:var(--ai-error)] bg-[color:color-mix(in srgb, var(--ai-bg) 85%, var(--ai-error) 15%)]">

@@ -30,9 +30,7 @@ export function AllowlistTile({
       title={description ?? `Use ${id}`}
       className={cn(
         "ai-allowlist-tile",
-        selected
-          ? "ai-allowlist-tile--selected"
-          : "ai-allowlist-tile--idle",
+        selected ? "ai-allowlist-tile--selected" : "ai-allowlist-tile--idle",
         disabled && "ai-allowlist-tile--disabled",
         className,
       )}
@@ -44,7 +42,10 @@ export function AllowlistTile({
           {label}
         </span>
         {selected && (
-          <span className="ai-allowlist-tile__check" aria-hidden="true">
+          <span
+            className="ai-allowlist-tile__check align-middle"
+            aria-hidden="true"
+          >
             ✓
           </span>
         )}
