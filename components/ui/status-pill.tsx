@@ -10,11 +10,14 @@ export type StatusPillVariant =
   | "muted";
 
 const variantStyles: Record<StatusPillVariant, string> = {
-  success: "ai-status-pill--success",
-  warning: "ai-status-pill--warning",
-  error: "ai-status-pill--error",
-  info: "ai-status-pill--info",
-  muted: "ai-status-pill--muted",
+  success:
+    "bg-[var(--ai-success-muted)] border-[var(--ai-success)] text-[var(--ai-success)]",
+  warning:
+    "bg-[var(--ai-warning-muted)] border-[var(--ai-warning)] text-[var(--ai-warning)]",
+  error:
+    "bg-[var(--ai-error-muted)] border-[var(--ai-error)] text-[var(--ai-error)]",
+  info: "bg-[var(--ai-accent-bg)] border-[var(--ai-accent)] text-[var(--ai-accent-strong)]",
+  muted: "border-[hsl(var(--ai-border))] text-[var(--ai-text-muted)]",
 };
 
 export type StatusPillProps = {
@@ -31,7 +34,7 @@ export function StatusPill({
   return (
     <span
       className={cn(
-        "ai-status-pill",
+        "inline-flex items-center justify-center px-[0.65rem] py-[0.2rem] rounded-[var(--ai-radius-pill)] text-[0.65rem] font-semibold uppercase tracking-[0.25em] border border-transparent bg-[var(--ai-border-soft)] text-[var(--ai-text-muted)]",
         variantStyles[variant],
         className,
       )}

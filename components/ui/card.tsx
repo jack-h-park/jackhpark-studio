@@ -6,7 +6,13 @@ export type CardProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function Card({ className, children, ...props }: CardProps) {
   return (
-    <div className={cn("ai-card", className)} {...props}>
+    <div
+      className={cn(
+        "bg-[hsl(var(--ai-bg))] border border-[hsl(var(--ai-border))] rounded-[var(--ai-radius-lg)] shadow-[var(--ai-shadow-soft)] text-[hsl(var(--ai-fg))] p-4",
+        className,
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -18,7 +24,13 @@ export function CardHeader({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("ai-card-header", className)} {...props}>
+    <div
+      className={cn(
+        "p-[1.2rem] border-b border-[hsl(var(--ai-border))] flex flex-col gap-[0.32rem]",
+        className,
+      )}
+      {...props}
+    >
       {children}
     </div>
   );
@@ -38,14 +50,14 @@ export function CardTitle({
   return (
     <h3
       className={cn(
-        "ai-card-title",
+        "m-0 text-lg font-semibold",
         hasIcon ? "flex items-center gap-1" : undefined,
         className,
       )}
       {...props}
     >
       {icon && (
-        <span className="flex items-center justify-center flex-shrink-0 w-[1.1em] h-[1.1em] ai-text-info">
+        <span className="flex items-center justify-center flex-shrink-0 w-[1.1em] h-[1.1em] text-[var(--ai-accent)]">
           {icon}
         </span>
       )}
@@ -60,7 +72,13 @@ export function CardDescription({
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p className={cn("ai-card-description", className)} {...props}>
+    <p
+      className={cn(
+        "m-0 text-[hsl(var(--ai-fg-muted))] text-[0.8rem] leading-[1.4]",
+        className,
+      )}
+      {...props}
+    >
       {children}
     </p>
   );
@@ -72,7 +90,7 @@ export function CardContent({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("ai-card-content", className)} {...props}>
+    <div className={cn("p-[0.6rem]", className)} {...props}>
       {children}
     </div>
   );
@@ -84,7 +102,13 @@ export function CardFooter({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("ai-card-footer", className)} {...props}>
+    <div
+      className={cn(
+        "p-[1.2rem] border-t border-[hsl(var(--ai-border))] flex items-center justify-end gap-[0.4rem]",
+        className,
+      )}
+      {...props}
+    >
       {children}
     </div>
   );

@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { cn } from "./utils";
 
-const baseStyles = "ai-button";
+const baseStyles = "ai-button focus-ring";
 
 export const buttonVariantStyles = {
   default: "ai-button-default",

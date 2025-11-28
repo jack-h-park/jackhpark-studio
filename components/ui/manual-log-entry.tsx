@@ -13,9 +13,9 @@ export type ManualLogEntryProps = {
 };
 
 const levelClasses: Record<ManualLogLevel, string> = {
-  info: "ai-manual-log-entry--info",
-  warn: "ai-manual-log-entry--warn",
-  error: "ai-manual-log-entry--error",
+  info: "bg-[hsl(var(--ai-bg-muted))] border-[hsl(var(--ai-border))]",
+  warn: "bg-[var(--ai-warning-muted)] border-[var(--ai-warning)]",
+  error: "bg-[var(--ai-error-muted)] border-[var(--ai-error)]",
 };
 
 export function ManualLogEntry({
@@ -28,17 +28,19 @@ export function ManualLogEntry({
   return (
     <li
       className={cn(
-        "ai-manual-log-entry",
+        "flex items-start gap-3 p-3 rounded-[var(--ai-radius-lg)] border text-sm",
         levelClasses[level],
         className,
       )}
     >
-      <span className="ai-manual-log-entry__icon" aria-hidden="true">
+      <span className="flex-shrink-0 mt-0.5" aria-hidden="true">
         {icon}
       </span>
       <div className="space-y-1">
-        <p className="ai-manual-log-entry__timestamp">{timestamp}</p>
-        <p className="ai-manual-log-entry__message">{message}</p>
+        <p className="text-xs text-[var(--ai-text-muted)] font-mono">
+          {timestamp}
+        </p>
+        <p className="text-[var(--ai-text)] leading-relaxed">{message}</p>
       </div>
     </li>
   );

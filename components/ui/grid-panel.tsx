@@ -17,7 +17,7 @@ export function GridPanel<T extends React.ElementType = "div">({
   const Component = as ?? "div";
   return (
     <Component
-      className={cn("ai-grid-panel", className)}
+      className={cn("grid gap-4", className)}
       {...(props as React.ComponentPropsWithoutRef<T>)}
     >
       {children}
@@ -41,9 +41,11 @@ export function GridPanelItem<T extends React.ElementType = "button">({
   const Component = as ?? "button";
   const isDisabled = Boolean(props.disabled);
   const mergedClassName = cn(
-    "ai-grid-panel__item",
-    active ? "ai-grid-panel__item--active" : "ai-grid-panel__item--inactive",
-    isDisabled && "ai-grid-panel__item--disabled",
+    "rounded-[var(--ai-radius-lg)] border border-[hsl(var(--ai-border))] bg-[hsl(var(--ai-bg-muted))] p-[0.6rem] px-[0.7rem] text-[0.8rem] font-semibold text-[var(--ai-text)] text-left cursor-pointer transition-all duration-200 ease-linear shadow-none",
+    active
+      ? "border-[var(--ai-accent)] bg-[var(--ai-accent-bg)] text-[var(--ai-accent-strong)] shadow-[var(--ai-shadow-soft)]"
+      : "hover:not(:disabled):border-[color-mix(in_srgb,var(--ai-text)_60%,transparent)]",
+    isDisabled && "opacity-65 cursor-not-allowed",
     className,
   );
 
@@ -53,7 +55,8 @@ export function GridPanelItem<T extends React.ElementType = "button">({
   } as React.ComponentPropsWithoutRef<T>;
 
   if (Component === "button") {
-    const buttonProps = elementProps as React.ButtonHTMLAttributes<HTMLButtonElement>;
+    const buttonProps =
+      elementProps as React.ButtonHTMLAttributes<HTMLButtonElement>;
     if (active !== undefined) {
       buttonProps["aria-pressed"] = active;
     }

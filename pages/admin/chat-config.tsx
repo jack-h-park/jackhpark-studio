@@ -21,6 +21,7 @@ import type {
   SummaryLevel,
 } from "@/types/chat-config";
 import { AiPageChrome } from "@/components/AiPageChrome";
+import { AllowlistTile } from "@/components/ui/allowlist-tile";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -29,19 +30,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { AllowlistTile } from "@/components/ui/allowlist-tile";
 import { Checkbox } from "@/components/ui/checkbox";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Radiobutton } from "@/components/ui/radiobutton";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import {
@@ -66,6 +66,7 @@ import {
   RANKER_OPTIONS,
   type RankerId,
 } from "@/lib/shared/models";
+import { cn } from "@/lib/utils";
 
 type PageProps = {
   adminConfig: AdminChatConfig;
@@ -132,6 +133,7 @@ function AdminChatConfigForm({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(lastUpdatedAt);
   const [isRawModalOpen, setIsRawModalOpen] = useState(false);
+  const [isWordWrapEnabled, setIsWordWrapEnabled] = useState(false);
   const [contextHistoryEnabled, setContextHistoryEnabled] = useState<
     Record<PresetKey, boolean>
   >(() =>
@@ -320,7 +322,7 @@ function AdminChatConfigForm({
     "text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]";
   const summaryGridValueClass = "flex flex-col gap-1";
 
-  const PresetSettingsGroup = ({
+  function PresetSettingsGroup({
     title,
     groupId,
     renderHeaderCell,
@@ -333,7 +335,7 @@ function AdminChatConfigForm({
       headerLabelId: string,
     ) => ReactNode;
     children: ReactNode;
-  }) => {
+  }) {
     const headerLabelId = `${groupId}-label`;
 
     return (
@@ -352,7 +354,7 @@ function AdminChatConfigForm({
         {children}
       </Fragment>
     );
-  };
+  }
 
   const renderPresetRow = (
     label: string,
@@ -391,7 +393,7 @@ function AdminChatConfigForm({
               type="button"
               onClick={() => setIsRawModalOpen(true)}
             >
-              View raw JSON
+              View as JSON
             </Button>
             <Button
               variant="default"
@@ -796,7 +798,7 @@ function AdminChatConfigForm({
           </div>
 
           <div className="grid gap-4 sm:grid-cols-1">
-            <div className="inline-flex items-center gap-2 text-sm">
+            <div className="inline-flex items-center gap-2">
               <Checkbox
                 className="shrink-0"
                 aria-label="Allow Reverse RAG"
@@ -811,9 +813,9 @@ function AdminChatConfigForm({
                   }))
                 }
               />
-              <span>Allow Reverse RAG</span>
+              <span className="text-sm">Allow Reverse RAG</span>
             </div>
-            <div className="inline-flex items-center gap-2 text-sm">
+            <div className="inline-flex items-center gap-2">
               <Checkbox
                 className="shrink-0"
                 aria-label="Allow HyDE"
@@ -828,7 +830,7 @@ function AdminChatConfigForm({
                   }))
                 }
               />
-              <span>Allow HyDE</span>
+              <span className="text-sm">Allow HyDE</span>
             </div>
           </div>
         </CardContent>
@@ -1292,36 +1294,62 @@ function AdminChatConfigForm({
       </Card>
 
       {isRawModalOpen && (
-        <div className="admin-chat-config-page__raw-overlay">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div
-            className="admin-chat-config-page__raw-modal"
+            className="flex flex-col w-full max-w-4xl max-h-[85vh] overflow-hidden rounded-xl bg-[hsl(var(--ai-bg))] shadow-2xl border border-[hsl(var(--ai-border))]"
             role="dialog"
             aria-modal="true"
             aria-label="Raw admin chat config"
           >
-            <div className="admin-chat-config-page__raw-modal-header">
-              <div className="admin-chat-config-page__raw-modal-title-block">
-                <h2 className="ai-section-title">
-                  <strong>Raw Admin Chat Config Data</strong>{" "}
-                  <span className="ai-meta-text font-normal opacity-80">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[hsl(var(--ai-border))] bg-[hsl(var(--ai-bg-muted))]">
+              <div className="flex flex-col gap-0.5">
+                <h2 className="text-lg font-semibold text-[var(--ai-text-strong)]">
+                  Admin Chat Configuration Data{" "}
+                  <span className="text-sm font-normal text-[var(--ai-text-muted)]">
                     (JSON)
                   </span>
                 </h2>
-                <p className="ai-meta-text">This is for read-only.</p>
+                <p className="text-xs text-[var(--ai-text-muted)]">
+                  This is for read-only.
+                </p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="shrink-0"
-                type="button"
-                onClick={() => setIsRawModalOpen(false)}
-              >
-                Close
-              </Button>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="word-wrap-toggle"
+                    checked={isWordWrapEnabled}
+                    onCheckedChange={setIsWordWrapEnabled}
+                  />
+                  <Label htmlFor="word-wrap-toggle" className="text-sm cursor-pointer">
+                    Word Wrap
+                  </Label>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0"
+                  type="button"
+                  onClick={() => setIsRawModalOpen(false)}
+                >
+                  Close
+                </Button>
+              </div>
             </div>
-            <pre className="admin-chat-config-page__raw-modal-body">
-              {JSON.stringify(config, null, 2)}
-            </pre>
+            <div
+              className={cn(
+                "flex-1 w-full min-w-0 p-6 bg-[hsl(var(--ai-bg))]",
+                isWordWrapEnabled ? "overflow-y-auto" : "overflow-auto"
+              )}
+            >
+              <pre
+                className={cn(
+                  "text-xs font-mono text-[var(--ai-text)]",
+                  isWordWrapEnabled ? "whitespace-pre-wrap" : "whitespace-pre"
+                )}
+              >
+                {JSON.stringify(config, null, 2)}
+              </pre>
+            </div>
           </div>
         </div>
       )}

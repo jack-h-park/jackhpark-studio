@@ -2,15 +2,14 @@
 
 import { FiTarget } from "@react-icons/all-files/fi/FiTarget";
 
+import type { RankerId } from "@/lib/shared/models";
 import type {
   AdminChatConfig,
   SessionChatConfig,
   SummaryLevel,
 } from "@/types/chat-config";
-import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
-import { SliderNumberField } from "@/components/ui/slider-number-field";
-import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { Label } from "@/components/ui/label";
 import { Radiobutton } from "@/components/ui/radiobutton";
 import {
@@ -19,7 +18,8 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import type { RankerId } from "@/lib/shared/models";
+import { SliderNumberField } from "@/components/ui/slider-number-field";
+import { Switch } from "@/components/ui/switch";
 
 const SUMMARY_LEVELS: Record<SummaryLevel, string> = {
   off: "Off",

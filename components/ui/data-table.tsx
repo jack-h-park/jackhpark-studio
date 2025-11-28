@@ -51,17 +51,23 @@ export function DataTable<T>({
 
   return (
     <div
-      className={cn("ai-panel ai-data-table-wrapper relative", className)}
+      className={cn(
+        "bg-[hsl(var(--ai-bg))] border border-[hsl(var(--ai-border))] rounded-[var(--ai-radius-lg)] shadow-[var(--ai-shadow-soft)] text-[hsl(var(--ai-fg))] p-4 w-full relative overflow-hidden",
+        className,
+      )}
       aria-busy={isLoading}
     >
       {errorMessage ? (
-        <div role="alert" className="ai-data-table__error">
+        <div
+          role="alert"
+          className="p-[0.85rem] px-4 text-[0.9rem] font-semibold text-[var(--ai-error)]"
+        >
           {errorMessage}
         </div>
       ) : null}
-      <div className="ai-data-table__scroll">
-        <table className="ai-data-table">
-          <thead className="ai-data-table__head">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-full border-collapse">
+          <thead className="border-b border-[color-mix(in_srgb,hsl(var(--ai-border))_70%,transparent)] bg-[hsl(var(--ai-bg-muted))]">
             <tr>
               {columns.map((column, index) => {
                 const alignment =
@@ -75,7 +81,7 @@ export function DataTable<T>({
                     key={`column-${index}`}
                     scope="col"
                     className={cn(
-                      "ai-data-table__header-cell",
+                      "p-[0.65rem] px-4 text-left text-xs font-semibold tracking-[0.2em] uppercase text-[var(--ai-text-muted)]",
                       alignment,
                       column.className,
                     )}
@@ -89,10 +95,10 @@ export function DataTable<T>({
           </thead>
           <tbody>
             {!hasData ? (
-              <tr className="ai-data-table__empty-row">
+              <tr className="bg-[hsl(var(--ai-surface))]">
                 <td
                   colSpan={columns.length}
-                  className="ai-data-table__empty-cell"
+                  className="p-[1.2rem] text-center text-[0.8rem] text-[var(--ai-text-muted)]"
                 >
                   {emptyMessage ?? "No records to display yet."}
                 </td>
@@ -108,11 +114,10 @@ export function DataTable<T>({
                   <tr
                     key={`row-${rowId}`}
                     className={cn(
-                      "ai-data-table__row",
+                      "transition-colors duration-200 ease-linear hover:bg-[hsl(var(--ai-bg))]",
                       rowIndex % 2 === 0
-                        ? "ai-data-table__row--even"
-                        : "ai-data-table__row--odd",
-                      "ai-data-table__row--hover",
+                        ? "bg-[hsl(var(--ai-surface))]"
+                        : "bg-[hsl(var(--ai-bg-muted))]",
                     )}
                   >
                     {columns.map((column, cellIndex) => {
@@ -126,13 +131,15 @@ export function DataTable<T>({
                         <td
                           key={`cell-${rowId}-${cellIndex}`}
                           className={cn(
-                            "ai-data-table__cell",
+                            "p-[0.65rem] px-4 align-top",
                             alignment,
                             sizeClassMap[column.size ?? "sm"],
                             variantClassMap[column.variant ?? "primary"],
                             column.className,
                           )}
-                          style={column.width ? { width: column.width } : undefined}
+                          style={
+                            column.width ? { width: column.width } : undefined
+                          }
                         >
                           {column.render(item)}
                         </td>
@@ -145,7 +152,9 @@ export function DataTable<T>({
           </tbody>
         </table>
       </div>
-      {isLoading ? <div className="ai-loading-overlay" /> : null}
+      {isLoading ? (
+        <div className="absolute inset-0 bg-[color-mix(in_srgb,hsl(var(--ai-bg))_60%,transparent)] pointer-events-none" />
+      ) : null}
     </div>
   );
 }

@@ -32,18 +32,26 @@ export function TabPill({
       tabIndex={tabIndex}
       aria-selected={isActive}
       className={cn(
-        "ai-button ai-button-size-default ai-button-pill ai-tab-pill",
-        isActive ? "ai-tab-pill--active" : "ai-tab-pill--inactive",
+        "relative flex flex-1 items-center justify-center gap-2 rounded-t-[var(--ai-radius-pill)] border px-4 py-2 text-sm font-medium transition-all duration-200 ease-linear focus-ring disabled:pointer-events-none disabled:opacity-50",
+        isActive
+          ? "bg-[var(--ai-accent-bg)] text-[var(--ai-text-strong)] border-ai border-b-transparent shadow-[0_16px_32px_rgba(15,23,42,0.08)] z-10 mb-[-1px]"
+          : "bg-[hsl(var(--ai-bg-muted))] text-[var(--ai-text-muted)] border-ai hover:bg-[hsl(var(--ai-bg))] hover:text-[var(--ai-text-strong)]",
         className,
       )}
       {...props}
     >
-      <span className="ai-tab-pill__content">
-        {icon ? <span className="ai-tab-pill__icon">{icon}</span> : null}
-        <span className="ai-tab-pill__label-group">
-          <span className="ai-tab-pill__title">{title}</span>
+      <span className="flex items-center gap-2">
+        {icon ? (
+          <span className="flex items-center justify-center w-4 h-4">
+            {icon}
+          </span>
+        ) : null}
+        <span className="flex flex-col items-start leading-none">
+          <span className="font-semibold">{title}</span>
           {subtitle ? (
-            <span className="ai-tab-pill__subtitle">{subtitle}</span>
+            <span className="text-xs opacity-80 uppercase tracking-widest">
+              {subtitle}
+            </span>
           ) : null}
         </span>
       </span>

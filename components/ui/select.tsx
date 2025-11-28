@@ -1,12 +1,10 @@
+/* eslint-disable simple-import-sort/imports */
+import { FiChevronDown } from "@react-icons/all-files/fi/FiChevronDown";
 import * as React from "react";
 
 import { cn } from "./utils";
 
-type Option = {
-  value: string;
-  label: React.ReactNode;
-  disabled?: boolean;
-};
+
 
 function isElementOfType<P>(
   element: React.ReactNode,
@@ -22,10 +20,14 @@ export type SelectProps = {
   disabled?: boolean;
 };
 
-export function Select({ value, onValueChange, children, disabled }: SelectProps) {
+export function Select({
+  value,
+  onValueChange,
+  children,
+  disabled,
+}: SelectProps) {
   let triggerProps: SelectTriggerProps | undefined;
   let placeholder: string | undefined;
-  const options: Option[] = [];
 
   React.Children.forEach(children, (child) => {
     if (isElementOfType<SelectTriggerProps>(child, SelectTrigger)) {
@@ -35,16 +37,6 @@ export function Select({ value, onValueChange, children, disabled }: SelectProps
           if (typeof grandchild.props.placeholder === "string") {
             placeholder = grandchild.props.placeholder;
           }
-        }
-      });
-    } else if (isElementOfType<SelectContentProps>(child, SelectContent)) {
-      React.Children.forEach(child.props.children, (optionChild) => {
-        if (isElementOfType<SelectItemProps>(optionChild, SelectItem)) {
-          options.push({
-            value: optionChild.props.value,
-            label: optionChild.props.children,
-            disabled: optionChild.props.disabled,
-          });
         }
       });
     }
@@ -58,24 +50,29 @@ export function Select({ value, onValueChange, children, disabled }: SelectProps
   } = triggerProps ?? {};
 
   return (
-    <select
-      {...restTrigger}
-      className={cn("ai-select", className)}
-      value={value ?? ""}
-      onChange={(event) => onValueChange?.(event.target.value)}
-      disabled={disabled ?? triggerDisabled}
-    >
-      {placeholder && (
-        <option value="" disabled>
-          {placeholder}
-        </option>
-      )}
-      {options.map((option) => (
-        <option key={option.value} value={option.value} disabled={option.disabled}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <div className="relative w-full">
+      <select
+        {...restTrigger}
+        className={cn(
+          "flex h-9 w-full appearance-none items-center justify-between rounded-[var(--ai-radius-lg)] border border-[hsl(var(--ai-border))] bg-[hsl(var(--ai-bg-muted))] px-3 py-2 pr-8 text-sm shadow-[var(--ai-shadow-soft)] ring-offset-[hsl(var(--ai-bg))] placeholder:text-[var(--ai-text-muted)] focus-ring disabled:cursor-not-allowed disabled:opacity-50",
+          className,
+        )}
+        value={value ?? ""}
+        onChange={(event) => onValueChange?.(event.target.value)}
+        disabled={disabled ?? triggerDisabled}
+      >
+        {placeholder && (
+          <option value="" disabled>
+            {placeholder}
+          </option>
+        )}
+        {children}
+      </select>
+      <FiChevronDown
+        className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50 pointer-events-none"
+        aria-hidden="true"
+      />
+    </div>
   );
 }
 
@@ -107,6 +104,10 @@ export type SelectItemProps = {
   children: React.ReactNode;
 };
 
-export function SelectItem(_props: SelectItemProps) {
-  return <>{_props.children}</>;
+export function SelectItem({ value, disabled, children }: SelectItemProps) {
+  return (
+    <option value={value} disabled={disabled}>
+      {children}
+    </option>
+  );
 }
