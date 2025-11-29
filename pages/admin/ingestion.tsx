@@ -1121,7 +1121,7 @@ function ManualIngestionPanel(): JSX.Element {
           <form className="grid space-y-4" onSubmit={handleSubmit} noValidate>
             <div className="space-y-0">
               <div
-                className="flex items-stretch gap-0 px-4 pt-0 border-b border-[hsl(var(--ai-border))] bg-[color:var(--ai-surface)]"
+                className="flex items-stretch gap-0 px-4 pt-0 border-b border-[hsl(var(--ai-border))] bg-[hsl(var(--ai-bg))]"
                 role="tablist"
                 aria-label="Manual ingestion source"
               >

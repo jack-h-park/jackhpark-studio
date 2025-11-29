@@ -34,8 +34,8 @@ export function TabPill({
       className={cn(
         "relative flex flex-1 items-center justify-center gap-2 rounded-t-[var(--ai-radius-pill)] border px-4 py-2 text-sm font-medium transition-all duration-200 ease-linear focus-ring disabled:pointer-events-none disabled:opacity-50",
         isActive
-          ? "bg-[var(--ai-accent-bg)] text-[var(--ai-text-strong)] border-ai border-b-transparent shadow-[0_16px_32px_rgba(15,23,42,0.08)] z-10 mb-[-1px]"
-          : "bg-[hsl(var(--ai-bg-muted))] text-[var(--ai-text-muted)] border-ai hover:bg-[hsl(var(--ai-bg))] hover:text-[var(--ai-text-strong)]",
+          ? "bg-[color-mix(in_srgb,hsl(var(--ai-bg)),var(--ai-accent)_15%)] text-[var(--ai-text-strong)] border-ai border-b-transparent shadow-[0_16px_32px_rgba(15,23,42,0.08)] z-10 mb-[-1px]"
+          : "bg-[hsl(var(--ai-bg-muted))] dark:bg-transparent text-[var(--ai-text-muted)] border-ai hover:bg-[hsl(var(--ai-bg))] dark:hover:bg-[hsl(var(--ai-bg-muted))] hover:text-[var(--ai-text-strong)]",
         className,
       )}
       {...props}
