@@ -57,7 +57,7 @@ export function SettingsSectionContextHistory({
   ];
 
   return (
-    <section className="ai-card ai-settings-section">
+    <section className="ai-panel ai-settings-section">
       <div className="ai-settings-section__header flex items-center justify-between gap-3">
         <HeadingWithIcon
           id="settings-context-history-title"

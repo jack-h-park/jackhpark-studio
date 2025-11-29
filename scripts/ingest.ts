@@ -35,7 +35,6 @@ const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
 
 type RunMode = {
   type: 'full' | 'partial'
-  reason?: string | null
 }
 
 type ParsedArgs = {
@@ -48,8 +47,8 @@ function parseArgs(defaultType: 'full' | 'partial'): ParsedArgs {
   const urls: string[] = []
   let mode: RunMode = { type: defaultType }
 
-  for (let i = 0; i < raw.length; i += 1) {
-    const arg = raw[i]!
+  for (const element of raw) {
+    const arg = element!
 
     if (arg === '--full' || arg === '--mode=full') {
       mode = { type: 'full' }
@@ -66,20 +65,6 @@ function parseArgs(defaultType: 'full' | 'partial'): ParsedArgs {
       if (value === 'full' || value === 'partial') {
         mode = { type: value }
       }
-      continue
-    }
-
-    if (arg === '--reason') {
-      const next = raw[i + 1]
-      if (next && !next.startsWith('--')) {
-        mode = { ...mode, reason: next }
-        i += 1
-      }
-      continue
-    }
-
-    if (arg.startsWith('--reason=')) {
-      mode = { ...mode, reason: arg.slice(Math.max(0, arg.indexOf('=') + 1)) }
       continue
     }
 
@@ -179,8 +164,7 @@ async function ingestUrl(
   }
 
   console.log(
-    `Ingested URL: ${title} (${chunkCount} chunks) [${
-      existingState ? 'updated' : 'new'
+    `Ingested URL: ${title} (${chunkCount} chunks) [${existingState ? 'updated' : 'new'
     }]`
   )
 }
@@ -193,7 +177,7 @@ async function main(): Promise<void> {
 
   if (targets.length === 0) {
     console.error(
-      'Usage: pnpm tsx scripts/ingest.ts [--full|--partial] [--reason "..."] <url> [url...]'
+      'Usage: pnpm tsx scripts/ingest.ts [--full|--partial] <url> [url...]'
     )
     process.exitCode = 1
     return
@@ -201,17 +185,11 @@ async function main(): Promise<void> {
 
   console.log(`Ingesting ${targets.length} URL(s)...`)
 
-  const resolvedReason =
-    mode.type === 'partial'
-      ? mode.reason ?? 'Targeted URL ingest'
-      : mode.reason ?? null
-
   const embeddingSpace = DEFAULT_EMBEDDING_SELECTION
 
   const runHandle: IngestRunHandle = await startIngestRun({
     source: 'web',
     ingestion_type: mode.type,
-    partial_reason: resolvedReason ?? null,
     metadata: {
       urlCount: targets.length,
       embeddingProvider: embeddingSpace.provider,

@@ -81,7 +81,7 @@ export function DataTable<T>({
                     key={`column-${index}`}
                     scope="col"
                     className={cn(
-                      "p-[0.65rem] px-4 text-left text-xs font-semibold tracking-[0.2em] uppercase text-[var(--ai-text-muted)]",
+                      "p-[0.65rem] px-2 text-left text-xs font-semibold tracking-[0.2em] uppercase text-[var(--ai-text-muted)]",
                       alignment,
                       column.className,
                     )}

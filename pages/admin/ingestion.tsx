@@ -1430,32 +1430,52 @@ function ManualIngestionPanel(): JSX.Element {
                 </Card>
                 <Card className="px-4 py-3">
                   <CardContent className="space-y-1">
-                    <dt>Documents Skipped</dt>
-                    <dd>{numberFormatter.format(stats.documentsSkipped)}</dd>
+                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
+                      Documents Skipped
+                    </dt>
+                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
+                      {numberFormatter.format(stats.documentsSkipped)}
+                    </dd>
                   </CardContent>
                 </Card>
                 <Card className="px-4 py-3">
                   <CardContent className="space-y-1">
-                    <dt>Chunks Added</dt>
-                    <dd>{numberFormatter.format(stats.chunksAdded)}</dd>
+                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
+                      Chunks Added
+                    </dt>
+                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
+                      {numberFormatter.format(stats.chunksAdded)}
+                    </dd>
                   </CardContent>
                 </Card>
                 <Card className="px-4 py-3">
                   <CardContent className="space-y-1">
-                    <dt>Chunks Updated</dt>
-                    <dd>{numberFormatter.format(stats.chunksUpdated)}</dd>
+                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
+                      Chunks Updated
+                    </dt>
+                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
+                      {numberFormatter.format(stats.chunksUpdated)}
+                    </dd>
                   </CardContent>
                 </Card>
                 <Card className="px-4 py-3">
                   <CardContent className="space-y-1">
-                    <dt>Characters Added</dt>
-                    <dd>{numberFormatter.format(stats.charactersAdded)}</dd>
+                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
+                      Characters Added
+                    </dt>
+                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
+                      {numberFormatter.format(stats.charactersAdded)}
+                    </dd>
                   </CardContent>
                 </Card>
                 <Card className="px-4 py-3">
                   <CardContent className="space-y-1">
-                    <dt>Characters Updated</dt>
-                    <dd>{numberFormatter.format(stats.charactersUpdated)}</dd>
+                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
+                      Characters Updated
+                    </dt>
+                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
+                      {numberFormatter.format(stats.charactersUpdated)}
+                    </dd>
                   </CardContent>
                 </Card>
                 <Card className="px-4 py-3">
@@ -1475,7 +1495,7 @@ function ManualIngestionPanel(): JSX.Element {
       </section>
 
       {hasCompleted && !isRunning ? (
-        <Card className="mt-6 flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+        <Card className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
           <p className="ai-meta-text">
             Ingestion run completed. Refresh the dashboard to see the latest
             data.
@@ -2673,11 +2693,6 @@ function RecentRunsSection({
             >
               {run.ingestion_type === "full" ? "Full" : "Partial"}
             </StatusPill>
-            {run.partial_reason ? (
-              <p className="ai-meta-text font-normal normal-case">
-                {run.partial_reason}
-              </p>
-            ) : null}
           </div>
         ),
       },

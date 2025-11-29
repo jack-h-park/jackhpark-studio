@@ -41,10 +41,10 @@ type ManualIngestionBase = {
 
 export type ManualIngestionRequest =
   | (ManualIngestionBase & {
-      mode: 'notion_page'
-      pageId: string
-      includeLinkedPages?: boolean
-    })
+    mode: 'notion_page'
+    pageId: string
+    includeLinkedPages?: boolean
+  })
   | (ManualIngestionBase & { mode: 'url'; url: string })
 
 export type ManualIngestionEvent =
@@ -52,19 +52,19 @@ export type ManualIngestionEvent =
   | { type: 'log'; message: string; level?: 'info' | 'warn' | 'error' }
   | { type: 'progress'; step: string; percent: number }
   | {
-      type: 'queue'
-      current: number
-      total: number
-      pageId: string
-      title: string | null
-    }
+    type: 'queue'
+    current: number
+    total: number
+    pageId: string
+    title: string | null
+  }
   | {
-      type: 'complete'
-      status: 'success' | 'completed_with_errors' | 'failed'
-      message?: string
-      runId: string | null
-      stats: IngestRunStats
-    }
+    type: 'complete'
+    status: 'success' | 'completed_with_errors' | 'failed'
+    message?: string
+    runId: string | null
+    stats: IngestRunStats
+  }
 
 type EmitFn = (event: ManualIngestionEvent) => Promise<void> | void
 type ManualRunStatus = 'success' | 'completed_with_errors' | 'failed'
@@ -265,7 +265,6 @@ async function runNotionPageIngestion(
   const runHandle: IngestRunHandle = await startIngestRun({
     source: 'manual/notion-page',
     ingestion_type: ingestionType,
-    partial_reason: isFull ? null : 'Manual Notion page ingest',
     metadata: {
       pageId,
       pageUrl,
@@ -462,15 +461,14 @@ async function runNotionPageIngestion(
     const message = err instanceof Error ? err.message : String(err)
     const failingPageId =
       (err as { ingestionPageId?: string | null })?.ingestionPageId ?? pageId
-    finalMessage = `${
-      includeLinkedPages
-        ? isFull
-          ? 'Manual Notion full ingestion (linked pages) failed'
-          : 'Manual Notion ingestion (linked pages) failed'
-        : isFull
-          ? 'Manual Notion page full ingestion failed'
-          : 'Manual Notion ingestion failed'
-    }: ${message}`
+    finalMessage = `${includeLinkedPages
+      ? isFull
+        ? 'Manual Notion full ingestion (linked pages) failed'
+        : 'Manual Notion ingestion (linked pages) failed'
+      : isFull
+        ? 'Manual Notion page full ingestion failed'
+        : 'Manual Notion ingestion failed'
+      }: ${message}`
     errorLogs.push({
       context: 'fatal',
       doc_id: failingPageId,
@@ -523,8 +521,6 @@ async function runUrlIngestion(
   const runHandle: IngestRunHandle = await startIngestRun({
     source: 'manual/url',
     ingestion_type: ingestionType,
-    partial_reason:
-      ingestionType === 'full' ? null : 'Manual URL ingest',
     metadata: {
       url,
       hostname: parsedUrl.hostname,
@@ -682,11 +678,10 @@ async function runUrlIngestion(
     status = 'failed'
     stats.errorCount += 1
     const message = err instanceof Error ? err.message : String(err)
-    finalMessage = `${
-      ingestionType === 'full'
-        ? 'Manual URL full ingestion failed'
-        : 'Manual URL ingestion failed'
-    }: ${message}`
+    finalMessage = `${ingestionType === 'full'
+      ? 'Manual URL full ingestion failed'
+      : 'Manual URL ingestion failed'
+      }: ${message}`
     errorLogs.push({
       context: 'fatal',
       doc_id: url,

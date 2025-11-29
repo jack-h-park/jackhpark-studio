@@ -16,7 +16,6 @@ export type RunRecord = {
   id: string;
   source: string;
   ingestion_type: IngestionType;
-  partial_reason: string | null;
   status: RunStatus;
   started_at: string;
   ended_at: string | null;
@@ -68,14 +67,6 @@ function toNumberOrZero(value: unknown): number {
   return toNullableNumber(value) ?? 0;
 }
 
-function toStringOrNull(value: unknown): string | null {
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-  return null;
-}
-
 function toStatus(value: unknown): RunStatus {
   if (RUN_STATUS_VALUES.includes(value as RunStatus)) {
     return value as RunStatus;
@@ -84,9 +75,7 @@ function toStatus(value: unknown): RunStatus {
   return "success";
 }
 
-function toIngestionType(value: unknown): IngestionType {
-  return value === "partial" ? "partial" : "full";
-}
+
 
 function toIsoStringOrNull(value: unknown): string | null {
   if (typeof value === "string" && value.length > 0) {
@@ -151,8 +140,10 @@ export function normalizeRunRecord(raw: unknown): RunRecord {
           ? String(idValue)
           : "",
     source: typeof record.source === "string" ? record.source : "unknown",
-    ingestion_type: toIngestionType(record.ingestion_type),
-    partial_reason: toStringOrNull(record.partial_reason),
+    ingestion_type:
+      record.ingestion_type === "full" || record.ingestion_type === "partial"
+        ? (record.ingestion_type as IngestionType)
+        : "partial",
     status: toStatus(record.status),
     started_at: toIsoStringOrNull(startedAtValue) ?? new Date(0).toISOString(),
     ended_at: toIsoStringOrNull(endedAtValue),

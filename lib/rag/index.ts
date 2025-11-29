@@ -8,7 +8,8 @@ import { getPageContentBlockIds, getTextContent } from 'notion-utils'
 
 import {
   type EmbeddingModelSelectionInput,
-  resolveEmbeddingSpace} from '../core/embedding-spaces'
+  resolveEmbeddingSpace
+} from '../core/embedding-spaces'
 import { embedTexts } from '../core/embeddings'
 import { USER_AGENT } from '../core/openai'
 import { getRagChunksTable } from '../core/rag-tables'
@@ -164,7 +165,6 @@ type IngestRunStatus =
 export type IngestRunStartInput = {
   source: string
   ingestion_type: 'full' | 'partial'
-  partial_reason?: string | null
   metadata?: Record<string, unknown> | null
 }
 
@@ -236,7 +236,6 @@ export async function startIngestRun(
   const payload = {
     source: input.source,
     ingestion_type: input.ingestion_type,
-    partial_reason: input.partial_reason ?? null,
     status: 'in_progress' as IngestRunStatus,
     started_at: new Date().toISOString(),
     metadata: input.metadata ?? null

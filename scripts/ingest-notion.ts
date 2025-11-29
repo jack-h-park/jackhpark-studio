@@ -2,7 +2,7 @@
 import { NotionAPI } from 'notion-client'
 import { type ExtendedRecordMap } from 'notion-types'
 import { getAllPagesInSpace } from 'notion-utils'
-import pMap from 'p-map' 
+import pMap from 'p-map'
 
 import { rootNotionPageId as configRootNotionPageId } from '../lib/config'
 import { resolveEmbeddingSpace } from '../lib/core/embedding-spaces'
@@ -38,15 +38,14 @@ const DEFAULT_ROOT_PAGE_ID = configRootNotionPageId
 
 type RunMode = {
   type: 'full' | 'partial'
-  reason?: string | null
 }
 
 function parseRunMode(defaultType: 'full' | 'partial'): RunMode {
   const args = process.argv.slice(2)
   let mode: RunMode = { type: defaultType }
 
-  for (let i = 0; i < args.length; i += 1) {
-    const arg = args[i]!
+  for (const arg_ of args) {
+    const arg = arg_!
 
     if (arg === '--full' || arg === '--mode=full') {
       mode = { type: 'full' }
@@ -64,19 +63,6 @@ function parseRunMode(defaultType: 'full' | 'partial'): RunMode {
         mode = { type: value }
       }
       continue
-    }
-
-    if (arg === '--reason') {
-      const next = args[i + 1]
-      if (next && !next.startsWith('--')) {
-        mode = { ...mode, reason: next }
-        i += 1
-      }
-      continue
-    }
-
-    if (arg.startsWith('--reason=')) {
-      mode = { ...mode, reason: arg.slice(Math.max(0, arg.indexOf('=') + 1)) }
     }
   }
 
@@ -178,8 +164,7 @@ async function ingestPage(
   }
 
   console.log(
-    `Ingested Notion page: ${title} (${chunkCount} chunks) [${
-      existingState ? 'updated' : 'new'
+    `Ingested Notion page: ${title} (${chunkCount} chunks) [${existingState ? 'updated' : 'new'
     }]`
   )
 }
@@ -236,17 +221,12 @@ async function main() {
   console.log('Starting Notion ingestion...')
 
   const mode = parseRunMode('full')
-  const resolvedReason =
-    mode.type === 'partial'
-      ? mode.reason ?? 'Partial ingest (CLI override)'
-      : null
 
   const embeddingSpace = DEFAULT_EMBEDDING_SELECTION
 
   const runHandle: IngestRunHandle = await startIngestRun({
     source: 'notion',
     ingestion_type: mode.type,
-    partial_reason: resolvedReason,
     metadata: {
       rootPageId,
       embeddingProvider: embeddingSpace.provider,
