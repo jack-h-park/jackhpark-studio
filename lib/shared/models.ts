@@ -170,46 +170,47 @@ export type EmbeddingModelDefinition = {
   aliases?: readonly string[];
 };
 
-export const EMBEDDING_MODEL_DEFINITIONS: readonly EmbeddingModelDefinition[] = [
-  {
-    id: "text-embedding-3-small",
-    provider: "openai",
-    version: "v1",
-    model: "text-embedding-3-small",
-    slug: "te3s",
-    aliases: [
-      "OpenAI text-embedding-3-small (v1)",
-      "openai text-embedding-3-small",
-      "text-embedding-3-small",
-      "openai_te3s_v1",
-      "rag_chunks_openai",
-      "rag_chunks_openai_te3s_v1",
-      "match_chunks_openai",
-      "match_chunks_openai_te3s_v1",
-      "match_rag_chunks_openai",
-      "match_rag_chunks_openai_te3s_v1",
-    ],
-  },
-  {
-    id: "text-embedding-004",
-    provider: "gemini",
-    version: "v1",
-    model: "text-embedding-004",
-    slug: "te4",
-    aliases: [
-      "Gemini text-embedding-004 (v1)",
-      "gemini text-embedding-004",
-      "text-embedding-004",
-      "gemini_te4_v1",
-      "rag_chunks_gemini",
-      "rag_chunks_gemini_te4_v1",
-      "match_chunks_gemini",
-      "match_chunks_gemini_te4_v1",
-      "match_rag_chunks_gemini",
-      "match_rag_chunks_gemini_te4_v1",
-    ],
-  },
-] as const;
+export const EMBEDDING_MODEL_DEFINITIONS: readonly EmbeddingModelDefinition[] =
+  [
+    {
+      id: "text-embedding-3-small",
+      provider: "openai",
+      version: "v1",
+      model: "text-embedding-3-small",
+      slug: "te3s",
+      aliases: [
+        "OpenAI text-embedding-3-small (v1)",
+        "openai text-embedding-3-small",
+        "text-embedding-3-small",
+        "openai_te3s_v1",
+        "rag_chunks_openai",
+        "rag_chunks_openai_te3s_v1",
+        "match_chunks_openai",
+        "match_chunks_openai_te3s_v1",
+        "match_rag_chunks_openai",
+        "match_rag_chunks_openai_te3s_v1",
+      ],
+    },
+    {
+      id: "text-embedding-004",
+      provider: "gemini",
+      version: "v1",
+      model: "text-embedding-004",
+      slug: "te4",
+      aliases: [
+        "Gemini text-embedding-004 (v1)",
+        "gemini text-embedding-004",
+        "text-embedding-004",
+        "gemini_te4_v1",
+        "rag_chunks_gemini",
+        "rag_chunks_gemini_te4_v1",
+        "match_chunks_gemini",
+        "match_chunks_gemini_te4_v1",
+        "match_rag_chunks_gemini",
+        "match_rag_chunks_gemini_te4_v1",
+      ],
+    },
+  ] as const;
 
 export function normalizeEmbeddingModelSlug(value: string): string {
   return value
@@ -240,9 +241,7 @@ export function getMatchChunksFunctionName(embeddingSpaceId: string): string {
   return `match_chunks_${embeddingSpaceId}`;
 }
 
-export function getMatchLcChunksFunctionName(
-  embeddingSpaceId: string,
-): string {
+export function getMatchLcChunksFunctionName(embeddingSpaceId: string): string {
   return `match_lc_chunks_${embeddingSpaceId}`;
 }
 

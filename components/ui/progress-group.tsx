@@ -26,18 +26,14 @@ export function ProgressGroup({
     max > min
       ? ((clampedValue - min) / (max - min)) * 100
       : max === min
-      ? 100
-      : 0;
+        ? 100
+        : 0;
 
   return (
     <div className={cn("space-y-3", className)}>
       <div className="flex items-baseline justify-between gap-3">
-        <p className="text-sm font-semibold ai-text-strong">
-          {label}
-        </p>
-        {meta ? (
-          <span className="text-xs ai-text-muted">{meta}</span>
-        ) : null}
+        <p className="text-sm font-semibold ai-text-strong">{label}</p>
+        {meta ? <span className="text-xs ai-text-muted">{meta}</span> : null}
       </div>
       <div className="h-2 rounded-full bg-[color:var(--ai-border-muted)] overflow-hidden">
         <span

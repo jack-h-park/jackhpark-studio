@@ -1,7 +1,7 @@
-export const SYSTEM_SETTINGS_TABLE = 'system_settings'
-export const SYSTEM_PROMPT_SETTING_KEY = 'system_prompt'
-export const SYSTEM_PROMPT_CACHE_TTL_MS = 60_000
-export const SYSTEM_PROMPT_MAX_LENGTH = 4000
+export const SYSTEM_SETTINGS_TABLE = "system_settings";
+export const SYSTEM_PROMPT_SETTING_KEY = "system_prompt";
+export const SYSTEM_PROMPT_CACHE_TTL_MS = 60_000;
+export const SYSTEM_PROMPT_MAX_LENGTH = 4000;
 
 export const DEFAULT_SYSTEM_PROMPT = [
   "You are Jack's AI Assistant, a friendly personal guide for visitors on Jack H. Park's website.",
@@ -11,8 +11,8 @@ export const DEFAULT_SYSTEM_PROMPT = [
   "- Do not mention the context or how you retrieved it.",
   "- Match the language of the user's question in your reply.",
   "- Keep responses concise and helpful (no more than five sentences).",
-].join('\n')
+].join("\n");
 
 export function normalizeSystemPrompt(value: string): string {
-  return value.replaceAll('\r\n', '\n').trim()
+  return value.replaceAll("\r\n", "\n").trim();
 }

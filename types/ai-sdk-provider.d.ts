@@ -29,9 +29,7 @@ declare module "@ai-sdk/provider" {
     provider: string;
     modelId: string;
     supportedUrls: Record<string, RegExp[]>;
-    doGenerate(
-      options: LanguageModelV2CallOptions,
-    ): PromiseLike<{
+    doGenerate(options: LanguageModelV2CallOptions): PromiseLike<{
       content: Array<{ type: "text"; text: string }>;
       finishReason: string;
       usage: LanguageModelV2Usage;

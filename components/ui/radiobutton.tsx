@@ -52,9 +52,7 @@ export function Radiobutton<Value extends string = string>({
       />
       <div className="ai-choice">
         <span className="ai-choice__label">{label}</span>
-        {description && (
-          <p className="ai-choice__description">{description}</p>
-        )}
+        {description && <p className="ai-choice__description">{description}</p>}
       </div>
     </label>
   );

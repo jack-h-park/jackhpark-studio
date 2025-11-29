@@ -75,8 +75,6 @@ function toStatus(value: unknown): RunStatus {
   return "success";
 }
 
-
-
 function toIsoStringOrNull(value: unknown): string | null {
   if (typeof value === "string" && value.length > 0) {
     return value;
@@ -116,9 +114,7 @@ function normalizeErrorLogs(value: unknown): Array<ErrorLogEntry> {
         doc_id: typeof docId === "string" ? docId : null,
       };
     })
-    .filter(
-      (entry): entry is ErrorLogEntry => entry !== null,
-    );
+    .filter((entry): entry is ErrorLogEntry => entry !== null);
 }
 
 export function normalizeRunRecord(raw: unknown): RunRecord {

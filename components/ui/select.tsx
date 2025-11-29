@@ -1,10 +1,7 @@
- 
 import { FiChevronDown } from "@react-icons/all-files/fi/FiChevronDown";
 import * as React from "react";
 
 import { cn } from "./utils";
-
-
 
 function isElementOfType<P>(
   element: React.ReactNode,
@@ -53,10 +50,7 @@ export function Select({
     <div className="relative w-full">
       <select
         {...restTrigger}
-        className={cn(
-          "ai-select focus-ring",
-          className,
-        )}
+        className={cn("ai-select focus-ring", className)}
         value={value ?? ""}
         onChange={(event) => onValueChange?.(event.target.value)}
         disabled={disabled ?? triggerDisabled}

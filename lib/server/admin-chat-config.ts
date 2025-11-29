@@ -1,5 +1,8 @@
 import type { EmbeddingModelId, LlmModelId } from "@/lib/shared/models";
-import type { AdminChatConfig, SessionChatConfigPreset } from "@/types/chat-config";
+import type {
+  AdminChatConfig,
+  SessionChatConfigPreset,
+} from "@/types/chat-config";
 import {
   DEFAULT_SYSTEM_PROMPT,
   SYSTEM_PROMPT_MAX_LENGTH,
@@ -110,7 +113,10 @@ async function fetchStoredAdminConfigRow(): Promise<AdminConfigRow | null> {
       .eq("key", ADMIN_CONFIG_SETTING_KEY)
       .maybeSingle();
     if (error) {
-      console.error("[admin-chat-config] failed to load stored config row", error);
+      console.error(
+        "[admin-chat-config] failed to load stored config row",
+        error,
+      );
       return null;
     }
     return data ?? null;
@@ -193,13 +199,18 @@ function mergeNumericLimits(
     "historyBudget",
     "clipTokens",
   ];
-  return keys.reduce((acc, key) => {
-    acc[key] = override[key] ?? base[key];
-    return acc;
-  }, {} as AdminChatConfig["numericLimits"]);
+  return keys.reduce(
+    (acc, key) => {
+      acc[key] = override[key] ?? base[key];
+      return acc;
+    },
+    {} as AdminChatConfig["numericLimits"],
+  );
 }
 
-const normalizeChatEngineList = (values: string[] | undefined): ChatEngine[] => {
+const normalizeChatEngineList = (
+  values: string[] | undefined,
+): ChatEngine[] => {
   const seen = new Set<ChatEngine>();
   const list = values ?? [];
   for (const value of list) {
@@ -211,7 +222,9 @@ const normalizeChatEngineList = (values: string[] | undefined): ChatEngine[] => 
   return [...seen];
 };
 
-const normalizeEmbeddingAllowlist = (values?: string[] | undefined): string[] => {
+const normalizeEmbeddingAllowlist = (
+  values?: string[] | undefined,
+): string[] => {
   if (!values || values.length === 0) {
     return [];
   }
@@ -285,14 +298,18 @@ function mergeSummaryPresets(
     "medium",
     "high",
   ];
-  return keys.reduce((acc, key) => {
-    acc[key] = override[key]
-      ? {
-          every_n_turns: override[key]!.every_n_turns ?? base[key].every_n_turns,
-        }
-      : base[key];
-    return acc;
-  }, {} as AdminChatConfig["summaryPresets"]);
+  return keys.reduce(
+    (acc, key) => {
+      acc[key] = override[key]
+        ? {
+            every_n_turns:
+              override[key]!.every_n_turns ?? base[key].every_n_turns,
+          }
+        : base[key];
+      return acc;
+    },
+    {} as AdminChatConfig["summaryPresets"],
+  );
 }
 
 function mergePresets(
@@ -307,10 +324,13 @@ function mergePresets(
     "fast",
     "highRecall",
   ];
-  return keys.reduce((acc, key) => {
-    acc[key] = mergeSessionPreset(base[key], override[key]);
-    return acc;
-  }, {} as AdminChatConfig["presets"]);
+  return keys.reduce(
+    (acc, key) => {
+      acc[key] = mergeSessionPreset(base[key], override[key]);
+      return acc;
+    },
+    {} as AdminChatConfig["presets"],
+  );
 }
 
 function mergeSessionPreset(
@@ -351,20 +371,20 @@ export async function getAdminChatConfig(): Promise<AdminChatConfig> {
 
   return {
     coreSystemPromptSummary:
-      storedConfig.coreSystemPromptSummary ?? baseConfig.coreSystemPromptSummary,
+      storedConfig.coreSystemPromptSummary ??
+      baseConfig.coreSystemPromptSummary,
     userSystemPromptDefault:
-      storedConfig.userSystemPromptDefault ?? baseConfig.userSystemPromptDefault,
+      storedConfig.userSystemPromptDefault ??
+      baseConfig.userSystemPromptDefault,
     userSystemPromptMaxLength:
-      storedConfig.userSystemPromptMaxLength ?? baseConfig.userSystemPromptMaxLength,
+      storedConfig.userSystemPromptMaxLength ??
+      baseConfig.userSystemPromptMaxLength,
     numericLimits: mergeNumericLimits(
       baseConfig.numericLimits,
       storedConfig.numericLimits,
     ),
     allowlist: mergeAllowlist(baseConfig.allowlist, storedConfig.allowlist),
-    guardrails: mergeGuardrails(
-      baseConfig.guardrails,
-      storedConfig.guardrails,
-    ),
+    guardrails: mergeGuardrails(baseConfig.guardrails, storedConfig.guardrails),
     summaryPresets: mergeSummaryPresets(
       baseConfig.summaryPresets,
       storedConfig.summaryPresets,
@@ -391,8 +411,9 @@ function buildComputedAdminConfig(
     allowHyde: true,
   };
 
-  const defaultRanker =
-    allowlist.rankers.includes("mmr") ? "mmr" : allowlist.rankers[0] ?? "none";
+  const defaultRanker = allowlist.rankers.includes("mmr")
+    ? "mmr"
+    : (allowlist.rankers[0] ?? "none");
 
   const numericLimits: AdminChatConfig["numericLimits"] = {
     ragTopK: {
@@ -429,7 +450,11 @@ function buildComputedAdminConfig(
     fast: buildPreset(basePreset, {
       rag: {
         enabled: false,
-        topK: clamp(numericLimits.ragTopK.min, numericLimits.ragTopK.min, numericLimits.ragTopK.max),
+        topK: clamp(
+          numericLimits.ragTopK.min,
+          numericLimits.ragTopK.min,
+          numericLimits.ragTopK.max,
+        ),
         similarity: clamp(
           Math.min(
             numericLimits.similarityThreshold.max,

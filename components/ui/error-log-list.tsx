@@ -22,9 +22,7 @@ export function ErrorLogList({ logs }: ErrorLogListProps) {
               {log.doc_id}:{" "}
             </strong>
           ) : null}
-          {log.context ? (
-            <span>{log.context}: </span>
-          ) : null}
+          {log.context ? <span>{log.context}: </span> : null}
           <span>{log.message}</span>
         </li>
       ))}

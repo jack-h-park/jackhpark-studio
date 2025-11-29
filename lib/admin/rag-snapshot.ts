@@ -98,9 +98,7 @@ function toRunStatus(value: unknown): RunStatus | null {
   return null;
 }
 
-export function normalizeSnapshotRecord(
-  raw: unknown,
-): SnapshotRecord | null {
+export function normalizeSnapshotRecord(raw: unknown): SnapshotRecord | null {
   if (!isPlainRecord(raw)) {
     return null;
   }

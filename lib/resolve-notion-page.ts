@@ -1,13 +1,18 @@
 // lib/resolve-notion-page.ts
-import { type ExtendedRecordMap } from 'notion-types'
-import { parsePageId, uuidToId } from 'notion-utils'
+import { type ExtendedRecordMap } from "notion-types";
+import { parsePageId, uuidToId } from "notion-utils";
 
-import type { PageProps } from './types'
-import * as acl from './acl'
-import { environment, pageUrlAdditions, pageUrlOverrides, site } from './config'
-import { db } from './db'
-import { getSiteMap } from './get-site-map'
-import { getPage } from './notion'
+import type { PageProps } from "./types";
+import * as acl from "./acl";
+import {
+  environment,
+  pageUrlAdditions,
+  pageUrlOverrides,
+  site,
+} from "./config";
+import { db } from "./db";
+import { getSiteMap } from "./get-site-map";
+import { getPage } from "./notion";
 
 /**
  * Resolve a Notion page based on domain + rawPageId
@@ -15,65 +20,65 @@ import { getPage } from './notion'
  */
 export async function resolveNotionPage(
   domain: string,
-  rawPageId?: string
+  rawPageId?: string,
 ): Promise<PageProps> {
-  let pageId: string | undefined
-  let recordMap: ExtendedRecordMap
-  let canonicalPageMap: PageProps['canonicalPageMap']
+  let pageId: string | undefined;
+  let recordMap: ExtendedRecordMap;
+  let canonicalPageMap: PageProps["canonicalPageMap"];
 
-  if (rawPageId && rawPageId !== 'index') {
+  if (rawPageId && rawPageId !== "index") {
     /**
      * ✅ Step 1: Normalize pageId
      * Some URLs may contain Notion IDs without hyphens (e.g. 28399029c0b480e3bb1bfec84fe83407)
      * parsePageId() requires canonical UUID form (with hyphens)
      * So we convert it safely here.
      */
-    const normalizedId = rawPageId.includes('-')
+    const normalizedId = rawPageId.includes("-")
       ? rawPageId
-      : uuidToId(rawPageId)
+      : uuidToId(rawPageId);
 
-    pageId = parsePageId(normalizedId)!
+    pageId = parsePageId(normalizedId)!;
 
     // Step 2: Fallback — check if the site config provides overrides
     if (!pageId) {
       const override =
-        pageUrlOverrides[rawPageId] || pageUrlAdditions[rawPageId]
+        pageUrlOverrides[rawPageId] || pageUrlAdditions[rawPageId];
 
       if (override) {
-        pageId = parsePageId(override)!
+        pageId = parsePageId(override)!;
       }
     }
 
     // Step 3: Redis/DB cache lookup
-    const useUriToPageIdCache = true
-    const cacheKey = `uri-to-page-id:${domain}:${environment}:${rawPageId}`
-    const cacheTTL = undefined // disable TTL for now
+    const useUriToPageIdCache = true;
+    const cacheKey = `uri-to-page-id:${domain}:${environment}:${rawPageId}`;
+    const cacheTTL = undefined; // disable TTL for now
 
     if (!pageId && useUriToPageIdCache) {
       try {
-        pageId = await db.get(cacheKey)
+        pageId = await db.get(cacheKey);
       } catch (err: any) {
-        console.warn(`redis error get "${cacheKey}"`, err.message)
+        console.warn(`redis error get "${cacheKey}"`, err.message);
       }
     }
 
     // Step 4: Direct page load
     if (pageId) {
-      recordMap = await getPage(pageId)
+      recordMap = await getPage(pageId);
     } else {
       // Step 5: canonicalPageMap fallback (siteMap lookup)
-      const siteMap = await getSiteMap()
-      canonicalPageMap = siteMap.canonicalPageMap
-      pageId = findPageIdFromCanonicalMap(canonicalPageMap, rawPageId)
+      const siteMap = await getSiteMap();
+      canonicalPageMap = siteMap.canonicalPageMap;
+      pageId = findPageIdFromCanonicalMap(canonicalPageMap, rawPageId);
 
       if (pageId) {
-        recordMap = await getPage(pageId)
+        recordMap = await getPage(pageId);
 
         if (useUriToPageIdCache) {
           try {
-            await db.set(cacheKey, pageId, cacheTTL)
+            await db.set(cacheKey, pageId, cacheTTL);
           } catch (err: any) {
-            console.warn(`redis error set "${cacheKey}"`, err.message)
+            console.warn(`redis error set "${cacheKey}"`, err.message);
           }
         }
       } else {
@@ -81,73 +86,69 @@ export async function resolveNotionPage(
         return {
           error: {
             message: `Not found "${rawPageId}"`,
-            statusCode: 404
-          }
-        }
+            statusCode: 404,
+          },
+        };
       }
     }
   } else {
     /**
      * Default: if no rawPageId, use the root Notion page
      */
-    const siteMap = await getSiteMap()
-    canonicalPageMap = siteMap.canonicalPageMap
-    pageId = site.rootNotionPageId
-    recordMap = await getPage(pageId)
+    const siteMap = await getSiteMap();
+    canonicalPageMap = siteMap.canonicalPageMap;
+    pageId = site.rootNotionPageId;
+    recordMap = await getPage(pageId);
   }
 
   /**
    * ✅ Return unified page props
    */
-  const props: PageProps = { site, recordMap, pageId, canonicalPageMap }
-  return { ...props, ...(await acl.pageAcl(props)) }
+  const props: PageProps = { site, recordMap, pageId, canonicalPageMap };
+  return { ...props, ...(await acl.pageAcl(props)) };
 }
 
 function findPageIdFromCanonicalMap(
-  canonicalPageMap: PageProps['canonicalPageMap'],
-  rawPageId: string
+  canonicalPageMap: PageProps["canonicalPageMap"],
+  rawPageId: string,
 ): string | undefined {
   if (!canonicalPageMap) {
-    return undefined
+    return undefined;
   }
 
-  const trimmedRawPageId = rawPageId.replaceAll(/^\/+|\/+$/g, '')
-  const normalizedRawPageId = trimmedRawPageId.toLowerCase()
+  const trimmedRawPageId = rawPageId.replaceAll(/^\/+|\/+$/g, "");
+  const normalizedRawPageId = trimmedRawPageId.toLowerCase();
 
   const directMatch =
     canonicalPageMap[trimmedRawPageId] ||
     canonicalPageMap[normalizedRawPageId] ||
-    canonicalPageMap[rawPageId]
+    canonicalPageMap[rawPageId];
 
   if (directMatch) {
-    return directMatch
+    return directMatch;
   }
 
   for (const [canonicalPath, notionPageId] of Object.entries(
-    canonicalPageMap
+    canonicalPageMap,
   )) {
-    const normalizedCanonicalPath = canonicalPath.toLowerCase()
+    const normalizedCanonicalPath = canonicalPath.toLowerCase();
 
     if (normalizedCanonicalPath === normalizedRawPageId) {
-      return notionPageId
+      return notionPageId;
     }
 
     const canonicalWithoutUuid = normalizedCanonicalPath.replace(
       /-[0-9a-f]{32}$/i,
-      ''
-    )
+      "",
+    );
 
-    if (
-      canonicalWithoutUuid &&
-      canonicalWithoutUuid === normalizedRawPageId
-    ) {
-      return notionPageId
+    if (canonicalWithoutUuid && canonicalWithoutUuid === normalizedRawPageId) {
+      return notionPageId;
     }
   }
 
-  return undefined
+  return undefined;
 }
-
 
 // import { type ExtendedRecordMap } from 'notion-types'
 // import { parsePageId } from 'notion-utils'

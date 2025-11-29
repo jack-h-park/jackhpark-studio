@@ -165,9 +165,7 @@ export function SettingsSectionRagRetrieval({
               }
               aria-label="Enable Reverse RAG"
             />
-            <span className="ai-choice__label">
-              Reverse RAG
-            </span>
+            <span className="ai-choice__label">Reverse RAG</span>
           </div>
         )}
 
@@ -188,9 +186,7 @@ export function SettingsSectionRagRetrieval({
               }
               aria-label="Enable HyDE"
             />
-            <span className="ai-choice__label">
-              HyDE
-            </span>
+            <span className="ai-choice__label">HyDE</span>
           </div>
         )}
       </div>
@@ -252,7 +248,6 @@ export function SettingsSectionRagRetrieval({
           ))}
         </div>
       </div>
-
     </section>
   );
 }

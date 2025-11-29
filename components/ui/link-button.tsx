@@ -10,11 +10,12 @@ export type LinkButtonProps = React.ComponentPropsWithoutRef<typeof Link> & {
   variant?: LinkButtonVariant;
 };
 
-const variantMap: Record<LinkButtonVariant, keyof typeof buttonVariantStyles> = {
-  solid: "default",
-  outline: "outline",
-  ghost: "ghost",
-};
+const variantMap: Record<LinkButtonVariant, keyof typeof buttonVariantStyles> =
+  {
+    solid: "default",
+    outline: "outline",
+    ghost: "ghost",
+  };
 
 export function LinkButton({
   className,

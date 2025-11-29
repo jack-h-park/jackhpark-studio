@@ -2,9 +2,7 @@ import * as React from "react";
 
 import { cn } from "./utils";
 
-export type HeadingWithIconProps<
-  T extends React.ElementType = "h2",
-> = {
+export type HeadingWithIconProps<T extends React.ElementType = "h2"> = {
   as?: T;
   icon: React.ReactNode;
   className?: string;

@@ -28,7 +28,9 @@ export function ollamaModel(modelId?: string): LanguageModelV2 {
     modelId: resolvedModelId,
     supportedUrls: {},
     async doGenerate(options: LanguageModelV2CallOptions) {
-      const generator = streamOllamaChat(buildStreamOptions(resolvedModelId, options));
+      const generator = streamOllamaChat(
+        buildStreamOptions(resolvedModelId, options),
+      );
       const chunks: string[] = [];
 
       for await (const chunk of generator) {
@@ -51,7 +53,9 @@ export function ollamaModel(modelId?: string): LanguageModelV2 {
       };
     },
     async doStream(options: LanguageModelV2CallOptions) {
-      const generator = streamOllamaChat(buildStreamOptions(resolvedModelId, options));
+      const generator = streamOllamaChat(
+        buildStreamOptions(resolvedModelId, options),
+      );
       const textId = `ollama-text-${Date.now().toString(36)}`;
 
       const stream = new ReadableStream<LanguageModelV2StreamPart>({
@@ -205,13 +209,18 @@ function normalizeContentPart(part: unknown): string {
   }
 
   if (candidate.type === "tool-call") {
-    const name = typeof candidate.toolName === "string" ? candidate.toolName : "tool";
-    const input = typeof candidate.input === "string" ? candidate.input : JSON.stringify(candidate.input ?? {});
+    const name =
+      typeof candidate.toolName === "string" ? candidate.toolName : "tool";
+    const input =
+      typeof candidate.input === "string"
+        ? candidate.input
+        : JSON.stringify(candidate.input ?? {});
     return `[tool-call:${name}] ${input}`.trim();
   }
 
   if (candidate.type === "tool-result") {
-    const name = typeof candidate.toolName === "string" ? candidate.toolName : "tool";
+    const name =
+      typeof candidate.toolName === "string" ? candidate.toolName : "tool";
     return `[tool-result:${name}] ${stringify(candidate.result)}`.trim();
   }
 
@@ -220,12 +229,14 @@ function normalizeContentPart(part: unknown): string {
   }
 
   if (candidate.type === "file") {
-    const mediaType = typeof candidate.mediaType === "string" ? candidate.mediaType : "file";
+    const mediaType =
+      typeof candidate.mediaType === "string" ? candidate.mediaType : "file";
     return `[file:${mediaType}]`;
   }
 
   if (candidate.type === "source") {
-    const title = typeof candidate.title === "string" ? candidate.title : candidate.id;
+    const title =
+      typeof candidate.title === "string" ? candidate.title : candidate.id;
     const url = typeof candidate.url === "string" ? candidate.url : "";
     return `[source:${title ?? "source"}] ${url}`.trim();
   }

@@ -1,3 +1,3 @@
 export default function AdminOpenAI() {
-  return null
+  return null;
 }

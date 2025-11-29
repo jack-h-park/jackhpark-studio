@@ -76,10 +76,7 @@ export function SettingsSectionModelEngine({
       </HeadingWithIcon>
       <div className="flex flex-col gap-3">
         <div className="ai-field">
-          <Label
-            htmlFor="settings-llm-model"
-            className="ai-field__label"
-          >
+          <Label htmlFor="settings-llm-model" className="ai-field__label">
             LLM Model
           </Label>
           <Select
@@ -107,10 +104,7 @@ export function SettingsSectionModelEngine({
         </div>
 
         <div className="ai-field">
-          <Label
-            htmlFor="settings-embedding-model"
-            className="ai-field__label"
-          >
+          <Label htmlFor="settings-embedding-model" className="ai-field__label">
             Embedding Model
           </Label>
           <Select
@@ -141,10 +135,7 @@ export function SettingsSectionModelEngine({
         </div>
 
         <div className="ai-field">
-          <Label
-            htmlFor="settings-chat-engine"
-            className="ai-field__label"
-          >
+          <Label htmlFor="settings-chat-engine" className="ai-field__label">
             Chat Engine
           </Label>
           <Select
@@ -170,7 +161,6 @@ export function SettingsSectionModelEngine({
             </SelectContent>
           </Select>
         </div>
-
       </div>
     </section>
   );

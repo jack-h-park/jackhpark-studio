@@ -39,21 +39,14 @@ export function AllowlistTile({
     >
       <div className="ai-choice">
         <span className="ai-choice__label-row w-full">
-          <span className="ai-choice__label">
-            {label}
-          </span>
+          <span className="ai-choice__label">{label}</span>
           {selected && (
-            <span
-              className="ai-check-circle align-middle"
-              aria-hidden="true"
-            >
+            <span className="ai-check-circle align-middle" aria-hidden="true">
               ✓
             </span>
           )}
         </span>
-        {description && (
-          <p className="ai-choice__description">{description}</p>
-        )}
+        {description && <p className="ai-choice__description">{description}</p>}
       </div>
       {subtitle && (
         <span className="block text-[0.65rem] font-mono uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)]">

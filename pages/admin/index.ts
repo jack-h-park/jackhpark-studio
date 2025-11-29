@@ -1,12 +1,12 @@
-import { useRouter } from 'next/router'
-import { useEffect } from 'react'
+import { useRouter } from "next/router";
+import { useEffect } from "react";
 
 export default function AdminIndex() {
-  const router = useRouter()
+  const router = useRouter();
 
   useEffect(() => {
-    void router.replace('/admin/ingestion')
-  }, [router])
+    void router.replace("/admin/ingestion");
+  }, [router]);
 
-  return null
+  return null;
 }

@@ -6,13 +6,7 @@ export type CardProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function Card({ className, children, ...props }: CardProps) {
   return (
-    <div
-      className={cn(
-        "ai-card",
-        className,
-      )}
-      {...props}
-    >
+    <div className={cn("ai-card", className)} {...props}>
       {children}
     </div>
   );

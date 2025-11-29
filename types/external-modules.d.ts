@@ -1,4 +1,4 @@
-declare module '@mozilla/readability' {
+declare module "@mozilla/readability" {
   export class Readability {
     constructor(document: any);
     parse(): {
@@ -8,7 +8,7 @@ declare module '@mozilla/readability' {
   }
 }
 
-declare module 'jsdom' {
+declare module "jsdom" {
   export class JSDOM {
     constructor(html: string, options?: { url?: string });
     window: {
@@ -18,7 +18,7 @@ declare module 'jsdom' {
   }
 }
 
-declare module '@supabase/supabase-js' {
+declare module "@supabase/supabase-js" {
   export type PostgrestError = {
     code?: string | null;
     message?: string | null;
@@ -29,10 +29,10 @@ declare module '@supabase/supabase-js' {
   export function createClient(
     url: string,
     key: string,
-    options?: Record<string, unknown>
+    options?: Record<string, unknown>,
   ): SupabaseClient;
 }
 
-declare module 'gpt-tokenizer' {
+declare module "gpt-tokenizer" {
   export function encode(value: string): number[];
 }

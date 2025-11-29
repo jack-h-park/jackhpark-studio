@@ -1,150 +1,154 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
-import { parsePageId } from 'notion-utils'
+import type { NextApiRequest, NextApiResponse } from "next";
+import { parsePageId } from "notion-utils";
 
 import {
   type ManualIngestionEvent,
   type ManualIngestionRequest,
-  runManualIngestion
-} from '../../../lib/admin/manual-ingestor'
+  runManualIngestion,
+} from "../../../lib/admin/manual-ingestor";
 
 type ManualIngestionBody = ManualIngestionRequest & {
-  mode?: unknown
-  pageId?: unknown
-  url?: unknown
-  ingestionType?: unknown
-  includeLinkedPages?: unknown
-  embeddingProvider?: unknown
-  embeddingModel?: unknown
-  embeddingSpaceId?: unknown
-}
+  mode?: unknown;
+  pageId?: unknown;
+  url?: unknown;
+  ingestionType?: unknown;
+  includeLinkedPages?: unknown;
+  embeddingProvider?: unknown;
+  embeddingModel?: unknown;
+  embeddingSpaceId?: unknown;
+};
 
 function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
-  if (body.mode === 'notion_page') {
-    if (typeof body.pageId !== 'string') {
-      throw new Error('Missing Notion page ID.')
+  if (body.mode === "notion_page") {
+    if (typeof body.pageId !== "string") {
+      throw new Error("Missing Notion page ID.");
     }
 
-    const parsed = parsePageId(body.pageId, { uuid: true })
+    const parsed = parsePageId(body.pageId, { uuid: true });
     if (!parsed) {
-      throw new Error('Invalid Notion page ID.')
+      throw new Error("Invalid Notion page ID.");
     }
 
-    const ingestionType = body.ingestionType === 'full' ? 'full' : 'partial'
+    const ingestionType = body.ingestionType === "full" ? "full" : "partial";
     const includeLinkedPages =
-      typeof body.includeLinkedPages === 'boolean'
+      typeof body.includeLinkedPages === "boolean"
         ? body.includeLinkedPages
-        : true
+        : true;
     const embeddingModel =
-      typeof body.embeddingModel === 'string' && body.embeddingModel.trim().length > 0
+      typeof body.embeddingModel === "string" &&
+      body.embeddingModel.trim().length > 0
         ? body.embeddingModel.trim()
-        : undefined
+        : undefined;
     const embeddingSpaceId =
-      typeof body.embeddingSpaceId === 'string' && body.embeddingSpaceId.trim().length > 0
+      typeof body.embeddingSpaceId === "string" &&
+      body.embeddingSpaceId.trim().length > 0
         ? body.embeddingSpaceId.trim()
-        : embeddingModel
+        : embeddingModel;
 
     return {
-      mode: 'notion_page',
+      mode: "notion_page",
       pageId: parsed,
       ingestionType,
       includeLinkedPages,
       embeddingModel,
-      embeddingSpaceId
-    }
+      embeddingSpaceId,
+    };
   }
 
-  if (body.mode === 'url') {
-    if (typeof body.url !== 'string') {
-      throw new Error('Missing URL.')
+  if (body.mode === "url") {
+    if (typeof body.url !== "string") {
+      throw new Error("Missing URL.");
     }
 
-    const trimmed = body.url.trim()
-    let parsed: URL
+    const trimmed = body.url.trim();
+    let parsed: URL;
 
     try {
-      parsed = new URL(trimmed)
+      parsed = new URL(trimmed);
     } catch {
-      throw new Error('Invalid URL.')
+      throw new Error("Invalid URL.");
     }
 
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new Error('Only HTTP and HTTPS URLs are supported.')
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("Only HTTP and HTTPS URLs are supported.");
     }
 
-    const ingestionType = body.ingestionType === 'full' ? 'full' : 'partial'
+    const ingestionType = body.ingestionType === "full" ? "full" : "partial";
     const embeddingModel =
-      typeof body.embeddingModel === 'string' && body.embeddingModel.trim().length > 0
+      typeof body.embeddingModel === "string" &&
+      body.embeddingModel.trim().length > 0
         ? body.embeddingModel.trim()
-        : undefined
+        : undefined;
     const embeddingSpaceId =
-      typeof body.embeddingSpaceId === 'string' && body.embeddingSpaceId.trim().length > 0
+      typeof body.embeddingSpaceId === "string" &&
+      body.embeddingSpaceId.trim().length > 0
         ? body.embeddingSpaceId.trim()
-        : embeddingModel
+        : embeddingModel;
 
     return {
-      mode: 'url',
+      mode: "url",
       url: parsed.toString(),
       ingestionType,
       embeddingModel,
-      embeddingSpaceId
-    }
+      embeddingSpaceId,
+    };
   }
 
-  throw new Error('Unsupported ingestion mode.')
+  throw new Error("Unsupported ingestion mode.");
 }
 
 export const config = {
-  runtime: 'nodejs'
-}
+  runtime: "nodejs",
+};
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ): Promise<void> {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST')
-    res.status(405).send('Method Not Allowed')
-    return
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "POST");
+    res.status(405).send("Method Not Allowed");
+    return;
   }
 
-  let request: ManualIngestionRequest
+  let request: ManualIngestionRequest;
   try {
-    request = validateBody((req.body ?? {}) as ManualIngestionBody)
+    request = validateBody((req.body ?? {}) as ManualIngestionBody);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Invalid payload.'
-    res.status(400).json({ error: message })
-    return
+    const message = err instanceof Error ? err.message : "Invalid payload.";
+    res.status(400).json({ error: message });
+    return;
   }
 
-  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
-  res.setHeader('Cache-Control', 'no-cache, no-transform')
-  res.setHeader('Connection', 'keep-alive')
-  res.flushHeaders?.()
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
 
   const send = (event: ManualIngestionEvent) => {
-    res.write(`data: ${JSON.stringify(event)}\n\n`)
-  }
+    res.write(`data: ${JSON.stringify(event)}\n\n`);
+  };
 
   const close = () => {
     if (!res.writableEnded) {
-      res.end()
+      res.end();
     }
-  }
+  };
 
-  req.on('close', close)
+  req.on("close", close);
 
   try {
-    await runManualIngestion(request, send)
+    await runManualIngestion(request, send);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unexpected error.'
+    const message = err instanceof Error ? err.message : "Unexpected error.";
     send({
-      type: 'log',
-      level: 'error',
-      message: `Manual ingestion aborted: ${message}`
-    })
+      type: "log",
+      level: "error",
+      message: `Manual ingestion aborted: ${message}`,
+    });
     send({
-      type: 'complete',
-      status: 'failed',
+      type: "complete",
+      status: "failed",
       message: `Manual ingestion failed: ${message}`,
       runId: null,
       stats: {
@@ -156,10 +160,10 @@ export default async function handler(
         chunksUpdated: 0,
         charactersAdded: 0,
         charactersUpdated: 0,
-        errorCount: 1
-      }
-    })
+        errorCount: 1,
+      },
+    });
   } finally {
-    close()
+    close();
   }
 }

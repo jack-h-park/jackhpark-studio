@@ -1,8 +1,8 @@
-import { PageHead } from './PageHead'
-import styles from './styles.module.css'
+import { PageHead } from "./PageHead";
+import styles from "./styles.module.css";
 
 export function ErrorPage({ statusCode }: { statusCode: number }) {
-  const title = 'Error'
+  const title = "Error";
 
   return (
     <>
@@ -14,9 +14,9 @@ export function ErrorPage({ statusCode }: { statusCode: number }) {
 
           {statusCode && <p>Error code: {statusCode}</p>}
 
-          <img src='/error.png' alt='Error' className={styles.errorImage} />
+          <img src="/error.png" alt="Error" className={styles.errorImage} />
         </main>
       </div>
     </>
-  )
+  );
 }

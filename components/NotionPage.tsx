@@ -18,10 +18,7 @@ import { useSearchParam } from "react-use";
 
 import type * as types from "@/lib/types";
 import * as config from "@/lib/config";
-import {
-  debugNotionXEnabled,
-  debugNotionXLogger,
-} from "@/lib/debug-notion-x";
+import { debugNotionXEnabled, debugNotionXLogger } from "@/lib/debug-notion-x";
 import { mapImageUrl } from "@/lib/map-image-url";
 import { getCanonicalPageUrl, mapPageUrl } from "@/lib/map-page-url";
 import { useDarkMode } from "@/lib/use-dark-mode";
@@ -294,9 +291,7 @@ const stripBoldFromNode = (node: React.ReactNode): React.ReactNode => {
   const childArray = React.Children.toArray(
     props.children as React.ReactNode | React.ReactNode[] | undefined,
   );
-  const sanitizedChildren = childArray.map((child) =>
-    stripBoldFromNode(child),
-  );
+  const sanitizedChildren = childArray.map((child) => stripBoldFromNode(child));
 
   if (node.type === "b" || node.type === "strong") {
     if (sanitizedChildren.length === 0) {
@@ -343,13 +338,10 @@ const stripBoldFromNode = (node: React.ReactNode): React.ReactNode => {
       ...restProps
     } = props;
 
-    resultNode = React.cloneElement(
-      resultNode,
-      {
-        ...restProps,
-        dangerouslySetInnerHTML: { __html: sanitizedHtml },
-      } as any,
-    );
+    resultNode = React.cloneElement(resultNode, {
+      ...restProps,
+      dangerouslySetInnerHTML: { __html: sanitizedHtml },
+    } as any);
   }
 
   const childrenChanged =

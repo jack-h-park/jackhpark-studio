@@ -1,123 +1,126 @@
-import { Readability } from '@mozilla/readability'
-import { type PostgrestError } from '@supabase/supabase-js'
-import { backOff } from 'exponential-backoff'
-import { encode } from 'gpt-tokenizer'
-import { JSDOM } from 'jsdom'
-import { type Decoration, type ExtendedRecordMap } from 'notion-types'
-import { getPageContentBlockIds, getTextContent } from 'notion-utils'
+import { Readability } from "@mozilla/readability";
+import { type PostgrestError } from "@supabase/supabase-js";
+import { backOff } from "exponential-backoff";
+import { encode } from "gpt-tokenizer";
+import { JSDOM } from "jsdom";
+import { type Decoration, type ExtendedRecordMap } from "notion-types";
+import { getPageContentBlockIds, getTextContent } from "notion-utils";
 
 import {
   type EmbeddingModelSelectionInput,
-  resolveEmbeddingSpace
-} from '../core/embedding-spaces'
-import { embedTexts } from '../core/embeddings'
-import { USER_AGENT } from '../core/openai'
-import { getRagChunksTable } from '../core/rag-tables'
-import { supabaseClient } from '../core/supabase'
+  resolveEmbeddingSpace,
+} from "../core/embedding-spaces";
+import { embedTexts } from "../core/embeddings";
+import { USER_AGENT } from "../core/openai";
+import { getRagChunksTable } from "../core/rag-tables";
+import { supabaseClient } from "../core/supabase";
 
-const DOCUMENTS_TABLE = 'rag_documents'
-let documentStateTableStatus: 'unknown' | 'available' | 'missing' = 'unknown'
-let documentStateWarningLogged = false
+const DOCUMENTS_TABLE = "rag_documents";
+let documentStateTableStatus: "unknown" | "available" | "missing" = "unknown";
+let documentStateWarningLogged = false;
 
 export type ChunkInsert = {
-  doc_id: string
-  source_url: string
-  title: string
-  chunk: string
-  chunk_hash: string
-  embedding: number[]
-  ingested_at?: string
-}
+  doc_id: string;
+  source_url: string;
+  title: string;
+  chunk: string;
+  chunk_hash: string;
+  embedding: number[];
+  ingested_at?: string;
+};
 
-type SupabaseRpcResponse<T> = { data: T; error: PostgrestError | null }
+type SupabaseRpcResponse<T> = { data: T; error: PostgrestError | null };
 
 async function retry<TData>(
   operation: () => Promise<SupabaseRpcResponse<TData>>,
-  description: string
+  description: string,
 ): Promise<SupabaseRpcResponse<TData>> {
   return backOff(operation, {
     startingDelay: 500,
     numOfAttempts: 4,
     retry: (e, attemptNumber) => {
-      console.warn(`[ingest:retry] ${description} failed (attempt ${attemptNumber}). Retrying...`, e)
-      return true
-    }
-  })
+      console.warn(
+        `[ingest:retry] ${description} failed (attempt ${attemptNumber}). Retrying...`,
+        e,
+      );
+      return true;
+    },
+  });
 }
 
 export type DocumentState = {
-  doc_id: string
-  source_url: string
-  content_hash: string
-  last_ingested_at: string
-  last_source_update: string | null
-  chunk_count: number | null
-  total_characters: number | null
-}
+  doc_id: string;
+  source_url: string;
+  content_hash: string;
+  last_ingested_at: string;
+  last_source_update: string | null;
+  chunk_count: number | null;
+  total_characters: number | null;
+};
 
 export type DocumentStateUpsert = {
-  doc_id: string
-  source_url: string
-  content_hash: string
-  last_source_update?: string | null
-  chunk_count?: number
-  total_characters?: number
-}
+  doc_id: string;
+  source_url: string;
+  content_hash: string;
+  last_source_update?: string | null;
+  chunk_count?: number;
+  total_characters?: number;
+};
 
 function isMissingTableError(error: PostgrestError | null): boolean {
   if (!error) {
-    return false
+    return false;
   }
 
-  return error.code === '42P01' || error.code === 'PGRST116'
+  return error.code === "42P01" || error.code === "PGRST116";
 }
 
 function handleDocumentStateError(error: PostgrestError | null): boolean {
   if (!isMissingTableError(error)) {
-    return false
+    return false;
   }
 
-  documentStateTableStatus = 'missing'
+  documentStateTableStatus = "missing";
   if (!documentStateWarningLogged) {
     console.warn(
-      '[ingest] Supabase table "rag_documents" was not found. Document-level caching will be skipped.'
-    )
-    documentStateWarningLogged = true
+      '[ingest] Supabase table "rag_documents" was not found. Document-level caching will be skipped.',
+    );
+    documentStateWarningLogged = true;
   }
-  return true
+  return true;
 }
 
 export async function getDocumentState(
-  docId: string
+  docId: string,
 ): Promise<DocumentState | null> {
-  if (documentStateTableStatus === 'missing') {
-    return null
+  if (documentStateTableStatus === "missing") {
+    return null;
   }
 
   const { data, error } = await supabaseClient
     .from(DOCUMENTS_TABLE)
     .select(
-      'doc_id, source_url, content_hash, last_ingested_at, last_source_update, chunk_count, total_characters'
+      "doc_id, source_url, content_hash, last_ingested_at, last_source_update, chunk_count, total_characters",
     )
-    .eq('doc_id', docId)
-    .maybeSingle()
+    .eq("doc_id", docId)
+    .maybeSingle();
 
   if (error) {
     if (handleDocumentStateError(error)) {
-      return null
+      return null;
     }
-    throw error
+    throw error;
   }
 
-  documentStateTableStatus = 'available'
-  return data ?? null
+  documentStateTableStatus = "available";
+  return data ?? null;
 }
 
 export async function upsertDocumentState(
-  toUpsert: DocumentStateUpsert
+  toUpsert: DocumentStateUpsert,
 ): Promise<void> {
-  if (documentStateTableStatus === 'missing') {
-    return
+  if (documentStateTableStatus === "missing") {
+    return;
   }
 
   const payload = {
@@ -134,68 +137,71 @@ export async function upsertDocumentState(
     total_characters:
       toUpsert.total_characters === undefined
         ? null
-        : toUpsert.total_characters
-  }
+        : toUpsert.total_characters,
+  };
 
   const { error } = await retry(
-    () => supabaseClient.from(DOCUMENTS_TABLE).upsert(payload, { onConflict: 'doc_id' }),
-    'upsert document state'
-  )
+    () =>
+      supabaseClient
+        .from(DOCUMENTS_TABLE)
+        .upsert(payload, { onConflict: "doc_id" }),
+    "upsert document state",
+  );
 
   if (error) {
     if (handleDocumentStateError(error)) {
-      return
+      return;
     }
-    throw error
+    throw error;
   }
 
-  documentStateTableStatus = 'available'
+  documentStateTableStatus = "available";
 }
 
-const INGEST_RUNS_TABLE = 'rag_ingest_runs'
-let ingestRunsTableStatus: 'unknown' | 'available' | 'missing' = 'unknown'
-let ingestRunsWarningLogged = false
+const INGEST_RUNS_TABLE = "rag_ingest_runs";
+let ingestRunsTableStatus: "unknown" | "available" | "missing" = "unknown";
+let ingestRunsWarningLogged = false;
 
 type IngestRunStatus =
-  | 'in_progress'
-  | 'success'
-  | 'completed_with_errors'
-  | 'failed'
+  | "in_progress"
+  | "success"
+  | "completed_with_errors"
+  | "failed";
 
 export type IngestRunStartInput = {
-  source: string
-  ingestion_type: 'full' | 'partial'
-  metadata?: Record<string, unknown> | null
-}
+  source: string;
+  ingestion_type: "full" | "partial";
+  metadata?: Record<string, unknown> | null;
+};
 
 export type IngestRunHandle = {
-  id: string
-} | null
+  id: string;
+} | null;
 
 export type IngestRunErrorLog = {
-  context?: string | null
-  doc_id?: string | null
-  message: string
-}
+  context?: string | null;
+  doc_id?: string | null;
+  message: string;
+};
 
 export type IngestRunStats = {
-  documentsProcessed: number
-  documentsAdded: number
-  documentsUpdated: number
-  documentsSkipped: number
-  chunksAdded: number
-  chunksUpdated: number
-  charactersAdded: number
-  charactersUpdated: number
-  errorCount: number
-}
+  documentsProcessed: number;
+  documentsAdded: number;
+  documentsUpdated: number;
+  documentsSkipped: number;
+  chunksAdded: number;
+  chunksUpdated: number;
+  charactersAdded: number;
+  charactersUpdated: number;
+  errorCount: number;
+};
 
 export type IngestRunFinishInput = {
-  status: Exclude<IngestRunStatus, 'in_progress'>
-  durationMs: number
-  totals: IngestRunStats
-  errorLogs?: IngestRunErrorLog[]
-}
+  status: Exclude<IngestRunStatus, "in_progress">;
+  durationMs: number;
+  totals: IngestRunStats;
+  errorLogs?: IngestRunErrorLog[];
+};
 
 export function createEmptyRunStats(): IngestRunStats {
   return {
@@ -207,63 +213,63 @@ export function createEmptyRunStats(): IngestRunStats {
     chunksUpdated: 0,
     charactersAdded: 0,
     charactersUpdated: 0,
-    errorCount: 0
-  }
+    errorCount: 0,
+  };
 }
 
 function handleIngestRunsError(error: PostgrestError | null): boolean {
   if (!isMissingTableError(error)) {
-    return false
+    return false;
   }
 
-  ingestRunsTableStatus = 'missing'
+  ingestRunsTableStatus = "missing";
   if (!ingestRunsWarningLogged) {
     console.warn(
-      '[ingest] Supabase table "rag_ingest_runs" was not found. Run-level logging will be skipped.'
-    )
-    ingestRunsWarningLogged = true
+      '[ingest] Supabase table "rag_ingest_runs" was not found. Run-level logging will be skipped.',
+    );
+    ingestRunsWarningLogged = true;
   }
-  return true
+  return true;
 }
 
 export async function startIngestRun(
-  input: IngestRunStartInput
+  input: IngestRunStartInput,
 ): Promise<IngestRunHandle> {
-  if (ingestRunsTableStatus === 'missing') {
-    return null
+  if (ingestRunsTableStatus === "missing") {
+    return null;
   }
 
   const payload = {
     source: input.source,
     ingestion_type: input.ingestion_type,
-    status: 'in_progress' as IngestRunStatus,
+    status: "in_progress" as IngestRunStatus,
     started_at: new Date().toISOString(),
-    metadata: input.metadata ?? null
-  }
+    metadata: input.metadata ?? null,
+  };
 
   const { data, error } = await supabaseClient
     .from(INGEST_RUNS_TABLE)
     .insert(payload)
-    .select('id')
-    .single()
+    .select("id")
+    .single();
 
   if (error) {
     if (handleIngestRunsError(error)) {
-      return null
+      return null;
     }
-    throw error
+    throw error;
   }
 
-  ingestRunsTableStatus = 'available'
-  return { id: data.id as string }
+  ingestRunsTableStatus = "available";
+  return { id: data.id as string };
 }
 
 export async function finishIngestRun(
   handle: IngestRunHandle,
-  input: IngestRunFinishInput
+  input: IngestRunFinishInput,
 ): Promise<void> {
-  if (!handle || ingestRunsTableStatus === 'missing') {
-    return
+  if (!handle || ingestRunsTableStatus === "missing") {
+    return;
   }
 
   const payload = {
@@ -279,146 +285,158 @@ export async function finishIngestRun(
     characters_added: input.totals.charactersAdded,
     characters_updated: input.totals.charactersUpdated,
     error_count: input.totals.errorCount,
-    error_logs: (input.errorLogs ?? []).slice(0, 50)
-  }
+    error_logs: (input.errorLogs ?? []).slice(0, 50),
+  };
 
   const { error } = await supabaseClient
     .from(INGEST_RUNS_TABLE)
     .update(payload)
-    .eq('id', handle.id)
+    .eq("id", handle.id);
 
   if (error) {
-    handleIngestRunsError(error)
+    handleIngestRunsError(error);
   }
 }
 
 export function chunkByTokens(
   text: string,
   maxTokens = 450,
-  overlap = 75
+  overlap = 75,
 ): string[] {
   const words = text
     .split(/\s+/)
     .map((word) => word.trim())
-    .filter(Boolean)
+    .filter(Boolean);
 
   if (words.length === 0) {
-    return []
+    return [];
   }
 
-  const chunks: string[] = []
-  let currentWords: string[] = []
-  let currentTokens = 0
+  const chunks: string[] = [];
+  let currentWords: string[] = [];
+  let currentTokens = 0;
 
   const flush = () => {
     if (currentWords.length === 0) {
-      return
+      return;
     }
 
-    const chunkText = currentWords.join(' ').trim()
+    const chunkText = currentWords.join(" ").trim();
     if (chunkText.length > 0) {
-      chunks.push(chunkText)
+      chunks.push(chunkText);
     }
 
     if (overlap > 0) {
-      const overlapWords: string[] = []
-      let overlapTokens = 0
+      const overlapWords: string[] = [];
+      let overlapTokens = 0;
       for (let i = currentWords.length - 1; i >= 0; i -= 1) {
-        const word = currentWords[i]!
-        const wordTokens = encode(`${word} `).length
-        overlapTokens += wordTokens
-        overlapWords.push(word)
+        const word = currentWords[i]!;
+        const wordTokens = encode(`${word} `).length;
+        overlapTokens += wordTokens;
+        overlapWords.push(word);
         if (overlapTokens >= overlap) {
-          break
+          break;
         }
       }
-      const overlapped = overlapWords.toReversed()
-      currentWords = overlapped
+      const overlapped = overlapWords.toReversed();
+      currentWords = overlapped;
       currentTokens = overlapped.reduce(
         (sum, word) => sum + encode(`${word} `).length,
-        0
-      )
+        0,
+      );
     } else {
-      currentWords = []
-      currentTokens = 0
+      currentWords = [];
+      currentTokens = 0;
     }
-  }
+  };
 
   for (const word of words) {
-    const wordTokens = encode(`${word} `).length
+    const wordTokens = encode(`${word} `).length;
     if (currentTokens + wordTokens > maxTokens && currentWords.length > 0) {
-      flush()
+      flush();
     }
 
-    currentWords.push(word)
-    currentTokens += wordTokens
+    currentWords.push(word);
+    currentTokens += wordTokens;
   }
 
-  flush()
+  flush();
 
-  return chunks
+  return chunks;
 }
 
-export type EmbedBatchOptions = EmbeddingModelSelectionInput
+export type EmbedBatchOptions = EmbeddingModelSelectionInput;
 
-const resolveEmbeddingSelection = (options?: EmbedBatchOptions | string | null) =>
+const resolveEmbeddingSelection = (
+  options?: EmbedBatchOptions | string | null,
+) =>
   resolveEmbeddingSpace(
-    typeof options === 'string'
+    typeof options === "string"
       ? { provider: options, embeddingModelId: options }
-      : options ?? undefined
-  )
+      : (options ?? undefined),
+  );
 
 export async function embedBatch(
   texts: string[],
-  options?: EmbedBatchOptions
+  options?: EmbedBatchOptions,
 ): Promise<number[][]> {
   if (texts.length === 0) {
-    return []
+    return [];
   }
 
-  const resolved = resolveEmbeddingSelection(options)
-  return embedTexts(texts, { ...options, provider: resolved.provider, model: resolved.model })
+  const resolved = resolveEmbeddingSelection(options);
+  return embedTexts(texts, {
+    ...options,
+    provider: resolved.provider,
+    model: resolved.model,
+  });
 }
 
 export function hashChunk(input: string): string {
-  let hash = 0
+  let hash = 0;
   for (let i = 0; i < input.length; i += 1) {
-    hash = Math.imul(31, hash) + input.codePointAt(i)!
-    hash = Math.trunc(hash)
+    hash = Math.imul(31, hash) + input.codePointAt(i)!;
+    hash = Math.trunc(hash);
   }
-  return String(hash)
+  return String(hash);
 }
 
-type ReplaceChunksOptions = EmbedBatchOptions
+type ReplaceChunksOptions = EmbedBatchOptions;
 
 export async function replaceChunks(
   docId: string,
   rows: ChunkInsert[],
-  options?: ReplaceChunksOptions
+  options?: ReplaceChunksOptions,
 ): Promise<void> {
-  const resolved = resolveEmbeddingSelection(options)
-  const tableName = getRagChunksTable(resolved)
+  const resolved = resolveEmbeddingSelection(options);
+  const tableName = getRagChunksTable(resolved);
   // 1. Get existing chunk hashes for the document
-  const { data: existingChunks, error: selectError } = await retry<{ chunk_hash: string }[]>(
+  const { data: existingChunks, error: selectError } = await retry<
+    { chunk_hash: string }[]
+  >(
     () =>
       supabaseClient
         .from(tableName)
-        .select('chunk_hash')
-        .eq('doc_id', docId)
+        .select("chunk_hash")
+        .eq("doc_id", docId)
         // The type assertion is necessary because Supabase client types can be broad.
         .then((res: SupabaseRpcResponse<{ chunk_hash: string }[]>) => res),
-    `select chunk_hashes for doc ${docId} (${tableName})`
+    `select chunk_hashes for doc ${docId} (${tableName})`,
   );
 
   if (selectError) {
     throw selectError;
   }
 
-  const existingHashes = new Set((existingChunks ?? []).map((c) => c.chunk_hash));
+  const existingHashes = new Set(
+    (existingChunks ?? []).map((c) => c.chunk_hash),
+  );
   const newHashes = new Set(rows.map((r) => r.chunk_hash));
 
   // 2. Determine which chunks to delete
-  const hashesToDelete = [...existingHashes].filter((hash) => !newHashes.has(hash));
+  const hashesToDelete = [...existingHashes].filter(
+    (hash) => !newHashes.has(hash),
+  );
 
   if (hashesToDelete.length > 0) {
     const { error: deleteError } = await retry(
@@ -426,9 +444,9 @@ export async function replaceChunks(
         supabaseClient
           .from(tableName)
           .delete()
-          .in('chunk_hash', hashesToDelete)
-          .eq('doc_id', docId),
-      `delete stale chunks for doc ${docId} (${tableName})`
+          .in("chunk_hash", hashesToDelete)
+          .eq("doc_id", docId),
+      `delete stale chunks for doc ${docId} (${tableName})`,
     );
     if (deleteError) throw deleteError;
   }
@@ -436,8 +454,11 @@ export async function replaceChunks(
   // 3. Upsert new/changed chunks
   if (rows.length > 0) {
     const { error: upsertError } = await retry(
-      () => supabaseClient.from(tableName).upsert(rows, { onConflict: 'doc_id,chunk_hash' }),
-      `upsert chunks for doc ${docId} (${tableName})`
+      () =>
+        supabaseClient
+          .from(tableName)
+          .upsert(rows, { onConflict: "doc_id,chunk_hash" }),
+      `upsert chunks for doc ${docId} (${tableName})`,
     );
 
     if (upsertError) throw upsertError;
@@ -446,146 +467,148 @@ export async function replaceChunks(
 
 export async function hasChunksForProvider(
   docId: string,
-  selection?: ReplaceChunksOptions | string | null
+  selection?: ReplaceChunksOptions | string | null,
 ): Promise<boolean> {
-  const resolved = resolveEmbeddingSelection(selection)
-  const tableName = getRagChunksTable(resolved)
+  const resolved = resolveEmbeddingSelection(selection);
+  const tableName = getRagChunksTable(resolved);
   const { count, error } = await supabaseClient
     .from(tableName)
-    .select('doc_id', { count: 'exact', head: true })
-    .eq('doc_id', docId)
+    .select("doc_id", { count: "exact", head: true })
+    .eq("doc_id", docId);
 
   if (error) {
-    throw error
+    throw error;
   }
 
-  return (count ?? 0) > 0
+  return (count ?? 0) > 0;
 }
 
 export function normalizeTimestamp(input: unknown): string | null {
   if (!input) {
-    return null
+    return null;
   }
 
-  if (typeof input === 'number') {
-    const date = new Date(input)
-    return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  if (typeof input === "number") {
+    const date = new Date(input);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
   }
 
-  if (typeof input === 'string') {
-    const date = new Date(input)
-    return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  if (typeof input === "string") {
+    const date = new Date(input);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
   }
 
-  return null
+  return null;
 }
 
 export function extractPlainText(
   recordMap: ExtendedRecordMap,
-  pageId: string
+  pageId: string,
 ): string {
   // Ensure block IDs are sorted to maintain a consistent order, as Notion API
   // does not guarantee the order of content blocks. This prevents hash
   // mismatches for unchanged pages.
-  const blockIds = getPageContentBlockIds(recordMap, pageId).toSorted()
-  const lines: string[] = []
+  const blockIds = getPageContentBlockIds(recordMap, pageId).toSorted();
+  const lines: string[] = [];
 
   for (const blockId of blockIds) {
     const block = recordMap.block[blockId]?.value as {
-      properties?: { title?: Decoration[] }
-    } | null
+      properties?: { title?: Decoration[] };
+    } | null;
 
     if (!block?.properties?.title) {
-      continue
+      continue;
     }
 
-    const text = getTextContent(block.properties.title)
+    const text = getTextContent(block.properties.title);
     if (text) {
-      lines.push(text)
+      lines.push(text);
     }
   }
 
-  return lines.join('\n').trim()
+  return lines.join("\n").trim();
 }
 
 export function getPageTitle(
   recordMap: ExtendedRecordMap,
-  pageId: string
+  pageId: string,
 ): string {
   const block = recordMap.block[pageId]?.value as {
-    properties?: { title?: Decoration[] }
-  } | null
+    properties?: { title?: Decoration[] };
+  } | null;
 
   if (block?.properties?.title) {
-    const title = getTextContent(block.properties.title).trim()
+    const title = getTextContent(block.properties.title).trim();
     if (title) {
-      return title
+      return title;
     }
   }
 
-  return 'Untitled'
+  return "Untitled";
 }
 
 export function getPageUrl(pageId: string): string {
-  return `https://www.notion.so/${pageId.replaceAll('-', '')}`
+  return `https://www.notion.so/${pageId.replaceAll("-", "")}`;
 }
 
 export function getPageLastEditedTime(
   recordMap: ExtendedRecordMap,
-  pageId: string
+  pageId: string,
 ): string | null {
   const block = recordMap.block[pageId]?.value as {
-    last_edited_time?: string | number
-  } | null
+    last_edited_time?: string | number;
+  } | null;
 
-  return normalizeTimestamp(block?.last_edited_time)
+  return normalizeTimestamp(block?.last_edited_time);
 }
 
 export type ExtractedArticle = {
-  title: string
-  text: string
-  lastModified: string | null
-}
+  title: string;
+  text: string;
+  lastModified: string | null;
+};
 
 export async function extractMainContent(
-  url: string
+  url: string,
 ): Promise<ExtractedArticle> {
   const response = await fetch(url, {
     headers: {
-      'User-Agent': USER_AGENT
-    }
-  })
+      "User-Agent": USER_AGENT,
+    },
+  });
 
   if (!response.ok) {
     throw new Error(
-      `Failed to fetch ${url}: ${response.status} ${response.statusText}`
-    )
+      `Failed to fetch ${url}: ${response.status} ${response.statusText}`,
+    );
   }
 
-  const html = await response.text()
-  const lastModified = normalizeTimestamp(response.headers.get('last-modified'))
-  const dom = new JSDOM(html, { url })
+  const html = await response.text();
+  const lastModified = normalizeTimestamp(
+    response.headers.get("last-modified"),
+  );
+  const dom = new JSDOM(html, { url });
 
   try {
-    const reader = new Readability(dom.window.document)
-    const article = reader.parse()
+    const reader = new Readability(dom.window.document);
+    const article = reader.parse();
 
     const title =
       article?.title?.trim() ||
       dom.window.document.title?.trim() ||
-      new URL(url).hostname
+      new URL(url).hostname;
 
     const rawText =
-      article?.textContent ?? dom.window.document.body?.textContent ?? ''
+      article?.textContent ?? dom.window.document.body?.textContent ?? "";
 
     const text = rawText
-      .split('\n')
+      .split("\n")
       .map(String.prototype.trim)
       .filter(Boolean)
-      .join('\n\n')
+      .join("\n\n");
 
-    return { title, text, lastModified }
+    return { title, text, lastModified };
   } finally {
-    dom.window.close()
+    dom.window.close();
   }
 }

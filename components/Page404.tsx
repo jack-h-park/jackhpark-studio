@@ -1,10 +1,10 @@
-import type * as types from '@/lib/types'
+import type * as types from "@/lib/types";
 
-import { PageHead } from './PageHead'
-import styles from './styles.module.css'
+import { PageHead } from "./PageHead";
+import styles from "./styles.module.css";
 
 export function Page404({ site, pageId, error }: types.PageProps) {
-  const title = site?.name || 'Notion Page Not Found'
+  const title = site?.name || "Notion Page Not Found";
 
   return (
     <>
@@ -26,12 +26,12 @@ export function Page404({ site, pageId, error }: types.PageProps) {
           )}
 
           <img
-            src='/404.png'
-            alt='404 Not Found'
+            src="/404.png"
+            alt="404 Not Found"
             className={styles.errorImage}
           />
         </main>
       </div>
     </>
-  )
+  );
 }

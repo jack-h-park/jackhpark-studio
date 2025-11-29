@@ -1,21 +1,21 @@
-import { IconContext } from '@react-icons/all-files'
-import Document, { Head, Html, Main, NextScript } from 'next/document'
+import { IconContext } from "@react-icons/all-files";
+import Document, { Head, Html, Main, NextScript } from "next/document";
 
 export default class MyDocument extends Document {
   override render() {
     return (
-      <IconContext.Provider value={{ style: { verticalAlign: 'middle' } }}>
-        <Html lang='en'>
+      <IconContext.Provider value={{ style: { verticalAlign: "middle" } }}>
+        <Html lang="en">
           <Head>
-            <link rel='shortcut icon' href='/favicon.ico' />
+            <link rel="shortcut icon" href="/favicon.ico" />
             <link
-              rel='icon'
-              type='image/png'
-              sizes='32x32'
-              href='/favicon-32x32.png'
+              rel="icon"
+              type="image/png"
+              sizes="32x32"
+              href="/favicon-32x32.png"
             />
 
-            <link rel='manifest' href='/manifest.json' />
+            <link rel="manifest" href="/manifest.json" />
 
             {process.env.NEXT_PUBLIC_GA_ID && (
               <>
@@ -32,7 +32,7 @@ export default class MyDocument extends Document {
                       gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}', {
                         page_path: window.location.pathname,
                       });
-                    `
+                    `,
                   }}
                 />
               </>
@@ -41,7 +41,7 @@ export default class MyDocument extends Document {
 
           <body>
             {/* react-notion-x가 찾는 포탈 루트 (항상 존재하도록 서버에서 미리 추가) */}
-            <div className='notion-frame' style={{ display: 'none' }} />
+            <div className="notion-frame" style={{ display: "none" }} />
 
             <script
               dangerouslySetInnerHTML={{
@@ -86,7 +86,7 @@ export default class MyDocument extends Document {
     localStorage.setItem(storageKey, JSON.stringify(isDarkMode))
   }
 })();
-`
+`,
               }}
             />
             <Main />
@@ -95,6 +95,6 @@ export default class MyDocument extends Document {
           </body>
         </Html>
       </IconContext.Provider>
-    )
+    );
   }
 }

@@ -1,60 +1,60 @@
-import { type GetStaticProps } from 'next'
+import { type GetStaticProps } from "next";
 
-import { NotionPage } from '@/components/NotionPage'
-import { domain, isDev } from '@/lib/config'
-import { getSiteMap } from '@/lib/get-site-map'
-import { resolveNotionPage } from '@/lib/resolve-notion-page'
-import { type PageProps, type Params } from '@/lib/types'
+import { NotionPage } from "@/components/NotionPage";
+import { domain, isDev } from "@/lib/config";
+import { getSiteMap } from "@/lib/get-site-map";
+import { resolveNotionPage } from "@/lib/resolve-notion-page";
+import { type PageProps, type Params } from "@/lib/types";
 
 export const getStaticProps: GetStaticProps<PageProps, Params> = async (
-  context
+  context,
 ) => {
-  const rawPageId = context.params?.pageId as string
+  const rawPageId = context.params?.pageId as string;
 
   try {
-    const props = await resolveNotionPage(domain, rawPageId)
-    const siteMap = await getSiteMap()
+    const props = await resolveNotionPage(domain, rawPageId);
+    const siteMap = await getSiteMap();
 
     return {
       props: {
         ...props,
-        canonicalPageMap: siteMap?.canonicalPageMap || null
+        canonicalPageMap: siteMap?.canonicalPageMap || null,
       },
-      revalidate: 10
-    }
+      revalidate: 10,
+    };
   } catch (err) {
-    console.error('page error', domain, rawPageId, err)
+    console.error("page error", domain, rawPageId, err);
 
     // we don't want to publish the error version of this page, so
     // let next.js know explicitly that incremental SSG failed
-    throw err
+    throw err;
   }
-}
+};
 
 export async function getStaticPaths() {
   if (isDev) {
     return {
       paths: [],
-      fallback: true
-    }
+      fallback: true,
+    };
   }
 
-  const siteMap = await getSiteMap()
+  const siteMap = await getSiteMap();
 
   const staticPaths = {
     paths: Object.keys(siteMap.canonicalPageMap).map((pageId) => ({
       params: {
-        pageId
-      }
+        pageId,
+      },
     })),
     // paths: [],
-    fallback: true
-  }
+    fallback: true,
+  };
 
-  console.log(staticPaths.paths)
-  return staticPaths
+  console.log(staticPaths.paths);
+  return staticPaths;
 }
 
 export default function NotionDomainDynamicPage(props: PageProps) {
-  return <NotionPage {...props} />
+  return <NotionPage {...props} />;
 }

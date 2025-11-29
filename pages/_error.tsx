@@ -1,1 +1,1 @@
-export { ErrorPage as default } from '@/components/ErrorPage'
+export { ErrorPage as default } from "@/components/ErrorPage";

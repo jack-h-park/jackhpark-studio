@@ -9,15 +9,15 @@ export type TipCalloutProps = {
   className?: string;
 };
 
-export function TipCallout({ title = "Tip", children, className }: TipCalloutProps) {
+export function TipCallout({
+  title = "Tip",
+  children,
+  className,
+}: TipCalloutProps) {
   return (
     <Card className={cn("ai-tip-callout", className)}>
       <CardContent className="ai-tip-callout__content">
-        {title ? (
-          <p className="ai-tip-callout__title">
-            {title}
-          </p>
-        ) : null}
+        {title ? <p className="ai-tip-callout__title">{title}</p> : null}
         <div className="ai-tip-callout__body">{children}</div>
       </CardContent>
     </Card>

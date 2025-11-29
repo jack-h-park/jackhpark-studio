@@ -8,10 +8,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
   ({ className, ...props }, ref) => {
     return (
       <textarea
-        className={cn(
-          "ai-textarea focus-ring",
-          className,
-        )}
+        className={cn("ai-textarea focus-ring", className)}
         ref={ref}
         {...props}
       />

@@ -22,7 +22,9 @@ export default async function handler(
     return res.status(400).json({ error: "Invalid config payload" });
   }
 
-  const config = ("config" in payload ? payload.config : payload) as AdminChatConfig;
+  const config = (
+    "config" in payload ? payload.config : payload
+  ) as AdminChatConfig;
   try {
     const { updatedAt } = await saveAdminChatConfig(config);
     return res.status(200).json({ updatedAt });

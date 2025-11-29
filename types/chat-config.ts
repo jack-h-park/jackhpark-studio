@@ -37,10 +37,7 @@ export interface SessionChatConfig {
   appliedPreset?: "default" | "fast" | "highRecall";
 }
 
-export type SessionChatConfigPreset = Omit<
-  SessionChatConfig,
-  "appliedPreset"
->;
+export type SessionChatConfigPreset = Omit<SessionChatConfig, "appliedPreset">;
 
 export interface AdminChatConfig {
   coreSystemPromptSummary: string;

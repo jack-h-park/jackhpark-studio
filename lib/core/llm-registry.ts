@@ -1,43 +1,43 @@
-import { isOllamaEnabled } from '@/lib/core/ollama'
-import { normalizeModelProvider } from '@/lib/shared/model-provider'
+import { isOllamaEnabled } from "@/lib/core/ollama";
+import { normalizeModelProvider } from "@/lib/shared/model-provider";
 import {
   LLM_MODEL_DEFINITIONS,
   type LlmModelDefinition,
-} from '@/lib/shared/models'
+} from "@/lib/shared/models";
 
-type LlmModelOption = Omit<LlmModelDefinition, 'requiresOllama'>
+type LlmModelOption = Omit<LlmModelDefinition, "requiresOllama">;
 
 type LlmModelInput = {
-  modelId?: string | null
-  provider?: string | null
-  model?: string | null
-}
+  modelId?: string | null;
+  provider?: string | null;
+  model?: string | null;
+};
 
 const mapToOption = (definition: LlmModelDefinition): LlmModelOption => {
-  const { requiresOllama: _requiresOllama, ...rest } = definition
-  return rest
-}
+  const { requiresOllama: _requiresOllama, ...rest } = definition;
+  return rest;
+};
 
-const ALL_LLM_MODEL_OPTIONS = LLM_MODEL_DEFINITIONS.map(mapToOption)
+const ALL_LLM_MODEL_OPTIONS = LLM_MODEL_DEFINITIONS.map(mapToOption);
 const AVAILABLE_LLM_MODEL_OPTIONS = LLM_MODEL_DEFINITIONS.filter(
   (definition) => !definition.requiresOllama || isOllamaEnabled(),
-).map(mapToOption)
+).map(mapToOption);
 
 const DEFAULT_LLM_MODEL_ID =
   process.env.LLM_MODEL?.trim() && process.env.LLM_MODEL.trim().length > 0
     ? process.env.LLM_MODEL.trim()
-    : 'gpt-4o-mini'
+    : "gpt-4o-mini";
 
-const LLM_ALIAS_LOOKUP = new Map<string, LlmModelOption>()
+const LLM_ALIAS_LOOKUP = new Map<string, LlmModelOption>();
 for (const option of ALL_LLM_MODEL_OPTIONS) {
   const keys = new Set<string>([
     option.id,
     option.label,
     ...option.aliases,
     option.model,
-  ])
+  ]);
   for (const key of keys) {
-    LLM_ALIAS_LOOKUP.set(key.toLowerCase(), option)
+    LLM_ALIAS_LOOKUP.set(key.toLowerCase(), option);
   }
 }
 
@@ -45,71 +45,73 @@ function findByProvider(
   provider: string | null | undefined,
 ): LlmModelOption | null {
   if (!provider) {
-    return null
+    return null;
   }
-  const normalized = normalizeModelProvider(provider)
+  const normalized = normalizeModelProvider(provider);
   return (
-    AVAILABLE_LLM_MODEL_OPTIONS.find((entry) => entry.provider === normalized) ??
+    AVAILABLE_LLM_MODEL_OPTIONS.find(
+      (entry) => entry.provider === normalized,
+    ) ??
     ALL_LLM_MODEL_OPTIONS.find((entry) => entry.provider === normalized) ??
     null
-  )
+  );
 }
 
 function findById(value: string | null | undefined): LlmModelOption | null {
-  if (!value) return null
-  const key = value.toLowerCase().trim()
-  return LLM_ALIAS_LOOKUP.get(key) ?? null
+  if (!value) return null;
+  const key = value.toLowerCase().trim();
+  return LLM_ALIAS_LOOKUP.get(key) ?? null;
 }
 
 export function resolveLlmModel(
   input?: LlmModelInput | string | null,
 ): LlmModelOption {
   const candidate: LlmModelInput =
-    typeof input === 'string'
+    typeof input === "string"
       ? { modelId: input, provider: input, model: input }
-      : input ?? {}
+      : (input ?? {});
 
-  const byId = findById(candidate.modelId) ?? findById(candidate.model)
+  const byId = findById(candidate.modelId) ?? findById(candidate.model);
   if (byId) {
-    return byId
+    return byId;
   }
 
-  const byProvider = findByProvider(candidate.provider)
+  const byProvider = findByProvider(candidate.provider);
   if (byProvider) {
-    return byProvider
+    return byProvider;
   }
 
-  const envModel = findById(process.env.LLM_MODEL ?? null)
+  const envModel = findById(process.env.LLM_MODEL ?? null);
   if (envModel) {
-    return envModel
+    return envModel;
   }
 
-  const envProviderModel = findByProvider(process.env.LLM_PROVIDER ?? null)
+  const envProviderModel = findByProvider(process.env.LLM_PROVIDER ?? null);
   if (envProviderModel) {
-    return envProviderModel
+    return envProviderModel;
   }
 
   return (
     findById(DEFAULT_LLM_MODEL_ID) ??
     AVAILABLE_LLM_MODEL_OPTIONS[0] ??
     ALL_LLM_MODEL_OPTIONS[0]!
-  )
+  );
 }
 
 export function listLlmModelOptions(): LlmModelOption[] {
-  return [...AVAILABLE_LLM_MODEL_OPTIONS]
+  return [...AVAILABLE_LLM_MODEL_OPTIONS];
 }
 
 export function findLlmModelOption(
   value: string | null | undefined,
 ): LlmModelOption | null {
   if (!value) {
-    return null
+    return null;
   }
-  const normalized = value.toLowerCase().trim()
-  return LLM_ALIAS_LOOKUP.get(normalized) ?? null
+  const normalized = value.toLowerCase().trim();
+  return LLM_ALIAS_LOOKUP.get(normalized) ?? null;
 }
 
-export type { LlmModelOption }
-export { DEFAULT_LLM_MODEL_ID }
-export type { LlmModelId } from '@/lib/shared/models'
+export type { LlmModelOption };
+export { DEFAULT_LLM_MODEL_ID };
+export type { LlmModelId } from "@/lib/shared/models";

@@ -1,7 +1,7 @@
 // scripts/ingest.ts
-import pMap from 'p-map'
+import pMap from "p-map";
 
-import { resolveEmbeddingSpace } from '../lib/core/embedding-spaces'
+import { resolveEmbeddingSpace } from "../lib/core/embedding-spaces";
 import {
   chunkByTokens,
   type ChunkInsert,
@@ -18,103 +18,98 @@ import {
   type IngestRunStats,
   replaceChunks,
   startIngestRun,
-  upsertDocumentState
-} from '../lib/rag'
+  upsertDocumentState,
+} from "../lib/rag";
 
 const INGEST_CONCURRENCY = Math.max(
   1,
-  Number.parseInt(process.env.INGEST_CONCURRENCY ?? '4', 10)
-)
+  Number.parseInt(process.env.INGEST_CONCURRENCY ?? "4", 10),
+);
 
 const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
   embeddingSpaceId: process.env.EMBEDDING_SPACE_ID ?? null,
   embeddingModelId: process.env.EMBEDDING_MODEL ?? null,
   provider: process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
   version: process.env.EMBEDDING_VERSION ?? null,
-})
+});
 
 type RunMode = {
-  type: 'full' | 'partial'
-}
+  type: "full" | "partial";
+};
 
 type ParsedArgs = {
-  mode: RunMode
-  urls: string[]
-}
+  mode: RunMode;
+  urls: string[];
+};
 
-function parseArgs(defaultType: 'full' | 'partial'): ParsedArgs {
-  const raw = process.argv.slice(2)
-  const urls: string[] = []
-  let mode: RunMode = { type: defaultType }
+function parseArgs(defaultType: "full" | "partial"): ParsedArgs {
+  const raw = process.argv.slice(2);
+  const urls: string[] = [];
+  let mode: RunMode = { type: defaultType };
 
   for (const element of raw) {
-    const arg = element!
+    const arg = element!;
 
-    if (arg === '--full' || arg === '--mode=full') {
-      mode = { type: 'full' }
-      continue
+    if (arg === "--full" || arg === "--mode=full") {
+      mode = { type: "full" };
+      continue;
     }
 
-    if (arg === '--partial' || arg === '--mode=partial') {
-      mode = { type: 'partial' }
-      continue
+    if (arg === "--partial" || arg === "--mode=partial") {
+      mode = { type: "partial" };
+      continue;
     }
 
-    if (arg.startsWith('--mode=')) {
-      const value = arg.split('=')[1]
-      if (value === 'full' || value === 'partial') {
-        mode = { type: value }
+    if (arg.startsWith("--mode=")) {
+      const value = arg.split("=")[1];
+      if (value === "full" || value === "partial") {
+        mode = { type: value };
       }
-      continue
+      continue;
     }
 
-    urls.push(arg)
+    urls.push(arg);
   }
 
-  return { mode, urls }
+  return { mode, urls };
 }
 
-async function ingestUrl(
-  url: string,
-  stats: IngestRunStats
-): Promise<void> {
-  stats.documentsProcessed += 1
+async function ingestUrl(url: string, stats: IngestRunStats): Promise<void> {
+  stats.documentsProcessed += 1;
 
-  const { title, text, lastModified }: ExtractedArticle = await extractMainContent(url)
+  const { title, text, lastModified }: ExtractedArticle =
+    await extractMainContent(url);
 
   if (!text) {
-    console.warn(`No text content extracted for ${url}; skipping`)
-    stats.documentsSkipped += 1
-    return
+    console.warn(`No text content extracted for ${url}; skipping`);
+    stats.documentsSkipped += 1;
+    return;
   }
 
-  const contentHash = hashChunk(`${url}:${text}`)
-  const existingState = await getDocumentState(url)
-  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION
+  const contentHash = hashChunk(`${url}:${text}`);
+  const existingState = await getDocumentState(url);
+  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
   const unchanged =
     existingState &&
     existingState.content_hash === contentHash &&
-    (!lastModified || existingState.last_source_update === lastModified)
+    (!lastModified || existingState.last_source_update === lastModified);
 
   if (unchanged) {
-    const providerHasChunks = await hasChunksForProvider(
-      url,
-      embeddingSpace
-    )
+    const providerHasChunks = await hasChunksForProvider(url, embeddingSpace);
 
     if (providerHasChunks) {
-      console.log(`Skipping unchanged URL: ${title}`)
-      stats.documentsSkipped += 1
-      return
+      console.log(`Skipping unchanged URL: ${title}`);
+      stats.documentsSkipped += 1;
+      return;
     }
   }
 
-  const chunks = chunkByTokens(text, 450, 75)
+  const chunks = chunkByTokens(text, 450, 75);
 
   if (chunks.length === 0) {
-    console.warn(`Extracted content for ${url} produced no chunks; skipping`)
-    stats.documentsSkipped += 1
-    return
+    console.warn(`Extracted content for ${url} produced no chunks; skipping`);
+    stats.documentsSkipped += 1;
+    return;
   }
 
   const embeddings = await embedBatch(chunks, {
@@ -122,8 +117,8 @@ async function ingestUrl(
     embeddingModelId: embeddingSpace.embeddingModelId,
     embeddingSpaceId: embeddingSpace.embeddingSpaceId,
     version: embeddingSpace.version,
-  })
-  const ingestedAt = new Date().toISOString()
+  });
+  const ingestedAt = new Date().toISOString();
 
   const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
     doc_id: url,
@@ -132,63 +127,64 @@ async function ingestUrl(
     chunk,
     chunk_hash: hashChunk(`${url}:${chunk}`),
     embedding: embeddings[index]!,
-    ingested_at: ingestedAt
-  }))
+    ingested_at: ingestedAt,
+  }));
 
-  const chunkCount = rows.length
-  const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0)
+  const chunkCount = rows.length;
+  const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0);
 
   await replaceChunks(url, rows, {
     provider: embeddingSpace.provider,
     embeddingModelId: embeddingSpace.embeddingModelId,
     embeddingSpaceId: embeddingSpace.embeddingSpaceId,
     version: embeddingSpace.version,
-  })
+  });
   await upsertDocumentState({
     doc_id: url,
     source_url: url,
     content_hash: contentHash,
     last_source_update: lastModified ?? null,
     chunk_count: chunkCount,
-    total_characters: totalCharacters
-  })
+    total_characters: totalCharacters,
+  });
 
   if (existingState) {
-    stats.documentsUpdated += 1
-    stats.chunksUpdated += chunkCount
-    stats.charactersUpdated += totalCharacters
+    stats.documentsUpdated += 1;
+    stats.chunksUpdated += chunkCount;
+    stats.charactersUpdated += totalCharacters;
   } else {
-    stats.documentsAdded += 1
-    stats.chunksAdded += chunkCount
-    stats.charactersAdded += totalCharacters
+    stats.documentsAdded += 1;
+    stats.chunksAdded += chunkCount;
+    stats.charactersAdded += totalCharacters;
   }
 
   console.log(
-    `Ingested URL: ${title} (${chunkCount} chunks) [${existingState ? 'updated' : 'new'
-    }]`
-  )
+    `Ingested URL: ${title} (${chunkCount} chunks) [${
+      existingState ? "updated" : "new"
+    }]`,
+  );
 }
 
 async function main(): Promise<void> {
-  console.log('Starting external URL ingestion...')
+  console.log("Starting external URL ingestion...");
 
-  const { mode, urls } = parseArgs('partial')
-  const targets = urls.filter(Boolean)
+  const { mode, urls } = parseArgs("partial");
+  const targets = urls.filter(Boolean);
 
   if (targets.length === 0) {
     console.error(
-      'Usage: pnpm tsx scripts/ingest.ts [--full|--partial] <url> [url...]'
-    )
-    process.exitCode = 1
-    return
+      "Usage: pnpm tsx scripts/ingest.ts [--full|--partial] <url> [url...]",
+    );
+    process.exitCode = 1;
+    return;
   }
 
-  console.log(`Ingesting ${targets.length} URL(s)...`)
+  console.log(`Ingesting ${targets.length} URL(s)...`);
 
-  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION
+  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
 
   const runHandle: IngestRunHandle = await startIngestRun({
-    source: 'web',
+    source: "web",
     ingestion_type: mode.type,
     metadata: {
       urlCount: targets.length,
@@ -196,77 +192,76 @@ async function main(): Promise<void> {
       embeddingSpaceId: embeddingSpace.embeddingSpaceId,
       embeddingModelId: embeddingSpace.embeddingModelId,
       embeddingVersion: embeddingSpace.version,
-    }
-  })
+    },
+  });
 
-  const stats = createEmptyRunStats()
-  const errorLogs: IngestRunErrorLog[] = []
-  const started = Date.now()
+  const stats = createEmptyRunStats();
+  const errorLogs: IngestRunErrorLog[] = [];
+  const started = Date.now();
 
   try {
     await pMap(
       targets,
       async (url) => {
         try {
-          await ingestUrl(url, stats)
+          await ingestUrl(url, stats);
         } catch (err) {
-          stats.errorCount += 1
+          stats.errorCount += 1;
           const message =
-            err instanceof Error ? err.message : JSON.stringify(err)
-          errorLogs.push({ context: url, message })
-          console.error(`Failed to ingest ${url}: ${message}`)
+            err instanceof Error ? err.message : JSON.stringify(err);
+          errorLogs.push({ context: url, message });
+          console.error(`Failed to ingest ${url}: ${message}`);
         }
       },
-      { concurrency: INGEST_CONCURRENCY }
-    )
+      { concurrency: INGEST_CONCURRENCY },
+    );
 
-    const durationMs = Date.now() - started
-    const status =
-      stats.errorCount > 0 ? 'completed_with_errors' : 'success'
+    const durationMs = Date.now() - started;
+    const status = stats.errorCount > 0 ? "completed_with_errors" : "success";
 
     await finishIngestRun(runHandle, {
       status,
       durationMs,
       totals: stats,
-      errorLogs
-    })
+      errorLogs,
+    });
 
-    console.log('\n--- Ingestion Complete ---')
-    console.log(`Duration: ${(durationMs / 1000).toFixed(2)}s`)
-    console.log(`Status: ${status}`)
-    console.log('Documents:')
-    console.log(`  - Processed: ${stats.documentsProcessed}`)
-    console.log(`  - Added:     ${stats.documentsAdded}`)
-    console.log(`  - Updated:   ${stats.documentsUpdated}`)
-    console.log(`  - Skipped:   ${stats.documentsSkipped}`)
-    console.log('Chunks:')
-    console.log(`  - Added:     ${stats.chunksAdded}`)
-    console.log(`  - Updated:   ${stats.chunksUpdated}`)
-    console.log('Characters:')
-    console.log(`  - Added:     ${stats.charactersAdded}`)
-    console.log(`  - Updated:   ${stats.charactersUpdated}`)
-    console.log(`Errors: ${stats.errorCount}`)
+    console.log("\n--- Ingestion Complete ---");
+    console.log(`Duration: ${(durationMs / 1000).toFixed(2)}s`);
+    console.log(`Status: ${status}`);
+    console.log("Documents:");
+    console.log(`  - Processed: ${stats.documentsProcessed}`);
+    console.log(`  - Added:     ${stats.documentsAdded}`);
+    console.log(`  - Updated:   ${stats.documentsUpdated}`);
+    console.log(`  - Skipped:   ${stats.documentsSkipped}`);
+    console.log("Chunks:");
+    console.log(`  - Added:     ${stats.chunksAdded}`);
+    console.log(`  - Updated:   ${stats.chunksUpdated}`);
+    console.log("Characters:");
+    console.log(`  - Added:     ${stats.charactersAdded}`);
+    console.log(`  - Updated:   ${stats.charactersUpdated}`);
+    console.log(`Errors: ${stats.errorCount}`);
 
     if (stats.errorCount > 0) {
-      process.exitCode = 1
+      process.exitCode = 1;
     }
   } catch (err) {
-    const durationMs = Date.now() - started
-    const message = err instanceof Error ? err.message : String(err)
-    errorLogs.push({ context: 'fatal', message })
-    stats.errorCount += 1
+    const durationMs = Date.now() - started;
+    const message = err instanceof Error ? err.message : String(err);
+    errorLogs.push({ context: "fatal", message });
+    stats.errorCount += 1;
 
     await finishIngestRun(runHandle, {
-      status: 'failed',
+      status: "failed",
       durationMs,
       totals: stats,
-      errorLogs
-    })
+      errorLogs,
+    });
 
-    console.error('\n--- Ingestion Failed ---')
-    console.error(err)
-    throw err
+    console.error("\n--- Ingestion Failed ---");
+    console.error(err);
+    throw err;
   }
 }
 
-await main()
+await main();

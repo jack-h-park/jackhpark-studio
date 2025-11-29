@@ -4,7 +4,9 @@
   min-height: 100vh;
   background: var(--bg, white);
   color: var(--text, #111);
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .dark-mode .notionContainer {

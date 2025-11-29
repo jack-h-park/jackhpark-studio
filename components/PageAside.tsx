@@ -1,35 +1,35 @@
-import { type Block, type ExtendedRecordMap } from 'notion-types'
+import { type Block, type ExtendedRecordMap } from "notion-types";
 
-import { getPageTweet } from '@/lib/get-page-tweet'
+import { getPageTweet } from "@/lib/get-page-tweet";
 
-import { PageActions } from './PageActions'
-import { PageSocial } from './PageSocial'
+import { PageActions } from "./PageActions";
+import { PageSocial } from "./PageSocial";
 
 export function PageAside({
   block,
   recordMap,
-  isBlogPost
+  isBlogPost,
 }: {
-  block: Block
-  recordMap: ExtendedRecordMap
-  isBlogPost: boolean
+  block: Block;
+  recordMap: ExtendedRecordMap;
+  isBlogPost: boolean;
 }) {
   if (!block) {
-    console.log('[PageAside] not rendered - no block')
-    return null
+    console.log("[PageAside] not rendered - no block");
+    return null;
   }
 
-  console.log('[PageAside] rendered')
+  console.log("[PageAside] rendered");
 
   // only display comments and page actions on blog post pages
   if (isBlogPost) {
-    const tweet = getPageTweet(block, recordMap)
+    const tweet = getPageTweet(block, recordMap);
     if (!tweet) {
-      return null
+      return null;
     }
 
-    return <PageActions tweet={tweet} />
+    return <PageActions tweet={tweet} />;
   }
 
-  return <PageSocial />
+  return <PageSocial />;
 }

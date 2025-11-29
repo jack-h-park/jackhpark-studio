@@ -19,7 +19,7 @@
       "destination": "https://mcp-security-incidents.vercel.app"
     }
   ],
-  
+
   "crons": [
     {
       "path": "/api/internal/rag/snapshot?secret=${RAG_SNAPSHOT_CRON_SECRET}",

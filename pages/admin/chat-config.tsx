@@ -464,10 +464,7 @@ function AdminChatConfigForm({
             />
           </div>
           <div className="ai-field max-w-sm">
-            <Label
-              htmlFor="userPromptMaxLength"
-              className="ai-field__label"
-            >
+            <Label htmlFor="userPromptMaxLength" className="ai-field__label">
               Prompt max length
             </Label>
             <Input
@@ -498,10 +495,7 @@ function AdminChatConfigForm({
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="ai-field">
-            <Label
-              htmlFor="guardrailKeywords"
-              className="ai-field__label"
-            >
+            <Label htmlFor="guardrailKeywords" className="ai-field__label">
               Chit-chat keywords
             </Label>
             <Textarea
@@ -614,10 +608,7 @@ function AdminChatConfigForm({
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-3">
                   <div className="ai-field">
-                    <Label
-                      htmlFor={`${key}-min`}
-                      className="ai-field__label"
-                    >
+                    <Label htmlFor={`${key}-min`} className="ai-field__label">
                       Min
                     </Label>
                     <Input
@@ -659,10 +650,7 @@ function AdminChatConfigForm({
                     />
                   </div>
                   <div className="ai-field">
-                    <Label
-                      htmlFor={`${key}-max`}
-                      className="ai-field__label"
-                    >
+                    <Label htmlFor={`${key}-max`} className="ai-field__label">
                       Max
                     </Label>
                     <Input
@@ -1339,25 +1327,25 @@ function AdminChatConfigForm({
                   This is for read-only.
                 </p>
               </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="word-wrap-toggle"
-                      checked={isWordWrapEnabled}
-                      onCheckedChange={setIsWordWrapEnabled}
-                    />
-                    <div className="ai-choice">
-                      <Label
-                        htmlFor="word-wrap-toggle"
-                        className="ai-choice__label cursor-pointer"
-                      >
-                        Word Wrap
-                      </Label>
-                    </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="word-wrap-toggle"
+                    checked={isWordWrapEnabled}
+                    onCheckedChange={setIsWordWrapEnabled}
+                  />
+                  <div className="ai-choice">
+                    <Label
+                      htmlFor="word-wrap-toggle"
+                      className="ai-choice__label cursor-pointer"
+                    >
+                      Word Wrap
+                    </Label>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="shrink-0"
                   type="button"
                   onClick={() => setIsRawModalOpen(false)}

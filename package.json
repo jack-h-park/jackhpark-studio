@@ -31,7 +31,6 @@
     "test": "run-p test:*",
     "lint": "eslint .",
     "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check",
-    "test:gemini": "node --import=tsx scripts/test-gemini.ts",
     "build:instrumentation": "esbuild instrumentation.ts --platform=node --format=esm --outfile=instrumentation.js"
   },
   "dependencies": {

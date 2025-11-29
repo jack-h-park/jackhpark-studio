@@ -238,8 +238,6 @@ const styles = css`
     gap: 4px;
   }
 
-
-
   .guardrail-toggle-row {
     display: flex;
     align-items: center;
@@ -927,7 +925,9 @@ export function ChatWindow({
     setShowCitations: setDisplayShowCitations,
   } = useChatDisplaySettings();
   const [telemetryExpanded, setTelemetryExpanded] = useState(false);
-  const [loadingAssistantId, setLoadingAssistantId] = useState<string | null>(null);
+  const [loadingAssistantId, setLoadingAssistantId] = useState<string | null>(
+    null,
+  );
   const loadingAssistantRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -1121,17 +1121,17 @@ export function ChatWindow({
         return prev;
       }
 
-            setLoadingAssistantId(assistantMessageId)
-            return [
-              ...prev,
-              userMessage,
-              {
-                id: assistantMessageId,
-                role: "assistant",
-                content: "",
-                runtime: runtimeConfig,
-              },
-            ];
+      setLoadingAssistantId(assistantMessageId);
+      return [
+        ...prev,
+        userMessage,
+        {
+          id: assistantMessageId,
+          role: "assistant",
+          content: "",
+          runtime: runtimeConfig,
+        },
+      ];
     });
     setInput("");
     setIsLoading(true);
@@ -1356,267 +1356,262 @@ export function ChatWindow({
           isExpanded ? "is-large" : ""
         }`}
       >
-          <header className="chat-header">
-            <div className="chat-header-top">
-              <div className="chat-header-title">
-                <GiBrain />
-                <h3>Jack's AI Assistant</h3>
-              </div>
-              <div className="chat-header-actions">
+        <header className="chat-header">
+          <div className="chat-header-top">
+            <div className="chat-header-title">
+              <GiBrain />
+              <h3>Jack's AI Assistant</h3>
+            </div>
+            <div className="chat-header-actions">
+              <button
+                type="button"
+                className="chat-config-toggle"
+                onClick={toggleOptions}
+              >
+                {showOptions ? "Hide Settings" : "Show Settings"}
+              </button>
+              {headerAction}
+              {showExpandButton && (
                 <button
                   type="button"
-                  className="chat-config-toggle"
-                  onClick={toggleOptions}
+                  className="chat-expand-button"
+                  aria-label={
+                    isExpanded ? "Shrink chat panel" : "Expand chat panel"
+                  }
+                  onClick={togglePanelSize}
                 >
-                 {showOptions ? "Hide Settings" : "Show Settings"}
+                  {isExpanded ? (
+                    <AiOutlineCompress size={16} />
+                  ) : (
+                    <AiOutlineArrowsAlt size={16} />
+                  )}
                 </button>
-                {headerAction}
-                {showExpandButton && (
-                  <button
-                    type="button"
-                    className="chat-expand-button"
-                    aria-label={
-                      isExpanded ? "Shrink chat panel" : "Expand chat panel"
-                    }
-                    onClick={togglePanelSize}
+              )}
+              {showCloseButton && (
+                <button
+                  className="chat-close-button"
+                  onClick={onClose}
+                  aria-label="Close chat"
+                  type="button"
+                >
+                  <AiOutlineClose size={20} />
+                </button>
+              )}
+            </div>
+          </div>
+          {showOptions && (
+            <div className="chat-config-bar">
+              <div className="chat-control-block">
+                <span className="ai-field__label">Engine &amp; model</span>
+                <div className="chat-runtime-summary">
+                  <div className="chat-runtime-summary__row">
+                    <span className="chat-runtime-summary__label">Engine</span>
+                    <span className="chat-runtime-summary__value">
+                      {runtimeConfig.engine === "lc" ? "LangChain" : "Native"}
+                    </span>
+                  </div>
+                  <div className="chat-runtime-summary__row">
+                    <span className="chat-runtime-summary__label">LLM</span>
+                    <span className="chat-runtime-summary__value">
+                      {runtimeConfig.llmProvider === "openai"
+                        ? "OpenAI"
+                        : MODEL_PROVIDER_LABELS[runtimeConfig.llmProvider]}{" "}
+                      {runtimeConfig.llmModel ?? "custom model"}
+                    </span>
+                  </div>
+                  <div className="chat-runtime-summary__row">
+                    <span className="chat-runtime-summary__label">
+                      Embedding
+                    </span>
+                    <span className="chat-runtime-summary__value">
+                      {runtimeConfig.embeddingModelId ??
+                        runtimeConfig.embeddingModel ??
+                        "custom embedding"}
+                    </span>
+                  </div>
+                </div>
+                <div className="chat-runtime-flags">
+                  <span
+                    className="chat-runtime-flag"
+                    title="Reverse RAG enables query rewriting before retrieval"
                   >
-                    {isExpanded ? (
-                      <AiOutlineCompress size={16} />
-                    ) : (
-                      <AiOutlineArrowsAlt size={16} />
-                    )}
-                  </button>
-                )}
-                {showCloseButton && (
-                  <button
-                    className="chat-close-button"
-                    onClick={onClose}
-                    aria-label="Close chat"
-                    type="button"
+                    Reverse RAG:{" "}
+                    {runtimeConfig.reverseRagEnabled
+                      ? `on (${runtimeConfig.reverseRagMode})`
+                      : "off"}
+                  </span>
+                  <span
+                    className="chat-runtime-flag"
+                    title="Ranker mode applied after the initial retrieval"
                   >
-                    <AiOutlineClose size={20} />
-                  </button>
-                )}
+                    Ranker: {runtimeConfig.rankerMode.toUpperCase()}
+                  </span>
+                  <span
+                    className="chat-runtime-flag"
+                    title="HyDE generates a hypothetical document before embedding"
+                  >
+                    HyDE: {runtimeConfig.hydeEnabled ? "on" : "off"}
+                  </span>
+                </div>
+              </div>
+              <div className="chat-control-block">
+                <div className="guardrail-toggle-row">
+                  <div className="guardrail-description ai-choice">
+                    <span className="ai-choice__label">Telemetry badges</span>
+                    <p className="ai-choice__description">
+                      Show engine, guardrail, and enhancement insights
+                    </p>
+                  </div>
+                  <Switch
+                    className="guardrail-toggle-row__switch"
+                    checked={showTelemetry}
+                    onCheckedChange={handleTelemetrySwitchChange}
+                    aria-label="Toggle telemetry visibility"
+                  />
+                </div>
+                <div className="guardrail-toggle-row guardrail-toggle-row--auto">
+                  <div className="guardrail-description ai-choice">
+                    <span className="ai-choice__label">
+                      Auto expand telemetry on toggle
+                    </span>
+                  </div>
+                  <Switch
+                    className="guardrail-toggle-row__switch"
+                    checked={telemetryAutoExpand}
+                    onCheckedChange={handleAutoExpandChange}
+                    aria-label="Toggle auto expand telemetry"
+                  />
+                </div>
+              </div>
+              <div className="chat-control-block">
+                <div className="guardrail-toggle-row">
+                  <div className="guardrail-description ai-choice">
+                    <span className="ai-choice__label">Citations</span>
+                    <p className="ai-choice__description">
+                      Show every retrieved source (tiny text)
+                    </p>
+                  </div>
+                  <Switch
+                    className="guardrail-toggle-row__switch"
+                    checked={showCitations}
+                    onCheckedChange={handleCitationsSwitchChange}
+                    aria-label="Toggle citation visibility"
+                  />
+                </div>
               </div>
             </div>
-            {showOptions && (
-              <div className="chat-config-bar">
-                <div className="chat-control-block">
-                  <span className="ai-field__label">Engine &amp; model</span>
-                  <div className="chat-runtime-summary">
-                    <div className="chat-runtime-summary__row">
-                      <span className="chat-runtime-summary__label">
-                        Engine
-                      </span>
-                      <span className="chat-runtime-summary__value">
-                        {runtimeConfig.engine === "lc" ? "LangChain" : "Native"}
-                      </span>
-                    </div>
-                    <div className="chat-runtime-summary__row">
-                      <span className="chat-runtime-summary__label">LLM</span>
-                      <span className="chat-runtime-summary__value">
-                        {runtimeConfig.llmProvider === "openai"
-                          ? "OpenAI"
-                          : MODEL_PROVIDER_LABELS[
-                              runtimeConfig.llmProvider
-                            ]}{" "}
-                        {runtimeConfig.llmModel ?? "custom model"}
-                      </span>
-                    </div>
-                    <div className="chat-runtime-summary__row">
-                      <span className="chat-runtime-summary__label">
-                        Embedding
-                      </span>
-                      <span className="chat-runtime-summary__value">
-                        {runtimeConfig.embeddingModelId ??
-                          runtimeConfig.embeddingModel ??
-                          "custom embedding"}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="chat-runtime-flags">
-                    <span
-                      className="chat-runtime-flag"
-                      title="Reverse RAG enables query rewriting before retrieval"
-                    >
-                      Reverse RAG:{" "}
-                      {runtimeConfig.reverseRagEnabled
-                        ? `on (${runtimeConfig.reverseRagMode})`
-                        : "off"}
-                    </span>
-                    <span
-                      className="chat-runtime-flag"
-                      title="Ranker mode applied after the initial retrieval"
-                    >
-                      Ranker: {runtimeConfig.rankerMode.toUpperCase()}
-                    </span>
-                    <span
-                      className="chat-runtime-flag"
-                      title="HyDE generates a hypothetical document before embedding"
-                    >
-                      HyDE: {runtimeConfig.hydeEnabled ? "on" : "off"}
-                    </span>
-                  </div>
-                </div>
-                <div className="chat-control-block">
-                  <div className="guardrail-toggle-row">
-                    <div className="guardrail-description ai-choice">
-                      <span className="ai-choice__label">Telemetry badges</span>
-                      <p className="ai-choice__description">
-                        Show engine, guardrail, and enhancement insights
-                      </p>
-                    </div>
-                    <Switch
-                      className="guardrail-toggle-row__switch"
-                      checked={showTelemetry}
-                      onCheckedChange={handleTelemetrySwitchChange}
-                      aria-label="Toggle telemetry visibility"
-                    />
-                  </div>
-                  <div className="guardrail-toggle-row guardrail-toggle-row--auto">
-                    <div className="guardrail-description ai-choice">
-                      <span className="ai-choice__label">
-                        Auto expand telemetry on toggle
-                      </span>
-                    </div>
-                    <Switch
-                      className="guardrail-toggle-row__switch"
-                      checked={telemetryAutoExpand}
-                      onCheckedChange={handleAutoExpandChange}
-                      aria-label="Toggle auto expand telemetry"
-                    />
-                  </div>
-                </div>
-                <div className="chat-control-block">
-                  <div className="guardrail-toggle-row">
-                    <div className="guardrail-description ai-choice">
-                      <span className="ai-choice__label">Citations</span>
-                      <p className="ai-choice__description">
-                        Show every retrieved source (tiny text)
-                      </p>
-                    </div>
-                    <Switch
-                      className="guardrail-toggle-row__switch"
-                      checked={showCitations}
-                      onCheckedChange={handleCitationsSwitchChange}
-                      aria-label="Toggle citation visibility"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-          </header>
+          )}
+        </header>
 
-          <div className="chat-messages">
-            {messages.map((m) => {
-              const mergedCitations =
-                m.citations && m.citations.length > 0
-                  ? mergeCitations(m.citations)
-                  : null;
-              const contextStats = m.meta?.context;
-              const totalExcerptsRaw =
-                contextStats?.retrieved ??
-                (typeof contextStats?.included === "number" &&
-                typeof contextStats?.dropped === "number"
-                  ? contextStats.included + contextStats.dropped
-                  : null);
-              const totalExcerpts =
-                totalExcerptsRaw !== null && totalExcerptsRaw !== undefined
-                  ? Math.max(totalExcerptsRaw, contextStats?.included ?? 0)
-                  : null;
-              const contextUsageLabel =
-                contextStats && totalExcerpts !== null && totalExcerpts > 0
-                  ? `${contextStats.included} used out of ${totalExcerpts} excerpts`
-                  : contextStats
-                    ? `${contextStats.included} excerpts`
-                    : null;
-              const contextTokensLabel = contextStats
-                ? `(${contextStats.totalTokens}${
-                    contextStats.contextTokenBudget
-                      ? ` / ${contextStats.contextTokenBudget}`
-                      : ""
-                  } tokens)`
+        <div className="chat-messages">
+          {messages.map((m) => {
+            const mergedCitations =
+              m.citations && m.citations.length > 0
+                ? mergeCitations(m.citations)
                 : null;
-              const similarityThreshold =
-                contextStats &&
-                typeof contextStats.similarityThreshold === "number"
-                  ? contextStats.similarityThreshold
-                  : null;
-              const highestSimilarity =
-                contextStats &&
-                typeof contextStats.highestSimilarity === "number"
-                  ? contextStats.highestSimilarity
-                  : null;
-              const historyStats = m.meta?.history;
-              const historyLabel = historyStats
-                ? `${historyStats.tokens} / ${historyStats.budget} tokens${
-                    historyStats.trimmedTurns > 0
-                      ? ` (${historyStats.trimmedTurns} trimmed)`
-                      : ""
-                  }`
-                : typeof m.meta?.historyTokens === "number"
-                  ? `${m.meta.historyTokens} tokens`
-                  : null;
-              const historyTokensCount =
-                historyStats?.tokens ?? m.meta?.historyTokens ?? null;
-              const historyBudgetCount = historyStats?.budget ?? null;
-              const summaryInfo = m.meta?.summaryInfo;
-              const summaryConfig = m.meta?.summaryConfig;
-              const summaryTriggerTokens = summaryConfig?.triggerTokens ?? null;
-              const showSummaryBlock = Boolean(summaryConfig?.enabled);
-              const historySummaryLabel =
-                historyTokensCount !== null && summaryTriggerTokens !== null
-                  ? `History not summarized (${historyTokensCount} / ${summaryTriggerTokens} tokens)`
-                  : historyTokensCount !== null && historyBudgetCount !== null
-                    ? `History not summarized (${historyTokensCount} / ${historyBudgetCount} tokens)`
-                    : historyTokensCount !== null
-                      ? `History not summarized (${historyTokensCount} tokens)`
-                      : "History not summarized";
-              const runtimeEngineLabel =
-                m.runtime?.engine === "lc"
-                  ? "LangChain"
-                  : m.runtime?.engine === "native"
-                    ? "Native"
-                    : null;
-              const runtimeLlmProviderLabel = m.runtime
-                ? m.runtime.llmProvider === "openai"
-                  ? "Open AI"
-                  : MODEL_PROVIDER_LABELS[m.runtime.llmProvider]
+            const contextStats = m.meta?.context;
+            const totalExcerptsRaw =
+              contextStats?.retrieved ??
+              (typeof contextStats?.included === "number" &&
+              typeof contextStats?.dropped === "number"
+                ? contextStats.included + contextStats.dropped
+                : null);
+            const totalExcerpts =
+              totalExcerptsRaw !== null && totalExcerptsRaw !== undefined
+                ? Math.max(totalExcerptsRaw, contextStats?.included ?? 0)
                 : null;
-              const runtimeLlmModelLabel =
-                m.runtime?.llmModelId ?? m.runtime?.llmModel ?? null;
-              const runtimeLlmDisplay =
-                runtimeLlmProviderLabel && runtimeLlmModelLabel
-                  ? `${runtimeLlmProviderLabel} / ${runtimeLlmModelLabel}`
-                  : (runtimeLlmModelLabel ?? runtimeLlmProviderLabel);
-              const runtimeEmbeddingModelLabel =
-                m.runtime?.embeddingModelId ??
-                m.runtime?.embeddingModel ??
-                null;
-              const hasRuntime = Boolean(
-                runtimeEngineLabel ||
-                  runtimeLlmDisplay ||
-                  runtimeEmbeddingModelLabel,
-              );
-              const hasGuardrailMeta = Boolean(contextStats);
-              const enhancements = m.meta?.enhancements;
-              const hasEnhancements = Boolean(enhancements);
-              const telemetryActive = showTelemetry && telemetryExpanded;
-              const showRuntimeCard = telemetryActive && hasRuntime;
-              const showGuardrailCards = telemetryActive && contextStats;
-              const showEnhancementCard = telemetryActive && hasEnhancements;
-              const hasAnyMeta =
-                hasRuntime || hasGuardrailMeta || hasEnhancements;
-              const isStreamingAssistant =
-                m.role === "assistant" &&
-                isLoading &&
-                loadingAssistantId === m.id;
+            const contextUsageLabel =
+              contextStats && totalExcerpts !== null && totalExcerpts > 0
+                ? `${contextStats.included} used out of ${totalExcerpts} excerpts`
+                : contextStats
+                  ? `${contextStats.included} excerpts`
+                  : null;
+            const contextTokensLabel = contextStats
+              ? `(${contextStats.totalTokens}${
+                  contextStats.contextTokenBudget
+                    ? ` / ${contextStats.contextTokenBudget}`
+                    : ""
+                } tokens)`
+              : null;
+            const similarityThreshold =
+              contextStats &&
+              typeof contextStats.similarityThreshold === "number"
+                ? contextStats.similarityThreshold
+                : null;
+            const highestSimilarity =
+              contextStats && typeof contextStats.highestSimilarity === "number"
+                ? contextStats.highestSimilarity
+                : null;
+            const historyStats = m.meta?.history;
+            const historyLabel = historyStats
+              ? `${historyStats.tokens} / ${historyStats.budget} tokens${
+                  historyStats.trimmedTurns > 0
+                    ? ` (${historyStats.trimmedTurns} trimmed)`
+                    : ""
+                }`
+              : typeof m.meta?.historyTokens === "number"
+                ? `${m.meta.historyTokens} tokens`
+                : null;
+            const historyTokensCount =
+              historyStats?.tokens ?? m.meta?.historyTokens ?? null;
+            const historyBudgetCount = historyStats?.budget ?? null;
+            const summaryInfo = m.meta?.summaryInfo;
+            const summaryConfig = m.meta?.summaryConfig;
+            const summaryTriggerTokens = summaryConfig?.triggerTokens ?? null;
+            const showSummaryBlock = Boolean(summaryConfig?.enabled);
+            const historySummaryLabel =
+              historyTokensCount !== null && summaryTriggerTokens !== null
+                ? `History not summarized (${historyTokensCount} / ${summaryTriggerTokens} tokens)`
+                : historyTokensCount !== null && historyBudgetCount !== null
+                  ? `History not summarized (${historyTokensCount} / ${historyBudgetCount} tokens)`
+                  : historyTokensCount !== null
+                    ? `History not summarized (${historyTokensCount} tokens)`
+                    : "History not summarized";
+            const runtimeEngineLabel =
+              m.runtime?.engine === "lc"
+                ? "LangChain"
+                : m.runtime?.engine === "native"
+                  ? "Native"
+                  : null;
+            const runtimeLlmProviderLabel = m.runtime
+              ? m.runtime.llmProvider === "openai"
+                ? "Open AI"
+                : MODEL_PROVIDER_LABELS[m.runtime.llmProvider]
+              : null;
+            const runtimeLlmModelLabel =
+              m.runtime?.llmModelId ?? m.runtime?.llmModel ?? null;
+            const runtimeLlmDisplay =
+              runtimeLlmProviderLabel && runtimeLlmModelLabel
+                ? `${runtimeLlmProviderLabel} / ${runtimeLlmModelLabel}`
+                : (runtimeLlmModelLabel ?? runtimeLlmProviderLabel);
+            const runtimeEmbeddingModelLabel =
+              m.runtime?.embeddingModelId ?? m.runtime?.embeddingModel ?? null;
+            const hasRuntime = Boolean(
+              runtimeEngineLabel ||
+                runtimeLlmDisplay ||
+                runtimeEmbeddingModelLabel,
+            );
+            const hasGuardrailMeta = Boolean(contextStats);
+            const enhancements = m.meta?.enhancements;
+            const hasEnhancements = Boolean(enhancements);
+            const telemetryActive = showTelemetry && telemetryExpanded;
+            const showRuntimeCard = telemetryActive && hasRuntime;
+            const showGuardrailCards = telemetryActive && contextStats;
+            const showEnhancementCard = telemetryActive && hasEnhancements;
+            const hasAnyMeta =
+              hasRuntime || hasGuardrailMeta || hasEnhancements;
+            const isStreamingAssistant =
+              m.role === "assistant" &&
+              isLoading &&
+              loadingAssistantId === m.id;
 
-              return (
-                <div key={m.id} className="message-group">
-                <div className={`message ${m.role} ${
-                  isStreamingAssistant ? "is-loading" : ""
-                }`}>
+            return (
+              <div key={m.id} className="message-group">
+                <div
+                  className={`message ${m.role} ${
+                    isStreamingAssistant ? "is-loading" : ""
+                  }`}
+                >
                   {typeof m.content === "string"
                     ? renderMessageContent(m.content, m.id)
                     : m.content}
@@ -1628,268 +1623,258 @@ export function ChatWindow({
                     </div>
                   )}
                 </div>
-                  {m.role === "assistant" && hasAnyMeta && (
-                    <div className="message-meta">
-                      {showTelemetry && (
-                        <div className="telemetry-collapse-row">
-                          <button
-                            type="button"
-                            className="telemetry-collapse-btn"
-                            onClick={toggleTelemetryExpanded}
-                          >
-                            {telemetryExpanded
-                              ? "Hide telemetry details"
-                              : "Show telemetry details"}
-                          </button>
+                {m.role === "assistant" && hasAnyMeta && (
+                  <div className="message-meta">
+                    {showTelemetry && (
+                      <div className="telemetry-collapse-row">
+                        <button
+                          type="button"
+                          className="telemetry-collapse-btn"
+                          onClick={toggleTelemetryExpanded}
+                        >
+                          {telemetryExpanded
+                            ? "Hide telemetry details"
+                            : "Show telemetry details"}
+                        </button>
+                      </div>
+                    )}
+                    {showRuntimeCard && (
+                      <div className="meta-card meta-card--runtime">
+                        <div className="meta-card__heading">
+                          Engine &amp; Model
                         </div>
-                      )}
-                      {showRuntimeCard && (
-                        <div className="meta-card meta-card--runtime">
-                          <div className="meta-card__heading">
-                            Engine &amp; Model
-                          </div>
-                          <div className="meta-card-grid">
-                            {runtimeEngineLabel && (
-                              <div className="meta-card-block">
-                                <div className="meta-card-block__label">
-                                  ENGINE
-                                </div>
-                                <div className="meta-card-block__value">
-                                  {runtimeEngineLabel}
-                                </div>
-                              </div>
-                            )}
-                            {runtimeLlmDisplay && (
-                              <div className="meta-card-block">
-                                <div className="meta-card-block__label">
-                                  LLM
-                                </div>
-                                <div className="meta-card-block__value">
-                                  {runtimeLlmDisplay}
-                                </div>
-                              </div>
-                            )}
-                            {runtimeEmbeddingModelLabel && (
-                              <div className="meta-card-block">
-                                <div className="meta-card-block__label">
-                                  EMBEDDING
-                                </div>
-                                <div className="meta-card-block__value">
-                                  {runtimeEmbeddingModelLabel}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {showGuardrailCards && (
-                        <div className="meta-card meta-card--guardrail">
-                          <div className="meta-card__heading">Guardrails</div>
-                          <div className="meta-card-grid">
+                        <div className="meta-card-grid">
+                          {runtimeEngineLabel && (
                             <div className="meta-card-block">
                               <div className="meta-card-block__label">
-                                ROUTE
+                                ENGINE
                               </div>
                               <div className="meta-card-block__value">
-                                {m.meta!.reason ?? m.meta!.intent}
+                                {runtimeEngineLabel}
                               </div>
                             </div>
+                          )}
+                          {runtimeLlmDisplay && (
+                            <div className="meta-card-block">
+                              <div className="meta-card-block__label">LLM</div>
+                              <div className="meta-card-block__value">
+                                {runtimeLlmDisplay}
+                              </div>
+                            </div>
+                          )}
+                          {runtimeEmbeddingModelLabel && (
                             <div className="meta-card-block">
                               <div className="meta-card-block__label">
-                                CONTEXT
+                                EMBEDDING
+                              </div>
+                              <div className="meta-card-block__value">
+                                {runtimeEmbeddingModelLabel}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {showGuardrailCards && (
+                      <div className="meta-card meta-card--guardrail">
+                        <div className="meta-card__heading">Guardrails</div>
+                        <div className="meta-card-grid">
+                          <div className="meta-card-block">
+                            <div className="meta-card-block__label">ROUTE</div>
+                            <div className="meta-card-block__value">
+                              {m.meta!.reason ?? m.meta!.intent}
+                            </div>
+                          </div>
+                          <div className="meta-card-block">
+                            <div className="meta-card-block__label">
+                              CONTEXT
+                            </div>
+                            <div
+                              className={`meta-card-block__value ${contextStats.insufficient ? "warning" : ""}`}
+                            >
+                              {contextUsageLabel}
+                              {contextTokensLabel
+                                ? ` ${contextTokensLabel}`
+                                : ""}
+                            </div>
+                          </div>
+                          {historyLabel && (
+                            <div className="meta-card-block">
+                              <div className="meta-card-block__label">
+                                HISTORY
+                              </div>
+                              <div className="meta-card-block__value">
+                                {historyLabel}
+                              </div>
+                            </div>
+                          )}
+                          {similarityThreshold !== null && (
+                            <div className="meta-card-block">
+                              <div className="meta-card-block__label">
+                                SIMILARITY
                               </div>
                               <div
                                 className={`meta-card-block__value ${contextStats.insufficient ? "warning" : ""}`}
                               >
-                                {contextUsageLabel}
-                                {contextTokensLabel
-                                  ? ` ${contextTokensLabel}`
+                                {highestSimilarity !== null
+                                  ? highestSimilarity.toFixed(3)
+                                  : "—"}{" "}
+                                / min {similarityThreshold.toFixed(2)}
+                                {contextStats.insufficient
+                                  ? " (Insufficient)"
                                   : ""}
                               </div>
                             </div>
-                            {historyLabel && (
-                              <div className="meta-card-block">
-                                <div className="meta-card-block__label">
-                                  HISTORY
-                                </div>
-                                <div className="meta-card-block__value">
-                                  {historyLabel}
-                                </div>
-                              </div>
-                            )}
-                            {similarityThreshold !== null && (
-                              <div className="meta-card-block">
-                                <div className="meta-card-block__label">
-                                  SIMILARITY
-                                </div>
-                                <div
-                                  className={`meta-card-block__value ${contextStats.insufficient ? "warning" : ""}`}
-                                >
-                                  {highestSimilarity !== null
-                                    ? highestSimilarity.toFixed(3)
-                                    : "—"}{" "}
-                                  / min {similarityThreshold.toFixed(2)}
-                                  {contextStats.insufficient
-                                    ? " (Insufficient)"
-                                    : ""}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          {showSummaryBlock && (
-                            <div className="meta-card-block meta-card-block--summary">
-                              <div className="meta-card-block__label">
-                                SUMMARY
-                              </div>
-                              <div className="meta-card-block__value">
-                                {summaryInfo
-                                  ? `History summarized (${summaryInfo.originalTokens} → ${summaryInfo.summaryTokens} tokens)`
-                                  : historySummaryLabel}
-                              </div>
-                              {summaryInfo ? (
-                                <div className="meta-card-block__secondary">
-                                  {summaryInfo.trimmedTurns} of{" "}
-                                  {summaryInfo.maxTurns} turns summarized
-                                </div>
-                              ) : null}
-                            </div>
-                          )}
-                          {m.meta?.summaryApplied && (
-                            <div className="meta-card-footer">
-                              <span className="meta-chip">Summary applied</span>
-                            </div>
                           )}
                         </div>
-                      )}
-                      {showEnhancementCard && (
-                        <div className="meta-card meta-card--enhancements">
-                          <div className="meta-card__heading">Enhancements</div>
-                          <div className="meta-card-grid">
-                            <div className="meta-card-block">
-                              <div className="meta-card-block__label">
-                                REVERSE RAG
-                              </div>
-                              <div
-                                className="meta-card-block__value enhancement-chip"
-                                data-tooltip={
-                                  enhancements?.reverseRag
-                                    ? `mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`
-                                    : ""
-                                }
-                              >
-                                {enhancements?.reverseRag?.enabled
-                                  ? enhancements.reverseRag.mode
-                                  : "off"}
-                              </div>
-                              {enhancements?.reverseRag?.enabled && (
-                                <div className="meta-card-block__secondary">
-                                  {`original: ${truncateText(enhancements.reverseRag.original, 40)}`}
-                                  <br />
-                                  {`rewritten: ${truncateText(enhancements.reverseRag.rewritten, 40)}`}
-                                </div>
-                              )}
+                        {showSummaryBlock && (
+                          <div className="meta-card-block meta-card-block--summary">
+                            <div className="meta-card-block__label">
+                              SUMMARY
                             </div>
-                            <div className="meta-card-block">
-                              <div className="meta-card-block__label">HyDE</div>
-                              <div
-                                className="meta-card-block__value enhancement-chip"
-                                data-tooltip={
-                                  enhancements?.hyde?.generated ?? ""
-                                }
-                              >
-                                {enhancements?.hyde?.enabled
-                                  ? enhancements.hyde.generated
-                                    ? truncateText(
-                                        enhancements.hyde.generated,
-                                        40,
-                                      )
-                                    : "generated"
-                                  : "off"}
-                              </div>
+                            <div className="meta-card-block__value">
+                              {summaryInfo
+                                ? `History summarized (${summaryInfo.originalTokens} → ${summaryInfo.summaryTokens} tokens)`
+                                : historySummaryLabel}
                             </div>
-                            <div className="meta-card-block">
-                              <div className="meta-card-block__label">
-                                RANKER
+                            {summaryInfo ? (
+                              <div className="meta-card-block__secondary">
+                                {summaryInfo.trimmedTurns} of{" "}
+                                {summaryInfo.maxTurns} turns summarized
                               </div>
-                              <div className="meta-card-block__value">
-                                {enhancements?.ranker?.mode ?? "none"}
-                              </div>
-                            </div>
+                            ) : null}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {m.role === "assistant" &&
-                    showCitations &&
-                    mergedCitations &&
-                    mergedCitations.length > 0 && (
-                      <ol className="message-citations">
-                        {mergedCitations.map((citation, index) => {
-                          const title =
-                            (citation.title ?? "").trim() ||
-                            (citation.source_url ?? "").trim() ||
-                            `Source ${index + 1}`;
-                          const url = (citation.source_url ?? "").trim();
-                          const excerptCount =
-                            typeof citation.excerpt_count === "number"
-                              ? citation.excerpt_count
-                              : 1;
-                          const countLabel =
-                            excerptCount > 1
-                              ? `${excerptCount} excerpts`
-                              : null;
-                          return (
-                            <li key={`${m.id}-citation-${index}`}>
-                              {title}
-                              {url && (
-                                <>
-                                  {" "}
-                                  <a
-                                    href={url}
-                                    target="_blank"
-                                    rel="noreferrer noopener"
-                                  >
-                                    {formatLinkLabel(url)}
-                                  </a>
-                                </>
-                              )}
-                              {countLabel && (
-                                <span className="citation-count">
-                                  ({countLabel})
-                                </span>
-                              )}
-                            </li>
-                          );
-                        })}
-                      </ol>
+                        )}
+                        {m.meta?.summaryApplied && (
+                          <div className="meta-card-footer">
+                            <span className="meta-chip">Summary applied</span>
+                          </div>
+                        )}
+                      </div>
                     )}
-                </div>
-              );
-            })}
+                    {showEnhancementCard && (
+                      <div className="meta-card meta-card--enhancements">
+                        <div className="meta-card__heading">Enhancements</div>
+                        <div className="meta-card-grid">
+                          <div className="meta-card-block">
+                            <div className="meta-card-block__label">
+                              REVERSE RAG
+                            </div>
+                            <div
+                              className="meta-card-block__value enhancement-chip"
+                              data-tooltip={
+                                enhancements?.reverseRag
+                                  ? `mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`
+                                  : ""
+                              }
+                            >
+                              {enhancements?.reverseRag?.enabled
+                                ? enhancements.reverseRag.mode
+                                : "off"}
+                            </div>
+                            {enhancements?.reverseRag?.enabled && (
+                              <div className="meta-card-block__secondary">
+                                {`original: ${truncateText(enhancements.reverseRag.original, 40)}`}
+                                <br />
+                                {`rewritten: ${truncateText(enhancements.reverseRag.rewritten, 40)}`}
+                              </div>
+                            )}
+                          </div>
+                          <div className="meta-card-block">
+                            <div className="meta-card-block__label">HyDE</div>
+                            <div
+                              className="meta-card-block__value enhancement-chip"
+                              data-tooltip={enhancements?.hyde?.generated ?? ""}
+                            >
+                              {enhancements?.hyde?.enabled
+                                ? enhancements.hyde.generated
+                                  ? truncateText(
+                                      enhancements.hyde.generated,
+                                      40,
+                                    )
+                                  : "generated"
+                                : "off"}
+                            </div>
+                          </div>
+                          <div className="meta-card-block">
+                            <div className="meta-card-block__label">RANKER</div>
+                            <div className="meta-card-block__value">
+                              {enhancements?.ranker?.mode ?? "none"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {m.role === "assistant" &&
+                  showCitations &&
+                  mergedCitations &&
+                  mergedCitations.length > 0 && (
+                    <ol className="message-citations">
+                      {mergedCitations.map((citation, index) => {
+                        const title =
+                          (citation.title ?? "").trim() ||
+                          (citation.source_url ?? "").trim() ||
+                          `Source ${index + 1}`;
+                        const url = (citation.source_url ?? "").trim();
+                        const excerptCount =
+                          typeof citation.excerpt_count === "number"
+                            ? citation.excerpt_count
+                            : 1;
+                        const countLabel =
+                          excerptCount > 1 ? `${excerptCount} excerpts` : null;
+                        return (
+                          <li key={`${m.id}-citation-${index}`}>
+                            {title}
+                            {url && (
+                              <>
+                                {" "}
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer noopener"
+                                >
+                                  {formatLinkLabel(url)}
+                                </a>
+                              </>
+                            )}
+                            {countLabel && (
+                              <span className="citation-count">
+                                ({countLabel})
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
+              </div>
+            );
+          })}
 
-            <div ref={messagesEndRef} />
-          </div>
-
-          <form className="chat-input-form" onSubmit={handleFormSubmit}>
-            <input
-              className="chat-input"
-              ref={inputRef}
-              value={input}
-              onChange={handleInputChange}
-              placeholder="Ask me anything about Jack..."
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              className="chat-submit-button"
-              disabled={isLoading || !input.trim()}
-              aria-label="Send message"
-            >
-              <AiOutlineSend size={20} />
-            </button>
-          </form>
+          <div ref={messagesEndRef} />
         </div>
+
+        <form className="chat-input-form" onSubmit={handleFormSubmit}>
+          <input
+            className="chat-input"
+            ref={inputRef}
+            value={input}
+            onChange={handleInputChange}
+            placeholder="Ask me anything about Jack..."
+            disabled={isLoading}
+          />
+          <button
+            type="submit"
+            className="chat-submit-button"
+            disabled={isLoading || !input.trim()}
+            aria-label="Send message"
+          >
+            <AiOutlineSend size={20} />
+          </button>
+        </form>
+      </div>
     </>
   );
 }

@@ -21,7 +21,9 @@ import type {
 type ChatConfigContextValue = {
   adminConfig: AdminChatConfig;
   sessionConfig: SessionChatConfig;
-  setSessionConfig: (value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig)) => void;
+  setSessionConfig: (
+    value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
+  ) => void;
 };
 
 const STORAGE_KEY = "chat-session-config";
@@ -76,7 +78,10 @@ const sanitizeNumericConfig = (
 
   const userPrompt =
     typeof candidate.userSystemPrompt === "string"
-      ? candidate.userSystemPrompt.slice(0, adminConfig.userSystemPromptMaxLength)
+      ? candidate.userSystemPrompt.slice(
+          0,
+          adminConfig.userSystemPromptMaxLength,
+        )
       : adminConfig.userSystemPromptDefault;
 
   const ranker = sanitizeModel(
@@ -147,9 +152,8 @@ export function ChatConfigProvider({
     [adminConfig.presets],
   );
 
-  const [sessionConfig, setSessionConfigState] = useState<SessionChatConfig>(
-    defaultConfig,
-  );
+  const [sessionConfig, setSessionConfigState] =
+    useState<SessionChatConfig>(defaultConfig);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -178,7 +182,11 @@ export function ChatConfigProvider({
   }, [sessionConfig]);
 
   const setSessionConfig = useCallback(
-    (value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig)) => {
+    (
+      value:
+        | SessionChatConfig
+        | ((prev: SessionChatConfig) => SessionChatConfig),
+    ) => {
       setSessionConfigState((prev) =>
         sanitizeNumericConfig(
           typeof value === "function" ? value(prev) : value,

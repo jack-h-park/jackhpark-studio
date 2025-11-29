@@ -74,8 +74,8 @@ export function DataTable<T>({
                   column.align === "center"
                     ? "text-center"
                     : column.align === "right"
-                    ? "text-right"
-                    : "text-left";
+                      ? "text-right"
+                      : "text-left";
                 return (
                   <th
                     key={`column-${index}`}
@@ -108,7 +108,7 @@ export function DataTable<T>({
                 const rowId =
                   rowKey?.(item, rowIndex) ??
                   (typeof item === "object" && item !== null
-                    ? (item as { id?: string | number }).id ?? rowIndex
+                    ? ((item as { id?: string | number }).id ?? rowIndex)
                     : rowIndex);
                 return (
                   <tr
@@ -125,8 +125,8 @@ export function DataTable<T>({
                         column.align === "center"
                           ? "text-center"
                           : column.align === "right"
-                          ? "text-right"
-                          : "text-left";
+                            ? "text-right"
+                            : "text-left";
                       return (
                         <td
                           key={`cell-${rowId}-${cellIndex}`}

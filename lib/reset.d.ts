@@ -1,1 +1,1 @@
-import '@fisch0920/config/ts-reset'
+import "@fisch0920/config/ts-reset";

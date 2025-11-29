@@ -67,9 +67,7 @@ function toString(value: string | string[] | undefined): string | undefined {
 }
 
 function formatInList(values: string[]): string {
-  return values
-    .map((value) => `"${value.replaceAll('"', '""')}"`)
-    .join(",");
+  return values.map((value) => `"${value.replaceAll('"', '""')}"`).join(",");
 }
 
 function normalizeDateParam(
@@ -86,8 +84,7 @@ function normalizeDateParam(
   }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    const suffix =
-      mode === "start" ? "T00:00:00.000Z" : "T23:59:59.999Z";
+    const suffix = mode === "start" ? "T00:00:00.000Z" : "T23:59:59.999Z";
     const parsed = new Date(`${trimmed}${suffix}`);
     return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
   }
@@ -155,10 +152,7 @@ function parseQuery(query: NextApiRequest["query"]): ParsedQuery {
   }
   const embeddingSpaces = Array.from(embeddingSpaceSet);
 
-  const startedFrom = normalizeDateParam(
-    toString(query.startedFrom),
-    "start",
-  );
+  const startedFrom = normalizeDateParam(toString(query.startedFrom), "start");
   const startedTo = normalizeDateParam(toString(query.startedTo), "end");
 
   const hideSkipped = toString(query.hideSkipped) === "true";

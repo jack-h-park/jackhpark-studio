@@ -1,11 +1,11 @@
 // scripts/ingest-notion.ts
-import { NotionAPI } from 'notion-client'
-import { type ExtendedRecordMap } from 'notion-types'
-import { getAllPagesInSpace } from 'notion-utils'
-import pMap from 'p-map'
+import { NotionAPI } from "notion-client";
+import { type ExtendedRecordMap } from "notion-types";
+import { getAllPagesInSpace } from "notion-utils";
+import pMap from "p-map";
 
-import { rootNotionPageId as configRootNotionPageId } from '../lib/config'
-import { resolveEmbeddingSpace } from '../lib/core/embedding-spaces'
+import { rootNotionPageId as configRootNotionPageId } from "../lib/config";
+import { resolveEmbeddingSpace } from "../lib/core/embedding-spaces";
 import {
   chunkByTokens,
   type ChunkInsert,
@@ -24,97 +24,96 @@ import {
   type IngestRunStats,
   replaceChunks,
   startIngestRun, // This line is already present, no change needed.
-  upsertDocumentState
-} from '../lib/rag'
+  upsertDocumentState,
+} from "../lib/rag";
 
-const notion = new NotionAPI()
+const notion = new NotionAPI();
 const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
   embeddingSpaceId: process.env.EMBEDDING_SPACE_ID ?? null,
   embeddingModelId: process.env.EMBEDDING_MODEL ?? null,
   provider: process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
-  version: process.env.EMBEDDING_VERSION ?? null
-})
-const DEFAULT_ROOT_PAGE_ID = configRootNotionPageId
+  version: process.env.EMBEDDING_VERSION ?? null,
+});
+const DEFAULT_ROOT_PAGE_ID = configRootNotionPageId;
 
 type RunMode = {
-  type: 'full' | 'partial'
-}
+  type: "full" | "partial";
+};
 
-function parseRunMode(defaultType: 'full' | 'partial'): RunMode {
-  const args = process.argv.slice(2)
-  let mode: RunMode = { type: defaultType }
+function parseRunMode(defaultType: "full" | "partial"): RunMode {
+  const args = process.argv.slice(2);
+  let mode: RunMode = { type: defaultType };
 
   for (const arg_ of args) {
-    const arg = arg_!
+    const arg = arg_!;
 
-    if (arg === '--full' || arg === '--mode=full') {
-      mode = { type: 'full' }
-      continue
+    if (arg === "--full" || arg === "--mode=full") {
+      mode = { type: "full" };
+      continue;
     }
 
-    if (arg === '--partial' || arg === '--mode=partial') {
-      mode = { type: 'partial' }
-      continue
+    if (arg === "--partial" || arg === "--mode=partial") {
+      mode = { type: "partial" };
+      continue;
     }
 
-    if (arg.startsWith('--mode=')) {
-      const value = arg.split('=')[1]
-      if (value === 'full' || value === 'partial') {
-        mode = { type: value }
+    if (arg.startsWith("--mode=")) {
+      const value = arg.split("=")[1];
+      if (value === "full" || value === "partial") {
+        mode = { type: value };
       }
-      continue
+      continue;
     }
   }
 
-  return mode
+  return mode;
 }
 const INGEST_CONCURRENCY = Math.max(
   1,
-  Number.parseInt(process.env.INGEST_CONCURRENCY ?? '2', 10)
-)
+  Number.parseInt(process.env.INGEST_CONCURRENCY ?? "2", 10),
+);
 
 async function ingestPage(
   pageId: string,
   recordMap: ExtendedRecordMap,
-  stats: IngestRunStats
+  stats: IngestRunStats,
 ): Promise<void> {
-  stats.documentsProcessed += 1
+  stats.documentsProcessed += 1;
 
-  const title = getPageTitle(recordMap, pageId)
-  const plainText = extractPlainText(recordMap, pageId)
+  const title = getPageTitle(recordMap, pageId);
+  const plainText = extractPlainText(recordMap, pageId);
 
   if (!plainText) {
-    console.warn(`No readable content for Notion page ${pageId}; skipping`)
-    stats.documentsSkipped += 1
-    return
+    console.warn(`No readable content for Notion page ${pageId}; skipping`);
+    stats.documentsSkipped += 1;
+    return;
   }
 
-  const lastEditedTime = getPageLastEditedTime(recordMap, pageId)
-  const pageHash = hashChunk(`${pageId}:${plainText}`)
-  const sourceUrl = getPageUrl(pageId)
+  const lastEditedTime = getPageLastEditedTime(recordMap, pageId);
+  const pageHash = hashChunk(`${pageId}:${plainText}`);
+  const sourceUrl = getPageUrl(pageId);
 
-  const existingState = await getDocumentState(pageId)
-  const unchanged =
-    existingState && existingState.content_hash === pageHash
+  const existingState = await getDocumentState(pageId);
+  const unchanged = existingState && existingState.content_hash === pageHash;
 
-  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION
+  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
   if (unchanged) {
     const providerHasChunks = await hasChunksForProvider(
       pageId,
-      embeddingSpace
-    )
+      embeddingSpace,
+    );
     if (providerHasChunks) {
-      console.log(`Skipping unchanged Notion page: ${title}`)
-      stats.documentsSkipped += 1
-      return
+      console.log(`Skipping unchanged Notion page: ${title}`);
+      stats.documentsSkipped += 1;
+      return;
     }
   }
 
-  const chunks = chunkByTokens(plainText, 450, 75)
+  const chunks = chunkByTokens(plainText, 450, 75);
   if (chunks.length === 0) {
-    console.warn(`Chunking produced no content for ${pageId}; skipping`)
-    stats.documentsSkipped += 1
-    return
+    console.warn(`Chunking produced no content for ${pageId}; skipping`);
+    stats.documentsSkipped += 1;
+    return;
   }
 
   const embeddings = await embedBatch(chunks, {
@@ -122,8 +121,8 @@ async function ingestPage(
     embeddingModelId: embeddingSpace.embeddingModelId,
     embeddingSpaceId: embeddingSpace.embeddingSpaceId,
     version: embeddingSpace.version,
-  })
-  const ingestedAt = new Date().toISOString()
+  });
+  const ingestedAt = new Date().toISOString();
 
   const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
     doc_id: pageId,
@@ -132,163 +131,165 @@ async function ingestPage(
     chunk,
     chunk_hash: hashChunk(`${pageId}:${chunk}`),
     embedding: embeddings[index]!,
-    ingested_at: ingestedAt
-  }))
+    ingested_at: ingestedAt,
+  }));
 
-  const chunkCount = rows.length
-  const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0)
+  const chunkCount = rows.length;
+  const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0);
 
   await replaceChunks(pageId, rows, {
     provider: embeddingSpace.provider,
     embeddingModelId: embeddingSpace.embeddingModelId,
     embeddingSpaceId: embeddingSpace.embeddingSpaceId,
     version: embeddingSpace.version,
-  })
+  });
   await upsertDocumentState({
     doc_id: pageId,
     source_url: sourceUrl,
     content_hash: pageHash,
     last_source_update: lastEditedTime ?? null,
     chunk_count: chunkCount,
-    total_characters: totalCharacters
-  })
+    total_characters: totalCharacters,
+  });
 
   if (existingState) {
-    stats.documentsUpdated += 1
-    stats.chunksUpdated += chunkCount
-    stats.charactersUpdated += totalCharacters
+    stats.documentsUpdated += 1;
+    stats.chunksUpdated += chunkCount;
+    stats.charactersUpdated += totalCharacters;
   } else {
-    stats.documentsAdded += 1
-    stats.chunksAdded += chunkCount
-    stats.charactersAdded += totalCharacters
+    stats.documentsAdded += 1;
+    stats.chunksAdded += chunkCount;
+    stats.charactersAdded += totalCharacters;
   }
 
   console.log(
-    `Ingested Notion page: ${title} (${chunkCount} chunks) [${existingState ? 'updated' : 'new'
-    }]`
-  )
+    `Ingested Notion page: ${title} (${chunkCount} chunks) [${
+      existingState ? "updated" : "new"
+    }]`,
+  );
 }
 
 async function ingestWorkspace(
   rootPageId: string,
   stats: IngestRunStats,
-  errorLogs: IngestRunErrorLog[]
+  errorLogs: IngestRunErrorLog[],
 ) {
-  console.log(`\nFetching all pages in Notion space (root: ${rootPageId})...`)
+  console.log(`\nFetching all pages in Notion space (root: ${rootPageId})...`);
   const pageMap = await getAllPagesInSpace(
     rootPageId,
     undefined,
-    async (pageId) => notion.getPage(pageId)
-  )
+    async (pageId) => notion.getPage(pageId),
+  );
 
-  console.log(`Found ${Object.keys(pageMap).length} total pages.`)
+  console.log(`Found ${Object.keys(pageMap).length} total pages.`);
 
   const entries = Object.entries(pageMap).filter(
-    (entry): entry is [string, ExtendedRecordMap] => Boolean(entry[1])
-  )
+    (entry): entry is [string, ExtendedRecordMap] => Boolean(entry[1]),
+  );
 
   if (entries.length === 0) {
-    console.log('No pages to ingest.')
-    return
+    console.log("No pages to ingest.");
+    return;
   }
 
   await pMap(
     entries,
     async ([pageId, recordMap]) => {
       try {
-        await ingestPage(pageId, recordMap, stats)
+        await ingestPage(pageId, recordMap, stats);
       } catch (err) {
-        stats.errorCount += 1
+        stats.errorCount += 1;
         const message =
-          err instanceof Error ? err.message : JSON.stringify(err)
+          err instanceof Error ? err.message : JSON.stringify(err);
         errorLogs.push({
           doc_id: pageId,
-          message
-        })
-        console.error(`Failed to ingest Notion page ${pageId}: ${message}`)
+          message,
+        });
+        console.error(`Failed to ingest Notion page ${pageId}: ${message}`);
       }
     },
-    { concurrency: INGEST_CONCURRENCY }
-  )
+    { concurrency: INGEST_CONCURRENCY },
+  );
 }
 
 async function main() {
-  const rootPageId = process.env.NOTION_ROOT_PAGE_ID ?? DEFAULT_ROOT_PAGE_ID
+  const rootPageId = process.env.NOTION_ROOT_PAGE_ID ?? DEFAULT_ROOT_PAGE_ID;
   if (!rootPageId) {
-    throw new Error('Missing Notion root page ID. Set NOTION_ROOT_PAGE_ID or configure it in site.config.ts.')
+    throw new Error(
+      "Missing Notion root page ID. Set NOTION_ROOT_PAGE_ID or configure it in site.config.ts.",
+    );
   }
 
-  console.log('Starting Notion ingestion...')
+  console.log("Starting Notion ingestion...");
 
-  const mode = parseRunMode('full')
+  const mode = parseRunMode("full");
 
-  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION
+  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
 
   const runHandle: IngestRunHandle = await startIngestRun({
-    source: 'notion',
+    source: "notion",
     ingestion_type: mode.type,
     metadata: {
       rootPageId,
       embeddingProvider: embeddingSpace.provider,
       embeddingSpaceId: embeddingSpace.embeddingSpaceId,
       embeddingModelId: embeddingSpace.embeddingModelId,
-      embeddingVersion: embeddingSpace.version
-    }
-  })
+      embeddingVersion: embeddingSpace.version,
+    },
+  });
 
-  const stats = createEmptyRunStats()
-  const errorLogs: IngestRunErrorLog[] = []
-  const started = Date.now()
+  const stats = createEmptyRunStats();
+  const errorLogs: IngestRunErrorLog[] = [];
+  const started = Date.now();
 
   try {
-    await ingestWorkspace(rootPageId, stats, errorLogs)
-    const durationMs = Date.now() - started
-    const status =
-      stats.errorCount > 0 ? 'completed_with_errors' : 'success'
+    await ingestWorkspace(rootPageId, stats, errorLogs);
+    const durationMs = Date.now() - started;
+    const status = stats.errorCount > 0 ? "completed_with_errors" : "success";
 
     await finishIngestRun(runHandle, {
       status,
       durationMs,
       totals: stats,
-      errorLogs
-    })
+      errorLogs,
+    });
 
-    console.log('\n--- Ingestion Complete ---')
-    console.log(`Duration: ${(durationMs / 1000).toFixed(2)}s`)
-    console.log(`Status: ${status}`)
-    console.log('Documents:')
-    console.log(`  - Processed: ${stats.documentsProcessed}`)
-    console.log(`  - Added:     ${stats.documentsAdded}`)
-    console.log(`  - Updated:   ${stats.documentsUpdated}`)
-    console.log(`  - Skipped:   ${stats.documentsSkipped}`)
-    console.log('Chunks:')
-    console.log(`  - Added:     ${stats.chunksAdded}`)
-    console.log(`  - Updated:   ${stats.chunksUpdated}`)
-    console.log('Characters:')
-    console.log(`  - Added:     ${stats.charactersAdded}`)
-    console.log(`  - Updated:   ${stats.charactersUpdated}`)
-    console.log(`Errors: ${stats.errorCount}`)
+    console.log("\n--- Ingestion Complete ---");
+    console.log(`Duration: ${(durationMs / 1000).toFixed(2)}s`);
+    console.log(`Status: ${status}`);
+    console.log("Documents:");
+    console.log(`  - Processed: ${stats.documentsProcessed}`);
+    console.log(`  - Added:     ${stats.documentsAdded}`);
+    console.log(`  - Updated:   ${stats.documentsUpdated}`);
+    console.log(`  - Skipped:   ${stats.documentsSkipped}`);
+    console.log("Chunks:");
+    console.log(`  - Added:     ${stats.chunksAdded}`);
+    console.log(`  - Updated:   ${stats.chunksUpdated}`);
+    console.log("Characters:");
+    console.log(`  - Added:     ${stats.charactersAdded}`);
+    console.log(`  - Updated:   ${stats.charactersUpdated}`);
+    console.log(`Errors: ${stats.errorCount}`);
 
     if (stats.errorCount > 0) {
-      process.exitCode = 1
+      process.exitCode = 1;
     }
   } catch (err) {
-    const durationMs = Date.now() - started
-    const message = err instanceof Error ? err.message : String(err)
-    errorLogs.push({ context: 'fatal', message })
-    stats.errorCount += 1
+    const durationMs = Date.now() - started;
+    const message = err instanceof Error ? err.message : String(err);
+    errorLogs.push({ context: "fatal", message });
+    stats.errorCount += 1;
 
     await finishIngestRun(runHandle, {
-      status: 'failed',
+      status: "failed",
       durationMs,
       totals: stats,
-      errorLogs
-    })
+      errorLogs,
+    });
 
-    console.error('\n--- Ingestion Failed ---')
-    console.error(err)
-    throw err
+    console.error("\n--- Ingestion Failed ---");
+    console.error(err);
+    throw err;
   }
 }
 
-await main()
+await main();

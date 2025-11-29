@@ -60,7 +60,11 @@ function sanitizeSampleRate(
 export function getAppEnv(): AppEnv {
   const fromAppEnv = process.env.APP_ENV?.toLowerCase();
 
-  if (fromAppEnv === "dev" || fromAppEnv === "preview" || fromAppEnv === "prod") {
+  if (
+    fromAppEnv === "dev" ||
+    fromAppEnv === "preview" ||
+    fromAppEnv === "prod"
+  ) {
     return fromAppEnv;
   }
 
@@ -107,7 +111,11 @@ export type LangfuseTraceOptions = {
   public?: boolean;
 };
 
-export type LangfuseObservationLevel = "DEBUG" | "DEFAULT" | "WARNING" | "ERROR";
+export type LangfuseObservationLevel =
+  | "DEBUG"
+  | "DEFAULT"
+  | "WARNING"
+  | "ERROR";
 
 export type LangfuseObservationOptions = {
   name: string;
@@ -205,7 +213,9 @@ function buildTraceEvent(
   };
 }
 
-export function createTrace(options: LangfuseTraceOptions): LangfuseTrace | undefined {
+export function createTrace(
+  options: LangfuseTraceOptions,
+): LangfuseTrace | undefined {
   if (!langfuseClient) {
     return undefined;
   }
@@ -217,7 +227,10 @@ export function createTrace(options: LangfuseTraceOptions): LangfuseTrace | unde
 
   const traceId = options.id ?? options.sessionId ?? randomUUID();
   const traceEnvironment = options.environment ?? env;
-  let currentTraceFields: LangfuseTraceOptions & { id: string; environment: string } = {
+  let currentTraceFields: LangfuseTraceOptions & {
+    id: string;
+    environment: string;
+  } = {
     ...options,
     id: traceId,
     environment: traceEnvironment,
@@ -279,7 +292,9 @@ export async function createObservation(
   await sendIngestionEvents([observationEvent]);
 }
 
-async function sendIngestionEvents(events: LangfuseIngestionEvent[]): Promise<void> {
+async function sendIngestionEvents(
+  events: LangfuseIngestionEvent[],
+): Promise<void> {
   if (!langfuseClient || !ingestionEnabled) {
     return;
   }

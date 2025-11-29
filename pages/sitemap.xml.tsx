@@ -1,35 +1,35 @@
-import type { GetServerSideProps } from 'next'
+import type { GetServerSideProps } from "next";
 
-import type { SiteMap } from '@/lib/types'
-import { host } from '@/lib/config'
-import { getSiteMap } from '@/lib/get-site-map'
+import type { SiteMap } from "@/lib/types";
+import { host } from "@/lib/config";
+import { getSiteMap } from "@/lib/get-site-map";
 
 export const getServerSideProps: GetServerSideProps = async ({ req, res }) => {
-  if (req.method !== 'GET') {
-    res.statusCode = 405
-    res.setHeader('Content-Type', 'application/json')
-    res.write(JSON.stringify({ error: 'method not allowed' }))
-    res.end()
+  if (req.method !== "GET") {
+    res.statusCode = 405;
+    res.setHeader("Content-Type", "application/json");
+    res.write(JSON.stringify({ error: "method not allowed" }));
+    res.end();
     return {
-      props: {}
-    }
+      props: {},
+    };
   }
 
-  const siteMap = await getSiteMap()
+  const siteMap = await getSiteMap();
 
   // cache for up to 8 hours
   res.setHeader(
-    'Cache-Control',
-    'public, max-age=28800, stale-while-revalidate=28800'
-  )
-  res.setHeader('Content-Type', 'text/xml')
-  res.write(createSitemap(siteMap))
-  res.end()
+    "Cache-Control",
+    "public, max-age=28800, stale-while-revalidate=28800",
+  );
+  res.setHeader("Content-Type", "text/xml");
+  res.write(createSitemap(siteMap));
+  res.end();
 
   return {
-    props: {}
-  }
-}
+    props: {},
+  };
+};
 
 const createSitemap = (siteMap: SiteMap) =>
   `<?xml version="1.0" encoding="UTF-8"?>
@@ -48,12 +48,12 @@ const createSitemap = (siteMap: SiteMap) =>
           <url>
             <loc>${host}/${canonicalPagePath}</loc>
           </url>
-        `.trim()
+        `.trim(),
       )
-      .join('')}
+      .join("")}
   </urlset>
-`
+`;
 
 export default function noop() {
-  return null
+  return null;
 }

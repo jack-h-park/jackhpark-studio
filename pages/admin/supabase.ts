@@ -1,3 +1,3 @@
 export default function AdminSupabase() {
-  return null
+  return null;
 }

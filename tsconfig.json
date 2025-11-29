@@ -12,7 +12,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
-      "@langchain/community/chat_models/ollama": ["lib/langchain/chat-ollama.ts"]
+      "@langchain/community/chat_models/ollama": [
+        "lib/langchain/chat-ollama.ts"
+      ]
     },
     "resolveJsonModule": true,
     "isolatedModules": true,

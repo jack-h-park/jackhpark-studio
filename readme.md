@@ -364,14 +364,14 @@ flowchart LR
 
 ## 🧾 Tech Stack (Updated)
 
-| Layer         | Technology                              | Purpose                      |
-| ------------- | --------------------------------------- | ---------------------------- |
-| Frontend      | Next.js (React)                         | Chat UI with streaming       |
-| Vector DB     | Supabase + pgvector                     | Multi‑space embeddings       |
-| Embeddings    | OpenAI / Gemini                         |
-| LLM Providers | OpenAI / Gemini / Ollama                |
-| Runtimes      | Edge + Node + Docker                    | Native vs LangChain vs Local |
-| Utilities     | jsdom, Readability, gpt-tokenizer, SSE  | Ingestion + streaming        |
+| Layer         | Technology                             | Purpose                      |
+| ------------- | -------------------------------------- | ---------------------------- |
+| Frontend      | Next.js (React)                        | Chat UI with streaming       |
+| Vector DB     | Supabase + pgvector                    | Multi‑space embeddings       |
+| Embeddings    | OpenAI / Gemini                        |
+| LLM Providers | OpenAI / Gemini / Ollama               |
+| Runtimes      | Edge + Node + Docker                   | Native vs LangChain vs Local |
+| Utilities     | jsdom, Readability, gpt-tokenizer, SSE | Ingestion + streaming        |
 
 ---
 

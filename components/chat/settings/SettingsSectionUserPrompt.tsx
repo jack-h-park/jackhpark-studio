@@ -2,10 +2,7 @@
 
 import { FiType } from "@react-icons/all-files/fi/FiType";
 
-import type {
-  AdminChatConfig,
-  SessionChatConfig,
-} from "@/types/chat-config";
+import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { Textarea } from "@/components/ui/textarea";
 

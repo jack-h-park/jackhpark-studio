@@ -75,9 +75,7 @@ export function Tabs({
               <span className="ai-choice items-start text-left">
                 <span className="ai-choice__label">{tab.label}</span>
                 {tab.subtitle && (
-                  <span className="ai-choice__description">
-                    {tab.subtitle}
-                  </span>
+                  <span className="ai-choice__description">{tab.subtitle}</span>
                 )}
               </span>
             </span>

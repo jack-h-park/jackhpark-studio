@@ -5,8 +5,8 @@ import { cn } from "./utils";
 export type GridPanelProps<T extends React.ElementType = "div"> = {
   as?: T;
 } & Omit<React.ComponentPropsWithoutRef<T>, "className"> & {
-  className?: string;
-};
+    className?: string;
+  };
 
 export function GridPanel<T extends React.ElementType = "div">({
   as,

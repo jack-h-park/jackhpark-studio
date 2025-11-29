@@ -307,10 +307,6 @@ body {
   color: var(--ai-text-strong);
 }
 
-
-
-
-
 .dark .ai-settings-section__title,
 .dark-mode .ai-settings-section__title {
   color: var(--ai-text);
@@ -336,22 +332,12 @@ body {
   color: var(--ai-text);
 }
 
-
-
-
-
-
-
 .dark .ai-choice__description,
 .dark-mode .ai-choice__description,
 .dark .ai-field__description,
 .dark-mode .ai-field__description {
   color: var(--ai-text);
 }
-
-
-
-
 
 .dark .ai-chat-summary,
 .dark-mode .ai-chat-summary,
@@ -685,7 +671,8 @@ footer {
   border: 1px solid hsl(var(--ai-border));
   background-color: hsl(var(--ai-bg-muted));
   color: var(--ai-accent-contrast);
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-property:
+    color, background-color, border-color, text-decoration-color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
@@ -710,7 +697,8 @@ footer {
   border: 1px solid hsl(var(--ai-border));
   background-color: hsl(var(--ai-bg-muted));
   box-shadow: var(--ai-shadow-soft);
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-property:
+    color, background-color, border-color, text-decoration-color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
@@ -758,7 +746,6 @@ footer {
   font-size: 0.875rem; /* text-sm */
   line-height: 1.25rem;
 }
-
 
 /* Checkbox primitive for dense admin filters */
 /* Checkbox primitive for dense admin filters */
@@ -1320,7 +1307,9 @@ footer {
     color 0.15s ease;
 }
 
-.ai-selectable--hoverable:hover:not(:disabled):not(.ai-selectable--disabled):not(.ai-selectable--active) {
+.ai-selectable--hoverable:hover:not(:disabled):not(
+    .ai-selectable--disabled
+  ):not(.ai-selectable--active) {
   border-color: var(--ai-border-strong);
   background-color: hsl(var(--ai-bg-muted));
 }

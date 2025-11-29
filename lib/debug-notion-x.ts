@@ -1,7 +1,5 @@
 const normalizeDebugValue = (value: string | undefined | null) =>
-  (value ?? "")
-    .trim()
-    .toLowerCase();
+  (value ?? "").trim().toLowerCase();
 
 const rawDebugValue = normalizeDebugValue(process.env.DEBUG_NOTION_X);
 

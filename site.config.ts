@@ -1,31 +1,32 @@
-import { siteConfig } from './lib/site-config'
+import { siteConfig } from "./lib/site-config";
 
 export default siteConfig({
   // the site's root Notion page (required)
-  rootNotionPageId: '28299029c0b481ce8999d425287d3db6', 
+  rootNotionPageId: "28299029c0b481ce8999d425287d3db6",
 
   // if you want to restrict pages to a single notion workspace (optional)
   // (this should be a Notion ID; see the docs for how to extract this)
   rootNotionSpaceId: null,
 
   // basic site info (required)
-  name: 'Jack H. Park Studio',
-  domain: 'www.jackhpark.com',
-  author: 'Jack H. Park',
+  name: "Jack H. Park Studio",
+  domain: "www.jackhpark.com",
+  author: "Jack H. Park",
 
   // open graph metadata (optional)
-  description: 'Jack H. Park\'s  personal studio of work, ideas, and experiments, crafting products, sharing stories, and exploring curiosity.',
+  description:
+    "Jack H. Park's  personal studio of work, ideas, and experiments, crafting products, sharing stories, and exploring curiosity.",
 
   inlineCollectionTitleBold: false,
 
   // social usernames (optional)
   showPageAside: false,
-  linkedin: 'jackhpark',
-  github: 'jack-h-park',
-  instagram: 'jack_hw_park',
+  linkedin: "jackhpark",
+  github: "jack-h-park",
+  instagram: "jack_hw_park",
   // mastodon: '#', // optional mastodon profile URL, provides link verification
   // newsletter: '#', // optional newsletter URL
-  youtube: 'JackparkVideography', // optional youtube channel name or `channel/UCGbXXXXXXXXXXXXXXXXXXXXXX`
+  youtube: "JackparkVideography", // optional youtube channel name or `channel/UCGbXXXXXXXXXXXXXXXXXXXXXX`
   // twitter: '#',
 
   // default notion icon and cover images for site-wide consistency (optional)
@@ -48,7 +49,10 @@ export default siteConfig({
   isRedisEnabled: false,
 
   // For specifying which gallery DB to apply gallery preview feature
-  galleryPreviewDatabaseIds: ['28999029c0b4807d8fccc28074f8ee6f','2ae99029c0b480869d42f17dc26d1c42'],
+  galleryPreviewDatabaseIds: [
+    "28999029c0b4807d8fccc28074f8ee6f",
+    "2ae99029c0b480869d42f17dc26d1c42",
+  ],
 
   // map of notion page IDs to URL paths (optional)
   // any pages defined here will override their default URL paths
@@ -63,15 +67,15 @@ export default siteConfig({
   // whether to use the default notion navigation style or a custom one with links to
   // important pages. To use `navigationLinks`, set `navigationStyle` to `custom`.
   // navigationStyle: 'default'
-  navigationStyle: 'custom',
+  navigationStyle: "custom",
   navigationLinks: [
-     {
-       title: 'Personal Life',
-       pageId: '28299029c0b4816e89c0c4f17a39963b'
-     },
-     {
-       title: 'Jack\'s AI Assistant',
-       url: '/chat'
-     }
-  ]
-})
+    {
+      title: "Personal Life",
+      pageId: "28299029c0b4816e89c0c4f17a39963b",
+    },
+    {
+      title: "Jack's AI Assistant",
+      url: "/chat",
+    },
+  ],
+});

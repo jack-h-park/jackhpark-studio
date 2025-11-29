@@ -1,106 +1,104 @@
-import cs from 'classnames'
+import cs from "classnames";
 import {
   AnimatePresence,
   motion,
   useDragControls,
   useMotionValue,
-  useTransform} from 'framer-motion'
-import * as React from 'react'
-import { createPortal } from 'react-dom'
+  useTransform,
+} from "framer-motion";
+import * as React from "react";
+import { createPortal } from "react-dom";
 
-import styles from './SidePeek.module.css'
+import styles from "./SidePeek.module.css";
 
 export interface SidePeekProps {
-  isOpen: boolean
-  onClose: () => void
-  children: React.ReactNode
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
 }
 
-export function SidePeek({
-  isOpen,
-  onClose,
-  children
-}: SidePeekProps) {
-  const [mounted, setMounted] = React.useState(false)
-  const [isMobile, setIsMobile] = React.useState(false)
-  const panelRef = React.useRef<HTMLDivElement | null>(null)
-  const scrollRafRef = React.useRef<number | null>(null)
-  const dragControls = useDragControls()
+export function SidePeek({ isOpen, onClose, children }: SidePeekProps) {
+  const [mounted, setMounted] = React.useState(false);
+  const [isMobile, setIsMobile] = React.useState(false);
+  const panelRef = React.useRef<HTMLDivElement | null>(null);
+  const scrollRafRef = React.useRef<number | null>(null);
+  const dragControls = useDragControls();
 
-  const y = useMotionValue(0)
-  const opacity = useTransform(y, [0, 150], [1, 0.3])
+  const y = useMotionValue(0);
+  const opacity = useTransform(y, [0, 150], [1, 0.3]);
 
   // detect mount and viewport size changes
   React.useEffect(() => {
-    setMounted(true)
-    const handleResize = () => setIsMobile(window.innerWidth < 768)
-    handleResize()
-    window.addEventListener('resize', handleResize)
+    setMounted(true);
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener("resize", handleResize);
     return () => {
-      window.removeEventListener('resize', handleResize)
-      setMounted(false)
-    }
-  }, [])
+      window.removeEventListener("resize", handleResize);
+      setMounted(false);
+    };
+  }, []);
 
   // allow closing via ESC key
   React.useEffect(() => {
-    const handleEsc = (event: KeyboardEvent) => event.key === 'Escape' && onClose()
-    if (isOpen) window.addEventListener('keydown', handleEsc)
-    return () => window.removeEventListener('keydown', handleEsc)
-  }, [isOpen, onClose])
+    const handleEsc = (event: KeyboardEvent) =>
+      event.key === "Escape" && onClose();
+    if (isOpen) window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [isOpen, onClose]);
 
   // lock document scroll while the peek is open
   React.useEffect(() => {
-    document.body.style.overflow = isOpen ? 'hidden' : ''
+    document.body.style.overflow = isOpen ? "hidden" : "";
     return () => {
-      document.body.style.overflow = ''
-    }
-  }, [isOpen])
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
 
   // propagate panel scroll events so lazy notion blocks continue rendering
   React.useEffect(() => {
-    if (!isOpen || typeof window === 'undefined') {
-      return
+    if (!isOpen || typeof window === "undefined") {
+      return;
     }
 
-    const panelEl = panelRef.current
-    if (!panelEl) return
+    const panelEl = panelRef.current;
+    if (!panelEl) return;
 
     const emitScroll = () => {
       if (scrollRafRef.current !== null) {
-        return
+        return;
       }
 
       scrollRafRef.current = window.requestAnimationFrame(() => {
-        window.dispatchEvent(new Event('scroll'))
-        scrollRafRef.current = null
-      })
-    }
+        window.dispatchEvent(new Event("scroll"));
+        scrollRafRef.current = null;
+      });
+    };
 
-    panelEl.addEventListener('scroll', emitScroll, { passive: true })
-    emitScroll()
+    panelEl.addEventListener("scroll", emitScroll, { passive: true });
+    emitScroll();
 
     return () => {
-      panelEl.removeEventListener('scroll', emitScroll)
+      panelEl.removeEventListener("scroll", emitScroll);
       if (scrollRafRef.current !== null) {
-        window.cancelAnimationFrame(scrollRafRef.current)
-        scrollRafRef.current = null
+        window.cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
       }
-    }
-  }, [isOpen])
+    };
+  }, [isOpen]);
 
   const hiddenPosition = isMobile
-    ? { x: 0, y: '100%' as const }
-    : { x: 480, y: 0 }
+    ? { x: 0, y: "100%" as const }
+    : { x: 480, y: 0 };
 
-  if (!mounted || typeof window === 'undefined') return null
+  if (!mounted || typeof window === "undefined") return null;
 
   // close the panel when the mobile drag exceeds the threshold
   const handleDragEnd = (_: any, info: any) => {
     if (info.offset.y > 120) {
-      onClose()
+      onClose();
     }
-  }
+  };
 
   return createPortal(
     <AnimatePresence>
@@ -120,7 +118,7 @@ export function SidePeek({
           <motion.div
             ref={panelRef}
             className={cs(styles.panel, isMobile && styles.mobile)}
-            drag={isMobile ? 'y' : false}
+            drag={isMobile ? "y" : false}
             dragListener={false}
             dragControls={dragControls}
             dragConstraints={{ top: 0, bottom: 0 }}
@@ -128,7 +126,7 @@ export function SidePeek({
             initial={hiddenPosition}
             animate={{ x: 0, y: 0 }}
             exit={hiddenPosition}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
             {isMobile && (
               <div
@@ -142,7 +140,7 @@ export function SidePeek({
               <button
                 onClick={onClose}
                 className={styles.closeButton}
-                aria-label='Close side panel'
+                aria-label="Close side panel"
               >
                 x
               </button>
@@ -153,8 +151,8 @@ export function SidePeek({
         </>
       )}
     </AnimatePresence>,
-    document.body
-  )
+    document.body,
+  );
 }
 
-export default SidePeek
+export default SidePeek;

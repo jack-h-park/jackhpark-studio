@@ -51,7 +51,11 @@ function buildEmbeddingLabel(
 export function formatEmbeddingModelDefinitionLabel(
   definition: EmbeddingModelDefinition,
 ): string {
-  return buildEmbeddingLabel(definition.provider, definition.model, definition.version);
+  return buildEmbeddingLabel(
+    definition.provider,
+    definition.model,
+    definition.version,
+  );
 }
 
 export function formatEmbeddingSpaceLabel(space: EmbeddingSpace): string {
@@ -112,7 +116,8 @@ const ENV_EMBEDDING_VERSION = getEnvValue([
 ]);
 
 const FIRST_EMBEDDING_SPACE_ID = Object.keys(EMBEDDING_SPACES)[0] ?? "";
-const DEFAULT_SPACE_FALLBACK = ENV_EMBEDDING_SPACE_ID ?? FIRST_EMBEDDING_SPACE_ID;
+const DEFAULT_SPACE_FALLBACK =
+  ENV_EMBEDDING_SPACE_ID ?? FIRST_EMBEDDING_SPACE_ID;
 const DEFAULT_EMBEDDING_SPACE_ID = DEFAULT_SPACE_FALLBACK;
 const DEFAULT_EMBEDDING_MODEL_ID =
   ENV_EMBEDDING_MODEL_ID ?? EMBEDDING_MODEL_DEFINITIONS[0]?.model ?? "";
@@ -125,14 +130,17 @@ function findById(id: string | null | undefined): EmbeddingSpace | null {
   return EMBEDDING_ALIAS_LOOKUP.get(normalized) ?? null;
 }
 
-function findByProvider(provider: string | null | undefined): EmbeddingSpace | null {
+function findByProvider(
+  provider: string | null | undefined,
+): EmbeddingSpace | null {
   if (!provider) {
     return null;
   }
   const normalized = normalizeModelProvider(provider);
   return (
-    Object.values(EMBEDDING_SPACES).find((space) => space.provider === normalized) ??
-    null
+    Object.values(EMBEDDING_SPACES).find(
+      (space) => space.provider === normalized,
+    ) ?? null
   );
 }
 
@@ -170,8 +178,13 @@ export function resolveEmbeddingSpace(
 ): EmbeddingSpace {
   const candidate =
     typeof input === "string"
-      ? { embeddingSpaceId: input, embeddingModelId: input, provider: input, model: input }
-      : input ?? {};
+      ? {
+          embeddingSpaceId: input,
+          embeddingModelId: input,
+          provider: input,
+          model: input,
+        }
+      : (input ?? {});
 
   const byExplicit =
     findById(candidate.embeddingSpaceId) ??

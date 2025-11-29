@@ -21,10 +21,7 @@ export const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
         role="checkbox"
         aria-checked={checked}
         data-state={checked ? "checked" : "unchecked"}
-        className={cn(
-          "ai-checkbox focus-ring",
-          className,
-        )}
+        className={cn("ai-checkbox focus-ring", className)}
         onClick={(event) => {
           event.preventDefault();
           if (disabled) {
