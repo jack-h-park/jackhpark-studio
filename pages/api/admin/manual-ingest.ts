@@ -30,10 +30,13 @@ function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
     }
 
     const ingestionType = body.ingestionType === "full" ? "full" : "partial";
+    const rawIncludeLinkedPages = body.includeLinkedPages;
     const includeLinkedPages =
-      typeof body.includeLinkedPages === "boolean"
-        ? body.includeLinkedPages
-        : true;
+      typeof rawIncludeLinkedPages === "boolean"
+        ? rawIncludeLinkedPages
+        : typeof rawIncludeLinkedPages === "string"
+          ? rawIncludeLinkedPages === "true"
+          : true;
     const embeddingModel =
       typeof body.embeddingModel === "string" &&
       body.embeddingModel.trim().length > 0

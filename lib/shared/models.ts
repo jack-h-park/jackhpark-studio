@@ -238,11 +238,11 @@ export function getLcChunksViewName(embeddingSpaceId: string): string {
 }
 
 export function getMatchChunksFunctionName(embeddingSpaceId: string): string {
-  return `match_chunks_${embeddingSpaceId}`;
+  return `match_native_chunks_${embeddingSpaceId}`;
 }
 
 export function getMatchLcChunksFunctionName(embeddingSpaceId: string): string {
-  return `match_lc_chunks_${embeddingSpaceId}`;
+  return `match_langchain_chunks_${embeddingSpaceId}`;
 }
 
 export type EmbeddingModelId = string;
