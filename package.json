@@ -75,7 +75,7 @@
     "react-body-classname": "^1.3.1",
     "react-dom": "^19.1.1",
     "react-modal": "^3.16.3",
-    "react-notion-x": "^7.6.0",
+    "react-notion-x": "github:jackhpark/react-notion-x#feat/text-thumbnail-preview",
     "react-tweet": "^3.2.2",
     "react-use": "^17.6.0",
     "rss": "^1.2.2"
