@@ -14,6 +14,10 @@ import { embedTexts } from "../core/embeddings";
 import { USER_AGENT } from "../core/openai";
 import { getRagChunksTable } from "../core/rag-tables";
 import { supabaseClient } from "../core/supabase";
+import {
+  normalizeMetadata,
+  type RagDocumentMetadata,
+} from "./metadata";
 
 const DOCUMENTS_TABLE = "rag_documents";
 let documentStateTableStatus: "unknown" | "available" | "missing" = "unknown";
@@ -56,6 +60,7 @@ export type DocumentState = {
   last_source_update: string | null;
   chunk_count: number | null;
   total_characters: number | null;
+  metadata: RagDocumentMetadata | null;
 };
 
 export type DocumentStateUpsert = {
@@ -65,6 +70,7 @@ export type DocumentStateUpsert = {
   last_source_update?: string | null;
   chunk_count?: number;
   total_characters?: number;
+  metadata?: RagDocumentMetadata | null;
 };
 
 function isMissingTableError(error: PostgrestError | null): boolean {
@@ -100,7 +106,7 @@ export async function getDocumentState(
   const { data, error } = await supabaseClient
     .from(DOCUMENTS_TABLE)
     .select(
-      "doc_id, source_url, content_hash, last_ingested_at, last_source_update, chunk_count, total_characters",
+      "doc_id, source_url, content_hash, last_ingested_at, last_source_update, chunk_count, total_characters, metadata",
     )
     .eq("doc_id", docId)
     .maybeSingle();
@@ -123,22 +129,44 @@ export async function upsertDocumentState(
     return;
   }
 
-  const payload = {
+  const payload: {
+    doc_id: string;
+    source_url: string;
+    content_hash: string;
+    last_ingested_at: string;
+    last_source_update?: string | null;
+    chunk_count?: number | null;
+    total_characters?: number | null;
+    metadata?: RagDocumentMetadata | null;
+  } = {
     doc_id: toUpsert.doc_id,
     source_url: toUpsert.source_url,
     content_hash: toUpsert.content_hash,
     last_ingested_at: new Date().toISOString(),
-    last_source_update:
+  };
+
+  if ("last_source_update" in toUpsert) {
+    payload.last_source_update =
       toUpsert.last_source_update === undefined
         ? null
-        : toUpsert.last_source_update,
-    chunk_count:
-      toUpsert.chunk_count === undefined ? null : toUpsert.chunk_count,
-    total_characters:
+        : toUpsert.last_source_update;
+  }
+
+  if ("chunk_count" in toUpsert) {
+    payload.chunk_count =
+      toUpsert.chunk_count === undefined ? null : toUpsert.chunk_count;
+  }
+
+  if ("total_characters" in toUpsert) {
+    payload.total_characters =
       toUpsert.total_characters === undefined
         ? null
-        : toUpsert.total_characters,
-  };
+        : toUpsert.total_characters;
+  }
+
+  if ("metadata" in toUpsert) {
+    payload.metadata = normalizeMetadata(toUpsert.metadata ?? null);
+  }
 
   const { error } = await retry(
     () =>

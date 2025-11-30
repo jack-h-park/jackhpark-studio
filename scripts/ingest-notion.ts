@@ -26,6 +26,15 @@ import {
   startIngestRun, // This line is already present, no change needed.
   upsertDocumentState,
 } from "../lib/rag";
+import {
+  decideIngestAction,
+} from "../lib/rag/ingest-helpers";
+import {
+  mergeMetadata,
+  metadataEquals,
+  normalizeMetadata,
+} from "../lib/rag/metadata";
+import { extractNotionMetadata } from "../lib/rag/notion-metadata";
 
 const notion = new NotionAPI();
 const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
@@ -77,6 +86,7 @@ async function ingestPage(
   pageId: string,
   recordMap: ExtendedRecordMap,
   stats: IngestRunStats,
+  ingestionType: RunMode["type"],
 ): Promise<void> {
   stats.documentsProcessed += 1;
 
@@ -94,20 +104,59 @@ async function ingestPage(
   const sourceUrl = getPageUrl(pageId);
 
   const existingState = await getDocumentState(pageId);
-  const unchanged = existingState && existingState.content_hash === pageHash;
+  const contentUnchanged =
+    !!existingState && existingState.content_hash === pageHash;
+  const existingMetadata = normalizeMetadata(existingState?.metadata ?? null);
+  const incomingMetadata = extractNotionMetadata(recordMap, pageId);
+  const nextMetadata = mergeMetadata(existingMetadata, incomingMetadata);
+  const metadataUnchanged = metadataEquals(existingMetadata, nextMetadata);
 
   const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
-  if (unchanged) {
-    const providerHasChunks = await hasChunksForProvider(
-      pageId,
-      embeddingSpace,
+  const providerHasChunks =
+    contentUnchanged &&
+    (await hasChunksForProvider(pageId, embeddingSpace));
+  const decision = decideIngestAction({
+    contentUnchanged,
+    metadataUnchanged,
+    ingestionType,
+    providerHasChunks: !!providerHasChunks,
+  });
+
+  if (decision === "skip") {
+    console.log(
+      `Skipping unchanged Notion page: ${title} (content and metadata unchanged)`,
     );
-    if (providerHasChunks) {
-      console.log(`Skipping unchanged Notion page: ${title}`);
-      stats.documentsSkipped += 1;
-      return;
-    }
+    stats.documentsSkipped += 1;
+    return;
   }
+
+  if (decision === "metadata-only") {
+    await upsertDocumentState({
+      doc_id: pageId,
+      source_url: sourceUrl,
+      content_hash: pageHash,
+      last_source_update: lastEditedTime ?? null,
+      metadata: nextMetadata,
+      chunk_count: existingState?.chunk_count ?? undefined,
+      total_characters: existingState?.total_characters ?? undefined,
+    });
+
+    stats.documentsUpdated += 1;
+    console.log(
+      `Metadata-only update applied for Notion page: ${title}; skipped chunking and embeddings.`,
+    );
+    return;
+  }
+
+  const fullReason =
+    ingestionType === "full"
+      ? "Full ingestion requested"
+      : contentUnchanged
+        ? "Embedding refresh required for this provider"
+        : "Content hash changed";
+  console.log(
+    `${fullReason}; performing full content ingest for Notion page: ${title}.`,
+  );
 
   const chunks = chunkByTokens(plainText, 450, 75);
   if (chunks.length === 0) {
@@ -150,6 +199,7 @@ async function ingestPage(
     last_source_update: lastEditedTime ?? null,
     chunk_count: chunkCount,
     total_characters: totalCharacters,
+    metadata: nextMetadata,
   });
 
   if (existingState) {
@@ -173,6 +223,7 @@ async function ingestWorkspace(
   rootPageId: string,
   stats: IngestRunStats,
   errorLogs: IngestRunErrorLog[],
+  ingestionType: RunMode["type"],
 ) {
   console.log(`\nFetching all pages in Notion space (root: ${rootPageId})...`);
   const pageMap = await getAllPagesInSpace(
@@ -196,7 +247,7 @@ async function ingestWorkspace(
     entries,
     async ([pageId, recordMap]) => {
       try {
-        await ingestPage(pageId, recordMap, stats);
+        await ingestPage(pageId, recordMap, stats, ingestionType);
       } catch (err) {
         stats.errorCount += 1;
         const message =
@@ -243,7 +294,7 @@ async function main() {
   const started = Date.now();
 
   try {
-    await ingestWorkspace(rootPageId, stats, errorLogs);
+    await ingestWorkspace(rootPageId, stats, errorLogs, mode.type);
     const durationMs = Date.now() - started;
     const status = stats.errorCount > 0 ? "completed_with_errors" : "success";
 

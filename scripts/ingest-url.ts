@@ -20,6 +20,10 @@ import {
   startIngestRun,
   upsertDocumentState,
 } from "../lib/rag";
+import {
+  isUnchanged,
+  shouldSkipIngest,
+} from "../lib/rag/ingest-helpers";
 
 const INGEST_CONCURRENCY = Math.max(
   1,
@@ -74,7 +78,11 @@ function parseArgs(defaultType: "full" | "partial"): ParsedArgs {
   return { mode, urls };
 }
 
-async function ingestUrl(url: string, stats: IngestRunStats): Promise<void> {
+async function ingestUrl(
+  url: string,
+  stats: IngestRunStats,
+  ingestionType: RunMode["type"],
+): Promise<void> {
   stats.documentsProcessed += 1;
 
   const { title, text, lastModified }: ExtractedArticle =
@@ -89,19 +97,23 @@ async function ingestUrl(url: string, stats: IngestRunStats): Promise<void> {
   const contentHash = hashChunk(`${url}:${text}`);
   const existingState = await getDocumentState(url);
   const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
-  const unchanged =
-    existingState &&
-    existingState.content_hash === contentHash &&
-    (!lastModified || existingState.last_source_update === lastModified);
+  const unchanged = isUnchanged(existingState, {
+    contentHash,
+    lastSourceUpdate: lastModified ?? null,
+  });
 
-  if (unchanged) {
-    const providerHasChunks = await hasChunksForProvider(url, embeddingSpace);
+  const providerHasChunks =
+    unchanged && (await hasChunksForProvider(url, embeddingSpace));
+  const shouldSkip = shouldSkipIngest({
+    unchanged,
+    ingestionType,
+    providerHasChunks: !!providerHasChunks,
+  });
 
-    if (providerHasChunks) {
-      console.log(`Skipping unchanged URL: ${title}`);
-      stats.documentsSkipped += 1;
-      return;
-    }
+  if (shouldSkip) {
+    console.log(`Skipping unchanged URL: ${title}`);
+    stats.documentsSkipped += 1;
+    return;
   }
 
   const chunks = chunkByTokens(text, 450, 75);
@@ -204,7 +216,7 @@ async function main(): Promise<void> {
       targets,
       async (url) => {
         try {
-          await ingestUrl(url, stats);
+          await ingestUrl(url, stats, mode.type);
         } catch (err) {
           stats.errorCount += 1;
           const message =

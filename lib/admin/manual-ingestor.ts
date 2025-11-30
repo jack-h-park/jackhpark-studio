@@ -22,11 +22,22 @@ import {
   type IngestRunErrorLog,
   type IngestRunHandle,
   type IngestRunStats,
-  normalizeTimestamp,
   replaceChunks,
   startIngestRun,
   upsertDocumentState,
 } from "../rag/index";
+import {
+  decideIngestAction,
+  isUnchanged,
+  shouldSkipIngest,
+} from "../rag/ingest-helpers";
+import {
+  mergeMetadata,
+  metadataEquals,
+  normalizeMetadata,
+  type RagDocumentMetadata,
+} from "../rag/metadata";
+import { extractNotionMetadata } from "../rag/notion-metadata";
 
 const notion = new NotionAPI();
 
@@ -116,8 +127,6 @@ async function ingestNotionPage({
   emit: EmitFn;
   embeddingOptions: EmbedBatchOptions;
 }): Promise<void> {
-  const isFull = ingestionType === "full";
-
   stats.documentsProcessed += 1;
   const title = getPageTitle(recordMap, pageId);
   await emit({
@@ -146,7 +155,7 @@ async function ingestNotionPage({
   await emit({
     type: "log",
     level: "info",
-    message: `Preparing ${title} for embedding...`,
+    message: `Preparing ${title} for ingest...`,
   });
   await emit({
     type: "progress",
@@ -159,32 +168,65 @@ async function ingestNotionPage({
   const sourceUrl = getPageUrl(pageId);
 
   const existingState = await getDocumentState(pageId);
+  const contentUnchanged =
+    !!existingState && existingState.content_hash === contentHash;
+  const existingMetadata = normalizeMetadata(existingState?.metadata ?? null);
+  const incomingMetadata = extractNotionMetadata(recordMap, pageId);
+  const nextMetadata = mergeMetadata(existingMetadata, incomingMetadata);
+  const metadataUnchanged = metadataEquals(existingMetadata, nextMetadata);
 
-  const normalizedLastEdited = normalizeTimestamp(lastEditedTime);
-  const normalizedExistingUpdate = normalizeTimestamp(
-    existingState?.last_source_update ?? null,
-  );
+  const providerHasChunks =
+    contentUnchanged &&
+    (await hasChunksForProvider(pageId, embeddingOptions));
 
-  const unchanged =
-    existingState &&
-    existingState.content_hash === contentHash &&
-    (!normalizedLastEdited ||
-      normalizedExistingUpdate === normalizedLastEdited);
+  const decision = decideIngestAction({
+    contentUnchanged,
+    metadataUnchanged,
+    ingestionType,
+    providerHasChunks: !!providerHasChunks,
+  });
 
-  let providerHasChunks = false;
-  if (unchanged) {
-    providerHasChunks = await hasChunksForProvider(pageId, embeddingOptions);
-  }
-
-  if (!isFull && unchanged && providerHasChunks) {
+  if (decision === "skip") {
     stats.documentsSkipped += 1;
     await emit({
       type: "log",
       level: "info",
-      message: `No changes detected for Notion page "${title}" (${pageId}); skipping ingest.`,
+      message: `No content or metadata changes detected for Notion page "${title}" (${pageId}); skipping ingest.`,
     });
     return;
   }
+
+  if (decision === "metadata-only") {
+    await upsertDocumentState({
+      doc_id: pageId,
+      source_url: sourceUrl,
+      content_hash: contentHash,
+      last_source_update: lastEditedTime ?? null,
+      metadata: nextMetadata,
+      chunk_count: existingState?.chunk_count ?? undefined,
+      total_characters: existingState?.total_characters ?? undefined,
+    });
+
+    stats.documentsUpdated += 1;
+    await emit({
+      type: "log",
+      level: "info",
+      message: `Metadata-only update applied for Notion page "${title}" (${pageId}); no chunking or embedding needed.`,
+    });
+    return;
+  }
+
+  const fullReason =
+    ingestionType === "full"
+      ? "Full ingestion requested"
+      : contentUnchanged
+        ? "Embedding refresh required for this provider"
+        : "Content hash changed";
+  await emit({
+    type: "log",
+    level: "info",
+    message: `${fullReason}; performing full content ingest for Notion page "${title}" (${pageId}).`,
+  });
 
   const chunks = chunkByTokens(plainText, 450, 75);
   if (chunks.length === 0) {
@@ -236,6 +278,7 @@ async function ingestNotionPage({
     last_source_update: lastEditedTime ?? null,
     chunk_count: chunkCount,
     total_characters: totalCharacters,
+    metadata: nextMetadata,
   });
 
   if (existingState) {
@@ -582,17 +625,20 @@ async function runUrlIngestion(
 
     const contentHash = hashChunk(`${url}:${text}`);
     const existingState = await getDocumentState(url);
-    const unchanged =
-      existingState &&
-      existingState.content_hash === contentHash &&
-      (!lastModified || existingState.last_source_update === lastModified);
+    const unchanged = isUnchanged(existingState, {
+      contentHash,
+      lastSourceUpdate: lastModified ?? null,
+    });
 
-    let providerHasChunks = false;
-    if (unchanged) {
-      providerHasChunks = await hasChunksForProvider(url, embeddingOptions);
-    }
+    const providerHasChunks =
+      unchanged && (await hasChunksForProvider(url, embeddingOptions));
+    const skip = shouldSkipIngest({
+      unchanged,
+      ingestionType,
+      providerHasChunks: !!providerHasChunks,
+    });
 
-    if (unchanged && ingestionType === "partial" && providerHasChunks) {
+    if (skip) {
       stats.documentsSkipped += 1;
       finalMessage = `No changes detected for ${title} (${url}); skipping ingest.`;
       await emit({
