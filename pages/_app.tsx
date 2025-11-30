@@ -1,5 +1,6 @@
 // global styles shared across the entire site
 import "../styles/global.css";
+import "@/styles/ai-design-system.css";
 
 // this might be better for dark mode
 // import 'prismjs/themes/prism-okaidia.css'
