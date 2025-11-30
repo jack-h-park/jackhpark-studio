@@ -60,6 +60,14 @@ import {
   type ChatEngine,
 } from "@/lib/shared/model-provider";
 import {
+  DOC_TYPE_OPTIONS,
+  PERSONA_TYPE_OPTIONS,
+} from "@/lib/rag/metadata";
+import {
+  DOC_TYPE_WEIGHTS,
+  PERSONA_WEIGHTS,
+} from "@/lib/rag/ranking";
+import {
   type EmbeddingModelId,
   LLM_MODEL_DEFINITIONS,
   type LlmModelDefinition,
@@ -80,6 +88,12 @@ type SaveConfigResponse = {
   updatedAt?: string | null;
   error?: string;
 };
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(max, Math.max(min, value));
+
+const RAG_WEIGHT_MIN = 0.1;
+const RAG_WEIGHT_MAX = 3;
 
 const numericLimitLabels: Record<
   keyof AdminChatConfig["numericLimits"],
@@ -191,6 +205,9 @@ function AdminChatConfigForm({
   const isFormBusy = saveStatus === "saving";
   const isSaveDisabled = hasNumericErrors || isFormBusy;
 
+  const clampWeight = (value: number) =>
+    clamp(Number.isFinite(value) ? value : 0, RAG_WEIGHT_MIN, RAG_WEIGHT_MAX);
+
   const handleSave = async () => {
     if (isSaveDisabled) {
       return;
@@ -236,6 +253,44 @@ function AdminChatConfigForm({
         [key]: {
           ...prev.numericLimits[key],
           [field]: value,
+        },
+      },
+    }));
+  };
+
+  const updateDocTypeWeight = (
+    docType: (typeof DOC_TYPE_OPTIONS)[number],
+    value: number,
+  ) => {
+    const clamped = clampWeight(value);
+    updateConfig((prev) => ({
+      ...prev,
+      ragRanking: {
+        docTypeWeights: {
+          ...(prev.ragRanking?.docTypeWeights ?? {}),
+          [docType]: clamped,
+        },
+        personaTypeWeights: {
+          ...(prev.ragRanking?.personaTypeWeights ?? {}),
+        },
+      },
+    }));
+  };
+
+  const updatePersonaWeight = (
+    persona: (typeof PERSONA_TYPE_OPTIONS)[number],
+    value: number,
+  ) => {
+    const clamped = clampWeight(value);
+    updateConfig((prev) => ({
+      ...prev,
+      ragRanking: {
+        docTypeWeights: {
+          ...(prev.ragRanking?.docTypeWeights ?? {}),
+        },
+        personaTypeWeights: {
+          ...(prev.ragRanking?.personaTypeWeights ?? {}),
+          [persona]: clamped,
         },
       },
     }));
@@ -879,6 +934,100 @@ function AdminChatConfigForm({
               project article) or adjust visibility without changing content.
             </p>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle icon={<FiLayers aria-hidden="true" />}>
+            RAG Document Ranking
+          </CardTitle>
+          <CardDescription>
+            Adjust how strongly different document and persona types influence retrieval. Values multiply the base similarity score before rerankers (MMR, Cohere, etc.).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <GridPanel className="px-4 py-4">
+            <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-center">
+              <div className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]">
+                Doc type
+              </div>
+              <div className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]">
+                Weight
+              </div>
+              {DOC_TYPE_OPTIONS.map((docType) => {
+                const label = docType.replace("_", " ");
+                const value =
+                  config.ragRanking?.docTypeWeights?.[docType] ??
+                  DOC_TYPE_WEIGHTS[docType] ??
+                  1;
+                return (
+                  <Fragment key={docType}>
+                    <div className="text-sm font-semibold text-[color:var(--ai-text-muted)] capitalize">
+                      {label}
+                    </div>
+                    <div>
+                      <Input
+                        type="number"
+                        min={RAG_WEIGHT_MIN}
+                        max={RAG_WEIGHT_MAX}
+                        step={0.05}
+                        value={value}
+                        onChange={(event) =>
+                          updateDocTypeWeight(docType, Number(event.target.value) || 0)
+                        }
+                        aria-label={`${label} weight`}
+                      />
+                    </div>
+                  </Fragment>
+                );
+              })}
+            </div>
+            <p className="mt-3 ai-meta-text">
+              1.0 = neutral. Values above 1.0 make that type more likely to appear in RAG; values below 1.0 make it less likely.
+            </p>
+          </GridPanel>
+
+          <GridPanel className="px-4 py-4">
+            <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-center">
+              <div className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]">
+                Persona type
+              </div>
+              <div className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]">
+                Weight
+              </div>
+              {PERSONA_TYPE_OPTIONS.map((persona) => {
+                const label = persona.replace("_", " ");
+                const value =
+                  config.ragRanking?.personaTypeWeights?.[persona] ??
+                  PERSONA_WEIGHTS[persona] ??
+                  1;
+                return (
+                  <Fragment key={persona}>
+                    <div className="text-sm font-semibold text-[color:var(--ai-text-muted)] capitalize">
+                      {label}
+                    </div>
+                    <div>
+                      <Input
+                        type="number"
+                        min={RAG_WEIGHT_MIN}
+                        max={RAG_WEIGHT_MAX}
+                        step={0.05}
+                        value={value}
+                        onChange={(event) =>
+                          updatePersonaWeight(persona, Number(event.target.value) || 0)
+                        }
+                        aria-label={`${label} weight`}
+                      />
+                    </div>
+                  </Fragment>
+                );
+              })}
+            </div>
+            <p className="mt-3 ai-meta-text">
+              Use persona weights to slightly favor professional-facing documents or de-emphasize purely personal content. 1.0 = neutral.
+            </p>
+          </GridPanel>
         </CardContent>
       </Card>
 

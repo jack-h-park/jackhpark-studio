@@ -107,8 +107,10 @@ export default function AdminDocumentDetailPage({
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.error ?? "Failed to update metadata.");
+        const error = (await response.json().catch(() => ({}))) as
+          | { error?: string }
+          | undefined;
+        throw new Error(error?.error ?? "Failed to update metadata.");
       }
 
       const payload = (await response.json()) as {

@@ -1,6 +1,7 @@
 import type { EmbeddingModelId, LlmModelId } from "@/lib/shared/models";
 import type {
   AdminChatConfig,
+  RagRankingConfig,
   SessionChatConfigPreset,
 } from "@/types/chat-config";
 import {
@@ -29,11 +30,18 @@ import {
   DEFAULT_REVERSE_RAG_ENABLED,
   RANKER_MODES,
 } from "@/lib/shared/rag-config";
+import {
+  DOC_TYPE_WEIGHTS,
+  PERSONA_WEIGHTS,
+} from "@/lib/rag/ranking";
 
 export const ADMIN_CONFIG_SETTING_KEY = "admin_chat_config";
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
+
+const RAG_WEIGHT_MIN = 0.1;
+const RAG_WEIGHT_MAX = 3;
 
 const buildSummaryPresets = (guardrailSummary: {
   summaryTriggerTokens: number;
@@ -169,9 +177,10 @@ export async function getAdminChatConfigMetadata(): Promise<{
 export async function saveAdminChatConfig(config: AdminChatConfig): Promise<{
   updatedAt: string | null;
 }> {
+  const sanitized = sanitizeAdminChatConfig(config);
   const payload = {
     key: ADMIN_CONFIG_SETTING_KEY,
-    value: JSON.stringify(config),
+    value: JSON.stringify(sanitized),
   };
   const { data, error } = await supabaseClient
     .from(SYSTEM_SETTINGS_TABLE)
@@ -206,6 +215,53 @@ function mergeNumericLimits(
     },
     {} as AdminChatConfig["numericLimits"],
   );
+}
+
+function mergeRagRanking(
+  base: RagRankingConfig,
+  override?: Partial<RagRankingConfig> | null,
+): RagRankingConfig {
+  const docTypeWeights: RagRankingConfig["docTypeWeights"] = { ...base.docTypeWeights };
+  const personaTypeWeights: RagRankingConfig["personaTypeWeights"] = {
+    ...base.personaTypeWeights,
+  };
+
+  if (override?.docTypeWeights) {
+    for (const [key, value] of Object.entries(override.docTypeWeights)) {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        const clamped = clamp(value, RAG_WEIGHT_MIN, RAG_WEIGHT_MAX);
+        docTypeWeights[key as keyof typeof docTypeWeights] = clamped;
+      }
+    }
+  }
+
+  if (override?.personaTypeWeights) {
+    for (const [key, value] of Object.entries(override.personaTypeWeights)) {
+      if (typeof value === "number" && Number.isFinite(value)) {
+        const clamped = clamp(value, RAG_WEIGHT_MIN, RAG_WEIGHT_MAX);
+        personaTypeWeights[key as keyof typeof personaTypeWeights] = clamped;
+      }
+    }
+  }
+
+  return {
+    docTypeWeights,
+    personaTypeWeights,
+  };
+}
+
+export function sanitizeAdminChatConfig(
+  input: AdminChatConfig,
+): AdminChatConfig {
+  const baseRanking: RagRankingConfig = {
+    docTypeWeights: { ...DOC_TYPE_WEIGHTS },
+    personaTypeWeights: { ...PERSONA_WEIGHTS },
+  };
+
+  return {
+    ...input,
+    ragRanking: mergeRagRanking(baseRanking, input.ragRanking),
+  };
 }
 
 const normalizeChatEngineList = (
@@ -390,6 +446,13 @@ export async function getAdminChatConfig(): Promise<AdminChatConfig> {
       storedConfig.summaryPresets,
     ),
     presets: mergePresets(baseConfig.presets, storedConfig.presets),
+    ragRanking: mergeRagRanking(
+      baseConfig.ragRanking ?? {
+        docTypeWeights: { ...DOC_TYPE_WEIGHTS },
+        personaTypeWeights: { ...PERSONA_WEIGHTS },
+      },
+      storedConfig.ragRanking ?? null,
+    ),
   };
 }
 
@@ -441,6 +504,11 @@ function buildComputedAdminConfig(
       max: 1024,
       default: clamp(guardrails.numeric.ragContextClipTokens, 32, 1024),
     },
+  };
+
+  const ragRanking: RagRankingConfig = {
+    docTypeWeights: { ...DOC_TYPE_WEIGHTS },
+    personaTypeWeights: { ...PERSONA_WEIGHTS },
   };
 
   const basePreset = buildBasePreset(guardrails, modelDefaults);
@@ -526,5 +594,6 @@ function buildComputedAdminConfig(
       summaryMaxChars: guardrails.numeric.summaryMaxChars,
     }),
     presets,
+    ragRanking,
   };
 }

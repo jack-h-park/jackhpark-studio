@@ -1,7 +1,12 @@
 import { type Decoration, type ExtendedRecordMap } from "notion-types";
 import { getTextContent } from "notion-utils";
 
-import { normalizeMetadata, type RagDocumentMetadata } from "./metadata";
+import {
+  DOC_TYPE_OPTIONS,
+  PERSONA_TYPE_OPTIONS,
+  normalizeMetadata,
+  type RagDocumentMetadata,
+} from "./metadata";
 
 type NotionPropertyValue = Decoration[] | Decoration[][] | null | undefined;
 
@@ -194,10 +199,14 @@ export function extractNotionMetadata(
   };
 
   if (typeof docType === "string" && docType) {
-    metadata.doc_type = docType;
+    if ((DOC_TYPE_OPTIONS as readonly string[]).includes(docType)) {
+      metadata.doc_type = docType as any;
+    }
   }
   if (typeof personaType === "string" && personaType) {
-    metadata.persona_type = personaType;
+    if ((PERSONA_TYPE_OPTIONS as readonly string[]).includes(personaType)) {
+      metadata.persona_type = personaType as any;
+    }
   }
   if (typeof isPublic === "boolean") {
     metadata.is_public = isPublic;

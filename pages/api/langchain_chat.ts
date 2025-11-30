@@ -65,6 +65,7 @@ import {
   parseRankerMode,
   parseReverseRagMode,
 } from "@/lib/shared/rag-config";
+import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 
 /**
  * Pages Router API (Node.js runtime).
@@ -190,6 +191,8 @@ export default async function handler(
       typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
 
     const guardrails = await getChatGuardrailConfig();
+    const adminConfig = await getAdminChatConfig();
+    const ragRanking = adminConfig.ragRanking;
     const fallbackQuestion =
       typeof body.question === "string" ? body.question : undefined;
     let rawMessages: ChatMessage[] = [];
@@ -552,7 +555,10 @@ export default async function handler(
               return null;
             }
 
-            const weight = computeMetadataWeight(hydratedMeta ?? undefined);
+            const weight = computeMetadataWeight(
+              hydratedMeta ?? undefined,
+              ragRanking,
+            );
             const finalScore = baseSimilarity * weight;
 
             return {
@@ -567,7 +573,17 @@ export default async function handler(
               metadata_weight: weight,
             };
           })
-          .filter((doc): doc is { chunk: string; metadata: any; similarity: number } => Boolean(doc))
+          .filter(
+            (
+              doc,
+            ): doc is {
+              chunk: string;
+              metadata: any;
+              similarity: number;
+              base_similarity: number;
+              metadata_weight: number;
+            } => doc !== null,
+          )
           // eslint-disable-next-line unicorn/no-array-sort
           .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
 
@@ -575,16 +591,16 @@ export default async function handler(
           trace,
           "after_weighting",
           ragDocs.map((doc) => ({
-            doc_id:
-              (doc.metadata?.doc_id as string | null) ??
-              (doc.metadata?.docId as string | null) ??
-              null,
-            similarity: (doc as any).base_similarity ?? null,
-            weight: (doc as any).metadata_weight ?? null,
+            doc_id: (doc.metadata?.doc_id as string | null) ?? null,
+            similarity: (doc as { base_similarity?: number }).base_similarity ?? null,
+            weight: (doc as { metadata_weight?: number }).metadata_weight ?? null,
             finalScore: doc.similarity ?? null,
-            doc_type: (doc.metadata as any)?.doc_type ?? null,
-            persona_type: (doc.metadata as any)?.persona_type ?? null,
-            is_public: (doc.metadata as any)?.is_public ?? null,
+            doc_type: (doc.metadata as { doc_type?: string | null })?.doc_type ?? null,
+            persona_type:
+              (doc.metadata as { persona_type?: string | null })?.persona_type ??
+              null,
+            is_public:
+              (doc.metadata as { is_public?: boolean | null })?.is_public ?? null,
           })),
         );
         if (trace) {

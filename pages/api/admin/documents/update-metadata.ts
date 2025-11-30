@@ -3,6 +3,8 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import {
   mergeMetadata,
   normalizeMetadata,
+  DOC_TYPE_OPTIONS,
+  PERSONA_TYPE_OPTIONS,
   type RagDocumentMetadata,
 } from "@/lib/rag/metadata";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -36,10 +38,16 @@ function parseMetadata(input: unknown): RagDocumentMetadata {
     metadata.source_type = data.source_type;
   }
   if (typeof data.doc_type === "string" && data.doc_type) {
-    metadata.doc_type = data.doc_type;
+    if ((DOC_TYPE_OPTIONS as readonly string[]).includes(data.doc_type)) {
+      metadata.doc_type = data.doc_type as any;
+    }
   }
   if (typeof data.persona_type === "string" && data.persona_type) {
-    metadata.persona_type = data.persona_type;
+    if (
+      (PERSONA_TYPE_OPTIONS as readonly string[]).includes(data.persona_type)
+    ) {
+      metadata.persona_type = data.persona_type as any;
+    }
   }
   if (typeof data.is_public === "boolean") {
     metadata.is_public = data.is_public;

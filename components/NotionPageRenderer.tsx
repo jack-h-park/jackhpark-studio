@@ -433,8 +433,8 @@ export function NotionPageRenderer({
             rootPageId={rootPageId}
             mapPageUrl={mapPageUrl}
             mapImageUrl={mapImageUrl}
-            pageAside={pageAside}
-            footer={footer}
+            pageAside={pageAside as any}
+            footer={footer as any}
             components={components}
           />
         ) : null}

@@ -64,6 +64,7 @@ import {
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { normalizeMetadata } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
+import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 
 const RAG_DEBUG = (process.env.RAG_DEBUG ?? "").toLowerCase() === "true";
 
@@ -171,6 +172,8 @@ export default async function handler(
       typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
 
     const guardrails = await getChatGuardrailConfig();
+    const adminConfig = await getAdminChatConfig();
+    const ragRanking = adminConfig.ragRanking;
 
     const rawMessages = Array.isArray(body.messages)
       ? sanitizeMessages(body.messages)
@@ -510,7 +513,7 @@ export default async function handler(
               docId,
             };
           }
-          const weight = computeMetadataWeight(metadata ?? undefined);
+          const weight = computeMetadataWeight(metadata ?? undefined, ragRanking);
           const finalScore = baseSimilarity * weight;
 
           return {
@@ -547,11 +550,15 @@ export default async function handler(
           similarity: (doc as any).base_similarity ?? null,
           weight: (doc as any).metadata_weight ?? null,
           finalScore: doc.similarity ?? null,
-          doc_type: (doc.metadata as RagDocumentMetadata | null)?.doc_type ?? null,
+          doc_type:
+            (doc.metadata as { doc_type?: string | null } | null)?.doc_type ??
+            null,
           persona_type:
-            (doc.metadata as RagDocumentMetadata | null)?.persona_type ?? null,
+            (doc.metadata as { persona_type?: string | null } | null)
+              ?.persona_type ?? null,
           is_public:
-            (doc.metadata as RagDocumentMetadata | null)?.is_public ?? null,
+            (doc.metadata as { is_public?: boolean | null } | null)?.is_public ??
+            null,
         })),
       );
       const canonicalLookup = await loadCanonicalPageLookup();

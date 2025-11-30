@@ -4,6 +4,7 @@ import type {
   LlmModelId,
   RankerId,
 } from "@/lib/shared/models";
+import type { DocType, PersonaType } from "@/lib/rag/metadata";
 
 export type SummaryLevel = "off" | "low" | "medium" | "high";
 
@@ -38,6 +39,11 @@ export interface SessionChatConfig {
 }
 
 export type SessionChatConfigPreset = Omit<SessionChatConfig, "appliedPreset">;
+
+export type RagRankingConfig = {
+  docTypeWeights: Partial<Record<DocType, number>>;
+  personaTypeWeights: Partial<Record<PersonaType, number>>;
+};
 
 export interface AdminChatConfig {
   coreSystemPromptSummary: string;
@@ -79,4 +85,5 @@ export interface AdminChatConfig {
     fast: SessionChatConfigPreset;
     highRecall: SessionChatConfigPreset;
   };
+  ragRanking?: RagRankingConfig;
 }
