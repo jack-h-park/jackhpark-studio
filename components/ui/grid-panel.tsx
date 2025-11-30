@@ -4,64 +4,75 @@ import { cn } from "./utils";
 
 export type GridPanelProps<T extends React.ElementType = "div"> = {
   as?: T;
-} & Omit<React.ComponentPropsWithoutRef<T>, "className"> & {
-    className?: string;
-  };
+  className?: string;
+} & Omit<React.ComponentPropsWithoutRef<T>, "className">;
 
-export function GridPanel<T extends React.ElementType = "div">({
-  as,
-  className,
-  children,
-  ...props
-}: GridPanelProps<T>) {
+export function GridPanel<T extends React.ElementType = "div">(
+  props: GridPanelProps<T>,
+) {
+  const { as, className, ...rest } = props;
   const Component = as ?? "div";
+
   return (
     <Component
-      className={cn("grid gap-4", className)}
-      {...(props as React.ComponentPropsWithoutRef<T>)}
-    >
-      {children}
-    </Component>
+      className={cn("grid", className)}
+      {...(rest as React.ComponentPropsWithoutRef<T>)}
+    />
   );
 }
 
-export type GridPanelItemProps<T extends React.ElementType = "button"> = {
+export type GridPanelItemBaseProps<T extends React.ElementType = "div"> = {
+  as?: T;
+  className?: string;
+} & Omit<React.ComponentPropsWithoutRef<T>, "className">;
+
+export function GridPanelItemBase<T extends React.ElementType = "div">(
+  props: GridPanelItemBaseProps<T>,
+) {
+  const { as, className, ...rest } = props;
+  const Component = as ?? "div";
+
+  return (
+    <Component
+      className={cn(className)}
+      {...(rest as React.ComponentPropsWithoutRef<T>)}
+    />
+  );
+}
+
+export type SelectableTileProps<T extends React.ElementType = "button"> = {
   as?: T;
   active?: boolean;
   className?: string;
 } & Omit<React.ComponentPropsWithoutRef<T>, "className">;
 
-export function GridPanelItem<T extends React.ElementType = "button">({
-  as,
-  active,
-  className,
-  children,
-  ...props
-}: GridPanelItemProps<T>) {
+export function SelectableTile<T extends React.ElementType = "button">(
+  props: SelectableTileProps<T>,
+) {
+  const { as, active, className, ...rest } = props;
   const Component = as ?? "button";
-  const isDisabled = Boolean(props.disabled);
-  const mergedClassName = cn(
-    "ai-selectable ai-selectable--hoverable p-[0.6rem] px-[0.7rem] text-left shadow-none cursor-pointer",
-    active && "ai-selectable--active",
-    isDisabled && "ai-selectable--disabled",
-    className,
-  );
+  const isButton = Component === "button";
+  const elementProps = rest as React.ButtonHTMLAttributes<HTMLButtonElement>;
+  const isDisabled = Boolean(elementProps.disabled);
 
-  const elementProps = {
-    ...(props as React.ComponentPropsWithoutRef<T>),
-    className: mergedClassName,
-  } as React.ComponentPropsWithoutRef<T>;
-
-  if (Component === "button") {
-    const buttonProps =
-      elementProps as React.ButtonHTMLAttributes<HTMLButtonElement>;
+  if (isButton) {
     if (active !== undefined) {
-      buttonProps["aria-pressed"] = active;
+      elementProps["aria-pressed"] = active;
     }
-    if (!buttonProps.type) {
-      buttonProps.type = "button";
+    if (!elementProps.type) {
+      elementProps.type = "button";
     }
   }
 
-  return <Component {...elementProps}>{children}</Component>;
+  return (
+    <Component
+      {...(elementProps as React.ComponentPropsWithoutRef<T>)}
+      className={cn(
+        "ai-selectable ai-selectable--hoverable p-[0.6rem] px-[0.7rem] text-left shadow-none cursor-pointer",
+        active && "ai-selectable--active",
+        isDisabled && "ai-selectable--disabled",
+        className,
+      )}
+    />
+  );
 }

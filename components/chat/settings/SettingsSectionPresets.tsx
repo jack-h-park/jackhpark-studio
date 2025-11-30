@@ -3,8 +3,9 @@
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
-import { GridPanel, GridPanelItem } from "@/components/ui/grid-panel";
+import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+
 import styles from "./SettingsSection.module.css";
 
 type PresetKey = "default" | "fast" | "highRecall";
@@ -50,17 +51,17 @@ export function SettingsSectionPresets({
         AI Orchestration Presets (Session-Wide)
       </HeadingWithIcon>
       {helperText && <p className="ai-meta-text">{helperText}</p>}
-      <GridPanel className="grid grid-cols-3 gap-[0.3rem]">
+      <GridPanel className="grid-cols-3 gap-[0.3rem]">
         {(["default", "fast", "highRecall"] as PresetKey[]).map((key) => {
           const isActive = sessionConfig.appliedPreset === key;
           return (
-            <GridPanelItem
+            <SelectableTile
               key={key}
               active={isActive}
               onClick={() => applyPreset(key)}
             >
               <span className="ai-choice__label">{PRESET_LABELS[key]}</span>
-            </GridPanelItem>
+            </SelectableTile>
           );
         })}
       </GridPanel>

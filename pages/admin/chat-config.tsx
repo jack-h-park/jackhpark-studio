@@ -977,7 +977,7 @@ function AdminChatConfigForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start">
-          <GridPanel className="px-4 py-4">
+          <GridPanel className="gap-4 px-4 py-4">
             <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-start">
               <div className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]">
                 Doc type
@@ -1018,7 +1018,7 @@ function AdminChatConfigForm({
             </p>
           </GridPanel>
 
-          <GridPanel className="px-4 py-4">
+          <GridPanel className="gap-4 px-4 py-4">
             <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-start">
               <div className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]">
                 Persona type
@@ -1071,7 +1071,7 @@ function AdminChatConfigForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <GridPanel className="px-4 py-4">
+          <GridPanel className="gap-4 px-4 py-4">
             <div className="grid grid-cols-[minmax(150px,1fr)_repeat(3,minmax(0,1fr))] gap-3 items-center">
               <div
                 className={`${summaryGridLabelClass} ${summaryGridHeaderClass}`}
@@ -1132,7 +1132,7 @@ function AdminChatConfigForm({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <GridPanel className="px-4 py-5 shadow-sm">
+          <GridPanel className="gap-4 px-4 py-5 shadow-sm">
             <div className="grid grid-cols-[minmax(190px,1fr)_repeat(3,minmax(0,1fr))] gap-y-3 gap-x-4 items-start">
               <div
                 className={`${sessionGridLabelClass} ${sessionGridHeaderClass}`}

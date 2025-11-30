@@ -1230,7 +1230,7 @@ function ManualIngestionPanel(): JSX.Element {
             >
               <GridPanel
                 as="fieldset"
-                className=""
+                className="gap-4"
                 role="radiogroup"
                 aria-labelledby={currentScopeLabelId}
               >
@@ -1599,7 +1599,7 @@ function DatasetSnapshotSection({
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
-        <GridPanel className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+        <GridPanel className="grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
           {metrics.map((metric) => {
             const deltaLabel = formatDeltaLabel(metric.delta);
             const tone =
@@ -1660,7 +1660,7 @@ function DatasetSnapshotSection({
           </Card>
         </GridPanel>
         <dl className="mt-6">
-          <GridPanel className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+          <GridPanel className="grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
             <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
               <dt className="m-0 text-xs uppercase tracking-wide text-[color:var(--ai-text-muted)]">
                 Embedding Model
@@ -1805,7 +1805,7 @@ function RagDocumentsOverview({
       <CardContent className="space-y-4">
         {stats ? (
           <>
-            <GridPanel className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
+            <GridPanel className="grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
               <StatCard
                 label="Total documents"
                 value={numberFormatter.format(stats.total)}
@@ -1876,7 +1876,7 @@ function SystemHealthSection({
         </p>
       </CardHeader>
       <CardContent>
-        <GridPanel className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
+        <GridPanel className="grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
           <StatCard
             label="Last Run"
             value={
