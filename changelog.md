@@ -54,7 +54,7 @@ flowchart TD
   end
 
   subgraph CLI
-    H[scripts/ingest.ts]
+    H[scripts/ingest-url.ts]
     I[scripts/ingest-notion.ts]
     H --> G
     I --> G

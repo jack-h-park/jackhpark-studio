@@ -1,4 +1,4 @@
-// scripts/ingest.ts
+// scripts/ingest-url.ts
 import pMap from "p-map";
 
 import { resolveEmbeddingSpace } from "../lib/core/embedding-spaces";
@@ -173,7 +173,7 @@ async function main(): Promise<void> {
 
   if (targets.length === 0) {
     console.error(
-      "Usage: pnpm tsx scripts/ingest.ts [--full|--partial] <url> [url...]",
+      "Usage: pnpm tsx scripts/ingest-url.ts [--full|--partial] <url> [url...]",
     );
     process.exitCode = 1;
     return;
