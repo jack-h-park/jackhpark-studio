@@ -21,6 +21,7 @@ import {
   CHAT_ENGINE_LABELS,
   type ChatEngine,
 } from "@/lib/shared/model-provider";
+
 import styles from "./SettingsSection.module.css";
 
 type Props = {

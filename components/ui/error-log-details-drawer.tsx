@@ -6,6 +6,7 @@ import type { ErrorLogEntry } from "@/lib/admin/ingestion-runs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorLogList } from "@/components/ui/error-log-list";
+
 import styles from "./ErrorLogDetailsDrawer.module.css";
 
 type ErrorLogDetailsDrawerProps = {

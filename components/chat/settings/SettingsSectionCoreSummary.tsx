@@ -3,6 +3,7 @@
 import { FiCommand } from "@react-icons/all-files/fi/FiCommand";
 
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+
 import styles from "./SettingsSection.module.css";
 
 type Props = {

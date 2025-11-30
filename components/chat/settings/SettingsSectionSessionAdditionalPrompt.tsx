@@ -9,6 +9,7 @@ import {
   getAdditionalPromptMaxLength,
   type SessionChatConfig,
 } from "@/types/chat-config";
+
 import styles from "./SettingsSection.module.css";
 
 type Props = {

@@ -5,6 +5,7 @@ import { FiMonitor } from "@react-icons/all-files/fi/FiMonitor";
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { AllowlistTile } from "@/components/ui/allowlist-tile";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+
 import styles from "./SettingsSection.module.css";
 
 export function SettingsSectionDisplay() {

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
-import { cn } from "./utils";
 import styles from "./Tabs.module.css";
+import { cn } from "./utils";
 
 export type TabDefinition = {
   id: string;

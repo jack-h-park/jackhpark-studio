@@ -7,9 +7,9 @@ import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
 import { Button } from "@/components/ui/button";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 
+import styles from "./ChatAdvancedSettingsDrawer.module.css";
 import { SettingsSectionContextHistory } from "./SettingsSectionContextHistory";
 import { SettingsSectionCoreSummary } from "./SettingsSectionCoreSummary";
-import styles from "./ChatAdvancedSettingsDrawer.module.css";
 import { SettingsSectionDisplay } from "./SettingsSectionDisplay";
 import { SettingsSectionModelEngine } from "./SettingsSectionModelEngine";
 import { SettingsSectionPresets } from "./SettingsSectionPresets";

@@ -4,10 +4,7 @@ import type {
 } from "@/types/chat-config";
 import { DEFAULT_LLM_MODEL_ID } from "@/lib/core/llm-registry";
 import { isOllamaEnabled } from "@/lib/core/ollama";
-import {
-  type ModelResolution,
-  resolveLlmModelId,
-} from "@/lib/shared/model-resolution";
+import { resolveLlmModelId } from "@/lib/shared/model-resolution";
 
 type PresetKey = keyof AdminChatConfig["presets"];
 

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { SliderNumberField } from "@/components/ui/slider-number-field";
 import { Switch } from "@/components/ui/switch";
+
 import styles from "./SettingsSection.module.css";
 
 const SUMMARY_LEVELS: Record<SummaryLevel, string> = {

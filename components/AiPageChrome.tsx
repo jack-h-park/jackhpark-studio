@@ -9,8 +9,8 @@ import { site } from "@/lib/config";
 import { mapImageUrl } from "@/lib/map-image-url";
 import { useDarkMode } from "@/lib/use-dark-mode";
 
-import { cn } from "./ui/utils";
 import styles from "./AiPageChrome.module.css";
+import { cn } from "./ui/utils";
 
 type AiPageChromeProps = {
   headerRecordMap: ExtendedRecordMap | null;

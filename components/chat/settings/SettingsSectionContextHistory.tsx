@@ -7,6 +7,7 @@ import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { SliderNumberField } from "@/components/ui/slider-number-field";
 import { Switch } from "@/components/ui/switch";
+
 import styles from "./SettingsSection.module.css";
 
 type Props = {

@@ -31,7 +31,8 @@
     "test": "run-p test:*",
     "lint": "eslint .",
     "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check",
-    "build:instrumentation": "esbuild instrumentation.ts --platform=node --format=esm --outfile=instrumentation.js"
+    "build:instrumentation": "esbuild instrumentation.ts --platform=node --format=esm --outfile=instrumentation.js",
+    "check:katex": "node --import=tsx scripts/check-katex-usage.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.32",
@@ -59,7 +60,6 @@
     "framer-motion": "^12.23.22",
     "gpt-tokenizer": "^3.2.0",
     "jsdom": "^27.0.1",
-    "katex": "^0.16.25",
     "ky": "^1.8.1",
     "lqip-modern": "^2.2.1",
     "next": "^15.5.3",
