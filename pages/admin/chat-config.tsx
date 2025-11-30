@@ -1,5 +1,6 @@
 import type { GetServerSideProps } from "next";
 import { FiBookOpen } from "@react-icons/all-files/fi/FiBookOpen";
+import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 import { FiSettings } from "@react-icons/all-files/fi/FiSettings";
 import { FiShield } from "@react-icons/all-files/fi/FiShield";
@@ -18,6 +19,7 @@ import {
 import type {
   AdminChatConfig,
   AdminNumericLimit,
+  AdminChatRuntimeMeta,
   SessionChatConfigPreset,
   SummaryLevel,
 } from "@/types/chat-config";
@@ -77,10 +79,14 @@ import {
   type RankerId,
 } from "@/lib/shared/models";
 import { cn } from "@/lib/utils";
+import { DEFAULT_LLM_MODEL_ID } from "@/lib/core/llm-registry";
+import { isOllamaEnabled } from "@/lib/core/ollama";
+import { buildPresetModelResolutions } from "@/lib/server/model-resolution";
 
 type PageProps = {
   adminConfig: AdminChatConfig;
   lastUpdatedAt: string | null;
+  runtimeMeta: AdminChatRuntimeMeta;
 } & NotionNavigationHeader;
 
 type SaveStatus = "idle" | "saving" | "success" | "error";
@@ -144,7 +150,8 @@ function textToArray(value: string) {
 function AdminChatConfigForm({
   adminConfig,
   lastUpdatedAt,
-}: Pick<PageProps, "adminConfig" | "lastUpdatedAt">) {
+  runtimeMeta,
+}: Pick<PageProps, "adminConfig" | "lastUpdatedAt" | "runtimeMeta">) {
   const [config, setConfig] = useState<AdminChatConfig>(() => ({
     ...adminConfig,
   }));
@@ -164,6 +171,7 @@ function AdminChatConfigForm({
       {} as Record<PresetKey, boolean>,
     ),
   );
+  const { ollamaEnabled, defaultLlmModelId, presetResolutions } = runtimeMeta;
 
   useEffect(() => {
     setConfig(adminConfig);
@@ -780,14 +788,36 @@ function AdminChatConfigForm({
                 const isSelected = config.allowlist.llmModels.includes(
                   option.id,
                 );
+                const requiresOllama =
+                  LLM_MODEL_DEFINITIONS_MAP.get(
+                    option.id as LlmModelId,
+                  )?.requiresOllama ?? false;
+                const disabledByEnv = requiresOllama && !ollamaEnabled;
+                const tooltip = disabledByEnv
+                  ? `Ollama is unavailable in this environment. Using ${defaultLlmModelId} instead.`
+                  : undefined;
+                const label = (
+                  <span className="inline-flex items-center gap-1">
+                    {option.label}
+                    {disabledByEnv && (
+                      <FiAlertCircle
+                        aria-hidden="true"
+                        className="text-[color:var(--ai-text-muted)]"
+                        size={14}
+                        title={tooltip}
+                      />
+                    )}
+                  </span>
+                );
                 return (
                   <AllowlistTile
                     key={option.id}
                     id={option.id}
-                    label={option.label}
+                    label={label}
                     subtitle={option.id}
-                    // description={`Use ${option.id}`}
+                    description={tooltip}
                     selected={isSelected}
+                    disabled={disabledByEnv}
                     onClick={() =>
                       toggleAllowlistValue("llmModels", option.id, !isSelected)
                     }
@@ -1134,34 +1164,78 @@ function AdminChatConfigForm({
                   />
                 );
               })}
-              {renderPresetRow("LLM Model", (presetKey) => (
-                <Select
-                  value={config.presets[presetKey].llmModel}
-                  onValueChange={(value) =>
-                    updatePreset(presetKey, (prev) => ({
-                      ...prev,
-                      llmModel: value as LlmModelId,
-                    }))
-                  }
-                >
-                  <SelectTrigger
-                    aria-label={`LLM Model for ${presetDisplayNames[presetKey]}`}
-                  />
-                  <SelectContent>
-                    {llmModelOptions.map((option) => (
-                      <SelectItem
-                        key={option.id}
-                        value={option.id}
-                        disabled={
-                          !config.allowlist.llmModels.includes(option.id)
-                        }
-                      >
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ))}
+              {renderPresetRow("LLM Model", (presetKey) => {
+                const resolution = presetResolutions[presetKey];
+                const wasSubstituted = resolution?.wasSubstituted;
+                const substitutionTooltip = wasSubstituted
+                  ? `This preset uses ${resolution.requestedModelId}, which is unavailable. It will run as ${resolution.resolvedModelId} at runtime.`
+                  : undefined;
+                return (
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={config.presets[presetKey].llmModel}
+                      onValueChange={(value) =>
+                        updatePreset(presetKey, (prev) => ({
+                          ...prev,
+                          llmModel: value as LlmModelId,
+                        }))
+                      }
+                    >
+                      <SelectTrigger
+                        aria-label={`LLM Model for ${presetDisplayNames[presetKey]}`}
+                      />
+                      <SelectContent>
+                        {llmModelOptions.map((option) => {
+                          const requiresOllama =
+                            LLM_MODEL_DEFINITIONS_MAP.get(
+                              option.id as LlmModelId,
+                            )?.requiresOllama ?? false;
+                          const disabledByEnv =
+                            requiresOllama && !ollamaEnabled;
+                          const optionTooltip = disabledByEnv
+                            ? `Ollama is unavailable in this environment. Using ${defaultLlmModelId} instead.`
+                            : undefined;
+                          const label = (
+                            <span className="inline-flex items-center gap-1">
+                              {option.label}
+                              {disabledByEnv && (
+                                <FiAlertCircle
+                                  aria-hidden="true"
+                                  className="text-[color:var(--ai-text-muted)]"
+                                  size={14}
+                                  title={optionTooltip}
+                                />
+                              )}
+                            </span>
+                          );
+                          return (
+                            <SelectItem
+                              key={option.id}
+                              value={option.id}
+                              disabled={
+                                !config.allowlist.llmModels.includes(
+                                  option.id,
+                                ) || disabledByEnv
+                              }
+                              title={optionTooltip}
+                            >
+                              {label}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    {wasSubstituted && (
+                      <FiAlertCircle
+                        aria-hidden="true"
+                        className="text-[color:var(--ai-text-muted)]"
+                        size={14}
+                        title={substitutionTooltip}
+                      />
+                    )}
+                  </div>
+                );
+              })}
               {renderPresetRow("Embedding Model", (presetKey) => (
                 <Select
                   value={config.presets[presetKey].embeddingModel}
@@ -1568,6 +1642,7 @@ function AdminChatConfigForm({
 export default function ChatConfigPage({
   adminConfig,
   lastUpdatedAt,
+  runtimeMeta,
   headerRecordMap,
   headerBlockId,
 }: PageProps) {
@@ -1583,6 +1658,7 @@ export default function ChatConfigPage({
         <AdminChatConfigForm
           adminConfig={adminConfig}
           lastUpdatedAt={lastUpdatedAt}
+          runtimeMeta={runtimeMeta}
         />
       </AiPageChrome>
     </>
@@ -1595,10 +1671,17 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
     getAdminChatConfigMetadata(),
     loadNotionNavigationHeader(),
   ]);
+  const runtimeMeta: AdminChatRuntimeMeta = {
+    defaultLlmModelId:
+      DEFAULT_LLM_MODEL_ID as AdminChatRuntimeMeta["defaultLlmModelId"],
+    ollamaEnabled: isOllamaEnabled(),
+    presetResolutions: buildPresetModelResolutions(adminConfig),
+  };
   return {
     props: {
       adminConfig,
       lastUpdatedAt: metadata.updatedAt,
+      runtimeMeta,
       ...header,
     },
   };

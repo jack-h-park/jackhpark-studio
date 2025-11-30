@@ -223,10 +223,11 @@ export default async function handler(
     const hydeEnabled = runtime.hydeEnabled;
     const rankerMode = runtime.rankerMode;
 
+    const llmModelId = runtime.resolvedLlmModelId ?? runtime.llmModelId;
     const llmSelection = resolveLlmModel({
       provider: runtime.llmProvider,
-      modelId: runtime.llmModelId,
-      model: runtime.llmModel,
+      modelId: llmModelId,
+      model: llmModelId,
     });
     const embeddingSelection = resolveEmbeddingSpace({
       provider: runtime.embeddingProvider ?? llmSelection.provider,
@@ -266,6 +267,12 @@ export default async function handler(
           reverseRagMode,
           hydeEnabled,
           rankerMode,
+        },
+        llmResolution: {
+          requestedModelId: runtime.requestedLlmModelId,
+          resolvedModelId: runtime.resolvedLlmModelId,
+          wasSubstituted: runtime.llmModelWasSubstituted,
+          substitutionReason: runtime.llmSubstitutionReason,
         },
       },
     });

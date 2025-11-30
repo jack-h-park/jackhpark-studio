@@ -13,13 +13,17 @@ import {
 import type {
   AdminChatConfig,
   AdminNumericLimit,
+  AdminChatRuntimeMeta,
+  ModelResolution,
   SessionChatConfig,
   SessionChatConfigPreset,
   SummaryLevel,
 } from "@/types/chat-config";
+import { resolveLlmModelId } from "@/lib/shared/model-resolution";
 
 type ChatConfigContextValue = {
   adminConfig: AdminChatConfig;
+  runtimeMeta: AdminChatRuntimeMeta;
   sessionConfig: SessionChatConfig;
   setSessionConfig: (
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
@@ -52,6 +56,9 @@ const isFiniteNumber = (value: unknown): value is number =>
 const sanitizeNumericConfig = (
   candidate: SessionChatConfig,
   adminConfig: AdminChatConfig,
+  resolver: {
+    resolveModel: (modelId: string) => ModelResolution;
+  },
 ): SessionChatConfig => {
   const { numericLimits, allowlist } = adminConfig;
 
@@ -90,6 +97,13 @@ const sanitizeNumericConfig = (
     allowlist.rankers[0] ?? "none",
   );
 
+  const requestedModelId =
+    candidate.llmModelResolution?.requestedModelId &&
+    candidate.llmModel === candidate.llmModelResolution.resolvedModelId
+      ? candidate.llmModelResolution.requestedModelId
+      : candidate.llmModel ?? adminConfig.presets.default.llmModel;
+  const llmResolution = resolver.resolveModel(requestedModelId);
+
   const reverseRAG = allowlist.allowReverseRAG
     ? Boolean(candidate.features.reverseRAG)
     : false;
@@ -97,11 +111,7 @@ const sanitizeNumericConfig = (
 
   return {
     userSystemPrompt: userPrompt,
-    llmModel: sanitizeModel(
-      candidate.llmModel,
-      allowlist.llmModels,
-      adminConfig.presets.default.llmModel,
-    ),
+    llmModel: llmResolution.resolvedModelId as SessionChatConfig["llmModel"],
     embeddingModel: sanitizeModel(
       candidate.embeddingModel,
       allowlist.embeddingModels,
@@ -127,6 +137,7 @@ const sanitizeNumericConfig = (
       hyde,
       ranker,
     },
+    llmModelResolution: llmResolution,
     summaryLevel,
     appliedPreset: candidate.appliedPreset,
   };
@@ -135,21 +146,52 @@ const sanitizeNumericConfig = (
 const buildDefaultSessionConfig = (
   preset: SessionChatConfigPreset,
   presetName: ChatConfigContextValue["sessionConfig"]["appliedPreset"],
+  resolution: ModelResolution | null,
 ): SessionChatConfig => ({
   ...preset,
+  llmModel: (resolution?.resolvedModelId ?? preset.llmModel) as SessionChatConfig["llmModel"],
+  llmModelResolution:
+    resolution ??
+    ({
+      requestedModelId: preset.llmModel,
+      resolvedModelId: preset.llmModel,
+      wasSubstituted: false,
+      reason: "NONE",
+    } satisfies ModelResolution),
   appliedPreset: presetName ?? undefined,
 });
 
 export function ChatConfigProvider({
   adminConfig,
+  runtimeMeta,
   children,
 }: {
   adminConfig: AdminChatConfig;
+  runtimeMeta: AdminChatRuntimeMeta;
   children: ReactNode;
 }) {
+  const resolveLlmModelForSession = useMemo(() => {
+    const allowedModels = adminConfig.allowlist.llmModels;
+    return (modelId: string): ModelResolution =>
+      resolveLlmModelId(modelId, {
+        ollamaEnabled: runtimeMeta.ollamaEnabled,
+        defaultModelId: runtimeMeta.defaultLlmModelId,
+        allowedModelIds: allowedModels,
+      });
+  }, [
+    adminConfig.allowlist.llmModels,
+    runtimeMeta.defaultLlmModelId,
+    runtimeMeta.ollamaEnabled,
+  ]);
+
   const defaultConfig = useMemo(
-    () => buildDefaultSessionConfig(adminConfig.presets.default, "default"),
-    [adminConfig.presets],
+    () =>
+      buildDefaultSessionConfig(
+        adminConfig.presets.default,
+        "default",
+        runtimeMeta.presetResolutions.default,
+      ),
+    [adminConfig.presets, runtimeMeta.presetResolutions],
   );
 
   const [sessionConfig, setSessionConfigState] =
@@ -167,12 +209,16 @@ export function ChatConfigProvider({
     try {
       const parsed = JSON.parse(stored) as SessionChatConfig;
       setSessionConfigState(
-        sanitizeNumericConfig({ ...defaultConfig, ...parsed }, adminConfig),
+        sanitizeNumericConfig(
+          { ...defaultConfig, ...parsed },
+          adminConfig,
+          { resolveModel: resolveLlmModelForSession },
+        ),
       );
     } catch {
       setSessionConfigState(defaultConfig);
     }
-  }, [adminConfig, defaultConfig]);
+  }, [adminConfig, defaultConfig, resolveLlmModelForSession]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -191,19 +237,21 @@ export function ChatConfigProvider({
         sanitizeNumericConfig(
           typeof value === "function" ? value(prev) : value,
           adminConfig,
+          { resolveModel: resolveLlmModelForSession },
         ),
       );
     },
-    [adminConfig],
+    [adminConfig, resolveLlmModelForSession],
   );
 
   const contextValue = useMemo(
     () => ({
       adminConfig,
+      runtimeMeta,
       sessionConfig,
       setSessionConfig,
     }),
-    [adminConfig, sessionConfig, setSessionConfig],
+    [adminConfig, runtimeMeta, sessionConfig, setSessionConfig],
   );
 
   return (

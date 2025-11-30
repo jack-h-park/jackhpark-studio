@@ -5,6 +5,10 @@ import type {
   LlmModelId,
   RankerId,
 } from "@/lib/shared/models";
+import type {
+  ModelResolution,
+  ModelResolutionReason,
+} from "@/lib/shared/model-resolution";
 
 export type SummaryLevel = "off" | "low" | "medium" | "high";
 
@@ -29,6 +33,7 @@ export interface SessionChatConfig {
     historyBudget: number;
     clipTokens: number;
   };
+  llmModelResolution?: ModelResolution;
   features: {
     reverseRAG: boolean;
     hyde: boolean;
@@ -44,6 +49,19 @@ export type RagRankingConfig = {
   docTypeWeights: Partial<Record<DocType, number>>;
   personaTypeWeights: Partial<Record<PersonaType, number>>;
 };
+
+export type PresetModelResolutions = Record<
+  keyof AdminChatConfig["presets"],
+  ModelResolution
+>;
+
+export type AdminChatRuntimeMeta = {
+  defaultLlmModelId: LlmModelId;
+  ollamaEnabled: boolean;
+  presetResolutions: PresetModelResolutions;
+};
+
+export type { ModelResolution, ModelResolutionReason };
 
 export interface AdminChatConfig {
   coreSystemPromptSummary: string;

@@ -5,7 +5,9 @@ import {
   normalizeSystemPrompt,
   SYSTEM_PROMPT_CACHE_TTL_MS,
 } from "@/lib/chat-prompts";
+import { isOllamaEnabled } from "@/lib/core/ollama";
 import {
+  DEFAULT_LLM_MODEL_ID,
   resolveEmbeddingSpace,
   resolveLlmModel,
 } from "@/lib/core/model-provider";
@@ -26,6 +28,10 @@ import {
   type RankerMode,
   type ReverseRagMode,
 } from "@/lib/shared/rag-config";
+import {
+  type ModelResolutionReason,
+  resolveLlmModelId,
+} from "@/lib/shared/model-resolution";
 
 const GUARDRAIL_SETTINGS_CACHE_TTL_MS = 60_000;
 const CHAT_MODEL_SETTINGS_CACHE_TTL_MS = 60_000;
@@ -53,6 +59,10 @@ export type GuardrailDefaults = {
 export type ChatModelSettings = {
   engine: ChatEngine;
   llmModelId: string;
+  requestedLlmModelId: string;
+  resolvedLlmModelId: string;
+  llmModelWasSubstituted: boolean;
+  llmSubstitutionReason?: ModelResolutionReason;
   embeddingModelId: string;
   embeddingSpaceId: string;
   llmProvider: ModelProvider;
@@ -218,6 +228,10 @@ export function getChatModelDefaults(): ChatModelSettings {
   return {
     engine,
     llmModelId: defaultLlm.id,
+    requestedLlmModelId: defaultLlm.id,
+    resolvedLlmModelId: defaultLlm.id,
+    llmModelWasSubstituted: false,
+    llmSubstitutionReason: undefined,
     embeddingModelId: defaultEmbedding.embeddingModelId,
     embeddingSpaceId: defaultEmbedding.embeddingSpaceId,
     llmProvider: defaultLlm.provider,
@@ -318,15 +332,23 @@ export async function loadChatModelSettings(options?: {
   });
   const defaults = getChatModelDefaults();
   const preset = config.presets?.default;
+  const ollamaEnabled = isOllamaEnabled();
 
   const engine = normalizeChatEngine(
     preset?.chatEngine ?? defaults.engine,
     defaults.engine,
   );
 
+  const requestedLlmModelId = preset?.llmModel ?? defaults.llmModelId;
+  const llmResolution = resolveLlmModelId(requestedLlmModelId, {
+    ollamaEnabled,
+    defaultModelId: DEFAULT_LLM_MODEL_ID,
+    allowedModelIds: config.allowlist?.llmModels,
+  });
+
   const llmSelection = resolveLlmModel({
-    modelId: preset?.llmModel ?? defaults.llmModelId,
-    model: preset?.llmModel ?? defaults.llmModel,
+    modelId: llmResolution.resolvedModelId,
+    model: llmResolution.resolvedModelId,
   });
 
   const embeddingSelection = resolveEmbeddingSpace({
@@ -344,6 +366,11 @@ export async function loadChatModelSettings(options?: {
   const result: ChatModelSettings = {
     engine,
     llmModelId: llmSelection.id,
+    requestedLlmModelId: llmResolution.requestedModelId,
+    resolvedLlmModelId: llmResolution.resolvedModelId,
+    llmModelWasSubstituted: llmResolution.wasSubstituted,
+    llmSubstitutionReason:
+      llmResolution.reason !== "NONE" ? llmResolution.reason : undefined,
     embeddingModelId: embeddingSelection.embeddingModelId,
     embeddingSpaceId: embeddingSelection.embeddingSpaceId,
     llmProvider: llmSelection.provider,

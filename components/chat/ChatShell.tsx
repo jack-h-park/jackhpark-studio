@@ -4,7 +4,7 @@ import { FiMessageCircle } from "@react-icons/all-files/fi/FiMessageCircle";
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import { useMemo, useState } from "react";
 
-import type { AdminChatConfig } from "@/types/chat-config";
+import type { AdminChatConfig, AdminChatRuntimeMeta } from "@/types/chat-config";
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { ChatMessagesPanel } from "@/components/chat/ChatMessagesPanel";
 import {
@@ -25,11 +25,12 @@ type ChatMessage = {
 
 type ChatShellProps = {
   adminConfig: AdminChatConfig;
+  runtimeMeta: AdminChatRuntimeMeta;
 };
 
-export function ChatShell({ adminConfig }: ChatShellProps) {
+export function ChatShell({ adminConfig, runtimeMeta }: ChatShellProps) {
   return (
-    <ChatConfigProvider adminConfig={adminConfig}>
+    <ChatConfigProvider adminConfig={adminConfig} runtimeMeta={runtimeMeta}>
       <ChatShellContent />
     </ChatConfigProvider>
   );

@@ -9,7 +9,6 @@ import {
 } from "@/lib/core/gemini";
 import { resolveLlmModel } from "@/lib/core/llm-registry";
 import { requireProviderApiKey } from "@/lib/core/model-provider";
-import { isOllamaEnabled } from "@/lib/core/ollama";
 import { getOpenAIClient } from "@/lib/core/openai";
 import { getRagMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
@@ -205,10 +204,11 @@ export default async function handler(
     const hydeEnabled = runtime.hydeEnabled;
     const rankerMode = runtime.rankerMode;
 
+    const llmModelId = runtime.resolvedLlmModelId ?? runtime.llmModelId;
     const llmSelection = resolveLlmModel({
       provider: runtime.llmProvider,
-      modelId: runtime.llmModelId,
-      model: runtime.llmModel,
+      modelId: llmModelId,
+      model: llmModelId,
     });
     const embeddingSelection = resolveEmbeddingSpace({
       provider: runtime.embeddingProvider ?? llmSelection.provider,
@@ -221,9 +221,6 @@ export default async function handler(
     const embeddingProvider = embeddingSelection.provider;
     const llmModel = llmSelection.model;
     const embeddingModel = embeddingSelection.model;
-    if (provider === "ollama" && !isOllamaEnabled()) {
-      return respondWithOllamaUnavailable(res);
-    }
     const env = getAppEnv();
     const sessionId =
       (req.headers["x-chat-id"] as string) ??
@@ -250,6 +247,12 @@ export default async function handler(
           reverseRagMode,
           hydeEnabled,
           rankerMode,
+        },
+        llmResolution: {
+          requestedModelId: runtime.requestedLlmModelId,
+          resolvedModelId: runtime.resolvedLlmModelId,
+          wasSubstituted: runtime.llmModelWasSubstituted,
+          substitutionReason: runtime.llmSubstitutionReason,
         },
       },
     });

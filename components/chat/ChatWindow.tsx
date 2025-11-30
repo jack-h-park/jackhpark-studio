@@ -4,6 +4,7 @@ import { AiOutlineArrowsAlt } from "@react-icons/all-files/ai/AiOutlineArrowsAlt
 import { AiOutlineClose } from "@react-icons/all-files/ai/AiOutlineClose";
 import { AiOutlineCompress } from "@react-icons/all-files/ai/AiOutlineCompress";
 import { AiOutlineSend } from "@react-icons/all-files/ai/AiOutlineSend";
+import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { GiBrain } from "@react-icons/all-files/gi/GiBrain";
 import {
   type ChangeEvent,
@@ -31,6 +32,7 @@ import {
   type RankerMode,
   type ReverseRagMode,
 } from "@/lib/shared/rag-config";
+import type { ModelResolutionReason } from "@/types/chat-config";
 
 const URL_REGEX = /(https?:\/\/[^\s<>()"'`]+[^\s.,)<>"'`])/gi;
 
@@ -751,6 +753,10 @@ type ChatRuntimeConfig = {
   llmProvider: ModelProvider;
   embeddingProvider: ModelProvider;
   llmModelId: string | null;
+  requestedLlmModelId?: string | null;
+  resolvedLlmModelId?: string | null;
+  llmModelWasSubstituted?: boolean;
+  llmSubstitutionReason?: ModelResolutionReason;
   embeddingModelId: string | null;
   embeddingSpaceId: string | null;
   llmModel?: string | null;
@@ -974,6 +980,18 @@ export function ChatWindow({
   const toggleOptions = () => {
     setShowOptions((prev) => !prev);
   };
+
+  const runtimeLlmWasSubstituted = runtimeConfig?.llmModelWasSubstituted;
+  const runtimeRequestedModelId =
+    runtimeConfig?.requestedLlmModelId ?? runtimeConfig?.llmModelId ?? null;
+  const runtimeResolvedModelId =
+    runtimeConfig?.resolvedLlmModelId ??
+    runtimeConfig?.llmModelId ??
+    runtimeConfig?.llmModel ??
+    null;
+  const runtimeSubstitutionTooltip = runtimeLlmWasSubstituted
+    ? `Model substituted at runtime: ${runtimeRequestedModelId ?? "requested"} → ${runtimeResolvedModelId ?? "resolved"}`
+    : undefined;
 
   const focusInput = useCallback(() => {
     if (!isOpen) {
@@ -1257,6 +1275,14 @@ export function ChatWindow({
               <h3>Jack's AI Assistant</h3>
             </div>
             <div className="chat-header-actions">
+              {runtimeLlmWasSubstituted && (
+                <FiAlertCircle
+                  aria-hidden="true"
+                  className="text-slate-500"
+                  size={14}
+                  title={`Model substituted at runtime: ${runtimeRequestedModelId ?? "requested"} → ${runtimeResolvedModelId ?? "resolved"}`}
+                />
+              )}
               <button
                 type="button"
                 className="chat-config-toggle"
@@ -1312,11 +1338,19 @@ export function ChatWindow({
                       </div>
                       <div className="chat-runtime-summary__row">
                         <span className="chat-runtime-summary__label">LLM</span>
-                        <span className="chat-runtime-summary__value">
+                        <span className="chat-runtime-summary__value inline-flex items-center gap-1">
                           {runtimeConfig.llmProvider === "openai"
                             ? "OpenAI"
                             : MODEL_PROVIDER_LABELS[runtimeConfig.llmProvider]}{" "}
                           {runtimeConfig.llmModel ?? "custom model"}
+                          {runtimeLlmWasSubstituted && (
+                            <FiAlertCircle
+                              aria-hidden="true"
+                              className="text-slate-500"
+                              size={12}
+                              title={runtimeSubstitutionTooltip}
+                            />
+                          )}
                         </span>
                       </div>
                       <div className="chat-runtime-summary__row">
@@ -1352,6 +1386,14 @@ export function ChatWindow({
                       >
                         HyDE: {runtimeConfig.hydeEnabled ? "on" : "off"}
                       </span>
+                      {runtimeLlmWasSubstituted && (
+                        <span
+                          className="chat-runtime-flag"
+                          title={runtimeSubstitutionTooltip}
+                        >
+                          Model substituted
+                        </span>
+                      )}
                     </div>
                   </>
                 ) : (
@@ -1496,7 +1538,10 @@ export function ChatWindow({
                 : MODEL_PROVIDER_LABELS[m.runtime.llmProvider]
               : null;
             const runtimeLlmModelLabel =
-              m.runtime?.llmModelId ?? m.runtime?.llmModel ?? null;
+              m.runtime?.resolvedLlmModelId ??
+              m.runtime?.llmModelId ??
+              m.runtime?.llmModel ??
+              null;
             const runtimeLlmDisplay =
               runtimeLlmProviderLabel && runtimeLlmModelLabel
                 ? `${runtimeLlmProviderLabel} / ${runtimeLlmModelLabel}`

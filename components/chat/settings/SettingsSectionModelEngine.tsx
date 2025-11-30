@@ -1,10 +1,12 @@
 "use client";
 
+import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiCpu } from "@react-icons/all-files/fi/FiCpu";
 import { useMemo } from "react";
 
 import type { EmbeddingModelId, LlmModelId } from "@/lib/shared/models";
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { Label } from "@/components/ui/label";
 import {
@@ -35,6 +37,7 @@ export function SettingsSectionModelEngine({
   sessionConfig,
   setSessionConfig,
 }: Props) {
+  const { runtimeMeta } = useChatConfig();
   const llmOptions = useMemo(() => {
     const allowlist = new Set(adminConfig.allowlist.llmModels);
     const availableOptions = listLlmModelOptions();
@@ -101,6 +104,19 @@ export function SettingsSectionModelEngine({
               ))}
             </SelectContent>
           </Select>
+          {sessionConfig.llmModelResolution?.wasSubstituted && (
+            <div className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500">
+              <FiAlertCircle
+                aria-hidden="true"
+                className="shrink-0"
+                size={12}
+                title={`Model substituted at runtime: ${sessionConfig.llmModelResolution.requestedModelId} → ${sessionConfig.llmModelResolution.resolvedModelId ?? runtimeMeta.defaultLlmModelId}`}
+              />
+              <span className="leading-tight">
+                Using {sessionConfig.llmModelResolution.resolvedModelId} instead
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="ai-field">
