@@ -147,8 +147,8 @@ export function mergeMetadata(
   const normalizedIncoming = normalizeMetadata(incoming) ?? undefined;
 
   const merged = {
-    ...(normalizedExisting ?? {}),
-    ...(normalizedIncoming ?? {}),
+    ...normalizedExisting,
+    ...normalizedIncoming,
   };
 
   return normalizeMetadata(merged);

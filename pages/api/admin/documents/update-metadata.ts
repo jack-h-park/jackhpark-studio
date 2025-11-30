@@ -1,9 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import {
+  DOC_TYPE_OPTIONS,
   mergeMetadata,
   normalizeMetadata,
-  DOC_TYPE_OPTIONS,
   PERSONA_TYPE_OPTIONS,
   type RagDocumentMetadata,
 } from "@/lib/rag/metadata";
@@ -29,7 +29,7 @@ function parseMetadata(input: unknown): RagDocumentMetadata {
               ? String(tag)
               : null,
         )
-        .filter((tag): tag is string => Boolean(tag))
+        .filter(Boolean)
     : undefined;
 
   const metadata: RagDocumentMetadata = {};

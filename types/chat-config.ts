@@ -1,10 +1,10 @@
+import type { DocType, PersonaType } from "@/lib/rag/metadata";
 import type { ChatEngine } from "@/lib/shared/model-provider";
 import type {
   EmbeddingModelId,
   LlmModelId,
   RankerId,
 } from "@/lib/shared/models";
-import type { DocType, PersonaType } from "@/lib/rag/metadata";
 
 export type SummaryLevel = "off" | "low" | "medium" | "high";
 

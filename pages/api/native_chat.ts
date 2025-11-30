@@ -12,6 +12,11 @@ import { isOllamaEnabled } from "@/lib/core/ollama";
 import { getOpenAIClient } from "@/lib/core/openai";
 import { getRagMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
+import { normalizeMetadata } from "@/lib/rag/metadata";
+import { computeMetadataWeight } from "@/lib/rag/ranking";
+import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
+import { buildRagConfigSnapshot } from "@/lib/rag/telemetry";
+import type { RagConfigSnapshot } from "@/lib/rag/types";
 import {
   applyHistoryWindow,
   buildContextWindow,
@@ -62,9 +67,6 @@ import {
   parseReverseRagMode,
 } from "@/lib/shared/rag-config";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import { normalizeMetadata } from "@/lib/rag/metadata";
-import { computeMetadataWeight } from "@/lib/rag/ranking";
-import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 
 const RAG_DEBUG = (process.env.RAG_DEBUG ?? "").toLowerCase() === "true";
 
@@ -82,6 +84,7 @@ function logRetrievalStage(
   trace: ReturnType<typeof langfuse.trace> | null,
   stage: string,
   entries: RetrievalLogEntry[],
+  meta?: { engine?: string; presetKey?: string; ragConfig?: RagConfigSnapshot },
 ) {
   if (!RAG_DEBUG && !trace) {
     return;
@@ -105,6 +108,9 @@ function logRetrievalStage(
     name: "rag_retrieval_stage",
     metadata: {
       stage,
+      engine: meta?.engine ?? "native",
+      presetKey: meta?.presetKey ?? "default",
+      ragConfig: meta?.ragConfig,
       entries: payload,
     },
   });
@@ -168,12 +174,16 @@ export default async function handler(
   }
 
   try {
-    const body: ChatRequestBody =
-      typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+  const body: ChatRequestBody =
+    typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
 
-    const guardrails = await getChatGuardrailConfig();
-    const adminConfig = await getAdminChatConfig();
-    const ragRanking = adminConfig.ragRanking;
+  const guardrails = await getChatGuardrailConfig();
+  const adminConfig = await getAdminChatConfig();
+  const ragRanking = adminConfig.ragRanking;
+  const ragConfigSnapshot: RagConfigSnapshot = buildRagConfigSnapshot(
+    adminConfig,
+    "default",
+  );
 
     const rawMessages = Array.isArray(body.messages)
       ? sanitizeMessages(body.messages)
@@ -287,6 +297,7 @@ export default async function handler(
         model: llmModel,
         embeddingProvider,
         embeddingModel,
+        ragConfig: ragConfigSnapshot,
         config: {
           reverseRagEnabled,
           reverseRagMode,
@@ -490,6 +501,7 @@ export default async function handler(
           persona_type: null,
           is_public: null,
         })),
+        { engine: "native", presetKey: ragConfigSnapshot.presetKey, ragConfig: ragConfigSnapshot },
       );
 
       const enrichedDocuments = typedDocuments
@@ -560,6 +572,7 @@ export default async function handler(
             (doc.metadata as { is_public?: boolean | null } | null)?.is_public ??
             null,
         })),
+        { engine: "native", presetKey: ragConfigSnapshot.presetKey, ragConfig: ragConfigSnapshot },
       );
       const canonicalLookup = await loadCanonicalPageLookup();
       const normalizedDocuments = applyPublicPageUrls(

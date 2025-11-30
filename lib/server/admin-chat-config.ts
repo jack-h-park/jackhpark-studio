@@ -16,6 +16,10 @@ import {
 import { listLlmModelOptions } from "@/lib/core/llm-registry";
 import { supabaseClient } from "@/lib/core/supabase";
 import {
+  DOC_TYPE_WEIGHTS,
+  PERSONA_WEIGHTS,
+} from "@/lib/rag/ranking";
+import {
   getChatModelDefaults,
   loadGuardrailSettings,
 } from "@/lib/server/chat-settings";
@@ -30,10 +34,6 @@ import {
   DEFAULT_REVERSE_RAG_ENABLED,
   RANKER_MODES,
 } from "@/lib/shared/rag-config";
-import {
-  DOC_TYPE_WEIGHTS,
-  PERSONA_WEIGHTS,
-} from "@/lib/rag/ranking";
 
 export const ADMIN_CONFIG_SETTING_KEY = "admin_chat_config";
 

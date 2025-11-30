@@ -47,6 +47,14 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import {
+  DOC_TYPE_OPTIONS,
+  PERSONA_TYPE_OPTIONS,
+} from "@/lib/rag/metadata";
+import {
+  DOC_TYPE_WEIGHTS,
+  PERSONA_WEIGHTS,
+} from "@/lib/rag/ranking";
+import {
   getAdminChatConfig,
   getAdminChatConfigMetadata,
 } from "@/lib/server/admin-chat-config";
@@ -59,14 +67,6 @@ import {
   CHAT_ENGINE_OPTIONS,
   type ChatEngine,
 } from "@/lib/shared/model-provider";
-import {
-  DOC_TYPE_OPTIONS,
-  PERSONA_TYPE_OPTIONS,
-} from "@/lib/rag/metadata";
-import {
-  DOC_TYPE_WEIGHTS,
-  PERSONA_WEIGHTS,
-} from "@/lib/rag/ranking";
 import {
   type EmbeddingModelId,
   LLM_MODEL_DEFINITIONS,
@@ -267,11 +267,11 @@ function AdminChatConfigForm({
       ...prev,
       ragRanking: {
         docTypeWeights: {
-          ...(prev.ragRanking?.docTypeWeights ?? {}),
+          ...prev.ragRanking?.docTypeWeights,
           [docType]: clamped,
         },
         personaTypeWeights: {
-          ...(prev.ragRanking?.personaTypeWeights ?? {}),
+          ...prev.ragRanking?.personaTypeWeights,
         },
       },
     }));
@@ -286,10 +286,10 @@ function AdminChatConfigForm({
       ...prev,
       ragRanking: {
         docTypeWeights: {
-          ...(prev.ragRanking?.docTypeWeights ?? {}),
+          ...prev.ragRanking?.docTypeWeights,
         },
         personaTypeWeights: {
-          ...(prev.ragRanking?.personaTypeWeights ?? {}),
+          ...prev.ragRanking?.personaTypeWeights,
           [persona]: clamped,
         },
       },

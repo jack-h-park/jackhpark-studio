@@ -1,8 +1,8 @@
 import { normalizeTimestamp } from "@/lib/rag";
 import {
+  DOC_TYPE_OPTIONS,
   mergeMetadata,
   normalizeMetadata,
-  DOC_TYPE_OPTIONS,
   type RagDocumentMetadata,
 } from "@/lib/rag/metadata";
 

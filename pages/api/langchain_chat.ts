@@ -19,6 +19,9 @@ import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { normalizeMetadata, type RagDocumentMetadata } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
+import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
+import { buildRagConfigSnapshot } from "@/lib/rag/telemetry";
+import type { RagConfigSnapshot } from "@/lib/rag/types";
 import {
   applyHistoryWindow,
   buildContextWindow,
@@ -65,7 +68,6 @@ import {
   parseRankerMode,
   parseReverseRagMode,
 } from "@/lib/shared/rag-config";
-import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 
 /**
  * Pages Router API (Node.js runtime).
@@ -139,6 +141,7 @@ function logRetrievalStage(
   trace: ReturnType<typeof langfuse.trace> | null,
   stage: string,
   entries: RetrievalLogEntry[],
+  meta?: { engine?: string; presetKey?: string; ragConfig?: RagConfigSnapshot },
 ) {
   if (!RAG_DEBUG && !trace) {
     return;
@@ -162,6 +165,9 @@ function logRetrievalStage(
     name: "rag_retrieval_stage",
     metadata: {
       stage,
+      engine: meta?.engine ?? "langchain",
+      presetKey: meta?.presetKey ?? "default",
+      ragConfig: meta?.ragConfig,
       entries: payload,
     },
   });
@@ -193,6 +199,10 @@ export default async function handler(
     const guardrails = await getChatGuardrailConfig();
     const adminConfig = await getAdminChatConfig();
     const ragRanking = adminConfig.ragRanking;
+    const ragConfigSnapshot: RagConfigSnapshot = buildRagConfigSnapshot(
+      adminConfig,
+      "default",
+    );
     const fallbackQuestion =
       typeof body.question === "string" ? body.question : undefined;
     let rawMessages: ChatMessage[] = [];
@@ -306,6 +316,7 @@ export default async function handler(
         model: llmModel,
         embeddingProvider,
         embeddingModel,
+        ragConfig: ragConfigSnapshot,
         config: {
           reverseRagEnabled,
           reverseRagMode,
@@ -508,6 +519,7 @@ export default async function handler(
             doc_id: entry.docId,
             similarity: entry.baseSimilarity,
           })),
+          { engine: "langchain", presetKey: ragConfigSnapshot.presetKey, ragConfig: ragConfigSnapshot },
         );
 
         const docIds = Array.from(
@@ -602,6 +614,7 @@ export default async function handler(
             is_public:
               (doc.metadata as { is_public?: boolean | null })?.is_public ?? null,
           })),
+          { engine: "langchain", presetKey: ragConfigSnapshot.presetKey, ragConfig: ragConfigSnapshot },
         );
         if (trace) {
           void trace.observation({

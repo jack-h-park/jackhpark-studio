@@ -16,6 +16,7 @@ import {
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeaderCard } from "@/components/ui/page-header-card";
 import {
   Select,
   SelectContent,
@@ -23,19 +24,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PageHeaderCard } from "@/components/ui/page-header-card";
-import {
-  DOC_TYPE_OPTIONS,
-  PERSONA_TYPE_OPTIONS,
-  SOURCE_TYPE_OPTIONS,
-  type RagDocumentMetadata,
-} from "@/lib/rag/metadata";
-import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import {
   normalizeRagDocument,
   type RagDocumentRecord,
 } from "@/lib/admin/rag-documents";
+import {
+  DOC_TYPE_OPTIONS,
+  PERSONA_TYPE_OPTIONS,
+  type RagDocumentMetadata,
+  SOURCE_TYPE_OPTIONS,
+} from "@/lib/rag/metadata";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 type DocumentRow = RagDocumentRecord & {
   displayTitle: string;

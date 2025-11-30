@@ -16,6 +16,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeaderCard } from "@/components/ui/page-header-card";
 import {
   Select,
   SelectContent,
@@ -24,16 +25,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { PageHeaderCard } from "@/components/ui/page-header-card";
+import {
+  normalizeRagDocument,
+  type RagDocumentRecord,
+} from "@/lib/admin/rag-documents";
 import {
   DOC_TYPE_OPTIONS,
   PERSONA_TYPE_OPTIONS,
   type RagDocumentMetadata,
 } from "@/lib/rag/metadata";
-import {
-  normalizeRagDocument,
-  type RagDocumentRecord,
-} from "@/lib/admin/rag-documents";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 

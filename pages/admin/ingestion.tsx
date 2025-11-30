@@ -62,6 +62,12 @@ import {
 import { TabPill } from "@/components/ui/tab-pill";
 import { TabPanel } from "@/components/ui/tabs";
 import {
+  computeDocumentStats,
+  normalizeRagDocument,
+  type RagDocumentRecord,
+  type RagDocumentStats,
+} from "@/lib/admin/rag-documents";
+import {
   ALL_FILTER_VALUE,
   DEFAULT_MANUAL_EMBEDDING_SPACE_ID,
   EMBEDDING_MODEL_OPTIONS,
@@ -70,12 +76,6 @@ import {
   getStatusLabel,
   UNKNOWN_EMBEDDING_FILTER_VALUE,
 } from "@/lib/admin/recent-runs-filters";
-import {
-  computeDocumentStats,
-  normalizeRagDocument,
-  type RagDocumentRecord,
-  type RagDocumentStats,
-} from "@/lib/admin/rag-documents";
 import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import {

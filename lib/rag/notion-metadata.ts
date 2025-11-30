@@ -3,8 +3,8 @@ import { getTextContent } from "notion-utils";
 
 import {
   DOC_TYPE_OPTIONS,
-  PERSONA_TYPE_OPTIONS,
   normalizeMetadata,
+  PERSONA_TYPE_OPTIONS,
   type RagDocumentMetadata,
 } from "./metadata";
 
