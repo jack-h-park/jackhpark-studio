@@ -17,6 +17,8 @@ import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOllamaRuntimeConfig, isOllamaEnabled } from "@/lib/core/ollama";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
+import { normalizeMetadata, type RagDocumentMetadata } from "@/lib/rag/metadata";
+import { computeMetadataWeight } from "@/lib/rag/ranking";
 import {
   applyHistoryWindow,
   buildContextWindow,
@@ -100,6 +102,7 @@ const DEBUG_LANGCHAIN_STREAM =
   (process.env.DEBUG_LANGCHAIN_STREAM ?? "").toLowerCase() === "true";
 
 const DEBUG_LANGCHAIN_SEGMENT_SIZE = 60;
+const RAG_DEBUG = (process.env.RAG_DEBUG ?? "").toLowerCase() === "true";
 
 function splitIntoSegments(value: string, size: number): string[] {
   if (!value || size <= 0) {
@@ -119,6 +122,48 @@ function formatChunkPreview(value: string) {
     return collapsed;
   }
   return `${collapsed.slice(0, 60)}…`;
+}
+
+type RetrievalLogEntry = {
+  doc_id: string | null;
+  similarity: number | null;
+  weight?: number | null;
+  finalScore?: number | null;
+  doc_type?: string | null;
+  persona_type?: string | null;
+  is_public?: boolean | null;
+};
+
+function logRetrievalStage(
+  trace: ReturnType<typeof langfuse.trace> | null,
+  stage: string,
+  entries: RetrievalLogEntry[],
+) {
+  if (!RAG_DEBUG && !trace) {
+    return;
+  }
+
+  const payload = entries.map((entry) => ({
+    doc_id: entry.doc_id,
+    similarity: entry.similarity,
+    weight: entry.weight,
+    finalScore: entry.finalScore,
+    doc_type: entry.doc_type ?? null,
+    persona_type: entry.persona_type ?? null,
+    is_public: entry.is_public ?? null,
+  }));
+
+  if (RAG_DEBUG) {
+    console.log("[rag:langchain] retrieval", stage, payload);
+  }
+
+  trace?.observation({
+    name: "rag_retrieval_stage",
+    metadata: {
+      stage,
+      entries: payload,
+    },
+  });
 }
 
 const SUPABASE_URL = process.env.SUPABASE_URL as string;
@@ -431,16 +476,117 @@ export default async function handler(
           );
           return [rewrittenDoc, score] as (typeof matches)[number];
         });
-        const ragDocs = normalizedMatches.map(([doc, score]) => ({
-          chunk: doc.pageContent,
-          metadata: doc.metadata,
-          similarity:
+
+        const baseDocs = normalizedMatches.map(([doc, score]) => {
+          const baseSimilarity =
             typeof score === "number"
               ? score
               : typeof doc?.metadata?.similarity === "number"
                 ? (doc.metadata.similarity as number)
-                : undefined,
-        }));
+                : 0;
+          const docId =
+            (doc.metadata?.doc_id as string | undefined) ??
+            (doc.metadata?.docId as string | undefined) ??
+            (doc.metadata?.document_id as string | undefined) ??
+            (doc.metadata?.documentId as string | undefined) ??
+            null;
+
+          return {
+            doc,
+            docId,
+            baseSimilarity,
+          };
+        });
+
+        logRetrievalStage(
+          trace,
+          "raw_results",
+          baseDocs.map((entry) => ({
+            doc_id: entry.docId,
+            similarity: entry.baseSimilarity,
+          })),
+        );
+
+        const docIds = Array.from(
+          new Set(
+            baseDocs
+              .map((entry) => entry.docId)
+              .filter(
+                (id): id is string => typeof id === "string" && id.length > 0,
+              ),
+          ),
+        );
+
+        let metadataRows:
+          | { doc_id?: string; metadata?: RagDocumentMetadata | null }[]
+          | undefined;
+        if (docIds.length > 0) {
+          const { data } = await supabase
+            .from("rag_documents")
+            .select("doc_id, metadata")
+            .in("doc_id", docIds);
+          metadataRows = data as typeof metadataRows;
+        }
+
+        const metadataMap = new Map<string, RagDocumentMetadata | null>();
+        for (const row of metadataRows ?? []) {
+          const docId = (row as { doc_id?: string }).doc_id;
+          if (typeof docId === "string") {
+            metadataMap.set(
+              docId,
+              normalizeMetadata(
+                (row as { metadata?: unknown }).metadata as RagDocumentMetadata,
+              ),
+            );
+          }
+        }
+
+        const ragDocs = baseDocs
+          .map(({ doc, docId, baseSimilarity }) => {
+            const hydratedMeta =
+              (docId ? metadataMap.get(docId) ?? null : null) ??
+              normalizeMetadata(doc.metadata as RagDocumentMetadata) ??
+              null;
+
+            if (hydratedMeta?.is_public === false) {
+              return null;
+            }
+
+            const weight = computeMetadataWeight(hydratedMeta ?? undefined);
+            const finalScore = baseSimilarity * weight;
+
+            return {
+              chunk: doc.pageContent,
+              metadata: {
+                ...doc.metadata,
+                ...hydratedMeta,
+                doc_id: docId ?? (doc.metadata?.doc_id as string | undefined),
+              },
+              similarity: finalScore,
+              base_similarity: baseSimilarity,
+              metadata_weight: weight,
+            };
+          })
+          .filter((doc): doc is { chunk: string; metadata: any; similarity: number } => Boolean(doc))
+          // eslint-disable-next-line unicorn/no-array-sort
+          .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
+
+        logRetrievalStage(
+          trace,
+          "after_weighting",
+          ragDocs.map((doc) => ({
+            doc_id:
+              (doc.metadata?.doc_id as string | null) ??
+              (doc.metadata?.docId as string | null) ??
+              null,
+            similarity: (doc as any).base_similarity ?? null,
+            weight: (doc as any).metadata_weight ?? null,
+            finalScore: doc.similarity ?? null,
+            doc_type: (doc.metadata as any)?.doc_type ?? null,
+            persona_type: (doc.metadata as any)?.persona_type ?? null,
+            is_public: (doc.metadata as any)?.is_public ?? null,
+          })),
+        );
         if (trace) {
           void trace.observation({
             name: "retrieval",

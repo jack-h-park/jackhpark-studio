@@ -62,7 +62,52 @@ import {
   parseReverseRagMode,
 } from "@/lib/shared/rag-config";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { normalizeMetadata } from "@/lib/rag/metadata";
+import { computeMetadataWeight } from "@/lib/rag/ranking";
 
+const RAG_DEBUG = (process.env.RAG_DEBUG ?? "").toLowerCase() === "true";
+
+type RetrievalLogEntry = {
+  doc_id: string | null;
+  similarity: number | null;
+  weight?: number | null;
+  finalScore?: number | null;
+  doc_type?: string | null;
+  persona_type?: string | null;
+  is_public?: boolean | null;
+};
+
+function logRetrievalStage(
+  trace: ReturnType<typeof langfuse.trace> | null,
+  stage: string,
+  entries: RetrievalLogEntry[],
+) {
+  if (!RAG_DEBUG && !trace) {
+    return;
+  }
+
+  const payload = entries.map((entry) => ({
+    doc_id: entry.doc_id,
+    similarity: entry.similarity,
+    weight: entry.weight,
+    finalScore: entry.finalScore,
+    doc_type: entry.doc_type ?? null,
+    persona_type: entry.persona_type ?? null,
+    is_public: entry.is_public ?? null,
+  }));
+
+  if (RAG_DEBUG) {
+    console.log("[rag:native] retrieval", stage, payload);
+  }
+
+  trace?.observation({
+    name: "rag_retrieval_stage",
+    metadata: {
+      stage,
+      entries: payload,
+    },
+  });
+}
 type RagDocumentMetadata = {
   doc_id?: string | null;
   docId?: string | null;
@@ -399,9 +444,119 @@ export default async function handler(
       const typedDocuments: RagDocument[] = Array.isArray(documents)
         ? (documents as RagDocument[])
         : [];
+      const docIds = typedDocuments
+        .map(
+          (doc) =>
+            doc.doc_id || doc.docId || doc.document_id || doc.documentId || null,
+        )
+        .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+      let metadataRows: { doc_id?: string; metadata?: RagDocumentMetadata | null }[] =
+        [];
+      if (docIds.length > 0) {
+        const { data } = await supabase
+          .from("rag_documents")
+          .select("doc_id, metadata")
+          .in("doc_id", docIds);
+        metadataRows = (data ?? []) as typeof metadataRows;
+      }
+
+      const metadataMap = new Map<string, RagDocumentMetadata | null>();
+      for (const row of metadataRows ?? []) {
+        const docId = (row as { doc_id?: string }).doc_id;
+        if (typeof docId === "string") {
+          metadataMap.set(docId, normalizeMetadata((row as { metadata?: unknown }).metadata as any));
+        }
+      }
+
+      logRetrievalStage(
+        trace,
+        "raw_results",
+        typedDocuments.map((doc) => ({
+          doc_id:
+            doc.doc_id || doc.docId || doc.document_id || doc.documentId || null,
+          similarity:
+            typeof doc.similarity === "number"
+              ? doc.similarity
+              : typeof doc.score === "number"
+                ? doc.score
+                : typeof doc.similarity_score === "number"
+                  ? doc.similarity_score
+                  : null,
+          doc_type: null,
+          persona_type: null,
+          is_public: null,
+        })),
+      );
+
+      const enrichedDocuments = typedDocuments
+        .map((doc) => {
+          const docId =
+            doc.doc_id || doc.docId || doc.document_id || doc.documentId || null;
+          const metadata = docId ? metadataMap.get(docId) ?? null : null;
+          const baseSimilarity =
+            typeof doc.similarity === "number"
+              ? doc.similarity
+              : typeof doc.score === "number"
+                ? doc.score
+                : typeof doc.similarity_score === "number"
+                ? doc.similarity_score
+                : 0;
+          if (metadata?.is_public === false) {
+            return {
+              filteredOut: true,
+              baseSimilarity,
+              metadata,
+              docId,
+            };
+          }
+          const weight = computeMetadataWeight(metadata ?? undefined);
+          const finalScore = baseSimilarity * weight;
+
+          return {
+            ...doc,
+            metadata,
+            similarity: finalScore,
+            score: finalScore,
+            metadata_weight: weight,
+            base_similarity: baseSimilarity,
+            filteredOut: false,
+          } as RagDocument & {
+            metadata_weight?: number;
+            base_similarity?: number;
+            filteredOut?: boolean;
+          };
+        })
+        .filter(
+          (doc): doc is RagDocument & {
+            metadata_weight?: number;
+            base_similarity?: number;
+            filteredOut?: boolean;
+          } =>
+            doc !== null && doc.filteredOut !== true,
+        )
+        // eslint-disable-next-line unicorn/no-array-sort
+        .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
+
+      logRetrievalStage(
+        trace,
+        "after_weighting",
+        enrichedDocuments.map((doc) => ({
+          doc_id:
+            doc.doc_id || doc.docId || doc.document_id || doc.documentId || null,
+          similarity: (doc as any).base_similarity ?? null,
+          weight: (doc as any).metadata_weight ?? null,
+          finalScore: doc.similarity ?? null,
+          doc_type: (doc.metadata as RagDocumentMetadata | null)?.doc_type ?? null,
+          persona_type:
+            (doc.metadata as RagDocumentMetadata | null)?.persona_type ?? null,
+          is_public:
+            (doc.metadata as RagDocumentMetadata | null)?.is_public ?? null,
+        })),
+      );
       const canonicalLookup = await loadCanonicalPageLookup();
       const normalizedDocuments = applyPublicPageUrls(
-        typedDocuments,
+        enrichedDocuments,
         canonicalLookup,
       );
       if (trace) {
