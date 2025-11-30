@@ -70,6 +70,12 @@ import {
   getStatusLabel,
   UNKNOWN_EMBEDDING_FILTER_VALUE,
 } from "@/lib/admin/recent-runs-filters";
+import {
+  computeDocumentStats,
+  normalizeRagDocument,
+  type RagDocumentRecord,
+  type RagDocumentStats,
+} from "@/lib/admin/rag-documents";
 import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import {
@@ -147,6 +153,7 @@ type PageProps = {
   recentRuns: RecentRunsSnapshot;
   headerRecordMap: ExtendedRecordMap | null;
   headerBlockId: string;
+  documentsStats: RagDocumentStats | null;
 };
 
 type ManualRunStats = {
@@ -1770,6 +1777,84 @@ function DatasetSnapshotSection({
   );
 }
 
+function RagDocumentsOverview({
+  stats,
+}: {
+  stats: RagDocumentStats | null;
+}): JSX.Element {
+  const docTypeEntries = useMemo(() => {
+    if (!stats) {
+      return [];
+    }
+
+    return Object.entries(stats.byDocType).toSorted(([a], [b]) =>
+      a.localeCompare(b),
+    );
+  }, [stats]);
+
+  return (
+    <section className="ai-card space-y-4 p-6">
+      <CardHeader>
+        <CardTitle icon={<FiLayers aria-hidden="true" />}>
+          RAG Documents Overview
+        </CardTitle>
+        <p className="ai-card-description">
+          Quick summary of stored documents and metadata.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {stats ? (
+          <>
+            <GridPanel className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
+              <StatCard
+                label="Total documents"
+                value={numberFormatter.format(stats.total)}
+              />
+              <StatCard
+                label="Public"
+                value={numberFormatter.format(stats.publicCount)}
+              />
+              <StatCard
+                label="Private"
+                value={numberFormatter.format(stats.privateCount)}
+              />
+            </GridPanel>
+            <div className="space-y-2">
+              <div className="ai-meta-text uppercase tracking-[0.1em] text-xs">
+                By doc type
+              </div>
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2">
+                {docTypeEntries.map(([type, count]) => (
+                  <div
+                    key={type}
+                    className="flex items-center justify-between rounded-[var(--ai-radius-md)] border border-[color:var(--ai-border-soft)] bg-[hsl(var(--ai-surface))] px-3 py-2 text-sm"
+                  >
+                    <span className="text-[color:var(--ai-text-soft)]">
+                      {type}
+                    </span>
+                    <span className="font-semibold">
+                      {numberFormatter.format(count)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="ai-meta-text pl-1">
+            Unable to load document stats right now.
+          </div>
+        )}
+        <div className="flex justify-end">
+          <LinkButton href="/admin/documents" variant="outline">
+            View all documents
+          </LinkButton>
+        </div>
+      </CardContent>
+    </section>
+  );
+}
+
 function SystemHealthSection({
   health,
 }: {
@@ -2957,6 +3042,7 @@ function IngestionDashboard({
   recentRuns,
   headerRecordMap,
   headerBlockId,
+  documentsStats,
 }: PageProps): JSX.Element {
   return (
     <>
@@ -2974,15 +3060,21 @@ function IngestionDashboard({
           title="Ingestion Dashboard"
           description="Monitor ingestion health, trigger manual runs, and review the latest dataset snapshot."
           actions={
-            <LinkButton href="/admin/chat-config" variant="outline">
-              Chat Configuration
-            </LinkButton>
+            <div className="flex flex-wrap items-center gap-2">
+              <LinkButton href="/admin/documents" variant="outline">
+                Manage RAG Documents
+              </LinkButton>
+              <LinkButton href="/admin/chat-config" variant="outline">
+                Chat Configuration
+              </LinkButton>
+            </div>
           }
         />
 
         <ManualIngestionPanel />
 
         <DatasetSnapshotSection overview={datasetSnapshot} />
+        <RagDocumentsOverview stats={documentsStats} />
         <SystemHealthSection health={systemHealth} />
 
         <RecentRunsSection initial={recentRuns} />
@@ -3074,6 +3166,23 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
         run.status === "failed" || run.status === "completed_with_errors",
     ) ?? null;
 
+  const { data: docsData, error: docsError } = await supabase
+    .from("rag_documents")
+    .select("doc_id, source_url, last_ingested_at, last_source_update, chunk_count, total_characters, metadata")
+    .order("last_ingested_at", { ascending: false })
+    .limit(2000);
+
+  const documentsStats = docsError
+    ? null
+    : computeDocumentStats(
+        (docsData ?? [])
+          .map((row: unknown) => normalizeRagDocument(row))
+          .filter(
+            (doc: RagDocumentRecord | null): doc is RagDocumentRecord =>
+              doc !== null && typeof doc.doc_id === "string",
+          ),
+      );
+
   const systemHealth: SystemHealthOverview = {
     runId: latestSnapshotRecord?.runId ?? latestRun?.id ?? null,
     status:
@@ -3119,6 +3228,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
       },
       headerRecordMap,
       headerBlockId,
+      documentsStats,
     },
   };
 };

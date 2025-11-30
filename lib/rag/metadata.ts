@@ -20,6 +20,27 @@ export type RagDocumentMetadata = {
   [key: string]: unknown;
 };
 
+export const DOC_TYPE_OPTIONS: readonly DocType[] = [
+  "profile",
+  "blog_post",
+  "kb_article",
+  "insight_note",
+  "project_article",
+  "photo",
+  "other",
+] as const;
+
+export const PERSONA_TYPE_OPTIONS: readonly PersonaType[] = [
+  "personal",
+  "professional",
+  "hybrid",
+] as const;
+
+export const SOURCE_TYPE_OPTIONS: readonly SourceType[] = [
+  "notion",
+  "url",
+] as const;
+
 type NormalizedMetadata = RagDocumentMetadata | null;
 
 function normalizeTags(tags: unknown): string[] | undefined {
