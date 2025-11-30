@@ -28,8 +28,8 @@ import {
 } from "@/lib/server/chat-guardrails";
 import { type ChatMessage, sanitizeMessages } from "@/lib/server/chat-messages";
 import {
+  buildFinalSystemPrompt,
   loadChatModelSettings,
-  loadSystemPrompt,
 } from "@/lib/server/chat-settings";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import {
@@ -55,6 +55,7 @@ import {
 import { type ModelProvider } from "@/lib/shared/model-provider";
 import { DEFAULT_REVERSE_RAG_MODE } from "@/lib/shared/rag-config";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import type { SessionChatConfig } from "@/types/chat-config";
 
 const RAG_DEBUG = (process.env.RAG_DEBUG ?? "").toLowerCase() === "true";
 
@@ -146,6 +147,7 @@ type ChatRequestBody = {
   reverseRagMode?: unknown;
   hydeEnabled?: unknown;
   rankerMode?: unknown;
+  sessionConfig?: unknown;
 };
 
 const DEFAULT_MATCH_COUNT = Number(process.env.RAG_TOP_K ?? 5);
@@ -162,18 +164,27 @@ export default async function handler(
   }
 
   try {
-  const body: ChatRequestBody =
-    typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
+    const body: ChatRequestBody =
+      typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
 
     const guardrails = await getChatGuardrailConfig();
-  const adminConfig = await getAdminChatConfig();
-  const ragRanking = adminConfig.ragRanking;
-  const ragConfigSnapshot: RagConfigSnapshot = buildRagConfigSnapshot(
-    adminConfig,
-    "default",
-  );
-  const runtime =
-    (req as any).chatRuntime ?? (await loadChatModelSettings({ forceRefresh: true }));
+    const adminConfig = await getAdminChatConfig();
+    const sessionConfig =
+      body.sessionConfig && typeof body.sessionConfig === "object"
+        ? (body.sessionConfig as SessionChatConfig)
+        : undefined;
+    const presetId =
+      sessionConfig?.presetId ??
+      (typeof sessionConfig?.appliedPreset === "string"
+        ? sessionConfig.appliedPreset
+        : "default");
+    const ragRanking = adminConfig.ragRanking;
+    const ragConfigSnapshot: RagConfigSnapshot = buildRagConfigSnapshot(
+      adminConfig,
+      presetId,
+    );
+    const runtime =
+      (req as any).chatRuntime ?? (await loadChatModelSettings({ forceRefresh: true }));
 
     const rawMessages = Array.isArray(body.messages)
       ? sanitizeMessages(body.messages)
@@ -630,7 +641,10 @@ export default async function handler(
       encodeURIComponent(serializeGuardrailMeta(responseMeta)),
     );
 
-    const { prompt: basePrompt } = await loadSystemPrompt();
+    const basePrompt = buildFinalSystemPrompt({
+      adminConfig,
+      sessionConfig,
+    });
     const contextBlock =
       contextResult.contextBlock && contextResult.contextBlock.length > 0
         ? contextResult.contextBlock

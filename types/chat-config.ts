@@ -19,7 +19,8 @@ export interface AdminNumericLimit {
 }
 
 export interface SessionChatConfig {
-  userSystemPrompt: string;
+  presetId?: string;
+  additionalSystemPrompt?: string;
   llmModel: LlmModelId;
   embeddingModel: EmbeddingModelId;
   chatEngine: ChatEngine;
@@ -43,7 +44,10 @@ export interface SessionChatConfig {
   appliedPreset?: "default" | "fast" | "highRecall";
 }
 
-export type SessionChatConfigPreset = Omit<SessionChatConfig, "appliedPreset">;
+export type SessionChatConfigPreset = Omit<
+  SessionChatConfig,
+  "appliedPreset" | "presetId"
+>;
 
 export type RagRankingConfig = {
   docTypeWeights: Partial<Record<DocType, number>>;
@@ -64,9 +68,9 @@ export type AdminChatRuntimeMeta = {
 export type { ModelResolution, ModelResolutionReason };
 
 export interface AdminChatConfig {
-  coreSystemPromptSummary: string;
-  userSystemPromptDefault: string;
-  userSystemPromptMaxLength: number;
+  baseSystemPrompt?: string;
+  baseSystemPromptSummary?: string;
+  additionalPromptMaxLength?: number;
   numericLimits: {
     ragTopK: AdminNumericLimit;
     similarityThreshold: AdminNumericLimit;
@@ -99,9 +103,21 @@ export interface AdminChatConfig {
     };
   };
   presets: {
-    default: SessionChatConfigPreset;
-    fast: SessionChatConfigPreset;
-    highRecall: SessionChatConfigPreset;
+    default: AdminPresetConfig;
+    fast: AdminPresetConfig;
+    highRecall: AdminPresetConfig;
   };
   ragRanking?: RagRankingConfig;
+}
+
+export interface AdminPresetConfig extends SessionChatConfigPreset {
+  additionalSystemPrompt?: string;
+}
+
+export const DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH = 500;
+
+export function getAdditionalPromptMaxLength(
+  config: AdminChatConfig,
+): number {
+  return config.additionalPromptMaxLength ?? DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH;
 }

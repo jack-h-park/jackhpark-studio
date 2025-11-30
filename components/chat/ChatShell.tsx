@@ -109,8 +109,8 @@ function ChatShellContent() {
   };
 
   const renderPromptSummary = useMemo(
-    () => adminConfig.coreSystemPromptSummary,
-    [adminConfig.coreSystemPromptSummary],
+    () => adminConfig.baseSystemPromptSummary ?? "",
+    [adminConfig.baseSystemPromptSummary],
   );
 
   return (

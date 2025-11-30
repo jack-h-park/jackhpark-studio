@@ -18,6 +18,7 @@ import type {
   SessionChatConfig,
   SessionChatConfigPreset,
   SummaryLevel,
+  getAdditionalPromptMaxLength,
 } from "@/types/chat-config";
 import { resolveLlmModelId } from "@/lib/shared/model-resolution";
 
@@ -61,6 +62,7 @@ const sanitizeNumericConfig = (
   },
 ): SessionChatConfig => {
   const { numericLimits, allowlist } = adminConfig;
+  const additionalPromptLimit = getAdditionalPromptMaxLength(adminConfig);
 
   const topK = isFiniteNumber(candidate.rag.topK)
     ? clampValue(candidate.rag.topK, numericLimits.ragTopK)
@@ -83,13 +85,10 @@ const sanitizeNumericConfig = (
     ? candidate.summaryLevel
     : "off";
 
-  const userPrompt =
-    typeof candidate.userSystemPrompt === "string"
-      ? candidate.userSystemPrompt.slice(
-          0,
-          adminConfig.userSystemPromptMaxLength,
-        )
-      : adminConfig.userSystemPromptDefault;
+  const additionalPrompt =
+    typeof candidate.additionalSystemPrompt === "string"
+      ? candidate.additionalSystemPrompt.slice(0, additionalPromptLimit)
+      : "";
 
   const ranker = sanitizeModel(
     candidate.features.ranker,
@@ -110,7 +109,8 @@ const sanitizeNumericConfig = (
   const hyde = allowlist.allowHyde ? Boolean(candidate.features.hyde) : false;
 
   return {
-    userSystemPrompt: userPrompt,
+    presetId: candidate.presetId ?? candidate.appliedPreset ?? "default",
+    additionalSystemPrompt: additionalPrompt,
     llmModel: llmResolution.resolvedModelId as SessionChatConfig["llmModel"],
     embeddingModel: sanitizeModel(
       candidate.embeddingModel,
@@ -149,6 +149,8 @@ const buildDefaultSessionConfig = (
   resolution: ModelResolution | null,
 ): SessionChatConfig => ({
   ...preset,
+  presetId: presetName ?? "default",
+  additionalSystemPrompt: "",
   llmModel: (resolution?.resolvedModelId ?? preset.llmModel) as SessionChatConfig["llmModel"],
   llmModelResolution:
     resolution ??

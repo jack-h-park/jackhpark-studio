@@ -16,6 +16,11 @@ import {
   type SummaryLevel,
 } from "@/lib/server/admin-chat-config";
 import {
+  type AdminChatConfig,
+  getAdditionalPromptMaxLength,
+  type SessionChatConfig,
+} from "@/types/chat-config";
+import {
   type ChatEngine,
   type ModelProvider,
   normalizeChatEngine,
@@ -207,6 +212,8 @@ const DEFAULT_LANGFUSE_SETTINGS = {
   attachProviderMetadata: DEFAULT_LANGFUSE_ATTACH_PROVIDER_METADATA,
 } as const;
 
+const DEFAULT_PROMPT_FALLBACK = normalizeSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+
 let cachedPrompt: SystemPromptResult | null = null;
 let cachedPromptAt = 0;
 let cachedGuardrails: GuardrailSettingsResult | null = null;
@@ -219,6 +226,16 @@ let cachedLangfuseSettingsAt = 0;
 function getDefaultEngine(): ChatEngine {
   return normalizeChatEngine(process.env.CHAT_ENGINE, "lc");
 }
+
+const normalizeAdditionalPrompt = (
+  value: unknown,
+  maxLength: number,
+): string | undefined => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  return value.replaceAll("\r\n", "\n").trim().slice(0, maxLength);
+};
 
 export function getChatModelDefaults(): ChatModelSettings {
   const engine = getDefaultEngine();
@@ -281,12 +298,59 @@ export function getLangfuseDefaults(): LangfuseSettings {
   };
 }
 
+function resolvePromptParts({
+  adminConfig,
+  sessionConfig,
+}: {
+  adminConfig: AdminChatConfig;
+  sessionConfig?: SessionChatConfig;
+}) {
+  const maxLength = getAdditionalPromptMaxLength(adminConfig);
+  const presetId =
+    sessionConfig?.presetId ??
+    sessionConfig?.appliedPreset ??
+    "default";
+
+  const basePrompt =
+    adminConfig.baseSystemPrompt && adminConfig.baseSystemPrompt.trim().length > 0
+      ? normalizeSystemPrompt(adminConfig.baseSystemPrompt)
+      : DEFAULT_PROMPT_FALLBACK;
+
+  const presetAdditional = normalizeAdditionalPrompt(
+    adminConfig.presets?.[presetId]?.additionalSystemPrompt,
+    maxLength,
+  );
+  const sessionAdditional = normalizeAdditionalPrompt(
+    sessionConfig?.additionalSystemPrompt,
+    maxLength,
+  );
+
+  return { basePrompt, presetAdditional, sessionAdditional };
+}
+
+export function buildFinalSystemPrompt({
+  adminConfig,
+  sessionConfig,
+}: {
+  adminConfig: AdminChatConfig;
+  sessionConfig?: SessionChatConfig;
+}): string {
+  const { basePrompt, presetAdditional, sessionAdditional } =
+    resolvePromptParts({ adminConfig, sessionConfig });
+
+  return [basePrompt, presetAdditional, sessionAdditional]
+    .filter((part) => Boolean(part && String(part).length > 0))
+    .join("\n\n");
+}
+
 export async function loadSystemPrompt(options?: {
   forceRefresh?: boolean;
   client?: SupabaseClient;
+  sessionConfig?: SessionChatConfig;
 }): Promise<SystemPromptResult> {
   const shouldUseCache =
     !options?.forceRefresh &&
+    !options?.sessionConfig &&
     cachedPrompt &&
     Date.now() - cachedPromptAt < SYSTEM_PROMPT_CACHE_TTL_MS;
 
@@ -299,17 +363,25 @@ export async function loadSystemPrompt(options?: {
     forceRefresh: options?.forceRefresh,
   });
 
-  const presetPrompt =
-    config.presets?.default?.userSystemPrompt?.trim() ?? "";
-  const userDefault = config.userSystemPromptDefault?.trim() ?? "";
-  const rawPrompt =
-    presetPrompt || userDefault || normalizeSystemPrompt(DEFAULT_SYSTEM_PROMPT);
-  const prompt = normalizeSystemPrompt(rawPrompt);
-  const isDefault = !presetPrompt && !userDefault;
+  const { basePrompt, presetAdditional, sessionAdditional } =
+    resolvePromptParts({
+      adminConfig: config,
+      sessionConfig: options?.sessionConfig,
+    });
+  const prompt = buildFinalSystemPrompt({
+    adminConfig: config,
+    sessionConfig: options?.sessionConfig,
+  });
+  const isDefault =
+    basePrompt === DEFAULT_PROMPT_FALLBACK &&
+    !presetAdditional &&
+    !sessionAdditional;
 
   const result: SystemPromptResult = { prompt, isDefault };
-  cachedPrompt = result;
-  cachedPromptAt = Date.now();
+  if (!options?.sessionConfig) {
+    cachedPrompt = result;
+    cachedPromptAt = Date.now();
+  }
   return result;
 }
 

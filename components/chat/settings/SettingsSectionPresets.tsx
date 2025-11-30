@@ -32,6 +32,8 @@ export function SettingsSectionPresets({
   const applyPreset = (presetKey: PresetKey) => {
     setSessionConfig(() => ({
       ...adminConfig.presets[presetKey],
+       presetId: presetKey,
+       additionalSystemPrompt: "",
       appliedPreset: presetKey,
     }));
   };
@@ -43,7 +45,7 @@ export function SettingsSectionPresets({
         icon={<FiLayers aria-hidden="true" />}
         className="ai-settings-section__title"
       >
-        AI Orchestration Presets
+        AI Orchestration Presets (Session-Wide)
       </HeadingWithIcon>
       {helperText && <p className="ai-meta-text">{helperText}</p>}
       <GridPanel className="grid grid-cols-3 gap-[0.3rem]">

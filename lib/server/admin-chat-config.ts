@@ -9,6 +9,10 @@ import type {
 } from "@/lib/shared/models";
 import { SYSTEM_SETTINGS_TABLE } from "@/lib/chat-prompts";
 import { supabaseClient } from "@/lib/core/supabase";
+import {
+  DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH,
+  type AdminChatConfig,
+} from "@/types/chat-config";
 
 export const ADMIN_CHAT_CONFIG_KEY = "admin_chat_config";
 
@@ -77,7 +81,7 @@ export type FeatureFlagsPreset = {
 export type SummaryLevel = "off" | "low" | "medium" | "high";
 
 export type AdminChatPreset = {
-  userSystemPrompt: string;
+  additionalSystemPrompt?: string;
   llmModel: LlmModelId;
   embeddingModel: EmbeddingModelId;
   chatEngine: ChatEngine;
@@ -96,18 +100,6 @@ export type AdminChatPresetsConfig = {
 export type RagRankingConfig = {
   docTypeWeights: Partial<Record<DocType, number>>;
   personaTypeWeights: Partial<Record<PersonaType, number>>;
-};
-
-export type AdminChatConfig = {
-  coreSystemPromptSummary: string;
-  userSystemPromptDefault: string;
-  userSystemPromptMaxLength: number;
-  numericLimits: NumericLimitsConfig;
-  allowlist: AllowlistConfig;
-  guardrails: GuardrailConfig;
-  summaryPresets: SummaryPresetsConfig;
-  presets: AdminChatPresetsConfig;
-  ragRanking?: RagRankingConfig;
 };
 
 type AdminChatConfigRow = {
@@ -159,9 +151,6 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
   const config = rawValue as AdminChatConfig;
 
   if (
-    typeof config.coreSystemPromptSummary !== "string" ||
-    typeof config.userSystemPromptDefault !== "string" ||
-    typeof config.userSystemPromptMaxLength !== "number" ||
     !config.numericLimits ||
     !config.allowlist ||
     !config.guardrails ||
@@ -183,7 +172,16 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     );
   }
 
-  return config;
+  const additionalPromptMaxLength =
+    typeof config.additionalPromptMaxLength === "number"
+      ? config.additionalPromptMaxLength
+      : DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH;
+
+  return {
+    ...config,
+    baseSystemPromptSummary: config.baseSystemPromptSummary ?? "",
+    additionalPromptMaxLength,
+  };
 }
 
 export async function loadAdminChatConfig(options?: {

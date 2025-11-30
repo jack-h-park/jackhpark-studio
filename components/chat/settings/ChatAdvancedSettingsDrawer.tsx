@@ -13,7 +13,7 @@ import { SettingsSectionDisplay } from "./SettingsSectionDisplay";
 import { SettingsSectionModelEngine } from "./SettingsSectionModelEngine";
 import { SettingsSectionPresets } from "./SettingsSectionPresets";
 import { SettingsSectionRagRetrieval } from "./SettingsSectionRagRetrieval";
-import { SettingsSectionUserPrompt } from "./SettingsSectionUserPrompt";
+import { SettingsSectionSessionAdditionalPrompt } from "./SettingsSectionSessionAdditionalPrompt";
 
 type DrawerProps = {
   open: boolean;
@@ -57,6 +57,8 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
   const resetToDefault = () =>
     setSessionConfig(() => ({
       ...adminConfig.presets.default,
+      presetId: "default",
+      additionalSystemPrompt: "",
       appliedPreset: "default",
     }));
 
@@ -92,7 +94,7 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
             </div>
             <div className="ai-settings-drawer__content space-y-4">
               <SettingsSectionCoreSummary
-                summary={adminConfig.coreSystemPromptSummary}
+                summary={adminConfig.baseSystemPromptSummary ?? ""}
               />
 
               <SettingsSectionDisplay />
@@ -123,7 +125,7 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
                   setSessionConfig={setSessionConfig}
                 />
 
-                <SettingsSectionUserPrompt
+                <SettingsSectionSessionAdditionalPrompt
                   adminConfig={adminConfig}
                   sessionConfig={sessionConfig}
                   setSessionConfig={setSessionConfig}

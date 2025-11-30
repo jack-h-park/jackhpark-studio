@@ -23,6 +23,7 @@ import type {
   SessionChatConfigPreset,
   SummaryLevel,
 } from "@/types/chat-config";
+import { getAdditionalPromptMaxLength } from "@/types/chat-config";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { AllowlistTile } from "@/components/ui/allowlist-tile";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import {
   DOC_TYPE_OPTIONS,
@@ -176,6 +178,8 @@ function AdminChatConfigForm({
   useEffect(() => {
     setConfig(adminConfig);
   }, [adminConfig]);
+
+  const additionalPromptMaxLength = getAdditionalPromptMaxLength(config);
 
   const updateConfig = useCallback(
     (updater: (prev: AdminChatConfig) => AdminChatConfig) => {
@@ -483,63 +487,61 @@ function AdminChatConfigForm({
       <Card>
         <CardHeader>
           <CardTitle icon={<FiSettings aria-hidden="true" />}>
-            Core Behavior &amp; User Prompt Defaults
+            Core Behavior &amp; Base Prompt
           </CardTitle>
           <CardDescription>
-            Update the language that describes the assistant’s job and the
-            default system prompt that each visitor sees.
+            Define the base system prompt plus the user-facing summary shown in the chat settings drawer.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="ai-field">
             <Label htmlFor="coreSummary" className="ai-field__label">
-              System Core Behavior
+              Base system prompt summary
             </Label>
             <Textarea
               id="coreSummary"
-              value={config.coreSystemPromptSummary}
+              value={config.baseSystemPromptSummary ?? ""}
               onChange={(event) =>
                 updateConfig((prev) => ({
                   ...prev,
-                  coreSystemPromptSummary: event.target.value,
+                  baseSystemPromptSummary: event.target.value,
                 }))
               }
               rows={3}
             />
             <p className="ai-field__description">
-              Shown as the “System Core Behavior” description in the chat
-              settings drawer.
+              Shown in the chat settings drawer. End users never see the full base system prompt.
             </p>
           </div>
           <div className="ai-field">
-            <Label htmlFor="userPromptDefault" className="ai-field__label">
-              User System Prompt
+            <Label htmlFor="baseSystemPrompt" className="ai-field__label">
+              Base system prompt (admin-only)
             </Label>
             <Textarea
-              id="userPromptDefault"
-              value={config.userSystemPromptDefault}
+              id="baseSystemPrompt"
+              value={config.baseSystemPrompt ?? ""}
               onChange={(event) =>
                 updateConfig((prev) => ({
                   ...prev,
-                  userSystemPromptDefault: event.target.value,
+                  baseSystemPrompt: event.target.value,
                 }))
               }
               rows={4}
             />
           </div>
           <div className="ai-field max-w-sm">
-            <Label htmlFor="userPromptMaxLength" className="ai-field__label">
-              Prompt max length
+            <Label htmlFor="additionalPromptMaxLength" className="ai-field__label">
+              Additional prompt max length
             </Label>
             <Input
-              id="userPromptMaxLength"
+              id="additionalPromptMaxLength"
               type="number"
               min={0}
-              value={config.userSystemPromptMaxLength}
+              value={additionalPromptMaxLength}
               onChange={(event) =>
                 updateConfig((prev) => ({
                   ...prev,
-                  userSystemPromptMaxLength: Number(event.target.value) || 0,
+                  additionalPromptMaxLength: Number(event.target.value) || 0,
                 }))
               }
             />
@@ -1147,23 +1149,27 @@ function AdminChatConfigForm({
                   {presetDisplayNames[presetKey]}
                 </div>
               ))}
-              {renderPresetRow("User System Prompt", (presetKey) => {
-                const preset = config.presets[presetKey];
-                return (
-                  <Textarea
-                    className="min-h-[120px]"
-                    rows={4}
-                    aria-label={`User System Prompt for ${presetDisplayNames[presetKey]}`}
-                    value={preset.userSystemPrompt}
-                    onChange={(event) =>
-                      updatePreset(presetKey, (prev) => ({
-                        ...prev,
-                        userSystemPrompt: event.target.value,
-                      }))
-                    }
-                  />
-                );
-              })}
+              {renderPresetRow(
+                "Additional user system prompt",
+                (presetKey) => {
+                  const preset = config.presets[presetKey];
+                  return (
+                    <PromptWithCounter
+                      label="Additional user system prompt"
+                      labelClassName="sr-only"
+                      value={preset.additionalSystemPrompt ?? ""}
+                      maxLength={additionalPromptMaxLength}
+                      helperText={`User system prompt for this preset to be added to the base system prompt. Up to ${additionalPromptMaxLength} characters.`}
+                      onChange={(value) =>
+                        updatePreset(presetKey, (prev) => ({
+                          ...prev,
+                          additionalSystemPrompt: value,
+                        }))
+                      }
+                    />
+                  );
+                },
+              )}
               {renderPresetRow("LLM Model", (presetKey) => {
                 const resolution = presetResolutions[presetKey];
                 const wasSubstituted = resolution?.wasSubstituted;

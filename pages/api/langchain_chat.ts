@@ -33,7 +33,7 @@ import {
   routeQuestion,
 } from "@/lib/server/chat-guardrails";
 import { type ChatMessage, sanitizeMessages } from "@/lib/server/chat-messages";
-import { loadChatModelSettings, loadSystemPrompt } from "@/lib/server/chat-settings";
+import { buildFinalSystemPrompt, loadChatModelSettings } from "@/lib/server/chat-settings";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 import {
@@ -58,6 +58,7 @@ import {
 import {
   DEFAULT_REVERSE_RAG_MODE,
 } from "@/lib/shared/rag-config";
+import type { SessionChatConfig } from "@/types/chat-config";
 
 /**
  * Pages Router API (Node.js runtime).
@@ -88,6 +89,7 @@ type ChatRequestBody = {
   reverseRagMode?: unknown;
   hydeEnabled?: unknown;
   rankerMode?: unknown;
+  sessionConfig?: unknown;
 };
 
 const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
@@ -187,14 +189,23 @@ export default async function handler(
       typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
 
     const guardrails = await getChatGuardrailConfig();
-  const adminConfig = await getAdminChatConfig();
-  const ragRanking = adminConfig.ragRanking;
-  const ragConfigSnapshot: RagConfigSnapshot = buildRagConfigSnapshot(
-    adminConfig,
-    "default",
-  );
-  const runtime =
-    (req as any).chatRuntime ?? (await loadChatModelSettings({ forceRefresh: true }));
+    const adminConfig = await getAdminChatConfig();
+    const sessionConfig =
+      body.sessionConfig && typeof body.sessionConfig === "object"
+        ? (body.sessionConfig as SessionChatConfig)
+        : undefined;
+    const presetId =
+      sessionConfig?.presetId ??
+      (typeof sessionConfig?.appliedPreset === "string"
+        ? sessionConfig.appliedPreset
+        : "default");
+    const ragRanking = adminConfig.ragRanking;
+    const ragConfigSnapshot: RagConfigSnapshot = buildRagConfigSnapshot(
+      adminConfig,
+      presetId,
+    );
+    const runtime =
+      (req as any).chatRuntime ?? (await loadChatModelSettings({ forceRefresh: true }));
     const fallbackQuestion =
       typeof body.question === "string" ? body.question : undefined;
     let rawMessages: ChatMessage[] = [];
@@ -302,7 +313,10 @@ export default async function handler(
     });
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const { prompt: basePrompt } = await loadSystemPrompt();
+    const basePrompt = buildFinalSystemPrompt({
+      adminConfig,
+      sessionConfig,
+    });
     const promptTemplate = [
       escapeForPromptTemplate(basePrompt),
       "",
