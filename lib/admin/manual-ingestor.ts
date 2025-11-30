@@ -35,7 +35,6 @@ import {
   mergeMetadata,
   metadataEquals,
   normalizeMetadata,
-  type RagDocumentMetadata,
 } from "../rag/metadata";
 import { extractNotionMetadata } from "../rag/notion-metadata";
 

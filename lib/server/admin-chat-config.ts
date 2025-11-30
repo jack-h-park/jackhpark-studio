@@ -1,599 +1,260 @@
-import type { EmbeddingModelId, LlmModelId } from "@/lib/shared/models";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+import type { DocType, PersonaType } from "@/lib/rag/metadata";
+import type { ChatEngine } from "@/lib/shared/model-provider";
 import type {
-  AdminChatConfig,
-  RagRankingConfig,
-  SessionChatConfigPreset,
-} from "@/types/chat-config";
-import {
-  DEFAULT_SYSTEM_PROMPT,
-  SYSTEM_PROMPT_MAX_LENGTH,
-  SYSTEM_SETTINGS_TABLE,
-} from "@/lib/chat-prompts";
-import {
-  findEmbeddingSpace,
-  listEmbeddingModelOptions,
-} from "@/lib/core/embedding-spaces";
-import { listLlmModelOptions } from "@/lib/core/llm-registry";
+  EmbeddingModelId,
+  LlmModelId,
+  RankerId,
+} from "@/lib/shared/models";
+import { SYSTEM_SETTINGS_TABLE } from "@/lib/chat-prompts";
 import { supabaseClient } from "@/lib/core/supabase";
-import {
-  DOC_TYPE_WEIGHTS,
-  PERSONA_WEIGHTS,
-} from "@/lib/rag/ranking";
-import {
-  getChatModelDefaults,
-  loadGuardrailSettings,
-} from "@/lib/server/chat-settings";
-import {
-  CHAT_ENGINE_OPTIONS,
-  type ChatEngine,
-  normalizeChatEngine,
-} from "@/lib/shared/model-provider";
-import {
-  DEFAULT_HYDE_ENABLED,
-  DEFAULT_RANKER_MODE,
-  DEFAULT_REVERSE_RAG_ENABLED,
-  RANKER_MODES,
-} from "@/lib/shared/rag-config";
 
-export const ADMIN_CONFIG_SETTING_KEY = "admin_chat_config";
+export const ADMIN_CHAT_CONFIG_KEY = "admin_chat_config";
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
+// NOTE:
+// The system_settings table is expected to contain exactly one row for chat configuration:
+// key = "admin_chat_config", value = AdminChatConfig JSON.
+// All legacy per-key settings (system_prompt, chat_*, guardrail_*, langfuse_*) have been removed.
 
-const RAG_WEIGHT_MIN = 0.1;
-const RAG_WEIGHT_MAX = 3;
-
-const buildSummaryPresets = (guardrailSummary: {
-  summaryTriggerTokens: number;
-  summaryMaxTurns: number;
-  summaryMaxChars: number;
-}): AdminChatConfig["summaryPresets"] => {
-  const baseTurns = Math.max(3, guardrailSummary.summaryMaxTurns);
-  return {
-    low: {
-      every_n_turns: Math.max(6, Math.round(baseTurns * 1.4)),
-    },
-    medium: {
-      every_n_turns: baseTurns,
-    },
-    high: {
-      every_n_turns: Math.max(3, Math.round(baseTurns * 0.75)),
-    },
-  };
+export type NumericLimit = {
+  min: number;
+  max: number;
+  default: number;
 };
 
-const buildBasePreset = (
-  guardrails: Awaited<ReturnType<typeof loadGuardrailSettings>>,
-  modelDefaults: ReturnType<typeof getChatModelDefaults>,
-): SessionChatConfigPreset => ({
-  userSystemPrompt: DEFAULT_SYSTEM_PROMPT,
-  llmModel: modelDefaults.llmModelId as LlmModelId,
-  embeddingModel: modelDefaults.embeddingModel as EmbeddingModelId,
-  chatEngine: modelDefaults.engine,
-  rag: {
-    enabled: true,
-    topK: guardrails.numeric.ragTopK,
-    similarity: guardrails.numeric.similarityThreshold,
-  },
-  context: {
-    tokenBudget: guardrails.numeric.ragContextTokenBudget,
-    historyBudget: guardrails.numeric.historyTokenBudget,
-    clipTokens: guardrails.numeric.ragContextClipTokens,
-  },
-  features: {
-    reverseRAG: DEFAULT_REVERSE_RAG_ENABLED,
-    hyde: DEFAULT_HYDE_ENABLED,
-    ranker: DEFAULT_RANKER_MODE,
-  },
-  summaryLevel: guardrails.numeric.summaryEnabled ? "medium" : "off",
-});
+export type NumericLimitsConfig = {
+  ragTopK: NumericLimit;
+  similarityThreshold: NumericLimit;
+  contextBudget: NumericLimit;
+  historyBudget: NumericLimit;
+  clipTokens: NumericLimit;
+};
 
-const buildPreset = (
-  base: SessionChatConfigPreset,
-  overrides: Partial<SessionChatConfigPreset>,
-): SessionChatConfigPreset => ({
-  ...base,
-  ...overrides,
-  rag: {
-    ...base.rag,
-    ...overrides.rag,
-  },
-  context: {
-    ...base.context,
-    ...overrides.context,
-  },
-  features: {
-    ...base.features,
-    ...overrides.features,
-  },
-});
+export type AllowlistConfig = {
+  chatEngines: ChatEngine[];
+  llmModels: LlmModelId[];
+  embeddingModels: EmbeddingModelId[];
+  rankers: RankerId[];
+  allowReverseRAG: boolean;
+  allowHyde: boolean;
+};
 
-type AdminConfigRow = {
+export type GuardrailConfig = {
+  chitchatKeywords: string[];
+  fallbackChitchat: string;
+  fallbackCommand: string;
+};
+
+export type SummaryPreset = {
+  every_n_turns: number;
+};
+
+export type SummaryPresetsConfig = {
+  low: SummaryPreset;
+  medium: SummaryPreset;
+  high: SummaryPreset;
+};
+
+export type RagPreset = {
+  enabled: boolean;
+  topK: number;
+  similarity: number;
+};
+
+export type ContextPreset = {
+  tokenBudget: number;
+  historyBudget: number;
+  clipTokens: number;
+};
+
+export type FeatureFlagsPreset = {
+  reverseRAG: boolean;
+  hyde: boolean;
+  ranker: RankerId;
+};
+
+export type SummaryLevel = "off" | "low" | "medium" | "high";
+
+export type AdminChatPreset = {
+  userSystemPrompt: string;
+  llmModel: LlmModelId;
+  embeddingModel: EmbeddingModelId;
+  chatEngine: ChatEngine;
+  rag: RagPreset;
+  context: ContextPreset;
+  features: FeatureFlagsPreset;
+  summaryLevel: SummaryLevel;
+};
+
+export type AdminChatPresetsConfig = {
+  default: AdminChatPreset;
+  fast: AdminChatPreset;
+  highRecall: AdminChatPreset;
+};
+
+export type RagRankingConfig = {
+  docTypeWeights: Partial<Record<DocType, number>>;
+  personaTypeWeights: Partial<Record<PersonaType, number>>;
+};
+
+export type AdminChatConfig = {
+  coreSystemPromptSummary: string;
+  userSystemPromptDefault: string;
+  userSystemPromptMaxLength: number;
+  numericLimits: NumericLimitsConfig;
+  allowlist: AllowlistConfig;
+  guardrails: GuardrailConfig;
+  summaryPresets: SummaryPresetsConfig;
+  presets: AdminChatPresetsConfig;
+  ragRanking?: RagRankingConfig;
+};
+
+type AdminChatConfigRow = {
   value: unknown;
   updated_at: string | null;
 };
 
-async function fetchStoredAdminConfigRow(): Promise<AdminConfigRow | null> {
-  try {
-    const { data, error } = await supabaseClient
-      .from(SYSTEM_SETTINGS_TABLE)
-      .select("value, updated_at")
-      .eq("key", ADMIN_CONFIG_SETTING_KEY)
-      .maybeSingle();
-    if (error) {
-      console.error(
-        "[admin-chat-config] failed to load stored config row",
-        error,
-      );
-      return null;
-    }
-    return data ?? null;
-  } catch (err) {
-    console.error(
-      "[admin-chat-config] unexpected error loading stored config row",
-      err,
-    );
-    return null;
-  }
-}
+let cachedAdminChatConfig: AdminChatConfig | null = null;
+let cachedUpdatedAt: string | null = null;
 
-const parseStoredConfigValue = (
-  value: unknown,
-): Partial<AdminChatConfig> | null => {
-  if (value == null) {
-    return null;
-  }
-  if (typeof value === "string") {
-    try {
-      return JSON.parse(value) as Partial<AdminChatConfig>;
-    } catch (err) {
-      console.error("[admin-chat-config] failed to parse stored JSON", err);
-      return null;
-    }
-  }
-  if (typeof value === "object") {
-    return value as Partial<AdminChatConfig>;
-  }
-  return null;
-};
-
-async function loadStoredAdminConfig(): Promise<Partial<AdminChatConfig> | null> {
-  const row = await fetchStoredAdminConfigRow();
-  if (!row?.value) {
-    return null;
-  }
-  return parseStoredConfigValue(row.value);
-}
-
-export async function getAdminChatConfigMetadata(): Promise<{
-  updatedAt: string | null;
-}> {
-  const row = await fetchStoredAdminConfigRow();
-  return {
-    updatedAt: row?.updated_at ?? null,
-  };
-}
-
-export async function saveAdminChatConfig(config: AdminChatConfig): Promise<{
-  updatedAt: string | null;
-}> {
-  const sanitized = sanitizeAdminChatConfig(config);
-  const payload = {
-    key: ADMIN_CONFIG_SETTING_KEY,
-    value: JSON.stringify(sanitized),
-  };
-  const { data, error } = await supabaseClient
+async function fetchAdminChatConfigRow(
+  client: SupabaseClient,
+): Promise<AdminChatConfigRow | null> {
+  const { data, error } = await client
     .from(SYSTEM_SETTINGS_TABLE)
-    .upsert(payload, { onConflict: "key" })
+    .select("value, updated_at")
+    .eq("key", ADMIN_CHAT_CONFIG_KEY)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      `[admin-chat-config] failed to load admin_chat_config: ${error.message}`,
+    );
+  }
+
+  return data ?? null;
+}
+
+function parseAdminChatConfig(value: unknown): AdminChatConfig {
+  let rawValue = value;
+  if (typeof rawValue === "string") {
+    try {
+      rawValue = JSON.parse(rawValue);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Unable to parse JSON value.";
+      throw new Error(
+        `[admin-chat-config] admin_chat_config JSON is invalid: ${message}`,
+      );
+    }
+  }
+
+  if (!rawValue || typeof rawValue !== "object") {
+    throw new Error(
+      "[admin-chat-config] admin_chat_config value is not a JSON object.",
+    );
+  }
+
+  const config = rawValue as AdminChatConfig;
+
+  if (
+    typeof config.coreSystemPromptSummary !== "string" ||
+    typeof config.userSystemPromptDefault !== "string" ||
+    typeof config.userSystemPromptMaxLength !== "number" ||
+    !config.numericLimits ||
+    !config.allowlist ||
+    !config.guardrails ||
+    !config.summaryPresets ||
+    !config.presets
+  ) {
+    throw new Error(
+      "[admin-chat-config] admin_chat_config is missing required fields.",
+    );
+  }
+
+  if (
+    !config.presets.default ||
+    !config.presets.fast ||
+    !config.presets.highRecall
+  ) {
+    throw new Error(
+      "[admin-chat-config] admin_chat_config.presets is missing required presets.",
+    );
+  }
+
+  return config;
+}
+
+export async function loadAdminChatConfig(options?: {
+  client?: SupabaseClient;
+  forceRefresh?: boolean;
+}): Promise<AdminChatConfig> {
+  const forceRefresh = options?.forceRefresh ?? false;
+  if (!forceRefresh && cachedAdminChatConfig) {
+    return cachedAdminChatConfig;
+  }
+
+  const client = options?.client ?? supabaseClient;
+  const row = await fetchAdminChatConfigRow(client);
+  if (!row?.value) {
+    throw new Error(
+      "[admin-chat-config] admin_chat_config setting is missing in system_settings.",
+    );
+  }
+
+  const config = parseAdminChatConfig(row.value);
+  cachedAdminChatConfig = config;
+  cachedUpdatedAt = row.updated_at ?? null;
+
+  return config;
+}
+
+export async function getAdminChatConfig(options?: {
+  client?: SupabaseClient;
+  forceRefresh?: boolean;
+}): Promise<AdminChatConfig> {
+  return loadAdminChatConfig(options);
+}
+
+export async function getAdminChatConfigMetadata(options?: {
+  client?: SupabaseClient;
+  forceRefresh?: boolean;
+}): Promise<{ updatedAt: string | null }> {
+  if (!options?.forceRefresh && cachedUpdatedAt !== null) {
+    return { updatedAt: cachedUpdatedAt };
+  }
+
+  const client = options?.client ?? supabaseClient;
+  const row = await fetchAdminChatConfigRow(client);
+  cachedUpdatedAt = row?.updated_at ?? cachedUpdatedAt ?? null;
+
+  return { updatedAt: row?.updated_at ?? null };
+}
+
+export async function saveAdminChatConfig(
+  config: AdminChatConfig,
+  options?: { client?: SupabaseClient },
+): Promise<{ updatedAt: string | null }> {
+  const client = options?.client ?? supabaseClient;
+  const sanitized = parseAdminChatConfig(config);
+  const { data, error } = await client
+    .from(SYSTEM_SETTINGS_TABLE)
+    .upsert(
+      { key: ADMIN_CHAT_CONFIG_KEY, value: JSON.stringify(sanitized) },
+      { onConflict: "key" },
+    )
     .select("updated_at")
     .single();
+
   if (error) {
-    console.error("[admin-chat-config] failed to save config", error);
-    throw error;
-  }
-  return { updatedAt: data?.updated_at ?? null };
-}
-
-function mergeNumericLimits(
-  base: AdminChatConfig["numericLimits"],
-  override?: Partial<AdminChatConfig["numericLimits"]>,
-): AdminChatConfig["numericLimits"] {
-  if (!override) {
-    return base;
-  }
-  const keys: (keyof AdminChatConfig["numericLimits"])[] = [
-    "ragTopK",
-    "similarityThreshold",
-    "contextBudget",
-    "historyBudget",
-    "clipTokens",
-  ];
-  return keys.reduce(
-    (acc, key) => {
-      acc[key] = override[key] ?? base[key];
-      return acc;
-    },
-    {} as AdminChatConfig["numericLimits"],
-  );
-}
-
-function mergeRagRanking(
-  base: RagRankingConfig,
-  override?: Partial<RagRankingConfig> | null,
-): RagRankingConfig {
-  const docTypeWeights: RagRankingConfig["docTypeWeights"] = { ...base.docTypeWeights };
-  const personaTypeWeights: RagRankingConfig["personaTypeWeights"] = {
-    ...base.personaTypeWeights,
-  };
-
-  if (override?.docTypeWeights) {
-    for (const [key, value] of Object.entries(override.docTypeWeights)) {
-      if (typeof value === "number" && Number.isFinite(value)) {
-        const clamped = clamp(value, RAG_WEIGHT_MIN, RAG_WEIGHT_MAX);
-        docTypeWeights[key as keyof typeof docTypeWeights] = clamped;
-      }
-    }
+    throw new Error(
+      `[admin-chat-config] failed to save admin_chat_config: ${error.message}`,
+    );
   }
 
-  if (override?.personaTypeWeights) {
-    for (const [key, value] of Object.entries(override.personaTypeWeights)) {
-      if (typeof value === "number" && Number.isFinite(value)) {
-        const clamped = clamp(value, RAG_WEIGHT_MIN, RAG_WEIGHT_MAX);
-        personaTypeWeights[key as keyof typeof personaTypeWeights] = clamped;
-      }
-    }
-  }
+  cachedAdminChatConfig = sanitized;
+  cachedUpdatedAt = data?.updated_at ?? null;
 
-  return {
-    docTypeWeights,
-    personaTypeWeights,
-  };
-}
-
-export function sanitizeAdminChatConfig(
-  input: AdminChatConfig,
-): AdminChatConfig {
-  const baseRanking: RagRankingConfig = {
-    docTypeWeights: { ...DOC_TYPE_WEIGHTS },
-    personaTypeWeights: { ...PERSONA_WEIGHTS },
-  };
-
-  return {
-    ...input,
-    ragRanking: mergeRagRanking(baseRanking, input.ragRanking),
-  };
-}
-
-const normalizeChatEngineList = (
-  values: string[] | undefined,
-): ChatEngine[] => {
-  const seen = new Set<ChatEngine>();
-  const list = values ?? [];
-  for (const value of list) {
-    const normalized = normalizeChatEngine(value);
-    if (!seen.has(normalized)) {
-      seen.add(normalized);
-    }
-  }
-  return [...seen];
-};
-
-const normalizeEmbeddingAllowlist = (
-  values?: string[] | undefined,
-): string[] => {
-  if (!values || values.length === 0) {
-    return [];
-  }
-  const normalized = new Set<string>();
-  for (const value of values) {
-    const space = findEmbeddingSpace(value);
-    if (space) {
-      normalized.add(space.embeddingSpaceId);
-    }
-  }
-  return Array.from(normalized).toSorted((a, b) => a.localeCompare(b));
-};
-
-function mergeAllowlist(
-  base: AdminChatConfig["allowlist"],
-  override?: Partial<AdminChatConfig["allowlist"]>,
-): AdminChatConfig["allowlist"] {
-  if (!override) {
-    return base;
-  }
-  const allowedRankers = new Set(base.rankers);
-  let rankers =
-    override.rankers?.filter((ranker) => allowedRankers.has(ranker)) ??
-    base.rankers;
-  if (allowedRankers.has("mmr") && !rankers.includes("mmr")) {
-    rankers = [...rankers, "mmr"];
-  }
-  const chatEngines = normalizeChatEngineList(
-    override.chatEngines ?? base.chatEngines,
-  );
-  const overrideEmbeddingModels = normalizeEmbeddingAllowlist(
-    override.embeddingModels,
-  );
-  const embeddingModels =
-    overrideEmbeddingModels.length > 0
-      ? overrideEmbeddingModels
-      : base.embeddingModels;
-  return {
-    chatEngines: chatEngines.length > 0 ? chatEngines : base.chatEngines,
-    llmModels: override.llmModels ?? base.llmModels,
-    embeddingModels,
-    rankers,
-    allowReverseRAG: override.allowReverseRAG ?? base.allowReverseRAG,
-    allowHyde: override.allowHyde ?? base.allowHyde,
-  };
-}
-
-function mergeGuardrails(
-  base: AdminChatConfig["guardrails"],
-  override?: Partial<AdminChatConfig["guardrails"]>,
-): AdminChatConfig["guardrails"] {
-  if (!override) {
-    return base;
-  }
-  return {
-    chitchatKeywords: override.chitchatKeywords ?? base.chitchatKeywords,
-    fallbackChitchat: override.fallbackChitchat ?? base.fallbackChitchat,
-    fallbackCommand: override.fallbackCommand ?? base.fallbackCommand,
-  };
-}
-
-function mergeSummaryPresets(
-  base: AdminChatConfig["summaryPresets"],
-  override?: Partial<AdminChatConfig["summaryPresets"]>,
-): AdminChatConfig["summaryPresets"] {
-  if (!override) {
-    return base;
-  }
-  const keys: Array<keyof AdminChatConfig["summaryPresets"]> = [
-    "low",
-    "medium",
-    "high",
-  ];
-  return keys.reduce(
-    (acc, key) => {
-      acc[key] = override[key]
-        ? {
-            every_n_turns:
-              override[key]!.every_n_turns ?? base[key].every_n_turns,
-          }
-        : base[key];
-      return acc;
-    },
-    {} as AdminChatConfig["summaryPresets"],
-  );
-}
-
-function mergePresets(
-  base: AdminChatConfig["presets"],
-  override?: Partial<AdminChatConfig["presets"]>,
-): AdminChatConfig["presets"] {
-  if (!override) {
-    return base;
-  }
-  const keys: Array<keyof AdminChatConfig["presets"]> = [
-    "default",
-    "fast",
-    "highRecall",
-  ];
-  return keys.reduce(
-    (acc, key) => {
-      acc[key] = mergeSessionPreset(base[key], override[key]);
-      return acc;
-    },
-    {} as AdminChatConfig["presets"],
-  );
-}
-
-function mergeSessionPreset(
-  base: SessionChatConfigPreset,
-  override?: Partial<SessionChatConfigPreset>,
-): SessionChatConfigPreset {
-  if (!override) {
-    return base;
-  }
-  return {
-    ...base,
-    ...override,
-    rag: {
-      ...base.rag,
-      ...override.rag,
-    },
-    context: {
-      ...base.context,
-      ...override.context,
-    },
-    features: {
-      ...base.features,
-      ...override.features,
-    },
-  };
-}
-
-export async function getAdminChatConfig(): Promise<AdminChatConfig> {
-  const guardrails = await loadGuardrailSettings({ forceRefresh: true });
-  const modelDefaults = getChatModelDefaults();
-
-  const baseConfig = buildComputedAdminConfig(guardrails, modelDefaults);
-  const storedConfig = await loadStoredAdminConfig();
-
-  if (!storedConfig) {
-    return baseConfig;
-  }
-
-  return {
-    coreSystemPromptSummary:
-      storedConfig.coreSystemPromptSummary ??
-      baseConfig.coreSystemPromptSummary,
-    userSystemPromptDefault:
-      storedConfig.userSystemPromptDefault ??
-      baseConfig.userSystemPromptDefault,
-    userSystemPromptMaxLength:
-      storedConfig.userSystemPromptMaxLength ??
-      baseConfig.userSystemPromptMaxLength,
-    numericLimits: mergeNumericLimits(
-      baseConfig.numericLimits,
-      storedConfig.numericLimits,
-    ),
-    allowlist: mergeAllowlist(baseConfig.allowlist, storedConfig.allowlist),
-    guardrails: mergeGuardrails(baseConfig.guardrails, storedConfig.guardrails),
-    summaryPresets: mergeSummaryPresets(
-      baseConfig.summaryPresets,
-      storedConfig.summaryPresets,
-    ),
-    presets: mergePresets(baseConfig.presets, storedConfig.presets),
-    ragRanking: mergeRagRanking(
-      baseConfig.ragRanking ?? {
-        docTypeWeights: { ...DOC_TYPE_WEIGHTS },
-        personaTypeWeights: { ...PERSONA_WEIGHTS },
-      },
-      storedConfig.ragRanking ?? null,
-    ),
-  };
-}
-
-function buildComputedAdminConfig(
-  guardrails: Awaited<ReturnType<typeof loadGuardrailSettings>>,
-  modelDefaults: ReturnType<typeof getChatModelDefaults>,
-): AdminChatConfig {
-  const llmAllowlist = listLlmModelOptions().map((option) => option.id);
-  const embeddingAllowlist = listEmbeddingModelOptions().map(
-    (space) => space.embeddingSpaceId,
-  );
-
-  const allowlist: AdminChatConfig["allowlist"] = {
-    chatEngines: CHAT_ENGINE_OPTIONS,
-    llmModels: llmAllowlist,
-    embeddingModels: embeddingAllowlist,
-    rankers: [...RANKER_MODES],
-    allowReverseRAG: true,
-    allowHyde: true,
-  };
-
-  const defaultRanker = allowlist.rankers.includes("mmr")
-    ? "mmr"
-    : (allowlist.rankers[0] ?? "none");
-
-  const numericLimits: AdminChatConfig["numericLimits"] = {
-    ragTopK: {
-      min: 1,
-      max: 20,
-      default: clamp(guardrails.numeric.ragTopK, 1, 20),
-    },
-    similarityThreshold: {
-      min: 0.3,
-      max: 0.99,
-      default: clamp(guardrails.numeric.similarityThreshold, 0.3, 0.99),
-    },
-    contextBudget: {
-      min: 500,
-      max: 4000,
-      default: clamp(guardrails.numeric.ragContextTokenBudget, 500, 4000),
-    },
-    historyBudget: {
-      min: 200,
-      max: 2000,
-      default: clamp(guardrails.numeric.historyTokenBudget, 200, 2000),
-    },
-    clipTokens: {
-      min: 32,
-      max: 1024,
-      default: clamp(guardrails.numeric.ragContextClipTokens, 32, 1024),
-    },
-  };
-
-  const ragRanking: RagRankingConfig = {
-    docTypeWeights: { ...DOC_TYPE_WEIGHTS },
-    personaTypeWeights: { ...PERSONA_WEIGHTS },
-  };
-
-  const basePreset = buildBasePreset(guardrails, modelDefaults);
-
-  const presets: AdminChatConfig["presets"] = {
-    default: basePreset,
-    fast: buildPreset(basePreset, {
-      rag: {
-        enabled: false,
-        topK: clamp(
-          numericLimits.ragTopK.min,
-          numericLimits.ragTopK.min,
-          numericLimits.ragTopK.max,
-        ),
-        similarity: clamp(
-          Math.min(
-            numericLimits.similarityThreshold.max,
-            basePreset.rag.similarity + 0.05,
-          ),
-          numericLimits.similarityThreshold.min,
-          numericLimits.similarityThreshold.max,
-        ),
-      },
-      context: {
-        tokenBudget: clamp(
-          450,
-          numericLimits.contextBudget.min,
-          numericLimits.contextBudget.max,
-        ),
-        historyBudget: clamp(
-          400,
-          numericLimits.historyBudget.min,
-          numericLimits.historyBudget.max,
-        ),
-        clipTokens: clamp(
-          64,
-          numericLimits.clipTokens.min,
-          numericLimits.clipTokens.max,
-        ),
-      },
-      features: {
-        reverseRAG: false,
-        hyde: false,
-        ranker: "none",
-      },
-      summaryLevel: "low",
-    }),
-    highRecall: buildPreset(basePreset, {
-      rag: {
-        enabled: true,
-        topK: numericLimits.ragTopK.max,
-        similarity: numericLimits.similarityThreshold.min,
-      },
-      context: {
-        tokenBudget: numericLimits.contextBudget.max,
-        historyBudget: numericLimits.historyBudget.max,
-        clipTokens: numericLimits.clipTokens.max,
-      },
-      features: {
-        reverseRAG: allowlist.allowReverseRAG,
-        hyde: allowlist.allowHyde,
-        ranker: defaultRanker,
-      },
-      summaryLevel: "high",
-    }),
-  };
-
-  return {
-    coreSystemPromptSummary:
-      "Jack’s AI Assistant answers from the provided knowledge base, keeps replies concise, avoids action execution, and matches the visitor’s tone.",
-    userSystemPromptDefault: DEFAULT_SYSTEM_PROMPT,
-    userSystemPromptMaxLength: SYSTEM_PROMPT_MAX_LENGTH,
-    numericLimits,
-    allowlist,
-    guardrails: {
-      chitchatKeywords: guardrails.chitchatKeywords,
-      fallbackChitchat: guardrails.fallbackChitchat,
-      fallbackCommand: guardrails.fallbackCommand,
-    },
-    summaryPresets: buildSummaryPresets({
-      summaryTriggerTokens: guardrails.numeric.summaryTriggerTokens,
-      summaryMaxTurns: guardrails.numeric.summaryMaxTurns,
-      summaryMaxChars: guardrails.numeric.summaryMaxChars,
-    }),
-    presets,
-    ragRanking,
-  };
+  return { updatedAt: cachedUpdatedAt };
 }

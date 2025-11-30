@@ -100,20 +100,12 @@ for (const space of Object.values(EMBEDDING_SPACES)) {
   }
 }
 
-const ENV_EMBEDDING_SPACE_ID = getEnvValue([
-  "NEXT_PUBLIC_EMBEDDING_SPACE_ID",
-  "EMBEDDING_SPACE_ID",
-]);
+const ENV_EMBEDDING_SPACE_ID = getEnvValue(["EMBEDDING_SPACE_ID"]);
 const ENV_EMBEDDING_MODEL_ID = getEnvValue([
-  "NEXT_PUBLIC_EMBEDDING_MODEL_ID",
   "EMBEDDING_MODEL_ID",
-  "NEXT_PUBLIC_EMBEDDING_MODEL",
   "EMBEDDING_MODEL",
 ]);
-const ENV_EMBEDDING_VERSION = getEnvValue([
-  "NEXT_PUBLIC_EMBEDDING_VERSION",
-  "EMBEDDING_VERSION",
-]);
+const ENV_EMBEDDING_VERSION = getEnvValue(["EMBEDDING_VERSION"]);
 
 const FIRST_EMBEDDING_SPACE_ID = Object.keys(EMBEDDING_SPACES)[0] ?? "";
 const DEFAULT_SPACE_FALLBACK =
@@ -208,16 +200,12 @@ export function resolveEmbeddingSpace(
     return byProvider;
   }
 
-  const envSpace =
-    findById(ENV_EMBEDDING_SPACE_ID) ??
-    findById(process.env.NEXT_PUBLIC_EMBEDDING_SPACE_ID ?? null);
+  const envSpace = findById(ENV_EMBEDDING_SPACE_ID);
   if (envSpace) {
     return envSpace;
   }
 
-  const envModel =
-    findById(ENV_EMBEDDING_MODEL_ID) ??
-    findById(process.env.NEXT_PUBLIC_EMBEDDING_MODEL ?? null);
+  const envModel = findById(ENV_EMBEDDING_MODEL_ID);
   if (envModel) {
     return envModel;
   }
@@ -225,10 +213,9 @@ export function resolveEmbeddingSpace(
   const envModelVersion = findByModelVersion(
     ENV_EMBEDDING_MODEL_ID ??
       process.env.EMBEDDING_MODEL_ID ??
-      process.env.NEXT_PUBLIC_EMBEDDING_MODEL ??
       process.env.EMBEDDING_MODEL ??
       null,
-    ENV_EMBEDDING_VERSION ?? process.env.NEXT_PUBLIC_EMBEDDING_VERSION ?? null,
+    ENV_EMBEDDING_VERSION ?? process.env.EMBEDDING_VERSION ?? null,
     process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
   );
   if (envModelVersion) {

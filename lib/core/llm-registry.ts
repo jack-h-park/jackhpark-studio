@@ -23,9 +23,10 @@ const AVAILABLE_LLM_MODEL_OPTIONS = LLM_MODEL_DEFINITIONS.filter(
   (definition) => !definition.requiresOllama || isOllamaEnabled(),
 ).map(mapToOption);
 
+const ENV_DEFAULT_LLM_MODEL = process.env.DEFAULT_LLM_MODEL?.trim();
 const DEFAULT_LLM_MODEL_ID =
-  process.env.LLM_MODEL?.trim() && process.env.LLM_MODEL.trim().length > 0
-    ? process.env.LLM_MODEL.trim()
+  ENV_DEFAULT_LLM_MODEL && ENV_DEFAULT_LLM_MODEL.length > 0
+    ? ENV_DEFAULT_LLM_MODEL
     : "gpt-4o-mini";
 
 const LLM_ALIAS_LOOKUP = new Map<string, LlmModelOption>();
@@ -81,7 +82,7 @@ export function resolveLlmModel(
     return byProvider;
   }
 
-  const envModel = findById(process.env.LLM_MODEL ?? null);
+  const envModel = findById(process.env.DEFAULT_LLM_MODEL ?? null);
   if (envModel) {
     return envModel;
   }

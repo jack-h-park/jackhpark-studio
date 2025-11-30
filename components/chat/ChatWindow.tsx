@@ -18,8 +18,6 @@ import css from "styled-jsx/css";
 
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { Switch } from "@/components/ui/switch";
-import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
-import { resolveLlmModel } from "@/lib/core/llm-registry";
 import {
   deserializeGuardrailMeta,
   type GuardrailMeta,
@@ -28,44 +26,11 @@ import {
   type ChatEngine,
   MODEL_PROVIDER_LABELS,
   type ModelProvider,
-  normalizeChatEngine,
-  normalizeModelProvider,
 } from "@/lib/shared/model-provider";
 import {
-  DEFAULT_HYDE_ENABLED,
-  DEFAULT_RANKER_MODE,
-  DEFAULT_REVERSE_RAG_ENABLED,
-  DEFAULT_REVERSE_RAG_MODE,
   type RankerMode,
   type ReverseRagMode,
 } from "@/lib/shared/rag-config";
-
-const DEFAULT_LLM_SELECTION = resolveLlmModel({
-  modelId: process.env.NEXT_PUBLIC_LLM_MODEL ?? process.env.LLM_MODEL ?? null,
-  provider:
-    process.env.NEXT_PUBLIC_LLM_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
-  model: process.env.NEXT_PUBLIC_LLM_MODEL ?? null,
-});
-const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
-  embeddingModelId:
-    process.env.NEXT_PUBLIC_EMBEDDING_MODEL ??
-    process.env.EMBEDDING_MODEL ??
-    null,
-  embeddingSpaceId:
-    (process.env.NEXT_PUBLIC_EMBEDDING_SPACE_ID as string | undefined) ??
-    process.env.EMBEDDING_SPACE_ID ??
-    null,
-  provider:
-    process.env.NEXT_PUBLIC_EMBEDDING_PROVIDER ??
-    process.env.NEXT_PUBLIC_LLM_PROVIDER ??
-    process.env.EMBEDDING_PROVIDER ??
-    process.env.LLM_PROVIDER ??
-    null,
-});
-const DEFAULT_ENGINE: ChatEngine = normalizeChatEngine(
-  process.env.NEXT_PUBLIC_CHAT_ENGINE ?? null,
-  "lc",
-);
 
 const URL_REGEX = /(https?:\/\/[^\s<>()"'`]+[^\s.,)<>"'`])/gi;
 
@@ -900,20 +865,9 @@ export function ChatWindow({
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
 
-  const [runtimeConfig, setRuntimeConfig] = useState<ChatRuntimeConfig>({
-    engine: DEFAULT_ENGINE,
-    llmProvider: DEFAULT_LLM_SELECTION.provider,
-    embeddingProvider: DEFAULT_EMBEDDING_SELECTION.provider,
-    llmModelId: DEFAULT_LLM_SELECTION.id,
-    embeddingModelId: DEFAULT_EMBEDDING_SELECTION.embeddingModelId,
-    embeddingSpaceId: DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
-    llmModel: DEFAULT_LLM_SELECTION.model,
-    embeddingModel: DEFAULT_EMBEDDING_SELECTION.model,
-    reverseRagEnabled: DEFAULT_REVERSE_RAG_ENABLED,
-    reverseRagMode: DEFAULT_REVERSE_RAG_MODE,
-    hydeEnabled: DEFAULT_HYDE_ENABLED,
-    rankerMode: DEFAULT_RANKER_MODE,
-  });
+  const [runtimeConfig, setRuntimeConfig] = useState<ChatRuntimeConfig | null>(
+    null,
+  );
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const {
@@ -932,76 +886,41 @@ export function ChatWindow({
 
   useEffect(() => {
     const controller = new AbortController();
-    const loadConfig = async () => {
+
+    const loadRuntime = async () => {
       try {
-        const response = await fetch("/api/chat-config", {
+        const response = await fetch("/api/chat-runtime", {
           signal: controller.signal,
         });
         if (!response.ok) {
-          throw new Error(`Failed to load chat config (${response.status})`);
+          throw new Error(`Failed to load chat runtime (${response.status})`);
         }
         const payload = (await response.json()) as {
-          models?: {
-            engine?: string | null;
-            llmProvider?: string | null;
-            embeddingProvider?: string | null;
-            llmModel?: string | null;
-            embeddingModel?: string | null;
-            llmModelId?: string | null;
-            embeddingModelId?: string | null;
-            embeddingSpaceId?: string | null;
-            reverseRagEnabled?: boolean | null;
-            reverseRagMode?: ReverseRagMode | null;
-            hydeEnabled?: boolean | null;
-            rankerMode?: RankerMode | null;
-          } | null;
+          runtime?: ChatRuntimeConfig | null;
         };
-        const models = payload?.models;
-        if (!models) {
-          return;
+        if (payload?.runtime) {
+          setRuntimeConfig(payload.runtime);
+        } else {
+          console.warn(
+            "[ChatWindow] chat runtime payload missing; telemetry disabled",
+          );
         }
-        const resolvedLlmProvider = normalizeModelProvider(
-          models.llmProvider ?? DEFAULT_LLM_SELECTION.provider,
-          DEFAULT_LLM_SELECTION.provider,
-        );
-        const resolvedEmbeddingProvider = normalizeModelProvider(
-          models.embeddingProvider ??
-            models.llmProvider ??
-            DEFAULT_EMBEDDING_SELECTION.provider,
-          DEFAULT_EMBEDDING_SELECTION.provider,
-        );
-        setRuntimeConfig({
-          engine: normalizeChatEngine(models.engine, DEFAULT_ENGINE),
-          llmProvider: resolvedLlmProvider,
-          embeddingProvider: resolvedEmbeddingProvider,
-          llmModelId:
-            models.llmModelId ?? models.llmModel ?? DEFAULT_LLM_SELECTION.id,
-          embeddingModelId:
-            models.embeddingModelId ??
-            models.embeddingModel ??
-            DEFAULT_EMBEDDING_SELECTION.embeddingModelId,
-          embeddingSpaceId:
-            models.embeddingSpaceId ??
-            DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
-          llmModel: models.llmModel ?? DEFAULT_LLM_SELECTION.model,
-          embeddingModel:
-            models.embeddingModel ?? DEFAULT_EMBEDDING_SELECTION.model,
-          reverseRagEnabled:
-            models.reverseRagEnabled ?? DEFAULT_REVERSE_RAG_ENABLED,
-          reverseRagMode: models.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE,
-          hydeEnabled: models.hydeEnabled ?? DEFAULT_HYDE_ENABLED,
-          rankerMode: models.rankerMode ?? DEFAULT_RANKER_MODE,
-        });
       } catch (err) {
         if (!controller.signal.aborted) {
           console.warn(
-            "Failed to load chat model settings; using defaults.",
+            "[ChatWindow] failed to load chat runtime; telemetry limited",
             err,
           );
         }
       }
     };
-    void loadConfig();
+
+    void loadRuntime();
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
     return () => controller.abort();
   }, []);
 
@@ -1129,7 +1048,7 @@ export function ChatWindow({
           id: assistantMessageId,
           role: "assistant",
           content: "",
-          runtime: runtimeConfig,
+          runtime: runtimeConfig ?? undefined,
         },
       ];
     });
@@ -1161,15 +1080,8 @@ export function ChatWindow({
     const run = async () => {
       try {
         const activeRuntime = runtimeConfig;
-        const endpoint = `/api/chat?engine=${activeRuntime.engine}`;
-        const llmModelPayload =
-          activeRuntime.llmModelId ?? activeRuntime.llmModel ?? undefined;
-        const embeddingModelPayload =
-          activeRuntime.embeddingModelId ??
-          activeRuntime.embeddingModel ??
-          undefined;
-        const embeddingSpacePayload =
-          activeRuntime.embeddingSpaceId ?? undefined;
+        const runtimeEngine = activeRuntime?.engine ?? "lc";
+        const endpoint = `/api/chat`;
         const sanitizedMessagesPayload = [...messages, userMessage].map(
           (message) => ({
             role: message.role,
@@ -1177,7 +1089,7 @@ export function ChatWindow({
           }),
         );
 
-        if (activeRuntime.engine === "lc") {
+        if (runtimeEngine === "lc") {
           // LangChain streaming
           const response = await fetch(endpoint, {
             method: "POST",
@@ -1185,15 +1097,6 @@ export function ChatWindow({
             body: JSON.stringify({
               question: value,
               messages: sanitizedMessagesPayload,
-              provider: activeRuntime.llmProvider,
-              embeddingProvider: activeRuntime.embeddingProvider,
-              model: llmModelPayload,
-              embeddingModel: embeddingModelPayload,
-              embeddingSpaceId: embeddingSpacePayload,
-              reverseRagEnabled: activeRuntime.reverseRagEnabled,
-              reverseRagMode: activeRuntime.reverseRagMode,
-              hydeEnabled: activeRuntime.hydeEnabled,
-              rankerMode: activeRuntime.rankerMode,
             }),
             signal: controller.signal,
           });
@@ -1271,15 +1174,6 @@ export function ChatWindow({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               messages: sanitizedMessagesPayload,
-              provider: activeRuntime.llmProvider,
-              embeddingProvider: activeRuntime.embeddingProvider,
-              model: llmModelPayload,
-              embeddingModel: embeddingModelPayload,
-              embeddingSpaceId: embeddingSpacePayload,
-              reverseRagEnabled: activeRuntime.reverseRagEnabled,
-              reverseRagMode: activeRuntime.reverseRagMode,
-              hydeEnabled: activeRuntime.hydeEnabled,
-              rankerMode: activeRuntime.rankerMode,
             }),
             signal: controller.signal,
           });
@@ -1314,7 +1208,7 @@ export function ChatWindow({
               setLoadingAssistantId(null);
             }
             console.debug("[chat-panel] chunk", {
-              engine: activeRuntime.engine,
+              engine: runtimeEngine,
               length: decodedChunk.length,
             });
             assistantContent += decodedChunk;
@@ -1403,56 +1297,79 @@ export function ChatWindow({
             <div className="chat-config-bar">
               <div className="chat-control-block">
                 <span className="ai-field__label">Engine &amp; model</span>
-                <div className="chat-runtime-summary">
-                  <div className="chat-runtime-summary__row">
-                    <span className="chat-runtime-summary__label">Engine</span>
-                    <span className="chat-runtime-summary__value">
-                      {runtimeConfig.engine === "lc" ? "LangChain" : "Native"}
-                    </span>
+                {runtimeConfig ? (
+                  <>
+                    <div className="chat-runtime-summary">
+                      <div className="chat-runtime-summary__row">
+                        <span className="chat-runtime-summary__label">
+                          Engine
+                        </span>
+                        <span className="chat-runtime-summary__value">
+                          {runtimeConfig.engine === "lc"
+                            ? "LangChain"
+                            : "Native"}
+                        </span>
+                      </div>
+                      <div className="chat-runtime-summary__row">
+                        <span className="chat-runtime-summary__label">LLM</span>
+                        <span className="chat-runtime-summary__value">
+                          {runtimeConfig.llmProvider === "openai"
+                            ? "OpenAI"
+                            : MODEL_PROVIDER_LABELS[runtimeConfig.llmProvider]}{" "}
+                          {runtimeConfig.llmModel ?? "custom model"}
+                        </span>
+                      </div>
+                      <div className="chat-runtime-summary__row">
+                        <span className="chat-runtime-summary__label">
+                          Embedding
+                        </span>
+                        <span className="chat-runtime-summary__value">
+                          {runtimeConfig.embeddingModelId ??
+                            runtimeConfig.embeddingModel ??
+                            "custom embedding"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="chat-runtime-flags">
+                      <span
+                        className="chat-runtime-flag"
+                        title="Reverse RAG enables query rewriting before retrieval"
+                      >
+                        Reverse RAG:{" "}
+                        {runtimeConfig.reverseRagEnabled
+                          ? `on (${runtimeConfig.reverseRagMode})`
+                          : "off"}
+                      </span>
+                      <span
+                        className="chat-runtime-flag"
+                        title="Ranker mode applied after the initial retrieval"
+                      >
+                        Ranker: {runtimeConfig.rankerMode.toUpperCase()}
+                      </span>
+                      <span
+                        className="chat-runtime-flag"
+                        title="HyDE generates a hypothetical document before embedding"
+                      >
+                        HyDE: {runtimeConfig.hydeEnabled ? "on" : "off"}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="chat-runtime-summary">
+                    <div className="chat-runtime-summary__row">
+                      <span className="chat-runtime-summary__label">Engine</span>
+                      <span className="chat-runtime-summary__value">
+                        Default preset
+                      </span>
+                    </div>
+                    <div className="chat-runtime-summary__row">
+                      <span className="chat-runtime-summary__label">LLM</span>
+                      <span className="chat-runtime-summary__value">
+                        Loading…
+                      </span>
+                    </div>
                   </div>
-                  <div className="chat-runtime-summary__row">
-                    <span className="chat-runtime-summary__label">LLM</span>
-                    <span className="chat-runtime-summary__value">
-                      {runtimeConfig.llmProvider === "openai"
-                        ? "OpenAI"
-                        : MODEL_PROVIDER_LABELS[runtimeConfig.llmProvider]}{" "}
-                      {runtimeConfig.llmModel ?? "custom model"}
-                    </span>
-                  </div>
-                  <div className="chat-runtime-summary__row">
-                    <span className="chat-runtime-summary__label">
-                      Embedding
-                    </span>
-                    <span className="chat-runtime-summary__value">
-                      {runtimeConfig.embeddingModelId ??
-                        runtimeConfig.embeddingModel ??
-                        "custom embedding"}
-                    </span>
-                  </div>
-                </div>
-                <div className="chat-runtime-flags">
-                  <span
-                    className="chat-runtime-flag"
-                    title="Reverse RAG enables query rewriting before retrieval"
-                  >
-                    Reverse RAG:{" "}
-                    {runtimeConfig.reverseRagEnabled
-                      ? `on (${runtimeConfig.reverseRagMode})`
-                      : "off"}
-                  </span>
-                  <span
-                    className="chat-runtime-flag"
-                    title="Ranker mode applied after the initial retrieval"
-                  >
-                    Ranker: {runtimeConfig.rankerMode.toUpperCase()}
-                  </span>
-                  <span
-                    className="chat-runtime-flag"
-                    title="HyDE generates a hypothetical document before embedding"
-                  >
-                    HyDE: {runtimeConfig.hydeEnabled ? "on" : "off"}
-                  </span>
-                </div>
+                )}
               </div>
               <div className="chat-control-block">
                 <div className="guardrail-toggle-row">

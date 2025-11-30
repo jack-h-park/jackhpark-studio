@@ -190,7 +190,7 @@ export default function AdminDocumentsPage({
         params.set("page", String(nextPage));
       }
 
-      router.push(
+      void router.push(
         {
           pathname: "/admin/documents",
           query: Object.fromEntries(params.entries()),

@@ -1,4 +1,5 @@
 import type { AdminChatConfig } from "@/types/chat-config";
+
 import type { DocType, PersonaType } from "./metadata";
 
 export type RagConfigSnapshot = {

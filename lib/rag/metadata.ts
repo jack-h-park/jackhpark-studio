@@ -57,15 +57,15 @@ function normalizeTags(tags: unknown): string[] | undefined {
         .filter(Boolean),
     ),
   );
-  normalized.sort((a, b) => a.localeCompare(b));
+  const sorted = normalized.toSorted((a, b) => a.localeCompare(b));
 
-  return normalized;
+  return sorted;
 }
 
 function sortEntries(
   entries: [string, unknown][],
 ): [string, unknown][] {
-  return [...entries].sort(([a], [b]) => a.localeCompare(b));
+  return entries.toSorted(([a], [b]) => a.localeCompare(b));
 }
 
 /**

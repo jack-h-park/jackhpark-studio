@@ -4,6 +4,7 @@ import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import type { BaseLanguageModelInterface } from "@langchain/core/language_models/base";
 import type { NextApiRequest, NextApiResponse } from "next";
 
+import type { RagConfigSnapshot } from "@/lib/rag/types";
 import {
   type EmbeddingSpace,
   resolveEmbeddingSpace,
@@ -12,16 +13,15 @@ import {
   getGeminiModelCandidates,
   shouldRetryGeminiModel,
 } from "@/lib/core/gemini";
-import { findLlmModelOption, resolveLlmModel } from "@/lib/core/llm-registry";
+import { resolveLlmModel } from "@/lib/core/llm-registry";
 import { requireProviderApiKey } from "@/lib/core/model-provider";
-import { getOllamaRuntimeConfig, isOllamaEnabled } from "@/lib/core/ollama";
+import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { normalizeMetadata, type RagDocumentMetadata } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
-import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import { buildRagConfigSnapshot } from "@/lib/rag/telemetry";
-import type { RagConfigSnapshot } from "@/lib/rag/types";
+import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import {
   applyHistoryWindow,
   buildContextWindow,
@@ -33,11 +33,8 @@ import {
   routeQuestion,
 } from "@/lib/server/chat-guardrails";
 import { type ChatMessage, sanitizeMessages } from "@/lib/server/chat-messages";
-import { loadSystemPrompt } from "@/lib/server/chat-settings";
-import {
-  respondWithOllamaUnavailable,
-  respondWithUnsupportedOllamaModel,
-} from "@/lib/server/ollama-errors";
+import { loadChatModelSettings, loadSystemPrompt } from "@/lib/server/chat-settings";
+import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 import {
   type CanonicalPageLookup,
@@ -57,16 +54,9 @@ import {
 } from "@/lib/shared/guardrail-meta";
 import {
   type ModelProvider,
-  toModelProviderId,
 } from "@/lib/shared/model-provider";
 import {
-  DEFAULT_HYDE_ENABLED,
-  DEFAULT_RANKER_MODE,
-  DEFAULT_REVERSE_RAG_ENABLED,
   DEFAULT_REVERSE_RAG_MODE,
-  parseBooleanFlag,
-  parseRankerMode,
-  parseReverseRagMode,
 } from "@/lib/shared/rag-config";
 
 /**
@@ -161,7 +151,7 @@ function logRetrievalStage(
     console.log("[rag:langchain] retrieval", stage, payload);
   }
 
-  trace?.observation({
+  void trace?.observation({
     name: "rag_retrieval_stage",
     metadata: {
       stage,
@@ -197,12 +187,14 @@ export default async function handler(
       typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
 
     const guardrails = await getChatGuardrailConfig();
-    const adminConfig = await getAdminChatConfig();
-    const ragRanking = adminConfig.ragRanking;
-    const ragConfigSnapshot: RagConfigSnapshot = buildRagConfigSnapshot(
-      adminConfig,
-      "default",
-    );
+  const adminConfig = await getAdminChatConfig();
+  const ragRanking = adminConfig.ragRanking;
+  const ragConfigSnapshot: RagConfigSnapshot = buildRagConfigSnapshot(
+    adminConfig,
+    "default",
+  );
+  const runtime =
+    (req as any).chatRuntime ?? (await loadChatModelSettings({ forceRefresh: true }));
     const fallbackQuestion =
       typeof body.question === "string" ? body.question : undefined;
     let rawMessages: ChatMessage[] = [];
@@ -226,76 +218,28 @@ export default async function handler(
       messages,
       guardrails,
     );
-    const reverseRagEnabled = parseBooleanFlag(
-      body.reverseRagEnabled ?? first(req.query.reverseRagEnabled),
-      DEFAULT_REVERSE_RAG_ENABLED,
-    );
-    const reverseRagMode = parseReverseRagMode(
-      body.reverseRagMode ?? first(req.query.reverseRagMode),
-      DEFAULT_REVERSE_RAG_MODE,
-    );
-    const hydeEnabled = parseBooleanFlag(
-      body.hydeEnabled ?? first(req.query.hydeEnabled),
-      DEFAULT_HYDE_ENABLED,
-    );
-    const rankerMode = parseRankerMode(
-      body.rankerMode ?? first(req.query.rankerMode),
-      DEFAULT_RANKER_MODE,
-    );
-
-    const requestedProvider = first(body.provider) ?? first(req.query.provider);
-    const requestedEmbeddingProvider =
-      first(body.embeddingProvider) ?? first(req.query.embeddingProvider);
-    const requestedLlmModel = first(body.model) ?? first(req.query.model);
-    const requestedEmbeddingModel =
-      first(body.embeddingModel) ?? first(req.query.embeddingModel);
-    const requestedEmbeddingSpace =
-      first(body.embeddingSpaceId) ?? first(req.query.embeddingSpaceId);
-
-    const requestedProviderId = toModelProviderId(requestedProvider);
-    const requestedModelOption = requestedLlmModel
-      ? findLlmModelOption(requestedLlmModel)
-      : null;
-    const inferredOllamaByValue = Boolean(
-      typeof requestedLlmModel === "string" &&
-        requestedLlmModel.toLowerCase().includes("ollama"),
-    );
-    const isOllamaRequested =
-      requestedProviderId === "ollama" ||
-      requestedModelOption?.provider === "ollama" ||
-      inferredOllamaByValue;
-
-    if (
-      (requestedProviderId === "ollama" || inferredOllamaByValue) &&
-      typeof requestedLlmModel === "string" &&
-      (!requestedModelOption || requestedModelOption.provider !== "ollama")
-    ) {
-      return respondWithUnsupportedOllamaModel(res, requestedLlmModel);
-    }
-
-    if (isOllamaRequested && !isOllamaEnabled()) {
-      return respondWithOllamaUnavailable(res);
-    }
+    const reverseRagEnabled = runtime.reverseRagEnabled;
+    const reverseRagMode = runtime.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE;
+    const hydeEnabled = runtime.hydeEnabled;
+    const rankerMode = runtime.rankerMode;
 
     const llmSelection = resolveLlmModel({
-      provider: requestedProvider,
-      modelId: requestedLlmModel,
-      model: requestedLlmModel,
+      provider: runtime.llmProvider,
+      modelId: runtime.llmModelId,
+      model: runtime.llmModel,
     });
     const embeddingSelection = resolveEmbeddingSpace({
-      provider: requestedEmbeddingProvider ?? llmSelection.provider,
-      embeddingModelId: requestedEmbeddingModel,
-      embeddingSpaceId: requestedEmbeddingSpace ?? requestedEmbeddingModel,
-      model: requestedEmbeddingModel,
+      provider: runtime.embeddingProvider ?? llmSelection.provider,
+      embeddingModelId: runtime.embeddingModelId ?? runtime.embeddingModel,
+      embeddingSpaceId: runtime.embeddingSpaceId ?? runtime.embeddingModelId,
+      model: runtime.embeddingModel ?? runtime.embeddingModelId ?? undefined,
     });
 
     const provider = llmSelection.provider;
     const embeddingProvider = embeddingSelection.provider;
     const llmModel = llmSelection.model;
     const embeddingModel = embeddingSelection.model;
-    const temperature = parseTemperature(
-      body.temperature ?? first(req.query.temperature),
-    );
+    const temperature = parseTemperature(undefined);
     const env = getAppEnv();
     const sessionId =
       (req.headers["x-chat-id"] as string) ??
@@ -940,13 +884,6 @@ export default async function handler(
       .status(500)
       .json({ error: err?.message || "Internal Server Error" });
   }
-}
-
-function first(value: unknown): string | undefined {
-  if (Array.isArray(value)) {
-    return typeof value[0] === "string" ? value[0] : undefined;
-  }
-  return typeof value === "string" ? value : undefined;
 }
 
 function parseTemperature(value: unknown): number {

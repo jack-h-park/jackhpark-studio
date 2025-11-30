@@ -3,7 +3,7 @@ import type { AdminChatConfig, RagRankingConfig } from "@/types/chat-config";
 import { DOC_TYPE_WEIGHTS, PERSONA_WEIGHTS } from "./ranking";
 import { type RagConfigSnapshot } from "./types";
 
-export type { RagConfigSnapshot };
+
 
 export function buildRagConfigSnapshot(
   adminConfig: AdminChatConfig,
@@ -45,3 +45,5 @@ export function buildRagConfigSnapshot(
     },
   };
 }
+
+export {type RagConfigSnapshot} from "./types";

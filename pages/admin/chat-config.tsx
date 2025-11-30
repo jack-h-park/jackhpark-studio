@@ -123,6 +123,9 @@ const LLM_MODEL_DEFINITIONS_MAP = new Map<LlmModelId, LlmModelDefinition>(
   ]),
 );
 
+const clampWeight = (value: number) =>
+  clamp(Number.isFinite(value) ? value : 0, RAG_WEIGHT_MIN, RAG_WEIGHT_MAX);
+
 const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
 
 type PresetKey = keyof AdminChatConfig["presets"];
@@ -204,9 +207,6 @@ function AdminChatConfigForm({
 
   const isFormBusy = saveStatus === "saving";
   const isSaveDisabled = hasNumericErrors || isFormBusy;
-
-  const clampWeight = (value: number) =>
-    clamp(Number.isFinite(value) ? value : 0, RAG_WEIGHT_MIN, RAG_WEIGHT_MAX);
 
   const handleSave = async () => {
     if (isSaveDisabled) {

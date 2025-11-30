@@ -32,7 +32,6 @@ import {
 import {
   DOC_TYPE_OPTIONS,
   PERSONA_TYPE_OPTIONS,
-  type RagDocumentMetadata,
 } from "@/lib/rag/metadata";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";

@@ -226,7 +226,7 @@ It is designed to be both a practical learning exercise and a professional portf
    ADMIN_DASH_PASS=secret
    NOTION_PAGE_CACHE_TTL=300
 
-   LLM_MODEL="OpenAI gpt-4o-mini"
+   DEFAULT_LLM_MODEL="OpenAI gpt-4o-mini"
    EMBEDDING_PROVIDER=openai
    EMBEDDING_MODEL_ID=text-embedding-3-small
    EMBEDDING_VERSION=v1
@@ -247,7 +247,7 @@ The assistant ships with sensible defaults, but you can fine‑tune behaviour vi
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `LLM_MODEL` | `OpenAI gpt-4o-mini` | Combined provider + model alias for chat responses (e.g. `OpenAI gpt-4o-mini`, `Gemini 1.5 Flash`). |
+| `DEFAULT_LLM_MODEL` | `OpenAI gpt-4o-mini` | Combined provider + model alias for chat responses (e.g. `OpenAI gpt-4o-mini`, `Gemini 1.5 Flash`). |
 | `EMBEDDING_PROVIDER` | `openai` | Canonical provider for the embedding space, used together with `EMBEDDING_MODEL_ID`. |
 | `EMBEDDING_MODEL_ID` | `text-embedding-3-small` | Canonical model identifier; pairs with `EMBEDDING_PROVIDER` and `EMBEDDING_VERSION` to derive the embedding space. |
 | `EMBEDDING_VERSION` | `v1` | Version suffix used in table/RPC names (`openai_te3s_v1`). |
