@@ -5,6 +5,8 @@ import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/components/ui/utils";
 
+import styles from "./ChatMessagesPanel.module.css";
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -18,7 +20,7 @@ type Props = {
 
 export function ChatMessagesPanel({ messages }: Props) {
   return (
-    <div className="ai-chat-messages-panel">
+    <div className={styles.messagesPanel}>
       {messages.length === 0 ? (
         <div className="flex flex-1 justify-center items-center">
           <Image
@@ -33,11 +35,11 @@ export function ChatMessagesPanel({ messages }: Props) {
           <Card
             key={message.id}
             className={cn(
-              "ai-chat-message",
+              styles.chatMessage,
               message.role === "assistant"
-                ? "ai-chat-message--assistant"
-                : "ai-chat-message--user",
-              message.isError ? "ai-chat-message--error" : undefined,
+                ? styles.chatMessageAssistant
+                : styles.chatMessageUser,
+              message.isError ? styles.chatMessageError : undefined,
             )}
           >
             <div className="ai-meta-text uppercase tracking-[0.25em]">

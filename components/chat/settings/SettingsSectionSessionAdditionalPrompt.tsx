@@ -9,6 +9,7 @@ import {
   getAdditionalPromptMaxLength,
   type SessionChatConfig,
 } from "@/types/chat-config";
+import styles from "./SettingsSection.module.css";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -31,11 +32,11 @@ export function SettingsSectionSessionAdditionalPrompt({
   ].join(" ");
 
   return (
-    <section className="ai-panel ai-settings-section">
+    <section className={`ai-panel ${styles.section}`}>
       <HeadingWithIcon
         as="p"
         icon={<FiType aria-hidden="true" />}
-        className="ai-settings-section__title"
+        className={styles.title}
       >
         User system prompt
       </HeadingWithIcon>
@@ -44,7 +45,7 @@ export function SettingsSectionSessionAdditionalPrompt({
         value={sessionConfig.additionalSystemPrompt ?? ""}
         maxLength={maxLength}
         helperText={helperText}
-        helperClassName="ai-settings-section__description"
+        helperClassName={styles.description}
         onChange={(value) =>
           setSessionConfig((prev) => ({
             ...prev,

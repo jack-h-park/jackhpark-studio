@@ -10,6 +10,7 @@ import { mapImageUrl } from "@/lib/map-image-url";
 import { useDarkMode } from "@/lib/use-dark-mode";
 
 import { cn } from "./ui/utils";
+import styles from "./AiPageChrome.module.css";
 
 type AiPageChromeProps = {
   headerRecordMap: ExtendedRecordMap | null;
@@ -36,8 +37,8 @@ export function AiPageChrome({
   const headerBlock = headerBlockEntry?.value as PageBlock | undefined;
 
   return (
-    <div className={cn("ai-page-chrome notion", rootClassName)}>
-      <div className="ai-page-chrome__header">
+    <div className={cn(styles.chrome, "notion", rootClassName)}>
+      <div className={styles.header}>
         {headerRecordMap && headerBlock ? (
           <NotionContextProvider
             recordMap={headerRecordMap}
@@ -69,10 +70,8 @@ export function AiPageChrome({
           </header>
         )}
       </div>
-      <main className={cn("ai-page-chrome__body", bodyClassName)}>
-        {children}
-      </main>
-      <div className="ai-page-chrome__footer">
+      <main className={cn(styles.body, bodyClassName)}>{children}</main>
+      <div className={styles.footer}>
         <Footer />
       </div>
     </div>

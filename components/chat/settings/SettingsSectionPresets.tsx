@@ -5,6 +5,7 @@ import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { GridPanel, GridPanelItem } from "@/components/ui/grid-panel";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import styles from "./SettingsSection.module.css";
 
 type PresetKey = "default" | "fast" | "highRecall";
 
@@ -32,19 +33,19 @@ export function SettingsSectionPresets({
   const applyPreset = (presetKey: PresetKey) => {
     setSessionConfig(() => ({
       ...adminConfig.presets[presetKey],
-       presetId: presetKey,
-       additionalSystemPrompt:
-         adminConfig.presets[presetKey].additionalSystemPrompt ?? "",
-       appliedPreset: presetKey,
+      presetId: presetKey,
+      additionalSystemPrompt:
+        adminConfig.presets[presetKey].additionalSystemPrompt ?? "",
+      appliedPreset: presetKey,
     }));
   };
 
   return (
-    <section className="ai-panel ai-settings-section ai-settings-section--cascade-start">
+    <section className={`ai-panel ${styles.section} ${styles.cascadeStart}`}>
       <HeadingWithIcon
         as="p"
         icon={<FiLayers aria-hidden="true" />}
-        className="ai-settings-section__title"
+        className={styles.title}
       >
         AI Orchestration Presets (Session-Wide)
       </HeadingWithIcon>

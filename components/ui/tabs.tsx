@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { cn } from "./utils";
+import styles from "./Tabs.module.css";
 
 export type TabDefinition = {
   id: string;
@@ -38,7 +39,7 @@ export function Tabs({
     <div
       role="tablist"
       aria-label={ariaLabel}
-      className={cn("ai-tabs-container ai-surface ai-tabs-surface", className)}
+      className={cn(styles.container, styles.surface, "ai-surface", className)}
     >
       {tabs.map((tab) => {
         const isActive = activeTabId === tab.id;
@@ -60,10 +61,10 @@ export function Tabs({
               }
             }}
             className={cn(
-              "ai-tab-control",
+              styles.control,
               variantPadding[variant],
-              isActive ? "ai-tab-control--active" : "ai-tab-control--inactive",
-              isDisabled && "ai-tab-control--disabled",
+              isActive ? styles.controlActive : styles.controlInactive,
+              isDisabled && styles.controlDisabled,
             )}
           >
             <span className="inline-flex items-center gap-2">
@@ -106,7 +107,7 @@ export function TabPanel({
       id={`tabpanel-${tabId}`}
       aria-labelledby={`tabs-${tabId}`}
       hidden={!isActive}
-      className={cn("ai-tab-panel", className)}
+      className={cn(styles.panel, className)}
     >
       {children}
     </div>

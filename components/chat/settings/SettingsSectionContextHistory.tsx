@@ -7,6 +7,7 @@ import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { SliderNumberField } from "@/components/ui/slider-number-field";
 import { Switch } from "@/components/ui/switch";
+import styles from "./SettingsSection.module.css";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -57,13 +58,15 @@ export function SettingsSectionContextHistory({
   ];
 
   return (
-    <section className="ai-panel ai-settings-section">
-      <div className="ai-settings-section__header flex items-center justify-between gap-3">
+    <section className={`ai-panel ${styles.section}`}>
+      <div
+        className={`${styles.header} flex items-center justify-between gap-3`}
+      >
         <HeadingWithIcon
           id="settings-context-history-title"
           as="p"
           icon={<FiClock aria-hidden="true" />}
-          className="ai-settings-section__title"
+          className={styles.title}
         >
           Context &amp; History
         </HeadingWithIcon>

@@ -9,6 +9,7 @@ import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 
 import { SettingsSectionContextHistory } from "./SettingsSectionContextHistory";
 import { SettingsSectionCoreSummary } from "./SettingsSectionCoreSummary";
+import styles from "./ChatAdvancedSettingsDrawer.module.css";
 import { SettingsSectionDisplay } from "./SettingsSectionDisplay";
 import { SettingsSectionModelEngine } from "./SettingsSectionModelEngine";
 import { SettingsSectionPresets } from "./SettingsSectionPresets";
@@ -66,21 +67,19 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
   return (
     <>
       <div
-        className={`ai-settings-drawer-overlay ${
-          open ? "ai-settings-drawer-overlay--visible" : ""
-        }`}
+        className={`${styles.overlay} ${open ? styles.overlayVisible : ""}`}
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className={`ai-settings-drawer ${open ? "ai-settings-drawer--visible" : ""}`}
+        className={`${styles.drawer} ${open ? styles.drawerVisible : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label="Advanced chat settings"
       >
-        <div className="ai-settings-drawer__panel">
-          <div className="ai-settings-drawer__inner">
-            <div className="ai-settings-drawer__header">
+        <div className={styles.panel}>
+          <div className={styles.inner}>
+            <div className={styles.header}>
               <HeadingWithIcon as="h2" icon={<FiSettings aria-hidden="true" />}>
                 Advanced Settings
               </HeadingWithIcon>
@@ -93,7 +92,7 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
                 ✕
               </Button>
             </div>
-            <div className="ai-settings-drawer__content space-y-4">
+            <div className={`${styles.content} space-y-4`}>
               <SettingsSectionCoreSummary
                 summary={adminConfig.baseSystemPromptSummary ?? ""}
               />
@@ -107,7 +106,7 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
                 setSessionConfig={setSessionConfig}
               />
 
-              <div className="ai-settings-cascade space-y-4">
+              <div className={`${styles.cascade} space-y-4`}>
                 <SettingsSectionModelEngine
                   adminConfig={adminConfig}
                   sessionConfig={sessionConfig}

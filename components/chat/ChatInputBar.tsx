@@ -5,6 +5,8 @@ import type { FormEvent, KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
+import styles from "./ChatInputBar.module.css";
+
 type Props = {
   value: string;
   onChange: (value: string) => void;
@@ -35,7 +37,7 @@ export function ChatInputBar({
   };
 
   return (
-    <form className="ai-chat-input-bar" onSubmit={handleSubmit}>
+    <form className={styles.inputBar} onSubmit={handleSubmit}>
       <Textarea
         placeholder="Ask anything about Jack’s work..."
         value={value}
@@ -43,11 +45,11 @@ export function ChatInputBar({
         onKeyDown={handleKeyDown}
         disabled={disabled}
       />
-      <div className="ai-chat-input-bar__row">
+      <div className={styles.inputBarRow}>
         <Button
           type="submit"
           disabled={disabled || value.trim().length === 0}
-          className="ai-chat-input-bar__send"
+          className={styles.inputBarSend}
         >
           {disabled ? "Sending…" : "Send"}
         </Button>

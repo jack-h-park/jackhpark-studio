@@ -4,7 +4,10 @@ import { FiMessageCircle } from "@react-icons/all-files/fi/FiMessageCircle";
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import { useMemo, useState } from "react";
 
-import type { AdminChatConfig, AdminChatRuntimeMeta } from "@/types/chat-config";
+import type {
+  AdminChatConfig,
+  AdminChatRuntimeMeta,
+} from "@/types/chat-config";
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { ChatMessagesPanel } from "@/components/chat/ChatMessagesPanel";
 import {
@@ -15,6 +18,8 @@ import { ChatAdvancedSettingsDrawer } from "@/components/chat/settings/ChatAdvan
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+
+import styles from "./ChatShell.module.css";
 
 type ChatMessage = {
   id: string;
@@ -114,9 +119,9 @@ function ChatShellContent() {
   );
 
   return (
-    <div className="ai-chat-shell">
-      <Card className="ai-chat-panel">
-        <header className="ai-chat-header">
+    <div className={styles.shell}>
+      <Card className={styles.panel}>
+        <header className={styles.header}>
           <div>
             <HeadingWithIcon
               as="p"
@@ -139,7 +144,7 @@ function ChatShellContent() {
             Advanced Settings
           </Button>
         </header>
-        <div className="ai-chat-body">
+        <div className={styles.body}>
           <ChatMessagesPanel messages={messages} />
           <ChatInputBar
             value={inputValue}

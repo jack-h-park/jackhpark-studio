@@ -6,6 +6,7 @@ import type { ErrorLogEntry } from "@/lib/admin/ingestion-runs";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorLogList } from "@/components/ui/error-log-list";
+import styles from "./ErrorLogDetailsDrawer.module.css";
 
 type ErrorLogDetailsDrawerProps = {
   open: boolean;
@@ -55,23 +56,19 @@ export function ErrorLogDetailsDrawer({
   return (
     <>
       <div
-        className={`ai-error-log-drawer-overlay ${
-          open ? "ai-error-log-drawer-overlay--visible" : ""
-        }`}
+        className={`${styles.overlay} ${open ? styles.overlayVisible : ""}`}
         onClick={() => onOpenChange(false)}
         aria-hidden="true"
       />
       <div
-        className={`ai-error-log-drawer ${
-          open ? "ai-error-log-drawer--visible" : ""
-        }`}
+        className={`${styles.drawer} ${open ? styles.drawerVisible : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label="Error log details"
       >
-        <div className="ai-error-log-drawer__panel">
-          <Card className="ai-error-log-drawer__inner">
-            <div className="ai-error-log-drawer__header">
+        <div className={styles.panel}>
+          <Card className={styles.inner}>
+            <div className={styles.header}>
               <div>
                 <h2 className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
                   {title}
@@ -89,7 +86,7 @@ export function ErrorLogDetailsDrawer({
                 ✕
               </Button>
             </div>
-            <div className="ai-error-log-drawer__content">
+            <div className={styles.content}>
               <ErrorLogList logs={logs} />
             </div>
           </Card>

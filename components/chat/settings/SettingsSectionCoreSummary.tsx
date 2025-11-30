@@ -3,6 +3,7 @@
 import { FiCommand } from "@react-icons/all-files/fi/FiCommand";
 
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import styles from "./SettingsSection.module.css";
 
 type Props = {
   summary: string;
@@ -10,15 +11,15 @@ type Props = {
 
 export function SettingsSectionCoreSummary({ summary }: Props) {
   return (
-    <section className="ai-panel ai-settings-section">
+    <section className={`ai-panel ${styles.section}`}>
       <HeadingWithIcon
         as="p"
         icon={<FiCommand aria-hidden="true" />}
-        className="ai-settings-section__title"
+        className={styles.title}
       >
         Core System Behavior
       </HeadingWithIcon>
-      <p className="ai-settings-section__description">{summary}</p>
+      <p className={styles.description}>{summary}</p>
     </section>
   );
 }

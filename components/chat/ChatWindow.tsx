@@ -15,7 +15,6 @@ import {
   useRef,
   useState,
 } from "react";
-import styles from "@/styles/ChatWindow.module.css";
 
 import type { ModelResolutionReason } from "@/types/chat-config";
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
@@ -30,6 +29,8 @@ import {
   type ModelProvider,
 } from "@/lib/shared/model-provider";
 import { type RankerMode, type ReverseRagMode } from "@/lib/shared/rag-config";
+
+import styles from "./ChatWindow.module.css";
 
 const URL_REGEX = /(https?:\/\/[^\s<>()"'`]+[^\s.,)<>"'`])/gi;
 
@@ -681,17 +682,17 @@ export function ChatWindow({
   return (
     <>
       <div
-        className={`${styles["chat-panel"]} ${isOpen ? styles["is-open"] : ""} ${
-          isExpanded ? styles["is-large"] : ""
+        className={`${styles.chatPanel} ${isOpen ? styles.isOpen : ""} ${
+          isExpanded ? styles.isLarge : ""
         }`}
       >
-        <header className={styles["chat-header"]}>
-          <div className={styles["chat-header-top"]}>
-            <div className={styles["chat-header-title"]}>
+        <header className={styles.chatHeader}>
+          <div className={styles.chatHeaderTop}>
+            <div className={styles.chatHeaderTitle}>
               <GiBrain />
               <h3>Jack's AI Assistant</h3>
             </div>
-            <div className={styles["chat-header-actions"]}>
+            <div className={styles.chatHeaderActions}>
               {runtimeLlmWasSubstituted && (
                 <FiAlertCircle
                   aria-hidden="true"
@@ -702,7 +703,7 @@ export function ChatWindow({
               )}
               <button
                 type="button"
-                className={styles["chat-config-toggle"]}
+                className={styles.chatConfigToggle}
                 onClick={toggleOptions}
               >
                 {showOptions ? "Hide Settings" : "Show Settings"}
@@ -711,7 +712,7 @@ export function ChatWindow({
               {showExpandButton && (
                 <button
                   type="button"
-                  className={styles["chat-expand-button"]}
+                  className={styles.chatExpandButton}
                   aria-label={
                     isExpanded ? "Shrink chat panel" : "Expand chat panel"
                   }
@@ -726,7 +727,7 @@ export function ChatWindow({
               )}
               {showCloseButton && (
                 <button
-                  className={styles["chat-close-button"]}
+                  className={styles.chatCloseButton}
                   onClick={onClose}
                   aria-label="Close chat"
                   type="button"
@@ -737,28 +738,28 @@ export function ChatWindow({
             </div>
           </div>
           {showOptions && (
-            <div className={styles["chat-config-bar"]}>
-              <div className={styles["chat-control-block"]}>
+            <div className={styles.chatConfigBar}>
+              <div className={styles.chatControlBlock}>
                 <span className="ai-field__label">Engine &amp; model</span>
                 {runtimeConfig ? (
                   <>
-                    <div className={styles["chat-runtime-summary"]}>
-                      <div className={styles["chat-runtime-summary__row"]}>
-                        <span className={styles["chat-runtime-summary__label"]}>
+                    <div className={styles.chatRuntimeSummary}>
+                      <div className={styles.chatRuntimeSummaryRow}>
+                        <span className={styles.chatRuntimeSummaryLabel}>
                           Engine
                         </span>
-                        <span className={styles["chat-runtime-summary__value"]}>
+                        <span className={styles.chatRuntimeSummaryValue}>
                           {runtimeConfig.engine === "lc"
                             ? "LangChain"
                             : "Native"}
                         </span>
                       </div>
-                      <div className={styles["chat-runtime-summary__row"]}>
-                        <span className={styles["chat-runtime-summary__label"]}>
+                      <div className={styles.chatRuntimeSummaryRow}>
+                        <span className={styles.chatRuntimeSummaryLabel}>
                           LLM
                         </span>
                         <span
-                          className={`${styles["chat-runtime-summary__value"]} inline-flex items-center gap-1`}
+                          className={`${styles.chatRuntimeSummaryValue} inline-flex items-center gap-1`}
                         >
                           {runtimeConfig.llmProvider === "openai"
                             ? "OpenAI"
@@ -776,20 +777,20 @@ export function ChatWindow({
                           )}
                         </span>
                       </div>
-                      <div className={styles["chat-runtime-summary__row"]}>
-                        <span className={styles["chat-runtime-summary__label"]}>
+                      <div className={styles.chatRuntimeSummaryRow}>
+                        <span className={styles.chatRuntimeSummaryLabel}>
                           Embedding
                         </span>
-                        <span className={styles["chat-runtime-summary__value"]}>
+                        <span className={styles.chatRuntimeSummaryValue}>
                           {runtimeConfig.embeddingModelId ??
                             runtimeConfig.embeddingModel ??
                             "custom embedding"}
                         </span>
                       </div>
                     </div>
-                    <div className={styles["chat-runtime-flags"]}>
+                    <div className={styles.chatRuntimeFlags}>
                       <span
-                        className={styles["chat-runtime-flag"]}
+                        className={styles.chatRuntimeFlag}
                         title="Reverse RAG enables query rewriting before retrieval"
                       >
                         Reverse RAG:{" "}
@@ -798,20 +799,20 @@ export function ChatWindow({
                           : "off"}
                       </span>
                       <span
-                        className={styles["chat-runtime-flag"]}
+                        className={styles.chatRuntimeFlag}
                         title="Ranker mode applied after the initial retrieval"
                       >
                         Ranker: {runtimeConfig.rankerMode.toUpperCase()}
                       </span>
                       <span
-                        className={styles["chat-runtime-flag"]}
+                        className={styles.chatRuntimeFlag}
                         title="HyDE generates a hypothetical document before embedding"
                       >
                         HyDE: {runtimeConfig.hydeEnabled ? "on" : "off"}
                       </span>
                       {runtimeLlmWasSubstituted && (
                         <span
-                          className={styles["chat-runtime-flag"]}
+                          className={styles.chatRuntimeFlag}
                           title={runtimeSubstitutionTooltip}
                         >
                           Model substituted
@@ -820,73 +821,69 @@ export function ChatWindow({
                     </div>
                   </>
                 ) : (
-                  <div className={styles["chat-runtime-summary"]}>
-                    <div className={styles["chat-runtime-summary__row"]}>
-                      <span className={styles["chat-runtime-summary__label"]}>
-                        Engine
-                      </span>
-                      <span className={styles["chat-runtime-summary__value"]}>
-                        Default preset
-                      </span>
+                  <>
+                    <div className={styles.chatRuntimeSummary}>
+                      <div className={styles.chatRuntimeSummaryRow}>
+                        <span className={styles.chatRuntimeSummaryLabel}>
+                          Engine
+                        </span>
+                        <span className={styles.chatRuntimeSummaryValue}>
+                          Default preset
+                        </span>
+                      </div>
+                      <div className={styles.chatRuntimeSummaryRow}>
+                        <span className={styles.chatRuntimeSummaryLabel}>
+                          LLM
+                        </span>
+                        <span className={styles.chatRuntimeSummaryValue}>
+                          Loading…
+                        </span>
+                      </div>
                     </div>
-                    <div className={styles["chat-runtime-summary__row"]}>
-                      <span className={styles["chat-runtime-summary__label"]}>
-                        LLM
-                      </span>
-                      <span className={styles["chat-runtime-summary__value"]}>
-                        Loading…
-                      </span>
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
-              <div className={styles["chat-control-block"]}>
-                <div className={styles["guardrail-toggle-row"]}>
-                  <div
-                    className={`${styles["guardrail-description"]} ai-choice`}
-                  >
+              <div className={styles.chatControlBlock}>
+                <div className={styles.guardrailToggleRow}>
+                  <div className={`${styles.guardrailDescription} ai-choice`}>
                     <span className="ai-choice__label">Telemetry badges</span>
                     <p className="ai-choice__description">
                       Show engine, guardrail, and enhancement insights
                     </p>
                   </div>
                   <Switch
-                    className={styles["guardrail-toggle-row__switch"]}
+                    className={styles.guardrailToggleRowSwitch}
                     checked={showTelemetry}
                     onCheckedChange={handleTelemetrySwitchChange}
                     aria-label="Toggle telemetry visibility"
                   />
                 </div>
                 <div
-                  className={`${styles["guardrail-toggle-row"]} ${styles["guardrail-toggle-row--auto"]}`}
+                  className={`${styles.guardrailToggleRow} ${styles.guardrailToggleRowAuto}`}
                 >
-                  <div
-                    className={`${styles["guardrail-description"]} ai-choice`}
-                  >
+                  <div className={`${styles.guardrailDescription} ai-choice`}>
                     <span className="ai-choice__label">
                       Auto expand telemetry on toggle
                     </span>
                   </div>
                   <Switch
-                    className={styles["guardrail-toggle-row__switch"]}
+                    className={styles.guardrailToggleRowSwitch}
                     checked={telemetryAutoExpand}
                     onCheckedChange={handleAutoExpandChange}
                     aria-label="Toggle auto expand telemetry"
                   />
                 </div>
               </div>
-              <div className={styles["chat-control-block"]}>
-                <div className={styles["guardrail-toggle-row"]}>
-                  <div
-                    className={`${styles["guardrail-description"]} ai-choice`}
-                  >
+              <div className={styles.chatControlBlock}>
+                <div className={styles.guardrailToggleRow}>
+                  <div className={`${styles.guardrailDescription} ai-choice`}>
                     <span className="ai-choice__label">Citations</span>
                     <p className="ai-choice__description">
                       Show every retrieved source (tiny text)
                     </p>
                   </div>
                   <Switch
-                    className={styles["guardrail-toggle-row__switch"]}
+                    className={styles.guardrailToggleRowSwitch}
                     checked={showCitations}
                     onCheckedChange={handleCitationsSwitchChange}
                     aria-label="Toggle citation visibility"
@@ -897,7 +894,7 @@ export function ChatWindow({
           )}
         </header>
 
-        <div className={styles["chat-messages"]}>
+        <div className={styles.chatMessages}>
           {messages.map((m) => {
             const mergedCitations =
               m.citations && m.citations.length > 0
@@ -1003,17 +1000,17 @@ export function ChatWindow({
               loadingAssistantId === m.id;
 
             return (
-              <div key={m.id} className={styles["message-group"]}>
+              <div key={m.id} className={styles.messageGroup}>
                 <div
                   className={`${styles.message} ${styles[m.role]} ${
-                    isStreamingAssistant ? styles["is-loading"] : ""
+                    isStreamingAssistant ? styles.isLoading : ""
                   }`}
                 >
                   {typeof m.content === "string"
                     ? renderMessageContent(m.content, m.id)
                     : m.content}
                   {isStreamingAssistant && (
-                    <div className={styles["assistant-loading-indicator"]}>
+                    <div className={styles.assistantLoadingIndicator}>
                       <span />
                       <span />
                       <span />
@@ -1021,12 +1018,12 @@ export function ChatWindow({
                   )}
                 </div>
                 {m.role === "assistant" && hasAnyMeta && (
-                  <div className={styles["message-meta"]}>
+                  <div className={styles.messageMeta}>
                     {showTelemetry && (
-                      <div className={styles["telemetry-collapse-row"]}>
+                      <div className={styles.telemetryCollapseRow}>
                         <button
                           type="button"
-                          className={styles["telemetry-collapse-btn"]}
+                          className={styles.telemetryCollapseBtn}
                           onClick={toggleTelemetryExpanded}
                         >
                           {telemetryExpanded
@@ -1037,38 +1034,38 @@ export function ChatWindow({
                     )}
                     {showRuntimeCard && (
                       <div
-                        className={`${styles["meta-card"]} ${styles["meta-card--runtime"]}`}
+                        className={`${styles.metaCard} ${styles.metaCardRuntime}`}
                       >
-                        <div className={styles["meta-card__heading"]}>
+                        <div className={styles.metaCardHeading}>
                           Engine &amp; Model
                         </div>
-                        <div className={styles["meta-card-grid"]}>
+                        <div className={styles.metaCardGrid}>
                           {runtimeEngineLabel && (
-                            <div className={styles["meta-card-block"]}>
-                              <div className={styles["meta-card-block__label"]}>
+                            <div className={styles.metaCardBlock}>
+                              <div className={styles.metaCardBlockLabel}>
                                 ENGINE
                               </div>
-                              <div className={styles["meta-card-block__value"]}>
+                              <div className={styles.metaCardBlockValue}>
                                 {runtimeEngineLabel}
                               </div>
                             </div>
                           )}
                           {runtimeLlmDisplay && (
-                            <div className={styles["meta-card-block"]}>
-                              <div className={styles["meta-card-block__label"]}>
+                            <div className={styles.metaCardBlock}>
+                              <div className={styles.metaCardBlockLabel}>
                                 LLM
                               </div>
-                              <div className={styles["meta-card-block__value"]}>
+                              <div className={styles.metaCardBlockValue}>
                                 {runtimeLlmDisplay}
                               </div>
                             </div>
                           )}
                           {runtimeEmbeddingModelLabel && (
-                            <div className={styles["meta-card-block"]}>
-                              <div className={styles["meta-card-block__label"]}>
+                            <div className={styles.metaCardBlock}>
+                              <div className={styles.metaCardBlockLabel}>
                                 EMBEDDING
                               </div>
-                              <div className={styles["meta-card-block__value"]}>
+                              <div className={styles.metaCardBlockValue}>
                                 {runtimeEmbeddingModelLabel}
                               </div>
                             </div>
@@ -1078,26 +1075,24 @@ export function ChatWindow({
                     )}
                     {showGuardrailCards && (
                       <div
-                        className={`${styles["meta-card"]} ${styles["meta-card--guardrail"]}`}
+                        className={`${styles.metaCard} ${styles.metaCardGuardrail}`}
                       >
-                        <div className={styles["meta-card__heading"]}>
-                          Guardrails
-                        </div>
-                        <div className={styles["meta-card-grid"]}>
-                          <div className={styles["meta-card-block"]}>
-                            <div className={styles["meta-card-block__label"]}>
+                        <div className={styles.metaCardHeading}>Guardrails</div>
+                        <div className={styles.metaCardGrid}>
+                          <div className={styles.metaCardBlock}>
+                            <div className={styles.metaCardBlockLabel}>
                               ROUTE
                             </div>
-                            <div className={styles["meta-card-block__value"]}>
+                            <div className={styles.metaCardBlockValue}>
                               {m.meta!.reason ?? m.meta!.intent}
                             </div>
                           </div>
-                          <div className={styles["meta-card-block"]}>
-                            <div className={styles["meta-card-block__label"]}>
+                          <div className={styles.metaCardBlock}>
+                            <div className={styles.metaCardBlockLabel}>
                               CONTEXT
                             </div>
                             <div
-                              className={`${styles["meta-card-block__value"]} ${contextStats.insufficient ? styles.warning : ""}`}
+                              className={`${styles.metaCardBlockValue} ${contextStats.insufficient ? styles.warning : ""}`}
                             >
                               {contextUsageLabel}
                               {contextTokensLabel
@@ -1106,22 +1101,22 @@ export function ChatWindow({
                             </div>
                           </div>
                           {historyLabel && (
-                            <div className={styles["meta-card-block"]}>
-                              <div className={styles["meta-card-block__label"]}>
+                            <div className={styles.metaCardBlock}>
+                              <div className={styles.metaCardBlockLabel}>
                                 HISTORY
                               </div>
-                              <div className={styles["meta-card-block__value"]}>
+                              <div className={styles.metaCardBlockValue}>
                                 {historyLabel}
                               </div>
                             </div>
                           )}
                           {similarityThreshold !== null && (
-                            <div className={styles["meta-card-block"]}>
-                              <div className={styles["meta-card-block__label"]}>
+                            <div className={styles.metaCardBlock}>
+                              <div className={styles.metaCardBlockLabel}>
                                 SIMILARITY
                               </div>
                               <div
-                                className={`${styles["meta-card-block__value"]} ${contextStats.insufficient ? styles.warning : ""}`}
+                                className={`${styles.metaCardBlockValue} ${contextStats.insufficient ? styles.warning : ""}`}
                               >
                                 {highestSimilarity !== null
                                   ? highestSimilarity.toFixed(3)
@@ -1136,20 +1131,18 @@ export function ChatWindow({
                         </div>
                         {showSummaryBlock && (
                           <div
-                            className={`${styles["meta-card-block"]} ${styles["meta-card-block--summary"]}`}
+                            className={`${styles.metaCardBlock} ${styles.metaCardBlockSummary}`}
                           >
-                            <div className={styles["meta-card-block__label"]}>
+                            <div className={styles.metaCardBlockLabel}>
                               SUMMARY
                             </div>
-                            <div className={styles["meta-card-block__value"]}>
+                            <div className={styles.metaCardBlockValue}>
                               {summaryInfo
                                 ? `History summarized (${summaryInfo.originalTokens} → ${summaryInfo.summaryTokens} tokens)`
                                 : historySummaryLabel}
                             </div>
                             {summaryInfo ? (
-                              <div
-                                className={styles["meta-card-block__secondary"]}
-                              >
+                              <div className={styles.metaCardBlockSecondary}>
                                 {summaryInfo.trimmedTurns} of{" "}
                                 {summaryInfo.maxTurns} turns summarized
                               </div>
@@ -1157,8 +1150,8 @@ export function ChatWindow({
                           </div>
                         )}
                         {m.meta?.summaryApplied && (
-                          <div className={styles["meta-card-footer"]}>
-                            <span className={styles["meta-chip"]}>
+                          <div className={styles.metaCardFooter}>
+                            <span className={styles.metaChip}>
                               Summary applied
                             </span>
                           </div>
@@ -1167,18 +1160,18 @@ export function ChatWindow({
                     )}
                     {showEnhancementCard && (
                       <div
-                        className={`${styles["meta-card"]} ${styles["meta-card--enhancements"]}`}
+                        className={`${styles.metaCard} ${styles.metaCardEnhancements}`}
                       >
-                        <div className={styles["meta-card__heading"]}>
+                        <div className={styles.metaCardHeading}>
                           Enhancements
                         </div>
-                        <div className={styles["meta-card-grid"]}>
-                          <div className={styles["meta-card-block"]}>
-                            <div className={styles["meta-card-block__label"]}>
+                        <div className={styles.metaCardGrid}>
+                          <div className={styles.metaCardBlock}>
+                            <div className={styles.metaCardBlockLabel}>
                               REVERSE RAG
                             </div>
                             <div
-                              className={`${styles["meta-card-block__value"]} ${styles["enhancement-chip"]}`}
+                              className={`${styles.metaCardBlockValue} ${styles.enhancementChip}`}
                               data-tooltip={
                                 enhancements?.reverseRag
                                   ? `mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`
@@ -1190,21 +1183,19 @@ export function ChatWindow({
                                 : "off"}
                             </div>
                             {enhancements?.reverseRag?.enabled && (
-                              <div
-                                className={styles["meta-card-block__secondary"]}
-                              >
+                              <div className={styles.metaCardBlockSecondary}>
                                 {`original: ${truncateText(enhancements.reverseRag.original, 40)}`}
                                 <br />
                                 {`rewritten: ${truncateText(enhancements.reverseRag.rewritten, 40)}`}
                               </div>
                             )}
                           </div>
-                          <div className={styles["meta-card-block"]}>
-                            <div className={styles["meta-card-block__label"]}>
+                          <div className={styles.metaCardBlock}>
+                            <div className={styles.metaCardBlockLabel}>
                               HyDE
                             </div>
                             <div
-                              className={`${styles["meta-card-block__value"]} ${styles["enhancement-chip"]}`}
+                              className={`${styles.metaCardBlockValue} ${styles.enhancementChip}`}
                               data-tooltip={enhancements?.hyde?.generated ?? ""}
                             >
                               {enhancements?.hyde?.enabled
@@ -1217,11 +1208,11 @@ export function ChatWindow({
                                 : "off"}
                             </div>
                           </div>
-                          <div className={styles["meta-card-block"]}>
-                            <div className={styles["meta-card-block__label"]}>
+                          <div className={styles.metaCardBlock}>
+                            <div className={styles.metaCardBlockLabel}>
                               RANKER
                             </div>
-                            <div className={styles["meta-card-block__value"]}>
+                            <div className={styles.metaCardBlockValue}>
                               {enhancements?.ranker?.mode ?? "none"}
                             </div>
                           </div>
@@ -1234,7 +1225,7 @@ export function ChatWindow({
                   showCitations &&
                   mergedCitations &&
                   mergedCitations.length > 0 && (
-                    <ol className={styles["message-citations"]}>
+                    <ol className={styles.messageCitations}>
                       {mergedCitations.map((citation, index) => {
                         const title =
                           (citation.title ?? "").trim() ||
@@ -1263,7 +1254,7 @@ export function ChatWindow({
                               </>
                             )}
                             {countLabel && (
-                              <span className={styles["citation-count"]}>
+                              <span className={styles.citationCount}>
                                 ({countLabel})
                               </span>
                             )}
@@ -1279,9 +1270,9 @@ export function ChatWindow({
           <div ref={messagesEndRef} />
         </div>
 
-        <form className={styles["chat-input-form"]} onSubmit={handleFormSubmit}>
+        <form className={styles.chatInputForm} onSubmit={handleFormSubmit}>
           <input
-            className={styles["chat-input"]}
+            className={styles.chatInput}
             ref={inputRef}
             value={input}
             onChange={handleInputChange}
@@ -1290,7 +1281,7 @@ export function ChatWindow({
           />
           <button
             type="submit"
-            className={styles["chat-submit-button"]}
+            className={styles.chatSubmitButton}
             disabled={isLoading || !input.trim()}
             aria-label="Send message"
           >

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { SliderNumberField } from "@/components/ui/slider-number-field";
 import { Switch } from "@/components/ui/switch";
+import styles from "./SettingsSection.module.css";
 
 const SUMMARY_LEVELS: Record<SummaryLevel, string> = {
   off: "Off",
@@ -78,13 +79,15 @@ export function SettingsSectionRagRetrieval({
   ];
 
   return (
-    <section className="ai-panel ai-settings-section">
-      <div className="ai-settings-section__header flex items-center justify-between gap-3">
+    <section className={`ai-panel ${styles.section}`}>
+      <div
+        className={`${styles.header} flex items-center justify-between gap-3`}
+      >
         <HeadingWithIcon
           id="settings-rag-title"
           as="p"
           icon={<FiTarget aria-hidden="true" />}
-          className="ai-settings-section__title"
+          className={styles.title}
         >
           Retrieval (RAG)
         </HeadingWithIcon>

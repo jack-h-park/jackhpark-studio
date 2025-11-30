@@ -1,0 +1,104 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 15, 15, 0.3);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 90;
+}
+
+:global(.dark) .overlay,
+:global(.dark-mode) .overlay {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.overlayVisible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(100%, 420px);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 100;
+}
+
+.drawerVisible {
+  transform: translateX(0);
+}
+
+.panel {
+  height: 100%;
+  background: hsl(var(--ai-bg));
+  box-shadow: -12px 0 40px rgba(15, 15, 15, 0.2);
+  border-left: 1px solid hsl(var(--ai-border));
+}
+
+.inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid hsl(var(--ai-border));
+}
+
+.content {
+  padding: 20px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.cascade {
+  position: relative;
+  margin-top: -12px;
+  margin-bottom: 6px;
+  padding-left: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cascade::before {
+  content: "";
+  position: absolute;
+  top: -4px;
+  bottom: 0;
+  left: 12px;
+  width: 1px;
+  background: hsl(var(--ai-border));
+}
+
+.cascadeStart {
+  position: relative;
+  padding-bottom: 28px;
+}
+
+.cascadeStart::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 12px;
+  width: 1px;
+  height: 30px;
+  background: hsl(var(--ai-border));
+}
+
+@media (max-width: 640px) {
+  .drawer {
+    width: 100%;
+  }
+}

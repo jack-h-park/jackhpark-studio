@@ -21,6 +21,7 @@ import {
   CHAT_ENGINE_LABELS,
   type ChatEngine,
 } from "@/lib/shared/model-provider";
+import styles from "./SettingsSection.module.css";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -69,11 +70,11 @@ export function SettingsSectionModelEngine({
   };
 
   return (
-    <section className="ai-panel ai-settings-section">
+    <section className={`ai-panel ${styles.section}`}>
       <HeadingWithIcon
         as="p"
         icon={<FiCpu aria-hidden="true" />}
-        className="ai-settings-section__title"
+        className={styles.title}
       >
         Model &amp; Engine
       </HeadingWithIcon>

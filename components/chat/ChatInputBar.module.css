@@ -1,0 +1,17 @@
+.inputBar {
+  padding: 24px;
+  border-top: 1px solid hsl(var(--ai-border));
+  background: hsl(var(--ai-bg));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.inputBarRow {
+  display: flex;
+  gap: 12px;
+}
+
+.inputBarSend {
+  align-self: flex-end;
+}

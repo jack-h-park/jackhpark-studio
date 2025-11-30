@@ -5,6 +5,7 @@ import { FiMonitor } from "@react-icons/all-files/fi/FiMonitor";
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { AllowlistTile } from "@/components/ui/allowlist-tile";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import styles from "./SettingsSection.module.css";
 
 export function SettingsSectionDisplay() {
   const {
@@ -17,11 +18,11 @@ export function SettingsSectionDisplay() {
   } = useChatDisplaySettings();
 
   return (
-    <section className="ai-panel ai-settings-section">
+    <section className={`ai-panel ${styles.section}`}>
       <HeadingWithIcon
         as="p"
         icon={<FiMonitor aria-hidden="true" />}
-        className="ai-settings-section__title"
+        className={styles.title}
       >
         Diagnostics Display
       </HeadingWithIcon>
