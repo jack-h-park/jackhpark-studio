@@ -65,7 +65,10 @@ function pickDefaultModelId(
 
 export function isOllamaModelId(modelId: string | null | undefined): boolean {
   const definition = findModelDefinition(modelId);
-  return definition?.provider === "ollama" || definition?.requiresOllama;
+  return Boolean(
+    definition &&
+      (definition.provider === "ollama" || !!definition.requiresOllama),
+  );
 }
 
 export function resolveLlmModelId(
@@ -104,7 +107,7 @@ export function resolveLlmModelId(
         : fallback.modelId;
     return {
       requestedModelId: canonicalId,
-      resolvedModelId,
+      resolvedModelId: resolvedId,
       wasSubstituted: resolvedId !== canonicalId,
       reason: "NOT_IN_ALLOWLIST",
     };
@@ -118,7 +121,7 @@ export function resolveLlmModelId(
         : fallback.modelId;
     return {
       requestedModelId: canonicalId,
-      resolvedModelId,
+      resolvedModelId: resolvedId,
       wasSubstituted: resolvedId !== canonicalId,
       reason: "OLLAMA_DISABLED",
     };

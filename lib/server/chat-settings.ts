@@ -5,26 +5,25 @@ import {
   normalizeSystemPrompt,
   SYSTEM_PROMPT_CACHE_TTL_MS,
 } from "@/lib/chat-prompts";
-import { isOllamaEnabled } from "@/lib/core/ollama";
 import {
   DEFAULT_LLM_MODEL_ID,
   resolveEmbeddingSpace,
   resolveLlmModel,
 } from "@/lib/core/model-provider";
+import { isOllamaEnabled } from "@/lib/core/ollama";
 import {
   loadAdminChatConfig,
   type SummaryLevel,
 } from "@/lib/server/admin-chat-config";
 import {
-  type AdminChatConfig,
-  getAdditionalPromptMaxLength,
-  type SessionChatConfig,
-} from "@/types/chat-config";
-import {
   type ChatEngine,
   type ModelProvider,
   normalizeChatEngine,
 } from "@/lib/shared/model-provider";
+import {
+  type ModelResolutionReason,
+  resolveLlmModelId,
+} from "@/lib/shared/model-resolution";
 import {
   DEFAULT_HYDE_ENABLED,
   DEFAULT_RANKER_MODE,
@@ -34,9 +33,10 @@ import {
   type ReverseRagMode,
 } from "@/lib/shared/rag-config";
 import {
-  type ModelResolutionReason,
-  resolveLlmModelId,
-} from "@/lib/shared/model-resolution";
+  type AdminChatConfig,
+  getAdditionalPromptMaxLength,
+  type SessionChatConfig,
+} from "@/types/chat-config";
 
 const GUARDRAIL_SETTINGS_CACHE_TTL_MS = 60_000;
 const CHAT_MODEL_SETTINGS_CACHE_TTL_MS = 60_000;
@@ -306,10 +306,12 @@ function resolvePromptParts({
   sessionConfig?: SessionChatConfig;
 }) {
   const maxLength = getAdditionalPromptMaxLength(adminConfig);
-  const presetId =
-    sessionConfig?.presetId ??
-    sessionConfig?.appliedPreset ??
-    "default";
+  const requestedPreset =
+    sessionConfig?.presetId ?? sessionConfig?.appliedPreset ?? "default";
+  const presetKey: keyof AdminChatConfig["presets"] =
+    requestedPreset === "fast" || requestedPreset === "highRecall"
+      ? requestedPreset
+      : "default";
 
   const basePrompt =
     adminConfig.baseSystemPrompt && adminConfig.baseSystemPrompt.trim().length > 0
@@ -317,7 +319,7 @@ function resolvePromptParts({
       : DEFAULT_PROMPT_FALLBACK;
 
   const presetAdditional = normalizeAdditionalPrompt(
-    adminConfig.presets?.[presetId]?.additionalSystemPrompt,
+    adminConfig.presets?.[presetKey]?.additionalSystemPrompt,
     maxLength,
   );
   const sessionAdditional = normalizeAdditionalPrompt(

@@ -58,7 +58,8 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
     setSessionConfig(() => ({
       ...adminConfig.presets.default,
       presetId: "default",
-      additionalSystemPrompt: "",
+      additionalSystemPrompt:
+        adminConfig.presets.default.additionalSystemPrompt ?? "",
       appliedPreset: "default",
     }));
 

@@ -2,13 +2,13 @@
 
 import { FiType } from "@react-icons/all-files/fi/FiType";
 
-import {
-  getAdditionalPromptMaxLength,
-  type AdminChatConfig,
-  type SessionChatConfig,
-} from "@/types/chat-config";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
+import {
+  type AdminChatConfig,
+  getAdditionalPromptMaxLength,
+  type SessionChatConfig,
+} from "@/types/chat-config";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -40,6 +40,7 @@ export function SettingsSectionSessionAdditionalPrompt({
         User system prompt
       </HeadingWithIcon>
       <PromptWithCounter
+        label="User system prompt"
         value={sessionConfig.additionalSystemPrompt ?? ""}
         maxLength={maxLength}
         helperText={helperText}

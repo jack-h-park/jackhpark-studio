@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils";
 import { Label } from "@/components/ui/label";
 import { Textarea, type TextareaProps } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 type PromptWithCounterProps = {
   id?: string;

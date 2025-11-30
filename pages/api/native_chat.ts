@@ -1,6 +1,7 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 
 import type { RagConfigSnapshot } from "@/lib/rag/types";
+import type { SessionChatConfig } from "@/types/chat-config";
 import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
 import { embedText } from "@/lib/core/embeddings";
 import {
@@ -55,7 +56,6 @@ import {
 import { type ModelProvider } from "@/lib/shared/model-provider";
 import { DEFAULT_REVERSE_RAG_MODE } from "@/lib/shared/rag-config";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
-import type { SessionChatConfig } from "@/types/chat-config";
 
 const RAG_DEBUG = (process.env.RAG_DEBUG ?? "").toLowerCase() === "true";
 

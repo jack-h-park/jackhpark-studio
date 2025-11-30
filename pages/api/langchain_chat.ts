@@ -5,6 +5,7 @@ import type { BaseLanguageModelInterface } from "@langchain/core/language_models
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { RagConfigSnapshot } from "@/lib/rag/types";
+import type { SessionChatConfig } from "@/types/chat-config";
 import {
   type EmbeddingSpace,
   resolveEmbeddingSpace,
@@ -58,7 +59,6 @@ import {
 import {
   DEFAULT_REVERSE_RAG_MODE,
 } from "@/lib/shared/rag-config";
-import type { SessionChatConfig } from "@/types/chat-config";
 
 /**
  * Pages Router API (Node.js runtime).

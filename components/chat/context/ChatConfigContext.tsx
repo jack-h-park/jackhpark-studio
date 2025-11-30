@@ -10,17 +10,15 @@ import {
   useState,
 } from "react";
 
-import type {
-  AdminChatConfig,
-  AdminNumericLimit,
-  AdminChatRuntimeMeta,
-  ModelResolution,
-  SessionChatConfig,
-  SessionChatConfigPreset,
-  SummaryLevel,
-  getAdditionalPromptMaxLength,
-} from "@/types/chat-config";
 import { resolveLlmModelId } from "@/lib/shared/model-resolution";
+import {
+  type AdminChatConfig,
+  type AdminChatRuntimeMeta,
+  type AdminNumericLimit,
+ getAdditionalPromptMaxLength,  type ModelResolution,
+  type SessionChatConfig,
+  type SessionChatConfigPreset,
+  type SummaryLevel } from "@/types/chat-config";
 
 type ChatConfigContextValue = {
   adminConfig: AdminChatConfig;
@@ -150,7 +148,10 @@ const buildDefaultSessionConfig = (
 ): SessionChatConfig => ({
   ...preset,
   presetId: presetName ?? "default",
-  additionalSystemPrompt: "",
+  additionalSystemPrompt:
+    typeof (preset as SessionChatConfig).additionalSystemPrompt === "string"
+      ? (preset as SessionChatConfig).additionalSystemPrompt
+      : "",
   llmModel: (resolution?.resolvedModelId ?? preset.llmModel) as SessionChatConfig["llmModel"],
   llmModelResolution:
     resolution ??

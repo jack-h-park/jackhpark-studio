@@ -1,14 +1,13 @@
 import type { DocType, PersonaType } from "@/lib/rag/metadata";
 import type { ChatEngine } from "@/lib/shared/model-provider";
 import type {
+  ModelResolution,
+} from "@/lib/shared/model-resolution";
+import type {
   EmbeddingModelId,
   LlmModelId,
   RankerId,
 } from "@/lib/shared/models";
-import type {
-  ModelResolution,
-  ModelResolutionReason,
-} from "@/lib/shared/model-resolution";
 
 export type SummaryLevel = "off" | "low" | "medium" | "high";
 
@@ -65,7 +64,7 @@ export type AdminChatRuntimeMeta = {
   presetResolutions: PresetModelResolutions;
 };
 
-export type { ModelResolution, ModelResolutionReason };
+
 
 export interface AdminChatConfig {
   baseSystemPrompt?: string;
@@ -121,3 +120,5 @@ export function getAdditionalPromptMaxLength(
 ): number {
   return config.additionalPromptMaxLength ?? DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH;
 }
+
+export {type ModelResolution, type ModelResolutionReason} from "@/lib/shared/model-resolution";

@@ -33,8 +33,9 @@ export function SettingsSectionPresets({
     setSessionConfig(() => ({
       ...adminConfig.presets[presetKey],
        presetId: presetKey,
-       additionalSystemPrompt: "",
-      appliedPreset: presetKey,
+       additionalSystemPrompt:
+         adminConfig.presets[presetKey].additionalSystemPrompt ?? "",
+       appliedPreset: presetKey,
     }));
   };
 

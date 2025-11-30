@@ -10,8 +10,8 @@ import type {
 import { SYSTEM_SETTINGS_TABLE } from "@/lib/chat-prompts";
 import { supabaseClient } from "@/lib/core/supabase";
 import {
-  DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH,
   type AdminChatConfig,
+  DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH,
 } from "@/types/chat-config";
 
 export const ADMIN_CHAT_CONFIG_KEY = "admin_chat_config";

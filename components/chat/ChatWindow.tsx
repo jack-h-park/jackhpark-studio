@@ -17,6 +17,7 @@ import {
 } from "react";
 import css from "styled-jsx/css";
 
+import type { ModelResolutionReason } from "@/types/chat-config";
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -32,7 +33,6 @@ import {
   type RankerMode,
   type ReverseRagMode,
 } from "@/lib/shared/rag-config";
-import type { ModelResolutionReason } from "@/types/chat-config";
 
 const URL_REGEX = /(https?:\/\/[^\s<>()"'`]+[^\s.,)<>"'`])/gi;
 

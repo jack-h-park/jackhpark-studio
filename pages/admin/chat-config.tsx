@@ -1,6 +1,6 @@
 import type { GetServerSideProps } from "next";
-import { FiBookOpen } from "@react-icons/all-files/fi/FiBookOpen";
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
+import { FiBookOpen } from "@react-icons/all-files/fi/FiBookOpen";
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 import { FiSettings } from "@react-icons/all-files/fi/FiSettings";
 import { FiShield } from "@react-icons/all-files/fi/FiShield";
@@ -16,14 +16,6 @@ import {
   useState,
 } from "react";
 
-import type {
-  AdminChatConfig,
-  AdminNumericLimit,
-  AdminChatRuntimeMeta,
-  SessionChatConfigPreset,
-  SummaryLevel,
-} from "@/types/chat-config";
-import { getAdditionalPromptMaxLength } from "@/types/chat-config";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { AllowlistTile } from "@/components/ui/allowlist-tile";
 import { Button } from "@/components/ui/button";
@@ -39,6 +31,7 @@ import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeaderCard } from "@/components/ui/page-header-card";
+import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
 import { Radiobutton } from "@/components/ui/radiobutton";
 import {
   Select,
@@ -48,8 +41,9 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
+import { DEFAULT_LLM_MODEL_ID } from "@/lib/core/llm-registry";
+import { isOllamaEnabled } from "@/lib/core/ollama";
 import {
   DOC_TYPE_OPTIONS,
   PERSONA_TYPE_OPTIONS,
@@ -62,6 +56,7 @@ import {
   getAdminChatConfig,
   getAdminChatConfigMetadata,
 } from "@/lib/server/admin-chat-config";
+import { buildPresetModelResolutions } from "@/lib/server/model-resolution";
 import {
   loadNotionNavigationHeader,
   type NotionNavigationHeader,
@@ -81,9 +76,12 @@ import {
   type RankerId,
 } from "@/lib/shared/models";
 import { cn } from "@/lib/utils";
-import { DEFAULT_LLM_MODEL_ID } from "@/lib/core/llm-registry";
-import { isOllamaEnabled } from "@/lib/core/ollama";
-import { buildPresetModelResolutions } from "@/lib/server/model-resolution";
+import {
+  type AdminChatConfig,
+  type AdminChatRuntimeMeta,
+  type AdminNumericLimit,
+ getAdditionalPromptMaxLength,  type SessionChatConfigPreset,
+  type SummaryLevel } from "@/types/chat-config";
 
 type PageProps = {
   adminConfig: AdminChatConfig;
@@ -1223,7 +1221,6 @@ function AdminChatConfigForm({
                                   option.id,
                                 ) || disabledByEnv
                               }
-                              title={optionTooltip}
                             >
                               {label}
                             </SelectItem>
