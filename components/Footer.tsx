@@ -30,8 +30,6 @@ export function FooterImpl() {
     [toggleDarkMode],
   );
 
-  console.log("[Footer] 렌더링됨");
-
   React.useEffect(() => {
     setHasMounted(true);
   }, []);

@@ -37,7 +37,6 @@ export default async function OGImage(
     });
   }
   const pageInfo = pageInfoOrError.data;
-  console.log(pageInfo);
 
   return new ImageResponse(
     (

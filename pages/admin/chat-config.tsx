@@ -976,9 +976,9 @@ function AdminChatConfigForm({
             Adjust how strongly different document and persona types influence retrieval. Values multiply the base similarity score before rerankers (MMR, Cohere, etc.).
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start">
           <GridPanel className="px-4 py-4">
-            <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-center">
+            <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-start">
               <div className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]">
                 Doc type
               </div>
@@ -1019,7 +1019,7 @@ function AdminChatConfigForm({
           </GridPanel>
 
           <GridPanel className="px-4 py-4">
-            <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-center">
+            <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-start">
               <div className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]">
                 Persona type
               </div>

@@ -937,6 +937,7 @@ footer {
   cursor: pointer;
   transition: transform 0.2s ease-in-out;
   color: hsl(var(--ai-fg));
+  overflow: hidden;
 }
 
 .ai-chat-panel-button:hover {

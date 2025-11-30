@@ -241,7 +241,11 @@ export async function saveAdminChatConfig(
   const { data, error } = await client
     .from(SYSTEM_SETTINGS_TABLE)
     .upsert(
-      { key: ADMIN_CHAT_CONFIG_KEY, value: JSON.stringify(sanitized) },
+      {
+        key: ADMIN_CHAT_CONFIG_KEY,
+        value: JSON.stringify(sanitized),
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: "key" },
     )
     .select("updated_at")
