@@ -1,0 +1,30 @@
+.container {
+  position: fixed;
+  bottom: 60px;
+  right: 30px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.button {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: hsl(var(--ai-bg));
+  border: 1px solid hsl(var(--ai-border));
+  box-shadow: var(--ai-shadow-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out;
+  color: hsl(var(--ai-fg));
+  overflow: hidden;
+}
+
+.button:hover {
+  transform: scale(1.1);
+}

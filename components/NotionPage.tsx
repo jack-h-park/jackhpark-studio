@@ -24,7 +24,7 @@ import { getCanonicalPageUrl, mapPageUrl } from "@/lib/map-page-url";
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { useSidePeek } from "@/lib/use-side-peek";
 
-import { ChatPanel } from "./ChatPanel";
+import { ChatFloatingWidget } from "@/components/chat/ChatFloatingWidget";
 import { Footer } from "./Footer";
 //import { GitHubShareButton } from './GitHubShareButton'
 import { Loading } from "./Loading";
@@ -1175,7 +1175,7 @@ export function NotionPage({
         }}
       />
 
-      <ChatPanel />
+      <ChatFloatingWidget />
     </>
   );
 }

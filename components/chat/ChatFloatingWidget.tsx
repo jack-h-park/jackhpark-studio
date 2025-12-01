@@ -4,15 +4,17 @@ import { useState } from "react";
 
 import { ChatWindow } from "@/components/chat/ChatWindow";
 
-export function ChatPanel() {
+import styles from "./ChatFloatingWidget.module.css";
+
+export function ChatFloatingWidget() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="ai-chat-panel-container">
+    <div className={styles.container}>
       <ChatWindow isOpen={isOpen} onClose={() => setIsOpen(false)} />
       <button
         type="button"
-        className="ai-chat-panel-button"
+        className={styles.button}
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label={isOpen ? "Close chat assistant" : "Open chat assistant"}
       >
