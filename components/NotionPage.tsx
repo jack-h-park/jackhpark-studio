@@ -532,7 +532,7 @@ export function NotionPage({
       console.log("[NotionPage] recordMap reference changed");
     }
 
-    prevRecordMapRef.current = recordMap;
+    prevRecordMapRef.current = recordMap ?? null;
   }, [recordMap]);
 
   const handleOpenGalleryPreview = React.useCallback(

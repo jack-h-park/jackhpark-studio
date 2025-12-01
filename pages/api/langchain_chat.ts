@@ -251,6 +251,7 @@ export default async function handler(
             basePromptVersion,
           })
         : undefined;
+    const env = getAppEnv();
     const cacheMeta: {
       responseHit: boolean | null;
       retrievalHit: boolean | null;
@@ -306,7 +307,6 @@ export default async function handler(
     const llmModel = llmSelection.model;
     const embeddingModel = embeddingSelection.model;
     const temperature = parseTemperature(undefined);
-    const env = getAppEnv();
     const sessionId =
       (req.headers["x-chat-id"] as string) ??
       (req.headers["x-request-id"] as string) ??

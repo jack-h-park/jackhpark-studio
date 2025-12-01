@@ -232,6 +232,10 @@ export default async function handler(
             basePromptVersion,
           })
         : undefined;
+    const env = getAppEnv();
+    const supabaseClient = getSupabaseAdminClient();
+    const supabaseMatchFilter = null;
+
     const cacheMeta: {
       responseHit: boolean | null;
       retrievalHit: boolean | null;
@@ -285,7 +289,6 @@ export default async function handler(
     const embeddingProvider = embeddingSelection.provider;
     const llmModel = llmSelection.model;
     const embeddingModel = embeddingSelection.model;
-    const env = getAppEnv();
     const sessionId =
       (req.headers["x-chat-id"] as string) ??
       (req.headers["x-request-id"] as string) ??
@@ -405,241 +408,235 @@ export default async function handler(
           presetId,
         });
       } else {
-      const reversedQuery = await rewriteQuery(normalizedQuestion.normalized, {
-        enabled: reverseRagEnabled,
-        mode: reverseRagMode,
-        provider,
-        model: llmModel,
-      });
-      enhancements.reverseRag = {
-        enabled: reverseRagEnabled,
-        mode: reverseRagMode,
-        original: normalizedQuestion.normalized,
-        rewritten: reversedQuery,
-      };
-      if (trace && reverseRagEnabled) {
-        void trace.observation({
-          name: "reverse_rag",
-          input: normalizedQuestion.normalized,
-          output: reversedQuery,
-          metadata: {
-            env,
-            provider,
-            model: llmModel,
-            mode: reverseRagMode,
-            stage: "reverse-rag",
-            type: "reverse_rag",
-          },
+        const reversedQuery = await rewriteQuery(normalizedQuestion.normalized, {
+          enabled: reverseRagEnabled,
+          mode: reverseRagMode,
+          provider,
+          model: llmModel,
         });
-      }
-      logDebugRag("reverse-query", {
-        enabled: reverseRagEnabled,
-        mode: reverseRagMode,
-        original: normalizedQuestion.normalized,
-        rewritten: reversedQuery,
-      });
-      const hydeDocument = await generateHydeDocument(reversedQuery, {
-        enabled: hydeEnabled,
-        provider,
-        model: llmModel,
-      });
-      enhancements.hyde = {
-        enabled: hydeEnabled,
-        generated: hydeDocument ?? null,
-      };
-      if (trace) {
-        void trace.observation({
-          name: "hyde",
-          input: reversedQuery,
-          output: hydeDocument,
-          metadata: {
-            env,
-            provider,
-            model: llmModel,
-            enabled: hydeEnabled,
-            stage: "hyde",
-          },
-        });
-      }
-      logDebugRag("hyde", {
-        enabled: hydeEnabled,
-        generated: hydeDocument,
-      });
-      const embeddingInput = hydeDocument ?? reversedQuery;
-      const embedding = await embedText(embeddingInput, {
-        provider: embeddingSelection.provider,
-        model: embeddingSelection.model,
-        embeddingModelId: embeddingSelection.embeddingModelId,
-        embeddingSpaceId: embeddingSelection.embeddingSpaceId,
-      });
-
-      if (!embedding || embedding.length === 0) {
-        throw new Error("Failed to generate an embedding for the query.");
-      }
-
-      const supabase = getSupabaseAdminClient();
-      const ragMatchFunction = getRagMatchFunction(embeddingSelection);
-      const matchCount = Math.max(DEFAULT_MATCH_COUNT, guardrails.ragTopK * 2);
-      logDebugRag("retrieval", {
-        query: embeddingInput,
-        matchCount,
-        similarityThreshold: guardrails.similarityThreshold,
-      });
-      const { data: documents, error: matchError } = await supabase.rpc(
-        ragMatchFunction,
-        {
-          query_embedding: embedding,
-          similarity_threshold: guardrails.similarityThreshold,
-          match_count: matchCount,
-        },
-      );
-
-      if (matchError) {
-        console.error("Error matching documents:", matchError);
-        return res.status(500).json({
-          error: `Error matching documents: ${matchError.message}`,
-        });
-      }
-
-      const typedDocuments: RagDocument[] = Array.isArray(documents)
-        ? (documents as RagDocument[])
-        : [];
-      const docIds = typedDocuments
-        .map(
-          (doc) =>
-            doc.doc_id || doc.docId || doc.document_id || doc.documentId || null,
-        )
-        .filter((id): id is string => typeof id === "string" && id.length > 0);
-
-      let metadataRows: { doc_id?: string; metadata?: RagDocumentMetadata | null }[] =
-        [];
-      if (docIds.length > 0) {
-        const { data } = await supabase
-          .from("rag_documents")
-          .select("doc_id, metadata")
-          .in("doc_id", docIds);
-        metadataRows = (data ?? []) as typeof metadataRows;
-      }
-
-      const metadataMap = new Map<string, RagDocumentMetadata | null>();
-      for (const row of metadataRows ?? []) {
-        const docId = (row as { doc_id?: string }).doc_id;
-        if (typeof docId === "string") {
-          metadataMap.set(docId, normalizeMetadata((row as { metadata?: unknown }).metadata as any));
+        enhancements.reverseRag = {
+          enabled: reverseRagEnabled,
+          mode: reverseRagMode,
+          original: normalizedQuestion.normalized,
+          rewritten: reversedQuery,
+        };
+        if (trace && reverseRagEnabled) {
+          void trace.observation({
+            name: "reverse_rag",
+            input: normalizedQuestion.normalized,
+            output: reversedQuery,
+            metadata: {
+              env,
+              provider,
+              model: llmModel,
+              mode: reverseRagMode,
+              stage: "reverse-rag",
+              type: "reverse_rag",
+            },
+          });
         }
-      }
+        logDebugRag("reverse-query", {
+          enabled: reverseRagEnabled,
+          mode: reverseRagMode,
+          original: normalizedQuestion.normalized,
+          rewritten: reversedQuery,
+        });
+        const hydeDocument = await generateHydeDocument(reversedQuery, {
+          enabled: hydeEnabled,
+          provider,
+          model: llmModel,
+        });
+        enhancements.hyde = {
+          enabled: hydeEnabled,
+          generated: hydeDocument ?? null,
+        };
+        if (trace) {
+          void trace.observation({
+            name: "hyde",
+            input: reversedQuery,
+            output: hydeDocument ?? undefined,
+            metadata: {
+              env,
+              provider,
+              model: llmModel,
+              stage: "hyde",
+              type: "hyde",
+            },
+          });
+        }
+        const embeddingInput =
+          hydeEnabled && hydeDocument ? hydeDocument : normalizedQuestion.normalized;
+        const embedding = await embedText(embeddingInput, {
+          provider: embeddingSelection.provider,
+          model: embeddingSelection.model,
+          embeddingModelId: embeddingSelection.embeddingModelId,
+          embeddingSpaceId: embeddingSelection.embeddingSpaceId,
+        });
+        const { data: docs, error: docError } = await supabaseClient.rpc(
+          "match_documents",
+          {
+            input_embedding: embedding,
+            match_count: guardrails.ragTopK * 4,
+            match_threshold: guardrails.similarityThreshold,
+            search_filter: supabaseMatchFilter,
+          },
+        );
 
-      if (includeVerboseDetails) {
-        logRetrievalStage(
-          trace,
-          "raw_results",
-          typedDocuments.map((doc) => ({
-            doc_id:
+        if (docError) {
+          console.error("Error matching documents:", docError);
+          return res.status(500).json({
+            error: `Error matching documents: ${docError.message}`,
+          });
+        }
+
+        const typedDocuments: RagDocument[] = Array.isArray(docs)
+          ? (docs as RagDocument[])
+          : [];
+        const docIds = typedDocuments
+          .map(
+            (doc) =>
               doc.doc_id ||
               doc.docId ||
               doc.document_id ||
               doc.documentId ||
               null,
-            similarity:
+          )
+          .filter((id): id is string => typeof id === "string" && id.length > 0);
+
+        let metadataRows: { doc_id?: string; metadata?: RagDocumentMetadata | null }[] =
+          [];
+        if (docIds.length > 0) {
+          const { data } = await supabaseClient
+            .from("rag_documents")
+            .select("doc_id, metadata")
+            .in("doc_id", docIds);
+          metadataRows = (data ?? []) as typeof metadataRows;
+        }
+
+        const metadataMap = new Map<string, RagDocumentMetadata | null>();
+        for (const row of metadataRows ?? []) {
+          const docId = (row as { doc_id?: string }).doc_id;
+          if (typeof docId === "string") {
+            metadataMap.set(
+              docId,
+              normalizeMetadata((row as { metadata?: unknown }).metadata as any),
+            );
+          }
+        }
+
+        if (includeVerboseDetails) {
+          logRetrievalStage(
+            trace,
+            "raw_results",
+            typedDocuments.map((doc) => ({
+              doc_id:
+                doc.doc_id ||
+                doc.docId ||
+                doc.document_id ||
+                doc.documentId ||
+                null,
+              similarity:
+                typeof doc.similarity === "number"
+                  ? doc.similarity
+                  : typeof doc.score === "number"
+                    ? doc.score
+                    : typeof doc.similarity_score === "number"
+                      ? doc.similarity_score
+                      : null,
+              doc_type: null,
+              persona_type: null,
+              is_public: null,
+            })),
+            {
+              engine: "native",
+              presetKey: chatConfigSnapshot?.presetKey,
+              chatConfig: chatConfigSnapshot,
+            },
+          );
+        }
+
+        const enrichedDocuments = typedDocuments
+          .map((doc) => {
+            const docId =
+              doc.doc_id || doc.docId || doc.document_id || doc.documentId || null;
+            const metadata = docId ? metadataMap.get(docId) ?? null : null;
+            const baseSimilarity =
               typeof doc.similarity === "number"
                 ? doc.similarity
                 : typeof doc.score === "number"
                   ? doc.score
                   : typeof doc.similarity_score === "number"
                     ? doc.similarity_score
-                    : null,
-            doc_type: null,
-            persona_type: null,
-            is_public: null,
-          })),
-          {
-            engine: "native",
-            presetKey: chatConfigSnapshot?.presetKey,
-            chatConfig: chatConfigSnapshot,
-          },
-        );
-      }
+                    : 0;
+            if (metadata?.is_public === false) {
+              return {
+                filteredOut: true,
+                baseSimilarity,
+                metadata,
+                docId,
+              };
+            }
+            const weight = computeMetadataWeight(
+              metadata ?? undefined,
+              ragRanking,
+            );
+            const finalScore = baseSimilarity * weight;
 
-      const enrichedDocuments = typedDocuments
-        .map((doc) => {
-          const docId =
-            doc.doc_id || doc.docId || doc.document_id || doc.documentId || null;
-          const metadata = docId ? metadataMap.get(docId) ?? null : null;
-          const baseSimilarity =
-            typeof doc.similarity === "number"
-              ? doc.similarity
-              : typeof doc.score === "number"
-                ? doc.score
-                : typeof doc.similarity_score === "number"
-                ? doc.similarity_score
-                : 0;
-          if (metadata?.is_public === false) {
             return {
-              filteredOut: true,
-              baseSimilarity,
+              ...doc,
               metadata,
-              docId,
+              similarity: finalScore,
+              score: finalScore,
+              metadata_weight: weight,
+              base_similarity: baseSimilarity,
+              filteredOut: false,
+            } as RagDocument & {
+              metadata_weight?: number;
+              base_similarity?: number;
+              filteredOut?: boolean;
             };
-          }
-          const weight = computeMetadataWeight(metadata ?? undefined, ragRanking);
-          const finalScore = baseSimilarity * weight;
+          })
+          .filter(
+            (doc): doc is RagDocument & {
+              metadata_weight?: number;
+              base_similarity?: number;
+              filteredOut?: boolean;
+            } => doc !== null && doc.filteredOut !== true,
+          )
+          // eslint-disable-next-line unicorn/no-array-sort
+          .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
 
-          return {
-            ...doc,
-            metadata,
-            similarity: finalScore,
-            score: finalScore,
-            metadata_weight: weight,
-            base_similarity: baseSimilarity,
-            filteredOut: false,
-          } as RagDocument & {
-            metadata_weight?: number;
-            base_similarity?: number;
-            filteredOut?: boolean;
-          };
-        })
-        .filter(
-          (doc): doc is RagDocument & {
-            metadata_weight?: number;
-            base_similarity?: number;
-            filteredOut?: boolean;
-          } =>
-            doc !== null && doc.filteredOut !== true,
-        )
-        // eslint-disable-next-line unicorn/no-array-sort
-        .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
-
-      if (includeVerboseDetails) {
-        logRetrievalStage(
-          trace,
-          "after_weighting",
-          enrichedDocuments.map((doc) => ({
-            doc_id:
-              doc.doc_id ||
-              doc.docId ||
-              doc.document_id ||
-              doc.documentId ||
-              null,
-            similarity: (doc as any).base_similarity ?? null,
-            weight: (doc as any).metadata_weight ?? null,
-            finalScore: doc.similarity ?? null,
-            doc_type:
-              (doc.metadata as { doc_type?: string | null } | null)?.doc_type ??
-              null,
-            persona_type:
-              (doc.metadata as { persona_type?: string | null } | null)
-                ?.persona_type ?? null,
-            is_public:
-              (doc.metadata as { is_public?: boolean | null } | null)
-                ?.is_public ?? null,
-          })),
-          {
-            engine: "native",
-            presetKey: chatConfigSnapshot?.presetKey,
-            chatConfig: chatConfigSnapshot,
-          },
-        );
-      }
+        if (includeVerboseDetails) {
+          logRetrievalStage(
+            trace,
+            "after_weighting",
+            enrichedDocuments.map((doc) => ({
+              doc_id:
+                doc.doc_id ||
+                doc.docId ||
+                doc.document_id ||
+                doc.documentId ||
+                null,
+              similarity: (doc as any).base_similarity ?? null,
+              weight: (doc as any).metadata_weight ?? null,
+              finalScore: doc.similarity ?? null,
+              doc_type:
+                (doc.metadata as { doc_type?: string | null } | null)?.doc_type ??
+                null,
+              persona_type:
+                (doc.metadata as { persona_type?: string | null } | null)
+                  ?.persona_type ?? null,
+              is_public:
+                (doc.metadata as { is_public?: boolean | null } | null)
+                  ?.is_public ?? null,
+            })),
+            {
+              engine: "native",
+              presetKey: chatConfigSnapshot?.presetKey,
+              chatConfig: chatConfigSnapshot,
+            },
+          );
+        }
         const canonicalLookup = await loadCanonicalPageLookup();
         const normalizedDocuments = applyPublicPageUrls(
           enrichedDocuments,
@@ -687,28 +684,29 @@ export default async function handler(
             },
           });
         }
-      contextResult = buildContextWindow(rankedDocuments, guardrails);
-      if (retrievalCacheKey) {
-        await memoryCacheClient.set(
-          retrievalCacheKey,
-          contextResult,
-          retrievalCacheTtl,
-        );
-        cacheMeta.retrievalHit = false;
-        if (traceMetadata.cache) {
-          traceMetadata.cache.retrievalHit = false;
+        contextResult = buildContextWindow(rankedDocuments, guardrails);
+        if (retrievalCacheKey) {
+          await memoryCacheClient.set(
+            retrievalCacheKey,
+            contextResult,
+            retrievalCacheTtl,
+          );
+          cacheMeta.retrievalHit = false;
+          if (traceMetadata.cache) {
+            traceMetadata.cache.retrievalHit = false;
+          }
         }
+        console.log("[native_chat] context compression", {
+          retrieved: normalizedDocuments.length,
+          ranked: rankedDocuments.length,
+          included: contextResult.included.length,
+          dropped: contextResult.dropped,
+          totalTokens: contextResult.totalTokens,
+          highestScore: Number(contextResult.highestScore.toFixed(3)),
+          insufficient: contextResult.insufficient,
+          rankerMode,
+        });
       }
-      console.log("[native_chat] context compression", {
-        retrieved: normalizedDocuments.length,
-        ranked: rankedDocuments.length,
-        included: contextResult.included.length,
-        dropped: contextResult.dropped,
-        totalTokens: contextResult.totalTokens,
-        highestScore: Number(contextResult.highestScore.toFixed(3)),
-        insufficient: contextResult.insufficient,
-        rankerMode,
-      });
     } else {
       contextResult = buildIntentContextFallback(
         routingDecision.intent,

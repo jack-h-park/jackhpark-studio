@@ -64,5 +64,3 @@ export type ChatConfigSnapshot = {
 
 /** @deprecated Use ChatConfigSnapshot instead. */
 export type RagConfigSnapshot = ChatConfigSnapshot;
-
-export type { ChatConfigSnapshot, RagConfigSnapshot, GuardrailRoute };
