@@ -4,7 +4,6 @@ import { FiMonitor } from "@react-icons/all-files/fi/FiMonitor";
 
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { AllowlistTile } from "@/components/ui/allowlist-tile";
-
 import {
   Section,
   SectionContent,

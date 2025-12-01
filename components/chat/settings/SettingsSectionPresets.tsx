@@ -4,6 +4,12 @@ import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
+import {
+  Section,
+  SectionContent,
+  SectionHeader,
+  SectionTitle,
+} from "@/components/ui/section";
 
 type PresetKey = "default" | "fast" | "highRecall";
 
@@ -21,13 +27,6 @@ const PRESET_LABELS: Record<PresetKey, string> = {
   fast: "Fast",
   highRecall: "High Recall",
 };
-
-import {
-  Section,
-  SectionContent,
-  SectionHeader,
-  SectionTitle,
-} from "@/components/ui/section";
 
 export function SettingsSectionPresets({
   adminConfig,

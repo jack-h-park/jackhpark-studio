@@ -2,16 +2,16 @@
 
 import { FiCommand } from "@react-icons/all-files/fi/FiCommand";
 
-type Props = {
-  summary: string;
-};
-
 import {
   Section,
   SectionDescription,
   SectionHeader,
   SectionTitle,
 } from "@/components/ui/section";
+
+type Props = {
+  summary: string;
+};
 
 export function SettingsSectionCoreSummary({ summary }: Props) {
   return (

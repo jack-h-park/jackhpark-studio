@@ -1,14 +1,14 @@
-import { AllowlistCard } from "@/components/admin/chat-config/allowlist-card";
-import { CachingCard } from "@/components/admin/chat-config/caching-card";
-import { CoreBehaviorCard } from "@/components/admin/chat-config/core-behavior-card";
-import { GuardrailCard } from "@/components/admin/chat-config/guardrail-card";
-import { NumericLimitsCard } from "@/components/admin/chat-config/numeric-limits-card";
-import { RagMetadataInfoCard } from "@/components/admin/chat-config/rag-metadata-info-card";
-import { RagRankingCard } from "@/components/admin/chat-config/rag-ranking-card";
-import { RawConfigJsonModal } from "@/components/admin/chat-config/raw-config-json-modal";
-import { SessionPresetsCard } from "@/components/admin/chat-config/session-presets-card";
-import { SummaryPresetsCard } from "@/components/admin/chat-config/summary-presets-card";
-import { TelemetryCard } from "@/components/admin/chat-config/telemetry-card";
+import { AllowlistCard } from "@/components/admin/chat-config/AllowlistCard";
+import { CachingCard } from "@/components/admin/chat-config/CachingCard";
+import { CoreBehaviorCard } from "@/components/admin/chat-config/CoreBehaviorCard";
+import { GuardrailCard } from "@/components/admin/chat-config/GuardrailCard";
+import { NumericLimitsCard } from "@/components/admin/chat-config/NumericLimitsCard";
+import { RagMetadataInfoCard } from "@/components/admin/chat-config/RagMetadataInfoCard";
+import { RagRankingCard } from "@/components/admin/chat-config/RagRankingCard";
+import { RawConfigJsonModal } from "@/components/admin/chat-config/RawConfigJsonModal";
+import { SessionPresetsCard } from "@/components/admin/chat-config/SessionPresetsCard";
+import { SummaryPresetsCard } from "@/components/admin/chat-config/SummaryPresetsCard";
+import { TelemetryCard } from "@/components/admin/chat-config/TelemetryCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeaderCard } from "@/components/ui/page-header-card";
@@ -18,7 +18,7 @@ import {
   type AdminChatRuntimeMeta,
 } from "@/types/chat-config";
 
-export function AdminChatConfigPage({
+export function ChatConfigPage({
   adminConfig,
   lastUpdatedAt,
   runtimeMeta,

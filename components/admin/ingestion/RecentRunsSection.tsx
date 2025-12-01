@@ -58,7 +58,7 @@ import {
   getEmbeddingSpaceOption,
 } from "@/lib/admin/recent-runs-filters";
 
-import { ClientSideDate } from "./client-side-date";
+import { ClientSideDate } from "./ClientSideDate";
 
 export function RecentRunsSection({
   initial,

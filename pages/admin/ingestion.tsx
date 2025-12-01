@@ -11,11 +11,11 @@ import type {
 } from "@/lib/admin/ingestion-types";
 import {
   DatasetSnapshotSection,
-} from "@/components/admin/ingestion/dataset-snapshot-section";
-import { ManualIngestionPanel } from "@/components/admin/ingestion/manual-ingestion-panel";
-import { RagDocumentsOverview } from "@/components/admin/ingestion/rag-documents-overview";
-import { RecentRunsSection } from "@/components/admin/ingestion/recent-runs-section";
-import { SystemHealthSection } from "@/components/admin/ingestion/system-health-section";
+} from "@/components/admin/ingestion/DatasetSnapshotSection";
+import { ManualIngestionPanel } from "@/components/admin/ingestion/ManualIngestionPanel";
+import { RagDocumentsOverview } from "@/components/admin/ingestion/RagDocumentsOverview";
+import { RecentRunsSection } from "@/components/admin/ingestion/RecentRunsSection";
+import { SystemHealthSection } from "@/components/admin/ingestion/SystemHealthSection";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { LinkButton } from "@/components/ui/link-button";
 import { PageHeaderCard } from "@/components/ui/page-header-card";

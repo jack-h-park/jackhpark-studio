@@ -1,7 +1,7 @@
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 
-import { AdminChatConfigPage } from "@/components/admin/chat-config/chat-config-page";
+import { ChatConfigPage as AdminChatConfigPage } from "@/components/admin/chat-config/ChatConfigPage";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { DEFAULT_LLM_MODEL_ID } from "@/lib/core/llm-registry";
 import { isOllamaEnabled } from "@/lib/core/ollama";

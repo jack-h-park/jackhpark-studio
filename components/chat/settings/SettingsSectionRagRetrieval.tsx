@@ -9,9 +9,14 @@ import type {
   SummaryLevel,
 } from "@/types/chat-config";
 import { Checkbox } from "@/components/ui/checkbox";
-
 import { Label } from "@/components/ui/label";
 import { Radiobutton } from "@/components/ui/radiobutton";
+import {
+  Section,
+  SectionContent,
+  SectionHeader,
+  SectionTitle,
+} from "@/components/ui/section";
 import {
   Select,
   SelectContent,
@@ -35,13 +40,6 @@ type Props = {
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
   ) => void;
 };
-
-import {
-  Section,
-  SectionContent,
-  SectionHeader,
-  SectionTitle,
-} from "@/components/ui/section";
 
 export function SettingsSectionRagRetrieval({
   adminConfig,

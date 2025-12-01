@@ -4,6 +4,12 @@ import { FiType } from "@react-icons/all-files/fi/FiType";
 
 import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
 import {
+  Section,
+  SectionContent,
+  SectionHeader,
+  SectionTitle,
+} from "@/components/ui/section";
+import {
   type AdminChatConfig,
   getAdditionalPromptMaxLength,
   type SessionChatConfig,
@@ -16,13 +22,6 @@ type Props = {
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
   ) => void;
 };
-
-import {
-  Section,
-  SectionContent,
-  SectionHeader,
-  SectionTitle,
-} from "@/components/ui/section";
 
 export function SettingsSectionSessionAdditionalPrompt({
   adminConfig,

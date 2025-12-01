@@ -4,7 +4,12 @@ import { FiClock } from "@react-icons/all-files/fi/FiClock";
 import { useState } from "react";
 
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
-
+import {
+  Section,
+  SectionContent,
+  SectionHeader,
+  SectionTitle,
+} from "@/components/ui/section";
 import { SliderNumberField } from "@/components/ui/slider-number-field";
 import { Switch } from "@/components/ui/switch";
 
@@ -15,13 +20,6 @@ type Props = {
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
   ) => void;
 };
-
-import {
-  Section,
-  SectionContent,
-  SectionHeader,
-  SectionTitle,
-} from "@/components/ui/section";
 
 export function SettingsSectionContextHistory({
   adminConfig,

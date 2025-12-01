@@ -7,8 +7,13 @@ import { useMemo } from "react";
 import type { EmbeddingModelId, LlmModelId } from "@/lib/shared/models";
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
-
 import { Label } from "@/components/ui/label";
+import {
+  Section,
+  SectionContent,
+  SectionHeader,
+  SectionTitle,
+} from "@/components/ui/section";
 import {
   Select,
   SelectContent,
@@ -31,13 +36,6 @@ type Props = {
 type ChatConfigSetter = (
   value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
 ) => void;
-
-import {
-  Section,
-  SectionContent,
-  SectionHeader,
-  SectionTitle,
-} from "@/components/ui/section";
 
 export function SettingsSectionModelEngine({
   adminConfig,
