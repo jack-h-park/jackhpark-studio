@@ -123,6 +123,10 @@ export function NotionPageRenderer({
   }, []);
 
   const sanitizedRecordMap = React.useMemo<ExtendedRecordMap>(() => {
+    if (process.env.NODE_ENV === "development") {
+      console.log("[NotionPageRenderer] sanitizeRecordMap invoked");
+    }
+
     if (!recordMap) {
       return recordMap;
     }

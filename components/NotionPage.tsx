@@ -519,6 +519,21 @@ export function NotionPage({
     React.useState<GalleryPreviewState | null>(null);
 
   const [isZoomed, setIsZoomed] = React.useState(false);
+  const prevRecordMapRef = React.useRef<types.ExtendedRecordMap | null>(null);
+
+  React.useEffect(() => {
+    if (process.env.NODE_ENV !== "development") {
+      return;
+    }
+
+    if (!prevRecordMapRef.current) {
+      console.log("[NotionPage] recordMap set for the first time");
+    } else if (prevRecordMapRef.current !== recordMap) {
+      console.log("[NotionPage] recordMap reference changed");
+    }
+
+    prevRecordMapRef.current = recordMap;
+  }, [recordMap]);
 
   const handleOpenGalleryPreview = React.useCallback(
     (preview: GalleryPreviewState) => {
