@@ -3,6 +3,7 @@
 import { AiOutlineArrowsAlt } from "@react-icons/all-files/ai/AiOutlineArrowsAlt";
 import { AiOutlineClose } from "@react-icons/all-files/ai/AiOutlineClose";
 import { AiOutlineCompress } from "@react-icons/all-files/ai/AiOutlineCompress";
+import { AiOutlineInfoCircle } from "@react-icons/all-files/ai/AiOutlineInfoCircle";
 import { AiOutlineSend } from "@react-icons/all-files/ai/AiOutlineSend";
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { GiBrain } from "@react-icons/all-files/gi/GiBrain";
@@ -1136,17 +1137,21 @@ export function ChatWindow({
                             <div className={styles.metaCardBlockLabel}>
                               SUMMARY
                             </div>
-                            <div className={styles.metaCardBlockValue}>
-                              {summaryInfo
-                                ? `History summarized (${summaryInfo.originalTokens} → ${summaryInfo.summaryTokens} tokens)`
-                                : historySummaryLabel}
-                            </div>
-                            {summaryInfo ? (
-                              <div className={styles.metaCardBlockSecondary}>
-                                {summaryInfo.trimmedTurns} of{" "}
-                                {summaryInfo.maxTurns} turns summarized
+                            <div className={styles.metaCardBlockRow}>
+                              <div className={styles.metaCardBlockValue}>
+                                {summaryInfo
+                                  ? `History summarized (${summaryInfo.originalTokens} → ${summaryInfo.summaryTokens} tokens)`
+                                  : historySummaryLabel}
                               </div>
-                            ) : null}
+                              {summaryInfo ? (
+                                <div
+                                  className="ai-info-icon"
+                                  data-tooltip={`${summaryInfo.trimmedTurns} of ${summaryInfo.maxTurns} turns summarized`}
+                                >
+                                  <AiOutlineInfoCircle />
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
                         )}
                         {m.meta?.summaryApplied && (
@@ -1170,25 +1175,28 @@ export function ChatWindow({
                             <div className={styles.metaCardBlockLabel}>
                               REVERSE RAG
                             </div>
-                            <div
-                              className={`${styles.metaCardBlockValue} ${styles.enhancementChip}`}
-                              data-tooltip={
-                                enhancements?.reverseRag
-                                  ? `mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`
-                                  : ""
-                              }
-                            >
-                              {enhancements?.reverseRag?.enabled
-                                ? enhancements.reverseRag.mode
-                                : "off"}
-                            </div>
-                            {enhancements?.reverseRag?.enabled && (
-                              <div className={styles.metaCardBlockSecondary}>
-                                {`original: ${truncateText(enhancements.reverseRag.original, 40)}`}
-                                <br />
-                                {`rewritten: ${truncateText(enhancements.reverseRag.rewritten, 40)}`}
+                            <div className={styles.metaCardBlockRow}>
+                              <div
+                                className={`${styles.metaCardBlockValue} ${styles.enhancementChip}`}
+                                data-tooltip={
+                                  enhancements?.reverseRag
+                                    ? `mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`
+                                    : ""
+                                }
+                              >
+                                {enhancements?.reverseRag?.enabled
+                                  ? enhancements.reverseRag.mode
+                                  : "off"}
                               </div>
-                            )}
+                              {enhancements?.reverseRag?.enabled && (
+                                <div
+                                  className="ai-info-icon"
+                                  data-tooltip={`original: ${truncateText(enhancements.reverseRag.original, 40)}\nrewritten: ${truncateText(enhancements.reverseRag.rewritten, 40)}`}
+                                >
+                                  <AiOutlineInfoCircle />
+                                </div>
+                              )}
+                            </div>
                           </div>
                           <div className={styles.metaCardBlock}>
                             <div className={styles.metaCardBlockLabel}>

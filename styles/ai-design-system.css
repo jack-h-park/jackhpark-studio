@@ -606,3 +606,52 @@
     0 0 0 4px var(--ai-ring),
     0 0 8px 1px var(--ai-ring);
 }
+
+/* ------------------------------------------------ */
+/* Icons & Tooltips                                 */
+/* ------------------------------------------------ */
+.ai-info-icon {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  cursor: help;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.2s ease;
+}
+
+.ai-info-icon:hover {
+  color: #475569;
+}
+
+.ai-info-icon[data-tooltip]:not([data-tooltip=""])::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-10%);
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.95);
+  color: #fff;
+  font-size: 0.65rem;
+  white-space: pre-line;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+  z-index: 10;
+  min-width: max-content;
+  max-width: 200px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.ai-info-icon[data-tooltip]:not([data-tooltip=""]):hover::after {
+  visibility: visible;
+  opacity: 1;
+}
