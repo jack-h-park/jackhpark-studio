@@ -4,7 +4,7 @@ import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import type { BaseLanguageModelInterface } from "@langchain/core/language_models/base";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-import type { RagConfigSnapshot } from "@/lib/rag/types";
+import type { ChatConfigSnapshot, GuardrailRoute } from "@/lib/rag/types";
 import type { SessionChatConfig } from "@/types/chat-config";
 import {
   type EmbeddingSpace,
@@ -21,7 +21,8 @@ import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { normalizeMetadata, type RagDocumentMetadata } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
-import { buildRagConfigSnapshot } from "@/lib/rag/telemetry";
+import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
+import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import {
   applyHistoryWindow,
@@ -59,6 +60,8 @@ import {
 import {
   DEFAULT_REVERSE_RAG_MODE,
 } from "@/lib/shared/rag-config";
+import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
+import { computeBasePromptVersion } from "@/lib/telemetry/prompt-version";
 
 /**
  * Pages Router API (Node.js runtime).
@@ -133,7 +136,11 @@ function logRetrievalStage(
   trace: ReturnType<typeof langfuse.trace> | null,
   stage: string,
   entries: RetrievalLogEntry[],
-  meta?: { engine?: string; presetKey?: string; ragConfig?: RagConfigSnapshot },
+  meta?: {
+    engine?: string;
+    presetKey?: string;
+    chatConfig?: ChatConfigSnapshot;
+  },
 ) {
   if (!RAG_DEBUG && !trace) {
     return;
@@ -158,8 +165,9 @@ function logRetrievalStage(
     metadata: {
       stage,
       engine: meta?.engine ?? "langchain",
-      presetKey: meta?.presetKey ?? "default",
-      ragConfig: meta?.ragConfig,
+      presetKey: meta?.presetKey ?? meta?.chatConfig?.presetKey ?? "default",
+      chatConfig: meta?.chatConfig,
+      ragConfig: meta?.chatConfig,
       entries: payload,
     },
   });
@@ -200,10 +208,6 @@ export default async function handler(
         ? sessionConfig.appliedPreset
         : "default");
     const ragRanking = adminConfig.ragRanking;
-    const ragConfigSnapshot: RagConfigSnapshot = buildRagConfigSnapshot(
-      adminConfig,
-      presetId,
-    );
     const runtime =
       (req as any).chatRuntime ?? (await loadChatModelSettings({ forceRefresh: true }));
     const fallbackQuestion =
@@ -229,6 +233,56 @@ export default async function handler(
       messages,
       guardrails,
     );
+    const guardrailRoute: GuardrailRoute =
+      routingDecision.intent === "chitchat"
+        ? "chitchat"
+        : routingDecision.intent === "command"
+          ? "command"
+          : "normal";
+    const telemetryDecision = decideTelemetryMode(
+      adminConfig.telemetry.sampleRate,
+      adminConfig.telemetry.detailLevel,
+    );
+    const basePromptVersion = computeBasePromptVersion(adminConfig, presetId);
+    const chatConfigSnapshot: ChatConfigSnapshot | undefined =
+      telemetryDecision.includeConfigSnapshot
+        ? buildChatConfigSnapshot(adminConfig, presetId, {
+            guardrailRoute,
+            basePromptVersion,
+          })
+        : undefined;
+    const cacheMeta: {
+      responseHit: boolean | null;
+      retrievalHit: boolean | null;
+    } = {
+      responseHit: adminConfig.cache.responseTtlSeconds > 0 ? false : null,
+      retrievalHit: adminConfig.cache.retrievalTtlSeconds > 0 ? false : null,
+    };
+    const includeVerboseDetails = telemetryDecision.includeRetrievalDetails;
+    const traceMetadata: {
+      [key: string]: unknown;
+      cache?: typeof cacheMeta;
+    } = {
+      env,
+      config: {
+        reverseRagEnabled: runtime.reverseRagEnabled,
+        reverseRagMode: runtime.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE,
+        hydeEnabled: runtime.hydeEnabled,
+        rankerMode: runtime.rankerMode,
+        guardrailRoute,
+      },
+      llmResolution: {
+        requestedModelId: runtime.requestedLlmModelId,
+        resolvedModelId: runtime.resolvedLlmModelId,
+        wasSubstituted: runtime.llmModelWasSubstituted,
+        substitutionReason: runtime.llmSubstitutionReason,
+      },
+    };
+    if (chatConfigSnapshot) {
+      traceMetadata.chatConfig = chatConfigSnapshot;
+      traceMetadata.ragConfig = chatConfigSnapshot;
+      traceMetadata.cache = cacheMeta;
+    }
     const reverseRagEnabled = runtime.reverseRagEnabled;
     const reverseRagMode = runtime.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE;
     const hydeEnabled = runtime.hydeEnabled;
@@ -261,32 +315,52 @@ export default async function handler(
       typeof req.headers["x-user-id"] === "string"
         ? req.headers["x-user-id"]
         : undefined;
-    const trace = langfuse.trace({
-      name: "langchain-chat-turn",
-      sessionId,
-      userId,
-      input: normalizedQuestion.normalized,
-      metadata: {
-        env,
-        provider,
-        model: llmModel,
-        embeddingProvider,
-        embeddingModel,
-        ragConfig: ragConfigSnapshot,
-        config: {
-          reverseRagEnabled,
-          reverseRagMode,
-          hydeEnabled,
-          rankerMode,
-        },
-        llmResolution: {
-          requestedModelId: runtime.requestedLlmModelId,
-          resolvedModelId: runtime.resolvedLlmModelId,
-          wasSubstituted: runtime.llmModelWasSubstituted,
-          substitutionReason: runtime.llmSubstitutionReason,
-        },
-      },
-    });
+    traceMetadata.provider = provider;
+    traceMetadata.model = llmModel;
+    traceMetadata.embeddingProvider = embeddingProvider;
+    traceMetadata.embeddingModel = embeddingModel;
+    const trace = telemetryDecision.shouldEmitTrace
+      ? langfuse.trace({
+          name: "langchain-chat-turn",
+          sessionId,
+          userId,
+          input: normalizedQuestion.normalized,
+          metadata: traceMetadata,
+        })
+      : null;
+    const responseCacheTtl = adminConfig.cache.responseTtlSeconds;
+    const retrievalCacheTtl = adminConfig.cache.retrievalTtlSeconds;
+    const responseCacheKey =
+      responseCacheTtl > 0
+        ? `chat:response:${presetId}:${hashPayload({
+            presetId,
+            intent: routingDecision.intent,
+            messages,
+          })}`
+        : null;
+    if (responseCacheKey) {
+      const cached = await memoryCacheClient.get<{
+        output: string;
+        citations?: string;
+      }>(responseCacheKey);
+      if (cached) {
+        cacheMeta.responseHit = true;
+        if (traceMetadata.cache) {
+          traceMetadata.cache.responseHit = true;
+          void trace?.update({
+            metadata: traceMetadata,
+            output: cached.output,
+          });
+        }
+        res.status(200).setHeader("Content-Type", "text/plain; charset=utf-8");
+        const body =
+          cached.citations !== undefined
+            ? `${cached.output}${CITATIONS_SEPARATOR}${cached.citations}`
+            : cached.output;
+        res.end(body);
+        return;
+      }
+    }
 
     const [{ createClient }, { SupabaseVectorStore }, { PromptTemplate }] =
       await Promise.all([
@@ -360,8 +434,31 @@ export default async function handler(
         routingDecision.intent,
         guardrails,
       );
+      let retrievalCacheKey: string | null = null;
 
       if (routingDecision.intent === "knowledge") {
+        if (retrievalCacheTtl > 0) {
+          retrievalCacheKey = `chat:retrieval:${presetId}:${hashPayload({
+            question: normalizedQuestion.normalized,
+            presetId,
+            ragTopK: guardrails.ragTopK,
+            similarityThreshold: guardrails.similarityThreshold,
+          })}`;
+          const cachedContext = await memoryCacheClient.get<ContextWindowResult>(
+            retrievalCacheKey,
+          );
+          if (cachedContext) {
+            cacheMeta.retrievalHit = true;
+            contextResult = cachedContext;
+            if (traceMetadata.cache) {
+              traceMetadata.cache.retrievalHit = true;
+            }
+          }
+        }
+
+        if (cacheMeta.retrievalHit === true) {
+          logDebugRag("retrieval-cache", { hit: true, presetId });
+        } else {
         const rewrittenQuery = await rewriteQuery(
           normalizedQuestion.normalized,
           {
@@ -477,15 +574,21 @@ export default async function handler(
           };
         });
 
-        logRetrievalStage(
-          trace,
-          "raw_results",
-          baseDocs.map((entry) => ({
-            doc_id: entry.docId,
-            similarity: entry.baseSimilarity,
-          })),
-          { engine: "langchain", presetKey: ragConfigSnapshot.presetKey, ragConfig: ragConfigSnapshot },
-        );
+        if (includeVerboseDetails) {
+          logRetrievalStage(
+            trace,
+            "raw_results",
+            baseDocs.map((entry) => ({
+              doc_id: entry.docId,
+              similarity: entry.baseSimilarity,
+            })),
+            {
+              engine: "langchain",
+              presetKey: chatConfigSnapshot?.presetKey,
+              chatConfig: chatConfigSnapshot,
+            },
+          );
+        }
 
         const docIds = Array.from(
           new Set(
@@ -564,24 +667,32 @@ export default async function handler(
           // eslint-disable-next-line unicorn/no-array-sort
           .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
 
-        logRetrievalStage(
-          trace,
-          "after_weighting",
-          ragDocs.map((doc) => ({
-            doc_id: (doc.metadata?.doc_id as string | null) ?? null,
-            similarity: (doc as { base_similarity?: number }).base_similarity ?? null,
-            weight: (doc as { metadata_weight?: number }).metadata_weight ?? null,
-            finalScore: doc.similarity ?? null,
-            doc_type: (doc.metadata as { doc_type?: string | null })?.doc_type ?? null,
-            persona_type:
-              (doc.metadata as { persona_type?: string | null })?.persona_type ??
-              null,
-            is_public:
-              (doc.metadata as { is_public?: boolean | null })?.is_public ?? null,
-          })),
-          { engine: "langchain", presetKey: ragConfigSnapshot.presetKey, ragConfig: ragConfigSnapshot },
-        );
-        if (trace) {
+        if (includeVerboseDetails) {
+          logRetrievalStage(
+            trace,
+            "after_weighting",
+            ragDocs.map((doc) => ({
+              doc_id: (doc.metadata?.doc_id as string | null) ?? null,
+              similarity:
+                (doc as { base_similarity?: number }).base_similarity ?? null,
+              weight:
+                (doc as { metadata_weight?: number }).metadata_weight ?? null,
+              finalScore: doc.similarity ?? null,
+              doc_type: (doc.metadata as { doc_type?: string | null })?.doc_type ?? null,
+              persona_type:
+                (doc.metadata as { persona_type?: string | null })?.persona_type ??
+                null,
+              is_public:
+                (doc.metadata as { is_public?: boolean | null })?.is_public ?? null,
+            })),
+            {
+              engine: "langchain",
+              presetKey: chatConfigSnapshot?.presetKey,
+              chatConfig: chatConfigSnapshot,
+            },
+          );
+        }
+        if (trace && includeVerboseDetails) {
           void trace.observation({
             name: "retrieval",
             input: embeddingTarget,
@@ -593,6 +704,9 @@ export default async function handler(
               stage: "retrieval",
               source: "supabase",
               results: ragDocs.length,
+              cache: {
+                retrievalHit: cacheMeta.retrievalHit,
+              },
             },
           });
         }
@@ -602,7 +716,7 @@ export default async function handler(
           embeddingSelection,
           queryEmbedding,
         });
-        if (trace) {
+        if (trace && includeVerboseDetails) {
           void trace.observation({
             name: "reranker",
             input: ragDocs,
@@ -614,10 +728,24 @@ export default async function handler(
               mode: rankerMode,
               stage: "reranker",
               results: rankedDocs.length,
+              cache: {
+                retrievalHit: cacheMeta.retrievalHit,
+              },
             },
           });
         }
         contextResult = buildContextWindow(rankedDocs, guardrails);
+          if (retrievalCacheKey) {
+            await memoryCacheClient.set(
+              retrievalCacheKey,
+              contextResult,
+              retrievalCacheTtl,
+            );
+            cacheMeta.retrievalHit = false;
+            if (traceMetadata.cache) {
+              traceMetadata.cache.retrievalHit = false;
+            }
+          }
         console.log("[langchain_chat] context compression", {
           retrieved: normalizedMatches.length,
           ranked: rankedDocs.length,
@@ -628,10 +756,17 @@ export default async function handler(
           insufficient: contextResult.insufficient,
           rankerMode,
         });
+        }
       } else {
         console.log("[langchain_chat] intent fallback", {
           intent: routingDecision.intent,
         });
+      }
+      if (routingDecision.intent !== "knowledge" && cacheMeta.retrievalHit !== null) {
+        cacheMeta.retrievalHit = null;
+        if (traceMetadata.cache) {
+          traceMetadata.cache.retrievalHit = null;
+        }
       }
 
       const summaryTokens =
@@ -855,6 +990,17 @@ export default async function handler(
               `[langchain_chat] stream completed after ${chunkIndex} chunk(s)`,
             );
           }
+          if (responseCacheKey) {
+            await memoryCacheClient.set(
+              responseCacheKey,
+              { output: finalOutput, citations },
+              responseCacheTtl,
+            );
+            cacheMeta.responseHit = false;
+            if (traceMetadata.cache) {
+              traceMetadata.cache.responseHit = false;
+            }
+          }
           const citationJson = JSON.stringify(citations);
           if (!res.writableEnded) {
             res.write(`${CITATIONS_SEPARATOR}${citationJson}`);
@@ -862,6 +1008,7 @@ export default async function handler(
           if (trace) {
             void trace.update({
               output: finalOutput,
+              metadata: traceMetadata,
             });
           }
           return res.end();

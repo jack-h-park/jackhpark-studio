@@ -80,8 +80,11 @@ import {
   type AdminChatConfig,
   type AdminChatRuntimeMeta,
   type AdminNumericLimit,
- getAdditionalPromptMaxLength,  type SessionChatConfigPreset,
-  type SummaryLevel } from "@/types/chat-config";
+  getAdditionalPromptMaxLength,
+  type SessionChatConfigPreset,
+  type SummaryLevel,
+  type TelemetryDetailLevel,
+} from "@/types/chat-config";
 
 type PageProps = {
   adminConfig: AdminChatConfig;
@@ -1058,6 +1061,154 @@ function AdminChatConfigForm({
               Use persona weights to slightly favor professional-facing documents or de-emphasize purely personal content. 1.0 = neutral.
             </p>
           </GridPanel>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Telemetry &amp; Tracing</CardTitle>
+          <p className="ai-card-description">
+            Control how much data is sent to Langfuse for analysis.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="telemetry-sample-rate">Sample rate</Label>
+            <Input
+              id="telemetry-sample-rate"
+              type="number"
+              min={0}
+              max={1}
+              step={0.05}
+              value={config.telemetry.sampleRate}
+              onChange={(event) =>
+                updateConfig((prev) => ({
+                  ...prev,
+                  telemetry: {
+                    ...prev.telemetry,
+                    sampleRate: Number(event.target.value),
+                  },
+                }))
+              }
+              disabled={isFormBusy}
+            />
+            <p className="ai-meta-text">
+              0 = no traces, 1 = all traces, 0.1 = ~10% sampling.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Detail level</Label>
+            <div className="space-y-1">
+              <Radiobutton
+                name="telemetry-detail"
+                value="minimal"
+                label="Minimal"
+                description="Only status, tokens, and latency."
+                checked={config.telemetry.detailLevel === "minimal"}
+                disabled={isFormBusy}
+                onChange={(value) =>
+                  updateConfig((prev) => ({
+                    ...prev,
+                    telemetry: {
+                      ...prev.telemetry,
+                      detailLevel: value as TelemetryDetailLevel,
+                    },
+                  }))
+                }
+              />
+              <Radiobutton
+                name="telemetry-detail"
+                value="standard"
+                label="Standard"
+                description="Includes the current chat config snapshot."
+                checked={config.telemetry.detailLevel === "standard"}
+                disabled={isFormBusy}
+                onChange={(value) =>
+                  updateConfig((prev) => ({
+                    ...prev,
+                    telemetry: {
+                      ...prev.telemetry,
+                      detailLevel: value as TelemetryDetailLevel,
+                    },
+                  }))
+                }
+              />
+              <Radiobutton
+                name="telemetry-detail"
+                value="verbose"
+                label="Verbose"
+                description="Adds extra debugging metadata (e.g., candidate chunks)."
+                checked={config.telemetry.detailLevel === "verbose"}
+                disabled={isFormBusy}
+                onChange={(value) =>
+                  updateConfig((prev) => ({
+                    ...prev,
+                    telemetry: {
+                      ...prev.telemetry,
+                      detailLevel: value as TelemetryDetailLevel,
+                    },
+                  }))
+                }
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Caching</CardTitle>
+          <p className="ai-card-description">
+            Tune simple TTLs for chat responses and retrieval results.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="cache-response-ttl">Response cache TTL (seconds)</Label>
+            <Input
+              id="cache-response-ttl"
+              type="number"
+              min={0}
+              value={config.cache.responseTtlSeconds}
+              onChange={(event) =>
+                updateConfig((prev) => ({
+                  ...prev,
+                  cache: {
+                    ...prev.cache,
+                    responseTtlSeconds: Number(event.target.value),
+                  },
+                }))
+              }
+              disabled={isFormBusy}
+            />
+            <p className="ai-meta-text">
+              Cache time for full chat responses. 0 disables response caching.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="cache-retrieval-ttl">Retrieval cache TTL (seconds)</Label>
+            <Input
+              id="cache-retrieval-ttl"
+              type="number"
+              min={0}
+              value={config.cache.retrievalTtlSeconds}
+              onChange={(event) =>
+                updateConfig((prev) => ({
+                  ...prev,
+                  cache: {
+                    ...prev.cache,
+                    retrievalTtlSeconds: Number(event.target.value),
+                  },
+                }))
+              }
+              disabled={isFormBusy}
+            />
+            <p className="ai-meta-text">
+              Cache time for retrieval results. 0 disables retrieval caching.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

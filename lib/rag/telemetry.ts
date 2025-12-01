@@ -1,49 +1,98 @@
 import type { AdminChatConfig, RagRankingConfig } from "@/types/chat-config";
 
 import { DOC_TYPE_WEIGHTS, PERSONA_WEIGHTS } from "./ranking";
-import { type RagConfigSnapshot } from "./types";
+import {
+  type ChatConfigSnapshot,
+  type GuardrailRoute,
+} from "./types";
 
-
-
-export function buildRagConfigSnapshot(
+export function buildChatConfigSnapshot(
   adminConfig: AdminChatConfig,
   presetKey: keyof AdminChatConfig["presets"] | string,
-): RagConfigSnapshot {
+  options?: {
+    basePromptVersion?: string;
+    guardrailRoute?: GuardrailRoute;
+  },
+): ChatConfigSnapshot {
   const preset =
     adminConfig.presets[
       presetKey as keyof typeof adminConfig.presets
     ] ?? adminConfig.presets.default;
+
   const ranking: RagRankingConfig | undefined = adminConfig.ragRanking;
 
   return {
-    presetKey,
+    presetKey: String(presetKey),
+
     chatEngine: preset.chatEngine,
     llmModel: preset.llmModel,
     embeddingModel: preset.embeddingModel,
 
-    ragEnabled: preset.rag.enabled,
-    ragTopK: preset.rag.topK,
-    ragSimilarity: preset.rag.similarity,
+    rag: {
+      enabled: preset.rag.enabled,
+      topK: preset.rag.topK,
+      similarity: preset.rag.similarity,
 
-    ranker: preset.features.ranker,
-    reverseRAG: preset.features.reverseRAG,
-    hyde: preset.features.hyde,
-    summaryLevel: preset.summaryLevel,
+      ranker: preset.features.ranker,
+      reverseRAG: preset.features.reverseRAG,
+      hyde: preset.features.hyde,
+      summaryLevel: preset.summaryLevel,
 
-    contextTokenBudget: preset.context.tokenBudget,
-    historyBudget: preset.context.historyBudget,
-    clipTokens: preset.context.clipTokens,
+      numericLimits: {
+        ragTopK: adminConfig.numericLimits.ragTopK.default,
+        similarityThreshold: adminConfig.numericLimits.similarityThreshold.default,
+      },
 
-    numericLimits: {
-      ragTopK: adminConfig.numericLimits.ragTopK,
-      similarityThreshold: adminConfig.numericLimits.similarityThreshold,
+      ranking: {
+        docTypeWeights: {
+          ...DOC_TYPE_WEIGHTS,
+          ...(ranking?.docTypeWeights ?? {}),
+        },
+        personaTypeWeights: {
+          ...PERSONA_WEIGHTS,
+          ...(ranking?.personaTypeWeights ?? {}),
+        },
+      },
     },
 
-    ragRanking: {
-      docTypeWeights: ranking?.docTypeWeights ?? DOC_TYPE_WEIGHTS,
-      personaTypeWeights: ranking?.personaTypeWeights ?? PERSONA_WEIGHTS,
+    context: {
+      tokenBudget: preset.context.tokenBudget,
+      historyBudget: preset.context.historyBudget,
+      clipTokens: preset.context.clipTokens,
+    },
+
+    telemetry: {
+      sampleRate: adminConfig.telemetry.sampleRate,
+      detailLevel: adminConfig.telemetry.detailLevel,
+    },
+
+    cache: {
+      responseTtlSeconds: adminConfig.cache.responseTtlSeconds,
+      retrievalTtlSeconds: adminConfig.cache.retrievalTtlSeconds,
+      responseEnabled: adminConfig.cache.responseTtlSeconds > 0,
+      retrievalEnabled: adminConfig.cache.retrievalTtlSeconds > 0,
+    },
+
+    prompt: {
+      baseVersion: options?.basePromptVersion,
+    },
+
+    guardrails: {
+      route: options?.guardrailRoute,
     },
   };
 }
 
-export {type RagConfigSnapshot} from "./types";
+/**
+ * @deprecated Use buildChatConfigSnapshot instead.
+ */
+export function buildRagConfigSnapshot(
+  adminConfig: AdminChatConfig,
+  presetKey: keyof AdminChatConfig["presets"] | string,
+): ChatConfigSnapshot {
+  return buildChatConfigSnapshot(adminConfig, presetKey);
+}
+
+export { type ChatConfigSnapshot } from "./types";
+export { type RagConfigSnapshot } from "./types";
+export { type GuardrailRoute } from "./types";

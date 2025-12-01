@@ -15,6 +15,19 @@ import {
 } from "@/types/chat-config";
 
 export const ADMIN_CHAT_CONFIG_KEY = "admin_chat_config";
+const DEFAULT_ADMIN_CHAT_CONFIG: Pick<
+  AdminChatConfig,
+  "telemetry" | "cache"
+> = {
+  telemetry: {
+    sampleRate: 1,
+    detailLevel: "standard",
+  },
+  cache: {
+    responseTtlSeconds: 300,
+    retrievalTtlSeconds: 60,
+  },
+};
 
 // NOTE:
 // The system_settings table is expected to contain exactly one row for chat configuration:
@@ -149,13 +162,25 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
   }
 
   const config = rawValue as AdminChatConfig;
+  const mergedConfig: AdminChatConfig = {
+    ...DEFAULT_ADMIN_CHAT_CONFIG,
+    ...config,
+    telemetry: {
+      ...DEFAULT_ADMIN_CHAT_CONFIG.telemetry,
+      ...(config as AdminChatConfig).telemetry,
+    },
+    cache: {
+      ...DEFAULT_ADMIN_CHAT_CONFIG.cache,
+      ...(config as AdminChatConfig).cache,
+    },
+  };
 
   if (
-    !config.numericLimits ||
-    !config.allowlist ||
-    !config.guardrails ||
-    !config.summaryPresets ||
-    !config.presets
+    !mergedConfig.numericLimits ||
+    !mergedConfig.allowlist ||
+    !mergedConfig.guardrails ||
+    !mergedConfig.summaryPresets ||
+    !mergedConfig.presets
   ) {
     throw new Error(
       "[admin-chat-config] admin_chat_config is missing required fields.",
@@ -163,9 +188,9 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
   }
 
   if (
-    !config.presets.default ||
-    !config.presets.fast ||
-    !config.presets.highRecall
+    !mergedConfig.presets.default ||
+    !mergedConfig.presets.fast ||
+    !mergedConfig.presets.highRecall
   ) {
     throw new Error(
       "[admin-chat-config] admin_chat_config.presets is missing required presets.",
@@ -173,13 +198,13 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
   }
 
   const additionalPromptMaxLength =
-    typeof config.additionalPromptMaxLength === "number"
-      ? config.additionalPromptMaxLength
+    typeof mergedConfig.additionalPromptMaxLength === "number"
+      ? mergedConfig.additionalPromptMaxLength
       : DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH;
 
   return {
-    ...config,
-    baseSystemPromptSummary: config.baseSystemPromptSummary ?? "",
+    ...mergedConfig,
+    baseSystemPromptSummary: mergedConfig.baseSystemPromptSummary ?? "",
     additionalPromptMaxLength,
   };
 }

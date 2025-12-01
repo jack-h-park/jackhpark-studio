@@ -53,6 +53,38 @@ export type RagRankingConfig = {
   personaTypeWeights: Partial<Record<PersonaType, number>>;
 };
 
+export type TelemetryDetailLevel = "minimal" | "standard" | "verbose";
+
+export type AdminTelemetryConfig = {
+  /**
+   * Global sampling rate for sending traces to Langfuse.
+   * 1.0 = log all requests, 0.1 = 10% sample, 0 = disabled.
+   */
+  sampleRate: number;
+
+  /**
+   * Controls how much detail we send in traces.
+   * - minimal: top-level status, tokens, latency
+   * - standard: includes config snapshot (RAG, context, etc.)
+   * - verbose: includes additional debugging metadata (e.g., candidate chunks)
+   */
+  detailLevel: TelemetryDetailLevel;
+};
+
+export type AdminCacheConfig = {
+  /**
+   * TTL for full chat response cache (in seconds).
+   * 0 effectively disables response caching.
+   */
+  responseTtlSeconds: number;
+
+  /**
+   * TTL for retrieval cache (in seconds, e.g. chunk retrieval/embeddings).
+   * 0 effectively disables retrieval caching.
+   */
+  retrievalTtlSeconds: number;
+};
+
 export type PresetModelResolutions = Record<
   keyof AdminChatConfig["presets"],
   ModelResolution
@@ -107,6 +139,8 @@ export interface AdminChatConfig {
     highRecall: AdminPresetConfig;
   };
   ragRanking?: RagRankingConfig;
+  telemetry: AdminTelemetryConfig;
+  cache: AdminCacheConfig;
 }
 
 export interface AdminPresetConfig extends SessionChatConfigPreset {

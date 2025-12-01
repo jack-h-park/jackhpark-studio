@@ -1,6 +1,6 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 
-import type { RagConfigSnapshot } from "@/lib/rag/types";
+import type { ChatConfigSnapshot, GuardrailRoute } from "@/lib/rag/types";
 import type { SessionChatConfig } from "@/types/chat-config";
 import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
 import { embedText } from "@/lib/core/embeddings";
@@ -15,7 +15,7 @@ import { getRagMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { normalizeMetadata } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
-import { buildRagConfigSnapshot } from "@/lib/rag/telemetry";
+import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import {
   applyHistoryWindow,
@@ -32,6 +32,7 @@ import {
   buildFinalSystemPrompt,
   loadChatModelSettings,
 } from "@/lib/server/chat-settings";
+import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import {
   OllamaUnavailableError,
@@ -56,6 +57,8 @@ import {
 import { type ModelProvider } from "@/lib/shared/model-provider";
 import { DEFAULT_REVERSE_RAG_MODE } from "@/lib/shared/rag-config";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
+import { computeBasePromptVersion } from "@/lib/telemetry/prompt-version";
 
 const RAG_DEBUG = (process.env.RAG_DEBUG ?? "").toLowerCase() === "true";
 
@@ -73,7 +76,11 @@ function logRetrievalStage(
   trace: ReturnType<typeof langfuse.trace> | null,
   stage: string,
   entries: RetrievalLogEntry[],
-  meta?: { engine?: string; presetKey?: string; ragConfig?: RagConfigSnapshot },
+  meta?: {
+    engine?: string;
+    presetKey?: string;
+    chatConfig?: ChatConfigSnapshot;
+  },
 ) {
   if (!RAG_DEBUG && !trace) {
     return;
@@ -98,8 +105,9 @@ function logRetrievalStage(
     metadata: {
       stage,
       engine: meta?.engine ?? "native",
-      presetKey: meta?.presetKey ?? "default",
-      ragConfig: meta?.ragConfig,
+      presetKey: meta?.presetKey ?? meta?.chatConfig?.presetKey ?? "default",
+      chatConfig: meta?.chatConfig,
+      ragConfig: meta?.chatConfig,
       entries: payload,
     },
   });
@@ -179,10 +187,6 @@ export default async function handler(
         ? sessionConfig.appliedPreset
         : "default");
     const ragRanking = adminConfig.ragRanking;
-    const ragConfigSnapshot: RagConfigSnapshot = buildRagConfigSnapshot(
-      adminConfig,
-      presetId,
-    );
     const runtime =
       (req as any).chatRuntime ?? (await loadChatModelSettings({ forceRefresh: true }));
 
@@ -210,6 +214,55 @@ export default async function handler(
       messages,
       guardrails,
     );
+    const guardrailRoute: GuardrailRoute =
+      routingDecision.intent === "chitchat"
+        ? "chitchat"
+        : routingDecision.intent === "command"
+          ? "command"
+          : "normal";
+    const telemetryDecision = decideTelemetryMode(
+      adminConfig.telemetry.sampleRate,
+      adminConfig.telemetry.detailLevel,
+    );
+    const basePromptVersion = computeBasePromptVersion(adminConfig, presetId);
+    const chatConfigSnapshot: ChatConfigSnapshot | undefined =
+      telemetryDecision.includeConfigSnapshot
+        ? buildChatConfigSnapshot(adminConfig, presetId, {
+            guardrailRoute,
+            basePromptVersion,
+          })
+        : undefined;
+    const cacheMeta: {
+      responseHit: boolean | null;
+      retrievalHit: boolean | null;
+    } = {
+      responseHit: adminConfig.cache.responseTtlSeconds > 0 ? false : null,
+      retrievalHit: adminConfig.cache.retrievalTtlSeconds > 0 ? false : null,
+    };
+    const traceMetadata: {
+      [key: string]: unknown;
+      cache?: typeof cacheMeta;
+    } = {
+      env,
+      config: {
+        reverseRagEnabled: runtime.reverseRagEnabled,
+        reverseRagMode: runtime.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE,
+        hydeEnabled: runtime.hydeEnabled,
+        rankerMode: runtime.rankerMode,
+        guardrailRoute,
+      },
+      llmResolution: {
+        requestedModelId: runtime.requestedLlmModelId,
+        resolvedModelId: runtime.resolvedLlmModelId,
+        wasSubstituted: runtime.llmModelWasSubstituted,
+        substitutionReason: runtime.llmSubstitutionReason,
+      },
+    };
+    if (chatConfigSnapshot) {
+      traceMetadata.chatConfig = chatConfigSnapshot;
+      traceMetadata.ragConfig = chatConfigSnapshot;
+      traceMetadata.cache = cacheMeta;
+    }
     const reverseRagEnabled = runtime.reverseRagEnabled;
     const reverseRagMode = runtime.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE;
     const hydeEnabled = runtime.hydeEnabled;
@@ -241,32 +294,47 @@ export default async function handler(
       typeof req.headers["x-user-id"] === "string"
         ? req.headers["x-user-id"]
         : undefined;
-    const trace = langfuse.trace({
-      name: "native-chat-turn",
-      sessionId,
-      userId,
-      input: normalizedQuestion.normalized,
-      metadata: {
-        env,
-        provider,
-        model: llmModel,
-        embeddingProvider,
-        embeddingModel,
-        ragConfig: ragConfigSnapshot,
-        config: {
-          reverseRagEnabled,
-          reverseRagMode,
-          hydeEnabled,
-          rankerMode,
-        },
-        llmResolution: {
-          requestedModelId: runtime.requestedLlmModelId,
-          resolvedModelId: runtime.resolvedLlmModelId,
-          wasSubstituted: runtime.llmModelWasSubstituted,
-          substitutionReason: runtime.llmSubstitutionReason,
-        },
-      },
-    });
+    traceMetadata.provider = provider;
+    traceMetadata.model = llmModel;
+    traceMetadata.embeddingProvider = embeddingProvider;
+    traceMetadata.embeddingModel = embeddingModel;
+    const trace = telemetryDecision.shouldEmitTrace
+      ? langfuse.trace({
+          name: "native-chat-turn",
+          sessionId,
+          userId,
+          input: normalizedQuestion.normalized,
+          metadata: traceMetadata,
+        })
+      : null;
+    const includeVerboseDetails = telemetryDecision.includeRetrievalDetails;
+    const responseCacheTtl = adminConfig.cache.responseTtlSeconds;
+    const retrievalCacheTtl = adminConfig.cache.retrievalTtlSeconds;
+    const responseCacheKey =
+      responseCacheTtl > 0
+        ? `chat:response:${presetId}:${hashPayload({
+            presetId,
+            intent: routingDecision.intent,
+            messages,
+          })}`
+        : null;
+    if (responseCacheKey) {
+      const cachedResponse =
+        await memoryCacheClient.get<{ output: string }>(responseCacheKey);
+      if (cachedResponse) {
+        cacheMeta.responseHit = true;
+        if (traceMetadata.cache) {
+          traceMetadata.cache.responseHit = true;
+          void trace?.update({
+            metadata: traceMetadata,
+            output: cachedResponse.output,
+          });
+        }
+        res.status(200).setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.end(cachedResponse.output);
+        return;
+      }
+    }
     const temperature = DEFAULT_TEMPERATURE;
     const maxTokens = DEFAULT_MAX_TOKENS;
     const enhancements: GuardrailEnhancements = {
@@ -311,6 +379,32 @@ export default async function handler(
     };
 
     if (routingDecision.intent === "knowledge") {
+      let retrievalCacheKey: string | null = null;
+      if (retrievalCacheTtl > 0) {
+        retrievalCacheKey = `chat:retrieval:${presetId}:${hashPayload({
+          question: normalizedQuestion.normalized,
+          presetId,
+          ragTopK: guardrails.ragTopK,
+          similarityThreshold: guardrails.similarityThreshold,
+        })}`;
+        const cachedContext = await memoryCacheClient.get<ContextWindowResult>(
+          retrievalCacheKey,
+        );
+        if (cachedContext) {
+          cacheMeta.retrievalHit = true;
+          contextResult = cachedContext;
+          if (traceMetadata.cache) {
+            traceMetadata.cache.retrievalHit = true;
+          }
+        }
+      }
+
+      if (cacheMeta.retrievalHit === true) {
+        logDebugRag("retrieval-cache", {
+          hit: true,
+          presetId,
+        });
+      } else {
       const reversedQuery = await rewriteQuery(normalizedQuestion.normalized, {
         enabled: reverseRagEnabled,
         mode: reverseRagMode,
@@ -435,26 +529,36 @@ export default async function handler(
         }
       }
 
-      logRetrievalStage(
-        trace,
-        "raw_results",
-        typedDocuments.map((doc) => ({
-          doc_id:
-            doc.doc_id || doc.docId || doc.document_id || doc.documentId || null,
-          similarity:
-            typeof doc.similarity === "number"
-              ? doc.similarity
-              : typeof doc.score === "number"
-                ? doc.score
-                : typeof doc.similarity_score === "number"
-                  ? doc.similarity_score
-                  : null,
-          doc_type: null,
-          persona_type: null,
-          is_public: null,
-        })),
-        { engine: "native", presetKey: ragConfigSnapshot.presetKey, ragConfig: ragConfigSnapshot },
-      );
+      if (includeVerboseDetails) {
+        logRetrievalStage(
+          trace,
+          "raw_results",
+          typedDocuments.map((doc) => ({
+            doc_id:
+              doc.doc_id ||
+              doc.docId ||
+              doc.document_id ||
+              doc.documentId ||
+              null,
+            similarity:
+              typeof doc.similarity === "number"
+                ? doc.similarity
+                : typeof doc.score === "number"
+                  ? doc.score
+                  : typeof doc.similarity_score === "number"
+                    ? doc.similarity_score
+                    : null,
+            doc_type: null,
+            persona_type: null,
+            is_public: null,
+          })),
+          {
+            engine: "native",
+            presetKey: chatConfigSnapshot?.presetKey,
+            chatConfig: chatConfigSnapshot,
+          },
+        );
+      }
 
       const enrichedDocuments = typedDocuments
         .map((doc) => {
@@ -505,69 +609,96 @@ export default async function handler(
         // eslint-disable-next-line unicorn/no-array-sort
         .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
 
-      logRetrievalStage(
-        trace,
-        "after_weighting",
-        enrichedDocuments.map((doc) => ({
-          doc_id:
-            doc.doc_id || doc.docId || doc.document_id || doc.documentId || null,
-          similarity: (doc as any).base_similarity ?? null,
-          weight: (doc as any).metadata_weight ?? null,
-          finalScore: doc.similarity ?? null,
-          doc_type:
-            (doc.metadata as { doc_type?: string | null } | null)?.doc_type ??
-            null,
-          persona_type:
-            (doc.metadata as { persona_type?: string | null } | null)
-              ?.persona_type ?? null,
-          is_public:
-            (doc.metadata as { is_public?: boolean | null } | null)?.is_public ??
-            null,
-        })),
-        { engine: "native", presetKey: ragConfigSnapshot.presetKey, ragConfig: ragConfigSnapshot },
-      );
-      const canonicalLookup = await loadCanonicalPageLookup();
-      const normalizedDocuments = applyPublicPageUrls(
-        enrichedDocuments,
-        canonicalLookup,
-      );
-      if (trace) {
-        void trace.observation({
-          name: "retrieval",
-          input: embeddingInput,
-          output: normalizedDocuments,
-          metadata: {
-            env,
-            provider,
-            model: llmModel,
-            source: "supabase",
-            stage: "retrieval",
-            results: normalizedDocuments.length,
+      if (includeVerboseDetails) {
+        logRetrievalStage(
+          trace,
+          "after_weighting",
+          enrichedDocuments.map((doc) => ({
+            doc_id:
+              doc.doc_id ||
+              doc.docId ||
+              doc.document_id ||
+              doc.documentId ||
+              null,
+            similarity: (doc as any).base_similarity ?? null,
+            weight: (doc as any).metadata_weight ?? null,
+            finalScore: doc.similarity ?? null,
+            doc_type:
+              (doc.metadata as { doc_type?: string | null } | null)?.doc_type ??
+              null,
+            persona_type:
+              (doc.metadata as { persona_type?: string | null } | null)
+                ?.persona_type ?? null,
+            is_public:
+              (doc.metadata as { is_public?: boolean | null } | null)
+                ?.is_public ?? null,
+          })),
+          {
+            engine: "native",
+            presetKey: chatConfigSnapshot?.presetKey,
+            chatConfig: chatConfigSnapshot,
           },
-        });
+        );
       }
-      const rankedDocuments = await applyRanker(normalizedDocuments, {
-        mode: rankerMode,
-        maxResults: Math.max(guardrails.ragTopK, 1),
-        embeddingSelection,
-        queryEmbedding: embedding,
-      });
-      if (trace) {
-        void trace.observation({
-          name: "reranker",
-          input: normalizedDocuments,
-          output: rankedDocuments,
-          metadata: {
-            env,
-            provider,
-            model: llmModel,
-            mode: rankerMode,
-            stage: "reranker",
-            results: rankedDocuments.length,
-          },
+        const canonicalLookup = await loadCanonicalPageLookup();
+        const normalizedDocuments = applyPublicPageUrls(
+          enrichedDocuments,
+          canonicalLookup,
+        );
+        if (trace && includeVerboseDetails) {
+          void trace.observation({
+            name: "retrieval",
+            input: embeddingInput,
+            output: normalizedDocuments,
+            metadata: {
+              env,
+              provider,
+              model: llmModel,
+              source: "supabase",
+              stage: "retrieval",
+              results: normalizedDocuments.length,
+              cache: {
+                retrievalHit: cacheMeta.retrievalHit,
+              },
+            },
+          });
+        }
+        const rankedDocuments = await applyRanker(normalizedDocuments, {
+          mode: rankerMode,
+          maxResults: Math.max(guardrails.ragTopK, 1),
+          embeddingSelection,
+          queryEmbedding: embedding,
         });
-      }
+        if (trace && includeVerboseDetails) {
+          void trace.observation({
+            name: "reranker",
+            input: normalizedDocuments,
+            output: rankedDocuments,
+            metadata: {
+              env,
+              provider,
+              model: llmModel,
+              mode: rankerMode,
+              stage: "reranker",
+              results: rankedDocuments.length,
+              cache: {
+                retrievalHit: cacheMeta.retrievalHit,
+              },
+            },
+          });
+        }
       contextResult = buildContextWindow(rankedDocuments, guardrails);
+      if (retrievalCacheKey) {
+        await memoryCacheClient.set(
+          retrievalCacheKey,
+          contextResult,
+          retrievalCacheTtl,
+        );
+        cacheMeta.retrievalHit = false;
+        if (traceMetadata.cache) {
+          traceMetadata.cache.retrievalHit = false;
+        }
+      }
       console.log("[native_chat] context compression", {
         retrieved: normalizedDocuments.length,
         ranked: rankedDocuments.length,
@@ -586,6 +717,12 @@ export default async function handler(
       console.log("[native_chat] intent fallback", {
         intent: routingDecision.intent,
       });
+    }
+    if (routingDecision.intent !== "knowledge" && cacheMeta.retrievalHit !== null) {
+      cacheMeta.retrievalHit = null;
+      if (traceMetadata.cache) {
+        traceMetadata.cache.retrievalHit = null;
+      }
     }
 
     const summaryTokens =
@@ -716,11 +853,23 @@ export default async function handler(
         finalOutput += chunk;
         res.write(chunk);
       }
+      if (responseCacheKey) {
+        await memoryCacheClient.set(
+          responseCacheKey,
+          { output: finalOutput },
+          responseCacheTtl,
+        );
+        cacheMeta.responseHit = false;
+        if (traceMetadata.cache) {
+          traceMetadata.cache.responseHit = false;
+        }
+      }
       ensureStreamHeaders();
       res.end();
       if (trace) {
         void trace.update({
           output: finalOutput,
+          metadata: traceMetadata,
         });
       }
     } catch (streamErr) {
