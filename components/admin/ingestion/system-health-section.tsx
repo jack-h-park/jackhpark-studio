@@ -1,17 +1,18 @@
-import { FiActivity } from "@react-icons/all-files/fi/FiActivity";
 import type { JSX } from "react";
+import { FiActivity } from "@react-icons/all-files/fi/FiActivity";
 
-import { getStatusLabel } from "@/lib/admin/recent-runs-filters";
 import type { SystemHealthOverview } from "@/lib/admin/ingestion-types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { GridPanel } from "@/components/ui/grid-panel";
+import { StatCard } from "@/components/ui/stat-card";
+import { StatusPill } from "@/components/ui/status-pill";
 import {
   formatDuration,
   numberFormatter,
   runStatusVariantMap,
 } from "@/lib/admin/ingestion-formatters";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GridPanel } from "@/components/ui/grid-panel";
-import { StatCard } from "@/components/ui/stat-card";
-import { StatusPill } from "@/components/ui/status-pill";
+import { getStatusLabel } from "@/lib/admin/recent-runs-filters";
+
 import { ClientSideDate } from "./client-side-date";
 
 export function SystemHealthSection({

@@ -1,7 +1,8 @@
-import type { SnapshotRecord } from "./rag-snapshot";
-import type { SnapshotSummary } from "./ingestion-types";
 import type { StatusPillVariant } from "@/components/ui/status-pill";
+
 import type { RunStatus } from "./ingestion-runs";
+import type { SnapshotSummary } from "./ingestion-types";
+import type { SnapshotRecord } from "./rag-snapshot";
 
 export const numberFormatter = new Intl.NumberFormat("en-US");
 

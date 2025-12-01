@@ -46,11 +46,11 @@ export function buildChatConfigSnapshot(
       ranking: {
         docTypeWeights: {
           ...DOC_TYPE_WEIGHTS,
-          ...(ranking?.docTypeWeights ?? {}),
+          ...ranking?.docTypeWeights,
         },
         personaTypeWeights: {
           ...PERSONA_WEIGHTS,
-          ...(ranking?.personaTypeWeights ?? {}),
+          ...ranking?.personaTypeWeights,
         },
       },
     },

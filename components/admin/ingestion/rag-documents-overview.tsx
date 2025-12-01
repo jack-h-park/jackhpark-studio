@@ -1,11 +1,11 @@
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 import { useMemo } from "react";
 
-import { LinkButton } from "@/components/ui/link-button";
+import type { RagDocumentStats } from "@/lib/admin/rag-documents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GridPanel } from "@/components/ui/grid-panel";
+import { LinkButton } from "@/components/ui/link-button";
 import { StatCard } from "@/components/ui/stat-card";
-import type { RagDocumentStats } from "@/lib/admin/rag-documents";
 import { numberFormatter } from "@/lib/admin/ingestion-formatters";
 
 export function RagDocumentsOverview({

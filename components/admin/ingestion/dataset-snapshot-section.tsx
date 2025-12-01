@@ -1,21 +1,22 @@
+import type { JSX } from "react";
 import { FiClock } from "@react-icons/all-files/fi/FiClock";
 import { FiDatabase } from "@react-icons/all-files/fi/FiDatabase";
-import type { JSX } from "react";
 
-import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import type { DatasetSnapshotOverview } from "@/lib/admin/ingestion-types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GridPanel } from "@/components/ui/grid-panel";
+import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { StatCard } from "@/components/ui/stat-card";
-import { formatEmbeddingSpaceLabel } from "@/lib/admin/recent-runs-filters";
-import type { DatasetSnapshotOverview } from "@/lib/admin/ingestion-types";
 import {
-  SNAPSHOT_HISTORY_LIMIT,
   buildSparklineData,
   formatCharacters,
   formatDeltaLabel,
   formatPercentChange,
   numberFormatter,
+  SNAPSHOT_HISTORY_LIMIT,
 } from "@/lib/admin/ingestion-formatters";
+import { formatEmbeddingSpaceLabel } from "@/lib/admin/recent-runs-filters";
+
 import { ClientSideDate } from "./client-side-date";
 
 export function DatasetSnapshotSection({

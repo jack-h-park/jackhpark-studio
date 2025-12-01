@@ -4,9 +4,9 @@ import { FiBarChart2 } from "@react-icons/all-files/fi/FiBarChart2";
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import { FiPlayCircle } from "@react-icons/all-files/fi/FiPlayCircle";
 import { useRouter } from "next/router";
-import { useMemo, type ComponentType, type JSX } from "react";
+import { type ComponentType, type JSX,useMemo } from "react";
 
-import { EMBEDDING_MODEL_OPTIONS } from "@/lib/admin/recent-runs-filters";
+import type { ManualLogEvent } from "@/lib/admin/ingestion-types";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,9 +31,9 @@ import {
 import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
 import { TabPill } from "@/components/ui/tab-pill";
 import { TabPanel } from "@/components/ui/tabs";
-import type { ManualLogEvent } from "@/lib/admin/ingestion-types";
-import { logTimeFormatter, numberFormatter } from "@/lib/admin/ingestion-formatters";
 import { useManualIngestion } from "@/hooks/useManualIngestion";
+import { logTimeFormatter, numberFormatter } from "@/lib/admin/ingestion-formatters";
+import { EMBEDDING_MODEL_OPTIONS } from "@/lib/admin/recent-runs-filters";
 
 const LOG_ICONS: Record<
   ManualLogEvent["level"],

@@ -22,8 +22,8 @@ import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { normalizeMetadata, type RagDocumentMetadata } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
-import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
+import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
 import {
   applyHistoryWindow,
   buildContextWindow,

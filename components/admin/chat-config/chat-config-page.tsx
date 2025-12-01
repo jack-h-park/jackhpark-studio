@@ -1,0 +1,149 @@
+import { AllowlistCard } from "@/components/admin/chat-config/allowlist-card";
+import { CachingCard } from "@/components/admin/chat-config/caching-card";
+import { CoreBehaviorCard } from "@/components/admin/chat-config/core-behavior-card";
+import { GuardrailCard } from "@/components/admin/chat-config/guardrail-card";
+import { NumericLimitsCard } from "@/components/admin/chat-config/numeric-limits-card";
+import { RagMetadataInfoCard } from "@/components/admin/chat-config/rag-metadata-info-card";
+import { RagRankingCard } from "@/components/admin/chat-config/rag-ranking-card";
+import { RawConfigJsonModal } from "@/components/admin/chat-config/raw-config-json-modal";
+import { SessionPresetsCard } from "@/components/admin/chat-config/session-presets-card";
+import { SummaryPresetsCard } from "@/components/admin/chat-config/summary-presets-card";
+import { TelemetryCard } from "@/components/admin/chat-config/telemetry-card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHeaderCard } from "@/components/ui/page-header-card";
+import { useAdminChatConfig } from "@/hooks/use-admin-chat-config";
+import {
+  type AdminChatConfig,
+  type AdminChatRuntimeMeta,
+} from "@/types/chat-config";
+
+export function AdminChatConfigPage({
+  adminConfig,
+  lastUpdatedAt,
+  runtimeMeta,
+}: {
+  adminConfig: AdminChatConfig;
+  lastUpdatedAt: string | null;
+  runtimeMeta: AdminChatRuntimeMeta;
+}) {
+  const {
+    config,
+    updateConfig,
+    saveStatus,
+    errorMessage,
+    lastSavedAt,
+    handleSave,
+    isRawModalOpen,
+    setIsRawModalOpen,
+    isWordWrapEnabled,
+    setIsWordWrapEnabled,
+    contextHistoryEnabled,
+    setContextHistoryEnabled,
+    additionalPromptMaxLength,
+    numericLimitErrors,
+    hasNumericErrors,
+    isFormBusy,
+    isSaveDisabled,
+    llmModelOptions,
+    updateNumericLimit,
+    updateDocTypeWeight,
+    updatePersonaWeight,
+    toggleAllowlistValue,
+    updatePreset,
+  } = useAdminChatConfig({ adminConfig, lastUpdatedAt, runtimeMeta });
+  const { ollamaEnabled, defaultLlmModelId, presetResolutions } = runtimeMeta;
+
+  return (
+    <>
+      <PageHeaderCard
+        overline="Admin"
+        title="Chat Configuration"
+        description="Configure chat behavior, guardrails, and session presets."
+        meta={
+          <span>
+            {lastSavedAt
+              ? `Last saved ${new Date(lastSavedAt).toLocaleString()}`
+              : "Not saved yet."}
+          </span>
+        }
+        actions={
+          <>
+            <Button variant="ghost" type="button" onClick={() => setIsRawModalOpen(true)}>
+              View raw JSON
+            </Button>
+            <Button variant="default" type="button" onClick={handleSave} disabled={isSaveDisabled}>
+              {saveStatus === "saving" ? "Saving…" : "Save"}
+            </Button>
+          </>
+        }
+      />
+
+      {errorMessage && (
+        <Card className="border-l-4 border-[color:var(--ai-error)] bg-[color:color-mix(in srgb, var(--ai-bg) 85%, var(--ai-error) 15%)]">
+          <CardContent className="px-4 py-3 text-[color:var(--ai-error)]">{errorMessage}</CardContent>
+        </Card>
+      )}
+
+      <CoreBehaviorCard
+        config={config}
+        updateConfig={updateConfig}
+        additionalPromptMaxLength={additionalPromptMaxLength}
+      />
+
+      <GuardrailCard config={config} updateConfig={updateConfig} />
+
+      <NumericLimitsCard
+        numericLimits={config.numericLimits}
+        numericLimitErrors={numericLimitErrors}
+        hasNumericErrors={hasNumericErrors}
+        updateNumericLimit={updateNumericLimit}
+      />
+
+      <AllowlistCard
+        allowlist={config.allowlist}
+        llmModelOptions={llmModelOptions}
+        ollamaEnabled={ollamaEnabled}
+        defaultLlmModelId={defaultLlmModelId}
+        toggleAllowlistValue={toggleAllowlistValue}
+        updateConfig={updateConfig}
+      />
+
+      <RagMetadataInfoCard />
+
+      <RagRankingCard
+        ragRanking={config.ragRanking}
+        updateDocTypeWeight={updateDocTypeWeight}
+        updatePersonaWeight={updatePersonaWeight}
+      />
+
+      <TelemetryCard telemetry={config.telemetry} isFormBusy={isFormBusy} updateConfig={updateConfig} />
+
+      <CachingCard cache={config.cache} isFormBusy={isFormBusy} updateConfig={updateConfig} />
+
+      <SummaryPresetsCard summaryPresets={config.summaryPresets} updateConfig={updateConfig} />
+
+      <SessionPresetsCard
+        config={config}
+        numericLimits={config.numericLimits}
+        presets={config.presets}
+        contextHistoryEnabled={contextHistoryEnabled}
+        setContextHistoryEnabled={setContextHistoryEnabled}
+        updatePreset={updatePreset}
+        llmModelOptions={llmModelOptions}
+        additionalPromptMaxLength={additionalPromptMaxLength}
+        presetResolutions={presetResolutions}
+        ollamaEnabled={ollamaEnabled}
+        defaultLlmModelId={defaultLlmModelId}
+      />
+
+      <RawConfigJsonModal
+        config={config}
+        isOpen={isRawModalOpen}
+        onClose={() => setIsRawModalOpen(false)}
+        isWordWrapEnabled={isWordWrapEnabled}
+        onToggleWordWrap={setIsWordWrapEnabled}
+      />
+    </>
+  );
+}

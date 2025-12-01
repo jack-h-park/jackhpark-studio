@@ -17,6 +17,7 @@ import { normalizeMetadata } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
+import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
 import {
   applyHistoryWindow,
   buildContextWindow,
@@ -32,7 +33,6 @@ import {
   buildFinalSystemPrompt,
   loadChatModelSettings,
 } from "@/lib/server/chat-settings";
-import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import {
   OllamaUnavailableError,
