@@ -5,36 +5,36 @@ import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
 
 const always = (value: number) => () => value;
 
-describe("decideTelemetryMode", () => {
-  it("disables tracing when sampleRate is zero", () => {
+void describe("decideTelemetryMode", () => {
+  void it("disables tracing when sampleRate is zero", () => {
     const decision = decideTelemetryMode(0, "standard", always(0.5));
     assert.equal(decision.shouldEmitTrace, false);
     assert.equal(decision.includeConfigSnapshot, false);
     assert.equal(decision.includeRetrievalDetails, false);
   });
 
-  it("always emits when sampleRate is one", () => {
+  void it("always emits when sampleRate is one", () => {
     const decision = decideTelemetryMode(1, "standard", always(0.9));
     assert.equal(decision.shouldEmitTrace, true);
     assert.equal(decision.includeConfigSnapshot, true);
     assert.equal(decision.includeRetrievalDetails, false);
   });
 
-  it("emits when random sample is below threshold", () => {
+  void it("emits when random sample is below threshold", () => {
     const decision = decideTelemetryMode(0.1, "minimal", always(0.05));
     assert.equal(decision.shouldEmitTrace, true);
     assert.equal(decision.includeConfigSnapshot, false);
     assert.equal(decision.includeRetrievalDetails, false);
   });
 
-  it("skips when random sample exceeds threshold", () => {
+  void it("skips when random sample exceeds threshold", () => {
     const decision = decideTelemetryMode(0.1, "verbose", always(0.5));
     assert.equal(decision.shouldEmitTrace, false);
     assert.equal(decision.includeConfigSnapshot, false);
     assert.equal(decision.includeRetrievalDetails, false);
   });
 
-  it("honors detail level for config snapshot and retrieval details", () => {
+  void it("honors detail level for config snapshot and retrieval details", () => {
     const minimal = decideTelemetryMode(1, "minimal", always(0.5));
     assert.equal(minimal.includeConfigSnapshot, false);
     assert.equal(minimal.includeRetrievalDetails, false);

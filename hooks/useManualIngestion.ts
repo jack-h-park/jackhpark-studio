@@ -16,12 +16,7 @@ import type {
 } from "@/lib/admin/ingestion-types";
 import type { ManualIngestionRequest } from "@/lib/admin/manual-ingestor";
 import {
-  logTimeFormatter,
-  numberFormatter,
-} from "@/lib/admin/ingestion-formatters";
-import {
   DEFAULT_MANUAL_EMBEDDING_SPACE_ID,
-  EMBEDDING_MODEL_OPTIONS,
   getEmbeddingSpaceOption,
 } from "@/lib/admin/recent-runs-filters";
 

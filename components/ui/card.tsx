@@ -44,7 +44,7 @@ export function CardTitle({
   return (
     <h3
       className={cn(
-        "m-0 text-lg font-semibold",
+        "ai-card-title",
         hasIcon ? "flex items-center gap-1" : undefined,
         className,
       )}
@@ -66,13 +66,7 @@ export function CardDescription({
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p
-      className={cn(
-        "m-0 text-[hsl(var(--ai-fg-muted))] text-[0.8rem] leading-[1.4]",
-        className,
-      )}
-      {...props}
-    >
+    <p className={cn("ai-card-description", className)} {...props}>
       {children}
     </p>
   );

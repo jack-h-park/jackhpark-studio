@@ -2,7 +2,7 @@ import type { JSX } from "react";
 import { FiActivity } from "@react-icons/all-files/fi/FiActivity";
 
 import type { SystemHealthOverview } from "@/lib/admin/ingestion-types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusPill } from "@/components/ui/status-pill";

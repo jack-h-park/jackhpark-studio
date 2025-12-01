@@ -6,8 +6,6 @@ import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 
-import styles from "./SettingsSection.module.css";
-
 type PresetKey = "default" | "fast" | "highRecall";
 
 type Props = {
@@ -42,11 +40,11 @@ export function SettingsSectionPresets({
   };
 
   return (
-    <section className={`ai-panel ${styles.section} ${styles.cascadeStart}`}>
+    <section className="ai-setting-section">
       <HeadingWithIcon
         as="p"
         icon={<FiLayers aria-hidden="true" />}
-        className={styles.title}
+        className="ai-setting-section-header flex items-center justify-between gap-3"
       >
         AI Orchestration Presets (Session-Wide)
       </HeadingWithIcon>

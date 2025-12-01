@@ -1,11 +1,21 @@
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
-import { type Dispatch, Fragment, type ReactNode,type SetStateAction } from "react";
+import {
+  type Dispatch,
+  Fragment,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
 import { Radiobutton } from "@/components/ui/radiobutton";
 import {
@@ -21,9 +31,20 @@ import {
   type PresetKey,
 } from "@/hooks/use-admin-chat-config";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
-import { CHAT_ENGINE_LABELS, type ChatEngine } from "@/lib/shared/model-provider";
-import { type EmbeddingModelId, type LlmModelId, type RankerId } from "@/lib/shared/models";
-import { type AdminChatConfig, type AdminChatRuntimeMeta, type SummaryLevel } from "@/types/chat-config";
+import {
+  CHAT_ENGINE_LABELS,
+  type ChatEngine,
+} from "@/lib/shared/model-provider";
+import {
+  type EmbeddingModelId,
+  type LlmModelId,
+  type RankerId,
+} from "@/lib/shared/models";
+import {
+  type AdminChatConfig,
+  type AdminChatRuntimeMeta,
+  type SummaryLevel,
+} from "@/types/chat-config";
 
 const summaryLevelOptions: SummaryLevel[] = ["off", "low", "medium", "high"];
 const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
@@ -33,10 +54,14 @@ export type SessionPresetsCardProps = {
   numericLimits: AdminChatConfig["numericLimits"];
   presets: AdminChatConfig["presets"];
   contextHistoryEnabled: Record<PresetKey, boolean>;
-  setContextHistoryEnabled: Dispatch<SetStateAction<Record<PresetKey, boolean>>>;
+  setContextHistoryEnabled: Dispatch<
+    SetStateAction<Record<PresetKey, boolean>>
+  >;
   updatePreset: (
     presetName: PresetKey,
-    updater: (preset: AdminChatConfig["presets"][PresetKey]) => AdminChatConfig["presets"][PresetKey],
+    updater: (
+      preset: AdminChatConfig["presets"][PresetKey],
+    ) => AdminChatConfig["presets"][PresetKey],
   ) => void;
   llmModelOptions: { id: string; label: string; requiresOllama: boolean }[];
   additionalPromptMaxLength: number;
@@ -58,9 +83,11 @@ export function SessionPresetsCard({
   ollamaEnabled,
   defaultLlmModelId,
 }: SessionPresetsCardProps) {
-  const sessionGridLabelClass = "flex items-center text-[0.85rem] font-semibold text-[color:var(--ai-text-muted)]";
+  const sessionGridLabelClass =
+    "flex items-center text-[0.85rem] font-semibold text-[color:var(--ai-text-muted)]";
   const sessionGridValueClass = "flex flex-col gap-1";
-  const sessionGridHeaderClass = "text-[0.75rem] font-semibold uppercase tracking-[0.25em] text-[color:var(--ai-text-strong)]";
+  const sessionGridHeaderClass =
+    "text-[0.75rem] font-semibold uppercase tracking-[0.25em] text-[color:var(--ai-text-strong)]";
 
   function PresetSettingsGroup({
     title,
@@ -70,7 +97,10 @@ export function SessionPresetsCard({
   }: {
     title: string;
     groupId: string;
-    renderHeaderCell: (presetKey: PresetKey, headerLabelId: string) => ReactNode;
+    renderHeaderCell: (
+      presetKey: PresetKey,
+      headerLabelId: string,
+    ) => ReactNode;
     children: ReactNode;
   }) {
     const headerLabelId = `${groupId}-label`;
@@ -81,7 +111,10 @@ export function SessionPresetsCard({
           {title}
         </div>
         {presetDisplayOrder.map((presetKey) => (
-          <div key={`${groupId}-header-${presetKey}`} className={sessionGridValueClass}>
+          <div
+            key={`${groupId}-header-${presetKey}`}
+            className={sessionGridValueClass}
+          >
             {renderHeaderCell(presetKey, headerLabelId)}
           </div>
         ))}
@@ -107,15 +140,26 @@ export function SessionPresetsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle icon={<FiLayers aria-hidden="true" />}>Session Presets</CardTitle>
-        <CardDescription>Customize each preset so it stays within the allowed limits.</CardDescription>
+        <CardTitle icon={<FiLayers aria-hidden="true" />}>
+          Session Presets
+        </CardTitle>
+        <CardDescription>
+          Customize each preset so it stays within the allowed limits.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <GridPanel className="gap-4 px-4 py-5 shadow-sm">
           <div className="grid grid-cols-[minmax(190px,1fr)_repeat(3,minmax(0,1fr))] gap-y-3 gap-x-4 items-start">
-            <div className={`${sessionGridLabelClass} ${sessionGridHeaderClass}`}>Setting</div>
+            <div
+              className={`${sessionGridLabelClass} ${sessionGridHeaderClass}`}
+            >
+              Setting
+            </div>
             {presetDisplayOrder.map((presetKey) => (
-              <div key={`session-preset-header-${presetKey}`} className={sessionGridHeaderClass}>
+              <div
+                key={`session-preset-header-${presetKey}`}
+                className={sessionGridHeaderClass}
+              >
                 {presetDisplayNames[presetKey]}
               </div>
             ))}
@@ -154,10 +198,13 @@ export function SessionPresetsCard({
                       }))
                     }
                   >
-                    <SelectTrigger aria-label={`LLM Model for ${presetDisplayNames[presetKey]}`} />
+                    <SelectTrigger
+                      aria-label={`LLM Model for ${presetDisplayNames[presetKey]}`}
+                    />
                     <SelectContent>
                       {llmModelOptions.map((option) => {
-                        const disabledByEnv = option.requiresOllama && !ollamaEnabled;
+                        const disabledByEnv =
+                          option.requiresOllama && !ollamaEnabled;
                         const optionTooltip = disabledByEnv
                           ? `Ollama is unavailable in this environment. Using ${defaultLlmModelId} instead.`
                           : undefined;
@@ -178,7 +225,10 @@ export function SessionPresetsCard({
                           <SelectItem
                             key={option.id}
                             value={option.id}
-                            disabled={!config.allowlist.llmModels.includes(option.id) || disabledByEnv}
+                            disabled={
+                              !config.allowlist.llmModels.includes(option.id) ||
+                              disabledByEnv
+                            }
                           >
                             {label}
                           </SelectItem>
@@ -207,13 +257,19 @@ export function SessionPresetsCard({
                   }))
                 }
               >
-                <SelectTrigger aria-label={`Embedding Model for ${presetDisplayNames[presetKey]}`} />
+                <SelectTrigger
+                  aria-label={`Embedding Model for ${presetDisplayNames[presetKey]}`}
+                />
                 <SelectContent>
                   {EMBEDDING_MODEL_OPTIONS.map((space) => (
                     <SelectItem
                       key={space.embeddingSpaceId}
                       value={space.embeddingSpaceId}
-                      disabled={!config.allowlist.embeddingModels.includes(space.embeddingSpaceId as EmbeddingModelId)}
+                      disabled={
+                        !config.allowlist.embeddingModels.includes(
+                          space.embeddingSpaceId as EmbeddingModelId,
+                        )
+                      }
                     >
                       {space.label}
                     </SelectItem>
@@ -231,7 +287,9 @@ export function SessionPresetsCard({
                   }))
                 }
               >
-                <SelectTrigger aria-label={`Chat Engine for ${presetDisplayNames[presetKey]}`} />
+                <SelectTrigger
+                  aria-label={`Chat Engine for ${presetDisplayNames[presetKey]}`}
+                />
                 <SelectContent>
                   {config.allowlist.chatEngines.map((engine) => (
                     <SelectItem key={engine} value={engine}>
@@ -320,8 +378,14 @@ export function SessionPresetsCard({
                     <Switch
                       className="shrink-0"
                       aria-label={`Reverse RAG for ${presetDisplayNames[presetKey]}`}
-                      checked={config.allowlist.allowReverseRAG ? preset.features.reverseRAG : false}
-                      disabled={!config.allowlist.allowReverseRAG || ragDisabled}
+                      checked={
+                        config.allowlist.allowReverseRAG
+                          ? preset.features.reverseRAG
+                          : false
+                      }
+                      disabled={
+                        !config.allowlist.allowReverseRAG || ragDisabled
+                      }
                       onCheckedChange={(checked) =>
                         updatePreset(presetKey, (prev) => ({
                           ...prev,
@@ -344,7 +408,11 @@ export function SessionPresetsCard({
                     <Switch
                       className="shrink-0"
                       aria-label={`HyDE for ${presetDisplayNames[presetKey]}`}
-                      checked={config.allowlist.allowHyde ? preset.features.hyde : false}
+                      checked={
+                        config.allowlist.allowHyde
+                          ? preset.features.hyde
+                          : false
+                      }
                       disabled={!config.allowlist.allowHyde || ragDisabled}
                       onCheckedChange={(checked) =>
                         updatePreset(presetKey, (prev) => ({
@@ -374,7 +442,9 @@ export function SessionPresetsCard({
                     }))
                   }
                 >
-                  <SelectTrigger aria-label={`Ranker for ${presetDisplayNames[presetKey]}`} />
+                  <SelectTrigger
+                    aria-label={`Ranker for ${presetDisplayNames[presetKey]}`}
+                  />
                   <SelectContent>
                     {config.allowlist.rankers.map((ranker) => (
                       <SelectItem key={ranker} value={ranker}>
@@ -415,7 +485,8 @@ export function SessionPresetsCard({
                 return (
                   <div className="inline-flex items-center gap-2">
                     <span className="sr-only" id={toggleLabelId}>
-                      Toggle Context & History editing for {presetDisplayNames[presetKey]}
+                      Toggle Context & History editing for{" "}
+                      {presetDisplayNames[presetKey]}
                     </span>
                     <Switch
                       className="flex-shrink-0"

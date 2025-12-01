@@ -22,8 +22,6 @@ import {
   type ChatEngine,
 } from "@/lib/shared/model-provider";
 
-import styles from "./SettingsSection.module.css";
-
 type Props = {
   adminConfig: AdminChatConfig;
   sessionConfig: SessionChatConfig;
@@ -71,11 +69,11 @@ export function SettingsSectionModelEngine({
   };
 
   return (
-    <section className={`ai-panel ${styles.section}`}>
+    <section className="ai-setting-section">
       <HeadingWithIcon
         as="p"
         icon={<FiCpu aria-hidden="true" />}
-        className={styles.title}
+        className="ai-setting-section-title"
       >
         Model &amp; Engine
       </HeadingWithIcon>
@@ -107,7 +105,7 @@ export function SettingsSectionModelEngine({
             </SelectContent>
           </Select>
           {sessionConfig.llmModelResolution?.wasSubstituted && (
-            <div className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500">
+            <div className="ai-setting-section-header flex items-center justify-between gap-3">
               <FiAlertCircle
                 aria-hidden="true"
                 className="shrink-0"

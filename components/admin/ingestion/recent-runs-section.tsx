@@ -15,7 +15,7 @@ import type {
   RunsApiResponse,
 } from "@/lib/admin/ingestion-types";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ErrorLogSummary } from "@/components/ui/error-log-summary";
 import { RecentRunsFilters } from "@/components/ui/recent-runs-filters";
@@ -1054,7 +1054,7 @@ export function RecentRunsSection({
                 Previous
               </Button>
               <span className="ai-meta-text whitespace-nowrap">
-                Page {numberFormatter.format(page)} of {" "}
+                Page {numberFormatter.format(page)} of{" "}
                 {numberFormatter.format(totalPagesSafe)}
               </span>
               <Button

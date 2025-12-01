@@ -2,7 +2,7 @@ import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 import { useMemo } from "react";
 
 import type { RagDocumentStats } from "@/lib/admin/rag-documents";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { LinkButton } from "@/components/ui/link-button";
 import { StatCard } from "@/components/ui/stat-card";

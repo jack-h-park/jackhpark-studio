@@ -11,7 +11,6 @@ import {
 import { resolveLlmModel } from "@/lib/core/llm-registry";
 import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOpenAIClient } from "@/lib/core/openai";
-import { getRagMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { normalizeMetadata } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
@@ -158,7 +157,6 @@ type ChatRequestBody = {
   sessionConfig?: unknown;
 };
 
-const DEFAULT_MATCH_COUNT = Number(process.env.RAG_TOP_K ?? 5);
 const DEFAULT_TEMPERATURE = Number(process.env.LLM_TEMPERATURE ?? 0);
 const DEFAULT_MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 512);
 

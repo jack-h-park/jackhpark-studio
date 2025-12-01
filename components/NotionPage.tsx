@@ -17,6 +17,7 @@ import { EmbeddedTweet, TweetNotFound, TweetSkeleton } from "react-tweet";
 import { useSearchParam } from "react-use";
 
 import type * as types from "@/lib/types";
+import { ChatFloatingWidget } from "@/components/chat/ChatFloatingWidget";
 import * as config from "@/lib/config";
 import { debugNotionXEnabled, debugNotionXLogger } from "@/lib/debug-notion-x";
 import { mapImageUrl } from "@/lib/map-image-url";
@@ -24,7 +25,6 @@ import { getCanonicalPageUrl, mapPageUrl } from "@/lib/map-page-url";
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { useSidePeek } from "@/lib/use-side-peek";
 
-import { ChatFloatingWidget } from "@/components/chat/ChatFloatingWidget";
 import { Footer } from "./Footer";
 //import { GitHubShareButton } from './GitHubShareButton'
 import { Loading } from "./Loading";
