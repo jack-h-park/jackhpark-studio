@@ -4,7 +4,6 @@ import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
-import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 
 type PresetKey = "default" | "fast" | "highRecall";
 
@@ -23,6 +22,13 @@ const PRESET_LABELS: Record<PresetKey, string> = {
   highRecall: "High Recall",
 };
 
+import {
+  Section,
+  SectionContent,
+  SectionHeader,
+  SectionTitle,
+} from "@/components/ui/section";
+
 export function SettingsSectionPresets({
   adminConfig,
   sessionConfig,
@@ -40,29 +46,29 @@ export function SettingsSectionPresets({
   };
 
   return (
-    <section className="ai-setting-section">
-      <HeadingWithIcon
-        as="p"
-        icon={<FiLayers aria-hidden="true" />}
-        className="ai-setting-section-header flex items-center justify-between gap-3"
-      >
-        AI Orchestration Presets (Session-Wide)
-      </HeadingWithIcon>
-      {helperText && <p className="ai-meta-text">{helperText}</p>}
-      <GridPanel className="grid-cols-3 gap-[0.3rem]">
-        {(["default", "fast", "highRecall"] as PresetKey[]).map((key) => {
-          const isActive = sessionConfig.appliedPreset === key;
-          return (
-            <SelectableTile
-              key={key}
-              active={isActive}
-              onClick={() => applyPreset(key)}
-            >
-              <span className="ai-choice__label">{PRESET_LABELS[key]}</span>
-            </SelectableTile>
-          );
-        })}
-      </GridPanel>
-    </section>
+    <Section>
+      <SectionHeader>
+        <SectionTitle as="p" icon={<FiLayers aria-hidden="true" />}>
+          AI Orchestration Presets (Session-Wide)
+        </SectionTitle>
+      </SectionHeader>
+      <SectionContent className="flex flex-col gap-3">
+        {helperText && <p className="ai-meta-text">{helperText}</p>}
+        <GridPanel className="grid-cols-3 gap-[0.3rem]">
+          {(["default", "fast", "highRecall"] as PresetKey[]).map((key) => {
+            const isActive = sessionConfig.appliedPreset === key;
+            return (
+              <SelectableTile
+                key={key}
+                active={isActive}
+                onClick={() => applyPreset(key)}
+              >
+                <span className="ai-choice__label">{PRESET_LABELS[key]}</span>
+              </SelectableTile>
+            );
+          })}
+        </GridPanel>
+      </SectionContent>
+    </Section>
   );
 }

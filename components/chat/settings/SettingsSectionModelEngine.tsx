@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import type { EmbeddingModelId, LlmModelId } from "@/lib/shared/models";
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
-import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -31,6 +31,13 @@ type Props = {
 type ChatConfigSetter = (
   value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
 ) => void;
+
+import {
+  Section,
+  SectionContent,
+  SectionHeader,
+  SectionTitle,
+} from "@/components/ui/section";
 
 export function SettingsSectionModelEngine({
   adminConfig,
@@ -69,15 +76,13 @@ export function SettingsSectionModelEngine({
   };
 
   return (
-    <section className="ai-setting-section">
-      <HeadingWithIcon
-        as="p"
-        icon={<FiCpu aria-hidden="true" />}
-        className="ai-setting-section-title"
-      >
-        Model &amp; Engine
-      </HeadingWithIcon>
-      <div className="flex flex-col gap-3">
+    <Section>
+      <SectionHeader>
+        <SectionTitle as="p" icon={<FiCpu aria-hidden="true" />}>
+          Model &amp; Engine
+        </SectionTitle>
+      </SectionHeader>
+      <SectionContent className="flex flex-col gap-3">
         <div className="ai-field">
           <Label htmlFor="settings-llm-model" className="ai-field__label">
             LLM Model
@@ -177,7 +182,7 @@ export function SettingsSectionModelEngine({
             </SelectContent>
           </Select>
         </div>
-      </div>
-    </section>
+      </SectionContent>
+    </Section>
   );
 }

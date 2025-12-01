@@ -9,7 +9,7 @@ import type {
   SummaryLevel,
 } from "@/types/chat-config";
 import { Checkbox } from "@/components/ui/checkbox";
-import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+
 import { Label } from "@/components/ui/label";
 import { Radiobutton } from "@/components/ui/radiobutton";
 import {
@@ -35,6 +35,13 @@ type Props = {
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
   ) => void;
 };
+
+import {
+  Section,
+  SectionContent,
+  SectionHeader,
+  SectionTitle,
+} from "@/components/ui/section";
 
 export function SettingsSectionRagRetrieval({
   adminConfig,
@@ -78,16 +85,15 @@ export function SettingsSectionRagRetrieval({
   ];
 
   return (
-    <section className="ai-setting-section">
-      <div className="ai-setting-section-header flex items-center justify-between gap-3">
-        <HeadingWithIcon
+    <Section>
+      <SectionHeader>
+        <SectionTitle
           id="settings-rag-title"
           as="p"
           icon={<FiTarget aria-hidden="true" />}
-          className="ai-setting-section-title"
         >
           Retrieval (RAG)
-        </HeadingWithIcon>
+        </SectionTitle>
         <Switch
           className="flex-shrink-0"
           aria-labelledby="settings-rag-title"
@@ -99,155 +105,157 @@ export function SettingsSectionRagRetrieval({
             }))
           }
         />
-      </div>
+      </SectionHeader>
 
-      <div className="flex flex-col gap-3">
-        <SliderNumberField
-          id="settings-top-k"
-          label="Top K"
-          value={sessionConfig.rag.topK}
-          min={ragTopK.min}
-          max={ragTopK.max}
-          step={1}
-          disabled={!isRagEnabled}
-          onChange={(topK) => {
-            const sanitized = Math.max(
-              ragTopK.min,
-              Math.min(ragTopK.max, Math.round(topK)),
-            );
-            updateSession((prev) => ({
-              ...prev,
-              rag: {
-                ...prev.rag,
-                topK: sanitized,
-              },
-            }));
-          }}
-        />
-      </div>
-
-      <div className="flex flex-col gap-3">
-        <SliderNumberField
-          id="settings-similarity-threshold"
-          label="Similarity Threshold"
-          value={sessionConfig.rag.similarity}
-          min={similarityThreshold.min}
-          max={similarityThreshold.max}
-          step={0.01}
-          disabled={!isRagEnabled}
-          onChange={(similarity) =>
-            updateSession((prev) => ({
-              ...prev,
-              rag: {
-                ...prev.rag,
-                similarity,
-              },
-            }))
-          }
-        />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 pt-2">
-        {adminConfig.allowlist.allowReverseRAG && (
-          <div className="inline-flex items-center gap-2 text-sm">
-            <Checkbox
-              className="flex-shrink-0"
-              checked={sessionConfig.features.reverseRAG}
-              disabled={!isRagEnabled}
-              onCheckedChange={(checked) =>
-                updateSession((prev) => ({
-                  ...prev,
-                  features: {
-                    ...prev.features,
-                    reverseRAG: checked,
-                  },
-                }))
-              }
-              aria-label="Enable Reverse RAG"
-            />
-            <span className="ai-choice__label">Reverse RAG</span>
-          </div>
-        )}
-
-        {adminConfig.allowlist.allowHyde && (
-          <div className="inline-flex items-center gap-2">
-            <Checkbox
-              className="flex-shrink-0"
-              checked={sessionConfig.features.hyde}
-              disabled={!isRagEnabled}
-              onCheckedChange={(checked) =>
-                updateSession((prev) => ({
-                  ...prev,
-                  features: {
-                    ...prev.features,
-                    hyde: checked,
-                  },
-                }))
-              }
-              aria-label="Enable HyDE"
-            />
-            <span className="ai-choice__label">HyDE</span>
-          </div>
-        )}
-      </div>
-
-      <div className="ai-field pt-2">
-        <Label htmlFor="settings-ranker" className="ai-field__label">
-          Ranker
-        </Label>
-        <Select
-          value={sessionConfig.features.ranker}
-          onValueChange={(value) =>
-            updateSession((prev) => ({
-              ...prev,
-              features: {
-                ...prev.features,
-                ranker: value as RankerId,
-              },
-            }))
-          }
-          disabled={!isRagEnabled}
-        >
-          <SelectTrigger
-            id="settings-ranker"
-            aria-label="Ranker selection"
-            className="ai-field-sm w-full"
+      <SectionContent className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
+          <SliderNumberField
+            id="settings-top-k"
+            label="Top K"
+            value={sessionConfig.rag.topK}
+            min={ragTopK.min}
+            max={ragTopK.max}
+            step={1}
+            disabled={!isRagEnabled}
+            onChange={(topK) => {
+              const sanitized = Math.max(
+                ragTopK.min,
+                Math.min(ragTopK.max, Math.round(topK)),
+              );
+              updateSession((prev) => ({
+                ...prev,
+                rag: {
+                  ...prev.rag,
+                  topK: sanitized,
+                },
+              }));
+            }}
           />
-          <SelectContent>
-            {adminConfig.allowlist.rankers.map((ranker) => (
-              <SelectItem key={ranker} value={ranker}>
-                {ranker.toUpperCase()}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2 border-t border-[color:var(--ai-border-muted)] pt-2">
-        <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
-          Summaries
-        </p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {summaryOptions.map((option) => (
-            <Radiobutton
-              key={option.value}
-              variant="chip"
-              name="settings-summary-level"
-              value={option.value}
-              label={option.label}
-              description={option.description}
-              checked={sessionConfig.summaryLevel === option.value}
-              disabled={!isRagEnabled}
-              onChange={() =>
-                updateSession((prev) => ({
-                  ...prev,
-                  summaryLevel: option.value,
-                }))
-              }
-            />
-          ))}
         </div>
-      </div>
-    </section>
+
+        <div className="flex flex-col gap-3">
+          <SliderNumberField
+            id="settings-similarity-threshold"
+            label="Similarity Threshold"
+            value={sessionConfig.rag.similarity}
+            min={similarityThreshold.min}
+            max={similarityThreshold.max}
+            step={0.01}
+            disabled={!isRagEnabled}
+            onChange={(similarity) =>
+              updateSession((prev) => ({
+                ...prev,
+                rag: {
+                  ...prev.rag,
+                  similarity,
+                },
+              }))
+            }
+          />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 pt-2">
+          {adminConfig.allowlist.allowReverseRAG && (
+            <div className="inline-flex items-center gap-2 text-sm">
+              <Checkbox
+                className="flex-shrink-0"
+                checked={sessionConfig.features.reverseRAG}
+                disabled={!isRagEnabled}
+                onCheckedChange={(checked) =>
+                  updateSession((prev) => ({
+                    ...prev,
+                    features: {
+                      ...prev.features,
+                      reverseRAG: checked,
+                    },
+                  }))
+                }
+                aria-label="Enable Reverse RAG"
+              />
+              <span className="ai-choice__label">Reverse RAG</span>
+            </div>
+          )}
+
+          {adminConfig.allowlist.allowHyde && (
+            <div className="inline-flex items-center gap-2">
+              <Checkbox
+                className="flex-shrink-0"
+                checked={sessionConfig.features.hyde}
+                disabled={!isRagEnabled}
+                onCheckedChange={(checked) =>
+                  updateSession((prev) => ({
+                    ...prev,
+                    features: {
+                      ...prev.features,
+                      hyde: checked,
+                    },
+                  }))
+                }
+                aria-label="Enable HyDE"
+              />
+              <span className="ai-choice__label">HyDE</span>
+            </div>
+          )}
+        </div>
+
+        <div className="ai-field pt-2">
+          <Label htmlFor="settings-ranker" className="ai-field__label">
+            Ranker
+          </Label>
+          <Select
+            value={sessionConfig.features.ranker}
+            onValueChange={(value) =>
+              updateSession((prev) => ({
+                ...prev,
+                features: {
+                  ...prev.features,
+                  ranker: value as RankerId,
+                },
+              }))
+            }
+            disabled={!isRagEnabled}
+          >
+            <SelectTrigger
+              id="settings-ranker"
+              aria-label="Ranker selection"
+              className="ai-field-sm w-full"
+            />
+            <SelectContent>
+              {adminConfig.allowlist.rankers.map((ranker) => (
+                <SelectItem key={ranker} value={ranker}>
+                  {ranker.toUpperCase()}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2 border-t border-[color:var(--ai-border-muted)] pt-2">
+          <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
+            Summaries
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {summaryOptions.map((option) => (
+              <Radiobutton
+                key={option.value}
+                variant="chip"
+                name="settings-summary-level"
+                value={option.value}
+                label={option.label}
+                description={option.description}
+                checked={sessionConfig.summaryLevel === option.value}
+                disabled={!isRagEnabled}
+                onChange={() =>
+                  updateSession((prev) => ({
+                    ...prev,
+                    summaryLevel: option.value,
+                  }))
+                }
+              />
+            ))}
+          </div>
+        </div>
+      </SectionContent>
+    </Section>
   );
 }

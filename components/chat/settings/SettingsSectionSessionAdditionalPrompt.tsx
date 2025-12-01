@@ -2,7 +2,6 @@
 
 import { FiType } from "@react-icons/all-files/fi/FiType";
 
-import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
 import {
   type AdminChatConfig,
@@ -18,6 +17,13 @@ type Props = {
   ) => void;
 };
 
+import {
+  Section,
+  SectionContent,
+  SectionHeader,
+  SectionTitle,
+} from "@/components/ui/section";
+
 export function SettingsSectionSessionAdditionalPrompt({
   adminConfig,
   sessionConfig,
@@ -31,29 +37,29 @@ export function SettingsSectionSessionAdditionalPrompt({
   ].join(" ");
 
   return (
-    <section className="ai-setting-section">
-      <HeadingWithIcon
-        as="p"
-        icon={<FiType aria-hidden="true" />}
-        className="ai-setting-section-header flex items-center justify-between gap-3"
-      >
-        User system prompt
-      </HeadingWithIcon>
-      <PromptWithCounter
-        label="User system prompt"
-        value={sessionConfig.additionalSystemPrompt ?? ""}
-        maxLength={maxLength}
-        helperText={helperText}
-        helperClassName="ai-setting-section-description"
-        onChange={(value) =>
-          setSessionConfig((prev) => ({
-            ...prev,
-            additionalSystemPrompt: value,
-            appliedPreset: undefined,
-          }))
-        }
-        textareaClassName="min-h-[110px]"
-      />
-    </section>
+    <Section>
+      <SectionHeader>
+        <SectionTitle as="p" icon={<FiType aria-hidden="true" />}>
+          User system prompt
+        </SectionTitle>
+      </SectionHeader>
+      <SectionContent>
+        <PromptWithCounter
+          label="User system prompt"
+          value={sessionConfig.additionalSystemPrompt ?? ""}
+          maxLength={maxLength}
+          helperText={helperText}
+          helperClassName="ai-setting-section-description"
+          onChange={(value) =>
+            setSessionConfig((prev) => ({
+              ...prev,
+              additionalSystemPrompt: value,
+              appliedPreset: undefined,
+            }))
+          }
+          textareaClassName="min-h-[110px]"
+        />
+      </SectionContent>
+    </Section>
   );
 }

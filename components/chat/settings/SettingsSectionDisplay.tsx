@@ -4,7 +4,13 @@ import { FiMonitor } from "@react-icons/all-files/fi/FiMonitor";
 
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { AllowlistTile } from "@/components/ui/allowlist-tile";
-import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+
+import {
+  Section,
+  SectionContent,
+  SectionHeader,
+  SectionTitle,
+} from "@/components/ui/section";
 
 export function SettingsSectionDisplay() {
   const {
@@ -17,15 +23,13 @@ export function SettingsSectionDisplay() {
   } = useChatDisplaySettings();
 
   return (
-    <section className="ai-setting-section">
-      <HeadingWithIcon
-        as="p"
-        icon={<FiMonitor aria-hidden="true" />}
-        className="ai-setting-section-header flex items-center justify-between gap-3"
-      >
-        Diagnostics Display
-      </HeadingWithIcon>
-      <div className="grid gap-3">
+    <Section>
+      <SectionHeader>
+        <SectionTitle as="p" icon={<FiMonitor aria-hidden="true" />}>
+          Diagnostics Display
+        </SectionTitle>
+      </SectionHeader>
+      <SectionContent className="grid gap-3">
         <AllowlistTile
           id="telemetry-badges"
           label="Telemetry badges"
@@ -54,7 +58,7 @@ export function SettingsSectionDisplay() {
           selected={showCitations}
           onClick={() => setShowCitations(!showCitations)}
         />
-      </div>
-    </section>
+      </SectionContent>
+    </Section>
   );
 }
