@@ -4,7 +4,12 @@ import { FiBarChart2 } from "@react-icons/all-files/fi/FiBarChart2";
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import { FiPlayCircle } from "@react-icons/all-files/fi/FiPlayCircle";
 import { useRouter } from "next/router";
-import { type ComponentType, type JSX,useMemo } from "react";
+import {
+  type ComponentType,
+  type JSX,
+  useCallback,
+  useMemo,
+} from "react";
 
 import type { ManualLogEvent } from "@/lib/admin/ingestion-types";
 import { Button } from "@/components/ui/button";
@@ -107,6 +112,13 @@ export function ManualIngestionPanel(): JSX.Element {
   const activePageId = ingestion.overallProgress.pageId ?? null;
   const showOverallProgress = totalPages > 1;
   const stageSubtitle = activePageTitle ?? activePageId;
+  const manualNotionDescriptionId = "manual-notion-input-description";
+  const manualUrlDescriptionId = "manual-url-input-description";
+  const manualProviderDescriptionId =
+    "manual-provider-select-description";
+  const handleRefreshDashboard = useCallback(() => {
+    void router.replace(router.asPath);
+  }, [router]);
   const statusVariant = useMemo(
     () => manualStatusVariantMap[ingestion.status],
     [ingestion.status],
@@ -187,8 +199,12 @@ export function ManualIngestionPanel(): JSX.Element {
                       value={ingestion.notionInput}
                       onChange={(event) => ingestion.setNotionInput(event.target.value)}
                       disabled={ingestion.isRunning}
+                      aria-describedby={manualNotionDescriptionId}
                     />
-                    <p className="ai-meta-text">
+                    <p
+                      id={manualNotionDescriptionId}
+                      className="ai-meta-text"
+                    >
                       Paste the full shared link or the 32-character page ID
                       from Notion. Use the controls above to define scope and
                       whether linked pages are included.
@@ -222,8 +238,12 @@ export function ManualIngestionPanel(): JSX.Element {
                       value={ingestion.urlInput}
                       onChange={(event) => ingestion.setUrlInput(event.target.value)}
                       disabled={ingestion.isRunning}
+                      aria-describedby={manualUrlDescriptionId}
                     />
-                    <p className="ai-meta-text">
+                    <p
+                      id={manualUrlDescriptionId}
+                      className="ai-meta-text"
+                    >
                       Enter a public HTTP(S) link. Use the scope above to skip
                       unchanged articles or force a full refresh.
                     </p>
@@ -283,6 +303,7 @@ export function ManualIngestionPanel(): JSX.Element {
                   <SelectTrigger
                     id="manual-provider-select"
                     aria-label="Select embedding model"
+                    aria-describedby={manualProviderDescriptionId}
                   />
                   <SelectContent>
                     {EMBEDDING_MODEL_OPTIONS.map((option) => (
@@ -295,7 +316,10 @@ export function ManualIngestionPanel(): JSX.Element {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="ai-meta-text">
+                <p
+                  id={manualProviderDescriptionId}
+                  className="ai-meta-text"
+                >
                   Determines which embedding space is used for this run.
                 </p>
               </div>
@@ -529,9 +553,7 @@ export function ManualIngestionPanel(): JSX.Element {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => {
-              void router.replace(router.asPath);
-            }}
+            onClick={handleRefreshDashboard}
           >
             Refresh Dashboard
           </Button>

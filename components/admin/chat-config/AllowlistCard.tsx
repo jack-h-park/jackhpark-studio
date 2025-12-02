@@ -44,6 +44,26 @@ export function AllowlistCard({
   toggleAllowlistValue,
   updateConfig,
 }: AllowlistCardProps) {
+  const handleAllowReverseRagChange = (checked: boolean) => {
+    updateConfig((prev) => ({
+      ...prev,
+      allowlist: {
+        ...prev.allowlist,
+        allowReverseRAG: checked,
+      },
+    }));
+  };
+
+  const handleAllowHydeChange = (checked: boolean) => {
+    updateConfig((prev) => ({
+      ...prev,
+      allowlist: {
+        ...prev.allowlist,
+        allowHyde: checked,
+      },
+    }));
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -164,35 +184,19 @@ export function AllowlistCard({
           <p className="ai-meta-text">Reranking strategy. Use “none”, “mmr”, or “cohere-rerank”.</p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-1">
-          <CheckboxChoice
-            label="Allow Reverse RAG"
-            checked={allowlist.allowReverseRAG}
-            onCheckedChange={(checked) =>
-              updateConfig((prev) => ({
-                ...prev,
-                allowlist: {
-                  ...prev.allowlist,
-                  allowReverseRAG: checked,
-                },
-              }))
-            }
-          />
+      <div className="grid gap-4 sm:grid-cols-1">
+        <CheckboxChoice
+          label="Allow Reverse RAG"
+          checked={allowlist.allowReverseRAG}
+          onCheckedChange={handleAllowReverseRagChange}
+        />
 
-          <CheckboxChoice
-            label="Allow HyDE"
-            checked={allowlist.allowHyde}
-            onCheckedChange={(checked) =>
-              updateConfig((prev) => ({
-                ...prev,
-                allowlist: {
-                  ...prev.allowlist,
-                  allowHyde: checked,
-                },
-              }))
-            }
-          />
-        </div>
+        <CheckboxChoice
+          label="Allow HyDE"
+          checked={allowlist.allowHyde}
+          onCheckedChange={handleAllowHydeChange}
+        />
+      </div>
       </CardContent>
     </Card>
   );

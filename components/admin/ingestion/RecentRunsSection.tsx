@@ -95,6 +95,7 @@ export function RecentRunsSection({
   const [knownSources, setKnownSources] = useState<string[]>(() =>
     collectSources(initial.runs),
   );
+
   const [knownEmbeddingProviders, setKnownEmbeddingProviders] = useState<
     string[]
   >(() => collectEmbeddingModels(initial.runs));
@@ -710,6 +711,13 @@ export function RecentRunsSection({
     [pageSize],
   );
 
+  const handleDeleteRunClick = useCallback(
+    (run: RunRecord) => {
+      void handleDeleteRun(run);
+    },
+    [handleDeleteRun],
+  );
+
   const handlePageChange = useCallback(
     (nextPage: number) => {
       const maxPages = Math.max(totalPages, 1);
@@ -981,9 +989,7 @@ export function RecentRunsSection({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                void handleDeleteRun(run);
-              }}
+              onClick={() => handleDeleteRunClick(run)}
               disabled={isDeleting}
               className="text-[color:var(--ai-error)] border-[color:var(--ai-error)] hover:bg-[color:var(--ai-error-muted)]"
             >
@@ -994,7 +1000,7 @@ export function RecentRunsSection({
         align: "center",
       },
     ];
-  }, [deletingRunIds, handleDeleteRun]);
+  }, [deletingRunIds, handleDeleteRunClick]);
 
   return (
     <section className="ai-card space-y-4 p-6">

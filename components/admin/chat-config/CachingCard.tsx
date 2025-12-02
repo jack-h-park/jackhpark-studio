@@ -15,6 +15,26 @@ export type CachingCardProps = {
 };
 
 export function CachingCard({ cache, isFormBusy, updateConfig }: CachingCardProps) {
+  const handleResponseCacheTtlChange = (nextValue: string) => {
+    updateConfig((prev) => ({
+      ...prev,
+      cache: {
+        ...prev.cache,
+        responseTtlSeconds: Number(nextValue),
+      },
+    }));
+  };
+
+  const handleRetrievalCacheTtlChange = (nextValue: string) => {
+    updateConfig((prev) => ({
+      ...prev,
+      cache: {
+        ...prev.cache,
+        retrievalTtlSeconds: Number(nextValue),
+      },
+    }));
+  };
+
   return (
     <Card className="mb-6">
       <CardHeader>
@@ -30,13 +50,7 @@ export function CachingCard({ cache, isFormBusy, updateConfig }: CachingCardProp
             min={0}
             value={cache.responseTtlSeconds}
             onChange={(event) =>
-              updateConfig((prev) => ({
-                ...prev,
-                cache: {
-                  ...prev.cache,
-                  responseTtlSeconds: Number(event.target.value),
-                },
-              }))
+              handleResponseCacheTtlChange(event.target.value)
             }
             disabled={isFormBusy}
           />
@@ -51,13 +65,7 @@ export function CachingCard({ cache, isFormBusy, updateConfig }: CachingCardProp
             min={0}
             value={cache.retrievalTtlSeconds}
             onChange={(event) =>
-              updateConfig((prev) => ({
-                ...prev,
-                cache: {
-                  ...prev.cache,
-                  retrievalTtlSeconds: Number(event.target.value),
-                },
-              }))
+              handleRetrievalCacheTtlChange(event.target.value)
             }
             disabled={isFormBusy}
           />

@@ -32,6 +32,7 @@ export function SliderNumberField({
   className,
 }: SliderNumberFieldProps) {
   const stepValue = step ?? 1;
+  const descriptionId = description ? `${id}-description` : undefined;
 
   return (
     <div className={cn("ai-field", className)}>
@@ -39,7 +40,9 @@ export function SliderNumberField({
         {label}
       </Label>
       {description ? (
-        <p className="ai-field__description">{description}</p>
+        <p id={descriptionId} className="ai-field__description">
+          {description}
+        </p>
       ) : null}
       <div className="flex items-center gap-3">
         <input
@@ -51,6 +54,7 @@ export function SliderNumberField({
           step={stepValue}
           disabled={disabled}
           value={value}
+          aria-describedby={descriptionId}
           aria-label={`${label} slider`}
           onChange={(event) => onChange(Number(event.target.value))}
         />
@@ -63,6 +67,7 @@ export function SliderNumberField({
           step={stepValue}
           disabled={disabled}
           value={value}
+          aria-describedby={descriptionId}
           aria-label={`${label} value`}
           onChange={(event) => onChange(Number(event.target.value))}
         />

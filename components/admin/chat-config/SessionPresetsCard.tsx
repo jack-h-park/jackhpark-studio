@@ -88,6 +88,135 @@ export function SessionPresetsCard({
   const sessionGridValueClass = "flex flex-col gap-1";
   const sessionGridHeaderClass =
     "text-[0.75rem] font-semibold uppercase tracking-[0.25em] text-[color:var(--ai-text-strong)]";
+  const handleAdditionalSystemPromptChange = (
+    presetKey: PresetKey,
+    value: string,
+  ) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      additionalSystemPrompt: value,
+    }));
+  };
+
+  const handlePresetLlmModelChange = (presetKey: PresetKey, value: string) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      llmModel: value as LlmModelId,
+    }));
+  };
+
+  const handleRagEnabledChange = (presetKey: PresetKey, enabled: boolean) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      rag: {
+        ...prev.rag,
+        enabled,
+      },
+    }));
+  };
+
+  const handleRagTopKChange = (presetKey: PresetKey, nextValue: number) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      rag: {
+        ...prev.rag,
+        topK: nextValue || 0,
+      },
+    }));
+  };
+
+  const handleRagSimilarityChange = (presetKey: PresetKey, nextValue: number) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      rag: {
+        ...prev.rag,
+        similarity: nextValue || 0,
+      },
+    }));
+  };
+
+  const handleReverseRagChange = (presetKey: PresetKey, checked: boolean) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      features: {
+        ...prev.features,
+        reverseRAG: checked,
+      },
+    }));
+  };
+
+  const handleHydeChange = (presetKey: PresetKey, checked: boolean) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      features: {
+        ...prev.features,
+        hyde: checked,
+      },
+    }));
+  };
+
+  const handleRankerChange = (presetKey: PresetKey, value: string) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      features: {
+        ...prev.features,
+        ranker: value as RankerId,
+      },
+    }));
+  };
+
+  const handleSummaryLevelChange = (presetKey: PresetKey, level: SummaryLevel) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      summaryLevel: level,
+    }));
+  };
+
+  const handleContextHistoryToggle = (presetKey: PresetKey, checked: boolean) => {
+    setContextHistoryEnabled((prev) => ({
+      ...prev,
+      [presetKey]: checked,
+    }));
+  };
+
+  const handleTokenBudgetChange = (
+    presetKey: PresetKey,
+    nextValue: number,
+  ) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      context: {
+        ...prev.context,
+        tokenBudget: nextValue || 0,
+      },
+    }));
+  };
+
+  const handleHistoryBudgetChange = (
+    presetKey: PresetKey,
+    nextValue: number,
+  ) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      context: {
+        ...prev.context,
+        historyBudget: nextValue || 0,
+      },
+    }));
+  };
+
+  const handleClipTokensChange = (
+    presetKey: PresetKey,
+    nextValue: number,
+  ) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      context: {
+        ...prev.context,
+        clipTokens: nextValue || 0,
+      },
+    }));
+  };
 
   function PresetSettingsGroup({
     title,
@@ -173,10 +302,7 @@ export function SessionPresetsCard({
                   maxLength={additionalPromptMaxLength}
                   helperText={`User system prompt for this preset to be added to the base system prompt. Up to ${additionalPromptMaxLength} characters.`}
                   onChange={(value) =>
-                    updatePreset(presetKey, (prev) => ({
-                      ...prev,
-                      additionalSystemPrompt: value,
-                    }))
+                    handleAdditionalSystemPromptChange(presetKey, value)
                   }
                 />
               );
@@ -192,10 +318,7 @@ export function SessionPresetsCard({
                   <Select
                     value={presets[presetKey].llmModel}
                     onValueChange={(value) =>
-                      updatePreset(presetKey, (prev) => ({
-                        ...prev,
-                        llmModel: value as LlmModelId,
-                      }))
+                      handlePresetLlmModelChange(presetKey, value)
                     }
                   >
                     <SelectTrigger
@@ -315,13 +438,7 @@ export function SessionPresetsCard({
                       aria-labelledby={`${headerLabelId} ${toggleLabelId}`}
                       checked={preset.rag.enabled}
                       onCheckedChange={(checked) =>
-                        updatePreset(presetKey, (prev) => ({
-                          ...prev,
-                          rag: {
-                            ...prev.rag,
-                            enabled: checked,
-                          },
-                        }))
+                        handleRagEnabledChange(presetKey, checked)
                       }
                     />
                     <div className="ai-choice">
@@ -340,13 +457,10 @@ export function SessionPresetsCard({
                   value={presets[presetKey].rag.topK}
                   disabled={!presets[presetKey].rag.enabled}
                   onChange={(event) =>
-                    updatePreset(presetKey, (prev) => ({
-                      ...prev,
-                      rag: {
-                        ...prev.rag,
-                        topK: Number(event.target.value) || 0,
-                      },
-                    }))
+                    handleRagTopKChange(
+                      presetKey,
+                      Number(event.target.value),
+                    )
                   }
                 />
               ))}
@@ -360,13 +474,10 @@ export function SessionPresetsCard({
                   value={presets[presetKey].rag.similarity}
                   disabled={!presets[presetKey].rag.enabled}
                   onChange={(event) =>
-                    updatePreset(presetKey, (prev) => ({
-                      ...prev,
-                      rag: {
-                        ...prev.rag,
-                        similarity: Number(event.target.value) || 0,
-                      },
-                    }))
+                    handleRagSimilarityChange(
+                      presetKey,
+                      Number(event.target.value),
+                    )
                   }
                 />
               ))}
@@ -387,13 +498,7 @@ export function SessionPresetsCard({
                         !config.allowlist.allowReverseRAG || ragDisabled
                       }
                       onCheckedChange={(checked) =>
-                        updatePreset(presetKey, (prev) => ({
-                          ...prev,
-                          features: {
-                            ...prev.features,
-                            reverseRAG: checked,
-                          },
-                        }))
+                        handleReverseRagChange(presetKey, checked)
                       }
                     />
                     <span>Enabled</span>
@@ -415,13 +520,7 @@ export function SessionPresetsCard({
                       }
                       disabled={!config.allowlist.allowHyde || ragDisabled}
                       onCheckedChange={(checked) =>
-                        updatePreset(presetKey, (prev) => ({
-                          ...prev,
-                          features: {
-                            ...prev.features,
-                            hyde: checked,
-                          },
-                        }))
+                        handleHydeChange(presetKey, checked)
                       }
                     />
                     <span>Enabled</span>
@@ -433,13 +532,7 @@ export function SessionPresetsCard({
                   value={presets[presetKey].features.ranker}
                   disabled={!presets[presetKey].rag.enabled}
                   onValueChange={(value) =>
-                    updatePreset(presetKey, (prev) => ({
-                      ...prev,
-                      features: {
-                        ...prev.features,
-                        ranker: value as RankerId,
-                      },
-                    }))
+                    handleRankerChange(presetKey, value)
                   }
                 >
                   <SelectTrigger
@@ -466,10 +559,7 @@ export function SessionPresetsCard({
                       checked={presets[presetKey].summaryLevel === level}
                       disabled={!presets[presetKey].rag.enabled}
                       onChange={() =>
-                        updatePreset(presetKey, (prev) => ({
-                          ...prev,
-                          summaryLevel: level,
-                        }))
+                        handleSummaryLevelChange(presetKey, level)
                       }
                     />
                   ))}
@@ -493,10 +583,7 @@ export function SessionPresetsCard({
                       checked={isEnabled}
                       aria-labelledby={`${headerLabelId} ${toggleLabelId}`}
                       onCheckedChange={(checked) =>
-                        setContextHistoryEnabled((prev) => ({
-                          ...prev,
-                          [presetKey]: checked,
-                        }))
+                        handleContextHistoryToggle(presetKey, checked)
                       }
                     />
                     <div className="ai-choice">
@@ -517,13 +604,10 @@ export function SessionPresetsCard({
                     value={presets[presetKey].context.tokenBudget}
                     disabled={!fieldEnabled}
                     onChange={(event) =>
-                      updatePreset(presetKey, (prev) => ({
-                        ...prev,
-                        context: {
-                          ...prev.context,
-                          tokenBudget: Number(event.target.value) || 0,
-                        },
-                      }))
+                      handleTokenBudgetChange(
+                        presetKey,
+                        Number(event.target.value),
+                      )
                     }
                   />
                 );
@@ -539,13 +623,10 @@ export function SessionPresetsCard({
                     value={presets[presetKey].context.historyBudget}
                     disabled={!fieldEnabled}
                     onChange={(event) =>
-                      updatePreset(presetKey, (prev) => ({
-                        ...prev,
-                        context: {
-                          ...prev.context,
-                          historyBudget: Number(event.target.value) || 0,
-                        },
-                      }))
+                      handleHistoryBudgetChange(
+                        presetKey,
+                        Number(event.target.value),
+                      )
                     }
                   />
                 );
@@ -561,13 +642,10 @@ export function SessionPresetsCard({
                     value={presets[presetKey].context.clipTokens}
                     disabled={!fieldEnabled}
                     onChange={(event) =>
-                      updatePreset(presetKey, (prev) => ({
-                        ...prev,
-                        context: {
-                          ...prev.context,
-                          clipTokens: Number(event.target.value) || 0,
-                        },
-                      }))
+                      handleClipTokensChange(
+                        presetKey,
+                        Number(event.target.value),
+                      )
                     }
                   />
                 );

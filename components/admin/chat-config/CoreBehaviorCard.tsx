@@ -23,6 +23,27 @@ export function CoreBehaviorCard({
   updateConfig,
   additionalPromptMaxLength,
 }: CoreBehaviorCardProps) {
+  const handleBaseSummaryChange = (nextValue: string) => {
+    updateConfig((prev) => ({
+      ...prev,
+      baseSystemPromptSummary: nextValue,
+    }));
+  };
+
+  const handleBaseSystemPromptChange = (nextValue: string) => {
+    updateConfig((prev) => ({
+      ...prev,
+      baseSystemPrompt: nextValue,
+    }));
+  };
+
+  const handleAdditionalPromptMaxLengthChange = (nextValue: string) => {
+    updateConfig((prev) => ({
+      ...prev,
+      additionalPromptMaxLength: Number(nextValue) || 0,
+    }));
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -38,16 +59,14 @@ export function CoreBehaviorCard({
           </Label>
           <Textarea
             id="coreSummary"
+            aria-describedby="core-summary-description"
             value={config.baseSystemPromptSummary ?? ""}
             onChange={(event) =>
-              updateConfig((prev) => ({
-                ...prev,
-                baseSystemPromptSummary: event.target.value,
-              }))
+              handleBaseSummaryChange(event.target.value)
             }
             rows={3}
           />
-          <p className="ai-field__description">
+          <p id="core-summary-description" className="ai-field__description">
             Shown in the chat settings drawer. End users never see the full base system prompt.
           </p>
         </div>
@@ -59,10 +78,7 @@ export function CoreBehaviorCard({
             id="baseSystemPrompt"
             value={config.baseSystemPrompt ?? ""}
             onChange={(event) =>
-              updateConfig((prev) => ({
-                ...prev,
-                baseSystemPrompt: event.target.value,
-              }))
+              handleBaseSystemPromptChange(event.target.value)
             }
             rows={4}
           />
@@ -77,10 +93,7 @@ export function CoreBehaviorCard({
             min={0}
             value={additionalPromptMaxLength}
             onChange={(event) =>
-              updateConfig((prev) => ({
-                ...prev,
-                additionalPromptMaxLength: Number(event.target.value) || 0,
-              }))
+              handleAdditionalPromptMaxLengthChange(event.target.value)
             }
           />
         </div>

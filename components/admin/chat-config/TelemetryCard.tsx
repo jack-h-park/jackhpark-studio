@@ -16,6 +16,26 @@ export type TelemetryCardProps = {
 };
 
 export function TelemetryCard({ telemetry, isFormBusy, updateConfig }: TelemetryCardProps) {
+  const handleTelemetrySampleRateChange = (nextValue: string) => {
+    updateConfig((prev) => ({
+      ...prev,
+      telemetry: {
+        ...prev.telemetry,
+        sampleRate: Number(nextValue),
+      },
+    }));
+  };
+
+  const handleTelemetryDetailLevelChange = (detailLevel: TelemetryDetailLevel) => {
+    updateConfig((prev) => ({
+      ...prev,
+      telemetry: {
+        ...prev.telemetry,
+        detailLevel,
+      },
+    }));
+  };
+
   return (
     <Card className="mb-6">
       <CardHeader>
@@ -33,13 +53,7 @@ export function TelemetryCard({ telemetry, isFormBusy, updateConfig }: Telemetry
             step={0.05}
             value={telemetry.sampleRate}
             onChange={(event) =>
-              updateConfig((prev) => ({
-                ...prev,
-                telemetry: {
-                  ...prev.telemetry,
-                  sampleRate: Number(event.target.value),
-                },
-              }))
+              handleTelemetrySampleRateChange(event.target.value)
             }
             disabled={isFormBusy}
           />
@@ -57,13 +71,7 @@ export function TelemetryCard({ telemetry, isFormBusy, updateConfig }: Telemetry
               checked={telemetry.detailLevel === "minimal"}
               disabled={isFormBusy}
               onChange={(value) =>
-                updateConfig((prev) => ({
-                  ...prev,
-                  telemetry: {
-                    ...prev.telemetry,
-                    detailLevel: value as TelemetryDetailLevel,
-                  },
-                }))
+                handleTelemetryDetailLevelChange(value as TelemetryDetailLevel)
               }
             />
             <Radiobutton
@@ -74,13 +82,7 @@ export function TelemetryCard({ telemetry, isFormBusy, updateConfig }: Telemetry
               checked={telemetry.detailLevel === "standard"}
               disabled={isFormBusy}
               onChange={(value) =>
-                updateConfig((prev) => ({
-                  ...prev,
-                  telemetry: {
-                    ...prev.telemetry,
-                    detailLevel: value as TelemetryDetailLevel,
-                  },
-                }))
+                handleTelemetryDetailLevelChange(value as TelemetryDetailLevel)
               }
             />
             <Radiobutton
@@ -91,13 +93,7 @@ export function TelemetryCard({ telemetry, isFormBusy, updateConfig }: Telemetry
               checked={telemetry.detailLevel === "verbose"}
               disabled={isFormBusy}
               onChange={(value) =>
-                updateConfig((prev) => ({
-                  ...prev,
-                  telemetry: {
-                    ...prev.telemetry,
-                    detailLevel: value as TelemetryDetailLevel,
-                  },
-                }))
+                handleTelemetryDetailLevelChange(value as TelemetryDetailLevel)
               }
             />
           </div>

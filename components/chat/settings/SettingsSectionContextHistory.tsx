@@ -60,6 +60,26 @@ export function SettingsSectionContextHistory({
       limit: clipTokens,
     },
   ];
+  const handleContextSliderChange = (
+    key: keyof SessionChatConfig["context"],
+    limit: {
+      min: number;
+      max: number;
+    },
+    value: number,
+  ) => {
+    const sanitized = Math.max(
+      limit.min,
+      Math.min(limit.max, Math.round(value)),
+    );
+    updateSession((prev) => ({
+      ...prev,
+      context: {
+        ...prev.context,
+        [key]: sanitized,
+      },
+    }));
+  };
 
   return (
     <Section>
@@ -93,19 +113,9 @@ export function SettingsSectionContextHistory({
             min={limit.min}
             max={limit.max}
             step={1}
-            onChange={(value) => {
-              const sanitized = Math.max(
-                limit.min,
-                Math.min(limit.max, Math.round(value)),
-              );
-              updateSession((prev) => ({
-                ...prev,
-                context: {
-                  ...prev.context,
-                  [key]: sanitized,
-                },
-              }));
-            }}
+            onChange={(value) =>
+              handleContextSliderChange(key, limit, value)
+            }
             disabled={!isContextEnabled}
           />
         ))}

@@ -29,6 +29,36 @@ export type GuardrailCardProps = {
 };
 
 export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
+  const handleChitchatKeywordsChange = (nextValue: string) => {
+    updateConfig((prev) => ({
+      ...prev,
+      guardrails: {
+        ...prev.guardrails,
+        chitchatKeywords: textToArray(nextValue),
+      },
+    }));
+  };
+
+  const handleFallbackChitchatChange = (nextValue: string) => {
+    updateConfig((prev) => ({
+      ...prev,
+      guardrails: {
+        ...prev.guardrails,
+        fallbackChitchat: nextValue,
+      },
+    }));
+  };
+
+  const handleFallbackCommandChange = (nextValue: string) => {
+    updateConfig((prev) => ({
+      ...prev,
+      guardrails: {
+        ...prev.guardrails,
+        fallbackCommand: nextValue,
+      },
+    }));
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -38,44 +68,36 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <Field
-          id="guardrailKeywords"
-          label="Chit-chat keywords"
-          description="Add keywords or phrases that should be treated as lightweight chit-chat and handled without hitting the knowledge base."
-        >
-          <Textarea
-            rows={3}
-            value={arrayToText(config.guardrails.chitchatKeywords)}
-            onChange={(event) =>
-              updateConfig((prev) => ({
-                ...prev,
-                guardrails: {
-                  ...prev.guardrails,
-                  chitchatKeywords: textToArray(event.target.value),
-                },
-              }))
-            }
-          />
-        </Field>
+          <Field
+            id="guardrailKeywords"
+            label="Chit-chat keywords"
+            description="Add keywords or phrases that should be treated as lightweight chit-chat and handled without hitting the knowledge base."
+          >
+            <Textarea
+              rows={3}
+              value={arrayToText(config.guardrails.chitchatKeywords)}
+              onChange={(event) =>
+                handleChitchatKeywordsChange(event.target.value)
+              }
+            />
+          </Field>
         <div className="ai-field">
           <Label htmlFor="guardrailFallbackChitchat" className="ai-field__label">
             Chit-chat fallback context
           </Label>
           <Textarea
             id="guardrailFallbackChitchat"
+            aria-describedby="guardrail-fallback-chitchat-description"
             value={config.guardrails.fallbackChitchat}
             onChange={(event) =>
-              updateConfig((prev) => ({
-                ...prev,
-                guardrails: {
-                  ...prev.guardrails,
-                  fallbackChitchat: event.target.value,
-                },
-              }))
+              handleFallbackChitchatChange(event.target.value)
             }
             rows={3}
           />
-          <p className="ai-field__description">
+          <p
+            id="guardrail-fallback-chitchat-description"
+            className="ai-field__description"
+          >
             The concise, friendly prompt injected whenever a chit-chat intent is detected.
           </p>
         </div>
@@ -85,19 +107,17 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
           </Label>
           <Textarea
             id="guardrailFallbackCommand"
+            aria-describedby="guardrail-fallback-command-description"
             value={config.guardrails.fallbackCommand}
             onChange={(event) =>
-              updateConfig((prev) => ({
-                ...prev,
-                guardrails: {
-                  ...prev.guardrails,
-                  fallbackCommand: event.target.value,
-                },
-              }))
+              handleFallbackCommandChange(event.target.value)
             }
             rows={3}
           />
-          <p className="ai-meta-text">
+          <p
+            id="guardrail-fallback-command-description"
+            className="ai-meta-text"
+          >
             The polite refusal context shown whenever a user asks the assistant to run actions or commands.
           </p>
         </div>

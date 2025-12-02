@@ -24,6 +24,22 @@ export function SummaryPresetsCard({ summaryPresets, updateConfig }: SummaryPres
   const summaryGridHeaderClass =
     "text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]";
   const summaryGridValueClass = "flex flex-col gap-1";
+  const handleSummaryPresetChange = (
+    level: SummaryPresetLevel,
+    nextValue: number,
+  ) => {
+    const normalized = Number.isFinite(nextValue) ? nextValue : 1;
+    const everyN = normalized > 0 ? normalized : 1;
+    updateConfig((prev) => ({
+      ...prev,
+      summaryPresets: {
+        ...prev.summaryPresets,
+        [level]: {
+          every_n_turns: everyN,
+        },
+      },
+    }));
+  };
 
   return (
     <Card>
@@ -50,15 +66,10 @@ export function SummaryPresetsCard({ summaryPresets, updateConfig }: SummaryPres
                   aria-label={`Every n turns for ${level} summary`}
                   value={summaryPresets[level].every_n_turns}
                   onChange={(event) =>
-                    updateConfig((prev) => ({
-                      ...prev,
-                      summaryPresets: {
-                        ...prev.summaryPresets,
-                        [level]: {
-                          every_n_turns: Number(event.target.value) > 0 ? Number(event.target.value) : 1,
-                        },
-                      },
-                    }))
+                    handleSummaryPresetChange(
+                      level,
+                      Number(event.target.value),
+                    )
                   }
                 />
                 <span className="text-xs text-slate-500">turn(s)</span>

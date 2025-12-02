@@ -81,6 +81,63 @@ export function SettingsSectionRagRetrieval({
       description: `Run every ${summaryPresets.high.every_n_turns} turns`,
     },
   ];
+  const handleRagEnabledChange = (enabled: boolean) => {
+    updateSession((prev) => ({
+      ...prev,
+      rag: { ...prev.rag, enabled },
+    }));
+  };
+
+  const handleTopKChange = (topK: number) => {
+    const sanitized = Math.max(
+      ragTopK.min,
+      Math.min(ragTopK.max, Math.round(topK)),
+    );
+    updateSession((prev) => ({
+      ...prev,
+      rag: {
+        ...prev.rag,
+        topK: sanitized,
+      },
+    }));
+  };
+
+  const handleSimilarityChange = (similarity: number) => {
+    updateSession((prev) => ({
+      ...prev,
+      rag: {
+        ...prev.rag,
+        similarity,
+      },
+    }));
+  };
+
+  const handleFeatureToggle = (feature: "reverseRAG" | "hyde", checked: boolean) => {
+    updateSession((prev) => ({
+      ...prev,
+      features: {
+        ...prev.features,
+        [feature]: checked,
+      },
+    }));
+  };
+
+  const handleRankerChange = (value: string) => {
+    updateSession((prev) => ({
+      ...prev,
+      features: {
+        ...prev.features,
+        ranker: value as RankerId,
+      },
+    }));
+  };
+
+  const handleSummaryLevelChange = (level: SummaryLevel) => {
+    updateSession((prev) => ({
+      ...prev,
+      summaryLevel: level,
+    }));
+  };
 
   return (
     <Section>
@@ -96,12 +153,7 @@ export function SettingsSectionRagRetrieval({
           className="flex-shrink-0"
           aria-labelledby="settings-rag-title"
           checked={isRagEnabled}
-          onCheckedChange={(checked) =>
-            updateSession((prev) => ({
-              ...prev,
-              rag: { ...prev.rag, enabled: checked },
-            }))
-          }
+          onCheckedChange={handleRagEnabledChange}
         />
       </SectionHeader>
 
@@ -115,19 +167,7 @@ export function SettingsSectionRagRetrieval({
             max={ragTopK.max}
             step={1}
             disabled={!isRagEnabled}
-            onChange={(topK) => {
-              const sanitized = Math.max(
-                ragTopK.min,
-                Math.min(ragTopK.max, Math.round(topK)),
-              );
-              updateSession((prev) => ({
-                ...prev,
-                rag: {
-                  ...prev.rag,
-                  topK: sanitized,
-                },
-              }));
-            }}
+            onChange={handleTopKChange}
           />
         </div>
 
@@ -140,15 +180,7 @@ export function SettingsSectionRagRetrieval({
             max={similarityThreshold.max}
             step={0.01}
             disabled={!isRagEnabled}
-            onChange={(similarity) =>
-              updateSession((prev) => ({
-                ...prev,
-                rag: {
-                  ...prev.rag,
-                  similarity,
-                },
-              }))
-            }
+            onChange={handleSimilarityChange}
           />
         </div>
 
@@ -161,13 +193,7 @@ export function SettingsSectionRagRetrieval({
                 checked={sessionConfig.features.reverseRAG}
                 disabled={!isRagEnabled}
                 onCheckedChange={(checked) =>
-                  updateSession((prev) => ({
-                    ...prev,
-                    features: {
-                      ...prev.features,
-                      reverseRAG: checked,
-                    },
-                  }))
+                  handleFeatureToggle("reverseRAG", checked)
                 }
               />
             )}
@@ -178,13 +204,7 @@ export function SettingsSectionRagRetrieval({
                 checked={sessionConfig.features.hyde}
                 disabled={!isRagEnabled}
                 onCheckedChange={(checked) =>
-                  updateSession((prev) => ({
-                    ...prev,
-                    features: {
-                      ...prev.features,
-                      hyde: checked,
-                    },
-                  }))
+                  handleFeatureToggle("hyde", checked)
                 }
               />
             )}
@@ -195,19 +215,11 @@ export function SettingsSectionRagRetrieval({
           <Label htmlFor="settings-ranker" className="ai-field__label">
             Ranker
           </Label>
-          <Select
-            value={sessionConfig.features.ranker}
-            onValueChange={(value) =>
-              updateSession((prev) => ({
-                ...prev,
-                features: {
-                  ...prev.features,
-                  ranker: value as RankerId,
-                },
-              }))
-            }
-            disabled={!isRagEnabled}
-          >
+            <Select
+              value={sessionConfig.features.ranker}
+              onValueChange={handleRankerChange}
+              disabled={!isRagEnabled}
+            >
             <SelectTrigger
               id="settings-ranker"
               aria-label="Ranker selection"
@@ -231,13 +243,10 @@ export function SettingsSectionRagRetrieval({
                 key={option.value}
                 active={sessionConfig.summaryLevel === option.value}
                 disabled={!isRagEnabled}
-                onClick={() =>
-                  updateSession((prev) => ({
-                    ...prev,
-                    summaryLevel: option.value,
-                  }))
-                }
-              >
+            onClick={() =>
+              handleSummaryLevelChange(option.value)
+            }
+          >
                 <div className="ai-choice">
                   <span className="ai-choice__label">{option.label}</span>
                   <p className="ai-choice__description">{option.description}</p>

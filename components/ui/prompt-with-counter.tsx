@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { Label } from "@/components/ui/label";
 import { Textarea, type TextareaProps } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
@@ -33,6 +35,19 @@ export function PromptWithCounter({
   onChange,
   textareaProps,
 }: PromptWithCounterProps) {
+  const fallbackId = useId();
+  const descriptionId = helperText
+    ? `${id ?? fallbackId}-helper`
+    : undefined;
+  const {
+    "aria-describedby": textareaAriaDescribedBy,
+    ...restTextareaProps
+  } = textareaProps ?? {};
+  const combinedAriaDescribedBy = descriptionId
+    ? textareaAriaDescribedBy
+      ? `${textareaAriaDescribedBy} ${descriptionId}`
+      : descriptionId
+    : textareaAriaDescribedBy;
   return (
     <div className={cn("space-y-2", className)}>
       <div className="flex items-start justify-between gap-2">
@@ -50,10 +65,14 @@ export function PromptWithCounter({
         maxLength={maxLength}
         rows={rows}
         onChange={(event) => onChange(event.target.value)}
-        {...textareaProps}
+        aria-describedby={combinedAriaDescribedBy}
+        {...restTextareaProps}
       />
       {helperText ? (
-        <p className={cn("ai-field__description", helperClassName)}>
+        <p
+          id={descriptionId}
+          className={cn("ai-field__description", helperClassName)}
+        >
           {helperText}
         </p>
       ) : null}
