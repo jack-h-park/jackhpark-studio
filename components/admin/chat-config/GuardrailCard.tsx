@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -37,12 +38,12 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="ai-field">
-          <Label htmlFor="guardrailKeywords" className="ai-field__label">
-            Chit-chat keywords
-          </Label>
+        <Field
+          id="guardrailKeywords"
+          label="Chit-chat keywords"
+          description="Add keywords or phrases that should be treated as lightweight chit-chat and handled without hitting the knowledge base."
+        >
           <Textarea
-            id="guardrailKeywords"
             rows={3}
             value={arrayToText(config.guardrails.chitchatKeywords)}
             onChange={(event) =>
@@ -55,10 +56,7 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
               }))
             }
           />
-          <p className="ai-field__description">
-            Add keywords or phrases that should be treated as lightweight chit-chat and handled without hitting the knowledge base.
-          </p>
-        </div>
+        </Field>
         <div className="ai-field">
           <Label htmlFor="guardrailFallbackChitchat" className="ai-field__label">
             Chit-chat fallback context
