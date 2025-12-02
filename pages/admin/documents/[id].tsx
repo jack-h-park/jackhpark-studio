@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckboxChoice } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeaderCard } from "@/components/ui/page-header-card";
@@ -213,15 +213,14 @@ export default function AdminDocumentDetailPage({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex items-center gap-3 pt-5">
-                  <Checkbox
-                    id="is_public"
+                <div className="pt-5">
+                  <CheckboxChoice
+                    label="Public"
                     checked={isPublic ?? false}
                     onCheckedChange={(checked) =>
                       setIsPublic(Boolean(checked))
                     }
                   />
-                  <Label htmlFor="is_public">Public</Label>
                 </div>
                 <div className="md:col-span-2 space-y-3">
                   <Label>Tags (comma separated)</Label>

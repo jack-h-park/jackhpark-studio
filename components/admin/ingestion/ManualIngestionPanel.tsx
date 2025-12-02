@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckboxChoice } from "@/components/ui/checkbox";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -195,23 +195,16 @@ export function ManualIngestionPanel(): JSX.Element {
                     </p>
                   </div>
 
-                  <div className="flex items-start pt-2 gap-2">
-                    <Checkbox
-                      aria-labelledby="manual-linked-pages-label"
-                      aria-describedby="manual-linked-pages-hint"
+                  <div className="pt-2">
+                    <CheckboxChoice
+                      className="select-none"
+                      layout="stacked"
+                      label="Include linked pages"
+                      description="Also ingest child pages and any pages referenced via Notion link-to-page blocks."
                       checked={ingestion.includeLinkedPages}
                       onCheckedChange={ingestion.setIncludeLinkedPages}
                       disabled={ingestion.isRunning}
                     />
-                    <div className="flex flex-col gap-0">
-                      <Label className="text-sm" id="manual-linked-pages-label">
-                        Include linked pages
-                      </Label>
-                      <p className="ai-meta-text" id="manual-linked-pages-hint">
-                        Also ingest child pages and any pages referenced via
-                        Notion link-to-page blocks.
-                      </p>
-                    </div>
                   </div>
                 </TabPanel>
 
@@ -373,15 +366,12 @@ export function ManualIngestionPanel(): JSX.Element {
                   : `${ingestion.logs.length} entr${ingestion.logs.length === 1 ? "y" : "ies"}`}
               </span>
             </div>
-            <div className="inline-flex items-center gap-2 select-none">
-              <Checkbox
-                className="shrink-0"
-                aria-label="Toggle auto-scroll to newest log entries"
-                checked={ingestion.autoScrollLogs}
-                onCheckedChange={ingestion.handleToggleAutoScroll}
-              />
-              <span className="text-sm">Auto-scroll to latest</span>
-            </div>
+            <CheckboxChoice
+              className="select-none"
+              label="Auto-scroll to latest"
+              checked={ingestion.autoScrollLogs}
+              onCheckedChange={ingestion.handleToggleAutoScroll}
+            />
           </CardHeader>
           <CardContent className="space-y-4">
             {ingestion.logs.length === 0 ? (

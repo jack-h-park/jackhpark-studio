@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckboxChoice } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { CHAT_ENGINE_LABELS, CHAT_ENGINE_OPTIONS, type ChatEngine } from "@/lib/shared/model-provider";
@@ -165,40 +165,33 @@ export function AllowlistCard({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-1">
-          <div className="inline-flex items-center gap-2">
-            <Checkbox
-              className="shrink-0"
-              aria-label="Allow Reverse RAG"
-              checked={allowlist.allowReverseRAG}
-              onCheckedChange={(checked) =>
-                updateConfig((prev) => ({
-                  ...prev,
-                  allowlist: {
-                    ...prev.allowlist,
-                    allowReverseRAG: checked,
-                  },
-                }))
-              }
-            />
-            <span className="text-sm">Allow Reverse RAG</span>
-          </div>
-          <div className="inline-flex items-center gap-2">
-            <Checkbox
-              className="shrink-0"
-              aria-label="Allow HyDE"
-              checked={allowlist.allowHyde}
-              onCheckedChange={(checked) =>
-                updateConfig((prev) => ({
-                  ...prev,
-                  allowlist: {
-                    ...prev.allowlist,
-                    allowHyde: checked,
-                  },
-                }))
-              }
-            />
-            <span className="text-sm">Allow HyDE</span>
-          </div>
+          <CheckboxChoice
+            label="Allow Reverse RAG"
+            checked={allowlist.allowReverseRAG}
+            onCheckedChange={(checked) =>
+              updateConfig((prev) => ({
+                ...prev,
+                allowlist: {
+                  ...prev.allowlist,
+                  allowReverseRAG: checked,
+                },
+              }))
+            }
+          />
+
+          <CheckboxChoice
+            label="Allow HyDE"
+            checked={allowlist.allowHyde}
+            onCheckedChange={(checked) =>
+              updateConfig((prev) => ({
+                ...prev,
+                allowlist: {
+                  ...prev.allowlist,
+                  allowHyde: checked,
+                },
+              }))
+            }
+          />
         </div>
       </CardContent>
     </Card>

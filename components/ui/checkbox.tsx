@@ -57,3 +57,67 @@ export const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
   },
 );
 Checkbox.displayName = "Checkbox";
+
+export type CheckboxChoiceProps = CheckboxProps & {
+  label: React.ReactNode;
+  description?: React.ReactNode;
+  layout?: "inline" | "stacked";
+  id?: string;
+};
+
+export function CheckboxChoice({
+  label,
+  description,
+  layout = "inline",
+  id,
+  disabled,
+  className,
+  ...checkboxProps
+}: CheckboxChoiceProps) {
+  const internalId = React.useId();
+  const labelId = id ?? `${internalId}-label`;
+  const checkboxRef = React.useRef<HTMLButtonElement | null>(null);
+
+  const handleWrapperClick: React.MouseEventHandler<HTMLDivElement> = (
+    event,
+  ) => {
+    if (disabled) return;
+
+    if (
+      event.target instanceof HTMLElement &&
+      checkboxRef.current?.contains(event.target)
+    ) {
+      return;
+    }
+
+    checkboxRef.current?.click();
+  };
+
+  return (
+    <div
+      className={cn(
+        "ai-choice__label-row",
+        layout === "stacked" && "ai-choice__label-row--stacked",
+        disabled && "opacity-60 cursor-not-allowed",
+        className,
+      )}
+      onClick={handleWrapperClick}
+      aria-disabled={disabled || undefined}
+    >
+      <Checkbox
+        ref={checkboxRef}
+        aria-labelledby={labelId}
+        disabled={disabled}
+        {...checkboxProps}
+      />
+      <div className="flex flex-col gap-0.5">
+        <span id={labelId} className="ai-choice__label">
+          {label}
+        </span>
+        {description && (
+          <span className="ai-choice__description">{description}</span>
+        )}
+      </div>
+    </div>
+  );
+}

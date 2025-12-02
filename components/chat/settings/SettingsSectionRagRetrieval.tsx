@@ -8,7 +8,7 @@ import type {
   SessionChatConfig,
   SummaryLevel,
 } from "@/types/chat-config";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckboxChoice } from "@/components/ui/checkbox";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
 import { Label } from "@/components/ui/label";
 import {
@@ -156,45 +156,37 @@ export function SettingsSectionRagRetrieval({
           <Label className="ai-field__label">Capabilities</Label>
           <div className="flex flex-col gap-3 pl-1">
             {adminConfig.allowlist.allowReverseRAG && (
-              <div className="inline-flex items-center gap-2 text-sm">
-                <Checkbox
-                  className="flex-shrink-0"
-                  checked={sessionConfig.features.reverseRAG}
-                  disabled={!isRagEnabled}
-                  onCheckedChange={(checked) =>
-                    updateSession((prev) => ({
-                      ...prev,
-                      features: {
-                        ...prev.features,
-                        reverseRAG: checked,
-                      },
-                    }))
-                  }
-                  aria-label="Enable Reverse RAG"
-                />
-                <span className="ai-choice__label">Reverse RAG</span>
-              </div>
+              <CheckboxChoice
+                label="Reverse RAG"
+                checked={sessionConfig.features.reverseRAG}
+                disabled={!isRagEnabled}
+                onCheckedChange={(checked) =>
+                  updateSession((prev) => ({
+                    ...prev,
+                    features: {
+                      ...prev.features,
+                      reverseRAG: checked,
+                    },
+                  }))
+                }
+              />
             )}
 
             {adminConfig.allowlist.allowHyde && (
-              <div className="inline-flex items-center gap-2">
-                <Checkbox
-                  className="flex-shrink-0"
-                  checked={sessionConfig.features.hyde}
-                  disabled={!isRagEnabled}
-                  onCheckedChange={(checked) =>
-                    updateSession((prev) => ({
-                      ...prev,
-                      features: {
-                        ...prev.features,
-                        hyde: checked,
-                      },
-                    }))
-                  }
-                  aria-label="Enable HyDE"
-                />
-                <span className="ai-choice__label">HyDE</span>
-              </div>
+              <CheckboxChoice
+                label="HyDE"
+                checked={sessionConfig.features.hyde}
+                disabled={!isRagEnabled}
+                onCheckedChange={(checked) =>
+                  updateSession((prev) => ({
+                    ...prev,
+                    features: {
+                      ...prev.features,
+                      hyde: checked,
+                    },
+                  }))
+                }
+              />
             )}
           </div>
         </div>

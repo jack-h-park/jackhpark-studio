@@ -2,7 +2,7 @@ import type { ChangeEvent, JSX } from "react";
 
 import type { IngestionType, RunStatus } from "@/lib/admin/ingestion-runs";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { CheckboxChoice } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -228,16 +228,13 @@ export function RecentRunsFilters({
           </div>
 
           <div className="flex items-center gap-3 justify-end md:justify-start">
-            <div className="inline-flex items-center gap-1.5 select-none">
-              <Checkbox
-                className="flex-shrink-0"
-                checked={hideSkipped}
-                onCheckedChange={onHideSkippedChange}
-                disabled={isLoading}
-                aria-label="Hide skipped runs"
-              />
-              <span className="text-sm">Hide skipped runs</span>
-            </div>
+            <CheckboxChoice
+              className="select-none"
+              label="Hide skipped runs"
+              checked={hideSkipped}
+              onCheckedChange={onHideSkippedChange}
+              disabled={isLoading}
+            />
             <Button
               type="button"
               variant="ghost"
