@@ -33,19 +33,12 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <Card className={cn("h-full", className)}>
-      <CardContent className="flex flex-col gap-1 h-full">
-        <p className="m-0 text-xs uppercase tracking-[0.3em] font-semibold">
-          {label}
-        </p>
-        <div className="text-2xl font-bold text-[var(--ai-text)] tracking-tight">
-          {value}
-        </div>
+      <CardContent className="ai-stat">
+        <p className="ai-stat__label">{label}</p>
+        <div className="ai-stat__value">{value}</div>
         {delta ? (
           <p
-            className={cn(
-              "text-sm font-medium flex items-center gap-1",
-              toneClasses[delta.tone ?? "muted"],
-            )}
+            className={cn("ai-stat__delta", toneClasses[delta.tone ?? "muted"])}
           >
             {delta.text}
           </p>

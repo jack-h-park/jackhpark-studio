@@ -325,9 +325,7 @@
 }
 
 .ai-choice__label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--ai-text-strong);
+  @apply ai-label-emphasis;
 }
 
 .ai-choice__description {
@@ -345,12 +343,8 @@
 }
 
 .ai-field__label {
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
+  @apply ai-label-overline;
   padding-bottom: 0.2rem;
-  color: var(--ai-text-muted);
 }
 
 .ai-field__description {
@@ -709,4 +703,92 @@
   background-color: hsl(var(--ai-bg));
   border: 1px solid hsl(var(--ai-border));
   border-radius: var(--ai-radius-md);
+}
+
+/* ------------------------------------------------ */
+/* Label Utilities                                  */
+/* ------------------------------------------------ */
+.ai-label-overline {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--ai-text-muted);
+}
+
+.ai-label-emphasis {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ai-text-strong);
+}
+
+/* ------------------------------------------------ */
+/* Data Display Primitives                          */
+/* ------------------------------------------------ */
+.ai-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  height: 100%;
+}
+
+.ai-stat__label {
+  @apply ai-label-overline;
+  margin: 0;
+  letter-spacing: 0.3em;
+}
+
+.ai-stat__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ai-text);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.ai-stat__delta {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.ai-table {
+  background-color: hsl(var(--ai-bg));
+  border: 1px solid hsl(var(--ai-border));
+  border-radius: var(--ai-radius-lg);
+  box-shadow: var(--ai-shadow-soft);
+  color: hsl(var(--ai-fg));
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-table__header {
+  @apply ai-label-overline;
+  padding: 0.65rem 0.5rem;
+  text-align: left;
+  letter-spacing: 0.2em;
+}
+
+.ai-table__row {
+  transition: background-color 0.2s ease;
+}
+
+.ai-table__row:hover {
+  background-color: hsl(var(--ai-bg));
+}
+
+.ai-table__row:nth-child(even) {
+  background-color: hsl(var(--ai-bg-muted));
+}
+
+.ai-table__row:nth-child(odd) {
+  background-color: hsl(var(--ai-surface));
+}
+
+.ai-table__cell {
+  padding: 0.65rem 1rem;
+  vertical-align: top;
 }

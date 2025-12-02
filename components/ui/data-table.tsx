@@ -50,13 +50,7 @@ export function DataTable<T>({
   };
 
   return (
-    <div
-      className={cn(
-        "bg-[hsl(var(--ai-bg))] border border-[hsl(var(--ai-border))] rounded-[var(--ai-radius-lg)] shadow-[var(--ai-shadow-soft)] text-[hsl(var(--ai-fg))] p-4 w-full relative overflow-hidden",
-        className,
-      )}
-      aria-busy={isLoading}
-    >
+    <div className={cn("ai-table", className)} aria-busy={isLoading}>
       {errorMessage ? (
         <div
           role="alert"
@@ -81,7 +75,7 @@ export function DataTable<T>({
                     key={`column-${index}`}
                     scope="col"
                     className={cn(
-                      "p-[0.65rem] px-2 text-left text-xs font-semibold tracking-[0.2em] uppercase text-[var(--ai-text-muted)]",
+                      "ai-table__header",
                       alignment,
                       column.className,
                     )}
@@ -114,7 +108,7 @@ export function DataTable<T>({
                   <tr
                     key={`row-${rowId}`}
                     className={cn(
-                      "transition-colors duration-200 ease-linear hover:bg-[hsl(var(--ai-bg))]",
+                      "ai-table__row",
                       rowIndex % 2 === 0
                         ? "bg-[hsl(var(--ai-surface))]"
                         : "bg-[hsl(var(--ai-bg-muted))]",
@@ -131,7 +125,7 @@ export function DataTable<T>({
                         <td
                           key={`cell-${rowId}-${cellIndex}`}
                           className={cn(
-                            "p-[0.65rem] px-4 align-top",
+                            "ai-table__cell",
                             alignment,
                             sizeClassMap[column.size ?? "sm"],
                             variantClassMap[column.variant ?? "primary"],

@@ -9,8 +9,8 @@ import type {
   SummaryLevel,
 } from "@/types/chat-config";
 import { Checkbox } from "@/components/ui/checkbox";
+import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
 import { Label } from "@/components/ui/label";
-import { Radiobutton } from "@/components/ui/radiobutton";
 import {
   Section,
   SectionContent,
@@ -152,48 +152,51 @@ export function SettingsSectionRagRetrieval({
           />
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 pt-2">
-          {adminConfig.allowlist.allowReverseRAG && (
-            <div className="inline-flex items-center gap-2 text-sm">
-              <Checkbox
-                className="flex-shrink-0"
-                checked={sessionConfig.features.reverseRAG}
-                disabled={!isRagEnabled}
-                onCheckedChange={(checked) =>
-                  updateSession((prev) => ({
-                    ...prev,
-                    features: {
-                      ...prev.features,
-                      reverseRAG: checked,
-                    },
-                  }))
-                }
-                aria-label="Enable Reverse RAG"
-              />
-              <span className="ai-choice__label">Reverse RAG</span>
-            </div>
-          )}
+        <div className="ai-field pt-2">
+          <Label className="ai-field__label">Capabilities</Label>
+          <div className="flex flex-col gap-3 pl-1">
+            {adminConfig.allowlist.allowReverseRAG && (
+              <div className="inline-flex items-center gap-2 text-sm">
+                <Checkbox
+                  className="flex-shrink-0"
+                  checked={sessionConfig.features.reverseRAG}
+                  disabled={!isRagEnabled}
+                  onCheckedChange={(checked) =>
+                    updateSession((prev) => ({
+                      ...prev,
+                      features: {
+                        ...prev.features,
+                        reverseRAG: checked,
+                      },
+                    }))
+                  }
+                  aria-label="Enable Reverse RAG"
+                />
+                <span className="ai-choice__label">Reverse RAG</span>
+              </div>
+            )}
 
-          {adminConfig.allowlist.allowHyde && (
-            <div className="inline-flex items-center gap-2">
-              <Checkbox
-                className="flex-shrink-0"
-                checked={sessionConfig.features.hyde}
-                disabled={!isRagEnabled}
-                onCheckedChange={(checked) =>
-                  updateSession((prev) => ({
-                    ...prev,
-                    features: {
-                      ...prev.features,
-                      hyde: checked,
-                    },
-                  }))
-                }
-                aria-label="Enable HyDE"
-              />
-              <span className="ai-choice__label">HyDE</span>
-            </div>
-          )}
+            {adminConfig.allowlist.allowHyde && (
+              <div className="inline-flex items-center gap-2">
+                <Checkbox
+                  className="flex-shrink-0"
+                  checked={sessionConfig.features.hyde}
+                  disabled={!isRagEnabled}
+                  onCheckedChange={(checked) =>
+                    updateSession((prev) => ({
+                      ...prev,
+                      features: {
+                        ...prev.features,
+                        hyde: checked,
+                      },
+                    }))
+                  }
+                  aria-label="Enable HyDE"
+                />
+                <span className="ai-choice__label">HyDE</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="ai-field pt-2">
@@ -228,30 +231,28 @@ export function SettingsSectionRagRetrieval({
           </Select>
         </div>
 
-        <div className="space-y-2 border-t border-[color:var(--ai-border-muted)] pt-2">
-          <p className="text-sm font-semibold text-[color:var(--ai-text-strong)]">
-            Summaries
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2">
+        <div className="ai-field border-t border-[color:var(--ai-border-muted)] pt-4">
+          <Label className="ai-field__label">Summaries</Label>
+          <GridPanel className="grid-cols-2 gap-2">
             {summaryOptions.map((option) => (
-              <Radiobutton
+              <SelectableTile
                 key={option.value}
-                variant="chip"
-                name="settings-summary-level"
-                value={option.value}
-                label={option.label}
-                description={option.description}
-                checked={sessionConfig.summaryLevel === option.value}
+                active={sessionConfig.summaryLevel === option.value}
                 disabled={!isRagEnabled}
-                onChange={() =>
+                onClick={() =>
                   updateSession((prev) => ({
                     ...prev,
                     summaryLevel: option.value,
                   }))
                 }
-              />
+              >
+                <div className="ai-choice">
+                  <span className="ai-choice__label">{option.label}</span>
+                  <p className="ai-choice__description">{option.description}</p>
+                </div>
+              </SelectableTile>
             ))}
-          </div>
+          </GridPanel>
         </div>
       </SectionContent>
     </Section>
