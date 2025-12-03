@@ -51,7 +51,7 @@ const summaryLevelOptions: SummaryLevel[] = ["off", "low", "medium", "high"];
 const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
 
 const SECTION_FIELD_LABEL_CLASS =
-  "text-[0.65rem] uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)] font-semibold";
+  "ai-label-overline ai-label-overline--small ai-label-overline--muted";
 
 type RetrievalSectionProps = {
   presetKey: PresetKey;
@@ -229,10 +229,10 @@ export function SessionPresetsCard({
   defaultLlmModelId,
 }: SessionPresetsCardProps) {
   const sessionGridLabelClass =
-    "flex items-center ai-label-overline text-[0.85rem] text-[color:var(--ai-text-muted)]";
+    "flex items-center ai-label-overline ai-label-overline--muted";
   const sessionGridValueClass = "flex flex-col gap-1";
   const sessionGridHeaderClass =
-    "ai-label-overline tracking-[0.25em] text-[0.75rem] text-[color:var(--ai-text-strong)]";
+    "ai-label-overline ai-label-overline--small";
   const handleAdditionalSystemPromptChange = (
     presetKey: PresetKey,
     value: string,

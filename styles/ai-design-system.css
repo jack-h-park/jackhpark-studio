@@ -756,11 +756,20 @@
 /* Label Utilities                                  */
 /* ------------------------------------------------ */
 .ai-label-overline {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  font-family: var(--notion-font, system-ui);
+  color: var(--ai-text-strong);
+}
+
+.ai-label-overline--muted {
   color: var(--ai-text-muted);
+}
+
+.ai-label-overline--small {
+  font-size: 0.65rem;
 }
 
 .ai-label-emphasis {

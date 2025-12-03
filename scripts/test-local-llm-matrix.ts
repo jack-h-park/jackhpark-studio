@@ -117,4 +117,4 @@ function printResult(label: string, backend: string | undefined, result: NativeC
 
 await run();
 
-export {};
+

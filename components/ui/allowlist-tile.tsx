@@ -49,7 +49,7 @@ export function AllowlistTile({
         {description && <p className="ai-choice__description">{description}</p>}
       </div>
       {subtitle && (
-        <span className="ai-label-overline block text-[0.65rem] font-mono">
+        <span className="ai-label-overline ai-label-overline--small block">
           {subtitle}
         </span>
       )}

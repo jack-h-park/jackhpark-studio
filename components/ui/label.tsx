@@ -10,7 +10,7 @@ const labelVariants = cva(
     variants: {
       size: {
         sm: "text-sm",
-        xs: "text-[0.65rem] uppercase tracking-[0.25em]",
+        xs: "ai-label-overline ai-label-overline--small",
       },
     },
     defaultVariants: {
