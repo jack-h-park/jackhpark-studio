@@ -1,5 +1,9 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 
+import type {
+  LocalLlmMessage,
+  LocalLlmRequest,
+} from "@/lib/local-llm/client";
 import type { ChatConfigSnapshot, GuardrailRoute } from "@/lib/rag/types";
 import type { SessionChatConfig } from "@/types/chat-config";
 import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
@@ -12,6 +16,7 @@ import { resolveLlmModel } from "@/lib/core/llm-registry";
 import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOpenAIClient } from "@/lib/core/openai";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
+import { getLocalLlmClient } from "@/lib/local-llm";
 import { normalizeMetadata } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
@@ -33,10 +38,7 @@ import {
   loadChatModelSettings,
 } from "@/lib/server/chat-settings";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
-import {
-  OllamaUnavailableError,
-  streamOllamaChat,
-} from "@/lib/server/ollama-provider";
+import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 import {
   type CanonicalPageLookup,
   loadCanonicalPageLookup,
@@ -964,7 +966,7 @@ async function* streamChatCompletion(
       yield* streamGemini(options);
       break;
     case "ollama":
-      yield* streamOllamaChat(options);
+      yield* streamLocalLlmChat(options);
       break;
     default:
       throw new Error(`Unsupported provider: ${options.provider}`);
@@ -1054,6 +1056,54 @@ async function* streamGemini(
   if (lastError) {
     throw lastError;
   }
+}
+
+async function* streamLocalLlmChat(
+  options: ChatStreamOptions,
+): AsyncGenerator<string> {
+  const client = getLocalLlmClient();
+  if (!client) {
+    throw new Error("Local LLM backend is not configured");
+  }
+
+  const request: LocalLlmRequest = buildLocalLlmRequest(options);
+  for await (const chunk of client.chat(request)) {
+    const content = chunk.content ?? "";
+    if (content.length > 0) {
+      yield content;
+    }
+  }
+}
+
+function buildLocalLlmRequest(options: ChatStreamOptions): LocalLlmRequest {
+  return {
+    model: options.model,
+    messages: buildLocalLlmMessages(options.systemPrompt, options.messages),
+    temperature: options.temperature,
+    maxTokens: options.maxTokens,
+  };
+}
+
+function buildLocalLlmMessages(
+  systemPrompt: string,
+  messages: ChatMessage[],
+): LocalLlmMessage[] {
+  const result: LocalLlmMessage[] = [];
+  const normalizedSystem = systemPrompt?.trim();
+  if (normalizedSystem) {
+    result.push({ role: "system", content: normalizedSystem });
+  }
+  for (const message of messages) {
+    const content = message.content?.trim();
+    if (!content) {
+      continue;
+    }
+    result.push({
+      role: message.role,
+      content: message.content,
+    });
+  }
+  return result;
 }
 
 function _buildPlainPrompt(

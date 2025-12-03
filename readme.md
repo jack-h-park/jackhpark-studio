@@ -269,19 +269,22 @@ The assistant ships with sensible defaults, but you can fine‑tune behaviour vi
 
 > Tip: keep embeddings and RAG settings aligned—if you re-ingest with a different embedding space, update `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL_ID`, `EMBEDDING_VERSION` (or `EMBEDDING_SPACE_ID`) before running the ingestion scripts so live queries use the same vectors.
 
-#### Ollama (local LLM) toggles
+#### Local LLM toggles
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` (dev) | Base URL for your Docker/Ollama host; must be set (and reachable) to expose the provider. |
+| `LOCAL_LLM_BACKEND` | _(none)_ | Set to `ollama` or `lmstudio` to route local chat to the matching backend. |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` (dev) | Base URL for your Docker/Ollama host; setting this environmental variable also enables Ollama when the backend is configured. |
 | `OLLAMA_MODEL_DEFAULT` | `mistral` | Default Ollama model id when the request does not specify a model. |
 | `OLLAMA_ENABLE_IN_PROD` | `false` | Keeps the local provider hidden in production unless explicitly enabled. |
 | `OLLAMA_TIMEOUT_MS` | `30000` | Timeout (ms) for streaming Ollama responses before the request is aborted. |
 | `OLLAMA_MAX_TOKENS` | _(optional)_ | Hard cap for generated tokens to protect local resources; omit to inherit the chat `maxTokens`. |
+| `LMSTUDIO_BASE_URL` | `http://127.0.0.1:1234/v1` (dev) | Base URL for LM Studio’s OpenAI-compatible `/chat/completions` endpoint when `LOCAL_LLM_BACKEND=lmstudio`. |
+| `LMSTUDIO_API_KEY` | _(optional)_ | Supply this if your LM Studio instance requires an API key for authentication. |
 
 > Note: The local Ollama runtime acts as an optional third execution backend in addition to the Edge-native and LangChain Node engines.
 
-Dev builds automatically point to `http://localhost:11434`; production deployments stay disabled until `OLLAMA_BASE_URL` is set and `OLLAMA_ENABLE_IN_PROD=true`.
+Dev builds automatically point to `http://127.0.0.1:11434`; production deployments stay disabled until `LOCAL_LLM_BACKEND`, `OLLAMA_BASE_URL`, and `OLLAMA_ENABLE_IN_PROD` are configured.
 
 3. **Prepare Supabase chat settings table**
 

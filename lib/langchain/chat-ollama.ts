@@ -10,7 +10,9 @@ import {
 } from "@langchain/core/messages";
 import { ChatGenerationChunk } from "@langchain/core/outputs";
 
+import type { LocalLlmMessage, LocalLlmRequest } from "@/lib/local-llm/client";
 import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
+import { getLocalLlmClient } from "@/lib/local-llm";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 
 const debugOllamaTiming =
@@ -32,21 +34,7 @@ export type ChatOllamaFields = {
   maxTokens?: number | null;
 };
 
-type OllamaRole = "system" | "user" | "assistant";
-
-type OllamaMessage = {
-  role: OllamaRole;
-  content: string;
-};
-
-type OllamaChunkPayload = {
-  message?: { content?: string };
-  response?: string;
-  error?: string;
-};
-
 export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
-  private readonly baseUrl: string;
   private readonly model: string;
   private readonly temperature: number;
   private readonly maxTokens: number | null;
@@ -54,7 +42,6 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
   constructor(fields?: ChatOllamaFields) {
     super({});
     const config = getOllamaRuntimeConfig();
-    this.baseUrl = fields?.baseUrl ?? config.baseUrl ?? "";
     this.model = fields?.model ?? config.defaultModel;
     this.temperature =
       typeof fields?.temperature === "number" &&
@@ -66,11 +53,6 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
         ? fields.maxTokens
         : config.maxTokens;
 
-    if (!config.enabled || !this.baseUrl) {
-      throw new OllamaUnavailableError(
-        "Ollama provider is disabled in this environment.",
-      );
-    }
   }
 
   _llmType() {
@@ -114,58 +96,37 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
   ): AsyncGenerator<ChatGenerationChunk> {
     const startedAt = Date.now();
     let streamCompleted = false;
-    const controller = new AbortController();
-    const signal = options?.signal ?? controller.signal;
-    const payload = this.buildPayload(messages);
+    const client = getLocalLlmClient();
+    if (!client) {
+      throw new OllamaUnavailableError("Local LLM backend is not configured.");
+    }
+
+    const request: LocalLlmRequest = {
+      model: this.model,
+      messages: this.buildLocalMessages(messages),
+      temperature: this.temperature,
+      maxTokens:
+        typeof this.maxTokens === "number" && this.maxTokens > 0
+          ? Math.floor(this.maxTokens)
+          : undefined,
+      signal: options?.signal,
+    };
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal,
-      });
-
-      if (!response.ok || !response.body) {
-        const errorPayload = await response.text().catch(() => "");
-        throw new OllamaUnavailableError(
-          `Ollama chat request failed (${response.status} ${response.statusText}). ${errorPayload}`,
-        );
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const { chunks, remainder } = this.drainBuffer(buffer);
-        buffer = remainder;
-        for (const text of chunks) {
-          const generation = new ChatGenerationChunk({
-            message: new AIMessageChunk({ content: text }),
-            text,
-            generationInfo: {},
-          });
-          yield generation;
-          await runManager?.handleLLMNewToken(text);
+      for await (const chunk of client.chat(request)) {
+        const content = chunk.content ?? "";
+        if (content.length === 0) {
+          continue;
         }
-      }
-
-      const finalText = buffer + decoder.decode();
-      const { chunks: finalChunks } = this.drainBuffer(finalText, true);
-      for (const text of finalChunks) {
+        streamCompleted = true;
         const generation = new ChatGenerationChunk({
-          message: new AIMessageChunk({ content: text }),
-          text,
+          message: new AIMessageChunk({ content }),
+          text: content,
           generationInfo: {},
         });
         yield generation;
-        await runManager?.handleLLMNewToken(text);
+        await runManager?.handleLLMNewToken(content);
       }
-      streamCompleted = true;
     } catch (err: any) {
       if (err instanceof OllamaUnavailableError) {
         throw err;
@@ -180,33 +141,15 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
         { cause: err },
       );
     } finally {
-      controller.abort();
       logOllamaTiming(Date.now() - startedAt, streamCompleted);
     }
   }
 
-  private buildPayload(messages: BaseMessage[]): Record<string, unknown> {
-    const formatted = this.convertMessages(messages);
-    const options: Record<string, number> = {};
-    if (Number.isFinite(this.temperature)) {
-      options.temperature = this.temperature;
-    }
-    if (typeof this.maxTokens === "number" && this.maxTokens > 0) {
-      options.num_predict = Math.floor(this.maxTokens);
-    }
-    return {
-      model: this.model,
-      messages: formatted,
-      stream: true,
-      options,
-    };
-  }
-
-  private convertMessages(messages: BaseMessage[]): OllamaMessage[] {
-    const converted: OllamaMessage[] = [];
+  private buildLocalMessages(messages: BaseMessage[]): LocalLlmMessage[] {
+    const converted: LocalLlmMessage[] = [];
     for (const message of messages) {
       const type = message.getType();
-      const role: OllamaRole =
+      const role: LocalLlmMessage["role"] =
         type === "ai"
           ? "assistant"
           : type === "human"
@@ -259,53 +202,4 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
     return "";
   }
 
-  private drainBuffer(
-    buffer: string,
-    flush = false,
-  ): { chunks: string[]; remainder: string } {
-    const chunks: string[] = [];
-    let remainder = buffer;
-    let newlineIndex = remainder.indexOf("\n");
-    while (newlineIndex !== -1) {
-      const line = remainder.slice(0, newlineIndex).trim();
-      remainder = remainder.slice(newlineIndex + 1);
-      if (line.length > 0) {
-        const text = this.parseLine(line);
-        if (text) {
-          chunks.push(text);
-        }
-      }
-      newlineIndex = remainder.indexOf("\n");
-    }
-
-    if (flush && remainder.trim().length > 0) {
-      const text = this.parseLine(remainder.trim());
-      if (text) {
-        chunks.push(text);
-      }
-      remainder = "";
-    }
-
-    return { chunks, remainder };
-  }
-
-  private parseLine(line: string): string | null {
-    try {
-      const payload = JSON.parse(line) as OllamaChunkPayload;
-      if (payload.error) {
-        throw new OllamaUnavailableError(payload.error);
-      }
-      const text = payload.message?.content ?? payload.response ?? "";
-      return typeof text === "string" && text.length > 0 ? text : null;
-    } catch (err) {
-      if (err instanceof OllamaUnavailableError) {
-        throw err;
-      }
-      console.warn("[ChatOllama] failed to parse stream chunk", {
-        line,
-        error: err,
-      });
-      return null;
-    }
-  }
 }
