@@ -3,7 +3,6 @@ import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 import {
   type Dispatch,
   Fragment,
-  type ReactNode,
   type SetStateAction,
 } from "react";
 
@@ -14,10 +13,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CheckboxChoice } from "@/components/ui/checkbox";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
 import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
 import { Radiobutton } from "@/components/ui/radiobutton";
+import { Section, SectionContent, SectionHeader, SectionTitle } from "@/components/ui/section";
 import {
   Select,
   SelectContent,
@@ -48,6 +49,150 @@ import {
 
 const summaryLevelOptions: SummaryLevel[] = ["off", "low", "medium", "high"];
 const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
+
+const SECTION_FIELD_LABEL_CLASS =
+  "text-[0.65rem] uppercase tracking-[0.2em] text-[color:var(--ai-text-muted)] font-semibold";
+
+type RetrievalSectionProps = {
+  presetKey: PresetKey;
+  preset: AdminChatConfig["presets"][PresetKey];
+  ragEnabled: boolean;
+  displayName: string;
+  numericLimits: AdminChatConfig["numericLimits"];
+  allowlist: AdminChatConfig["allowlist"];
+  summaryLevelOptions: SummaryLevel[];
+  onToggleEnabled: (checked: boolean) => void;
+  onTopKChange: (value: number) => void;
+  onSimilarityChange: (value: number) => void;
+  onReverseChange: (checked: boolean) => void;
+  onHydeChange: (checked: boolean) => void;
+  onRankerChange: (value: string) => void;
+  onSummaryLevelChange: (level: SummaryLevel) => void;
+};
+
+function RetrievalSection({
+  presetKey,
+  preset,
+  ragEnabled,
+  displayName,
+  numericLimits,
+  allowlist,
+  summaryLevelOptions,
+  onToggleEnabled,
+  onTopKChange,
+  onSimilarityChange,
+  onReverseChange,
+  onHydeChange,
+  onRankerChange,
+  onSummaryLevelChange,
+}: RetrievalSectionProps) {
+  const ragDisabled = !ragEnabled;
+  const reverseDisabled = ragDisabled || !allowlist.allowReverseRAG;
+  const hydeDisabled = ragDisabled || !allowlist.allowHyde;
+
+  return (
+    <Section className="w-full" aria-disabled={ragDisabled} data-disabled={ragDisabled}>
+      <SectionHeader className="items-center justify-between">
+        <SectionTitle as="h3" className="text-sm">
+          Enabled
+        </SectionTitle>
+        <Switch
+          className="flex-shrink-0"
+          aria-label={`Enable Retrieval (RAG) for ${displayName}`}
+          checked={ragEnabled}
+          onCheckedChange={onToggleEnabled}
+        />
+      </SectionHeader>
+      <SectionContent className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <span className={SECTION_FIELD_LABEL_CLASS}>RAG Top K</span>
+          <Input
+            type="number"
+            min={numericLimits.ragTopK.min}
+            max={numericLimits.ragTopK.max}
+            aria-label={`RAG Top K for ${displayName}`}
+            value={preset.rag.topK}
+            disabled={ragDisabled}
+            onChange={(event) =>
+              onTopKChange(Number(event.target.value))
+            }
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className={SECTION_FIELD_LABEL_CLASS}>Similarity</span>
+          <Input
+            type="number"
+            step={0.01}
+            min={numericLimits.similarityThreshold.min}
+            max={numericLimits.similarityThreshold.max}
+            aria-label={`Similarity for ${displayName}`}
+            value={preset.rag.similarity}
+            disabled={ragDisabled}
+            onChange={(event) =>
+              onSimilarityChange(Number(event.target.value))
+            }
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <CheckboxChoice
+            label="Reverse RAG"
+            layout="inline"
+            checked={
+              allowlist.allowReverseRAG ? preset.features.reverseRAG : false
+            }
+            disabled={reverseDisabled}
+            onCheckedChange={onReverseChange}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <CheckboxChoice
+            label="HyDE"
+            layout="inline"
+            checked={allowlist.allowHyde ? preset.features.hyde : false}
+            disabled={hydeDisabled}
+            onCheckedChange={onHydeChange}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className={SECTION_FIELD_LABEL_CLASS}>Ranker</span>
+          <Select
+            value={preset.features.ranker}
+            disabled={ragDisabled}
+            onValueChange={onRankerChange}
+          >
+            <SelectTrigger
+              aria-label={`Ranker for ${displayName}`}
+            />
+            <SelectContent>
+              {allowlist.rankers.map((ranker) => (
+                <SelectItem key={ranker} value={ranker}>
+                  {ranker}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className={SECTION_FIELD_LABEL_CLASS}>Summary Level</span>
+          <div className="flex flex-wrap gap-2 text-sm">
+            {summaryLevelOptions.map((level) => (
+              <Radiobutton
+                key={level}
+                variant="chip"
+                name={`${presetKey}-summary`}
+                value={level}
+                label={level}
+                checked={preset.summaryLevel === level}
+                disabled={ragDisabled}
+                onChange={() => onSummaryLevelChange(level)}
+              />
+            ))}
+          </div>
+        </div>
+      </SectionContent>
+    </Section>
+  );
+}
 
 export type SessionPresetsCardProps = {
   config: AdminChatConfig;
@@ -218,40 +363,6 @@ export function SessionPresetsCard({
     }));
   };
 
-  function PresetSettingsGroup({
-    title,
-    groupId,
-    renderHeaderCell,
-    children,
-  }: {
-    title: string;
-    groupId: string;
-    renderHeaderCell: (
-      presetKey: PresetKey,
-      headerLabelId: string,
-    ) => ReactNode;
-    children: ReactNode;
-  }) {
-    const headerLabelId = `${groupId}-label`;
-
-    return (
-      <Fragment key={`group-${groupId}`}>
-        <div id={headerLabelId} className={sessionGridLabelClass}>
-          {title}
-        </div>
-        {presetDisplayOrder.map((presetKey) => (
-          <div
-            key={`${groupId}-header-${presetKey}`}
-            className={sessionGridValueClass}
-          >
-            {renderHeaderCell(presetKey, headerLabelId)}
-          </div>
-        ))}
-        {children}
-      </Fragment>
-    );
-  }
-
   const renderPresetRow = (
     label: string,
     renderCell: (presetKey: PresetKey) => React.ReactNode,
@@ -265,6 +376,111 @@ export function SessionPresetsCard({
       ))}
     </Fragment>
   );
+
+  const renderRagSection = (presetKey: PresetKey) => {
+    const preset = presets[presetKey];
+    return (
+      <RetrievalSection
+        presetKey={presetKey}
+        preset={preset}
+        ragEnabled={preset.rag.enabled}
+        displayName={presetDisplayNames[presetKey]}
+        numericLimits={numericLimits}
+        allowlist={config.allowlist}
+        summaryLevelOptions={summaryLevelOptions}
+        onToggleEnabled={(checked) =>
+          handleRagEnabledChange(presetKey, checked)
+        }
+        onTopKChange={(value) => handleRagTopKChange(presetKey, value)}
+        onSimilarityChange={(value) =>
+          handleRagSimilarityChange(presetKey, value)
+        }
+        onReverseChange={(checked) =>
+          handleReverseRagChange(presetKey, checked)
+        }
+        onHydeChange={(checked) => handleHydeChange(presetKey, checked)}
+        onRankerChange={(value) => handleRankerChange(presetKey, value)}
+        onSummaryLevelChange={(level) =>
+          handleSummaryLevelChange(presetKey, level)
+        }
+      />
+    );
+  };
+
+  const renderContextSection = (presetKey: PresetKey) => {
+    const isEnabled = contextHistoryEnabled[presetKey] ?? true;
+    const isDisabled = !isEnabled;
+    return (
+    <Section className="w-full" aria-disabled={isDisabled} data-disabled={isDisabled}>
+      <SectionHeader className="items-center justify-between">
+        <SectionTitle as="h3" className="text-sm">
+          Enabled
+        </SectionTitle>
+        <Switch
+          className="flex-shrink-0"
+          aria-label={`Enable Context & History for ${presetDisplayNames[presetKey]}`}
+          checked={isEnabled}
+          onCheckedChange={(checked) =>
+            handleContextHistoryToggle(presetKey, checked)
+          }
+        />
+      </SectionHeader>
+      <SectionContent className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <span className={SECTION_FIELD_LABEL_CLASS}>Token Budget</span>
+            <Input
+              type="number"
+              min={numericLimits.contextBudget.min}
+              max={numericLimits.contextBudget.max}
+              aria-label={`Token Budget for ${presetDisplayNames[presetKey]}`}
+              value={presets[presetKey].context.tokenBudget}
+              disabled={isDisabled}
+              onChange={(event) =>
+                handleTokenBudgetChange(
+                  presetKey,
+                  Number(event.target.value),
+                )
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className={SECTION_FIELD_LABEL_CLASS}>History Budget</span>
+            <Input
+              type="number"
+              min={numericLimits.historyBudget.min}
+              max={numericLimits.historyBudget.max}
+              aria-label={`History Budget for ${presetDisplayNames[presetKey]}`}
+              value={presets[presetKey].context.historyBudget}
+              disabled={isDisabled}
+              onChange={(event) =>
+                handleHistoryBudgetChange(
+                  presetKey,
+                  Number(event.target.value),
+                )
+              }
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className={SECTION_FIELD_LABEL_CLASS}>Clip Tokens</span>
+            <Input
+              type="number"
+              min={numericLimits.clipTokens.min}
+              max={numericLimits.clipTokens.max}
+              aria-label={`Clip Tokens for ${presetDisplayNames[presetKey]}`}
+              value={presets[presetKey].context.clipTokens}
+              disabled={isDisabled}
+              onChange={(event) =>
+                handleClipTokensChange(
+                  presetKey,
+                  Number(event.target.value),
+                )
+              }
+            />
+          </div>
+        </SectionContent>
+      </Section>
+    );
+  };
 
   return (
     <Card>
@@ -422,235 +638,24 @@ export function SessionPresetsCard({
                 </SelectContent>
               </Select>
             ))}
-            <PresetSettingsGroup
-              title="Retrieval (RAG)"
-              groupId="retrieval-rag"
-              renderHeaderCell={(presetKey, headerLabelId) => {
-                const preset = presets[presetKey];
-                const toggleLabelId = `${headerLabelId}-toggle-${presetKey}`;
-                return (
-                  <div className="inline-flex items-center gap-2">
-                    <span className="sr-only" id={toggleLabelId}>
-                      Toggle Retrieval (RAG) for {presetDisplayNames[presetKey]}
-                    </span>
-                    <Switch
-                      className="flex-shrink-0"
-                      aria-labelledby={`${headerLabelId} ${toggleLabelId}`}
-                      checked={preset.rag.enabled}
-                      onCheckedChange={(checked) =>
-                        handleRagEnabledChange(presetKey, checked)
-                      }
-                    />
-                    <div className="ai-choice">
-                      <span className="ai-choice__label">Enabled</span>
-                    </div>
-                  </div>
-                );
-              }}
-            >
-              {renderPresetRow("RAG Top K", (presetKey) => (
-                <Input
-                  type="number"
-                  min={numericLimits.ragTopK.min}
-                  max={numericLimits.ragTopK.max}
-                  aria-label={`RAG Top K for ${presetDisplayNames[presetKey]}`}
-                  value={presets[presetKey].rag.topK}
-                  disabled={!presets[presetKey].rag.enabled}
-                  onChange={(event) =>
-                    handleRagTopKChange(
-                      presetKey,
-                      Number(event.target.value),
-                    )
-                  }
-                />
-              ))}
-              {renderPresetRow("Similarity", (presetKey) => (
-                <Input
-                  type="number"
-                  step={0.01}
-                  min={numericLimits.similarityThreshold.min}
-                  max={numericLimits.similarityThreshold.max}
-                  aria-label={`Similarity for ${presetDisplayNames[presetKey]}`}
-                  value={presets[presetKey].rag.similarity}
-                  disabled={!presets[presetKey].rag.enabled}
-                  onChange={(event) =>
-                    handleRagSimilarityChange(
-                      presetKey,
-                      Number(event.target.value),
-                    )
-                  }
-                />
-              ))}
-              {renderPresetRow("Reverse RAG", (presetKey) => {
-                const preset = presets[presetKey];
-                const ragDisabled = !preset.rag.enabled;
-                return (
-                  <div className="inline-flex items-center gap-2 text-sm">
-                    <Switch
-                      className="shrink-0"
-                      aria-label={`Reverse RAG for ${presetDisplayNames[presetKey]}`}
-                      checked={
-                        config.allowlist.allowReverseRAG
-                          ? preset.features.reverseRAG
-                          : false
-                      }
-                      disabled={
-                        !config.allowlist.allowReverseRAG || ragDisabled
-                      }
-                      onCheckedChange={(checked) =>
-                        handleReverseRagChange(presetKey, checked)
-                      }
-                    />
-                    <span>Enabled</span>
-                  </div>
-                );
-              })}
-              {renderPresetRow("HyDE", (presetKey) => {
-                const preset = presets[presetKey];
-                const ragDisabled = !preset.rag.enabled;
-                return (
-                  <div className="inline-flex items-center gap-2 text-sm">
-                    <Switch
-                      className="shrink-0"
-                      aria-label={`HyDE for ${presetDisplayNames[presetKey]}`}
-                      checked={
-                        config.allowlist.allowHyde
-                          ? preset.features.hyde
-                          : false
-                      }
-                      disabled={!config.allowlist.allowHyde || ragDisabled}
-                      onCheckedChange={(checked) =>
-                        handleHydeChange(presetKey, checked)
-                      }
-                    />
-                    <span>Enabled</span>
-                  </div>
-                );
-              })}
-              {renderPresetRow("Ranker", (presetKey) => (
-                <Select
-                  value={presets[presetKey].features.ranker}
-                  disabled={!presets[presetKey].rag.enabled}
-                  onValueChange={(value) =>
-                    handleRankerChange(presetKey, value)
-                  }
-                >
-                  <SelectTrigger
-                    aria-label={`Ranker for ${presetDisplayNames[presetKey]}`}
-                  />
-                  <SelectContent>
-                    {config.allowlist.rankers.map((ranker) => (
-                      <SelectItem key={ranker} value={ranker}>
-                        {ranker}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ))}
-              {renderPresetRow("Summary Level", (presetKey) => (
-                <div className="flex flex-wrap gap-2 text-sm">
-                  {summaryLevelOptions.map((level) => (
-                    <Radiobutton
-                      key={level}
-                      variant="chip"
-                      name={`${presetKey}-summary`}
-                      value={level}
-                      label={level}
-                      checked={presets[presetKey].summaryLevel === level}
-                      disabled={!presets[presetKey].rag.enabled}
-                      onChange={() =>
-                        handleSummaryLevelChange(presetKey, level)
-                      }
-                    />
-                  ))}
-                </div>
-              ))}
-            </PresetSettingsGroup>
-            <PresetSettingsGroup
-              title="Context & History"
-              groupId="context-history"
-              renderHeaderCell={(presetKey, headerLabelId) => {
-                const toggleLabelId = `${headerLabelId}-toggle-${presetKey}`;
-                const isEnabled = contextHistoryEnabled[presetKey] ?? true;
-                return (
-                  <div className="inline-flex items-center gap-2">
-                    <span className="sr-only" id={toggleLabelId}>
-                      Toggle Context & History editing for{" "}
-                      {presetDisplayNames[presetKey]}
-                    </span>
-                    <Switch
-                      className="flex-shrink-0"
-                      checked={isEnabled}
-                      aria-labelledby={`${headerLabelId} ${toggleLabelId}`}
-                      onCheckedChange={(checked) =>
-                        handleContextHistoryToggle(presetKey, checked)
-                      }
-                    />
-                    <div className="ai-choice">
-                      <span className="ai-choice__label">Enabled</span>
-                    </div>
-                  </div>
-                );
-              }}
-            >
-              {renderPresetRow("Token Budget", (presetKey) => {
-                const fieldEnabled = contextHistoryEnabled[presetKey] ?? true;
-                return (
-                  <Input
-                    type="number"
-                    min={numericLimits.contextBudget.min}
-                    max={numericLimits.contextBudget.max}
-                    aria-label={`Token Budget for ${presetDisplayNames[presetKey]}`}
-                    value={presets[presetKey].context.tokenBudget}
-                    disabled={!fieldEnabled}
-                    onChange={(event) =>
-                      handleTokenBudgetChange(
-                        presetKey,
-                        Number(event.target.value),
-                      )
-                    }
-                  />
-                );
-              })}
-              {renderPresetRow("History Budget", (presetKey) => {
-                const fieldEnabled = contextHistoryEnabled[presetKey] ?? true;
-                return (
-                  <Input
-                    type="number"
-                    min={numericLimits.historyBudget.min}
-                    max={numericLimits.historyBudget.max}
-                    aria-label={`History Budget for ${presetDisplayNames[presetKey]}`}
-                    value={presets[presetKey].context.historyBudget}
-                    disabled={!fieldEnabled}
-                    onChange={(event) =>
-                      handleHistoryBudgetChange(
-                        presetKey,
-                        Number(event.target.value),
-                      )
-                    }
-                  />
-                );
-              })}
-              {renderPresetRow("Clip Tokens", (presetKey) => {
-                const fieldEnabled = contextHistoryEnabled[presetKey] ?? true;
-                return (
-                  <Input
-                    type="number"
-                    min={numericLimits.clipTokens.min}
-                    max={numericLimits.clipTokens.max}
-                    aria-label={`Clip Tokens for ${presetDisplayNames[presetKey]}`}
-                    value={presets[presetKey].context.clipTokens}
-                    disabled={!fieldEnabled}
-                    onChange={(event) =>
-                      handleClipTokensChange(
-                        presetKey,
-                        Number(event.target.value),
-                      )
-                    }
-                  />
-                );
-              })}
-            </PresetSettingsGroup>
+            <div className={sessionGridLabelClass}>Retrieval (RAG)</div>
+            {presetDisplayOrder.map((presetKey) => (
+              <div
+                key={`retrieval-section-${presetKey}`}
+                className={sessionGridValueClass}
+              >
+                {renderRagSection(presetKey)}
+              </div>
+            ))}
+            <div className={sessionGridLabelClass}>Context & History</div>
+            {presetDisplayOrder.map((presetKey) => (
+              <div
+                key={`context-section-${presetKey}`}
+                className={sessionGridValueClass}
+              >
+                {renderContextSection(presetKey)}
+              </div>
+            ))}
           </div>
         </GridPanel>
       </CardContent>

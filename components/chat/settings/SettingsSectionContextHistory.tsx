@@ -4,13 +4,13 @@ import { FiClock } from "@react-icons/all-files/fi/FiClock";
 import { useState } from "react";
 
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import { SliderField } from "@/components/ui/field";
 import {
   Section,
   SectionContent,
   SectionHeader,
   SectionTitle,
 } from "@/components/ui/section";
-import { SliderField } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 
 type Props = {
