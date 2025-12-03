@@ -41,11 +41,16 @@ export class OllamaClient implements LocalLlmClient {
   }
 
   private buildChatMessages(messages: LocalLlmRequest["messages"]): ChatMessage[] {
-    return messages
-      .filter((message) => message.role !== "system")
-      .map((message) => ({
-        role: message.role,
+    const result: ChatMessage[] = [];
+    for (const message of messages) {
+      if (message.role === "system") {
+        continue;
+      }
+      result.push({
+        role: message.role as ChatMessage["role"],
         content: message.content,
-      }));
+      });
+    }
+    return result;
   }
 }

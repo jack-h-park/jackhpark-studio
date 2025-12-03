@@ -41,6 +41,7 @@ export interface SessionChatConfig {
   };
   summaryLevel: SummaryLevel;
   appliedPreset?: "default" | "fast" | "highRecall";
+  requireLocal?: boolean;
 }
 
 export type SessionChatConfigPreset = Omit<
@@ -133,11 +134,7 @@ export interface AdminChatConfig {
       every_n_turns: number;
     };
   };
-  presets: {
-    default: AdminPresetConfig;
-    fast: AdminPresetConfig;
-    highRecall: AdminPresetConfig;
-  };
+  presets: AdminChatPresetsConfig;
   ragRanking?: RagRankingConfig;
   telemetry: AdminTelemetryConfig;
   cache: AdminCacheConfig;
@@ -145,7 +142,21 @@ export interface AdminChatConfig {
 
 export interface AdminPresetConfig extends SessionChatConfigPreset {
   additionalSystemPrompt?: string;
+  requireLocal?: boolean;
 }
+
+export type AdminChatPresetsConfig = Record<string, AdminPresetConfig> & {
+  default: AdminPresetConfig;
+  fast: AdminPresetConfig;
+  highRecall: AdminPresetConfig;
+};
+
+export type ChatEngineType =
+  | "openai"
+  | "gemini"
+  | "local-ollama"
+  | "local-lmstudio"
+  | "unknown";
 
 export const DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH = 500;
 

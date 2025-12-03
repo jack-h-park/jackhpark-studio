@@ -19,6 +19,7 @@ import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { getLocalLlmClient } from "@/lib/local-llm";
 import { normalizeMetadata } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
+import { matchRagChunksForConfig } from "@/lib/rag/retrieval";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
@@ -187,8 +188,55 @@ export default async function handler(
         ? sessionConfig.appliedPreset
         : "default");
     const ragRanking = adminConfig.ragRanking;
+    const backendHeader =
+      typeof req.headers["x-local-llm-backend"] === "string"
+        ? (req.headers["x-local-llm-backend"] as string)
+        : undefined;
+    const backendQuery =
+      typeof req.query.localBackend === "string"
+        ? (req.query.localBackend as string)
+        : undefined;
+    const localBackendOverride = backendHeader ?? backendQuery;
+
     const runtime =
-      (req as any).chatRuntime ?? (await loadChatModelSettings({ forceRefresh: true }));
+      (req as any).chatRuntime ??
+      (await loadChatModelSettings({
+        forceRefresh: true,
+        sessionConfig,
+        localBackendOverride,
+      }));
+    if (process.env.NODE_ENV === "development") {
+      console.log("[native_chat runtime]", {
+        presetKey: presetId,
+        llmEngine: runtime.llmEngine,
+        requireLocal: runtime.requireLocal,
+        localBackendAvailable: runtime.localBackendAvailable,
+        fallbackFrom: runtime.fallbackFrom,
+        localLlmBackendEnv: runtime.localLlmBackendEnv,
+        localBackendOverride: localBackendOverride ?? null,
+      });
+    }
+    const localEngineTypes = ["local-ollama", "local-lmstudio"];
+    const effectiveRequireLocal = runtime.requireLocal;
+    const localBackendAvailable = runtime.localBackendAvailable;
+    const isLocalEngine = localEngineTypes.includes(runtime.llmEngine);
+
+    if (isLocalEngine && effectiveRequireLocal && !localBackendAvailable) {
+      console.error(
+        "[api/native_chat] local backend required but not available",
+        {
+          engine: runtime.llmEngine,
+          requireLocal: effectiveRequireLocal,
+        },
+      );
+      return res.status(500).json({
+        error: "Local LLM backend is required for this preset but not available.",
+        engine: runtime.llmEngine,
+        requireLocal: effectiveRequireLocal,
+        presetKey: presetId,
+        localBackendEnv: runtime.localLlmBackendEnv,
+      });
+    }
 
     const rawMessages = Array.isArray(body.messages)
       ? sanitizeMessages(body.messages)
@@ -472,26 +520,30 @@ export default async function handler(
           embeddingModelId: embeddingSelection.embeddingModelId,
           embeddingSpaceId: embeddingSelection.embeddingSpaceId,
         });
-        const { data: docs, error: docError } = await supabaseClient.rpc(
-          "match_documents",
-          {
-            input_embedding: embedding,
-            match_count: guardrails.ragTopK * 4,
-            match_threshold: guardrails.similarityThreshold,
-            search_filter: supabaseMatchFilter,
-          },
-        );
+        const embeddingProvider =
+          embeddingSelection.provider === "gemini" ? "gemini" : "openai";
 
-        if (docError) {
-          console.error("Error matching documents:", docError);
+        let typedDocuments: RagDocument[] = [];
+        try {
+          const result = await matchRagChunksForConfig({
+            client: supabaseClient,
+            embedding,
+            matchCount: guardrails.ragTopK * 4,
+            similarityThreshold: guardrails.similarityThreshold,
+            filter: supabaseMatchFilter ?? {},
+            mode: "native",
+            embeddingProvider,
+          });
+          typedDocuments = Array.isArray(result) ? (result as RagDocument[]) : [];
+        } catch (matchErr) {
+          console.error("Error matching documents:", matchErr);
           return res.status(500).json({
-            error: `Error matching documents: ${docError.message}`,
+            error: `Error matching documents: ${
+              matchErr instanceof Error ? matchErr.message : String(matchErr)
+            }`,
           });
         }
 
-        const typedDocuments: RagDocument[] = Array.isArray(docs)
-          ? (docs as RagDocument[])
-          : [];
         const docIds = typedDocuments
           .map(
             (doc) =>

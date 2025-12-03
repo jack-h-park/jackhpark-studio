@@ -17,7 +17,7 @@ import {
   useState,
 } from "react";
 
-import type { ModelResolutionReason } from "@/types/chat-config";
+import type { ChatEngineType, ModelResolutionReason } from "@/types/chat-config";
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -185,6 +185,10 @@ type ChatRuntimeConfig = {
   reverseRagMode: ReverseRagMode;
   hydeEnabled: boolean;
   rankerMode: RankerMode;
+  llmEngine: ChatEngineType;
+  requireLocal: boolean;
+  localBackendAvailable: boolean;
+  fallbackFrom?: ChatEngineType;
 };
 
 const truncateText = (value: string | null | undefined, max = 60) => {
@@ -412,6 +416,34 @@ export function ChatWindow({
   const runtimeSubstitutionTooltip = runtimeLlmWasSubstituted
     ? `Model substituted at runtime: ${runtimeRequestedModelId ?? "requested"} → ${runtimeResolvedModelId ?? "resolved"}`
     : undefined;
+  const runtimeEngineDisplay = (() => {
+    switch (runtimeConfig?.llmEngine) {
+      case "local-ollama":
+        return "Local (Ollama)";
+      case "local-lmstudio":
+        return "Local (LM Studio)";
+      case "openai":
+        return "Cloud (OpenAI)";
+      case "gemini":
+        return "Cloud (Gemini)";
+      default:
+        return "Unknown engine";
+    }
+  })();
+  const showRuntimeEngineLabel = Boolean(runtimeConfig?.llmEngine);
+  const showRequireLocalError =
+    runtimeConfig?.requireLocal &&
+    runtimeConfig?.llmEngine?.startsWith("local") &&
+    !runtimeConfig.localBackendAvailable;
+  const showFallbackNotice =
+    !showRequireLocalError &&
+    Boolean(
+      runtimeConfig?.fallbackFrom &&
+        runtimeConfig.llmEngine !== runtimeConfig.fallbackFrom,
+    );
+
+  const isSendDisabled =
+    isLoading || !input.trim() || showRequireLocalError;
 
   const focusInput = useCallback(() => {
     if (!isOpen) {
@@ -461,7 +493,7 @@ export function ChatWindow({
     e.preventDefault();
     const value = input.trim();
 
-    if (!value || isLoading) {
+    if (!value || isLoading || showRequireLocalError) {
       return;
     }
 
@@ -738,6 +770,43 @@ export function ChatWindow({
               )}
             </div>
           </div>
+          {(showRuntimeEngineLabel || showFallbackNotice) && (
+            <div className={styles.chatEngineRow}>
+              {showRuntimeEngineLabel && (
+                <span className={styles.chatEngineBadge}>
+                  {runtimeEngineDisplay}
+                  {showFallbackNotice && runtimeConfig?.fallbackFrom && (
+                    <span className={styles.chatEngineFallbackLabel}>
+                      (fallback from{" "}
+                      {runtimeConfig.fallbackFrom === "local-ollama"
+                        ? "Local (Ollama)"
+                        : runtimeConfig.fallbackFrom === "local-lmstudio"
+                          ? "Local (LM Studio)"
+                          : runtimeConfig.fallbackFrom === "openai"
+                            ? "Cloud (OpenAI)"
+                            : runtimeConfig.fallbackFrom === "gemini"
+                              ? "Cloud (Gemini)"
+                              : "Unknown"})
+                    </span>
+                  )}
+                </span>
+              )}
+              {showFallbackNotice && !showRuntimeEngineLabel && (
+                <span className={styles.chatEngineFallbackNotice}>
+                  Local backend unavailable, using default cloud model.
+                </span>
+              )}
+            </div>
+          )}
+          {showRequireLocalError && (
+            <div className={styles.chatEngineErrorBanner}>
+              <FiAlertCircle aria-hidden="true" />
+              <span>
+                Local LLM backend is required for this preset but is not available.
+                Please check the LOCAL_LLM_BACKEND configuration or switch presets.
+              </span>
+            </div>
+          )}
           {showOptions && (
             <div className={styles.chatConfigBar}>
               <div className={styles.chatControlBlock}>
@@ -1290,7 +1359,7 @@ export function ChatWindow({
           <button
             type="submit"
             className={styles.chatSubmitButton}
-            disabled={isLoading || !input.trim()}
+            disabled={isSendDisabled}
             aria-label="Send message"
           >
             <AiOutlineSend size={20} />

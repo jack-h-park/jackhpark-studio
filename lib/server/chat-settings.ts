@@ -11,6 +11,7 @@ import {
   resolveLlmModel,
 } from "@/lib/core/model-provider";
 import { isOllamaEnabled } from "@/lib/core/ollama";
+import { getLocalLlmBackend, getLocalLlmClient } from "@/lib/local-llm";
 import {
   loadAdminChatConfig,
   type SummaryLevel,
@@ -34,6 +35,7 @@ import {
 } from "@/lib/shared/rag-config";
 import {
   type AdminChatConfig,
+  type ChatEngineType,
   getAdditionalPromptMaxLength,
   type SessionChatConfig,
 } from "@/types/chat-config";
@@ -90,6 +92,11 @@ export type ChatModelSettings = {
     rankerMode: boolean;
     embeddingSpaceId: boolean;
   };
+  llmEngine: ChatEngineType;
+  requireLocal: boolean;
+  localBackendAvailable: boolean;
+  localLlmBackendEnv: string | null;
+  fallbackFrom?: ChatEngineType;
 };
 
 export type LangfuseSettings = {
@@ -271,6 +278,11 @@ export function getChatModelDefaults(): ChatModelSettings {
       rankerMode: true,
       embeddingSpaceId: true,
     },
+    llmEngine: "unknown",
+    requireLocal: false,
+    localBackendAvailable: false,
+    localLlmBackendEnv: null,
+    fallbackFrom: undefined,
   };
 }
 
@@ -298,6 +310,22 @@ export function getLangfuseDefaults(): LangfuseSettings {
   };
 }
 
+function resolvePresetKey(
+  adminConfig: AdminChatConfig,
+  sessionConfig?: SessionChatConfig,
+): string {
+  const requestedPreset =
+    sessionConfig?.presetId ?? sessionConfig?.appliedPreset ?? "default";
+  if (
+    requestedPreset === "fast" ||
+    requestedPreset === "highRecall" ||
+    (adminConfig.presets && requestedPreset in adminConfig.presets)
+  ) {
+    return requestedPreset;
+  }
+  return "default";
+}
+
 function resolvePromptParts({
   adminConfig,
   sessionConfig,
@@ -308,8 +336,10 @@ function resolvePromptParts({
   const maxLength = getAdditionalPromptMaxLength(adminConfig);
   const requestedPreset =
     sessionConfig?.presetId ?? sessionConfig?.appliedPreset ?? "default";
-  const presetKey: keyof AdminChatConfig["presets"] =
-    requestedPreset === "fast" || requestedPreset === "highRecall"
+  const presetKey =
+    requestedPreset === "fast" ||
+    requestedPreset === "highRecall" ||
+    (adminConfig.presets && requestedPreset in adminConfig.presets)
       ? requestedPreset
       : "default";
 
@@ -390,6 +420,8 @@ export async function loadSystemPrompt(options?: {
 export async function loadChatModelSettings(options?: {
   forceRefresh?: boolean;
   client?: SupabaseClient;
+  sessionConfig?: SessionChatConfig;
+  localBackendOverride?: string;
 }): Promise<ChatModelSettings> {
   const shouldUseCache =
     !options?.forceRefresh &&
@@ -405,25 +437,80 @@ export async function loadChatModelSettings(options?: {
     forceRefresh: options?.forceRefresh,
   });
   const defaults = getChatModelDefaults();
-  const preset = config.presets?.default;
+  const presetKey = resolvePresetKey(config, options?.sessionConfig);
+  const preset =
+    config.presets?.[presetKey] ?? config.presets?.default ?? null;
   const ollamaEnabled = isOllamaEnabled();
+  const requireLocal = preset?.requireLocal ?? false;
+
+  if (process.env.NODE_ENV === "development") {
+    console.log("[chat-settings preset]", {
+      presetKey,
+      presetRequireLocal: preset?.requireLocal,
+      sessionPreset: options?.sessionConfig?.appliedPreset ?? null,
+    });
+  }
 
   const engine = normalizeChatEngine(
     preset?.chatEngine ?? defaults.engine,
     defaults.engine,
   );
 
-  const requestedLlmModelId = preset?.llmModel ?? defaults.llmModelId;
-  const llmResolution = resolveLlmModelId(requestedLlmModelId, {
+  const modelResolutionContext = {
     ollamaEnabled,
     defaultModelId: DEFAULT_LLM_MODEL_ID,
     allowedModelIds: config.allowlist?.llmModels,
-  });
+  };
 
-  const llmSelection = resolveLlmModel({
+  const requestedLlmModelId = preset?.llmModel ?? defaults.llmModelId;
+  let llmResolution = resolveLlmModelId(
+    requestedLlmModelId,
+    modelResolutionContext,
+  );
+  let llmSelection = resolveLlmModel({
     modelId: llmResolution.resolvedModelId,
     model: llmResolution.resolvedModelId,
   });
+
+  const localBackendOverride = options?.localBackendOverride;
+  const localClient = getLocalLlmClient(localBackendOverride);
+  const localBackend = getLocalLlmBackend(localBackendOverride);
+  const isLocalModel = llmSelection.provider === "ollama";
+  let llmEngine: ChatEngineType;
+  let fallbackFrom: ChatEngineType | undefined;
+  const localBackendAvailable = Boolean(localClient) && isLocalModel;
+
+  const intendedLocalEngine: ChatEngineType =
+    localBackend === "lmstudio" ? "local-lmstudio" : "local-ollama";
+
+  if (isLocalModel) {
+    llmEngine = intendedLocalEngine;
+    if (!localBackendAvailable && !requireLocal) {
+      fallbackFrom = llmEngine;
+      const fallbackResolution = resolveLlmModelId(
+        defaults.llmModelId,
+        modelResolutionContext,
+      );
+      llmResolution = fallbackResolution;
+      llmSelection = resolveLlmModel({
+        modelId: fallbackResolution.resolvedModelId,
+        model: fallbackResolution.resolvedModelId,
+      });
+      llmEngine =
+        llmSelection.provider === "gemini"
+          ? "gemini"
+          : llmSelection.provider === "openai"
+            ? "openai"
+            : "unknown";
+    }
+  } else {
+    llmEngine =
+      llmSelection.provider === "gemini"
+        ? "gemini"
+        : llmSelection.provider === "openai"
+          ? "openai"
+          : "unknown";
+  }
 
   const embeddingSelection = resolveEmbeddingSpace({
     embeddingModelId: preset?.embeddingModel ?? defaults.embeddingModelId,
@@ -474,6 +561,11 @@ export async function loadChatModelSettings(options?: {
       embeddingSpaceId:
         embeddingSelection.embeddingSpaceId === defaults.embeddingSpaceId,
     },
+    llmEngine,
+    requireLocal,
+    localBackendAvailable,
+    localLlmBackendEnv: localBackend ?? null,
+    fallbackFrom,
   };
 
   cachedChatModelSettings = result;

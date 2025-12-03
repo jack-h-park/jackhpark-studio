@@ -2,10 +2,20 @@ import type { LocalLlmBackend, LocalLlmClient } from "./client";
 import { LmStudioClient } from "./lmstudio-client";
 import { OllamaClient } from "./ollama-client";
 
-export function getLocalLlmClient(): LocalLlmClient | null {
-  const backend = (process.env.LOCAL_LLM_BACKEND ?? "").toLowerCase() as
-    | LocalLlmBackend
-    | undefined;
+export function getLocalLlmBackend(
+  override?: string,
+): LocalLlmBackend | null {
+  const backend = (override ?? process.env.LOCAL_LLM_BACKEND ?? "")
+    .trim()
+    .toLowerCase();
+  if (backend === "ollama" || backend === "lmstudio") {
+    return backend;
+  }
+  return null;
+}
+
+export function getLocalLlmClient(override?: string): LocalLlmClient | null {
+  const backend = getLocalLlmBackend(override);
 
   if (!backend) {
     return null;

@@ -197,6 +197,15 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     );
   }
 
+  const localRequiredPreset: AdminChatPreset =
+    mergedConfig.presets["local-required"] ??
+    {
+      ...mergedConfig.presets.default,
+      llmModel: "mistral",
+      chatEngine: "native",
+      requireLocal: true,
+    };
+
   const additionalPromptMaxLength =
     typeof mergedConfig.additionalPromptMaxLength === "number"
       ? mergedConfig.additionalPromptMaxLength
@@ -206,6 +215,10 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     ...mergedConfig,
     baseSystemPromptSummary: mergedConfig.baseSystemPromptSummary ?? "",
     additionalPromptMaxLength,
+    presets: {
+      ...mergedConfig.presets,
+      "local-required": localRequiredPreset,
+    },
   };
 }
 

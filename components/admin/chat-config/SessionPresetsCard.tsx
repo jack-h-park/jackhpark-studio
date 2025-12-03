@@ -250,6 +250,13 @@ export function SessionPresetsCard({
     }));
   };
 
+  const handleRequireLocalChange = (presetKey: PresetKey, checked: boolean) => {
+    updatePreset(presetKey, (prev) => ({
+      ...prev,
+      requireLocal: checked,
+    }));
+  };
+
   const handleRagEnabledChange = (presetKey: PresetKey, enabled: boolean) => {
     updatePreset(presetKey, (prev) => ({
       ...prev,
@@ -638,6 +645,29 @@ export function SessionPresetsCard({
                 </SelectContent>
               </Select>
             ))}
+            {renderPresetRow("Require local backend", (presetKey) => {
+              const preset = presets[presetKey];
+              const modelOption = llmModelOptions.find(
+                (option) => option.id === preset.llmModel,
+              );
+              const isLocalModel = Boolean(modelOption?.requiresOllama);
+              return (
+                <CheckboxChoice
+                  label="Require local backend (no cloud fallback)"
+                  description={
+                    isLocalModel
+                      ? "The preset fails if LOCAL_LLM_BACKEND is unavailable."
+                      : "Requires a local-only model."
+                  }
+                  layout="stacked"
+                  checked={Boolean(preset.requireLocal)}
+                  onCheckedChange={(checked) =>
+                    handleRequireLocalChange(presetKey, Boolean(checked))
+                  }
+                  disabled={!isLocalModel}
+                />
+              );
+            })}
             <div className={sessionGridLabelClass}>Retrieval (RAG)</div>
             {presetDisplayOrder.map((presetKey) => (
               <div

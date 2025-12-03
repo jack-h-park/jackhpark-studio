@@ -106,7 +106,7 @@ const sanitizeNumericConfig = (
     : false;
   const hyde = allowlist.allowHyde ? Boolean(candidate.features.hyde) : false;
 
-  return {
+    return {
     presetId: candidate.presetId ?? candidate.appliedPreset ?? "default",
     additionalSystemPrompt: additionalPrompt,
     llmModel: llmResolution.resolvedModelId as SessionChatConfig["llmModel"],
@@ -138,6 +138,7 @@ const sanitizeNumericConfig = (
     llmModelResolution: llmResolution,
     summaryLevel,
     appliedPreset: candidate.appliedPreset,
+    requireLocal: Boolean(candidate.requireLocal),
   };
 };
 
@@ -162,6 +163,7 @@ const buildDefaultSessionConfig = (
       reason: "NONE",
     } satisfies ModelResolution),
   appliedPreset: presetName ?? undefined,
+  requireLocal: Boolean(preset.requireLocal),
 });
 
 export function ChatConfigProvider({

@@ -1,38 +1,26 @@
+import "node:process";
+
 const BASE_URL = process.env.LOCAL_LLM_TEST_BASE_URL ?? "http://localhost:3000";
 const TEST_MODEL = process.env.LOCAL_LLM_TEST_MODEL ?? "mistral";
 const TEST_MESSAGE =
   process.env.LOCAL_LLM_TEST_MESSAGE ?? "Hello from the Local LLM smoke test.";
-const TEST_PRESET = process.env.LOCAL_LLM_TEST_PRESET ?? "default";
+const TEST_PRESET = process.env.LOCAL_LLM_TEST_PRESET ?? "local-required";
+const TEST_REQUIRE_LOCAL =
+  (process.env.LOCAL_LLM_TEST_REQUIRE_LOCAL ?? "true").toLowerCase() !==
+  "false";
 
-const configs: Array<{ label: string; backend?: string }> = [
-  { label: "env", backend: process.env.LOCAL_LLM_BACKEND },
+const configs: Array<{ label: string; backend: string | undefined }> = [
   { label: "ollama", backend: "ollama" },
   { label: "lmstudio", backend: "lmstudio" },
-  { label: "unset", backend: undefined },
+  { label: "unset", backend: "unset" },
   { label: "invalid", backend: "invalid" },
-].filter((entry, index, all) => {
-  if (entry.label === "env") {
-    return entry.backend !== undefined;
-  }
-  return all.findIndex((item) => item.label === entry.label) === index;
-});
-
-if (configs.length === 0) {
-  throw new Error("No backend configurations found for the Local LLM matrix.");
-}
+];
 
 async function run() {
   console.log("Local LLM matrix start");
   for (const config of configs) {
-    const original = process.env.LOCAL_LLM_BACKEND;
-    if (config.backend === undefined) {
-      delete process.env.LOCAL_LLM_BACKEND;
-    } else {
-      process.env.LOCAL_LLM_BACKEND = config.backend;
-    }
-
     try {
-      const result = await callNativeChat();
+      const result = await callNativeChat(config.backend);
       printResult(config.label, config.backend, result);
     } catch (err) {
       console.log(
@@ -40,12 +28,6 @@ async function run() {
           err instanceof Error ? err.message : String(err)
         }`,
       );
-    } finally {
-      if (original === undefined) {
-        delete process.env.LOCAL_LLM_BACKEND;
-      } else {
-        process.env.LOCAL_LLM_BACKEND = original;
-      }
     }
   }
   console.log("Local LLM matrix complete");
@@ -58,23 +40,44 @@ interface NativeChatResult {
   error?: string;
 }
 
-async function callNativeChat(): Promise<NativeChatResult> {
+async function callNativeChat(backendOverride?: string): Promise<NativeChatResult> {
   const response = await fetch(`${BASE_URL}/api/native_chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(backendOverride
+        ? { "x-local-llm-backend": backendOverride }
+        : {}),
+    },
     body: JSON.stringify({
       model: TEST_MODEL,
       messages: [{ role: "user", content: TEST_MESSAGE }],
-      sessionConfig: { appliedPreset: TEST_PRESET },
+      sessionConfig: {
+        appliedPreset: TEST_PRESET,
+      },
     }),
   });
 
   if (response.status >= 400) {
     const errorBody = await response.text().catch(() => "");
+    let parsedError = errorBody || response.statusText;
+    if (errorBody) {
+      try {
+        const decoded = JSON.parse(errorBody);
+        if (decoded && typeof decoded === "object") {
+          const candidate = decoded as { error?: unknown };
+          if (typeof candidate.error === "string") {
+            parsedError = candidate.error;
+          }
+        }
+      } catch {
+        // ignore JSON parse errors
+      }
+    }
     return {
       status: response.status,
       streaming: false,
-      error: errorBody || response.statusText,
+      error: parsedError,
     };
   }
 
@@ -102,7 +105,7 @@ async function callNativeChat(): Promise<NativeChatResult> {
 
 function printResult(label: string, backend: string | undefined, result: NativeChatResult) {
   const backendLabel = backend ?? "unset";
-  const summaryParts = [`status=${result.status}`];
+  const summaryParts = [`status=${result.status}`, `requireLocal=${TEST_REQUIRE_LOCAL}`];
   if (result.streaming) {
     summaryParts.push("streaming=true");
   }
@@ -115,6 +118,9 @@ function printResult(label: string, backend: string | undefined, result: NativeC
   console.log(`[${label}] backend=${backendLabel} ${summaryParts.join(", ")}`);
 }
 
-await run();
-
-
+try {
+  await run();
+} catch (err) {
+  console.error("[test-local-llm-matrix] unexpected error", err);
+  throw err;
+}
