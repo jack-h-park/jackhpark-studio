@@ -84,10 +84,10 @@ export function SessionPresetsCard({
   defaultLlmModelId,
 }: SessionPresetsCardProps) {
   const sessionGridLabelClass =
-    "flex items-center text-[0.85rem] font-semibold text-[color:var(--ai-text-muted)]";
+    "flex items-center ai-label-overline text-[0.85rem] text-[color:var(--ai-text-muted)]";
   const sessionGridValueClass = "flex flex-col gap-1";
   const sessionGridHeaderClass =
-    "text-[0.75rem] font-semibold uppercase tracking-[0.25em] text-[color:var(--ai-text-strong)]";
+    "ai-label-overline tracking-[0.25em] text-[0.75rem] text-[color:var(--ai-text-strong)]";
   const handleAdditionalSystemPromptChange = (
     presetKey: PresetKey,
     value: string,

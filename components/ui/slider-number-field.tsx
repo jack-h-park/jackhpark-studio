@@ -6,7 +6,7 @@ import { cn } from "./utils";
 
 export type SliderNumberFieldProps = {
   id: string;
-  label: string;
+  label?: string;
   value: number;
   min: number;
   max: number;
@@ -33,12 +33,15 @@ export function SliderNumberField({
 }: SliderNumberFieldProps) {
   const stepValue = step ?? 1;
   const descriptionId = description ? `${id}-description` : undefined;
+  const labelText = label ?? id;
 
   return (
     <div className={cn("ai-field", className)}>
-      <Label htmlFor={id} className="ai-field__label">
-        {label}
-      </Label>
+      {label ? (
+        <Label htmlFor={id} className="ai-field__label">
+          {label}
+        </Label>
+      ) : null}
       {description ? (
         <p id={descriptionId} className="ai-field__description">
           {description}
@@ -55,7 +58,7 @@ export function SliderNumberField({
           disabled={disabled}
           value={value}
           aria-describedby={descriptionId}
-          aria-label={`${label} slider`}
+          aria-label={`${labelText} slider`}
           onChange={(event) => onChange(Number(event.target.value))}
         />
         <Input
@@ -68,7 +71,7 @@ export function SliderNumberField({
           disabled={disabled}
           value={value}
           aria-describedby={descriptionId}
-          aria-label={`${label} value`}
+          aria-label={`${labelText} value`}
           onChange={(event) => onChange(Number(event.target.value))}
         />
       </div>

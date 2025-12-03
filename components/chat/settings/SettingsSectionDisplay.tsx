@@ -3,7 +3,7 @@
 import { FiMonitor } from "@react-icons/all-files/fi/FiMonitor";
 
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
-import { AllowlistTile } from "@/components/ui/allowlist-tile";
+import { SwitchField } from "@/components/ui/field";
 import {
   Section,
   SectionContent,
@@ -29,33 +29,36 @@ export function SettingsSectionDisplay() {
         </SectionTitle>
       </SectionHeader>
       <SectionContent className="grid gap-3">
-        <AllowlistTile
+        <SwitchField
           id="telemetry-badges"
           label="Telemetry badges"
           description="Show engine, guardrail, and enhancement insights."
-          selected={showTelemetry}
-          onClick={() => setShowTelemetry(!showTelemetry)}
+          checked={showTelemetry}
+          onCheckedChange={setShowTelemetry}
+          variant="plain"
         />
 
         <div className="pl-12">
-          <AllowlistTile
+          <SwitchField
             id="telemetry-auto-expand"
             label="Auto expand telemetry on toggle"
             //subtitle="Depends on telemetry badges"
             description="Expand the telemetry drawer whenever telemetry badges are enabled."
-            selected={telemetryAutoExpand}
-            onClick={() => setTelemetryAutoExpand(!telemetryAutoExpand)}
-            disabled={!showTelemetry}
+            checked={telemetryAutoExpand}
+            onCheckedChange={setTelemetryAutoExpand}
+            variant="plain"
             className="ai-allowlist-tile--dependent"
+            switchProps={{ disabled: !showTelemetry }}
           />
         </div>
 
-        <AllowlistTile
+        <SwitchField
           id="citations"
           label="Citations"
           description="Show every retrieved source (may include tiny text excerpts)."
-          selected={showCitations}
-          onClick={() => setShowCitations(!showCitations)}
+          checked={showCitations}
+          onCheckedChange={setShowCitations}
+          variant="plain"
         />
       </SectionContent>
     </Section>

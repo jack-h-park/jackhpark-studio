@@ -140,7 +140,7 @@
 }
 
 .ai-meta-text {
-  @apply text-xs text-slate-500 leading-snug;
+  @apply ai-helper-text;
 }
 
 .dark .text-ai-muted,
@@ -187,11 +187,7 @@
 }
 
 .ai-setting-section-title {
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-  color: hsl(var(--ai-fg-muted));
+  @apply ai-label-emphasis;
 }
 
 .ai-setting-section-description {
@@ -229,11 +225,10 @@
 }
 
 .ai-card-title {
+  @apply ai-label-emphasis;
   margin: 0;
-  font-size: 1.125rem; /* text-lg */
-  font-weight: 600;
-  line-height: 1.75rem;
-  color: var(--ai-text);
+  font-size: 1.05rem;
+  line-height: 1.5rem;
 }
 
 .ai-card--tab-panel {
@@ -333,9 +328,7 @@
 }
 
 .ai-choice__description {
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--ai-text-muted);
+  @apply ai-helper-text;
   margin: 0;
 }
 
@@ -346,22 +339,72 @@
   padding-left: 0.6rem;
 }
 
+.ai-field--switch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-auto-rows: auto;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.ai-field--switch .ai-field__label {
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
+  margin-bottom: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ai-text-strong);
+}
+
+.ai-field--switch > :not(.ai-field__label):not(.ai-field__description) {
+  grid-column: 2 / 3;
+  grid-row: 1 / 2;
+}
+
+.ai-field--switch .ai-field__description {
+  grid-column: 1 / 3;
+  grid-row: 2 / 3;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  color: var(--ai-text-muted);
+}
+
+.ai-allowlist-tile--dependent.ai-field--switch .ai-field__label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--ai-text-muted-strong, var(--ai-text-muted));
+}
+
 .ai-field__label {
   @apply ai-label-overline;
   padding-bottom: 0.2rem;
 }
 
 .ai-field__description {
+  @apply ai-helper-text;
   margin: 0;
+}
+
+.ai-helper-text {
   font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--ai-text-soft);
+  line-height: 1.5;
+  color: var(--ai-text-muted);
+}
+
+.ai-meta-text {
+  @apply ai-helper-text;
 }
 
 .dark .ai-choice__description,
 .dark-mode .ai-choice__description,
 .dark .ai-field__description,
-.dark-mode .ai-field__description {
+.dark-mode .ai-field__description,
+.dark .ai-helper-text,
+.dark-mode .ai-helper-text {
   color: var(--ai-text);
 }
 

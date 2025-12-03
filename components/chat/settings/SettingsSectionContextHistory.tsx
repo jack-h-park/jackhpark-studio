@@ -10,7 +10,7 @@ import {
   SectionHeader,
   SectionTitle,
 } from "@/components/ui/section";
-import { SliderNumberField } from "@/components/ui/slider-number-field";
+import { SliderField } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";
 
 type Props = {
@@ -105,7 +105,7 @@ export function SettingsSectionContextHistory({
       </SectionHeader>
       <SectionContent className="flex flex-col gap-3">
         {inputs.map(({ key, label, limit }) => (
-          <SliderNumberField
+          <SliderField
             key={key}
             id={`settings-${key}`}
             label={label}
@@ -113,9 +113,7 @@ export function SettingsSectionContextHistory({
             min={limit.min}
             max={limit.max}
             step={1}
-            onChange={(value) =>
-              handleContextSliderChange(key, limit, value)
-            }
+            onChange={(value) => handleContextSliderChange(key, limit, value)}
             disabled={!isContextEnabled}
           />
         ))}

@@ -119,7 +119,7 @@ export function DatasetSnapshotSection({
           })}
           <Card className="md:col-span-2">
             <CardContent className="space-y-3">
-              <p className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
+              <p className="ai-label-overline tracking-widest text-[color:var(--ai-text-muted)]">
                 Trend
               </p>
               {sparklineData ? (
@@ -158,7 +158,7 @@ export function DatasetSnapshotSection({
         <dl className="mt-6">
           <GridPanel className="grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
             <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
-              <dt className="m-0 text-xs uppercase tracking-wide text-[color:var(--ai-text-muted)]">
+              <dt className="m-0 ai-label-overline tracking-wide text-[color:var(--ai-text-muted)]">
                 Embedding Model
               </dt>
               <dd className="mt-0.5 text-sm text-[color:var(--ai-text-soft)]">
@@ -166,7 +166,7 @@ export function DatasetSnapshotSection({
               </dd>
             </div>
             <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
-              <dt className="m-0 text-xs uppercase tracking-wide text-[color:var(--ai-text-muted)]">
+              <dt className="m-0 ai-label-overline tracking-wide text-[color:var(--ai-text-muted)]">
                 Ingestion Mode
               </dt>
               <dd className="mt-0.5 text-sm text-[color:var(--ai-text-soft)]">
@@ -174,7 +174,7 @@ export function DatasetSnapshotSection({
               </dd>
             </div>
             <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
-              <dt className="m-0 text-xs uppercase tracking-wide text-[color:var(--ai-text-muted)]">
+              <dt className="m-0 ai-label-overline tracking-wide text-[color:var(--ai-text-muted)]">
                 Captured
               </dt>
               <dd className="mt-0.5 text-sm text-[color:var(--ai-text-soft)]">
@@ -186,7 +186,7 @@ export function DatasetSnapshotSection({
               </dd>
             </div>
             <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
-              <dt className="m-0 text-xs uppercase tracking-wide text-[color:var(--ai-text-muted)]">
+              <dt className="m-0 ai-label-overline tracking-wide text-[color:var(--ai-text-muted)]">
                 Source Run
               </dt>
               <dd className="mt-0.5 text-sm text-[color:var(--ai-text-soft)]">
@@ -200,7 +200,7 @@ export function DatasetSnapshotSection({
               </dd>
             </div>
             <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
-              <dt className="m-0 text-xs uppercase tracking-wide text-[color:var(--ai-text-muted)]">
+              <dt className="m-0 ai-label-overline tracking-wide text-[color:var(--ai-text-muted)]">
                 Schema Version
               </dt>
               <dd className="mt-0.5 text-sm text-[color:var(--ai-text-soft)]">
@@ -214,7 +214,7 @@ export function DatasetSnapshotSection({
             <HeadingWithIcon
               as="h3"
               icon={<FiClock aria-hidden="true" />}
-              className="text-base font-semibold text-[color:var(--ai-text-strong)]"
+              className="ai-label-emphasis text-base"
             >
               Recent Snapshots{" "}
               <span className="ml-1.5 text-sm text-[color:var(--ai-text-muted)]">

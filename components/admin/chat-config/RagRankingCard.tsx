@@ -33,10 +33,10 @@ export function RagRankingCard({ ragRanking, updateDocTypeWeight, updatePersonaW
       <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start">
         <GridPanel className="gap-4 px-4 py-4">
           <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-start">
-            <div className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]">
+            <div className="ai-label-overline tracking-[0.2em] text-[0.7rem] text-[color:var(--ai-text-strong)]">
               Doc type
             </div>
-            <div className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]">
+            <div className="ai-label-overline tracking-[0.2em] text-[0.7rem] text-[color:var(--ai-text-strong)]">
               Weight
             </div>
             {DOC_TYPE_OPTIONS.map((docType) => {
@@ -44,7 +44,9 @@ export function RagRankingCard({ ragRanking, updateDocTypeWeight, updatePersonaW
               const value = ragRanking?.docTypeWeights?.[docType] ?? DOC_TYPE_WEIGHTS[docType] ?? 1;
               return (
                 <Fragment key={docType}>
-                  <div className="text-sm font-semibold text-[color:var(--ai-text-muted)] capitalize">{label}</div>
+                  <div className="ai-label-emphasis text-sm text-[color:var(--ai-text-muted)] capitalize">
+                    {label}
+                  </div>
                   <div>
                     <Input
                       type="number"
@@ -67,10 +69,10 @@ export function RagRankingCard({ ragRanking, updateDocTypeWeight, updatePersonaW
 
         <GridPanel className="gap-4 px-4 py-4">
           <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-start">
-            <div className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]">
+            <div className="ai-label-overline tracking-[0.2em] text-[0.7rem] text-[color:var(--ai-text-strong)]">
               Persona type
             </div>
-            <div className="text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]">
+            <div className="ai-label-overline tracking-[0.2em] text-[0.7rem] text-[color:var(--ai-text-strong)]">
               Weight
             </div>
             {PERSONA_TYPE_OPTIONS.map((persona) => {
@@ -78,7 +80,9 @@ export function RagRankingCard({ ragRanking, updateDocTypeWeight, updatePersonaW
               const value = ragRanking?.personaTypeWeights?.[persona] ?? PERSONA_WEIGHTS[persona] ?? 1;
               return (
                 <Fragment key={persona}>
-                  <div className="text-sm font-semibold text-[color:var(--ai-text-muted)] capitalize">{label}</div>
+                  <div className="ai-label-emphasis text-sm text-[color:var(--ai-text-muted)] capitalize">
+                    {label}
+                  </div>
                   <div>
                     <Input
                       type="number"

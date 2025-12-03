@@ -38,7 +38,7 @@ export function PageHeaderCard({
       >
         <div className="flex min-w-0 flex-col gap-2">
           {overline && (
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[color:var(--ai-text-soft)]">
+            <p className="ai-label-overline tracking-[0.3em] text-[color:var(--ai-text-soft)]">
               {overline}
             </p>
           )}

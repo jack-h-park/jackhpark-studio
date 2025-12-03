@@ -13,8 +13,18 @@ import {
 import { CheckboxChoice } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
-import { CHAT_ENGINE_LABELS, CHAT_ENGINE_OPTIONS, type ChatEngine } from "@/lib/shared/model-provider";
-import { type EmbeddingModelId, type LlmModelId,RANKER_DESCRIPTIONS, RANKER_OPTIONS, type RankerId } from "@/lib/shared/models";
+import {
+  CHAT_ENGINE_LABELS,
+  CHAT_ENGINE_OPTIONS,
+  type ChatEngine,
+} from "@/lib/shared/model-provider";
+import {
+  type EmbeddingModelId,
+  type LlmModelId,
+  RANKER_DESCRIPTIONS,
+  RANKER_OPTIONS,
+  type RankerId,
+} from "@/lib/shared/models";
 
 const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
 
@@ -24,15 +34,27 @@ type LlmOption = {
   requiresOllama: boolean;
 };
 
-type AllowedAllowlistKey = "llmModels" | "embeddingModels" | "rankers" | "chatEngines";
-type AllowedAllowlistValue = LlmModelId | EmbeddingModelId | RankerId | ChatEngine;
+type AllowedAllowlistKey =
+  | "llmModels"
+  | "embeddingModels"
+  | "rankers"
+  | "chatEngines";
+type AllowedAllowlistValue =
+  | LlmModelId
+  | EmbeddingModelId
+  | RankerId
+  | ChatEngine;
 
 type AllowlistCardProps = {
   allowlist: AdminChatConfig["allowlist"];
   llmModelOptions: LlmOption[];
   ollamaEnabled: boolean;
   defaultLlmModelId: string;
-  toggleAllowlistValue: (key: AllowedAllowlistKey, value: AllowedAllowlistValue, enable?: boolean) => void;
+  toggleAllowlistValue: (
+    key: AllowedAllowlistKey,
+    value: AllowedAllowlistValue,
+    enable?: boolean,
+  ) => void;
   updateConfig: (updater: (prev: AdminChatConfig) => AdminChatConfig) => void;
 };
 
@@ -68,7 +90,9 @@ export function AllowlistCard({
     <Card>
       <CardHeader>
         <CardTitle icon={<FiShield aria-hidden="true" />}>Allowlist</CardTitle>
-        <CardDescription>Control which models, engines, and rankers visitors can pick.</CardDescription>
+        <CardDescription>
+          Control which models, engines, and rankers visitors can pick.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
@@ -84,12 +108,16 @@ export function AllowlistCard({
                   label={label}
                   subtitle={engine}
                   selected={isSelected}
-                  onClick={() => toggleAllowlistValue("chatEngines", engine, !isSelected)}
+                  onClick={() =>
+                    toggleAllowlistValue("chatEngines", engine, !isSelected)
+                  }
                 />
               );
             })}
           </div>
-          <p className="ai-meta-text">Choose which chat engines visitors can use.</p>
+          <p className="ai-helper-text">
+            Choose which chat engines visitors can use.
+          </p>
         </div>
 
         <div className="space-y-2">
@@ -123,13 +151,16 @@ export function AllowlistCard({
                   description={tooltip}
                   selected={isSelected}
                   disabled={disabledByEnv}
-                  onClick={() => toggleAllowlistValue("llmModels", option.id, !isSelected)}
+                  onClick={() =>
+                    toggleAllowlistValue("llmModels", option.id, !isSelected)
+                  }
                 />
               );
             })}
           </div>
-          <p className="ai-meta-text">
-            Choose which LLM models visitors can select. Values like “gpt-4o-mini” or “mistral” are stored and used directly.
+          <p className="ai-helper-text">
+            Choose which LLM models visitors can select. Values like
+            “gpt-4o-mini” or “mistral” are stored and used directly.
           </p>
         </div>
 
@@ -137,7 +168,9 @@ export function AllowlistCard({
           <Label>Embedding Models</Label>
           <div className="grid gap-2 sm:grid-cols-2">
             {EMBEDDING_MODEL_OPTIONS.map((space) => {
-              const isSelected = allowlist.embeddingModels.includes(space.embeddingSpaceId as EmbeddingModelId);
+              const isSelected = allowlist.embeddingModels.includes(
+                space.embeddingSpaceId as EmbeddingModelId,
+              );
               return (
                 <AllowlistTile
                   key={space.embeddingSpaceId}
@@ -157,8 +190,9 @@ export function AllowlistCard({
               );
             })}
           </div>
-          <p className="ai-meta-text">
-            Embedding model used for RAG. This is a canonical space ID, such as “openai_te3s_v1.”
+          <p className="ai-helper-text">
+            Embedding model used for RAG. This is a canonical space ID, such as
+            “openai_te3s_v1.”
           </p>
         </div>
 
@@ -176,27 +210,35 @@ export function AllowlistCard({
                   subtitle={description}
                   description={description}
                   selected={isSelected}
-                  onClick={() => toggleAllowlistValue("rankers", ranker as RankerId, !isSelected)}
+                  onClick={() =>
+                    toggleAllowlistValue(
+                      "rankers",
+                      ranker as RankerId,
+                      !isSelected,
+                    )
+                  }
                 />
               );
             })}
           </div>
-          <p className="ai-meta-text">Reranking strategy. Use “none”, “mmr”, or “cohere-rerank”.</p>
+          <p className="ai-helper-text">
+            Reranking strategy. Use “none”, “mmr”, or “cohere-rerank”.
+          </p>
         </div>
 
-      <div className="grid gap-4 sm:grid-cols-1">
-        <CheckboxChoice
-          label="Allow Reverse RAG"
-          checked={allowlist.allowReverseRAG}
-          onCheckedChange={handleAllowReverseRagChange}
-        />
+        <div className="grid gap-4 sm:grid-cols-1">
+          <CheckboxChoice
+            label="Allow Reverse RAG"
+            checked={allowlist.allowReverseRAG}
+            onCheckedChange={handleAllowReverseRagChange}
+          />
 
-        <CheckboxChoice
-          label="Allow HyDE"
-          checked={allowlist.allowHyde}
-          onCheckedChange={handleAllowHydeChange}
-        />
-      </div>
+          <CheckboxChoice
+            label="Allow HyDE"
+            checked={allowlist.allowHyde}
+            onCheckedChange={handleAllowHydeChange}
+          />
+        </div>
       </CardContent>
     </Card>
   );

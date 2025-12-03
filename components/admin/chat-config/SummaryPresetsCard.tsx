@@ -20,9 +20,10 @@ export type SummaryPresetsCardProps = {
 };
 
 export function SummaryPresetsCard({ summaryPresets, updateConfig }: SummaryPresetsCardProps) {
-  const summaryGridLabelClass = "text-[0.9rem] font-semibold text-[color:var(--ai-text-muted)]";
+  const summaryGridLabelClass =
+    "ai-label-overline text-[0.9rem] text-[color:var(--ai-text-muted)]";
   const summaryGridHeaderClass =
-    "text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-[color:var(--ai-text-strong)]";
+    "ai-label-overline tracking-[0.2em] text-[0.7rem] text-[color:var(--ai-text-strong)]";
   const summaryGridValueClass = "flex flex-col gap-1";
   const handleSummaryPresetChange = (
     level: SummaryPresetLevel,
