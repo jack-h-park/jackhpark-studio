@@ -13,6 +13,7 @@ export const LLM_MODEL_DEFINITIONS = [
       "gpt-4o_mini",
       "openai_gpt-4o-mini",
     ],
+    location: "cloud",
   },
   {
     id: "gpt-4o",
@@ -20,6 +21,7 @@ export const LLM_MODEL_DEFINITIONS = [
     provider: "openai",
     model: "gpt-4o",
     aliases: ["gpt-4o", "openai gpt-4o", "gpt4o", "openai_gpt-4o"],
+    location: "cloud",
   },
   {
     id: "gpt-4.1-small",
@@ -32,6 +34,7 @@ export const LLM_MODEL_DEFINITIONS = [
       "openai gpt-4.1-small",
       "openai_gpt-4.1-small",
     ],
+    location: "cloud",
   },
   {
     id: "gpt-4.1-medium",
@@ -44,6 +47,7 @@ export const LLM_MODEL_DEFINITIONS = [
       "openai gpt-4.1-medium",
       "openai_gpt-4.1-medium",
     ],
+    location: "cloud",
   },
   {
     id: "gpt-3.5-turbo",
@@ -51,6 +55,7 @@ export const LLM_MODEL_DEFINITIONS = [
     provider: "openai",
     model: "gpt-3.5-turbo",
     aliases: ["gpt-3.5-turbo", "gpt3.5-turbo", "openai gpt-3.5-turbo"],
+    location: "cloud",
   },
   {
     id: "gemini-1.5-flash-lite",
@@ -63,6 +68,7 @@ export const LLM_MODEL_DEFINITIONS = [
       "gemini flash lite",
       "gemini_1.5-flash-lite",
     ],
+    location: "cloud",
   },
   {
     id: "gemini-1.5-flash",
@@ -75,6 +81,7 @@ export const LLM_MODEL_DEFINITIONS = [
       "gemini 1.5 flash",
       "gemini_1.5-flash",
     ],
+    location: "cloud",
   },
   {
     id: "gemini-1.5-pro",
@@ -87,6 +94,7 @@ export const LLM_MODEL_DEFINITIONS = [
       "gemini 1.5 pro",
       "gemini_1.5-pro",
     ],
+    location: "cloud",
   },
   {
     id: "gemini-2.0-flash",
@@ -100,6 +108,7 @@ export const LLM_MODEL_DEFINITIONS = [
       "google gemini 2.0 flash",
       "gemini_1.5-flash",
     ],
+    location: "cloud",
   },
   {
     id: "gemini-2.0-pro",
@@ -113,6 +122,7 @@ export const LLM_MODEL_DEFINITIONS = [
       "gemini-2.0 pro",
       "gemini_1.5-pro",
     ],
+    location: "cloud",
   },
   {
     id: "gemini-2.5-flash-lite",
@@ -125,6 +135,7 @@ export const LLM_MODEL_DEFINITIONS = [
       "gemini flash lite",
       "gemini_2.5-flash-lite",
     ],
+    location: "cloud",
   },
   {
     id: "mistral",
@@ -135,6 +146,7 @@ export const LLM_MODEL_DEFINITIONS = [
     localBackend: "ollama",
     subtitle: "mistral:latest",
     ollamaModel: "mistral:latest",
+    location: "local",
   },
   {
     id: "llama3",
@@ -145,6 +157,7 @@ export const LLM_MODEL_DEFINITIONS = [
     localBackend: "ollama",
     subtitle: "llama3:instruct",
     ollamaModel: "llama3:instruct",
+    location: "local",
   },
   {
     id: "mistral-lmstudio",
@@ -155,6 +168,7 @@ export const LLM_MODEL_DEFINITIONS = [
     localBackend: "lmstudio",
     subtitle: "mistral-7b-instruct",
     lmstudioModel: "mistralai/mistral-7b-instruct-v0.3",
+    location: "local",
   },
 ] as const;
 

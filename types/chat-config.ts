@@ -1,3 +1,4 @@
+import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import type { DocType, PersonaType } from "@/lib/rag/metadata";
 import type { ChatEngine } from "@/lib/shared/model-provider";
 import type {
@@ -95,6 +96,7 @@ export type AdminChatRuntimeMeta = {
   defaultLlmModelId: LlmModelId;
   ollamaEnabled: boolean;
   lmstudioEnabled: boolean;
+  localLlmBackendEnv: LocalLlmBackend | null;
   presetResolutions: PresetModelResolutions;
 };
 

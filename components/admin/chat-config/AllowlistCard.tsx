@@ -34,6 +34,7 @@ type LlmOption = {
   label: string;
   localBackend?: LocalLlmBackend;
   subtitle?: string;
+  location?: "cloud" | "local";
 };
 
 type AllowedAllowlistKey =
@@ -53,6 +54,7 @@ type AllowlistCardProps = {
   ollamaEnabled: boolean;
   lmstudioEnabled: boolean;
   defaultLlmModelId: string;
+  localLlmBackendEnv: LocalLlmBackend | null;
   toggleAllowlistValue: (
     key: AllowedAllowlistKey,
     value: AllowedAllowlistValue,
@@ -67,6 +69,7 @@ export function AllowlistCard({
   ollamaEnabled,
   lmstudioEnabled,
   defaultLlmModelId,
+  localLlmBackendEnv,
   toggleAllowlistValue,
   updateConfig,
 }: AllowlistCardProps) {
@@ -90,6 +93,86 @@ export function AllowlistCard({
     }));
   };
 
+  const renderBackendStatus = (
+    label: string,
+    backend: LocalLlmBackend,
+  ) => {
+    const isActive = localLlmBackendEnv === backend;
+    return (
+      <span className="flex items-center gap-1 text-[color:var(--ai-text-muted)] text-xs">
+        <span
+          className={`h-2.5 w-2.5 rounded-full ${
+            isActive ? "bg-[color:var(--ai-success)]" : "bg-[color:var(--ai-text-muted)]"
+          }`}
+        />
+        <span>
+          {label}: {isActive ? "Enabled" : "Not configured"}
+        </span>
+      </span>
+    );
+  };
+
+  const cloudModels = llmModelOptions.filter(
+    (option) => option.location !== "local",
+  );
+  const localModels = llmModelOptions.filter(
+    (option) => option.location === "local",
+  );
+
+  const renderModelTiles = (options: LlmOption[]) => (
+    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {options.map((option) => {
+        const backend = option.localBackend;
+        const backendLabel =
+          backend === "ollama"
+            ? "Ollama"
+            : backend === "lmstudio"
+              ? "LM Studio"
+              : undefined;
+        const disabledByEnv =
+          backend === "ollama"
+            ? !ollamaEnabled
+            : backend === "lmstudio"
+              ? !lmstudioEnabled
+              : false;
+        const tooltip = disabledByEnv
+          ? `${backendLabel ?? "Local backend"} is unavailable in this environment. Using ${defaultLlmModelId} instead.`
+          : undefined;
+        const label = (
+          <span className="inline-flex items-center gap-1">
+            {option.label}
+            {tooltip && (
+              <FiAlertCircle
+                aria-hidden="true"
+                className="text-[color:var(--ai-text-muted)]"
+                size={14}
+                title={tooltip}
+              />
+            )}
+          </span>
+        );
+        return (
+          <AllowlistTile
+            key={option.id}
+            id={option.id}
+            label={label}
+            subtitle={option.subtitle ?? option.id}
+            description={tooltip}
+            selected={allowlist.llmModels.includes(option.id)}
+            disabled={disabledByEnv}
+            onClick={() =>
+              toggleAllowlistValue(
+                "llmModels",
+                option.id,
+                !allowlist.llmModels.includes(option.id),
+              )
+            }
+          />
+        );
+      })}
+    </div>
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -97,6 +180,10 @@ export function AllowlistCard({
         <CardDescription>
           Control which models, engines, and rankers visitors can pick.
         </CardDescription>
+        <div className="mt-2 flex flex-wrap gap-4">
+          {renderBackendStatus("Ollama", "ollama")}
+          {renderBackendStatus("LM Studio", "lmstudio")}
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="space-y-2">
@@ -124,55 +211,26 @@ export function AllowlistCard({
           </p>
         </div>
 
-        <div className="space-y-2">
-          <Label>LLM Models</Label>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {llmModelOptions.map((option) => {
-              const isSelected = allowlist.llmModels.includes(option.id);
-              const backend = option.localBackend;
-              const backendLabel =
-                backend === "ollama"
-                  ? "Ollama"
-                  : backend === "lmstudio"
-                    ? "LM Studio"
-                    : undefined;
-              const disabledByEnv =
-                backend === "ollama"
-                  ? !ollamaEnabled
-                  : backend === "lmstudio"
-                    ? !lmstudioEnabled
-                    : false;
-              const tooltip = disabledByEnv
-                ? `${backendLabel ?? "Local backend"} is unavailable in this environment. Using ${defaultLlmModelId} instead.`
-                : undefined;
-              const label = (
-                <span className="inline-flex items-center gap-1">
-                  {option.label}
-                  {tooltip && (
-                    <FiAlertCircle
-                      aria-hidden="true"
-                      className="text-[color:var(--ai-text-muted)]"
-                      size={14}
-                      title={tooltip}
-                    />
-                  )}
-                </span>
-              );
-              return (
-                <AllowlistTile
-                  key={option.id}
-                  id={option.id}
-                  label={label}
-                  subtitle={option.subtitle ?? option.id}
-                  description={tooltip}
-                  selected={isSelected}
-                  disabled={disabledByEnv}
-                  onClick={() =>
-                    toggleAllowlistValue("llmModels", option.id, !isSelected)
-                  }
-                />
-              );
-            })}
+        <div className="space-y-3">
+          <div className="space-y-1">
+            <Label>Cloud models</Label>
+            {cloudModels.length > 0 ? (
+              renderModelTiles(cloudModels)
+            ) : (
+              <p className="ai-helper-text">
+                No cloud models are available in the allowlist.
+              </p>
+            )}
+          </div>
+          <div className="space-y-1">
+            <Label>Local models</Label>
+            {localModels.length > 0 ? (
+              renderModelTiles(localModels)
+            ) : (
+              <p className="ai-helper-text">
+                Add at least one local model to enable “Require local backend”.
+              </p>
+            )}
           </div>
           <p className="ai-helper-text">
             Choose which LLM models visitors can select. Values like

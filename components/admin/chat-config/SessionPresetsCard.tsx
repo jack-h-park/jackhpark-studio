@@ -213,11 +213,14 @@ export type SessionPresetsCardProps = {
     id: string;
     label: string;
     localBackend?: LocalLlmBackend;
+    subtitle?: string;
+    location?: "cloud" | "local";
   }[];
   additionalPromptMaxLength: number;
   presetResolutions: AdminChatRuntimeMeta["presetResolutions"];
   ollamaEnabled: boolean;
   lmstudioEnabled: boolean;
+  localLlmBackendEnv: LocalLlmBackend | null;
   defaultLlmModelId: string;
 };
 
@@ -228,12 +231,13 @@ export function SessionPresetsCard({
   contextHistoryEnabled,
   setContextHistoryEnabled,
   updatePreset,
-  llmModelOptions,
-  additionalPromptMaxLength,
-  presetResolutions,
-  ollamaEnabled,
-  lmstudioEnabled,
-  defaultLlmModelId,
+    llmModelOptions,
+    additionalPromptMaxLength,
+    presetResolutions,
+    ollamaEnabled,
+    lmstudioEnabled,
+    localLlmBackendEnv,
+    defaultLlmModelId,
 }: SessionPresetsCardProps) {
   const sessionGridLabelClass =
     "flex items-center ai-label-overline ai-label-overline--muted";
@@ -671,36 +675,36 @@ export function SessionPresetsCard({
               const modelOption = llmModelOptions.find(
                 (option) => option.id === preset.llmModel,
               );
+              const isLocalModel = modelOption?.location === "local";
               const localBackend = modelOption?.localBackend;
-              const isLocalModel = Boolean(localBackend);
-              const backendLabel =
-                localBackend === "lmstudio"
-                  ? "LM Studio"
-                  : localBackend === "ollama"
-                    ? "Ollama"
-                    : "local backend";
-              const backendAvailable =
-                localBackend === "lmstudio"
-                  ? lmstudioEnabled
-                  : localBackend === "ollama"
-                    ? ollamaEnabled
-                    : false;
-              const baseDescription = isLocalModel
-                ? `If enabled, this preset only runs when ${backendLabel} is available via LOCAL_LLM_BACKEND=${localBackend}. Cloud-only models return 500 when this is checked.`
-                : "Requires a local-only model.";
-              const environmentWarning =
-                isLocalModel && !backendAvailable
-                  ? `LOCAL_LLM_BACKEND must point to ${localBackend} (${backendLabel}) before this preset can run.`
+              const baseDescription =
+                "If enabled, this preset can only run on local LLM engines.";
+              const cloudWarning =
+                preset.requireLocal && modelOption?.location === "cloud"
+                  ? "This model is cloud-only. With “Require local backend” enabled, it will always fail."
+                  : null;
+              const mismatchWarning =
+                preset.requireLocal &&
+                isLocalModel &&
+                localBackend &&
+                localLlmBackendEnv &&
+                localBackend !== localLlmBackendEnv
+                  ? "LOCAL_LLM_BACKEND does not match this model’s backend. This preset may fail at runtime."
                   : null;
               return (
                 <CheckboxChoice
-                  label="Require local backend (no cloud fallback)"
+                  label="Require local backend"
                   description={
                     <span className="flex flex-col gap-1">
-                      <span>{baseDescription}</span>
-                      {environmentWarning && (
-                        <span className="text-[color:var(--ai-error)]">
-                          {environmentWarning}
+                      <span className="ai-helper-text">{baseDescription}</span>
+                      {cloudWarning && (
+                        <span className="text-[color:var(--ai-error)] text-sm">
+                          {cloudWarning}
+                        </span>
+                      )}
+                      {mismatchWarning && (
+                        <span className="text-[color:var(--ai-text-muted)] text-sm">
+                          {mismatchWarning}
                         </span>
                       )}
                     </span>

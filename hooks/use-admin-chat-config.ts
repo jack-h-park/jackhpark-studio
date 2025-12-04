@@ -284,6 +284,7 @@ export function useAdminChatConfig({
           id,
           label: definition?.label ?? id,
           localBackend: definition?.localBackend,
+          location: definition?.location ?? "cloud",
           subtitle: definition?.subtitle,
         };
       }),

@@ -6,6 +6,7 @@ import { AiPageChrome } from "@/components/AiPageChrome";
 import { DEFAULT_LLM_MODEL_ID } from "@/lib/core/llm-registry";
 import { isLmStudioEnabled } from "@/lib/core/lmstudio";
 import { isOllamaEnabled } from "@/lib/core/ollama";
+import { getLocalLlmBackend } from "@/lib/local-llm";
 import {
   getAdminChatConfig,
   getAdminChatConfigMetadata,
@@ -63,6 +64,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
       DEFAULT_LLM_MODEL_ID as AdminChatRuntimeMeta["defaultLlmModelId"],
     ollamaEnabled: isOllamaEnabled(),
     lmstudioEnabled: isLmStudioEnabled(),
+    localLlmBackendEnv: getLocalLlmBackend(),
     presetResolutions: buildPresetModelResolutions(adminConfig),
   };
   return {

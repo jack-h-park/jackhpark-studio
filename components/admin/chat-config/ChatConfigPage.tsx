@@ -52,8 +52,13 @@ export function ChatConfigPage({
     toggleAllowlistValue,
     updatePreset,
   } = useAdminChatConfig({ adminConfig, lastUpdatedAt, runtimeMeta });
-  const { ollamaEnabled, lmstudioEnabled, defaultLlmModelId, presetResolutions } =
-    runtimeMeta;
+  const {
+    ollamaEnabled,
+    lmstudioEnabled,
+    localLlmBackendEnv,
+    defaultLlmModelId,
+    presetResolutions,
+  } = runtimeMeta;
 
   return (
     <>
@@ -106,6 +111,7 @@ export function ChatConfigPage({
         llmModelOptions={llmModelOptions}
         ollamaEnabled={ollamaEnabled}
         lmstudioEnabled={lmstudioEnabled}
+        localLlmBackendEnv={localLlmBackendEnv}
         defaultLlmModelId={defaultLlmModelId}
         toggleAllowlistValue={toggleAllowlistValue}
         updateConfig={updateConfig}
@@ -137,6 +143,7 @@ export function ChatConfigPage({
         presetResolutions={presetResolutions}
         ollamaEnabled={ollamaEnabled}
         lmstudioEnabled={lmstudioEnabled}
+        localLlmBackendEnv={localLlmBackendEnv}
         defaultLlmModelId={defaultLlmModelId}
       />
 
