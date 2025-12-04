@@ -150,6 +150,7 @@ function ChatShellContent() {
             value={inputValue}
             onChange={setInputValue}
             onSubmit={handleSend}
+            isLoading={isSending}
             disabled={isSending}
           />
         </div>

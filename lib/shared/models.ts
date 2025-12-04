@@ -1,6 +1,19 @@
 import type { ModelProvider } from "@/lib/shared/model-provider";
 
-export const LLM_MODEL_DEFINITIONS = [
+export interface LlmModelDefinition {
+  id: string;
+  label: string;
+  provider: ModelProvider;
+  model: string;
+  aliases: readonly string[];
+  location: "cloud" | "local";
+  localBackend?: "ollama" | "lmstudio";
+  subtitle?: string;
+  ollamaModel?: string;
+  lmstudioModel?: string;
+}
+
+export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
   {
     id: "gpt-4o-mini",
     label: "OpenAI gpt-4o-mini",
@@ -170,9 +183,8 @@ export const LLM_MODEL_DEFINITIONS = [
     lmstudioModel: "mistralai/mistral-7b-instruct-v0.3",
     location: "local",
   },
-] as const;
+];
 
-export type LlmModelDefinition = (typeof LLM_MODEL_DEFINITIONS)[number];
 export type LlmModelId = LlmModelDefinition["id"];
 export const LLM_MODELS = LLM_MODEL_DEFINITIONS.map(
   (definition) => definition.id,

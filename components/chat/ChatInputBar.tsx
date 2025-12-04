@@ -1,59 +1,57 @@
 "use client";
 
-import type { FormEvent, KeyboardEvent } from "react";
+import type { FormEvent, RefObject } from "react";
+import { AiOutlineSend } from "@react-icons/all-files/ai/AiOutlineSend";
 
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import styles from "./ChatWindow.module.css";
 
-import styles from "./ChatInputBar.module.css";
-
-type Props = {
+export type ChatInputBarProps = {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  isLoading: boolean;
   disabled?: boolean;
+  inputRef?: RefObject<HTMLInputElement | null>;
+  placeholder?: string;
 };
 
 export function ChatInputBar({
   value,
   onChange,
   onSubmit,
+  isLoading,
   disabled = false,
-}: Props) {
+  inputRef,
+  placeholder = "Ask me anything about Jack...",
+}: ChatInputBarProps) {
+  const isDisabled = isLoading || disabled || value.trim().length === 0;
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!disabled) {
-      onSubmit();
+    if (isDisabled) {
+      return;
     }
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      if (!disabled) {
-        onSubmit();
-      }
-    }
+    onSubmit();
   };
 
   return (
-    <form className={styles.inputBar} onSubmit={handleSubmit}>
-      <Textarea
-        placeholder="Ask anything about Jack’s work..."
+    <form className={styles.chatInputForm} onSubmit={handleSubmit}>
+      <input
+        className={styles.chatInput}
+        ref={inputRef}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={disabled}
+        placeholder={placeholder}
+        disabled={isDisabled}
       />
-      <div className={styles.inputBarRow}>
-        <Button
-          type="submit"
-          disabled={disabled || value.trim().length === 0}
-          className={styles.inputBarSend}
-        >
-          {disabled ? "Sending…" : "Send"}
-        </Button>
-      </div>
+      <button
+        type="submit"
+        className={styles.chatSubmitButton}
+        disabled={isDisabled}
+        aria-label="Send message"
+      >
+        <AiOutlineSend size={20} />
+      </button>
     </form>
   );
 }

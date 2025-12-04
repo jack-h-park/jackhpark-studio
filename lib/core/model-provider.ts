@@ -26,6 +26,10 @@ const PROVIDER_KEY_CONFIG: Record<ModelProvider, ProviderKeyConfig> = {
     envKeys: [],
     missingMessage: "Ollama runs locally and does not require an API key.",
   },
+  lmstudio: {
+    envKeys: [],
+    missingMessage: "LM Studio runs locally and does not require an API key.",
+  },
 };
 
 export const DEFAULT_LLM_PROVIDER = resolveLlmModel().provider;
