@@ -4,6 +4,7 @@ import Head from "next/head";
 import { ChatConfigPage as AdminChatConfigPage } from "@/components/admin/chat-config/ChatConfigPage";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { DEFAULT_LLM_MODEL_ID } from "@/lib/core/llm-registry";
+import { isLmStudioEnabled } from "@/lib/core/lmstudio";
 import { isOllamaEnabled } from "@/lib/core/ollama";
 import {
   getAdminChatConfig,
@@ -61,6 +62,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
     defaultLlmModelId:
       DEFAULT_LLM_MODEL_ID as AdminChatRuntimeMeta["defaultLlmModelId"],
     ollamaEnabled: isOllamaEnabled(),
+    lmstudioEnabled: isLmStudioEnabled(),
     presetResolutions: buildPresetModelResolutions(adminConfig),
   };
   return {

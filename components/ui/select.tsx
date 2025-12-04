@@ -95,12 +95,13 @@ export function SelectContent({ children }: SelectContentProps) {
 export type SelectItemProps = {
   value: string;
   disabled?: boolean;
+  title?: string;
   children: React.ReactNode;
 };
 
-export function SelectItem({ value, disabled, children }: SelectItemProps) {
+export function SelectItem({ value, disabled, title, children }: SelectItemProps) {
   return (
-    <option value={value} disabled={disabled}>
+    <option value={value} disabled={disabled} title={title}>
       {children}
     </option>
   );

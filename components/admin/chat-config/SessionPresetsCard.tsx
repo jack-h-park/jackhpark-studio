@@ -6,6 +6,7 @@ import {
   type SetStateAction,
 } from "react";
 
+import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import {
   Card,
   CardContent,
@@ -208,10 +209,15 @@ export type SessionPresetsCardProps = {
       preset: AdminChatConfig["presets"][PresetKey],
     ) => AdminChatConfig["presets"][PresetKey],
   ) => void;
-  llmModelOptions: { id: string; label: string; requiresOllama: boolean }[];
+  llmModelOptions: {
+    id: string;
+    label: string;
+    localBackend?: LocalLlmBackend;
+  }[];
   additionalPromptMaxLength: number;
   presetResolutions: AdminChatRuntimeMeta["presetResolutions"];
   ollamaEnabled: boolean;
+  lmstudioEnabled: boolean;
   defaultLlmModelId: string;
 };
 
@@ -226,6 +232,7 @@ export function SessionPresetsCard({
   additionalPromptMaxLength,
   presetResolutions,
   ollamaEnabled,
+  lmstudioEnabled,
   defaultLlmModelId,
 }: SessionPresetsCardProps) {
   const sessionGridLabelClass =
@@ -549,15 +556,28 @@ export function SessionPresetsCard({
                     />
                     <SelectContent>
                       {llmModelOptions.map((option) => {
+                        const backend = option.localBackend;
+                        const backendLabel =
+                          backend === "lmstudio"
+                            ? "LM Studio"
+                            : backend === "ollama"
+                              ? "Ollama"
+                              : undefined;
+                        const backendEnabled =
+                          backend === "ollama"
+                            ? ollamaEnabled
+                            : backend === "lmstudio"
+                              ? lmstudioEnabled
+                              : true;
                         const disabledByEnv =
-                          option.requiresOllama && !ollamaEnabled;
+                          Boolean(backend) && !backendEnabled;
                         const optionTooltip = disabledByEnv
-                          ? `Ollama is unavailable in this environment. Using ${defaultLlmModelId} instead.`
+                          ? `${backendLabel ?? "Local backend"} is unavailable in this environment. Using ${defaultLlmModelId} instead.`
                           : undefined;
                         const label = (
                           <span className="inline-flex items-center gap-1">
                             {option.label}
-                            {disabledByEnv && (
+                            {optionTooltip && (
                               <FiAlertCircle
                                 aria-hidden="true"
                                 className="text-[color:var(--ai-text-muted)]"
@@ -571,6 +591,7 @@ export function SessionPresetsCard({
                           <SelectItem
                             key={option.id}
                             value={option.id}
+                            title={option.subtitle ?? option.id}
                             disabled={
                               !config.allowlist.llmModels.includes(option.id) ||
                               disabledByEnv
@@ -650,14 +671,39 @@ export function SessionPresetsCard({
               const modelOption = llmModelOptions.find(
                 (option) => option.id === preset.llmModel,
               );
-              const isLocalModel = Boolean(modelOption?.requiresOllama);
+              const localBackend = modelOption?.localBackend;
+              const isLocalModel = Boolean(localBackend);
+              const backendLabel =
+                localBackend === "lmstudio"
+                  ? "LM Studio"
+                  : localBackend === "ollama"
+                    ? "Ollama"
+                    : "local backend";
+              const backendAvailable =
+                localBackend === "lmstudio"
+                  ? lmstudioEnabled
+                  : localBackend === "ollama"
+                    ? ollamaEnabled
+                    : false;
+              const baseDescription = isLocalModel
+                ? `If enabled, this preset only runs when ${backendLabel} is available via LOCAL_LLM_BACKEND=${localBackend}. Cloud-only models return 500 when this is checked.`
+                : "Requires a local-only model.";
+              const environmentWarning =
+                isLocalModel && !backendAvailable
+                  ? `LOCAL_LLM_BACKEND must point to ${localBackend} (${backendLabel}) before this preset can run.`
+                  : null;
               return (
                 <CheckboxChoice
                   label="Require local backend (no cloud fallback)"
                   description={
-                    isLocalModel
-                      ? "The preset fails if LOCAL_LLM_BACKEND is unavailable."
-                      : "Requires a local-only model."
+                    <span className="flex flex-col gap-1">
+                      <span>{baseDescription}</span>
+                      {environmentWarning && (
+                        <span className="text-[color:var(--ai-error)]">
+                          {environmentWarning}
+                        </span>
+                      )}
+                    </span>
                   }
                   layout="stacked"
                   checked={Boolean(preset.requireLocal)}

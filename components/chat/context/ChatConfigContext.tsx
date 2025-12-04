@@ -180,6 +180,7 @@ export function ChatConfigProvider({
     return (modelId: string): ModelResolution =>
       resolveLlmModelId(modelId, {
         ollamaEnabled: runtimeMeta.ollamaEnabled,
+        lmstudioEnabled: runtimeMeta.lmstudioEnabled,
         defaultModelId: runtimeMeta.defaultLlmModelId,
         allowedModelIds: allowedModels,
       });
@@ -187,6 +188,7 @@ export function ChatConfigProvider({
     adminConfig.allowlist.llmModels,
     runtimeMeta.defaultLlmModelId,
     runtimeMeta.ollamaEnabled,
+    runtimeMeta.lmstudioEnabled,
   ]);
 
   const defaultConfig = useMemo(

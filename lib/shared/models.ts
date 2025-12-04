@@ -13,7 +13,6 @@ export const LLM_MODEL_DEFINITIONS = [
       "gpt-4o_mini",
       "openai_gpt-4o-mini",
     ],
-    requiresOllama: false,
   },
   {
     id: "gpt-4o",
@@ -21,7 +20,6 @@ export const LLM_MODEL_DEFINITIONS = [
     provider: "openai",
     model: "gpt-4o",
     aliases: ["gpt-4o", "openai gpt-4o", "gpt4o", "openai_gpt-4o"],
-    requiresOllama: false,
   },
   {
     id: "gpt-4.1-small",
@@ -34,7 +32,6 @@ export const LLM_MODEL_DEFINITIONS = [
       "openai gpt-4.1-small",
       "openai_gpt-4.1-small",
     ],
-    requiresOllama: false,
   },
   {
     id: "gpt-4.1-medium",
@@ -47,7 +44,6 @@ export const LLM_MODEL_DEFINITIONS = [
       "openai gpt-4.1-medium",
       "openai_gpt-4.1-medium",
     ],
-    requiresOllama: false,
   },
   {
     id: "gpt-3.5-turbo",
@@ -55,7 +51,6 @@ export const LLM_MODEL_DEFINITIONS = [
     provider: "openai",
     model: "gpt-3.5-turbo",
     aliases: ["gpt-3.5-turbo", "gpt3.5-turbo", "openai gpt-3.5-turbo"],
-    requiresOllama: false,
   },
   {
     id: "gemini-1.5-flash-lite",
@@ -68,7 +63,6 @@ export const LLM_MODEL_DEFINITIONS = [
       "gemini flash lite",
       "gemini_1.5-flash-lite",
     ],
-    requiresOllama: false,
   },
   {
     id: "gemini-1.5-flash",
@@ -81,7 +75,6 @@ export const LLM_MODEL_DEFINITIONS = [
       "gemini 1.5 flash",
       "gemini_1.5-flash",
     ],
-    requiresOllama: false,
   },
   {
     id: "gemini-1.5-pro",
@@ -94,7 +87,6 @@ export const LLM_MODEL_DEFINITIONS = [
       "gemini 1.5 pro",
       "gemini_1.5-pro",
     ],
-    requiresOllama: false,
   },
   {
     id: "gemini-2.0-flash",
@@ -108,7 +100,6 @@ export const LLM_MODEL_DEFINITIONS = [
       "google gemini 2.0 flash",
       "gemini_1.5-flash",
     ],
-    requiresOllama: false,
   },
   {
     id: "gemini-2.0-pro",
@@ -122,7 +113,6 @@ export const LLM_MODEL_DEFINITIONS = [
       "gemini-2.0 pro",
       "gemini_1.5-pro",
     ],
-    requiresOllama: false,
   },
   {
     id: "gemini-2.5-flash-lite",
@@ -135,7 +125,6 @@ export const LLM_MODEL_DEFINITIONS = [
       "gemini flash lite",
       "gemini_2.5-flash-lite",
     ],
-    requiresOllama: false,
   },
   {
     id: "mistral",
@@ -143,7 +132,9 @@ export const LLM_MODEL_DEFINITIONS = [
     provider: "ollama",
     model: "mistral",
     aliases: ["mistral", "ollama_mistral", "ollama mistral"],
-    requiresOllama: true,
+    localBackend: "ollama",
+    subtitle: "mistral:latest",
+    ollamaModel: "mistral:latest",
   },
   {
     id: "llama3",
@@ -151,7 +142,19 @@ export const LLM_MODEL_DEFINITIONS = [
     provider: "ollama",
     model: "llama3",
     aliases: ["llama3", "llama 3", "ollama_llama3", "ollama llama3"],
-    requiresOllama: true,
+    localBackend: "ollama",
+    subtitle: "llama3:instruct",
+    ollamaModel: "llama3:instruct",
+  },
+  {
+    id: "mistral-lmstudio",
+    label: "Mistral (LM Studio)",
+    provider: "lmstudio",
+    model: "mistral",
+    aliases: ["mistral", "lmstudio_mistral", "lmstudio mistral"],
+    localBackend: "lmstudio",
+    subtitle: "mistral-7b-instruct",
+    lmstudioModel: "mistralai/mistral-7b-instruct-v0.3",
   },
 ] as const;
 

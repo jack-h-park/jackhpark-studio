@@ -5,6 +5,7 @@ import {
   normalizeSystemPrompt,
   SYSTEM_PROMPT_CACHE_TTL_MS,
 } from "@/lib/chat-prompts";
+import { isLmStudioEnabled } from "@/lib/core/lmstudio";
 import {
   DEFAULT_LLM_MODEL_ID,
   resolveEmbeddingSpace,
@@ -458,6 +459,7 @@ export async function loadChatModelSettings(options?: {
 
   const modelResolutionContext = {
     ollamaEnabled,
+    lmstudioEnabled: isLmStudioEnabled(),
     defaultModelId: DEFAULT_LLM_MODEL_ID,
     allowedModelIds: config.allowlist?.llmModels,
   };
@@ -475,15 +477,19 @@ export async function loadChatModelSettings(options?: {
   const localBackendOverride = options?.localBackendOverride;
   const localClient = getLocalLlmClient(localBackendOverride);
   const localBackend = getLocalLlmBackend(localBackendOverride);
-  const isLocalModel = llmSelection.provider === "ollama";
+  const modelLocalBackend = llmSelection.localBackend ?? null;
+  const requiresLocalModel = Boolean(modelLocalBackend);
   let llmEngine: ChatEngineType;
   let fallbackFrom: ChatEngineType | undefined;
-  const localBackendAvailable = Boolean(localClient) && isLocalModel;
+  const matchesSelectedBackend =
+    requiresLocalModel && localBackend === modelLocalBackend;
+  const localBackendAvailable =
+    Boolean(localClient) && matchesSelectedBackend && Boolean(modelLocalBackend);
 
   const intendedLocalEngine: ChatEngineType =
-    localBackend === "lmstudio" ? "local-lmstudio" : "local-ollama";
+    modelLocalBackend === "lmstudio" ? "local-lmstudio" : "local-ollama";
 
-  if (isLocalModel) {
+  if (requiresLocalModel) {
     llmEngine = intendedLocalEngine;
     if (!localBackendAvailable && !requireLocal) {
       fallbackFrom = llmEngine;

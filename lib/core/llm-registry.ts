@@ -1,3 +1,4 @@
+import { isLmStudioEnabled } from "@/lib/core/lmstudio";
 import { isOllamaEnabled } from "@/lib/core/ollama";
 import { normalizeModelProvider } from "@/lib/shared/model-provider";
 import {
@@ -5,7 +6,7 @@ import {
   type LlmModelDefinition,
 } from "@/lib/shared/models";
 
-type LlmModelOption = Omit<LlmModelDefinition, "requiresOllama">;
+type LlmModelOption = LlmModelDefinition;
 
 type LlmModelInput = {
   modelId?: string | null;
@@ -13,14 +14,22 @@ type LlmModelInput = {
   model?: string | null;
 };
 
-const mapToOption = (definition: LlmModelDefinition): LlmModelOption => {
-  const { requiresOllama: _requiresOllama, ...rest } = definition;
-  return rest;
+const mapToOption = (definition: LlmModelDefinition): LlmModelOption =>
+  definition;
+
+const isDefinitionEnabled = (definition: LlmModelDefinition) => {
+  if (definition.localBackend === "ollama") {
+    return isOllamaEnabled();
+  }
+  if (definition.localBackend === "lmstudio") {
+    return isLmStudioEnabled();
+  }
+  return true;
 };
 
 const ALL_LLM_MODEL_OPTIONS = LLM_MODEL_DEFINITIONS.map(mapToOption);
 const AVAILABLE_LLM_MODEL_OPTIONS = LLM_MODEL_DEFINITIONS.filter(
-  (definition) => !definition.requiresOllama || isOllamaEnabled(),
+  isDefinitionEnabled,
 ).map(mapToOption);
 
 const ENV_DEFAULT_LLM_MODEL = process.env.DEFAULT_LLM_MODEL?.trim();

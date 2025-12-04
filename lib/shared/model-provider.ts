@@ -1,18 +1,25 @@
+import { isLmStudioEnabled } from "@/lib/core/lmstudio";
 import { isOllamaEnabled } from "@/lib/core/ollama";
 
-export type ModelProvider = "openai" | "gemini" | "ollama";
+export type ModelProvider = "openai" | "gemini" | "ollama" | "lmstudio";
 export type ChatEngine = "native" | "lc";
 
 const BASE_MODEL_PROVIDERS: ModelProvider[] = ["openai", "gemini"];
+const LOCAL_MODEL_PROVIDERS: ModelProvider[] = [
+  ...(isOllamaEnabled() ? ["ollama" as const] : []),
+  ...(isLmStudioEnabled() ? ["lmstudio" as const] : []),
+];
 
-export const MODEL_PROVIDERS: readonly ModelProvider[] = isOllamaEnabled()
-  ? [...BASE_MODEL_PROVIDERS, "ollama"]
-  : BASE_MODEL_PROVIDERS;
+export const MODEL_PROVIDERS: readonly ModelProvider[] = [
+  ...BASE_MODEL_PROVIDERS,
+  ...LOCAL_MODEL_PROVIDERS,
+];
 
 export const MODEL_PROVIDER_LABELS: Record<ModelProvider, string> = {
   openai: "OpenAI",
   gemini: "Gemini (Google)",
   ollama: "Ollama (local)",
+  lmstudio: "LM Studio (local)",
 };
 
 const PROVIDER_ALIASES: Record<string, ModelProvider> = {
@@ -29,6 +36,10 @@ const PROVIDER_ALIASES: Record<string, ModelProvider> = {
 
   ollama: "ollama",
   local: "ollama",
+  lmstudio: "lmstudio",
+  "lm-studio": "lmstudio",
+  "lm studio": "lmstudio",
+  "local-lmstudio": "lmstudio",
 };
 
 export function toModelProviderId(

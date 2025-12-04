@@ -34,7 +34,8 @@
     "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check",
     "build:instrumentation": "esbuild instrumentation.ts --platform=node --format=esm --outfile=instrumentation.js",
     "check:katex": "node --import=tsx scripts/check-katex-usage.ts",
-    "test:llm:matrix": "tsx scripts/test-local-llm-matrix.ts"
+    "test:llm:matrix": "tsx scripts/test-local-llm-matrix.ts",
+    "test:llm:deep": "tsx scripts/test-local-llm-deep.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.32",

@@ -5,7 +5,7 @@ import {
 } from "@/lib/shared/models";
 
 export type ModelResolutionReason =
-  | "OLLAMA_DISABLED"
+  | "LOCAL_LLM_DISABLED"
   | "NOT_IN_ALLOWLIST"
   | "UNKNOWN_MODEL"
   | "NONE";
@@ -19,6 +19,7 @@ export type ModelResolution = {
 
 export type ModelResolutionContext = {
   ollamaEnabled: boolean;
+  lmstudioEnabled: boolean;
   defaultModelId: string;
   allowedModelIds?: readonly string[];
 };
@@ -63,11 +64,27 @@ function pickDefaultModelId(
   return { modelId: ctx.defaultModelId, reason: "UNKNOWN_MODEL" };
 }
 
+function isLocalModelDefinition(definition: LlmModelDefinition): boolean {
+  return Boolean(definition.localBackend);
+}
+
+function isBackendDisabled(
+  definition: LlmModelDefinition,
+  ctx: ModelResolutionContext,
+): boolean {
+  if (definition.localBackend === "ollama") {
+    return !ctx.ollamaEnabled;
+  }
+  if (definition.localBackend === "lmstudio") {
+    return !ctx.lmstudioEnabled;
+  }
+  return false;
+}
+
 export function isOllamaModelId(modelId: string | null | undefined): boolean {
   const definition = findModelDefinition(modelId);
   return Boolean(
-    definition &&
-      (definition.provider === "ollama" || !!definition.requiresOllama),
+    definition && isLocalModelDefinition(definition),
   );
 }
 
@@ -113,7 +130,7 @@ export function resolveLlmModelId(
     };
   }
 
-  if (definition.provider === "ollama" && !ctx.ollamaEnabled) {
+  if (isLocalModelDefinition(definition) && isBackendDisabled(definition, ctx)) {
     const fallback = pickDefaultModelId(ctx);
     const resolvedId =
       allowlist && allowlist.has(fallback.modelId.toLowerCase())
@@ -123,7 +140,7 @@ export function resolveLlmModelId(
       requestedModelId: canonicalId,
       resolvedModelId: resolvedId,
       wasSubstituted: resolvedId !== canonicalId,
-      reason: "OLLAMA_DISABLED",
+      reason: "LOCAL_LLM_DISABLED",
     };
   }
 

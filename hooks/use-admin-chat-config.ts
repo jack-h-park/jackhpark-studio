@@ -278,11 +278,15 @@ export function useAdminChatConfig({
 
   const llmModelOptions = useMemo(
     () =>
-      llmModelUnionIds.map((id) => ({
-        id,
-        label: LLM_MODEL_DEFINITIONS_MAP.get(id)?.label ?? id,
-        requiresOllama: LLM_MODEL_DEFINITIONS_MAP.get(id)?.requiresOllama ?? false,
-      })),
+      llmModelUnionIds.map((id) => {
+        const definition = LLM_MODEL_DEFINITIONS_MAP.get(id);
+        return {
+          id,
+          label: definition?.label ?? id,
+          localBackend: definition?.localBackend,
+          subtitle: definition?.subtitle,
+        };
+      }),
     [llmModelUnionIds],
   );
 

@@ -1,6 +1,7 @@
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiShield } from "@react-icons/all-files/fi/FiShield";
 
+import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import type { AdminChatConfig } from "@/types/chat-config";
 import { AllowlistTile } from "@/components/ui/allowlist-tile";
 import {
@@ -31,7 +32,8 @@ const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
 type LlmOption = {
   id: LlmModelId;
   label: string;
-  requiresOllama: boolean;
+  localBackend?: LocalLlmBackend;
+  subtitle?: string;
 };
 
 type AllowedAllowlistKey =
@@ -49,6 +51,7 @@ type AllowlistCardProps = {
   allowlist: AdminChatConfig["allowlist"];
   llmModelOptions: LlmOption[];
   ollamaEnabled: boolean;
+  lmstudioEnabled: boolean;
   defaultLlmModelId: string;
   toggleAllowlistValue: (
     key: AllowedAllowlistKey,
@@ -62,6 +65,7 @@ export function AllowlistCard({
   allowlist,
   llmModelOptions,
   ollamaEnabled,
+  lmstudioEnabled,
   defaultLlmModelId,
   toggleAllowlistValue,
   updateConfig,
@@ -125,14 +129,26 @@ export function AllowlistCard({
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {llmModelOptions.map((option) => {
               const isSelected = allowlist.llmModels.includes(option.id);
-              const disabledByEnv = option.requiresOllama && !ollamaEnabled;
+              const backend = option.localBackend;
+              const backendLabel =
+                backend === "ollama"
+                  ? "Ollama"
+                  : backend === "lmstudio"
+                    ? "LM Studio"
+                    : undefined;
+              const disabledByEnv =
+                backend === "ollama"
+                  ? !ollamaEnabled
+                  : backend === "lmstudio"
+                    ? !lmstudioEnabled
+                    : false;
               const tooltip = disabledByEnv
-                ? `Ollama is unavailable in this environment. Using ${defaultLlmModelId} instead.`
+                ? `${backendLabel ?? "Local backend"} is unavailable in this environment. Using ${defaultLlmModelId} instead.`
                 : undefined;
               const label = (
                 <span className="inline-flex items-center gap-1">
                   {option.label}
-                  {disabledByEnv && (
+                  {tooltip && (
                     <FiAlertCircle
                       aria-hidden="true"
                       className="text-[color:var(--ai-text-muted)]"
@@ -147,7 +163,7 @@ export function AllowlistCard({
                   key={option.id}
                   id={option.id}
                   label={label}
-                  subtitle={option.id}
+                  subtitle={option.subtitle ?? option.id}
                   description={tooltip}
                   selected={isSelected}
                   disabled={disabledByEnv}
