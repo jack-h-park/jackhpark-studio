@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { ChatWindow } from "@/components/chat/ChatWindow";
+import { ChatFloatingWindow } from "@/components/chat/ChatFloatingWindow";
 
 import styles from "./ChatFloatingWidget.module.css";
 
@@ -11,7 +11,7 @@ export function ChatFloatingWidget() {
 
   return (
     <div className={styles.container}>
-      <ChatWindow isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      <ChatFloatingWindow isOpen={isOpen} onClose={() => setIsOpen(false)} />
       <button
         type="button"
         className={styles.button}

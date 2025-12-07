@@ -38,6 +38,21 @@ const DEFAULT_LLM_MODEL_ID =
     ? ENV_DEFAULT_LLM_MODEL
     : "gpt-4o-mini";
 
+/**
+ * Normalize deprecated or shorthand model IDs so downstream code always sees the canonical value.
+ */
+export function normalizeLlmModelId(
+  value: string | null | undefined,
+): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  if (trimmed.toLowerCase() === "mistral") {
+    return "mistral-ollama";
+  }
+  return trimmed;
+}
+
 const LLM_ALIAS_LOOKUP = new Map<string, LlmModelOption>();
 for (const option of ALL_LLM_MODEL_OPTIONS) {
   const keys = new Set<string>([
@@ -69,7 +84,9 @@ function findByProvider(
 
 function findById(value: string | null | undefined): LlmModelOption | null {
   if (!value) return null;
-  const key = value.toLowerCase().trim();
+  const normalized = normalizeLlmModelId(value);
+  if (!normalized) return null;
+  const key = normalized.toLowerCase();
   return LLM_ALIAS_LOOKUP.get(key) ?? null;
 }
 

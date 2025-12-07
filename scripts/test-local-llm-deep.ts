@@ -1,7 +1,7 @@
 import "node:process";
 
 const BASE_URL = process.env.LOCAL_LLM_TEST_BASE_URL ?? "http://localhost:3000";
-const TEST_MODEL = process.env.LOCAL_LLM_TEST_MODEL ?? "mistral";
+const TEST_MODEL = process.env.LOCAL_LLM_TEST_MODEL ?? "mistral-ollama";
 const PRESET_KEY = process.env.LOCAL_LLM_TEST_PRESET ?? "local-required";
 const BACKENDS = ["ollama", "lmstudio"] as const;
 

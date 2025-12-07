@@ -1,9 +1,6 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 
-import type {
-  LocalLlmMessage,
-  LocalLlmRequest,
-} from "@/lib/local-llm/client";
+import type { LocalLlmMessage, LocalLlmRequest } from "@/lib/local-llm/client";
 import type { ChatConfigSnapshot, GuardrailRoute } from "@/lib/rag/types";
 import type { SessionChatConfig } from "@/types/chat-config";
 import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
@@ -230,7 +227,8 @@ export default async function handler(
         },
       );
       return res.status(500).json({
-        error: "Local LLM backend is required for this preset but not available.",
+        error:
+          "Local LLM backend is required for this preset but not available.",
         engine: runtime.llmEngine,
         requireLocal: effectiveRequireLocal,
         presetKey: presetId,
@@ -370,8 +368,9 @@ export default async function handler(
           })}`
         : null;
     if (responseCacheKey) {
-      const cachedResponse =
-        await memoryCacheClient.get<{ output: string }>(responseCacheKey);
+      const cachedResponse = await memoryCacheClient.get<{ output: string }>(
+        responseCacheKey,
+      );
       if (cachedResponse) {
         cacheMeta.responseHit = true;
         if (traceMetadata.cache) {
@@ -438,9 +437,8 @@ export default async function handler(
           ragTopK: guardrails.ragTopK,
           similarityThreshold: guardrails.similarityThreshold,
         })}`;
-        const cachedContext = await memoryCacheClient.get<ContextWindowResult>(
-          retrievalCacheKey,
-        );
+        const cachedContext =
+          await memoryCacheClient.get<ContextWindowResult>(retrievalCacheKey);
         if (cachedContext) {
           cacheMeta.retrievalHit = true;
           contextResult = cachedContext;
@@ -456,12 +454,15 @@ export default async function handler(
           presetId,
         });
       } else {
-        const reversedQuery = await rewriteQuery(normalizedQuestion.normalized, {
-          enabled: reverseRagEnabled,
-          mode: reverseRagMode,
-          provider,
-          model: llmModel,
-        });
+        const reversedQuery = await rewriteQuery(
+          normalizedQuestion.normalized,
+          {
+            enabled: reverseRagEnabled,
+            mode: reverseRagMode,
+            provider,
+            model: llmModel,
+          },
+        );
         enhancements.reverseRag = {
           enabled: reverseRagEnabled,
           mode: reverseRagMode,
@@ -513,7 +514,9 @@ export default async function handler(
           });
         }
         const embeddingInput =
-          hydeEnabled && hydeDocument ? hydeDocument : normalizedQuestion.normalized;
+          hydeEnabled && hydeDocument
+            ? hydeDocument
+            : normalizedQuestion.normalized;
         const embedding = await embedText(embeddingInput, {
           provider: embeddingSelection.provider,
           model: embeddingSelection.model,
@@ -534,7 +537,9 @@ export default async function handler(
             mode: "native",
             embeddingProvider,
           });
-          typedDocuments = Array.isArray(result) ? (result as RagDocument[]) : [];
+          typedDocuments = Array.isArray(result)
+            ? (result as RagDocument[])
+            : [];
         } catch (matchErr) {
           console.error("Error matching documents:", matchErr);
           return res.status(500).json({
@@ -553,10 +558,14 @@ export default async function handler(
               doc.documentId ||
               null,
           )
-          .filter((id): id is string => typeof id === "string" && id.length > 0);
+          .filter(
+            (id): id is string => typeof id === "string" && id.length > 0,
+          );
 
-        let metadataRows: { doc_id?: string; metadata?: RagDocumentMetadata | null }[] =
-          [];
+        let metadataRows: {
+          doc_id?: string;
+          metadata?: RagDocumentMetadata | null;
+        }[] = [];
         if (docIds.length > 0) {
           const { data } = await supabaseClient
             .from("rag_documents")
@@ -571,7 +580,9 @@ export default async function handler(
           if (typeof docId === "string") {
             metadataMap.set(
               docId,
-              normalizeMetadata((row as { metadata?: unknown }).metadata as any),
+              normalizeMetadata(
+                (row as { metadata?: unknown }).metadata as any,
+              ),
             );
           }
         }
@@ -610,8 +621,12 @@ export default async function handler(
         const enrichedDocuments = typedDocuments
           .map((doc) => {
             const docId =
-              doc.doc_id || doc.docId || doc.document_id || doc.documentId || null;
-            const metadata = docId ? metadataMap.get(docId) ?? null : null;
+              doc.doc_id ||
+              doc.docId ||
+              doc.document_id ||
+              doc.documentId ||
+              null;
+            const metadata = docId ? (metadataMap.get(docId) ?? null) : null;
             const baseSimilarity =
               typeof doc.similarity === "number"
                 ? doc.similarity
@@ -649,7 +664,9 @@ export default async function handler(
             };
           })
           .filter(
-            (doc): doc is RagDocument & {
+            (
+              doc,
+            ): doc is RagDocument & {
               metadata_weight?: number;
               base_similarity?: number;
               filteredOut?: boolean;
@@ -673,8 +690,8 @@ export default async function handler(
               weight: (doc as any).metadata_weight ?? null,
               finalScore: doc.similarity ?? null,
               doc_type:
-                (doc.metadata as { doc_type?: string | null } | null)?.doc_type ??
-                null,
+                (doc.metadata as { doc_type?: string | null } | null)
+                  ?.doc_type ?? null,
               persona_type:
                 (doc.metadata as { persona_type?: string | null } | null)
                   ?.persona_type ?? null,
@@ -768,7 +785,10 @@ export default async function handler(
         intent: routingDecision.intent,
       });
     }
-    if (routingDecision.intent !== "knowledge" && cacheMeta.retrievalHit !== null) {
+    if (
+      routingDecision.intent !== "knowledge" &&
+      cacheMeta.retrievalHit !== null
+    ) {
       cacheMeta.retrievalHit = null;
       if (traceMetadata.cache) {
         traceMetadata.cache.retrievalHit = null;
@@ -903,10 +923,60 @@ export default async function handler(
         finalOutput += chunk;
         res.write(chunk);
       }
+
+      // Calculate citations
+      const citationMap = new Map<
+        string,
+        {
+          doc_id?: string;
+          title?: string;
+          source_url?: string;
+          excerpt_count: number;
+        }
+      >();
+      const includedDocs = contextResult.included as any[];
+      let index = 0;
+      for (const doc of includedDocs) {
+        const docId =
+          doc?.metadata?.doc_id ??
+          doc?.metadata?.docId ??
+          doc?.metadata?.page_id ??
+          doc?.metadata?.pageId ??
+          undefined;
+        const sourceUrl =
+          doc?.metadata?.source_url ?? doc?.metadata?.sourceUrl ?? undefined;
+        const normalizedUrl = sourceUrl ? sourceUrl.trim().toLowerCase() : "";
+        const key =
+          normalizedUrl.length > 0
+            ? normalizedUrl
+            : docId
+              ? `doc:${docId}`
+              : `idx:${index}`;
+        const title =
+          doc?.metadata?.title ??
+          doc?.metadata?.document_meta?.title ??
+          undefined;
+
+        const existing = citationMap.get(key);
+        if (existing) {
+          existing.excerpt_count += 1;
+        } else {
+          citationMap.set(key, {
+            doc_id: docId,
+            title,
+            source_url: sourceUrl,
+            excerpt_count: 1,
+          });
+        }
+        index += 1;
+      }
+      const citations = Array.from(citationMap.values());
+      const citationJson = JSON.stringify(citations);
+
       if (responseCacheKey) {
         await memoryCacheClient.set(
           responseCacheKey,
-          { output: finalOutput },
+          { output: finalOutput, citations: citationJson },
           responseCacheTtl,
         );
         cacheMeta.responseHit = false;
@@ -914,6 +984,11 @@ export default async function handler(
           traceMetadata.cache.responseHit = false;
         }
       }
+
+      if (!res.writableEnded) {
+        res.write(`\n\n--- begin citations ---\n${citationJson}`);
+      }
+
       ensureStreamHeaders();
       res.end();
       if (trace) {
@@ -944,7 +1019,6 @@ export default async function handler(
     }
   }
 }
-
 
 function applyPublicPageUrls(
   documents: RagDocument[],

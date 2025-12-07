@@ -2,8 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { deserializeGuardrailMeta, type GuardrailMeta } from "@/lib/shared/guardrail-meta";
-import { type ChatEngine, type ModelProvider, normalizeChatEngine } from "@/lib/shared/model-provider";
+import {
+  deserializeGuardrailMeta,
+  type GuardrailMeta,
+} from "@/lib/shared/guardrail-meta";
+import {
+  type ChatEngine,
+  type ModelProvider,
+  normalizeChatEngine,
+} from "@/lib/shared/model-provider";
 import { type ModelResolutionReason } from "@/lib/shared/model-resolution";
 import { type RankerMode, type ReverseRagMode } from "@/lib/shared/rag-config";
 import { type ChatEngineType } from "@/types/chat-config";
@@ -16,6 +23,12 @@ export type Citation = {
   title?: string;
   source_url?: string;
   excerpt_count?: number;
+};
+
+export type ChatRuntimeFallbackFrom = {
+  type: "local";
+  provider: ModelProvider;
+  modelId: string;
 };
 
 export type ChatRuntimeConfig = {
@@ -35,10 +48,11 @@ export type ChatRuntimeConfig = {
   reverseRagMode: ReverseRagMode;
   hydeEnabled: boolean;
   rankerMode: RankerMode;
+  isLocal: boolean;
   llmEngine: ChatEngineType;
   requireLocal: boolean;
   localBackendAvailable: boolean;
-  fallbackFrom?: ChatEngineType;
+  fallbackFrom?: ChatRuntimeFallbackFrom | null;
 };
 
 export type ChatMessage = {
@@ -279,7 +293,9 @@ export function useChatSession(
       const run = async () => {
         try {
           const activeRuntime = runtimeConfig;
-          const runtimeEngine = normalizeChatEngine(activeRuntime?.engine ?? "lc");
+          const runtimeEngine = normalizeChatEngine(
+            activeRuntime?.engine ?? "lc",
+          );
           const endpoint = `/api/chat`;
 
           if (runtimeEngine === "lc") {
@@ -382,7 +398,7 @@ export function useChatSession(
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
-            let assistantContent = "";
+            let fullContent = "";
 
             let done = false;
             while (!done) {
@@ -391,21 +407,38 @@ export function useChatSession(
               const chunk = result.value;
               if (!chunk) continue;
 
-              const decodedChunk = decoder.decode(chunk, { stream: !done });
+              const chunkText = decoder.decode(chunk, { stream: !done });
               if (
                 loadingAssistantRef.current === assistantMessageId &&
-                decodedChunk.trim().length > 0
+                chunkText.trim().length > 0
               ) {
                 setLoadingAssistantId(null);
               }
-              console.debug("[chat-panel] chunk", {
-                engine: runtimeEngine,
-                length: decodedChunk.length,
-              });
-              assistantContent += decodedChunk;
+              fullContent += chunkText;
               if (!isMountedRef.current) return;
 
-              updateAssistant(assistantContent, guardrailMeta);
+              const [answer] = fullContent.split(CITATIONS_SEPARATOR);
+              updateAssistant(answer, guardrailMeta);
+            }
+
+            const [answer, citationsJson] =
+              fullContent.split(CITATIONS_SEPARATOR);
+            const finalContent = (answer ?? "").trim();
+            let parsedCitations: ChatResponse["citations"] = [];
+
+            if (citationsJson) {
+              try {
+                const candidate = JSON.parse(citationsJson);
+                if (Array.isArray(candidate)) {
+                  parsedCitations = candidate as ChatResponse["citations"];
+                }
+              } catch {
+                // ignore json parse errors
+              }
+            }
+
+            if (isMountedRef.current) {
+              updateAssistant(finalContent, guardrailMeta, parsedCitations);
             }
           }
         } catch (err) {

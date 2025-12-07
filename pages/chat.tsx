@@ -1,9 +1,12 @@
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 
-import type { AdminChatConfig, AdminChatRuntimeMeta } from "@/types/chat-config";
+import type {
+  AdminChatConfig,
+  AdminChatRuntimeMeta,
+} from "@/types/chat-config";
 import { AiPageChrome } from "@/components/AiPageChrome";
-import { ChatShell } from "@/components/chat/ChatShell";
+import { ChatFullPage } from "@/components/chat/ChatFullPage";
 import { DEFAULT_LLM_MODEL_ID } from "@/lib/core/llm-registry";
 import { isLmStudioEnabled } from "@/lib/core/lmstudio";
 import { isOllamaEnabled } from "@/lib/core/ollama";
@@ -39,7 +42,7 @@ export default function ChatPage({
         headerRecordMap={headerRecordMap}
         headerBlockId={headerBlockId}
       >
-        <ChatShell adminConfig={adminConfig} runtimeMeta={runtimeMeta} />
+        <ChatFullPage adminConfig={adminConfig} runtimeMeta={runtimeMeta} />
       </AiPageChrome>
     </>
   );
@@ -51,7 +54,8 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
     loadNotionNavigationHeader(),
   ]);
   const runtimeMeta: AdminChatRuntimeMeta = {
-    defaultLlmModelId: DEFAULT_LLM_MODEL_ID as AdminChatRuntimeMeta["defaultLlmModelId"],
+    defaultLlmModelId:
+      DEFAULT_LLM_MODEL_ID as AdminChatRuntimeMeta["defaultLlmModelId"],
     ollamaEnabled: isOllamaEnabled(),
     lmstudioEnabled: isLmStudioEnabled(),
     localLlmBackendEnv: getLocalLlmBackend(),

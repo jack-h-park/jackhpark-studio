@@ -28,11 +28,11 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
-  presetDisplayNames,
+ type AdminLlmModelOption,  presetDisplayNames,
   presetDisplayOrder,
-  type PresetKey,
-} from "@/hooks/use-admin-chat-config";
+  type PresetKey } from "@/hooks/use-admin-chat-config";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
+import { normalizeLlmModelId } from "@/lib/core/llm-registry";
 import {
   CHAT_ENGINE_LABELS,
   type ChatEngine,
@@ -209,13 +209,7 @@ export type SessionPresetsCardProps = {
       preset: AdminChatConfig["presets"][PresetKey],
     ) => AdminChatConfig["presets"][PresetKey],
   ) => void;
-  llmModelOptions: {
-    id: string;
-    label: string;
-    localBackend?: LocalLlmBackend;
-    subtitle?: string;
-    location?: "cloud" | "local";
-  }[];
+  llmModelOptions: AdminLlmModelOption[];
   additionalPromptMaxLength: number;
   presetResolutions: AdminChatRuntimeMeta["presetResolutions"];
   ollamaEnabled: boolean;
@@ -231,14 +225,20 @@ export function SessionPresetsCard({
   contextHistoryEnabled,
   setContextHistoryEnabled,
   updatePreset,
-    llmModelOptions,
-    additionalPromptMaxLength,
-    presetResolutions,
-    ollamaEnabled,
-    lmstudioEnabled,
-    localLlmBackendEnv,
-    defaultLlmModelId,
+  llmModelOptions,
+  additionalPromptMaxLength,
+  presetResolutions,
+  ollamaEnabled,
+  lmstudioEnabled,
+  localLlmBackendEnv,
+  defaultLlmModelId,
 }: SessionPresetsCardProps) {
+  const normalizedAllowlistIds = config.allowlist.llmModels
+    .map((id) => normalizeLlmModelId(id) ?? id)
+    .filter(
+      (id): id is string => typeof id === "string" && id.length > 0,
+    );
+  const normalizedAllowlistSet = new Set(normalizedAllowlistIds);
   const sessionGridLabelClass =
     "flex items-center ai-label-overline ai-label-overline--muted";
   const sessionGridValueClass = "flex flex-col gap-1";
@@ -560,21 +560,23 @@ export function SessionPresetsCard({
                     />
                     <SelectContent>
                       {llmModelOptions.map((option) => {
-                        const backend = option.localBackend;
+                        const localProvider = option.isLocal
+                          ? option.provider
+                          : undefined;
                         const backendLabel =
-                          backend === "lmstudio"
+                          localProvider === "lmstudio"
                             ? "LM Studio"
-                            : backend === "ollama"
+                            : localProvider === "ollama"
                               ? "Ollama"
                               : undefined;
                         const backendEnabled =
-                          backend === "ollama"
+                          localProvider === "ollama"
                             ? ollamaEnabled
-                            : backend === "lmstudio"
+                            : localProvider === "lmstudio"
                               ? lmstudioEnabled
                               : true;
                         const disabledByEnv =
-                          Boolean(backend) && !backendEnabled;
+                          Boolean(localProvider) && !backendEnabled;
                         const optionTooltip = disabledByEnv
                           ? `${backendLabel ?? "Local backend"} is unavailable in this environment. Using ${defaultLlmModelId} instead.`
                           : undefined;
@@ -591,15 +593,13 @@ export function SessionPresetsCard({
                             )}
                           </span>
                         );
+                        const optionAllowed = normalizedAllowlistSet.has(option.id);
                         return (
                           <SelectItem
                             key={option.id}
                             value={option.id}
                             title={option.subtitle ?? option.id}
-                            disabled={
-                              !config.allowlist.llmModels.includes(option.id) ||
-                              disabledByEnv
-                            }
+                            disabled={!optionAllowed || disabledByEnv}
                           >
                             {label}
                           </SelectItem>
@@ -675,12 +675,14 @@ export function SessionPresetsCard({
               const modelOption = llmModelOptions.find(
                 (option) => option.id === preset.llmModel,
               );
-              const isLocalModel = modelOption?.location === "local";
-              const localBackend = modelOption?.localBackend;
+              const isLocalModel = modelOption?.isLocal;
+              const localBackend =
+                modelOption?.localBackend ??
+                (isLocalModel ? modelOption?.provider : undefined);
               const baseDescription =
                 "If enabled, this preset can only run on local LLM engines.";
               const cloudWarning =
-                preset.requireLocal && modelOption?.location === "cloud"
+                preset.requireLocal && !isLocalModel
                   ? "This model is cloud-only. With “Require local backend” enabled, it will always fail."
                   : null;
               const mismatchWarning =

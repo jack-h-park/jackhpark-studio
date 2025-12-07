@@ -1,3 +1,4 @@
+import { normalizeLlmModelId } from "@/lib/core/llm-registry";
 import {
   LLM_MODEL_DEFINITIONS,
   type LlmModelDefinition,
@@ -65,7 +66,7 @@ function pickDefaultModelId(
 }
 
 function isLocalModelDefinition(definition: LlmModelDefinition): boolean {
-  return Boolean(definition.localBackend);
+  return definition.isLocal;
 }
 
 function isBackendDisabled(
@@ -92,7 +93,8 @@ export function resolveLlmModelId(
   requestedModelId: string,
   ctx: ModelResolutionContext,
 ): ModelResolution {
-  const normalizedRequest = requestedModelId?.trim() ?? "";
+  const normalizedRequest =
+    normalizeLlmModelId(requestedModelId) ?? ctx.defaultModelId;
   const requested =
     normalizedRequest.length > 0 ? normalizedRequest : ctx.defaultModelId;
 

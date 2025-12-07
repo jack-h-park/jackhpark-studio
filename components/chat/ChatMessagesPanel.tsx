@@ -7,18 +7,19 @@ import Image from "next/image";
 import type { ChatMessage } from "@/components/chat/hooks/useChatSession";
 import { MODEL_PROVIDER_LABELS } from "@/lib/shared/model-provider";
 
-import placeholderStyles from "./ChatMessagesPanel.module.css";
-import windowStyles from "./ChatWindow.module.css";
+import styles from "./ChatMessagesPanel.module.css";
+// windowStyles is no longer needed since we moved all message styles to styles
+// import windowStyles from "./ChatWindow.module.css";
 
 const URL_REGEX = /(https?:\/\/[^\s<>()"'`]+[^\s.,)<>"'`])/gi;
 
-function formatLinkLabel(rawUrl: string): string {
+function formatLinkLabel(rawUrl: string, maxLength = 24): string {
   try {
     const parsed = new URL(rawUrl);
     const path =
       parsed.pathname && parsed.pathname !== "/"
-        ? parsed.pathname.length > 24
-          ? `${parsed.pathname.slice(0, 24)}…`
+        ? parsed.pathname.length > maxLength
+          ? `${parsed.pathname.slice(0, maxLength)}…`
           : parsed.pathname
         : "";
     return `${parsed.hostname}${path}`;
@@ -42,6 +43,7 @@ function withLineBreaks(text: string, keyPrefix: string): JSX.Element[] {
 function renderMessageContent(
   content: string,
   keyPrefix: string,
+  linkLength = 24,
 ): JSX.Element[] {
   const nodes: JSX.Element[] = [];
   const regex = new RegExp(URL_REGEX);
@@ -67,7 +69,7 @@ function renderMessageContent(
         rel="noreferrer noopener"
         title={url}
       >
-        {formatLinkLabel(url)}
+        {formatLinkLabel(url, linkLength)}
       </a>,
     );
 
@@ -139,6 +141,7 @@ export type ChatMessagesPanelProps = {
   onToggleTelemetryExpanded?: () => void;
   showCitations?: boolean;
   showPlaceholder?: boolean;
+  citationLinkLength?: number;
 };
 
 export function ChatMessagesPanel({
@@ -150,11 +153,12 @@ export function ChatMessagesPanel({
   onToggleTelemetryExpanded = () => undefined,
   showCitations = false,
   showPlaceholder = true,
+  citationLinkLength = 24,
 }: ChatMessagesPanelProps) {
   if (messages.length === 0) {
     if (showPlaceholder) {
       return (
-        <div className={placeholderStyles.messagesPanel}>
+        <div className={styles.messagesPanel}>
           <div className="flex flex-1 justify-center items-center">
             <Image
               src="/images/7FAD09AA-76ED-4C18-A8E9-34D81940A59E.png"
@@ -201,8 +205,7 @@ export function ChatMessagesPanel({
             } tokens)`
           : null;
         const similarityThreshold =
-          contextStats &&
-          typeof contextStats.similarityThreshold === "number"
+          contextStats && typeof contextStats.similarityThreshold === "number"
             ? contextStats.similarityThreshold
             : null;
         const highestSimilarity =
@@ -253,13 +256,11 @@ export function ChatMessagesPanel({
         const runtimeLlmDisplay =
           runtimeLlmProviderLabel && runtimeLlmModelLabel
             ? `${runtimeLlmProviderLabel} / ${runtimeLlmModelLabel}`
-            : runtimeLlmModelLabel ?? runtimeLlmProviderLabel;
+            : (runtimeLlmModelLabel ?? runtimeLlmProviderLabel);
         const runtimeEmbeddingModelLabel =
           m.runtime?.embeddingModelId ?? m.runtime?.embeddingModel ?? null;
         const hasRuntime = Boolean(
-          runtimeEngineLabel ||
-            runtimeLlmDisplay ||
-            runtimeEmbeddingModelLabel,
+          runtimeEngineLabel || runtimeLlmDisplay || runtimeEmbeddingModelLabel,
         );
         const hasGuardrailMeta = Boolean(contextStats);
         const enhancements = m.meta?.enhancements;
@@ -268,25 +269,22 @@ export function ChatMessagesPanel({
         const showRuntimeCard = telemetryActive && hasRuntime;
         const showGuardrailCards = telemetryActive && contextStats;
         const showEnhancementCard = telemetryActive && hasEnhancements;
-        const hasAnyMeta =
-          hasRuntime || hasGuardrailMeta || hasEnhancements;
+        const hasAnyMeta = hasRuntime || hasGuardrailMeta || hasEnhancements;
         const isStreamingAssistant =
-          m.role === "assistant" &&
-          isLoading &&
-          loadingAssistantId === m.id;
+          m.role === "assistant" && isLoading && loadingAssistantId === m.id;
 
         return (
-          <div key={m.id} className={windowStyles.messageGroup}>
+          <div key={m.id} className={styles.messageGroup}>
             <div
-              className={`${windowStyles.message} ${windowStyles[m.role]} ${
-                isStreamingAssistant ? windowStyles.isLoading : ""
+              className={`${styles.message} ${styles[m.role]} ${
+                isStreamingAssistant ? styles.isLoading : ""
               }`}
             >
               {typeof m.content === "string"
-                ? renderMessageContent(m.content, m.id)
+                ? renderMessageContent(m.content, m.id, citationLinkLength)
                 : m.content}
               {isStreamingAssistant && (
-                <div className={windowStyles.assistantLoadingIndicator}>
+                <div className={styles.assistantLoadingIndicator}>
                   <span />
                   <span />
                   <span />
@@ -294,12 +292,12 @@ export function ChatMessagesPanel({
               )}
             </div>
             {m.role === "assistant" && hasAnyMeta && (
-              <div className={windowStyles.messageMeta}>
+              <div className={styles.messageMeta}>
                 {showTelemetry && (
-                  <div className={windowStyles.telemetryCollapseRow}>
+                  <div className={styles.telemetryCollapseRow}>
                     <button
                       type="button"
-                      className={windowStyles.telemetryCollapseBtn}
+                      className={styles.telemetryCollapseBtn}
                       onClick={onToggleTelemetryExpanded}
                     >
                       {telemetryExpanded
@@ -310,38 +308,36 @@ export function ChatMessagesPanel({
                 )}
                 {showRuntimeCard && (
                   <div
-                    className={`${windowStyles.metaCard} ${windowStyles.metaCardRuntime}`}
+                    className={`${styles.metaCard} ${styles.metaCardRuntime}`}
                   >
-                    <div className={windowStyles.metaCardHeading}>
+                    <div className={styles.metaCardHeading}>
                       Engine &amp; Model
                     </div>
-                    <div className={windowStyles.metaCardGrid}>
+                    <div className={styles.metaCardGrid}>
                       {runtimeEngineLabel && (
-                        <div className={windowStyles.metaCardBlock}>
-                          <div className={windowStyles.metaCardBlockLabel}>
+                        <div className={styles.metaCardBlock}>
+                          <div className={styles.metaCardBlockLabel}>
                             ENGINE
                           </div>
-                          <div className={windowStyles.metaCardBlockValue}>
+                          <div className={styles.metaCardBlockValue}>
                             {runtimeEngineLabel}
                           </div>
                         </div>
                       )}
                       {runtimeLlmDisplay && (
-                        <div className={windowStyles.metaCardBlock}>
-                          <div className={windowStyles.metaCardBlockLabel}>
-                            LLM
-                          </div>
-                          <div className={windowStyles.metaCardBlockValue}>
+                        <div className={styles.metaCardBlock}>
+                          <div className={styles.metaCardBlockLabel}>LLM</div>
+                          <div className={styles.metaCardBlockValue}>
                             {runtimeLlmDisplay}
                           </div>
                         </div>
                       )}
                       {runtimeEmbeddingModelLabel && (
-                        <div className={windowStyles.metaCardBlock}>
-                          <div className={windowStyles.metaCardBlockLabel}>
+                        <div className={styles.metaCardBlock}>
+                          <div className={styles.metaCardBlockLabel}>
                             EMBEDDING
                           </div>
-                          <div className={windowStyles.metaCardBlockValue}>
+                          <div className={styles.metaCardBlockValue}>
                             {runtimeEmbeddingModelLabel}
                           </div>
                         </div>
@@ -351,23 +347,21 @@ export function ChatMessagesPanel({
                 )}
                 {showGuardrailCards && (
                   <div
-                    className={`${windowStyles.metaCard} ${windowStyles.metaCardGuardrail}`}
+                    className={`${styles.metaCard} ${styles.metaCardGuardrail}`}
                   >
-                    <div className={windowStyles.metaCardHeading}>Guardrails</div>
-                    <div className={windowStyles.metaCardGrid}>
-                      <div className={windowStyles.metaCardBlock}>
-                        <div className={windowStyles.metaCardBlockLabel}>
-                          ROUTE
-                        </div>
-                        <div className={windowStyles.metaCardBlockValue}>
+                    <div className={styles.metaCardHeading}>Guardrails</div>
+                    <div className={styles.metaCardGrid}>
+                      <div className={styles.metaCardBlock}>
+                        <div className={styles.metaCardBlockLabel}>ROUTE</div>
+                        <div className={styles.metaCardBlockValue}>
                           {m.meta!.reason ?? m.meta!.intent}
                         </div>
                       </div>
-                      <div className={windowStyles.metaCardBlock}>
-                        <div className={windowStyles.metaCardBlockLabel}>CONTEXT</div>
+                      <div className={styles.metaCardBlock}>
+                        <div className={styles.metaCardBlockLabel}>CONTEXT</div>
                         <div
-                          className={`${windowStyles.metaCardBlockValue} ${
-                            contextStats.insufficient ? windowStyles.warning : ""
+                          className={`${styles.metaCardBlockValue} ${
+                            contextStats.insufficient ? styles.warning : ""
                           }`}
                         >
                           {contextUsageLabel}
@@ -375,43 +369,41 @@ export function ChatMessagesPanel({
                         </div>
                       </div>
                       {historyLabel && (
-                        <div className={windowStyles.metaCardBlock}>
-                          <div className={windowStyles.metaCardBlockLabel}>
+                        <div className={styles.metaCardBlock}>
+                          <div className={styles.metaCardBlockLabel}>
                             HISTORY
                           </div>
-                          <div className={windowStyles.metaCardBlockValue}>
+                          <div className={styles.metaCardBlockValue}>
                             {historyLabel}
                           </div>
                         </div>
                       )}
                       {similarityThreshold !== null && (
-                        <div className={windowStyles.metaCardBlock}>
-                          <div className={windowStyles.metaCardBlockLabel}>
+                        <div className={styles.metaCardBlock}>
+                          <div className={styles.metaCardBlockLabel}>
                             SIMILARITY
                           </div>
                           <div
-                            className={`${windowStyles.metaCardBlockValue} ${
-                              contextStats.insufficient ? windowStyles.warning : ""
+                            className={`${styles.metaCardBlockValue} ${
+                              contextStats.insufficient ? styles.warning : ""
                             }`}
                           >
                             {highestSimilarity !== null
                               ? highestSimilarity.toFixed(3)
                               : "—"}{" "}
                             / min {similarityThreshold.toFixed(2)}
-                            {contextStats.insufficient
-                              ? " (Insufficient)"
-                              : ""}
+                            {contextStats.insufficient ? " (Insufficient)" : ""}
                           </div>
                         </div>
                       )}
                     </div>
                     {showSummaryBlock && (
                       <div
-                        className={`${windowStyles.metaCardBlock} ${windowStyles.metaCardBlockSummary}`}
+                        className={`${styles.metaCardBlock} ${styles.metaCardBlockSummary}`}
                       >
-                        <div className={windowStyles.metaCardBlockLabel}>SUMMARY</div>
-                        <div className={windowStyles.metaCardBlockRow}>
-                          <div className={windowStyles.metaCardBlockValue}>
+                        <div className={styles.metaCardBlockLabel}>SUMMARY</div>
+                        <div className={styles.metaCardBlockRow}>
+                          <div className={styles.metaCardBlockValue}>
                             {summaryInfo
                               ? `History summarized (${summaryInfo.originalTokens} → ${summaryInfo.summaryTokens} tokens)`
                               : historySummaryLabel}
@@ -428,23 +420,25 @@ export function ChatMessagesPanel({
                       </div>
                     )}
                     {m.meta?.summaryApplied && (
-                      <div className={windowStyles.metaCardFooter}>
-                        <span className={windowStyles.metaChip}>Summary applied</span>
+                      <div className={styles.metaCardFooter}>
+                        <span className={styles.metaChip}>Summary applied</span>
                       </div>
                     )}
                   </div>
                 )}
                 {showEnhancementCard && (
                   <div
-                    className={`${windowStyles.metaCard} ${windowStyles.metaCardEnhancements}`}
+                    className={`${styles.metaCard} ${styles.metaCardEnhancements}`}
                   >
-                    <div className={windowStyles.metaCardHeading}>Enhancements</div>
-                    <div className={windowStyles.metaCardGrid}>
-                      <div className={windowStyles.metaCardBlock}>
-                        <div className={windowStyles.metaCardBlockLabel}>REVERSE RAG</div>
-                        <div className={windowStyles.metaCardBlockRow}>
+                    <div className={styles.metaCardHeading}>Enhancements</div>
+                    <div className={styles.metaCardGrid}>
+                      <div className={styles.metaCardBlock}>
+                        <div className={styles.metaCardBlockLabel}>
+                          REVERSE RAG
+                        </div>
+                        <div className={styles.metaCardBlockRow}>
                           <div
-                            className={`${windowStyles.metaCardBlockValue} ${windowStyles.enhancementChip}`}
+                            className={`${styles.metaCardBlockValue} ${styles.enhancementChip}`}
                             data-tooltip={
                               enhancements?.reverseRag
                                 ? `mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`
@@ -471,10 +465,10 @@ export function ChatMessagesPanel({
                           )}
                         </div>
                       </div>
-                      <div className={windowStyles.metaCardBlock}>
-                        <div className={windowStyles.metaCardBlockLabel}>HyDE</div>
+                      <div className={styles.metaCardBlock}>
+                        <div className={styles.metaCardBlockLabel}>HyDE</div>
                         <div
-                          className={`${windowStyles.metaCardBlockValue} ${windowStyles.enhancementChip}`}
+                          className={`${styles.metaCardBlockValue} ${styles.enhancementChip}`}
                           data-tooltip={enhancements?.hyde?.generated ?? ""}
                         >
                           {enhancements?.hyde?.enabled
@@ -484,9 +478,9 @@ export function ChatMessagesPanel({
                             : "off"}
                         </div>
                       </div>
-                      <div className={windowStyles.metaCardBlock}>
-                        <div className={windowStyles.metaCardBlockLabel}>RANKER</div>
-                        <div className={windowStyles.metaCardBlockValue}>
+                      <div className={styles.metaCardBlock}>
+                        <div className={styles.metaCardBlockLabel}>RANKER</div>
+                        <div className={styles.metaCardBlockValue}>
                           {enhancements?.ranker?.mode ?? "none"}
                         </div>
                       </div>
@@ -499,7 +493,7 @@ export function ChatMessagesPanel({
               showCitations &&
               mergedCitations &&
               mergedCitations.length > 0 && (
-                <ol className={windowStyles.messageCitations}>
+                <ol className={styles.messageCitations}>
                   {mergedCitations.map((citation, index) => {
                     const title =
                       (citation.title ?? "").trim() ||
@@ -523,12 +517,12 @@ export function ChatMessagesPanel({
                               target="_blank"
                               rel="noreferrer noopener"
                             >
-                              {formatLinkLabel(url)}
+                              {formatLinkLabel(url, citationLinkLength)}
                             </a>
                           </>
                         )}
                         {countLabel && (
-                          <span className={windowStyles.citationCount}>
+                          <span className={styles.citationCount}>
                             ({countLabel})
                           </span>
                         )}

@@ -1,7 +1,7 @@
 import "node:process";
 
 const BASE_URL = process.env.LOCAL_LLM_TEST_BASE_URL ?? "http://localhost:3000";
-const TEST_MODEL = process.env.LOCAL_LLM_TEST_MODEL ?? "mistral";
+const TEST_MODEL = process.env.LOCAL_LLM_TEST_MODEL ?? "mistral-ollama";
 const TEST_MESSAGE =
   process.env.LOCAL_LLM_TEST_MESSAGE ?? "Hello from the Local LLM smoke test.";
 const TEST_PRESET = process.env.LOCAL_LLM_TEST_PRESET ?? "local-required";

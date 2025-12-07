@@ -201,7 +201,7 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     mergedConfig.presets["local-required"] ??
     {
       ...mergedConfig.presets.default,
-      llmModel: "mistral",
+      llmModel: "mistral-ollama",
       chatEngine: "native",
       requireLocal: true,
     };

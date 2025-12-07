@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import type { DOC_TYPE_OPTIONS, PERSONA_TYPE_OPTIONS } from "@/lib/rag/metadata";
-import { CHAT_ENGINE_OPTIONS, type ChatEngine } from "@/lib/shared/model-provider";
+import { normalizeLlmModelId } from "@/lib/core/llm-registry";
+import {
+  CHAT_ENGINE_OPTIONS,
+  type ChatEngine,
+  type ModelProvider,
+} from "@/lib/shared/model-provider";
 import {
   type EmbeddingModelId,
   LLM_MODEL_DEFINITIONS,
@@ -65,6 +71,16 @@ export const presetDisplayNames: Record<PresetKey, string> = {
 };
 
 export const presetDisplayOrder: PresetKey[] = ["default", "fast", "highRecall"];
+
+export type AdminLlmModelOption = {
+  id: LlmModelId;
+  label: string;
+  displayName: string;
+  provider: ModelProvider;
+  isLocal: boolean;
+  localBackend?: LocalLlmBackend;
+  subtitle?: string;
+};
 
 export function useAdminChatConfig({
   adminConfig,
@@ -231,6 +247,43 @@ export function useAdminChatConfig({
   ) => {
     updateConfig((prev) => {
       const current = prev.allowlist[key] as AllowlistValueMap[K][];
+
+      if (key === "llmModels") {
+        const normalizedValue =
+          normalizeLlmModelId(value as LlmModelId) ?? (value as LlmModelId);
+        const matchesNormalized = (entry: LlmModelId) =>
+          (normalizeLlmModelId(entry) ?? entry) === normalizedValue;
+        const includesValue = current.some((entry) =>
+          matchesNormalized(entry as LlmModelId),
+        );
+        if (enable && includesValue) {
+          return prev;
+        }
+        if (!enable && !includesValue) {
+          return prev;
+        }
+        const next = enable
+          ? [
+              ...(
+                current.filter(
+                  (entry) => !matchesNormalized(entry as LlmModelId),
+                ) as LlmModelId[]
+              ),
+              normalizedValue,
+            ]
+          : (current.filter(
+              (entry) => !matchesNormalized(entry as LlmModelId),
+            ) as LlmModelId[]);
+        const sortedNext = next.toSorted((a, b) => a.localeCompare(b));
+        return {
+          ...prev,
+          allowlist: {
+            ...prev.allowlist,
+            [key]: sortedNext as AdminChatConfig["allowlist"][K],
+          },
+        };
+      }
+
       const includesValue = current.includes(value);
       if (enable && includesValue) {
         return prev;
@@ -272,7 +325,12 @@ export function useAdminChatConfig({
 
   const llmModelUnionIds = useMemo(() => {
     const baseIds = LLM_MODEL_DEFINITIONS.map((definition) => definition.id) as LlmModelId[];
-    const union = new Set<string>([...baseIds, ...config.allowlist.llmModels]);
+    const normalizedAllowlistIds = config.allowlist.llmModels
+      .map((id) => normalizeLlmModelId(id) ?? id)
+      .filter(
+        (id): id is string => typeof id === "string" && id.length > 0,
+      );
+    const union = new Set<string>([...baseIds, ...normalizedAllowlistIds]);
     return [...union].toSorted((a, b) => a.localeCompare(b)) as LlmModelId[];
   }, [config.allowlist.llmModels]);
 
@@ -283,8 +341,12 @@ export function useAdminChatConfig({
         return {
           id,
           label: definition?.label ?? id,
+          displayName:
+            definition?.displayName ?? definition?.label ?? id,
+          provider: definition?.provider ?? "openai",
+          isLocal:
+            definition?.isLocal ?? Boolean(definition?.localBackend),
           localBackend: definition?.localBackend,
-          location: definition?.location ?? "cloud",
           subtitle: definition?.subtitle,
         };
       }),

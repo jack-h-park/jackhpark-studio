@@ -1,17 +1,38 @@
-.inputBar {
-  padding: 24px;
-  border-top: 1px solid hsl(var(--ai-border));
-  background: hsl(var(--ai-bg));
+.chatInputForm {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  padding: 16px;
+  border-top: 1px solid #eee;
+  background: #fff;
+  flex-shrink: 0;
 }
 
-.inputBarRow {
-  display: flex;
-  gap: 12px;
+.chatInput {
+  flex-grow: 1;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  margin-right: 8px;
 }
 
-.inputBarSend {
-  align-self: flex-end;
+.chatInput:focus {
+  outline: none;
+  border-color: #007aff;
+}
+
+.chatSubmitButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: #007aff;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.chatSubmitButton:disabled {
+  background: #ccc;
 }

@@ -3,7 +3,7 @@
 import type { FormEvent, RefObject } from "react";
 import { AiOutlineSend } from "@react-icons/all-files/ai/AiOutlineSend";
 
-import styles from "./ChatWindow.module.css";
+import styles from "./ChatInputBar.module.css";
 
 export type ChatInputBarProps = {
   value: string;
@@ -24,11 +24,12 @@ export function ChatInputBar({
   inputRef,
   placeholder = "Ask me anything about Jack...",
 }: ChatInputBarProps) {
-  const isDisabled = isLoading || disabled || value.trim().length === 0;
+  const isInputDisabled = isLoading || disabled;
+  const isSubmitDisabled = isInputDisabled || value.trim().length === 0;
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isDisabled) {
+    if (isSubmitDisabled) {
       return;
     }
     onSubmit();
@@ -42,12 +43,12 @@ export function ChatInputBar({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        disabled={isDisabled}
+        disabled={isInputDisabled}
       />
       <button
         type="submit"
         className={styles.chatSubmitButton}
-        disabled={isDisabled}
+        disabled={isSubmitDisabled}
         aria-label="Send message"
       >
         <AiOutlineSend size={20} />

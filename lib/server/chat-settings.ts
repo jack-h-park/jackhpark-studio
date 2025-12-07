@@ -5,6 +5,7 @@ import {
   normalizeSystemPrompt,
   SYSTEM_PROMPT_CACHE_TTL_MS,
 } from "@/lib/chat-prompts";
+import { normalizeLlmModelId } from "@/lib/core/llm-registry";
 import { isLmStudioEnabled } from "@/lib/core/lmstudio";
 import {
   DEFAULT_LLM_MODEL_ID,
@@ -64,6 +65,12 @@ export type GuardrailDefaults = {
   numeric: GuardrailNumericSettings;
 };
 
+export type ChatRuntimeFallbackFrom = {
+  type: "local";
+  provider: ModelProvider;
+  modelId: string;
+};
+
 export type ChatModelSettings = {
   engine: ChatEngine;
   llmModelId: string;
@@ -97,7 +104,8 @@ export type ChatModelSettings = {
   requireLocal: boolean;
   localBackendAvailable: boolean;
   localLlmBackendEnv: string | null;
-  fallbackFrom?: ChatEngineType;
+  isLocal: boolean;
+  fallbackFrom?: ChatRuntimeFallbackFrom;
 };
 
 export type LangfuseSettings = {
@@ -283,6 +291,7 @@ export function getChatModelDefaults(): ChatModelSettings {
     requireLocal: false,
     localBackendAvailable: false,
     localLlmBackendEnv: null,
+    isLocal: false,
     fallbackFrom: undefined,
   };
 }
@@ -464,9 +473,20 @@ export async function loadChatModelSettings(options?: {
     allowedModelIds: config.allowlist?.llmModels,
   };
 
-  const requestedLlmModelId = preset?.llmModel ?? defaults.llmModelId;
+  const rawLlmModelId = preset?.llmModel ?? defaults.llmModelId;
+  const normalizedLlmModelId =
+    normalizeLlmModelId(rawLlmModelId) ?? rawLlmModelId ?? defaults.llmModelId;
+  if (
+    process.env.NODE_ENV !== "production" &&
+    typeof rawLlmModelId === "string" &&
+    rawLlmModelId.trim().toLowerCase() === "mistral"
+  ) {
+    console.warn(
+      "[chat-settings] Legacy llmModel 'mistral' encountered; treating it as 'mistral-ollama'. Please migrate admin_chat_config to the explicit ID.",
+    );
+  }
   let llmResolution = resolveLlmModelId(
-    requestedLlmModelId,
+    normalizedLlmModelId,
     modelResolutionContext,
   );
   let llmSelection = resolveLlmModel({
@@ -477,37 +497,47 @@ export async function loadChatModelSettings(options?: {
   const localBackendOverride = options?.localBackendOverride;
   const localClient = getLocalLlmClient(localBackendOverride);
   const localBackend = getLocalLlmBackend(localBackendOverride);
-  const modelLocalBackend = llmSelection.localBackend ?? null;
-  const requiresLocalModel = Boolean(modelLocalBackend);
-  let llmEngine: ChatEngineType;
-  let fallbackFrom: ChatEngineType | undefined;
+  const requiresLocalModel = llmSelection.isLocal;
+  const requestedLocalBackend =
+    llmSelection.localBackend ?? (llmSelection.isLocal ? llmSelection.provider : null);
   const matchesSelectedBackend =
-    requiresLocalModel && localBackend === modelLocalBackend;
-  const localBackendAvailable =
-    Boolean(localClient) && matchesSelectedBackend && Boolean(modelLocalBackend);
-
-  const intendedLocalEngine: ChatEngineType =
-    modelLocalBackend === "lmstudio" ? "local-lmstudio" : "local-ollama";
+    Boolean(requestedLocalBackend) && localBackend === requestedLocalBackend;
+  let localBackendAvailable =
+    Boolean(localClient) && matchesSelectedBackend && Boolean(requestedLocalBackend);
+  let fallbackFrom: ChatRuntimeFallbackFrom | undefined;
+  let llmEngine: ChatEngineType;
+  const initialLocalSelection = requiresLocalModel ? llmSelection : null;
 
   if (requiresLocalModel) {
+    const intendedLocalEngine =
+      requestedLocalBackend === "lmstudio" ? "local-lmstudio" : "local-ollama";
     llmEngine = intendedLocalEngine;
-    if (!localBackendAvailable && !requireLocal) {
-      fallbackFrom = llmEngine;
-      const fallbackResolution = resolveLlmModelId(
-        defaults.llmModelId,
-        modelResolutionContext,
-      );
-      llmResolution = fallbackResolution;
-      llmSelection = resolveLlmModel({
-        modelId: fallbackResolution.resolvedModelId,
-        model: fallbackResolution.resolvedModelId,
-      });
-      llmEngine =
-        llmSelection.provider === "gemini"
-          ? "gemini"
-          : llmSelection.provider === "openai"
-            ? "openai"
-            : "unknown";
+    if (!localBackendAvailable) {
+      if (!requireLocal) {
+        if (initialLocalSelection) {
+          fallbackFrom = {
+            type: "local",
+            provider: initialLocalSelection.provider,
+            modelId: initialLocalSelection.id,
+          };
+        }
+        const fallbackResolution = resolveLlmModelId(
+          defaults.llmModelId,
+          modelResolutionContext,
+        );
+        llmResolution = fallbackResolution;
+        llmSelection = resolveLlmModel({
+          modelId: fallbackResolution.resolvedModelId,
+          model: fallbackResolution.resolvedModelId,
+        });
+        llmEngine =
+          llmSelection.provider === "gemini"
+            ? "gemini"
+            : llmSelection.provider === "openai"
+              ? "openai"
+              : "unknown";
+        localBackendAvailable = false;
+      }
     }
   } else {
     llmEngine =
@@ -516,6 +546,11 @@ export async function loadChatModelSettings(options?: {
         : llmSelection.provider === "openai"
           ? "openai"
           : "unknown";
+    if (requireLocal) {
+      throw new Error(
+        `Preset requires a local backend but selected model ${llmSelection.id} is cloud-only.`,
+      );
+    }
   }
 
   const embeddingSelection = resolveEmbeddingSpace({
@@ -571,6 +606,7 @@ export async function loadChatModelSettings(options?: {
     requireLocal,
     localBackendAvailable,
     localLlmBackendEnv: localBackend ?? null,
+    isLocal: llmSelection.isLocal,
     fallbackFrom,
   };
 

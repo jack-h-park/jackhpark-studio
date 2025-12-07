@@ -18,11 +18,14 @@ import { ChatMessagesPanel } from "@/components/chat/ChatMessagesPanel";
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { useChatSession } from "@/components/chat/hooks/useChatSession";
 import { Switch } from "@/components/ui/switch";
-import { MODEL_PROVIDER_LABELS } from "@/lib/shared/model-provider";
+import {
+  MODEL_PROVIDER_LABELS,
+  type ModelProvider,
+} from "@/lib/shared/model-provider";
 
-import styles from "./ChatWindow.module.css";
+import styles from "./ChatFloatingWindow.module.css";
 
-export type ChatWindowProps = {
+export type ChatFloatingWindowProps = {
   isOpen: boolean;
   showExpandButton?: boolean;
   showCloseButton?: boolean;
@@ -30,13 +33,13 @@ export type ChatWindowProps = {
   headerAction?: ReactNode;
 };
 
-export function ChatWindow({
+export function ChatFloatingWindow({
   isOpen,
   showCloseButton = true,
   showExpandButton = true,
   onClose,
   headerAction,
-}: ChatWindowProps) {
+}: ChatFloatingWindowProps) {
   const [input, setInput] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
@@ -119,31 +122,38 @@ export function ChatWindow({
   const runtimeSubstitutionTooltip = runtimeLlmWasSubstituted
     ? `Model substituted at runtime: ${runtimeRequestedModelId ?? "requested"} → ${runtimeResolvedModelId ?? "resolved"}`
     : undefined;
-  const runtimeEngineDisplay = (() => {
-    switch (runtimeConfig?.llmEngine) {
-      case "local-ollama":
-        return "Local (Ollama)";
-      case "local-lmstudio":
-        return "Local (LM Studio)";
+  const formatProviderLabel = (provider?: string) => {
+    if (!provider) return "Unknown";
+    switch (provider) {
       case "openai":
-        return "Cloud (OpenAI)";
+        return "OpenAI";
       case "gemini":
-        return "Cloud (Gemini)";
+        return "Gemini";
+      case "ollama":
+        return "Ollama";
+      case "lmstudio":
+        return "LM Studio";
       default:
-        return "Unknown engine";
+        return MODEL_PROVIDER_LABELS[provider as ModelProvider] ?? provider;
     }
-  })();
+  };
+  const runtimeEngineDisplay = runtimeConfig
+    ? `${runtimeConfig.isLocal ? "Local" : "Cloud"} (${formatProviderLabel(
+        runtimeConfig.llmProvider,
+      )})`
+    : "Unknown engine";
   const showRuntimeEngineLabel = Boolean(runtimeConfig?.llmEngine);
   const showRequireLocalError =
     runtimeConfig?.requireLocal &&
     runtimeConfig?.llmEngine?.startsWith("local") &&
     !runtimeConfig.localBackendAvailable;
-  const showFallbackNotice =
-    !showRequireLocalError &&
-    Boolean(
-      runtimeConfig?.fallbackFrom &&
-        runtimeConfig.llmEngine !== runtimeConfig.fallbackFrom,
-    );
+  const fallbackLabel =
+    runtimeConfig?.fallbackFrom?.type === "local"
+      ? ` (fallback from Local (${formatProviderLabel(
+          runtimeConfig.fallbackFrom.provider,
+        )}))`
+      : null;
+  const showFallbackNotice = !showRequireLocalError && Boolean(fallbackLabel);
 
   const focusInput = useCallback(() => {
     if (!isOpen) {
@@ -250,18 +260,9 @@ export function ChatWindow({
               {showRuntimeEngineLabel && (
                 <span className={styles.chatEngineBadge}>
                   {runtimeEngineDisplay}
-                  {showFallbackNotice && runtimeConfig?.fallbackFrom && (
+                  {showFallbackNotice && fallbackLabel && (
                     <span className={styles.chatEngineFallbackLabel}>
-                      (fallback from{" "}
-                      {runtimeConfig.fallbackFrom === "local-ollama"
-                        ? "Local (Ollama)"
-                        : runtimeConfig.fallbackFrom === "local-lmstudio"
-                          ? "Local (LM Studio)"
-                          : runtimeConfig.fallbackFrom === "openai"
-                            ? "Cloud (OpenAI)"
-                            : runtimeConfig.fallbackFrom === "gemini"
-                              ? "Cloud (Gemini)"
-                              : "Unknown"})
+                      {fallbackLabel}
                     </span>
                   )}
                 </span>
@@ -277,8 +278,9 @@ export function ChatWindow({
             <div className={styles.chatEngineErrorBanner}>
               <FiAlertCircle aria-hidden="true" />
               <span>
-                Local LLM backend is required for this preset but is not available.
-                Please check the LOCAL_LLM_BACKEND configuration or switch presets.
+                Local LLM backend is required for this preset but is not
+                available. Please check the LOCAL_LLM_BACKEND configuration or
+                switch presets.
               </span>
             </div>
           )}
@@ -449,6 +451,7 @@ export function ChatWindow({
             onToggleTelemetryExpanded={toggleTelemetryExpanded}
             showCitations={showCitations}
             showPlaceholder={false}
+            citationLinkLength={24}
           />
           <div ref={messagesEndRef} />
         </div>

@@ -3,9 +3,11 @@ import type { ModelProvider } from "@/lib/shared/model-provider";
 export interface LlmModelDefinition {
   id: string;
   label: string;
+  displayName: string;
   provider: ModelProvider;
   model: string;
   aliases: readonly string[];
+  isLocal: boolean;
   location: "cloud" | "local";
   localBackend?: "ollama" | "lmstudio";
   subtitle?: string;
@@ -17,6 +19,7 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
   {
     id: "gpt-4o-mini",
     label: "OpenAI gpt-4o-mini",
+    displayName: "OpenAI gpt-4o-mini",
     provider: "openai",
     model: "gpt-4o-mini",
     aliases: [
@@ -27,18 +30,22 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
       "openai_gpt-4o-mini",
     ],
     location: "cloud",
+    isLocal: false,
   },
   {
     id: "gpt-4o",
     label: "OpenAI gpt-4o",
+    displayName: "OpenAI gpt-4o",
     provider: "openai",
     model: "gpt-4o",
     aliases: ["gpt-4o", "openai gpt-4o", "gpt4o", "openai_gpt-4o"],
     location: "cloud",
+    isLocal: false,
   },
   {
     id: "gpt-4.1-small",
     label: "OpenAI gpt-4.1-small",
+    displayName: "OpenAI gpt-4.1-small",
     provider: "openai",
     model: "gpt-4.1-small",
     aliases: [
@@ -48,10 +55,12 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
       "openai_gpt-4.1-small",
     ],
     location: "cloud",
+    isLocal: false,
   },
   {
     id: "gpt-4.1-medium",
     label: "OpenAI gpt-4.1-medium",
+    displayName: "OpenAI gpt-4.1-medium",
     provider: "openai",
     model: "gpt-4.1-medium",
     aliases: [
@@ -61,18 +70,22 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
       "openai_gpt-4.1-medium",
     ],
     location: "cloud",
+    isLocal: false,
   },
   {
     id: "gpt-3.5-turbo",
     label: "OpenAI gpt-3.5-turbo",
+    displayName: "OpenAI gpt-3.5-turbo",
     provider: "openai",
     model: "gpt-3.5-turbo",
     aliases: ["gpt-3.5-turbo", "gpt3.5-turbo", "openai gpt-3.5-turbo"],
     location: "cloud",
+    isLocal: false,
   },
   {
     id: "gemini-1.5-flash-lite",
     label: "Gemini 1.5 Flash Lite",
+    displayName: "Gemini 1.5 Flash Lite",
     provider: "gemini",
     model: "gemini-1.5-flash-lite",
     aliases: [
@@ -82,10 +95,12 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
       "gemini_1.5-flash-lite",
     ],
     location: "cloud",
+    isLocal: false,
   },
   {
     id: "gemini-1.5-flash",
     label: "Gemini 1.5 Flash",
+    displayName: "Gemini 1.5 Flash",
     provider: "gemini",
     model: "gemini-1.5-flash",
     aliases: [
@@ -95,10 +110,12 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
       "gemini_1.5-flash",
     ],
     location: "cloud",
+    isLocal: false,
   },
   {
     id: "gemini-1.5-pro",
     label: "Gemini 1.5 Pro",
+    displayName: "Gemini 1.5 Pro",
     provider: "gemini",
     model: "gemini-1.5-pro",
     aliases: [
@@ -108,10 +125,12 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
       "gemini_1.5-pro",
     ],
     location: "cloud",
+    isLocal: false,
   },
   {
     id: "gemini-2.0-flash",
     label: "Gemini 2.0 Flash",
+    displayName: "Gemini 2.0 Flash",
     provider: "gemini",
     model: "gemini-2.0-flash",
     aliases: [
@@ -122,10 +141,12 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
       "gemini_1.5-flash",
     ],
     location: "cloud",
+    isLocal: false,
   },
   {
     id: "gemini-2.0-pro",
     label: "Gemini 2.0 Pro",
+    displayName: "Gemini 2.0 Pro",
     provider: "gemini",
     model: "gemini-2.0-pro",
     aliases: [
@@ -136,10 +157,12 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
       "gemini_1.5-pro",
     ],
     location: "cloud",
+    isLocal: false,
   },
   {
     id: "gemini-2.5-flash-lite",
     label: "Gemini 2.5 Flash Lite",
+    displayName: "Gemini 2.5 Flash Lite",
     provider: "gemini",
     model: "gemini-2.5-flash-lite",
     aliases: [
@@ -149,10 +172,12 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
       "gemini_2.5-flash-lite",
     ],
     location: "cloud",
+    isLocal: false,
   },
   {
-    id: "mistral",
+    id: "mistral-ollama",
     label: "Mistral (Ollama)",
+    displayName: "Mistral (Ollama)",
     provider: "ollama",
     model: "mistral",
     aliases: ["mistral", "ollama_mistral", "ollama mistral"],
@@ -160,10 +185,12 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
     subtitle: "mistral:latest",
     ollamaModel: "mistral:latest",
     location: "local",
+    isLocal: true,
   },
   {
     id: "llama3",
     label: "Llama 3 (Ollama)",
+    displayName: "Llama 3 (Ollama)",
     provider: "ollama",
     model: "llama3",
     aliases: ["llama3", "llama 3", "ollama_llama3", "ollama llama3"],
@@ -171,17 +198,20 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
     subtitle: "llama3:instruct",
     ollamaModel: "llama3:instruct",
     location: "local",
+    isLocal: true,
   },
   {
     id: "mistral-lmstudio",
     label: "Mistral (LM Studio)",
+    displayName: "Mistral (LM Studio)",
     provider: "lmstudio",
     model: "mistral",
-    aliases: ["mistral", "lmstudio_mistral", "lmstudio mistral"],
+    aliases: ["lmstudio_mistral", "lmstudio mistral"],
     localBackend: "lmstudio",
     subtitle: "mistral-7b-instruct",
     lmstudioModel: "mistralai/mistral-7b-instruct-v0.3",
     location: "local",
+    isLocal: true,
   },
 ];
 

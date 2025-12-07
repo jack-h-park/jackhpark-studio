@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/card";
 import { CheckboxChoice } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { type AdminLlmModelOption } from "@/hooks/use-admin-chat-config";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
+import { normalizeLlmModelId } from "@/lib/core/llm-registry";
 import {
   CHAT_ENGINE_LABELS,
   CHAT_ENGINE_OPTIONS,
@@ -29,14 +31,6 @@ import {
 
 const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
 
-type LlmOption = {
-  id: LlmModelId;
-  label: string;
-  localBackend?: LocalLlmBackend;
-  subtitle?: string;
-  location?: "cloud" | "local";
-};
-
 type AllowedAllowlistKey =
   | "llmModels"
   | "embeddingModels"
@@ -50,7 +44,7 @@ type AllowedAllowlistValue =
 
 type AllowlistCardProps = {
   allowlist: AdminChatConfig["allowlist"];
-  llmModelOptions: LlmOption[];
+  llmModelOptions: AdminLlmModelOption[];
   ollamaEnabled: boolean;
   lmstudioEnabled: boolean;
   defaultLlmModelId: string;
@@ -73,6 +67,13 @@ export function AllowlistCard({
   toggleAllowlistValue,
   updateConfig,
 }: AllowlistCardProps) {
+  const normalizedAllowlistIds = allowlist.llmModels
+    .map((id) => normalizeLlmModelId(id) ?? id)
+    .filter(
+      (id): id is string => typeof id === "string" && id.length > 0,
+    );
+  const normalizedAllowlistSet = new Set(normalizedAllowlistIds);
+
   const handleAllowReverseRagChange = (checked: boolean) => {
     updateConfig((prev) => ({
       ...prev,
@@ -112,17 +113,13 @@ export function AllowlistCard({
     );
   };
 
-  const cloudModels = llmModelOptions.filter(
-    (option) => option.location !== "local",
-  );
-  const localModels = llmModelOptions.filter(
-    (option) => option.location === "local",
-  );
+  const cloudModels = llmModelOptions.filter((option) => !option.isLocal);
+  const localModels = llmModelOptions.filter((option) => option.isLocal);
 
-  const renderModelTiles = (options: LlmOption[]) => (
+  const renderModelTiles = (options: AdminLlmModelOption[]) => (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {options.map((option) => {
-        const backend = option.localBackend;
+        const backend = option.isLocal ? option.provider : undefined;
         const backendLabel =
           backend === "ollama"
             ? "Ollama"
@@ -151,6 +148,7 @@ export function AllowlistCard({
             )}
           </span>
         );
+        const isSelected = normalizedAllowlistSet.has(option.id);
         return (
           <AllowlistTile
             key={option.id}
@@ -158,14 +156,10 @@ export function AllowlistCard({
             label={label}
             subtitle={option.subtitle ?? option.id}
             description={tooltip}
-            selected={allowlist.llmModels.includes(option.id)}
+            selected={isSelected}
             disabled={disabledByEnv}
             onClick={() =>
-              toggleAllowlistValue(
-                "llmModels",
-                option.id,
-                !allowlist.llmModels.includes(option.id),
-              )
+              toggleAllowlistValue("llmModels", option.id, !isSelected)
             }
           />
         );
@@ -234,7 +228,8 @@ export function AllowlistCard({
           </div>
           <p className="ai-helper-text">
             Choose which LLM models visitors can select. Values like
-            “gpt-4o-mini” or “mistral” are stored and used directly.
+            “gpt-4o-mini” or “mistral-ollama” (legacy “mistral”) are stored and
+            used directly.
           </p>
         </div>
 
