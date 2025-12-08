@@ -5,6 +5,7 @@ import { NotionContextProvider } from "react-notion-x";
 
 import { Footer } from "@/components/Footer";
 import { NotionPageHeader } from "@/components/NotionPageHeader";
+import { ToggleThemeButton } from "@/components/ToggleThemeButton";
 import { site } from "@/lib/config";
 import { mapImageUrl } from "@/lib/map-image-url";
 import { useDarkMode } from "@/lib/use-dark-mode";
@@ -65,6 +66,10 @@ export function AiPageChrome({
                     {site.name}
                   </Link>
                 </div>
+              </div>
+
+              <div className="notion-nav-header-rhs breadcrumbs">
+                <ToggleThemeButton />
               </div>
             </div>
           </header>

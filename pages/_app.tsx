@@ -11,6 +11,7 @@ import { posthog } from "posthog-js";
 import React, { useEffect } from "react";
 
 import { fathomConfig, fathomId, posthogConfig, posthogId } from "@/lib/config";
+import { DarkModeProvider } from "@/components/DarkModeProvider";
 
 // extend window with gtag
 declare global {
@@ -87,5 +88,9 @@ export default function App({ Component, pageProps }: AppProps) {
     };
   }, [router.events]);
 
-  return <Component {...pageProps} />;
+  return (
+    <DarkModeProvider>
+      <Component {...pageProps} />
+    </DarkModeProvider>
+  );
 }

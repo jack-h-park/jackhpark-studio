@@ -1,10 +1,7 @@
-import useDarkModeImpl from "@fisch0920/use-dark-mode";
+import { useContext } from "react";
+
+import { DarkModeContext } from "@/components/DarkModeProvider";
 
 export function useDarkMode() {
-  const darkMode = useDarkModeImpl(false, { classNameDark: "dark-mode" });
-
-  return {
-    isDarkMode: darkMode.value,
-    toggleDarkMode: darkMode.toggle,
-  };
+  return useContext(DarkModeContext);
 }
