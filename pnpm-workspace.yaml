@@ -1,7 +1,0 @@
-ignoredBuiltDependencies:
-  - unrs-resolver
-overrides:
-  notion-types: link:../react-notion-x/packages/notion-types
-  notion-utils: link:../react-notion-x/packages/notion-utils
-  notion-client: link:../react-notion-x/packages/notion-client
-  react-notion-x: link:../react-notion-x/packages/react-notion-x
