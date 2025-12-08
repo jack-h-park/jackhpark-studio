@@ -10,25 +10,49 @@ import {
 type ManualIngestionBody = ManualIngestionRequest & {
   mode?: unknown;
   pageId?: unknown;
+  pageIds?: unknown;
   url?: unknown;
   ingestionType?: unknown;
   includeLinkedPages?: unknown;
+  scope?: unknown;
   embeddingProvider?: unknown;
   embeddingModel?: unknown;
   embeddingSpaceId?: unknown;
 };
 
+function parsePageIds(raw: unknown): string[] {
+  const normalized = new Set<string>();
+  const addValue = (value?: string) => {
+    if (!value) {
+      return;
+    }
+    const cleaned = value.trim();
+    if (!cleaned) {
+      return;
+    }
+    const parsed = parsePageId(cleaned, { uuid: true });
+    if (parsed) {
+      normalized.add(parsed);
+    }
+  };
+
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      if (typeof entry === "string") {
+        addValue(entry);
+      }
+    }
+  } else if (typeof raw === "string") {
+    for (const part of raw.split(/[\n,]+/)) {
+      addValue(part);
+    }
+  }
+
+  return Array.from(normalized);
+}
+
 function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
   if (body.mode === "notion_page") {
-    if (typeof body.pageId !== "string") {
-      throw new Error("Missing Notion page ID.");
-    }
-
-    const parsed = parsePageId(body.pageId, { uuid: true });
-    if (!parsed) {
-      throw new Error("Invalid Notion page ID.");
-    }
-
     const ingestionType = body.ingestionType === "full" ? "full" : "partial";
     const rawIncludeLinkedPages = body.includeLinkedPages;
     const includeLinkedPages =
@@ -37,6 +61,32 @@ function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
         : typeof rawIncludeLinkedPages === "string"
           ? rawIncludeLinkedPages === "true"
           : true;
+
+    const normalizedPageIds = parsePageIds(body.pageIds);
+    const fallbackPageId =
+      typeof body.pageId === "string"
+        ? parsePageId(body.pageId, { uuid: true })
+        : undefined;
+    const allPageIds =
+      normalizedPageIds.length > 0
+        ? normalizedPageIds
+        : fallbackPageId
+          ? [fallbackPageId]
+          : [];
+
+    const requestedScope =
+      body.scope === "workspace"
+        ? "workspace"
+        : body.scope === "selected"
+          ? "selected"
+          : includeLinkedPages
+            ? "workspace"
+            : "selected";
+
+    if (requestedScope === "selected" && allPageIds.length === 0) {
+      throw new Error("Missing Notion page ID.");
+    }
+
     const embeddingModel =
       typeof body.embeddingModel === "string" &&
       body.embeddingModel.trim().length > 0
@@ -50,7 +100,12 @@ function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
 
     return {
       mode: "notion_page",
-      pageId: parsed,
+      scope: requestedScope,
+      pageId: allPageIds[0] ?? undefined,
+      pageIds:
+        requestedScope === "selected" && allPageIds.length > 0
+          ? allPageIds
+          : undefined,
       ingestionType,
       includeLinkedPages,
       embeddingModel,

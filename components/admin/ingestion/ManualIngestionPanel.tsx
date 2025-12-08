@@ -188,39 +188,77 @@ export function ManualIngestionPanel(): JSX.Element {
                   activeTabId={ingestion.mode}
                   className="ai-tab-panel space-y-2 px-2 pt-2 pb-2"
                 >
-                  <div className="space-y-2">
-                    <Label htmlFor="manual-notion-input">
-                      Notion Page ID or URL
+                  <div className="space-y-4">
+                    <div className="space-y-3">
+                    <Label id="manual-ingestion-scope-label">
+                      Pages to ingest
                     </Label>
-                    <Input
-                      id="manual-notion-input"
-                      type="text"
-                      placeholder="https://www.notion.so/... or page ID"
-                      value={ingestion.notionInput}
-                      onChange={(event) => ingestion.setNotionInput(event.target.value)}
-                      disabled={ingestion.isRunning}
-                      aria-describedby={manualNotionDescriptionId}
-                    />
-                    <p
-                      id={manualNotionDescriptionId}
-                      className="ai-meta-text"
-                    >
-                      Paste the full shared link or the 32-character page ID
-                      from Notion. Use the controls above to define scope and
-                      whether linked pages are included.
-                    </p>
-                  </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Radiobutton
+                          name="manual-ingestion-scope"
+                          value="workspace"
+                          label="Ingest all pages in this workspace"
+                          description="Re-scan and ingest every page across the entire workspace."
+                          checked={ingestion.ingestionScope === "workspace"}
+                          disabled={ingestion.isRunning}
+                          onChange={ingestion.setIngestionScope}
+                        />
+                        <Radiobutton
+                          name="manual-ingestion-scope"
+                          value="selected"
+                          label="Ingest only selected page(s)"
+                          description="Ingest only the page(s) you choose. Optionally include pages directly linked from them."
+                          checked={ingestion.ingestionScope === "selected"}
+                          disabled={ingestion.isRunning}
+                          onChange={ingestion.setIngestionScope}
+                        />
+                      </div>
+                    </div>
 
-                  <div className="pt-2">
-                    <CheckboxChoice
-                      className="select-none"
-                      layout="stacked"
-                      label="Include linked pages"
-                      description="Also ingest child pages and any pages referenced via Notion link-to-page blocks."
-                      checked={ingestion.includeLinkedPages}
-                      onCheckedChange={ingestion.setIncludeLinkedPages}
-                      disabled={ingestion.isRunning}
-                    />
+                    {ingestion.ingestionScope === "selected" ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="manual-notion-input">
+                            Select page(s) to ingest
+                          </Label>
+                          <Input
+                            id="manual-notion-input"
+                            type="text"
+                            placeholder="Search or enter a Notion page ID…"
+                            value={ingestion.notionInput}
+                            onChange={(event) =>
+                              ingestion.setNotionInput(event.target.value)
+                            }
+                            disabled={ingestion.isRunning}
+                            aria-describedby={manualNotionDescriptionId}
+                          />
+                          <p
+                            id={manualNotionDescriptionId}
+                            className="ai-meta-text"
+                          >
+                            Paste the full shared link or the 32-character
+                            page ID from Notion. You can enter multiple IDs
+                            separated by commas, spaces, or new lines.
+                          </p>
+                        </div>
+                        <div className="pt-2">
+                          <CheckboxChoice
+                            className="select-none"
+                            layout="stacked"
+                            label="Include linked pages"
+                            description="Also ingest pages directly linked from the selected page(s), such as child pages and link-to-page references. (Does not scan the entire workspace.)"
+                            checked={ingestion.includeLinkedPages}
+                            onCheckedChange={ingestion.setIncludeLinkedPages}
+                            disabled={ingestion.isRunning}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <p className="ai-meta-text text-sm">
+                        Linked pages are irrelevant because this mode always
+                        scans the entire workspace.
+                      </p>
+                    )}
                   </div>
                 </TabPanel>
 
@@ -262,13 +300,13 @@ export function ManualIngestionPanel(): JSX.Element {
                 role="radiogroup"
                 aria-labelledby={currentScopeLabelId}
               >
-                <div className="space-y-3">
-                  <Label
-                    id={currentScopeLabelId}
-                    htmlFor="manual-ingestion-scope"
-                  >
-                    Ingestion Scope
-                  </Label>
+                  <div className="space-y-3">
+                    <Label
+                      id={currentScopeLabelId}
+                      htmlFor="manual-ingestion-scope"
+                    >
+                      Update strategy
+                    </Label>
                   <div className="grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center">
                     <Radiobutton
                       name={currentScopeGroupName}
@@ -282,8 +320,8 @@ export function ManualIngestionPanel(): JSX.Element {
                     <Radiobutton
                       name={currentScopeGroupName}
                       value="full"
-                      label="For any pages"
-                      description="Re-ingest all pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
+                      label="Re-ingest all pages"
+                      description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
                       checked={currentScope === "full"}
                       disabled={ingestion.isRunning}
                       onChange={setCurrentScope}

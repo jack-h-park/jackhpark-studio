@@ -32,6 +32,24 @@ function createLogEntry(
   };
 }
 
+function parseManualPageIds(value: string): string[] {
+  const normalized = new Set<string>();
+  const parts = value.split(/[\s,]+/);
+
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const parsed = parsePageId(trimmed, { uuid: true });
+    if (parsed) {
+      normalized.add(parsed);
+    }
+  }
+
+  return Array.from(normalized);
+}
+
 export type ManualIngestionHookState = {
   mode: "notion_page" | "url";
   setMode: (mode: "notion_page" | "url") => void;
@@ -41,6 +59,8 @@ export type ManualIngestionHookState = {
   setUrlInput: (value: string) => void;
   notionScope: "partial" | "full";
   setNotionScope: (value: "partial" | "full") => void;
+  ingestionScope: "selected" | "workspace";
+  setIngestionScope: (value: "selected" | "workspace") => void;
   urlScope: "partial" | "full";
   setUrlScope: (value: "partial" | "full") => void;
   includeLinkedPages: boolean;
@@ -75,6 +95,8 @@ export function useManualIngestion(): ManualIngestionHookState {
   const [mode, setMode] = useState<"notion_page" | "url">("notion_page");
   const [notionInput, setNotionInput] = useState("");
   const [notionScope, setNotionScope] = useState<"partial" | "full">("partial");
+  const [ingestionScope, setIngestionScope] =
+    useState<"selected" | "workspace">("selected");
   const [urlScope, setUrlScope] = useState<"partial" | "full">("partial");
   const [urlInput, setUrlInput] = useState("");
   const [includeLinkedPages, setIncludeLinkedPages] = useState(true);
@@ -269,16 +291,25 @@ export function useManualIngestion(): ManualIngestionHookState {
     let payload: ManualIngestionRequest;
 
     if (mode === "notion_page") {
-      const parsed = parsePageId(notionInput.trim(), { uuid: true });
-      if (!parsed) {
-        setErrorMessage("Enter a valid Notion page ID or URL.");
+      const manualPageIds =
+        ingestionScope === "selected"
+          ? parseManualPageIds(notionInput)
+          : [];
+      if (ingestionScope === "selected" && manualPageIds.length === 0) {
+        setErrorMessage("Enter at least one Notion page ID or URL.");
         return;
       }
       payload = {
         mode: "notion_page",
-        pageId: parsed,
+        scope: ingestionScope,
+        pageId: manualPageIds[0] ?? undefined,
+        pageIds:
+          ingestionScope === "selected" && manualPageIds.length > 0
+            ? manualPageIds
+            : undefined,
         ingestionType: notionScope,
-        includeLinkedPages,
+        includeLinkedPages:
+          ingestionScope === "selected" ? includeLinkedPages : undefined,
         embeddingModel: manualEmbeddingProvider,
         embeddingSpaceId: manualEmbeddingProvider,
       };
@@ -332,9 +363,11 @@ export function useManualIngestion(): ManualIngestionHookState {
     setAutoScrollLogs(true);
     const startLog =
       mode === "notion_page"
-        ? `Starting manual ${notionScope} ingestion for the Notion page${
-            includeLinkedPages ? " (including linked pages)" : ""
-          }.`
+        ? ingestionScope === "workspace"
+          ? `Starting manual ${notionScope} workspace-wide ingestion.`
+          : `Starting manual ${notionScope} ingestion for the selected page(s)${
+              includeLinkedPages ? " (including linked pages)" : ""
+            }.`
         : `Starting manual ${urlScope} ingestion for the provided URL.`;
     hasAutoScrolledProgressRef.current = false;
     scrollProgressIntoViewOnce();
@@ -477,6 +510,7 @@ export function useManualIngestion(): ManualIngestionHookState {
     mode,
     notionInput,
     notionScope,
+    ingestionScope,
     includeLinkedPages,
     urlInput,
     urlScope,
@@ -504,6 +538,8 @@ export function useManualIngestion(): ManualIngestionHookState {
       setUrlInput,
       notionScope,
       setNotionScope,
+      ingestionScope,
+      setIngestionScope,
       urlScope,
       setUrlScope,
       includeLinkedPages,
@@ -533,6 +569,7 @@ export function useManualIngestion(): ManualIngestionHookState {
       notionInput,
       urlInput,
       notionScope,
+      ingestionScope,
       urlScope,
       includeLinkedPages,
       manualEmbeddingProvider,

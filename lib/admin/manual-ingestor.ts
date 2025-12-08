@@ -2,6 +2,8 @@ import { NotionAPI } from "notion-client";
 import { type ExtendedRecordMap } from "notion-types";
 import { getAllPagesInSpace, parsePageId } from "notion-utils";
 
+import { getSiteConfig } from "../get-config-value";
+
 import type { ModelProvider } from "../shared/model-provider";
 import { resolveEmbeddingSpace } from "../core/embedding-spaces";
 import { debugIngestionLog } from "../rag/debug";
@@ -47,6 +49,45 @@ import { buildUrlRagDocumentMetadata } from "../rag/url-metadata";
 
 const notion = new NotionAPI();
 
+type ManualNotionScope = "workspace" | "selected";
+
+const LINKED_PAGE_MAX_PAGES = 250;
+const LINKED_PAGE_MAX_DEPTH = 4;
+
+const WORKSPACE_ROOT_PAGE_ID = resolveWorkspaceRootPageId();
+
+function resolveWorkspaceRootPageId(): string {
+  const candidate =
+    process.env.NOTION_ROOT_PAGE_ID ??
+    getSiteConfig<string>("rootNotionPageId");
+  const normalized =
+    typeof candidate === "string"
+      ? parsePageId(candidate, { uuid: true })
+      : undefined;
+
+  if (!normalized) {
+    throw new Error(
+      "Missing Notion root page ID. Set NOTION_ROOT_PAGE_ID or configure rootNotionPageId in site.config.ts.",
+    );
+  }
+
+  return normalized;
+}
+
+function normalizeNotionPageId(value?: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const sanitized = parsePageId(value, { uuid: true });
+  if (sanitized) {
+    return sanitized;
+  }
+
+  const fallback = value.replace(/-/g, "");
+  return fallback.length === 32 ? fallback : undefined;
+}
+
 type ManualIngestionBase = {
   ingestionType?: "full" | "partial";
   embeddingProvider?: ModelProvider;
@@ -59,7 +100,9 @@ type ManualIngestionBase = {
 export type ManualIngestionRequest =
   | (ManualIngestionBase & {
       mode: "notion_page";
-      pageId: string;
+      scope?: ManualNotionScope;
+      pageId?: string;
+      pageIds?: string[];
       includeLinkedPages?: boolean;
     })
   | (ManualIngestionBase & { mode: "url"; url: string });
@@ -116,6 +159,88 @@ function toEmbeddingOptions(
     embeddingSpaceId: selection.embeddingSpaceId,
     version: selection.version,
   };
+}
+
+async function collectLinkedPagesFromSeeds(
+  seedPageIds: string[],
+): Promise<string[]> {
+  const seen = new Set<string>();
+  const queue: Array<{ pageId: string; depth: number }> = [];
+
+  for (const pageId of seedPageIds) {
+    const normalized = normalizeNotionPageId(pageId);
+    if (!normalized) {
+      continue;
+    }
+    if (seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    queue.push({ pageId: normalized, depth: 0 });
+    if (seen.size >= LINKED_PAGE_MAX_PAGES) {
+      break;
+    }
+  }
+
+  while (queue.length > 0 && seen.size < LINKED_PAGE_MAX_PAGES) {
+    const { pageId, depth } = queue.shift()!;
+    if (depth >= LINKED_PAGE_MAX_DEPTH) {
+      continue;
+    }
+
+    let recordMap: ExtendedRecordMap | null = null;
+    try {
+      recordMap = await notion.getPage(pageId);
+    } catch {
+      continue;
+    }
+
+    if (!recordMap) {
+      continue;
+    }
+
+    for (const block of Object.values(recordMap.block ?? {})) {
+      const value = (block?.value ?? null) as Record<string, unknown>;
+
+      if (!value || value.alive === false) {
+        continue;
+      }
+
+      const type = value.type as string | undefined;
+      let candidateId: string | undefined;
+
+      if (type === "link_to_page") {
+        candidateId =
+          (value.link_to_page as { page_id?: string } | undefined)
+            ?.page_id;
+      } else if (type === "alias") {
+        candidateId =
+          (value.format as { alias_pointer?: { id?: string } } | undefined)
+            ?.alias_pointer?.id;
+      } else if (type === "child_page" || type === "child_database") {
+        if (typeof value.id === "string") {
+          candidateId = value.id;
+        }
+      }
+
+      if (!candidateId) {
+        continue;
+      }
+
+      const normalizedCandidate = normalizeNotionPageId(candidateId);
+      if (!normalizedCandidate || seen.has(normalizedCandidate)) {
+        continue;
+      }
+
+      seen.add(normalizedCandidate);
+      if (seen.size >= LINKED_PAGE_MAX_PAGES) {
+        break;
+      }
+      queue.push({ pageId: normalizedCandidate, depth: depth + 1 });
+    }
+  }
+
+  return Array.from(seen);
 }
 
 async function ingestNotionPage({
@@ -320,23 +445,53 @@ async function ingestNotionPage({
   return;
 }
 
-async function runNotionPageIngestion(
-  pageId: string,
-  ingestionType: "full" | "partial",
-  includeLinkedPages: boolean,
-  embeddingOptions: EmbedBatchOptions,
-  emit: EmitFn,
-): Promise<void> {
-  const pageUrl = getPageUrl(pageId);
+async function runNotionPageIngestion({
+  scope,
+  pageId,
+  pageIds,
+  ingestionType,
+  includeLinkedPages = true,
+  embeddingOptions,
+  emit,
+}: {
+  scope?: ManualNotionScope;
+  pageId?: string;
+  pageIds?: string[];
+  ingestionType: "full" | "partial";
+  includeLinkedPages?: boolean;
+  embeddingOptions: EmbedBatchOptions;
+  emit: EmitFn;
+}): Promise<void> {
+  const requestedScope =
+    scope ?? (includeLinkedPages ? "workspace" : "selected");
+  const isWorkspace = requestedScope === "workspace";
+  const candidateRoot =
+    pageId ??
+    (Array.isArray(pageIds) && pageIds.length > 0 ? pageIds[0] : undefined);
+  let rootPageId = normalizeNotionPageId(candidateRoot);
+
+  if (!rootPageId && isWorkspace) {
+    rootPageId = WORKSPACE_ROOT_PAGE_ID;
+  }
+
+  if (!rootPageId) {
+    throw new Error(
+      "Provide at least one Notion page ID when ingesting selected pages.",
+    );
+  }
+
+  const pageUrl = getPageUrl(rootPageId);
   const isFull = ingestionType === "full";
   const runHandle: IngestRunHandle = await startIngestRun({
     source: "manual/notion-page",
     ingestion_type: ingestionType,
     metadata: {
-      pageId,
+      pageId: rootPageId,
       pageUrl,
       ingestionType,
-      includeLinkedPages,
+      scope: requestedScope,
+      includeLinkedPages:
+        requestedScope === "selected" ? includeLinkedPages : undefined,
       embeddingProvider: embeddingOptions.provider ?? null,
       embeddingSpaceId: embeddingOptions.embeddingSpaceId ?? null,
       embeddingModelId: embeddingOptions.embeddingModelId ?? null,
@@ -355,13 +510,18 @@ async function runNotionPageIngestion(
   const errorLogs: IngestRunErrorLog[] = [];
   const started = Date.now();
   let status: ManualRunStatus = "success";
-  let finalMessage = includeLinkedPages
-    ? isFull
-      ? "Manual Notion full ingestion (linked pages) finished."
-      : "Manual Notion ingestion (linked pages) finished."
-    : isFull
-      ? "Manual Notion page full ingestion finished."
-      : "Manual Notion page ingestion finished.";
+  let finalMessage =
+    requestedScope === "workspace"
+      ? isFull
+        ? "Manual Notion full workspace ingestion finished."
+        : "Manual Notion workspace ingestion finished."
+      : includeLinkedPages
+        ? isFull
+          ? "Manual Notion full ingestion (linked pages) finished."
+          : "Manual Notion ingestion (linked pages) finished."
+        : isFull
+          ? "Manual Notion page full ingestion finished."
+          : "Manual Notion page ingestion finished.";
 
   type CandidatePage = {
     pageId: string;
@@ -371,58 +531,108 @@ async function runNotionPageIngestion(
   const seen = new Set<string>();
 
   const pushCandidate = (id: string) => {
-    const normalized = parsePageId(id, { uuid: true }) ?? id;
-    if (seen.has(normalized)) {
+    const normalized = normalizeNotionPageId(id) ?? id;
+    if (!normalized || seen.has(normalized)) {
       return;
     }
     seen.add(normalized);
     candidatePages.push({ pageId: normalized });
   };
 
-  if (includeLinkedPages) {
+  const seedCollector = new Set<string>();
+  const addSeed = (value?: string) => {
+    const normalized = normalizeNotionPageId(value);
+    if (normalized) {
+      seedCollector.add(normalized);
+    }
+  };
+  if (Array.isArray(pageIds)) {
+    for (const id of pageIds) {
+      addSeed(id);
+    }
+  }
+  addSeed(pageId);
+  if (requestedScope === "selected" && seedCollector.size === 0) {
+    seedCollector.add(rootPageId);
+  }
+
+  if (isWorkspace) {
+    await emit({
+      type: "log",
+      level: "info",
+      message: `Collecting all pages in the workspace starting from ${rootPageId}...`,
+    });
+
+    const pageMap = await getAllPagesInSpace(
+      rootPageId,
+      undefined,
+      async (candidateId) => notion.getPage(candidateId),
+    );
+
+    for (const rawId of Object.keys(pageMap)) {
+      pushCandidate(rawId);
+    }
+  } else if (includeLinkedPages) {
+    const seedList = Array.from(seedCollector);
+    await emit({
+      type: "log",
+      level: "info",
+      message: `Discovering linked Notion pages starting from ${rootPageId}...`,
+    });
+
+    let linkedPageIds: string[] = [];
     try {
-      await emit({
-        type: "log",
-        level: "info",
-        message: `Discovering linked Notion pages starting from ${pageId}...`,
-      });
-
-      const pageMap = await getAllPagesInSpace(
-        pageId,
-        undefined,
-        async (candidateId) => notion.getPage(candidateId),
+      linkedPageIds = await collectLinkedPagesFromSeeds(
+        seedList.length > 0 ? seedList : [rootPageId],
       );
-
-      pushCandidate(pageId);
-
-      for (const [rawId, recordMap] of Object.entries(pageMap)) {
-        if (!recordMap) {
-          continue;
-        }
-        const normalized = parsePageId(rawId, { uuid: true }) ?? rawId;
-        pushCandidate(normalized);
+      if (linkedPageIds.length === 0) {
+        linkedPageIds = seedList.length > 0 ? seedList : [rootPageId];
       }
-
       await emit({
         type: "log",
         level: "info",
-        message: `Identified ${candidatePages.length} page(s) for ingestion.`,
+        message: `Identified ${linkedPageIds.length} page(s) for ingestion.`,
       });
     } catch (err) {
       const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to enumerate linked pages.";
+        err instanceof Error ? err.message : "Failed to enumerate linked pages.";
       await emit({
         type: "log",
         level: "warn",
-        message: `Could not enumerate linked pages: ${message}. Falling back to the selected page only.`,
+        message: `Could not enumerate linked pages: ${message}. Falling back to the selected page(s) only.`,
       });
+      linkedPageIds = seedList.length > 0 ? seedList : [rootPageId];
+    }
+
+    for (const linkedId of linkedPageIds) {
+      pushCandidate(linkedId);
+    }
+  } else {
+    const seedList = Array.from(seedCollector);
+    if (seedList.length === 0) {
+      seedList.push(rootPageId);
+    }
+    for (const seedId of seedList) {
+      pushCandidate(seedId);
     }
   }
 
   if (candidatePages.length === 0) {
-    pushCandidate(pageId);
+    pushCandidate(rootPageId);
+  }
+
+  if (isWorkspace) {
+    await emit({
+      type: "log",
+      level: "info",
+      message: `Identified ${candidatePages.length} page(s) for workspace ingestion.`,
+    });
+  } else if (!includeLinkedPages) {
+    await emit({
+      type: "log",
+      level: "info",
+      message: `Identified ${candidatePages.length} selected page(s) for ingestion.`,
+    });
   }
 
   const processedPages: string[] = [];
@@ -512,7 +722,12 @@ async function runNotionPageIngestion(
     const skippedPages = stats.documentsSkipped;
 
     if (status === "success") {
-      if (includeLinkedPages) {
+      if (requestedScope === "workspace") {
+        finalMessage =
+          processedPages.length === 0
+            ? "No Notion pages were available to ingest."
+            : `Processed ${processedPages.length} Notion page(s) workspace-wide; updated ${updatedPages}, skipped ${skippedPages}.`;
+      } else if (includeLinkedPages) {
         finalMessage =
           processedPages.length === 0
             ? "No Notion pages were available to ingest."
@@ -529,16 +744,21 @@ async function runNotionPageIngestion(
     stats.errorCount += 1;
     const message = err instanceof Error ? err.message : String(err);
     const failingPageId =
-      (err as { ingestionPageId?: string | null })?.ingestionPageId ?? pageId;
-    finalMessage = `${
-      includeLinkedPages
+      (err as { ingestionPageId?: string | null })?.ingestionPageId ??
+      rootPageId;
+    const scopeLabel =
+      requestedScope === "workspace"
         ? isFull
-          ? "Manual Notion full ingestion (linked pages) failed"
-          : "Manual Notion ingestion (linked pages) failed"
-        : isFull
-          ? "Manual Notion page full ingestion failed"
-          : "Manual Notion ingestion failed"
-    }: ${message}`;
+          ? "Manual Notion full workspace ingestion failed"
+          : "Manual Notion workspace ingestion failed"
+        : includeLinkedPages
+          ? isFull
+            ? "Manual Notion full ingestion (linked pages) failed"
+            : "Manual Notion ingestion (linked pages) failed"
+          : isFull
+            ? "Manual Notion page full ingestion failed"
+            : "Manual Notion ingestion failed";
+    finalMessage = `${scopeLabel}: ${message}`;
     errorLogs.push({
       context: "fatal",
       doc_id: failingPageId,
@@ -821,13 +1041,18 @@ export async function runManualIngestion(
   if (request.mode === "notion_page") {
     const ingestionType = request.ingestionType ?? "partial";
     const includeLinkedPages = request.includeLinkedPages ?? true;
-    await runNotionPageIngestion(
-      request.pageId,
+    const scope =
+      request.scope ??
+      (includeLinkedPages ? "workspace" : "selected");
+    await runNotionPageIngestion({
+      scope,
+      pageId: request.pageId,
+      pageIds: request.pageIds,
       ingestionType,
       includeLinkedPages,
       embeddingOptions,
       emit,
-    );
+    });
     return;
   }
 
