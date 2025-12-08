@@ -10,8 +10,8 @@ import { useRouter } from "next/router";
 import { posthog } from "posthog-js";
 import React, { useEffect } from "react";
 
-import { fathomConfig, fathomId, posthogConfig, posthogId } from "@/lib/config";
 import { DarkModeProvider } from "@/components/DarkModeProvider";
+import { fathomConfig, fathomId, posthogConfig, posthogId } from "@/lib/config";
 
 // extend window with gtag
 declare global {

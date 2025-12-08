@@ -9,9 +9,7 @@ import type {
   RecentRunsSnapshot,
   SystemHealthOverview,
 } from "@/lib/admin/ingestion-types";
-import {
-  DatasetSnapshotSection,
-} from "@/components/admin/ingestion/DatasetSnapshotSection";
+import { DatasetSnapshotSection } from "@/components/admin/ingestion/DatasetSnapshotSection";
 import { ManualIngestionPanel } from "@/components/admin/ingestion/ManualIngestionPanel";
 import { RagDocumentsOverview } from "@/components/admin/ingestion/RagDocumentsOverview";
 import { RecentRunsSection } from "@/components/admin/ingestion/RecentRunsSection";
@@ -20,7 +18,10 @@ import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
 import { IngestionSubNav } from "@/components/admin/navigation/IngestionSubNav";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { LinkButton } from "@/components/ui/link-button";
-import { SNAPSHOT_HISTORY_LIMIT, toSnapshotSummary } from "@/lib/admin/ingestion-formatters";
+import {
+  SNAPSHOT_HISTORY_LIMIT,
+  toSnapshotSummary,
+} from "@/lib/admin/ingestion-formatters";
 import { getStringMetadata } from "@/lib/admin/ingestion-metadata";
 import {
   DEFAULT_RUNS_PAGE_SIZE,
@@ -93,13 +94,15 @@ function IngestionDashboard({
               </div>
             ),
           }}
-          subNav={<IngestionSubNav />}
         >
-          <ManualIngestionPanel />
-          <DatasetSnapshotSection overview={datasetSnapshot} />
-          <RagDocumentsOverview stats={documentsStats} />
-          <SystemHealthSection health={systemHealth} />
-          <RecentRunsSection initial={recentRuns} />
+          <div className="mb-6 space-y-6">
+            <IngestionSubNav />
+            <ManualIngestionPanel />
+            <DatasetSnapshotSection overview={datasetSnapshot} />
+            <RagDocumentsOverview stats={documentsStats} />
+            <SystemHealthSection health={systemHealth} />
+            <RecentRunsSection initial={recentRuns} />
+          </div>
         </AdminPageShell>
       </AiPageChrome>
     </>
@@ -169,12 +172,15 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   const latestRun = runs[0] ?? null;
   const lastFailureRun =
     runs.find(
-      (run) => run.status === "failed" || run.status === "completed_with_errors",
+      (run) =>
+        run.status === "failed" || run.status === "completed_with_errors",
     ) ?? null;
 
   const { data: docsData, error: docsError } = await supabase
     .from("rag_documents")
-    .select("doc_id, source_url, last_ingested_at, last_source_update, chunk_count, total_characters, metadata")
+    .select(
+      "doc_id, source_url, last_ingested_at, last_source_update, chunk_count, total_characters, metadata",
+    )
     .order("last_ingested_at", { ascending: false })
     .limit(2000);
 

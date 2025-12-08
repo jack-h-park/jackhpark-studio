@@ -1,6 +1,4 @@
 import type { CollectionViewPageBlock, PageBlock } from "notion-types";
-import { IoMoonSharp } from "@react-icons/all-files/io5/IoMoonSharp";
-import { IoSunnyOutline } from "@react-icons/all-files/io5/IoSunnyOutline";
 import cs from "classnames";
 import Link from "next/link"; // ✅ Use Next.js router link
 import { getBlockTitle, getPageBreadcrumbs } from "notion-utils";
@@ -12,10 +10,9 @@ import {
   navigationLinks,
   navigationStyle,
 } from "@/lib/config";
-import { useDarkMode } from "@/lib/use-dark-mode";
-import { ToggleThemeButton } from "./ToggleThemeButton";
 
 import styles from "./styles.module.css";
+import { ToggleThemeButton } from "./ToggleThemeButton";
 
 export function NotionPageHeader({
   block,
@@ -23,8 +20,6 @@ export function NotionPageHeader({
   block: CollectionViewPageBlock | PageBlock;
 }) {
   const { components: _components, mapPageUrl, recordMap } = useNotionContext();
-
-  console.log("[Real Header] rendered =", block);
 
   const breadcrumbs = React.useMemo(() => {
     if (!block?.id || !recordMap) {

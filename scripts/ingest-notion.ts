@@ -26,15 +26,20 @@ import {
   startIngestRun, // This line is already present, no change needed.
   upsertDocumentState,
 } from "../lib/rag";
+import { debugIngestionLog } from "../lib/rag/debug";
 import {
   decideIngestAction,
 } from "../lib/rag/ingest-helpers";
 import {
   mergeMetadata,
+  mergeRagDocumentMetadata,
   metadataEquals,
   normalizeMetadata,
 } from "../lib/rag/metadata";
-import { extractNotionMetadata } from "../lib/rag/notion-metadata";
+import {
+  buildNotionSourceMetadata,
+  extractNotionMetadata,
+} from "../lib/rag/notion-metadata";
 
 const notion = new NotionAPI();
 const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
@@ -108,7 +113,21 @@ async function ingestPage(
     !!existingState && existingState.content_hash === pageHash;
   const existingMetadata = normalizeMetadata(existingState?.metadata ?? null);
   const incomingMetadata = extractNotionMetadata(recordMap, pageId);
-  const nextMetadata = mergeMetadata(existingMetadata, incomingMetadata);
+  const adminMetadata =
+    mergeMetadata(existingMetadata, incomingMetadata) ??
+    existingMetadata ??
+    null;
+  const sourceMetadata = buildNotionSourceMetadata(recordMap, pageId);
+  const nextMetadata = mergeRagDocumentMetadata(
+    adminMetadata ?? existingMetadata ?? undefined,
+    sourceMetadata,
+  );
+  debugIngestionLog("final-document-metadata", {
+    docId: pageId,
+    title: nextMetadata.title,
+    teaser_text: nextMetadata.teaser_text,
+    preview_image_url: nextMetadata.preview_image_url,
+  });
   const metadataUnchanged = metadataEquals(existingMetadata, nextMetadata);
 
   const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
@@ -257,10 +276,32 @@ async function ingestWorkspace(
           message,
         });
         console.error(`Failed to ingest Notion page ${pageId}: ${message}`);
-      }
-    },
-    { concurrency: INGEST_CONCURRENCY },
-  );
+        }
+      },
+      { concurrency: INGEST_CONCURRENCY },
+    );
+}
+
+async function ingestSinglePage(
+  pageId: string,
+  stats: IngestRunStats,
+  errorLogs: IngestRunErrorLog[],
+  ingestionType: RunMode["type"],
+) {
+  debugIngestionLog("single-page-mode", { pageId });
+  try {
+    const recordMap = await notion.getPage(pageId);
+    await ingestPage(pageId, recordMap, stats, ingestionType);
+  } catch (err) {
+    stats.errorCount += 1;
+    const message =
+      err instanceof Error ? err.message : JSON.stringify(err);
+    errorLogs.push({
+      doc_id: pageId,
+      message,
+    });
+    console.error(`Failed to ingest Notion page ${pageId}: ${message}`);
+  }
 }
 
 async function main() {
@@ -294,7 +335,16 @@ async function main() {
   const started = Date.now();
 
   try {
-    await ingestWorkspace(rootPageId, stats, errorLogs, mode.type);
+    if (process.env.DEBUG_NOTION_PAGE_ID) {
+      await ingestSinglePage(
+        process.env.DEBUG_NOTION_PAGE_ID,
+        stats,
+        errorLogs,
+        mode.type,
+      );
+    } else {
+      await ingestWorkspace(rootPageId, stats, errorLogs, mode.type);
+    }
     const durationMs = Date.now() - started;
     const status = stats.errorCount > 0 ? "completed_with_errors" : "success";
 

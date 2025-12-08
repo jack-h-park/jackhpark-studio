@@ -24,6 +24,11 @@ import {
   isUnchanged,
   shouldSkipIngest,
 } from "../lib/rag/ingest-helpers";
+import {
+  mergeRagDocumentMetadata,
+  parseRagDocumentMetadata,
+} from "../lib/rag/metadata";
+import { buildUrlRagDocumentMetadata } from "../lib/rag/url-metadata";
 
 const INGEST_CONCURRENCY = Math.max(
   1,
@@ -102,6 +107,16 @@ async function ingestUrl(
     lastSourceUpdate: lastModified ?? null,
   });
 
+  const existingMetadata = parseRagDocumentMetadata(existingState?.metadata);
+  const sourceMetadata = buildUrlRagDocumentMetadata({
+    sourceUrl: url,
+    htmlTitle: title,
+  });
+  const nextMetadata = mergeRagDocumentMetadata(
+    existingMetadata,
+    sourceMetadata,
+  );
+
   const providerHasChunks =
     unchanged && (await hasChunksForProvider(url, embeddingSpace));
   const shouldSkip = shouldSkipIngest({
@@ -158,6 +173,7 @@ async function ingestUrl(
     last_source_update: lastModified ?? null,
     chunk_count: chunkCount,
     total_characters: totalCharacters,
+    metadata: nextMetadata,
   });
 
   if (existingState) {

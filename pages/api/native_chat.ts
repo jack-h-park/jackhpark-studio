@@ -14,7 +14,7 @@ import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOpenAIClient } from "@/lib/core/openai";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { getLocalLlmClient } from "@/lib/local-llm";
-import { normalizeMetadata } from "@/lib/rag/metadata";
+import { normalizeMetadata, type RagDocumentMetadata } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
 import { matchRagChunksForConfig } from "@/lib/rag/retrieval";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
@@ -111,20 +111,6 @@ function logRetrievalStage(
     },
   });
 }
-type RagDocumentMetadata = {
-  doc_id?: string | null;
-  docId?: string | null;
-  page_id?: string | null;
-  pageId?: string | null;
-  title?: string | null;
-  source_url?: string | null;
-  sourceUrl?: string | null;
-  url?: string | null;
-  chunk_hash?: string | null;
-  ingested_at?: string | null;
-  [key: string]: unknown;
-};
-
 type RagDocument = {
   id?: string | null;
   doc_id?: string | null;

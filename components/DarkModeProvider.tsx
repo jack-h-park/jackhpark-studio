@@ -1,5 +1,5 @@
-import * as React from "react";
 import useDarkModeImpl from "@fisch0920/use-dark-mode";
+import * as React from "react";
 
 export const DarkModeContext = React.createContext({
   isDarkMode: false,

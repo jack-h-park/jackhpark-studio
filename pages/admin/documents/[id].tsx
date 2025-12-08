@@ -30,15 +30,13 @@ import {
   normalizeRagDocument,
   type RagDocumentRecord,
 } from "@/lib/admin/rag-documents";
-import {
-  DOC_TYPE_OPTIONS,
-  PERSONA_TYPE_OPTIONS,
-} from "@/lib/rag/metadata";
+import { DOC_TYPE_OPTIONS, PERSONA_TYPE_OPTIONS } from "@/lib/rag/metadata";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 const PAGE_TITLE = "RAG Document Details";
-const PAGE_TAB_TITLE = "Admin · Ingestion · RAG Document Details — Jack H. Park";
+const PAGE_TAB_TITLE =
+  "Admin · Ingestion · RAG Document Details — Jack H. Park";
 
 type PageProps = {
   document: RagDocumentRecord;
@@ -70,9 +68,9 @@ export default function AdminDocumentDetailPage({
   );
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [statusVariant, setStatusVariant] = useState<"success" | "error" | null>(
-    null,
-  );
+  const [statusVariant, setStatusVariant] = useState<
+    "success" | "error" | null
+  >(null);
 
   const sourceType =
     typeof document.metadata?.source_type === "string"
@@ -102,8 +100,7 @@ export default function AdminDocumentDetailPage({
             source_type: sourceType,
             doc_type: docType || undefined,
             persona_type: personaType || undefined,
-            is_public:
-              typeof isPublic === "boolean" ? isPublic : undefined,
+            is_public: typeof isPublic === "boolean" ? isPublic : undefined,
             tags: tagArray,
           },
         }),
@@ -155,174 +152,182 @@ export default function AdminDocumentDetailPage({
           header={{
             overline: "ADMIN · INGESTION",
             title: PAGE_TITLE,
-            description: "Inspect ingestion history and metadata for a single document.",
+            description:
+              "Inspect ingestion history and metadata for a single document.",
             meta: headerMeta,
           }}
-          subNav={<IngestionSubNav />}
         >
-          <Card>
-            <CardHeader>
-              <CardTitle>Document</CardTitle>
-              <CardDescription>
-                {document.doc_id}
-                {document.source_url ? (
-                  <>
-                    {" "}
-                    ·
-                    <Link
-                      href={document.source_url}
-                      className="text-[color:var(--ai-text-soft)] underline underline-offset-4"
-                      target="_blank"
-                      rel="noreferrer"
+          <div className="mb-6 space-y-6">
+            <IngestionSubNav />
+            <Card>
+              <CardHeader>
+                <CardTitle>Document</CardTitle>
+                <CardDescription>
+                  {document.doc_id}
+                  {document.source_url ? (
+                    <>
+                      {" "}
+                      ·
+                      <Link
+                        href={document.source_url}
+                        className="text-[color:var(--ai-text-soft)] underline underline-offset-4"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Open source
+                      </Link>
+                    </>
+                  ) : null}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-3">
+                    <Label>Source type</Label>
+                    <Input value={sourceType} disabled readOnly />
+                  </div>
+                  <div className="space-y-3">
+                    <Label>Doc type</Label>
+                    <Select
+                      value={docType}
+                      onValueChange={(value) => setDocType(value)}
                     >
-                      Open source
-                    </Link>
-                  </>
-                ) : null}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-3">
-                  <Label>Source type</Label>
-                  <Input value={sourceType} disabled readOnly />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Unset" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Unset</SelectItem>
+                        {DOC_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3">
+                    <Label>Persona type</Label>
+                    <Select
+                      value={personaType}
+                      onValueChange={(value) => setPersonaType(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Unset" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Unset</SelectItem>
+                        {PERSONA_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="pt-5">
+                    <CheckboxChoice
+                      label="Public"
+                      checked={isPublic ?? false}
+                      onCheckedChange={(checked) =>
+                        setIsPublic(Boolean(checked))
+                      }
+                    />
+                  </div>
+                  <div className="md:col-span-2 space-y-3">
+                    <Label>Tags (comma separated)</Label>
+                    <Input
+                      placeholder="tag-one, tag-two"
+                      value={tagsInput}
+                      onChange={(e) => setTagsInput(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-3">
-                  <Label>Doc type</Label>
-                  <Select
-                    value={docType}
-                    onValueChange={(value) => setDocType(value)}
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push("/admin/documents")}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Unset" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Unset</SelectItem>
-                      {DOC_TYPE_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    Back to list
+                  </Button>
+                  <Button onClick={handleSave} disabled={saving}>
+                    {saving ? "Saving..." : "Save metadata"}
+                  </Button>
+                  {statusMessage ? (
+                    <span
+                      className={
+                        statusVariant === "error"
+                          ? "text-[color:var(--ai-error)]"
+                          : "text-[color:var(--ai-success)]"
+                      }
+                    >
+                      {statusMessage}
+                    </span>
+                  ) : null}
                 </div>
-                <div className="space-y-3">
-                  <Label>Persona type</Label>
-                  <Select
-                    value={personaType}
-                    onValueChange={(value) => setPersonaType(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Unset" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Unset</SelectItem>
-                      {PERSONA_TYPE_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="pt-5">
-                  <CheckboxChoice
-                    label="Public"
-                    checked={isPublic ?? false}
-                    onCheckedChange={(checked) =>
-                      setIsPublic(Boolean(checked))
-                    }
-                  />
-                </div>
-                <div className="md:col-span-2 space-y-3">
-                  <Label>Tags (comma separated)</Label>
-                  <Input
-                    placeholder="tag-one, tag-two"
-                    value={tagsInput}
-                    onChange={(e) => setTagsInput(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                <Button variant="outline" onClick={() => router.push("/admin/documents")}>
-                  Back to list
-                </Button>
-                <Button onClick={handleSave} disabled={saving}>
-                  {saving ? "Saving..." : "Save metadata"}
-                </Button>
-                {statusMessage ? (
-                  <span
-                    className={
-                      statusVariant === "error"
-                        ? "text-[color:var(--ai-error)]"
-                        : "text-[color:var(--ai-success)]"
-                    }
-                  >
-                    {statusMessage}
-                  </span>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Stats</CardTitle>
-              <CardDescription>Ingestion snapshot for this document.</CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <div className="space-y-1">
-                <div className="ai-meta-text uppercase tracking-[0.1em] text-xs">
-                  Chunks
+            <Card>
+              <CardHeader>
+                <CardTitle>Stats</CardTitle>
+                <CardDescription>
+                  Ingestion snapshot for this document.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                <div className="space-y-1">
+                  <div className="ai-meta-text uppercase tracking-[0.1em] text-xs">
+                    Chunks
+                  </div>
+                  <div className="text-lg font-semibold">
+                    {formatNumber(document.chunk_count)}
+                  </div>
                 </div>
-                <div className="text-lg font-semibold">
-                  {formatNumber(document.chunk_count)}
+                <div className="space-y-1">
+                  <div className="ai-meta-text uppercase tracking-[0.1em] text-xs">
+                    Characters
+                  </div>
+                  <div className="text-lg font-semibold">
+                    {formatNumber(document.total_characters)}
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-1">
-                <div className="ai-meta-text uppercase tracking-[0.1em] text-xs">
-                  Characters
+                <div className="space-y-1">
+                  <div className="ai-meta-text uppercase tracking-[0.1em] text-xs">
+                    Last ingested
+                  </div>
+                  <div className="text-lg font-semibold">
+                    {document.last_ingested_at
+                      ? new Date(document.last_ingested_at).toLocaleString()
+                      : "—"}
+                  </div>
                 </div>
-                <div className="text-lg font-semibold">
-                  {formatNumber(document.total_characters)}
+                <div className="space-y-1">
+                  <div className="ai-meta-text uppercase tracking-[0.1em] text-xs">
+                    Last source update
+                  </div>
+                  <div className="text-lg font-semibold">
+                    {document.last_source_update
+                      ? new Date(document.last_source_update).toLocaleString()
+                      : "—"}
+                  </div>
                 </div>
-              </div>
-              <div className="space-y-1">
-                <div className="ai-meta-text uppercase tracking-[0.1em] text-xs">
-                  Last ingested
-                </div>
-                <div className="text-lg font-semibold">
-                  {document.last_ingested_at
-                    ? new Date(document.last_ingested_at).toLocaleString()
-                    : "—"}
-                </div>
-              </div>
-              <div className="space-y-1">
-                <div className="ai-meta-text uppercase tracking-[0.1em] text-xs">
-                  Last source update
-                </div>
-                <div className="text-lg font-semibold">
-                  {document.last_source_update
-                    ? new Date(document.last_source_update).toLocaleString()
-                    : "—"}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Raw metadata</CardTitle>
-              <CardDescription>Debug view of stored JSON.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                readOnly
-                className="min-h-[200px] font-mono text-sm"
-                value={JSON.stringify(document.metadata ?? {}, null, 2)}
-              />
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Raw metadata</CardTitle>
+                <CardDescription>Debug view of stored JSON.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  readOnly
+                  className="min-h-[200px] font-mono text-sm"
+                  value={JSON.stringify(document.metadata ?? {}, null, 2)}
+                />
+              </CardContent>
+            </Card>
+          </div>
         </AdminPageShell>
       </AiPageChrome>
     </>

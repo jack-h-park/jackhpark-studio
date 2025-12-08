@@ -3,7 +3,10 @@
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 
-export function useRouteLoading(thresholdMs = 150) {
+const defaultThreshold =
+  process.env.NODE_ENV === "production" ? 150 : 10;
+
+export function useRouteLoading(thresholdMs = defaultThreshold) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -16,6 +19,9 @@ export function useRouteLoading(thresholdMs = 150) {
       timerRef.current = setTimeout(() => {
         setIsLoading(true);
       }, thresholdMs);
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("[useRouteLoading] routeChangeStart");
+      }
     };
 
     const handleStop = () => {
@@ -24,6 +30,9 @@ export function useRouteLoading(thresholdMs = 150) {
         timerRef.current = null;
       }
       setIsLoading(false);
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("[useRouteLoading] routeChangeEnd");
+      }
     };
 
     router.events.on("routeChangeStart", handleStart);

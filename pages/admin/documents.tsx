@@ -33,10 +33,12 @@ import {
 } from "@/lib/admin/rag-documents";
 import {
   DOC_TYPE_OPTIONS,
+  parseRagDocumentMetadata,
   PERSONA_TYPE_OPTIONS,
   type RagDocumentMetadata,
   SOURCE_TYPE_OPTIONS,
 } from "@/lib/rag/metadata";
+import { deriveTitleFromUrl } from "@/lib/rag/url-metadata";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
@@ -65,13 +67,59 @@ type PageProps = {
 
 const PAGE_SIZE = 20;
 
+type DocumentDisplayInfo = {
+  metadata: RagDocumentMetadata;
+  subtitle?: string;
+  previewImageUrl?: string;
+  teaserText?: string;
+};
+
+function formatSourceUrlForDisplay(sourceUrl: string): string {
+  try {
+    const parsed = new URL(sourceUrl);
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    const tail = segments.slice(-1).join(" / ");
+    return tail ? `${parsed.hostname}/${tail}` : parsed.hostname;
+  } catch {
+    return sourceUrl;
+  }
+}
+
 function toDisplayTitle(doc: RagDocumentRecord): string {
-  const metadata = (doc.metadata ?? {}) as RagDocumentMetadata;
-  return (
-    (typeof metadata.title === "string" && metadata.title) ||
-    (typeof metadata.doc_type === "string" && metadata.doc_type) ||
-    doc.doc_id
-  );
+  const metadata = parseRagDocumentMetadata(doc.metadata);
+  const trimmedTitle = metadata.title?.trim();
+  if (trimmedTitle) {
+    return trimmedTitle;
+  }
+
+  const derived = deriveTitleFromUrl(doc.source_url);
+  if (derived) {
+    return derived;
+  }
+
+  return doc.doc_id;
+}
+
+function buildDocumentDisplayInfo(doc: DocumentRow): DocumentDisplayInfo {
+  const metadata = parseRagDocumentMetadata(doc.metadata);
+  const breadcrumbSubtitle =
+    metadata.breadcrumb && metadata.breadcrumb.length > 0
+      ? metadata.breadcrumb.join(" / ")
+      : undefined;
+  const trimmedSubtitle = metadata.subtitle?.trim();
+  const subtitle = trimmedSubtitle || breadcrumbSubtitle;
+  const fallbackSubtitle =
+    subtitle ??
+    (doc.source_url ? formatSourceUrlForDisplay(doc.source_url) : undefined);
+  const previewImageUrl = metadata.preview_image_url?.trim() || undefined;
+  const teaserText = metadata.teaser_text?.trim() || undefined;
+
+  return {
+    metadata,
+    subtitle: fallbackSubtitle,
+    previewImageUrl,
+    teaserText,
+  };
 }
 
 export default function AdminDocumentsPage({
@@ -95,32 +143,78 @@ export default function AdminDocumentsPage({
     return [
       {
         header: "Title",
-        render: (doc) => (
-          <div className="flex flex-col gap-1">
-            <Link
-              href={`/admin/documents/${encodeURIComponent(doc.doc_id)}`}
-              className="font-semibold text-[color:var(--ai-text)] hover:underline"
-            >
-              {doc.displayTitle}
-            </Link>
-            <div className="text-xs text-[color:var(--ai-text-muted)] break-all">
-              {doc.doc_id}
+        render: (doc) => {
+          const info = buildDocumentDisplayInfo(doc);
+          return (
+            <div className="flex flex-col gap-1">
+              <Link
+                href={`/admin/documents/${encodeURIComponent(doc.doc_id)}`}
+                className="font-semibold text-[color:var(--ai-text)] hover:underline"
+              >
+                {doc.displayTitle}
+              </Link>
+              <span className="text-xs text-[color:var(--ai-text-muted)] break-all truncate">
+                {info.subtitle ?? doc.doc_id}
+              </span>
             </div>
-          </div>
-        ),
+          );
+        },
         className: "min-w-[240px] text-[color:var(--ai-text-muted)]",
         size: "sm",
       },
       {
         header: "Source",
-        render: (doc) =>
-          doc.metadata?.source_type ? (
-            <StatusPill variant="muted">{doc.metadata.source_type}</StatusPill>
-          ) : (
-            "—"
-          ),
+        render: (doc) => {
+          const info = buildDocumentDisplayInfo(doc);
+          const hasImagePreview = Boolean(info.previewImageUrl);
+          const hasTeaser = Boolean(info.teaserText);
+          const hasHoverContent = hasImagePreview || hasTeaser;
+          return (
+            <div className="flex flex-col items-start gap-1 text-xs">
+              {info.metadata.source_type ? (
+                <StatusPill variant="muted">
+                  {info.metadata.source_type}
+                </StatusPill>
+              ) : (
+                <span className="text-[color:var(--ai-text-muted)]">—</span>
+              )}
+              {doc.source_url ? (
+                <div className="relative inline-flex group">
+                  <a
+                    href={doc.source_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-[color:var(--ai-text-muted)] hover:underline"
+                    title={doc.source_url}
+                  >
+                    {formatSourceUrlForDisplay(doc.source_url)}
+                  </a>
+                  {hasHoverContent ? (
+                    <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 flex w-64 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                      <div className="overflow-hidden rounded-xl border border-[color:var(--ai-border-soft)] bg-[color:var(--ai-bg)] shadow-lg">
+                        {hasImagePreview ? (
+                          <img
+                            src={info.previewImageUrl}
+                            alt={doc.displayTitle}
+                            className="h-40 w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <p className="admin-doc-preview-teaser">
+                            {info.teaserText}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <span className="text-[color:var(--ai-text-muted)]">—</span>
+              )}
+            </div>
+          );
+        },
         size: "xs",
-        align: "center",
         className: "text-[color:var(--ai-text-muted)]",
       },
       {
@@ -281,178 +375,180 @@ export default function AdminDocumentsPage({
             description:
               "Browse and manage ingested documents and their metadata.",
           }}
-          subNav={<IngestionSubNav />}
         >
-          <Card>
-            <CardHeader>
-              <CardTitle>Search & Filters</CardTitle>
-              <CardDescription>
-                Find documents by ID, type, persona, visibility, or source.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <form
-                className="grid grid-cols-1 gap-4 md:grid-cols-12"
-                onSubmit={handleSearchSubmit}
-              >
-                <div className="md:col-span-4">
-                  <Label htmlFor="search">Search</Label>
-                  <Input
-                    id="search"
-                    placeholder="Title or doc_id"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <Label>Doc Type</Label>
-                  <Select
-                    value={docType}
-                    onValueChange={(value) => setDocType(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Any</SelectItem>
-                      {DOC_TYPE_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="md:col-span-2">
-                  <Label>Persona</Label>
-                  <Select
-                    value={personaType}
-                    onValueChange={(value) => setPersonaType(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Any</SelectItem>
-                      {PERSONA_TYPE_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="md:col-span-2">
-                  <Label>Source</Label>
-                  <Select
-                    value={sourceType}
-                    onValueChange={(value) => setSourceType(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Any</SelectItem>
-                      {SOURCE_TYPE_OPTIONS.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="md:col-span-2">
-                  <Label>Public</Label>
-                  <Select
-                    value={isPublic}
-                    onValueChange={(value) => setIsPublic(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Any</SelectItem>
-                      <SelectItem value="true">Public</SelectItem>
-                      <SelectItem value="false">Private</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="md:col-span-12 flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setQuery("");
-                      setDocType("");
-                      setPersonaType("");
-                      setSourceType("");
-                      setIsPublic("");
-                      applyFilters({
-                        q: "",
-                        docType: "",
-                        personaType: "",
-                        sourceType: "",
-                        isPublic: "",
-                        page: 1,
-                      });
-                    }}
-                  >
-                    Reset
-                  </Button>
-                  <Button type="submit">Apply</Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+          <div className="mb-6 space-y-6">
+            <IngestionSubNav />
+            <Card>
+              <CardHeader>
+                <CardTitle>Search & Filters</CardTitle>
+                <CardDescription>
+                  Find documents by ID, type, persona, visibility, or source.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <form
+                  className="grid grid-cols-1 gap-4 md:grid-cols-12"
+                  onSubmit={handleSearchSubmit}
+                >
+                  <div className="md:col-span-4">
+                    <Label htmlFor="search">Search</Label>
+                    <Input
+                      id="search"
+                      placeholder="Title or doc_id"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Doc Type</Label>
+                    <Select
+                      value={docType}
+                      onValueChange={(value) => setDocType(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Any</SelectItem>
+                        {DOC_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Persona</Label>
+                    <Select
+                      value={personaType}
+                      onValueChange={(value) => setPersonaType(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Any</SelectItem>
+                        {PERSONA_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Source</Label>
+                    <Select
+                      value={sourceType}
+                      onValueChange={(value) => setSourceType(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Any</SelectItem>
+                        {SOURCE_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Public</Label>
+                    <Select
+                      value={isPublic}
+                      onValueChange={(value) => setIsPublic(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Any</SelectItem>
+                        <SelectItem value="true">Public</SelectItem>
+                        <SelectItem value="false">Private</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-12 flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setQuery("");
+                        setDocType("");
+                        setPersonaType("");
+                        setSourceType("");
+                        setIsPublic("");
+                        applyFilters({
+                          q: "",
+                          docType: "",
+                          personaType: "",
+                          sourceType: "",
+                          isPublic: "",
+                          page: 1,
+                        });
+                      }}
+                    >
+                      Reset
+                    </Button>
+                    <Button type="submit">Apply</Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Documents</CardTitle>
-              <CardDescription>
-                Browse all ingested text chunks and their associated metadata.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <DataTable
-                  columns={columns}
-                  data={documents}
-                  emptyMessage="No documents found."
-                  rowKey={(doc) => doc.doc_id}
-                />
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ai-border-soft)] px-4 py-3">
-                  <div>
-                    <span className="ai-meta-text">{summaryText}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handlePageChange(Math.max(page - 1, 1))}
-                      disabled={page <= 1}
-                    >
-                      Previous
-                    </Button>
-                    <span className="ai-meta-text whitespace-nowrap">
-                      Page {page} of {totalPages}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        handlePageChange(Math.min(page + 1, totalPages))
-                      }
-                      disabled={page >= totalPages}
-                    >
-                      Next
-                    </Button>
+            <Card>
+              <CardHeader>
+                <CardTitle>Documents</CardTitle>
+                <CardDescription>
+                  Browse all ingested text chunks and their associated metadata.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <DataTable
+                    columns={columns}
+                    data={documents}
+                    emptyMessage="No documents found."
+                    rowKey={(doc) => doc.doc_id}
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ai-border-soft)] px-4 py-3">
+                    <div>
+                      <span className="ai-meta-text">{summaryText}</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePageChange(Math.max(page - 1, 1))}
+                        disabled={page <= 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="ai-meta-text whitespace-nowrap">
+                        Page {page} of {totalPages}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          handlePageChange(Math.min(page + 1, totalPages))
+                        }
+                        disabled={page >= totalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </AdminPageShell>
       </AiPageChrome>
     </>

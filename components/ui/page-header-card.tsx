@@ -11,6 +11,7 @@ export type PageHeaderCardProps = {
   meta?: ReactNode;
   actions?: ReactNode;
   alignActions?: "right" | "bottom";
+  variant?: "default" | "ghost";
   className?: string;
   headerClassName?: string;
 };
@@ -23,16 +24,23 @@ export function PageHeaderCard({
   meta,
   actions,
   alignActions = "right",
+  variant = "default",
   className,
   headerClassName,
 }: PageHeaderCardProps) {
   const shouldStackActions = alignActions === "bottom";
 
   return (
-    <Card className={cn("mb-1 ai-page-header-card p-0", className)}>
+    <Card
+      className={cn(
+        "mb-1 p-0",
+        variant === "default" && "ai-page-header-card",
+        className,
+      )}
+    >
       <CardHeader
         className={cn(
-          "flex flex-wrap items-center justify-between gap-5 border-b-0 px-6 py-6 sm:flex-nowrap sm:gap-6 sm:px-8 sm:py-8",
+          "flex flex-wrap items-center justify-between gap-5 border-b-0 px-6 py-5 sm:flex-nowrap sm:gap-6 sm:px-8 sm:py-6",
           headerClassName,
         )}
       >

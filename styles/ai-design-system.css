@@ -197,6 +197,25 @@
   color: hsl(var(--ai-fg-muted));
 }
 
+.admin-doc-preview-teaser {
+  height: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ai-text-muted);
+  background: transparent;
+
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 8;
+}
+
 .ai-setting-section-header {
   display: flex;
   align-items: center;
@@ -239,15 +258,15 @@
 
 .dark .ai-page-header-card,
 .dark-mode .ai-page-header-card {
-  border-color: color-mix(in srgb, hsl(var(--ai-border)) 55%, transparent);
+  border-color: color-mix(in srgb, hsl(var(--ai-border)) 40%, transparent);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, hsl(var(--ai-bg)) 86%, hsl(var(--ai-bg-muted)) 14%),
-    color-mix(in srgb, hsl(var(--ai-bg)) 78%, hsl(var(--ai-bg-muted)) 22%)
+    color-mix(in srgb, hsl(var(--ai-bg)) 100%, hsl(var(--ai-bg-muted)) 0%),
+    color-mix(in srgb, hsl(var(--ai-bg)) 95%, hsl(var(--ai-bg-muted)) 5%)
   );
   box-shadow:
-    0 28px 60px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 20px 45px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .dark .ai-card-description,

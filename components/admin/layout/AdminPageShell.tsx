@@ -15,27 +15,27 @@ export type AdminPageShellProps = {
     meta?: ReactNode;
     actions?: ReactNode;
   };
-  subNav?: ReactNode;
   children: ReactNode;
 };
 
 export function AdminPageShell({
   section,
   header,
-  subNav,
   children,
 }: AdminPageShellProps) {
   return (
     <div className="ai-container space-y-6 pb-12">
-      <section className="rounded-[var(--ai-radius-md)] border border-[color:var(--ai-border-muted)] bg-[color:var(--ai-surface)] shadow-[var(--ai-shadow-soft)]">
-        <div className="flex flex-col gap-4">
-          <div className="px-4 pb-1 pt-4 sm:px-6">
-            <AdminTopNav activeSection={section} className="w-full" />
+      <section>
+        <div className="flex flex-col gap-3">
+          <div className="pb-1 pt-4">
+            <AdminTopNav
+              activeSection={section}
+              className="w-full bg-[color:var(--ai-bg-subtle)]/80"
+            />
           </div>
-          <div className="px-4 pb-4 sm:px-6">
+          <div className="pb-4">
             <PageHeaderCard
-              className="shadow-none border-0 bg-transparent p-0"
-              headerClassName="p-0"
+              variant="default"
               icon={header.icon}
               overline={header.overline}
               title={header.title}
@@ -43,11 +43,10 @@ export function AdminPageShell({
               meta={header.meta}
               actions={header.actions}
             />
-            {subNav ? <div className="mt-2">{subNav}</div> : null}
           </div>
         </div>
       </section>
-      <div className="space-y-6">{children}</div>
+      <div className="space-y-2">{children}</div>
     </div>
   );
 }

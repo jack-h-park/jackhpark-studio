@@ -4,6 +4,7 @@ import { getAllPagesInSpace, parsePageId } from "notion-utils";
 
 import type { ModelProvider } from "../shared/model-provider";
 import { resolveEmbeddingSpace } from "../core/embedding-spaces";
+import { debugIngestionLog } from "../rag/debug";
 import {
   chunkByTokens,
   type ChunkInsert,
@@ -33,10 +34,16 @@ import {
 } from "../rag/ingest-helpers";
 import {
   mergeMetadata,
+  mergeRagDocumentMetadata,
   metadataEquals,
   normalizeMetadata,
+  parseRagDocumentMetadata,
 } from "../rag/metadata";
-import { extractNotionMetadata } from "../rag/notion-metadata";
+import {
+  buildNotionSourceMetadata,
+  extractNotionMetadata,
+} from "../rag/notion-metadata";
+import { buildUrlRagDocumentMetadata } from "../rag/url-metadata";
 
 const notion = new NotionAPI();
 
@@ -171,7 +178,21 @@ async function ingestNotionPage({
     !!existingState && existingState.content_hash === contentHash;
   const existingMetadata = normalizeMetadata(existingState?.metadata ?? null);
   const incomingMetadata = extractNotionMetadata(recordMap, pageId);
-  const nextMetadata = mergeMetadata(existingMetadata, incomingMetadata);
+  const adminMetadata =
+    mergeMetadata(existingMetadata, incomingMetadata) ??
+    existingMetadata ??
+    null;
+  const sourceMetadata = buildNotionSourceMetadata(recordMap, pageId);
+  const nextMetadata = mergeRagDocumentMetadata(
+    adminMetadata ?? existingMetadata ?? undefined,
+    sourceMetadata,
+  );
+  debugIngestionLog("final-document-metadata", {
+    docId: pageId,
+    title: nextMetadata.title,
+    teaser_text: nextMetadata.teaser_text,
+    preview_image_url: nextMetadata.preview_image_url,
+  });
   const metadataUnchanged = metadataEquals(existingMetadata, nextMetadata);
 
   const providerHasChunks =
@@ -705,6 +726,16 @@ async function runUrlIngestion(
       embeddingModelId: embeddingOptions.embeddingModelId,
       embeddingSpaceId: embeddingOptions.embeddingSpaceId,
     });
+    const existingMetadata = parseRagDocumentMetadata(existingState?.metadata);
+    const sourceMetadata = buildUrlRagDocumentMetadata({
+      sourceUrl: url,
+      htmlTitle: title,
+    });
+    const nextMetadata = mergeRagDocumentMetadata(
+      existingMetadata,
+      sourceMetadata,
+    );
+
     await upsertDocumentState({
       doc_id: url,
       source_url: url,
@@ -712,6 +743,7 @@ async function runUrlIngestion(
       last_source_update: lastModified ?? null,
       chunk_count: chunkCount,
       total_characters: totalCharacters,
+      metadata: nextMetadata,
     });
 
     if (existingState) {

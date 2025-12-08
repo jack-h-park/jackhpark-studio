@@ -27,7 +27,7 @@ export function AdminTopNav({ activeSection, className }: AdminTopNavProps) {
     <nav
       aria-label="Admin section navigation"
       className={cn(
-        "flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--ai-border-soft)]/60 bg-[color:var(--ai-bg-muted)]/40 px-1.5 py-1.5",
+        "flex flex-wrap items-center gap-2 rounded-full border border-[color:var(--ai-border-soft)]/40 bg-[color:var(--ai-bg-subtle)]/90 px-1.5 py-1.5 backdrop-blur",
         className,
       )}
     >
@@ -39,8 +39,10 @@ export function AdminTopNav({ activeSection, className }: AdminTopNavProps) {
             href={section.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "ai-selectable inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.1em] transition focus-ring",
-              active ? "ai-selectable--active" : "ai-selectable--hoverable",
+              "ai-selectable inline-flex items-center justify-center rounded-full px-3 py-0.5 text-xs font-semibold uppercase tracking-[0.1em] transition focus-ring",
+              active
+                ? "ai-selectable--active text-[color:var(--ai-text-strong)]"
+                : "ai-selectable--hoverable text-[color:var(--ai-text-muted)]",
             )}
           >
             {section.label}
@@ -50,7 +52,7 @@ export function AdminTopNav({ activeSection, className }: AdminTopNavProps) {
       {isLoading && (
         <span className="ml-auto flex items-center">
           <span className="sr-only">Loading route</span>
-          <span className="h-3 w-3 rounded-full border border-[color:var(--ai-border-muted)] border-t-[color:var(--ai-text-strong)] animate-spin" />
+          <span className="h-4 w-4 rounded-full border-2 border-[color:var(--ai-border-muted)] border-t-[color:var(--ai-text-strong)] animate-spin" />
         </span>
       )}
     </nav>

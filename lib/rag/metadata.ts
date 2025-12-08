@@ -11,14 +11,22 @@ export type PersonaType = "personal" | "professional" | "hybrid";
 
 export type SourceType = "notion" | "url" | string;
 
-export type RagDocumentMetadata = {
+export interface RagDocumentMetadata {
+  title?: string;
+  subtitle?: string;
+  source_kind?: "notion" | "url" | "file" | "github" | string;
+  origin_id?: string;
+  breadcrumb?: string[];
+  preview_image_url?: string | null;
+  teaser_text?: string;
+
   source_type?: SourceType;
   doc_type?: DocType;
   persona_type?: PersonaType;
   is_public?: boolean;
   tags?: string[];
   [key: string]: unknown;
-};
+}
 
 export const DOC_TYPE_OPTIONS: readonly DocType[] = [
   "profile",
@@ -152,4 +160,35 @@ export function mergeMetadata(
   };
 
   return normalizeMetadata(merged);
+}
+
+export function parseRagDocumentMetadata(
+  value: unknown,
+): RagDocumentMetadata {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value as RagDocumentMetadata;
+}
+
+export function mergeRagDocumentMetadata(
+  existing: RagDocumentMetadata | null | undefined,
+  incoming: RagDocumentMetadata,
+): RagDocumentMetadata {
+  const base = normalizeMetadata(existing) ?? {};
+  const incomingNormalized = normalizeMetadata(incoming) ?? {};
+
+  const merged: RagDocumentMetadata = {
+    ...base,
+    title: incomingNormalized.title,
+    subtitle: incomingNormalized.subtitle,
+    source_kind: incomingNormalized.source_kind,
+    origin_id: incomingNormalized.origin_id,
+    breadcrumb: incomingNormalized.breadcrumb,
+    preview_image_url: incomingNormalized.preview_image_url,
+    teaser_text: incomingNormalized.teaser_text,
+  };
+
+  return normalizeMetadata(merged) ?? {};
 }
