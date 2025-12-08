@@ -1,10 +1,10 @@
-import { normalizeTimestamp } from "@/lib/rag/timestamp";
 import {
   DOC_TYPE_OPTIONS,
   mergeMetadata,
   normalizeMetadata,
   type RagDocumentMetadata,
 } from "@/lib/rag/metadata";
+import { normalizeTimestamp } from "@/lib/rag/timestamp";
 
 export type RagDocumentRecord = {
   doc_id: string;
