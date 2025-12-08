@@ -4,12 +4,7 @@ import { FiBarChart2 } from "@react-icons/all-files/fi/FiBarChart2";
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import { FiPlayCircle } from "@react-icons/all-files/fi/FiPlayCircle";
 import { useRouter } from "next/router";
-import {
-  type ComponentType,
-  type JSX,
-  useCallback,
-  useMemo,
-} from "react";
+import { type ComponentType, type JSX, useCallback, useMemo } from "react";
 
 import type { ManualLogEvent } from "@/lib/admin/ingestion-types";
 import { Button } from "@/components/ui/button";
@@ -33,11 +28,17 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { StatusPill, type StatusPillVariant } from "@/components/ui/status-pill";
+import {
+  StatusPill,
+  type StatusPillVariant,
+} from "@/components/ui/status-pill";
 import { TabPill } from "@/components/ui/tab-pill";
 import { TabPanel } from "@/components/ui/tabs";
 import { useManualIngestion } from "@/hooks/useManualIngestion";
-import { logTimeFormatter, numberFormatter } from "@/lib/admin/ingestion-formatters";
+import {
+  logTimeFormatter,
+  numberFormatter,
+} from "@/lib/admin/ingestion-formatters";
 import { EMBEDDING_MODEL_OPTIONS } from "@/lib/admin/recent-runs-filters";
 
 const LOG_ICONS: Record<
@@ -52,14 +53,13 @@ const LOG_ICONS: Record<
 const manualStatusVariantMap: Record<
   ReturnType<typeof useManualIngestion>["status"],
   StatusPillVariant
-> =
-  {
-    idle: "muted",
-    in_progress: "info",
-    success: "success",
-    completed_with_errors: "warning",
-    failed: "error",
-  };
+> = {
+  idle: "muted",
+  in_progress: "info",
+  success: "success",
+  completed_with_errors: "warning",
+  failed: "error",
+};
 
 const manualStatusLabels: Record<
   ReturnType<typeof useManualIngestion>["status"],
@@ -81,13 +81,17 @@ export function ManualIngestionPanel(): JSX.Element {
     }
   };
   const currentScope =
-    ingestion.mode === "notion_page" ? ingestion.notionScope : ingestion.urlScope;
+    ingestion.mode === "notion_page"
+      ? ingestion.notionScope
+      : ingestion.urlScope;
   const setCurrentScope =
     ingestion.mode === "notion_page"
       ? ingestion.setNotionScope
       : ingestion.setUrlScope;
   const currentScopeGroupName =
-    ingestion.mode === "notion_page" ? "manual-scope-notion" : "manual-scope-url";
+    ingestion.mode === "notion_page"
+      ? "manual-scope-notion"
+      : "manual-scope-url";
   const currentScopeLabelId =
     ingestion.mode === "notion_page"
       ? "manual-scope-label-notion"
@@ -107,15 +111,16 @@ export function ManualIngestionPanel(): JSX.Element {
         )
       : stagePercent;
   const overallCurrentLabel =
-    totalPages > 0 ? Math.min(ingestion.overallProgress.current, totalPages) : 0;
+    totalPages > 0
+      ? Math.min(ingestion.overallProgress.current, totalPages)
+      : 0;
   const activePageTitle = ingestion.overallProgress.title ?? null;
   const activePageId = ingestion.overallProgress.pageId ?? null;
   const showOverallProgress = totalPages > 1;
   const stageSubtitle = activePageTitle ?? activePageId;
   const manualNotionDescriptionId = "manual-notion-input-description";
   const manualUrlDescriptionId = "manual-url-input-description";
-  const manualProviderDescriptionId =
-    "manual-provider-select-description";
+  const manualProviderDescriptionId = "manual-provider-select-description";
   const handleRefreshDashboard = useCallback(() => {
     void router.replace(router.asPath);
   }, [router]);
@@ -138,9 +143,7 @@ export function ManualIngestionPanel(): JSX.Element {
                 Trigger manual ingestion for a Notion page or external URL and
                 track the progress here.
               </CardDescription>
-              <StatusPill variant={statusVariant}>
-                {statusLabel}
-              </StatusPill>
+              <StatusPill variant={statusVariant}>{statusLabel}</StatusPill>
             </div>
           </div>
           {ingestion.runId ? (
@@ -190,9 +193,9 @@ export function ManualIngestionPanel(): JSX.Element {
                 >
                   <div className="space-y-4">
                     <div className="space-y-3">
-                    <Label id="manual-ingestion-scope-label">
-                      Pages to ingest
-                    </Label>
+                      <Label id="manual-ingestion-scope-label">
+                        Pages to ingest
+                      </Label>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <Radiobutton
                           name="manual-ingestion-scope"
@@ -236,9 +239,9 @@ export function ManualIngestionPanel(): JSX.Element {
                             id={manualNotionDescriptionId}
                             className="ai-meta-text"
                           >
-                            Paste the full shared link or the 32-character
-                            page ID from Notion. You can enter multiple IDs
-                            separated by commas, spaces, or new lines.
+                            Paste the full shared link or the 32-character page
+                            ID from Notion. You can enter multiple IDs separated
+                            by commas, spaces, or new lines.
                           </p>
                         </div>
                         <div className="pt-2">
@@ -274,14 +277,13 @@ export function ManualIngestionPanel(): JSX.Element {
                       type="url"
                       placeholder="https://example.com/article"
                       value={ingestion.urlInput}
-                      onChange={(event) => ingestion.setUrlInput(event.target.value)}
+                      onChange={(event) =>
+                        ingestion.setUrlInput(event.target.value)
+                      }
                       disabled={ingestion.isRunning}
                       aria-describedby={manualUrlDescriptionId}
                     />
-                    <p
-                      id={manualUrlDescriptionId}
-                      className="ai-meta-text"
-                    >
+                    <p id={manualUrlDescriptionId} className="ai-meta-text">
                       Enter a public HTTP(S) link. Use the scope above to skip
                       unchanged articles or force a full refresh.
                     </p>
@@ -300,13 +302,13 @@ export function ManualIngestionPanel(): JSX.Element {
                 role="radiogroup"
                 aria-labelledby={currentScopeLabelId}
               >
-                  <div className="space-y-3">
-                    <Label
-                      id={currentScopeLabelId}
-                      htmlFor="manual-ingestion-scope"
-                    >
-                      Update strategy
-                    </Label>
+                <div className="space-y-3">
+                  <Label
+                    id={currentScopeLabelId}
+                    htmlFor="manual-ingestion-scope"
+                  >
+                    Update strategy
+                  </Label>
                   <div className="grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center">
                     <Radiobutton
                       name={currentScopeGroupName}
@@ -354,10 +356,7 @@ export function ManualIngestionPanel(): JSX.Element {
                     ))}
                   </SelectContent>
                 </Select>
-                <p
-                  id={manualProviderDescriptionId}
-                  className="ai-meta-text"
-                >
+                <p id={manualProviderDescriptionId} className="ai-meta-text">
                   Determines which embedding space is used for this run.
                 </p>
               </div>
@@ -503,9 +502,7 @@ export function ManualIngestionPanel(): JSX.Element {
                       Documents Updated
                     </dt>
                     <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-                      {numberFormatter.format(
-                        ingestion.stats.documentsUpdated,
-                      )}
+                      {numberFormatter.format(ingestion.stats.documentsUpdated)}
                     </dd>
                   </CardContent>
                 </Card>
@@ -515,9 +512,7 @@ export function ManualIngestionPanel(): JSX.Element {
                       Documents Skipped
                     </dt>
                     <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-                      {numberFormatter.format(
-                        ingestion.stats.documentsSkipped,
-                      )}
+                      {numberFormatter.format(ingestion.stats.documentsSkipped)}
                     </dd>
                   </CardContent>
                 </Card>
@@ -547,9 +542,7 @@ export function ManualIngestionPanel(): JSX.Element {
                       Characters Added
                     </dt>
                     <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-                      {numberFormatter.format(
-                        ingestion.stats.charactersAdded,
-                      )}
+                      {numberFormatter.format(ingestion.stats.charactersAdded)}
                     </dd>
                   </CardContent>
                 </Card>

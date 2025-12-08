@@ -27,9 +27,7 @@ import {
   upsertDocumentState,
 } from "../lib/rag";
 import { debugIngestionLog } from "../lib/rag/debug";
-import {
-  decideIngestAction,
-} from "../lib/rag/ingest-helpers";
+import { decideIngestAction } from "../lib/rag/ingest-helpers";
 import {
   mergeMetadata,
   mergeRagDocumentMetadata,
@@ -132,8 +130,7 @@ async function ingestPage(
 
   const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
   const providerHasChunks =
-    contentUnchanged &&
-    (await hasChunksForProvider(pageId, embeddingSpace));
+    contentUnchanged && (await hasChunksForProvider(pageId, embeddingSpace));
   const decision = decideIngestAction({
     contentUnchanged,
     metadataUnchanged,
@@ -276,10 +273,10 @@ async function ingestWorkspace(
           message,
         });
         console.error(`Failed to ingest Notion page ${pageId}: ${message}`);
-        }
-      },
-      { concurrency: INGEST_CONCURRENCY },
-    );
+      }
+    },
+    { concurrency: INGEST_CONCURRENCY },
+  );
 }
 
 async function ingestSinglePage(
@@ -294,8 +291,7 @@ async function ingestSinglePage(
     await ingestPage(pageId, recordMap, stats, ingestionType);
   } catch (err) {
     stats.errorCount += 1;
-    const message =
-      err instanceof Error ? err.message : JSON.stringify(err);
+    const message = err instanceof Error ? err.message : JSON.stringify(err);
     errorLogs.push({
       doc_id: pageId,
       message,

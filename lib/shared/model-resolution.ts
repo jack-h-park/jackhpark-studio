@@ -55,9 +55,10 @@ function findModelDefinition(
   );
 }
 
-function pickDefaultModelId(
-  ctx: ModelResolutionContext,
-): { modelId: string; reason: ModelResolutionReason } {
+function pickDefaultModelId(ctx: ModelResolutionContext): {
+  modelId: string;
+  reason: ModelResolutionReason;
+} {
   const fallbackFromAllowlist = ctx.allowedModelIds?.[0];
   if (fallbackFromAllowlist) {
     return { modelId: fallbackFromAllowlist, reason: "NOT_IN_ALLOWLIST" };
@@ -84,9 +85,7 @@ function isBackendDisabled(
 
 export function isOllamaModelId(modelId: string | null | undefined): boolean {
   const definition = findModelDefinition(modelId);
-  return Boolean(
-    definition && isLocalModelDefinition(definition),
-  );
+  return Boolean(definition && isLocalModelDefinition(definition));
 }
 
 export function resolveLlmModelId(
@@ -132,7 +131,10 @@ export function resolveLlmModelId(
     };
   }
 
-  if (isLocalModelDefinition(definition) && isBackendDisabled(definition, ctx)) {
+  if (
+    isLocalModelDefinition(definition) &&
+    isBackendDisabled(definition, ctx)
+  ) {
     const fallback = pickDefaultModelId(ctx);
     const resolvedId =
       allowlist && allowlist.has(fallback.modelId.toLowerCase())

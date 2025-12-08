@@ -15,19 +15,17 @@ import {
 } from "@/types/chat-config";
 
 export const ADMIN_CHAT_CONFIG_KEY = "admin_chat_config";
-const DEFAULT_ADMIN_CHAT_CONFIG: Pick<
-  AdminChatConfig,
-  "telemetry" | "cache"
-> = {
-  telemetry: {
-    sampleRate: 1,
-    detailLevel: "standard",
-  },
-  cache: {
-    responseTtlSeconds: 300,
-    retrievalTtlSeconds: 60,
-  },
-};
+const DEFAULT_ADMIN_CHAT_CONFIG: Pick<AdminChatConfig, "telemetry" | "cache"> =
+  {
+    telemetry: {
+      sampleRate: 1,
+      detailLevel: "standard",
+    },
+    cache: {
+      responseTtlSeconds: 300,
+      retrievalTtlSeconds: 60,
+    },
+  };
 
 // NOTE:
 // The system_settings table is expected to contain exactly one row for chat configuration:
@@ -197,14 +195,14 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     );
   }
 
-  const localRequiredPreset: AdminChatPreset =
-    mergedConfig.presets["local-required"] ??
-    {
-      ...mergedConfig.presets.default,
-      llmModel: "mistral-ollama",
-      chatEngine: "native",
-      requireLocal: true,
-    };
+  const localRequiredPreset: AdminChatPreset = mergedConfig.presets[
+    "local-required"
+  ] ?? {
+    ...mergedConfig.presets.default,
+    llmModel: "mistral-ollama",
+    chatEngine: "native",
+    requireLocal: true,
+  };
 
   const additionalPromptMaxLength =
     typeof mergedConfig.additionalPromptMaxLength === "number"

@@ -78,8 +78,8 @@ export function MermaidDiagram({ code, blockId }: MermaidDiagramProps) {
 
               const isDarkMode = Boolean(
                 document.body?.classList.contains("dark-mode") ||
-                  document.documentElement?.dataset.theme === "dark" ||
-                  svgElement.closest(".notion-dark-theme"),
+                document.documentElement?.dataset.theme === "dark" ||
+                svgElement.closest(".notion-dark-theme"),
               );
 
               const defaultPalette = isDarkMode

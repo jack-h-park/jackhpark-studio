@@ -95,8 +95,9 @@ export function useManualIngestion(): ManualIngestionHookState {
   const [mode, setMode] = useState<"notion_page" | "url">("notion_page");
   const [notionInput, setNotionInput] = useState("");
   const [notionScope, setNotionScope] = useState<"partial" | "full">("partial");
-  const [ingestionScope, setIngestionScope] =
-    useState<"selected" | "workspace">("selected");
+  const [ingestionScope, setIngestionScope] = useState<
+    "selected" | "workspace"
+  >("selected");
   const [urlScope, setUrlScope] = useState<"partial" | "full">("partial");
   const [urlInput, setUrlInput] = useState("");
   const [includeLinkedPages, setIncludeLinkedPages] = useState(true);
@@ -292,9 +293,7 @@ export function useManualIngestion(): ManualIngestionHookState {
 
     if (mode === "notion_page") {
       const manualPageIds =
-        ingestionScope === "selected"
-          ? parseManualPageIds(notionInput)
-          : [];
+        ingestionScope === "selected" ? parseManualPageIds(notionInput) : [];
       if (ingestionScope === "selected" && manualPageIds.length === 0) {
         setErrorMessage("Enter at least one Notion page ID or URL.");
         return;
@@ -411,7 +410,9 @@ export function useManualIngestion(): ManualIngestionHookState {
       }
 
       if (!response.body) {
-        throw new Error("Streaming responses are not supported in this browser.");
+        throw new Error(
+          "Streaming responses are not supported in this browser.",
+        );
       }
 
       const reader = response.body.getReader();

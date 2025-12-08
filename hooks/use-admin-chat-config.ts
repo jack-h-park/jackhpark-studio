@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
-import type { DOC_TYPE_OPTIONS, PERSONA_TYPE_OPTIONS } from "@/lib/rag/metadata";
+import type {
+  DOC_TYPE_OPTIONS,
+  PERSONA_TYPE_OPTIONS,
+} from "@/lib/rag/metadata";
 import { normalizeLlmModelId } from "@/lib/core/llm-registry";
 import {
   CHAT_ENGINE_OPTIONS,
@@ -70,7 +73,11 @@ export const presetDisplayNames: Record<PresetKey, string> = {
   highRecall: "High Recall",
 };
 
-export const presetDisplayOrder: PresetKey[] = ["default", "fast", "highRecall"];
+export const presetDisplayOrder: PresetKey[] = [
+  "default",
+  "fast",
+  "highRecall",
+];
 
 export type AdminLlmModelOption = {
   id: LlmModelId;
@@ -98,10 +105,13 @@ export function useAdminChatConfig({
   const [contextHistoryEnabled, setContextHistoryEnabled] = useState<
     Record<PresetKey, boolean>
   >(() =>
-    presetDisplayOrder.reduce<Record<PresetKey, boolean>>((acc, presetKey) => {
-      acc[presetKey] = true;
-      return acc;
-    }, {} as Record<PresetKey, boolean>),
+    presetDisplayOrder.reduce<Record<PresetKey, boolean>>(
+      (acc, presetKey) => {
+        acc[presetKey] = true;
+        return acc;
+      },
+      {} as Record<PresetKey, boolean>,
+    ),
   );
 
   useEffect(() => {
@@ -133,7 +143,10 @@ export function useAdminChatConfig({
       }
       if (
         parsedKey === "similarityThreshold" &&
-        (limit.min < 0 || limit.max > 1 || limit.default < 0 || limit.default > 1)
+        (limit.min < 0 ||
+          limit.max > 1 ||
+          limit.default < 0 ||
+          limit.default > 1)
       ) {
         errors.push("Similarity threshold values must stay between 0 and 1.");
       }
@@ -171,7 +184,9 @@ export function useAdminChatConfig({
       setTimeout(() => setSaveStatus("idle"), 2500);
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : "Failed to save chat configuration.";
+        err instanceof Error
+          ? err.message
+          : "Failed to save chat configuration.";
       setErrorMessage(message);
       setSaveStatus("error");
     }
@@ -232,7 +247,11 @@ export function useAdminChatConfig({
     }));
   };
 
-  type AllowlistKey = "llmModels" | "embeddingModels" | "rankers" | "chatEngines";
+  type AllowlistKey =
+    | "llmModels"
+    | "embeddingModels"
+    | "rankers"
+    | "chatEngines";
   type AllowlistValueMap = {
     llmModels: LlmModelId;
     embeddingModels: EmbeddingModelId;
@@ -264,11 +283,9 @@ export function useAdminChatConfig({
         }
         const next = enable
           ? [
-              ...(
-                current.filter(
-                  (entry) => !matchesNormalized(entry as LlmModelId),
-                ) as LlmModelId[]
-              ),
+              ...(current.filter(
+                (entry) => !matchesNormalized(entry as LlmModelId),
+              ) as LlmModelId[]),
               normalizedValue,
             ]
           : (current.filter(
@@ -324,12 +341,12 @@ export function useAdminChatConfig({
   };
 
   const llmModelUnionIds = useMemo(() => {
-    const baseIds = LLM_MODEL_DEFINITIONS.map((definition) => definition.id) as LlmModelId[];
+    const baseIds = LLM_MODEL_DEFINITIONS.map(
+      (definition) => definition.id,
+    ) as LlmModelId[];
     const normalizedAllowlistIds = config.allowlist.llmModels
       .map((id) => normalizeLlmModelId(id) ?? id)
-      .filter(
-        (id): id is string => typeof id === "string" && id.length > 0,
-      );
+      .filter((id): id is string => typeof id === "string" && id.length > 0);
     const union = new Set<string>([...baseIds, ...normalizedAllowlistIds]);
     return [...union].toSorted((a, b) => a.localeCompare(b)) as LlmModelId[];
   }, [config.allowlist.llmModels]);
@@ -341,11 +358,9 @@ export function useAdminChatConfig({
         return {
           id,
           label: definition?.label ?? id,
-          displayName:
-            definition?.displayName ?? definition?.label ?? id,
+          displayName: definition?.displayName ?? definition?.label ?? id,
           provider: definition?.provider ?? "openai",
-          isLocal:
-            definition?.isLocal ?? Boolean(definition?.localBackend),
+          isLocal: definition?.isLocal ?? Boolean(definition?.localBackend),
           localBackend: definition?.localBackend,
           subtitle: definition?.subtitle,
         };

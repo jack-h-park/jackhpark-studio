@@ -3,8 +3,7 @@
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 
-const defaultThreshold =
-  process.env.NODE_ENV === "production" ? 150 : 10;
+const defaultThreshold = process.env.NODE_ENV === "production" ? 150 : 10;
 
 export function useRouteLoading(thresholdMs = defaultThreshold) {
   const router = useRouter();

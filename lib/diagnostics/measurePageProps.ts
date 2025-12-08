@@ -29,15 +29,13 @@ export function logPagePropsSize(pageId: string, props: SerializableProps) {
     }
 
     console.log(
-      `[page-props-size] ${pageId} total ~${totalKb.toFixed(
-        1
-      )} kB, keys:`,
-      perKeySummary
+      `[page-props-size] ${pageId} total ~${totalKb.toFixed(1)} kB, keys:`,
+      perKeySummary,
     );
   } catch (err) {
     console.warn(
       `[page-props-size] Failed to measure props for ${pageId}:`,
-      err
+      err,
     );
   }
 

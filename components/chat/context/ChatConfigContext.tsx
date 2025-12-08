@@ -15,10 +15,12 @@ import {
   type AdminChatConfig,
   type AdminChatRuntimeMeta,
   type AdminNumericLimit,
- getAdditionalPromptMaxLength,  type ModelResolution,
+  getAdditionalPromptMaxLength,
+  type ModelResolution,
   type SessionChatConfig,
   type SessionChatConfigPreset,
-  type SummaryLevel } from "@/types/chat-config";
+  type SummaryLevel,
+} from "@/types/chat-config";
 
 type ChatConfigContextValue = {
   adminConfig: AdminChatConfig;
@@ -98,7 +100,7 @@ const sanitizeNumericConfig = (
     candidate.llmModelResolution?.requestedModelId &&
     candidate.llmModel === candidate.llmModelResolution.resolvedModelId
       ? candidate.llmModelResolution.requestedModelId
-      : candidate.llmModel ?? adminConfig.presets.default.llmModel;
+      : (candidate.llmModel ?? adminConfig.presets.default.llmModel);
   const llmResolution = resolver.resolveModel(requestedModelId);
 
   const reverseRAG = allowlist.allowReverseRAG
@@ -106,7 +108,7 @@ const sanitizeNumericConfig = (
     : false;
   const hyde = allowlist.allowHyde ? Boolean(candidate.features.hyde) : false;
 
-    return {
+  return {
     presetId: candidate.presetId ?? candidate.appliedPreset ?? "default",
     additionalSystemPrompt: additionalPrompt,
     llmModel: llmResolution.resolvedModelId as SessionChatConfig["llmModel"],
@@ -153,7 +155,8 @@ const buildDefaultSessionConfig = (
     typeof (preset as SessionChatConfig).additionalSystemPrompt === "string"
       ? (preset as SessionChatConfig).additionalSystemPrompt
       : "",
-  llmModel: (resolution?.resolvedModelId ?? preset.llmModel) as SessionChatConfig["llmModel"],
+  llmModel: (resolution?.resolvedModelId ??
+    preset.llmModel) as SessionChatConfig["llmModel"],
   llmModelResolution:
     resolution ??
     ({
@@ -216,11 +219,9 @@ export function ChatConfigProvider({
     try {
       const parsed = JSON.parse(stored) as SessionChatConfig;
       setSessionConfigState(
-        sanitizeNumericConfig(
-          { ...defaultConfig, ...parsed },
-          adminConfig,
-          { resolveModel: resolveLlmModelForSession },
-        ),
+        sanitizeNumericConfig({ ...defaultConfig, ...parsed }, adminConfig, {
+          resolveModel: resolveLlmModelForSession,
+        }),
       );
     } catch {
       setSessionConfigState(defaultConfig);

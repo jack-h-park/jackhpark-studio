@@ -61,7 +61,9 @@ export function parseEmbeddingModelQueryValue(
   return extracted;
 }
 
-export function parsePageQueryValue(value: string | string[] | undefined): number {
+export function parsePageQueryValue(
+  value: string | string[] | undefined,
+): number {
   const extracted = extractQueryValue(value);
   if (!extracted) {
     return 1;
@@ -73,7 +75,9 @@ export function parsePageQueryValue(value: string | string[] | undefined): numbe
   return parsed;
 }
 
-export function parseDateQueryValue(value: string | string[] | undefined): string {
+export function parseDateQueryValue(
+  value: string | string[] | undefined,
+): string {
   const extracted = extractQueryValue(value);
   if (!extracted) {
     return "";

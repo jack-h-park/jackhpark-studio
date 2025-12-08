@@ -35,20 +35,37 @@ export function RawConfigJsonModal({
           <div className="flex flex-col gap-0.5">
             <h2 className="text-lg font-semibold text-[var(--ai-text-strong)]">
               Admin Chat Configuration Data{" "}
-              <span className="text-sm font-normal text-[var(--ai-text-muted)]">(JSON)</span>
+              <span className="text-sm font-normal text-[var(--ai-text-muted)]">
+                (JSON)
+              </span>
             </h2>
-            <p className="text-xs text-[var(--ai-text-muted)]">This is for read-only.</p>
+            <p className="text-xs text-[var(--ai-text-muted)]">
+              This is for read-only.
+            </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-              <Switch id="word-wrap-toggle" checked={isWordWrapEnabled} onCheckedChange={onToggleWordWrap} />
+              <Switch
+                id="word-wrap-toggle"
+                checked={isWordWrapEnabled}
+                onCheckedChange={onToggleWordWrap}
+              />
               <div className="ai-choice">
-                <Label htmlFor="word-wrap-toggle" className="ai-choice__label cursor-pointer">
+                <Label
+                  htmlFor="word-wrap-toggle"
+                  className="ai-choice__label cursor-pointer"
+                >
                   Word Wrap
                 </Label>
               </div>
             </div>
-            <Button variant="ghost" size="sm" className="shrink-0" type="button" onClick={onClose}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0"
+              type="button"
+              onClick={onClose}
+            >
               <FiX aria-hidden="true" />
               <span className="sr-only">Close</span>
             </Button>

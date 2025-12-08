@@ -28,9 +28,8 @@ const isDefinitionEnabled = (definition: LlmModelDefinition) => {
 };
 
 const ALL_LLM_MODEL_OPTIONS = LLM_MODEL_DEFINITIONS.map(mapToOption);
-const AVAILABLE_LLM_MODEL_OPTIONS = LLM_MODEL_DEFINITIONS.filter(
-  isDefinitionEnabled,
-).map(mapToOption);
+const AVAILABLE_LLM_MODEL_OPTIONS =
+  LLM_MODEL_DEFINITIONS.filter(isDefinitionEnabled).map(mapToOption);
 
 const ENV_DEFAULT_LLM_MODEL = process.env.DEFAULT_LLM_MODEL?.trim();
 const DEFAULT_LLM_MODEL_ID =

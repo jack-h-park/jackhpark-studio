@@ -1,9 +1,7 @@
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import type { DocType, PersonaType } from "@/lib/rag/metadata";
 import type { ChatEngine } from "@/lib/shared/model-provider";
-import type {
-  ModelResolution,
-} from "@/lib/shared/model-resolution";
+import type { ModelResolution } from "@/lib/shared/model-resolution";
 import type {
   EmbeddingModelId,
   LlmModelId,
@@ -100,8 +98,6 @@ export type AdminChatRuntimeMeta = {
   presetResolutions: PresetModelResolutions;
 };
 
-
-
 export interface AdminChatConfig {
   baseSystemPrompt?: string;
   baseSystemPromptSummary?: string;
@@ -163,10 +159,13 @@ export type ChatEngineType =
 
 export const DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH = 500;
 
-export function getAdditionalPromptMaxLength(
-  config: AdminChatConfig,
-): number {
-  return config.additionalPromptMaxLength ?? DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH;
+export function getAdditionalPromptMaxLength(config: AdminChatConfig): number {
+  return (
+    config.additionalPromptMaxLength ?? DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH
+  );
 }
 
-export {type ModelResolution, type ModelResolutionReason} from "@/lib/shared/model-resolution";
+export {
+  type ModelResolution,
+  type ModelResolutionReason,
+} from "@/lib/shared/model-resolution";

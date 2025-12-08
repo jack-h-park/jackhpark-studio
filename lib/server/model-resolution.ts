@@ -17,9 +17,9 @@ export function buildPresetModelResolutions(
   const defaultModelId = DEFAULT_LLM_MODEL_ID;
   const allowedModelIds = config.allowlist?.llmModels ?? [];
 
-  return (Object.keys(config.presets) as PresetKey[]).reduce<
-    PresetModelResolutions
-  >((acc, presetKey) => {
+  return (
+    Object.keys(config.presets) as PresetKey[]
+  ).reduce<PresetModelResolutions>((acc, presetKey) => {
     const preset = config.presets[presetKey];
     acc[presetKey] = resolveLlmModelId(preset.llmModel, {
       ollamaEnabled,

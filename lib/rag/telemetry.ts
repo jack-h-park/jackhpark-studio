@@ -1,10 +1,7 @@
 import type { AdminChatConfig, RagRankingConfig } from "@/types/chat-config";
 
 import { DOC_TYPE_WEIGHTS, PERSONA_WEIGHTS } from "./ranking";
-import {
-  type ChatConfigSnapshot,
-  type GuardrailRoute,
-} from "./types";
+import { type ChatConfigSnapshot, type GuardrailRoute } from "./types";
 
 export function buildChatConfigSnapshot(
   adminConfig: AdminChatConfig,
@@ -15,9 +12,8 @@ export function buildChatConfigSnapshot(
   },
 ): ChatConfigSnapshot {
   const preset =
-    adminConfig.presets[
-      presetKey as keyof typeof adminConfig.presets
-    ] ?? adminConfig.presets.default;
+    adminConfig.presets[presetKey as keyof typeof adminConfig.presets] ??
+    adminConfig.presets.default;
 
   const ranking: RagRankingConfig | undefined = adminConfig.ragRanking;
 
@@ -40,7 +36,8 @@ export function buildChatConfigSnapshot(
 
       numericLimits: {
         ragTopK: adminConfig.numericLimits.ragTopK.default,
-        similarityThreshold: adminConfig.numericLimits.similarityThreshold.default,
+        similarityThreshold:
+          adminConfig.numericLimits.similarityThreshold.default,
       },
 
       ranking: {

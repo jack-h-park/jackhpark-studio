@@ -74,7 +74,7 @@ export default async function handler(
   }
 
   const body: UpdateMetadataBody =
-    typeof req.body === "string" ? JSON.parse(req.body) : req.body ?? {};
+    typeof req.body === "string" ? JSON.parse(req.body) : (req.body ?? {});
 
   const docId =
     typeof body.docId === "string" && body.docId.trim().length > 0

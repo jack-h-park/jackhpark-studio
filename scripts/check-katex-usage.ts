@@ -1,4 +1,3 @@
- 
 import "dotenv/config";
 
 import { getSiteMap } from "../lib/get-site-map";

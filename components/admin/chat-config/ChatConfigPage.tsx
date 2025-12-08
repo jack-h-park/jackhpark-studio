@@ -94,7 +94,8 @@ export function ChatConfigPage({
       header={{
         overline: "ADMIN",
         title: pageTitle,
-        description: "Configure chat behavior, guardrails, and session presets.",
+        description:
+          "Configure chat behavior, guardrails, and session presets.",
         meta: headerMeta,
         actions: headerActions,
       }}

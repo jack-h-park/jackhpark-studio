@@ -112,7 +112,10 @@ export function SettingsSectionRagRetrieval({
     }));
   };
 
-  const handleFeatureToggle = (feature: "reverseRAG" | "hyde", checked: boolean) => {
+  const handleFeatureToggle = (
+    feature: "reverseRAG" | "hyde",
+    checked: boolean,
+  ) => {
     updateSession((prev) => ({
       ...prev,
       features: {
@@ -215,11 +218,11 @@ export function SettingsSectionRagRetrieval({
           <Label htmlFor="settings-ranker" className="ai-field__label">
             Ranker
           </Label>
-            <Select
-              value={sessionConfig.features.ranker}
-              onValueChange={handleRankerChange}
-              disabled={!isRagEnabled}
-            >
+          <Select
+            value={sessionConfig.features.ranker}
+            onValueChange={handleRankerChange}
+            disabled={!isRagEnabled}
+          >
             <SelectTrigger
               id="settings-ranker"
               aria-label="Ranker selection"
@@ -243,10 +246,8 @@ export function SettingsSectionRagRetrieval({
                 key={option.value}
                 active={sessionConfig.summaryLevel === option.value}
                 disabled={!isRagEnabled}
-            onClick={() =>
-              handleSummaryLevelChange(option.value)
-            }
-          >
+                onClick={() => handleSummaryLevelChange(option.value)}
+              >
                 <div className="ai-choice">
                   <span className="ai-choice__label">{option.label}</span>
                   <p className="ai-choice__description">{option.description}</p>

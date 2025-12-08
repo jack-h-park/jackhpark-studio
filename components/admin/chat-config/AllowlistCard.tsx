@@ -69,9 +69,7 @@ export function AllowlistCard({
 }: AllowlistCardProps) {
   const normalizedAllowlistIds = allowlist.llmModels
     .map((id) => normalizeLlmModelId(id) ?? id)
-    .filter(
-      (id): id is string => typeof id === "string" && id.length > 0,
-    );
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
   const normalizedAllowlistSet = new Set(normalizedAllowlistIds);
 
   const handleAllowReverseRagChange = (checked: boolean) => {
@@ -94,16 +92,15 @@ export function AllowlistCard({
     }));
   };
 
-  const renderBackendStatus = (
-    label: string,
-    backend: LocalLlmBackend,
-  ) => {
+  const renderBackendStatus = (label: string, backend: LocalLlmBackend) => {
     const isActive = localLlmBackendEnv === backend;
     return (
       <span className="flex items-center gap-1 text-[color:var(--ai-text-muted)] text-xs">
         <span
           className={`h-2.5 w-2.5 rounded-full ${
-            isActive ? "bg-[color:var(--ai-success)]" : "bg-[color:var(--ai-text-muted)]"
+            isActive
+              ? "bg-[color:var(--ai-success)]"
+              : "bg-[color:var(--ai-text-muted)]"
           }`}
         />
         <span>

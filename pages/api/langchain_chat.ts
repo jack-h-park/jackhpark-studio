@@ -19,7 +19,10 @@ import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
-import { normalizeMetadata, type RagDocumentMetadata } from "@/lib/rag/metadata";
+import {
+  normalizeMetadata,
+  type RagDocumentMetadata,
+} from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
@@ -35,7 +38,10 @@ import {
   routeQuestion,
 } from "@/lib/server/chat-guardrails";
 import { type ChatMessage, sanitizeMessages } from "@/lib/server/chat-messages";
-import { buildFinalSystemPrompt, loadChatModelSettings } from "@/lib/server/chat-settings";
+import {
+  buildFinalSystemPrompt,
+  loadChatModelSettings,
+} from "@/lib/server/chat-settings";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 import {
@@ -54,12 +60,8 @@ import {
   type GuardrailMeta,
   serializeGuardrailMeta,
 } from "@/lib/shared/guardrail-meta";
-import {
-  type ModelProvider,
-} from "@/lib/shared/model-provider";
-import {
-  DEFAULT_REVERSE_RAG_MODE,
-} from "@/lib/shared/rag-config";
+import { type ModelProvider } from "@/lib/shared/model-provider";
+import { DEFAULT_REVERSE_RAG_MODE } from "@/lib/shared/rag-config";
 import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
 import { computeBasePromptVersion } from "@/lib/telemetry/prompt-version";
 
@@ -209,7 +211,8 @@ export default async function handler(
         : "default");
     const ragRanking = adminConfig.ragRanking;
     const runtime =
-      (req as any).chatRuntime ?? (await loadChatModelSettings({ forceRefresh: true }));
+      (req as any).chatRuntime ??
+      (await loadChatModelSettings({ forceRefresh: true }));
     const fallbackQuestion =
       typeof body.question === "string" ? body.question : undefined;
     let rawMessages: ChatMessage[] = [];
@@ -444,9 +447,8 @@ export default async function handler(
             ragTopK: guardrails.ragTopK,
             similarityThreshold: guardrails.similarityThreshold,
           })}`;
-          const cachedContext = await memoryCacheClient.get<ContextWindowResult>(
-            retrievalCacheKey,
-          );
+          const cachedContext =
+            await memoryCacheClient.get<ContextWindowResult>(retrievalCacheKey);
           if (cachedContext) {
             cacheMeta.retrievalHit = true;
             contextResult = cachedContext;
@@ -459,282 +461,286 @@ export default async function handler(
         if (cacheMeta.retrievalHit === true) {
           logDebugRag("retrieval-cache", { hit: true, presetId });
         } else {
-        const rewrittenQuery = await rewriteQuery(
-          normalizedQuestion.normalized,
-          {
-            enabled: reverseRagEnabled,
-            mode: reverseRagMode,
-            provider,
-            model: llmModel,
-          },
-        );
-        if (trace && reverseRagEnabled) {
-          void trace.observation({
-            name: "reverse_rag",
-            input: normalizedQuestion.normalized,
-            output: rewrittenQuery,
-            metadata: {
-              env,
+          const rewrittenQuery = await rewriteQuery(
+            normalizedQuestion.normalized,
+            {
+              enabled: reverseRagEnabled,
+              mode: reverseRagMode,
               provider,
               model: llmModel,
-              mode: reverseRagMode,
-              stage: "reverse-rag",
-              type: "reverse_rag",
             },
-          });
-        }
-        logDebugRag("reverse-query", {
-          enabled: reverseRagEnabled,
-          mode: reverseRagMode,
-          original: normalizedQuestion.normalized,
-          rewritten: rewrittenQuery,
-        });
-        const hydeDocument = await generateHydeDocument(rewrittenQuery, {
-          enabled: hydeEnabled,
-          provider,
-          model: llmModel,
-        });
-        enhancementSummary = {
-          reverseRag: {
+          );
+          if (trace && reverseRagEnabled) {
+            void trace.observation({
+              name: "reverse_rag",
+              input: normalizedQuestion.normalized,
+              output: rewrittenQuery,
+              metadata: {
+                env,
+                provider,
+                model: llmModel,
+                mode: reverseRagMode,
+                stage: "reverse-rag",
+                type: "reverse_rag",
+              },
+            });
+          }
+          logDebugRag("reverse-query", {
             enabled: reverseRagEnabled,
             mode: reverseRagMode,
             original: normalizedQuestion.normalized,
             rewritten: rewrittenQuery,
-          },
-          hyde: {
-            enabled: hydeEnabled,
-            generated: hydeDocument ?? null,
-          },
-          ranker: {
-            mode: rankerMode,
-          },
-        };
-        if (trace) {
-          void trace.observation({
-            name: "hyde",
-            input: rewrittenQuery,
-            output: hydeDocument,
-            metadata: {
-              env,
-              provider,
-              model: llmModel,
-              enabled: hydeEnabled,
-              stage: "hyde",
-            },
           });
-        }
-        logDebugRag("hyde", {
-          enabled: hydeEnabled,
-          generated: hydeDocument,
-        });
-        const embeddingTarget = hydeDocument ?? rewrittenQuery;
-        logDebugRag("retrieval", {
-          query: embeddingTarget,
-          mode: rankerMode,
-        });
-        const queryEmbedding = await embeddings.embedQuery(embeddingTarget);
-        const matchCount = Math.max(RAG_TOP_K, guardrails.ragTopK * 2);
-        const store = new SupabaseVectorStore(embeddings, {
-          client: supabase,
-          tableName,
-          queryName,
-        });
-        const matches = await store.similaritySearchVectorWithScore(
-          queryEmbedding,
-          matchCount,
-        );
-        const canonicalLookup = await loadCanonicalPageLookup();
-        const normalizedMatches = matches.map(([doc, score], index) => {
-          const rewrittenDoc = rewriteLangchainDocument(
-            doc,
-            canonicalLookup,
-            index,
-          );
-          return [rewrittenDoc, score] as (typeof matches)[number];
-        });
-
-        const baseDocs = normalizedMatches.map(([doc, score]) => {
-          const baseSimilarity =
-            typeof score === "number"
-              ? score
-              : typeof doc?.metadata?.similarity === "number"
-                ? (doc.metadata.similarity as number)
-                : 0;
-          const docId =
-            (doc.metadata?.doc_id as string | undefined) ??
-            (doc.metadata?.docId as string | undefined) ??
-            (doc.metadata?.document_id as string | undefined) ??
-            (doc.metadata?.documentId as string | undefined) ??
-            null;
-
-          return {
-            doc,
-            docId,
-            baseSimilarity,
-          };
-        });
-
-        if (includeVerboseDetails) {
-          logRetrievalStage(
-            trace,
-            "raw_results",
-            baseDocs.map((entry) => ({
-              doc_id: entry.docId,
-              similarity: entry.baseSimilarity,
-            })),
-            {
-              engine: "langchain",
-              presetKey: chatConfigSnapshot?.presetKey,
-              chatConfig: chatConfigSnapshot,
+          const hydeDocument = await generateHydeDocument(rewrittenQuery, {
+            enabled: hydeEnabled,
+            provider,
+            model: llmModel,
+          });
+          enhancementSummary = {
+            reverseRag: {
+              enabled: reverseRagEnabled,
+              mode: reverseRagMode,
+              original: normalizedQuestion.normalized,
+              rewritten: rewrittenQuery,
             },
-          );
-        }
-
-        const docIds = Array.from(
-          new Set(
-            baseDocs
-              .map((entry) => entry.docId)
-              .filter(
-                (id): id is string => typeof id === "string" && id.length > 0,
-              ),
-          ),
-        );
-
-        let metadataRows:
-          | { doc_id?: string; metadata?: RagDocumentMetadata | null }[]
-          | undefined;
-        if (docIds.length > 0) {
-          const { data } = await supabase
-            .from("rag_documents")
-            .select("doc_id, metadata")
-            .in("doc_id", docIds);
-          metadataRows = data as typeof metadataRows;
-        }
-
-        const metadataMap = new Map<string, RagDocumentMetadata | null>();
-        for (const row of metadataRows ?? []) {
-          const docId = (row as { doc_id?: string }).doc_id;
-          if (typeof docId === "string") {
-            metadataMap.set(
-              docId,
-              normalizeMetadata(
-                (row as { metadata?: unknown }).metadata as RagDocumentMetadata,
-              ),
-            );
+            hyde: {
+              enabled: hydeEnabled,
+              generated: hydeDocument ?? null,
+            },
+            ranker: {
+              mode: rankerMode,
+            },
+          };
+          if (trace) {
+            void trace.observation({
+              name: "hyde",
+              input: rewrittenQuery,
+              output: hydeDocument,
+              metadata: {
+                env,
+                provider,
+                model: llmModel,
+                enabled: hydeEnabled,
+                stage: "hyde",
+              },
+            });
           }
-        }
+          logDebugRag("hyde", {
+            enabled: hydeEnabled,
+            generated: hydeDocument,
+          });
+          const embeddingTarget = hydeDocument ?? rewrittenQuery;
+          logDebugRag("retrieval", {
+            query: embeddingTarget,
+            mode: rankerMode,
+          });
+          const queryEmbedding = await embeddings.embedQuery(embeddingTarget);
+          const matchCount = Math.max(RAG_TOP_K, guardrails.ragTopK * 2);
+          const store = new SupabaseVectorStore(embeddings, {
+            client: supabase,
+            tableName,
+            queryName,
+          });
+          const matches = await store.similaritySearchVectorWithScore(
+            queryEmbedding,
+            matchCount,
+          );
+          const canonicalLookup = await loadCanonicalPageLookup();
+          const normalizedMatches = matches.map(([doc, score], index) => {
+            const rewrittenDoc = rewriteLangchainDocument(
+              doc,
+              canonicalLookup,
+              index,
+            );
+            return [rewrittenDoc, score] as (typeof matches)[number];
+          });
 
-        const ragDocs = baseDocs
-          .map(({ doc, docId, baseSimilarity }) => {
-            const hydratedMeta =
-              (docId ? metadataMap.get(docId) ?? null : null) ??
-              normalizeMetadata(doc.metadata as RagDocumentMetadata) ??
+          const baseDocs = normalizedMatches.map(([doc, score]) => {
+            const baseSimilarity =
+              typeof score === "number"
+                ? score
+                : typeof doc?.metadata?.similarity === "number"
+                  ? (doc.metadata.similarity as number)
+                  : 0;
+            const docId =
+              (doc.metadata?.doc_id as string | undefined) ??
+              (doc.metadata?.docId as string | undefined) ??
+              (doc.metadata?.document_id as string | undefined) ??
+              (doc.metadata?.documentId as string | undefined) ??
               null;
 
-            if (hydratedMeta?.is_public === false) {
-              return null;
-            }
-
-            const weight = computeMetadataWeight(
-              hydratedMeta ?? undefined,
-              ragRanking,
-            );
-            const finalScore = baseSimilarity * weight;
-
             return {
-              chunk: doc.pageContent,
-              metadata: {
-                ...doc.metadata,
-                ...hydratedMeta,
-                doc_id: docId ?? (doc.metadata?.doc_id as string | undefined),
-              },
-              similarity: finalScore,
-              base_similarity: baseSimilarity,
-              metadata_weight: weight,
-            };
-          })
-          .filter(
-            (
               doc,
-            ): doc is {
-              chunk: string;
-              metadata: any;
-              similarity: number;
-              base_similarity: number;
-              metadata_weight: number;
-            } => doc !== null,
-          )
-          // eslint-disable-next-line unicorn/no-array-sort
-          .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
+              docId,
+              baseSimilarity,
+            };
+          });
 
-        if (includeVerboseDetails) {
-          logRetrievalStage(
-            trace,
-            "after_weighting",
-            ragDocs.map((doc) => ({
-              doc_id: (doc.metadata?.doc_id as string | null) ?? null,
-              similarity:
-                (doc as { base_similarity?: number }).base_similarity ?? null,
-              weight:
-                (doc as { metadata_weight?: number }).metadata_weight ?? null,
-              finalScore: doc.similarity ?? null,
-              doc_type: (doc.metadata as { doc_type?: string | null })?.doc_type ?? null,
-              persona_type:
-                (doc.metadata as { persona_type?: string | null })?.persona_type ??
-                null,
-              is_public:
-                (doc.metadata as { is_public?: boolean | null })?.is_public ?? null,
-            })),
-            {
-              engine: "langchain",
-              presetKey: chatConfigSnapshot?.presetKey,
-              chatConfig: chatConfigSnapshot,
-            },
+          if (includeVerboseDetails) {
+            logRetrievalStage(
+              trace,
+              "raw_results",
+              baseDocs.map((entry) => ({
+                doc_id: entry.docId,
+                similarity: entry.baseSimilarity,
+              })),
+              {
+                engine: "langchain",
+                presetKey: chatConfigSnapshot?.presetKey,
+                chatConfig: chatConfigSnapshot,
+              },
+            );
+          }
+
+          const docIds = Array.from(
+            new Set(
+              baseDocs
+                .map((entry) => entry.docId)
+                .filter(
+                  (id): id is string => typeof id === "string" && id.length > 0,
+                ),
+            ),
           );
-        }
-        if (trace && includeVerboseDetails) {
-          void trace.observation({
-            name: "retrieval",
-            input: embeddingTarget,
-            output: ragDocs,
-            metadata: {
-              env,
-              provider,
-              model: llmModel,
-              stage: "retrieval",
-              source: "supabase",
-              results: ragDocs.length,
-              cache: {
-                retrievalHit: cacheMeta.retrievalHit,
+
+          let metadataRows:
+            | { doc_id?: string; metadata?: RagDocumentMetadata | null }[]
+            | undefined;
+          if (docIds.length > 0) {
+            const { data } = await supabase
+              .from("rag_documents")
+              .select("doc_id, metadata")
+              .in("doc_id", docIds);
+            metadataRows = data as typeof metadataRows;
+          }
+
+          const metadataMap = new Map<string, RagDocumentMetadata | null>();
+          for (const row of metadataRows ?? []) {
+            const docId = (row as { doc_id?: string }).doc_id;
+            if (typeof docId === "string") {
+              metadataMap.set(
+                docId,
+                normalizeMetadata(
+                  (row as { metadata?: unknown })
+                    .metadata as RagDocumentMetadata,
+                ),
+              );
+            }
+          }
+
+          const ragDocs = baseDocs
+            .map(({ doc, docId, baseSimilarity }) => {
+              const hydratedMeta =
+                (docId ? (metadataMap.get(docId) ?? null) : null) ??
+                normalizeMetadata(doc.metadata as RagDocumentMetadata) ??
+                null;
+
+              if (hydratedMeta?.is_public === false) {
+                return null;
+              }
+
+              const weight = computeMetadataWeight(
+                hydratedMeta ?? undefined,
+                ragRanking,
+              );
+              const finalScore = baseSimilarity * weight;
+
+              return {
+                chunk: doc.pageContent,
+                metadata: {
+                  ...doc.metadata,
+                  ...hydratedMeta,
+                  doc_id: docId ?? (doc.metadata?.doc_id as string | undefined),
+                },
+                similarity: finalScore,
+                base_similarity: baseSimilarity,
+                metadata_weight: weight,
+              };
+            })
+            .filter(
+              (
+                doc,
+              ): doc is {
+                chunk: string;
+                metadata: any;
+                similarity: number;
+                base_similarity: number;
+                metadata_weight: number;
+              } => doc !== null,
+            )
+            // eslint-disable-next-line unicorn/no-array-sort
+            .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
+
+          if (includeVerboseDetails) {
+            logRetrievalStage(
+              trace,
+              "after_weighting",
+              ragDocs.map((doc) => ({
+                doc_id: (doc.metadata?.doc_id as string | null) ?? null,
+                similarity:
+                  (doc as { base_similarity?: number }).base_similarity ?? null,
+                weight:
+                  (doc as { metadata_weight?: number }).metadata_weight ?? null,
+                finalScore: doc.similarity ?? null,
+                doc_type:
+                  (doc.metadata as { doc_type?: string | null })?.doc_type ??
+                  null,
+                persona_type:
+                  (doc.metadata as { persona_type?: string | null })
+                    ?.persona_type ?? null,
+                is_public:
+                  (doc.metadata as { is_public?: boolean | null })?.is_public ??
+                  null,
+              })),
+              {
+                engine: "langchain",
+                presetKey: chatConfigSnapshot?.presetKey,
+                chatConfig: chatConfigSnapshot,
               },
-            },
-          });
-        }
-        const rankedDocs = await applyRanker(ragDocs, {
-          mode: rankerMode,
-          maxResults: Math.max(guardrails.ragTopK, 1),
-          embeddingSelection,
-          queryEmbedding,
-        });
-        if (trace && includeVerboseDetails) {
-          void trace.observation({
-            name: "reranker",
-            input: ragDocs,
-            output: rankedDocs,
-            metadata: {
-              env,
-              provider,
-              model: llmModel,
-              mode: rankerMode,
-              stage: "reranker",
-              results: rankedDocs.length,
-              cache: {
-                retrievalHit: cacheMeta.retrievalHit,
+            );
+          }
+          if (trace && includeVerboseDetails) {
+            void trace.observation({
+              name: "retrieval",
+              input: embeddingTarget,
+              output: ragDocs,
+              metadata: {
+                env,
+                provider,
+                model: llmModel,
+                stage: "retrieval",
+                source: "supabase",
+                results: ragDocs.length,
+                cache: {
+                  retrievalHit: cacheMeta.retrievalHit,
+                },
               },
-            },
+            });
+          }
+          const rankedDocs = await applyRanker(ragDocs, {
+            mode: rankerMode,
+            maxResults: Math.max(guardrails.ragTopK, 1),
+            embeddingSelection,
+            queryEmbedding,
           });
-        }
-        contextResult = buildContextWindow(rankedDocs, guardrails);
+          if (trace && includeVerboseDetails) {
+            void trace.observation({
+              name: "reranker",
+              input: ragDocs,
+              output: rankedDocs,
+              metadata: {
+                env,
+                provider,
+                model: llmModel,
+                mode: rankerMode,
+                stage: "reranker",
+                results: rankedDocs.length,
+                cache: {
+                  retrievalHit: cacheMeta.retrievalHit,
+                },
+              },
+            });
+          }
+          contextResult = buildContextWindow(rankedDocs, guardrails);
           if (retrievalCacheKey) {
             await memoryCacheClient.set(
               retrievalCacheKey,
@@ -746,23 +752,26 @@ export default async function handler(
               traceMetadata.cache.retrievalHit = false;
             }
           }
-        console.log("[langchain_chat] context compression", {
-          retrieved: normalizedMatches.length,
-          ranked: rankedDocs.length,
-          included: contextResult.included.length,
-          dropped: contextResult.dropped,
-          totalTokens: contextResult.totalTokens,
-          highestScore: Number(contextResult.highestScore.toFixed(3)),
-          insufficient: contextResult.insufficient,
-          rankerMode,
-        });
+          console.log("[langchain_chat] context compression", {
+            retrieved: normalizedMatches.length,
+            ranked: rankedDocs.length,
+            included: contextResult.included.length,
+            dropped: contextResult.dropped,
+            totalTokens: contextResult.totalTokens,
+            highestScore: Number(contextResult.highestScore.toFixed(3)),
+            insufficient: contextResult.insufficient,
+            rankerMode,
+          });
         }
       } else {
         console.log("[langchain_chat] intent fallback", {
           intent: routingDecision.intent,
         });
       }
-      if (routingDecision.intent !== "knowledge" && cacheMeta.retrievalHit !== null) {
+      if (
+        routingDecision.intent !== "knowledge" &&
+        cacheMeta.retrievalHit !== null
+      ) {
         cacheMeta.retrievalHit = null;
         if (traceMetadata.cache) {
           traceMetadata.cache.retrievalHit = null;
@@ -1153,9 +1162,8 @@ async function createEmbeddingsInstance(
       });
     }
     case "gemini": {
-      const { GoogleGenerativeAIEmbeddings } = await import(
-        "@langchain/google-genai"
-      );
+      const { GoogleGenerativeAIEmbeddings } =
+        await import("@langchain/google-genai");
       const apiKey = requireProviderApiKey("gemini");
       return new GoogleGenerativeAIEmbeddings({
         model: selection.model,
@@ -1184,9 +1192,8 @@ async function createChatModel(
       });
     }
     case "gemini": {
-      const { ChatGoogleGenerativeAI } = await import(
-        "@langchain/google-genai"
-      );
+      const { ChatGoogleGenerativeAI } =
+        await import("@langchain/google-genai");
       const apiKey = requireProviderApiKey("gemini");
       return new ChatGoogleGenerativeAI({
         model: modelName,
@@ -1196,9 +1203,8 @@ async function createChatModel(
       });
     }
     case "ollama": {
-      const { ChatOllama } = await import(
-        "@langchain/community/chat_models/ollama"
-      );
+      const { ChatOllama } =
+        await import("@langchain/community/chat_models/ollama");
       const config = getOllamaRuntimeConfig();
       if (!config.enabled || !config.baseUrl) {
         throw new OllamaUnavailableError(

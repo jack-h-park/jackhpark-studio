@@ -1,9 +1,5 @@
 import type { ModelProvider } from "../shared/model-provider";
-import type {
-  IngestionType,
-  RunRecord,
-  RunStatus,
-} from "./ingestion-runs";
+import type { IngestionType, RunRecord, RunStatus } from "./ingestion-runs";
 
 export type SnapshotSummary = {
   id: string;

@@ -47,9 +47,12 @@ export function CoreBehaviorCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle icon={<FiSettings aria-hidden="true" />}>Core Behavior &amp; Base Prompt</CardTitle>
+        <CardTitle icon={<FiSettings aria-hidden="true" />}>
+          Core Behavior &amp; Base Prompt
+        </CardTitle>
         <CardDescription>
-          Define the base system prompt plus the user-facing summary shown in the chat settings drawer.
+          Define the base system prompt plus the user-facing summary shown in
+          the chat settings drawer.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -61,13 +64,12 @@ export function CoreBehaviorCard({
             id="coreSummary"
             aria-describedby="core-summary-description"
             value={config.baseSystemPromptSummary ?? ""}
-            onChange={(event) =>
-              handleBaseSummaryChange(event.target.value)
-            }
+            onChange={(event) => handleBaseSummaryChange(event.target.value)}
             rows={3}
           />
           <p id="core-summary-description" className="ai-field__description">
-            Shown in the chat settings drawer. End users never see the full base system prompt.
+            Shown in the chat settings drawer. End users never see the full base
+            system prompt.
           </p>
         </div>
         <div className="ai-field">
@@ -84,7 +86,10 @@ export function CoreBehaviorCard({
           />
         </div>
         <div className="ai-field max-w-sm">
-          <Label htmlFor="additionalPromptMaxLength" className="ai-field__label">
+          <Label
+            htmlFor="additionalPromptMaxLength"
+            className="ai-field__label"
+          >
             Additional prompt max length
           </Label>
           <Input

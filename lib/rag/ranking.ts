@@ -1,6 +1,10 @@
 import { type RagRankingConfig } from "@/types/chat-config";
 
-import { type DocType, type PersonaType, type RagDocumentMetadata } from "./metadata";
+import {
+  type DocType,
+  type PersonaType,
+  type RagDocumentMetadata,
+} from "./metadata";
 
 export const DOC_TYPE_WEIGHTS: Record<DocType, number> = {
   profile: 1.15,

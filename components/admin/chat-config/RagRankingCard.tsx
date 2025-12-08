@@ -17,17 +17,31 @@ import { DOC_TYPE_WEIGHTS, PERSONA_WEIGHTS } from "@/lib/rag/ranking";
 
 export type RagRankingCardProps = {
   ragRanking: AdminChatConfig["ragRanking"];
-  updateDocTypeWeight: (docType: (typeof DOC_TYPE_OPTIONS)[number], value: number) => void;
-  updatePersonaWeight: (persona: (typeof PERSONA_TYPE_OPTIONS)[number], value: number) => void;
+  updateDocTypeWeight: (
+    docType: (typeof DOC_TYPE_OPTIONS)[number],
+    value: number,
+  ) => void;
+  updatePersonaWeight: (
+    persona: (typeof PERSONA_TYPE_OPTIONS)[number],
+    value: number,
+  ) => void;
 };
 
-export function RagRankingCard({ ragRanking, updateDocTypeWeight, updatePersonaWeight }: RagRankingCardProps) {
+export function RagRankingCard({
+  ragRanking,
+  updateDocTypeWeight,
+  updatePersonaWeight,
+}: RagRankingCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle icon={<FiLayers aria-hidden="true" />}>RAG Document Ranking</CardTitle>
+        <CardTitle icon={<FiLayers aria-hidden="true" />}>
+          RAG Document Ranking
+        </CardTitle>
         <CardDescription>
-          Adjust how strongly different document and persona types influence retrieval. Values multiply the base similarity score before rerankers (MMR, Cohere, etc.).
+          Adjust how strongly different document and persona types influence
+          retrieval. Values multiply the base similarity score before rerankers
+          (MMR, Cohere, etc.).
         </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start">
@@ -41,7 +55,10 @@ export function RagRankingCard({ ragRanking, updateDocTypeWeight, updatePersonaW
             </div>
             {DOC_TYPE_OPTIONS.map((docType) => {
               const label = docType.replace("_", " ");
-              const value = ragRanking?.docTypeWeights?.[docType] ?? DOC_TYPE_WEIGHTS[docType] ?? 1;
+              const value =
+                ragRanking?.docTypeWeights?.[docType] ??
+                DOC_TYPE_WEIGHTS[docType] ??
+                1;
               return (
                 <Fragment key={docType}>
                   <div className="ai-label-emphasis text-sm text-[color:var(--ai-text-muted)] capitalize">
@@ -54,7 +71,12 @@ export function RagRankingCard({ ragRanking, updateDocTypeWeight, updatePersonaW
                       max={RAG_WEIGHT_MAX}
                       step={0.05}
                       value={value}
-                      onChange={(event) => updateDocTypeWeight(docType, Number(event.target.value) || 0)}
+                      onChange={(event) =>
+                        updateDocTypeWeight(
+                          docType,
+                          Number(event.target.value) || 0,
+                        )
+                      }
                       aria-label={`${label} weight`}
                     />
                   </div>
@@ -63,7 +85,8 @@ export function RagRankingCard({ ragRanking, updateDocTypeWeight, updatePersonaW
             })}
           </div>
           <p className="mt-3 ai-meta-text">
-            1.0 = neutral. Values above 1.0 make that type more likely to appear in RAG; values below 1.0 make it less likely.
+            1.0 = neutral. Values above 1.0 make that type more likely to appear
+            in RAG; values below 1.0 make it less likely.
           </p>
         </GridPanel>
 
@@ -77,7 +100,10 @@ export function RagRankingCard({ ragRanking, updateDocTypeWeight, updatePersonaW
             </div>
             {PERSONA_TYPE_OPTIONS.map((persona) => {
               const label = persona.replace("_", " ");
-              const value = ragRanking?.personaTypeWeights?.[persona] ?? PERSONA_WEIGHTS[persona] ?? 1;
+              const value =
+                ragRanking?.personaTypeWeights?.[persona] ??
+                PERSONA_WEIGHTS[persona] ??
+                1;
               return (
                 <Fragment key={persona}>
                   <div className="ai-label-emphasis text-sm text-[color:var(--ai-text-muted)] capitalize">
@@ -90,7 +116,12 @@ export function RagRankingCard({ ragRanking, updateDocTypeWeight, updatePersonaW
                       max={RAG_WEIGHT_MAX}
                       step={0.05}
                       value={value}
-                      onChange={(event) => updatePersonaWeight(persona, Number(event.target.value) || 0)}
+                      onChange={(event) =>
+                        updatePersonaWeight(
+                          persona,
+                          Number(event.target.value) || 0,
+                        )
+                      }
                       aria-label={`${label} weight`}
                     />
                   </div>
@@ -98,7 +129,10 @@ export function RagRankingCard({ ragRanking, updateDocTypeWeight, updatePersonaW
               );
             })}
           </div>
-          <p className="mt-3 ai-meta-text">Use persona weights to slightly favor professional-facing documents or de-emphasize purely personal content. 1.0 = neutral.</p>
+          <p className="mt-3 ai-meta-text">
+            Use persona weights to slightly favor professional-facing documents
+            or de-emphasize purely personal content. 1.0 = neutral.
+          </p>
         </GridPanel>
       </CardContent>
     </Card>

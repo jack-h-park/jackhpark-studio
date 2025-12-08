@@ -99,7 +99,12 @@ export type SelectItemProps = {
   children: React.ReactNode;
 };
 
-export function SelectItem({ value, disabled, title, children }: SelectItemProps) {
+export function SelectItem({
+  value,
+  disabled,
+  title,
+  children,
+}: SelectItemProps) {
   return (
     <option value={value} disabled={disabled} title={title}>
       {children}

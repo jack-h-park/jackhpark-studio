@@ -12,8 +12,7 @@ const resolvedBaseUrl =
       : DEFAULT_BASE_URL;
 const timeoutMs = Number(process.env.LMSTUDIO_TIMEOUT_MS ?? 0);
 const isProd = nodeEnv === "production";
-const enabled =
-  Boolean(resolvedBaseUrl) && (!isProd || enableInProd);
+const enabled = Boolean(resolvedBaseUrl) && (!isProd || enableInProd);
 
 export type LmStudioRuntimeConfig = {
   baseUrl: string | null;

@@ -14,10 +14,8 @@ import { embedTexts } from "../core/embeddings";
 import { USER_AGENT } from "../core/openai";
 import { getRagChunksTable } from "../core/rag-tables";
 import { supabaseClient } from "../core/supabase";
-import {
-  normalizeMetadata,
-  type RagDocumentMetadata,
-} from "./metadata";
+import { normalizeMetadata, type RagDocumentMetadata } from "./metadata";
+import { normalizeTimestamp } from "./timestamp";
 
 const DOCUMENTS_TABLE = "rag_documents";
 let documentStateTableStatus: "unknown" | "available" | "missing" = "unknown";
@@ -509,24 +507,6 @@ export async function hasChunksForProvider(
   }
 
   return (count ?? 0) > 0;
-}
-
-export function normalizeTimestamp(input: unknown): string | null {
-  if (!input) {
-    return null;
-  }
-
-  if (typeof input === "number") {
-    const date = new Date(input);
-    return Number.isNaN(date.getTime()) ? null : date.toISOString();
-  }
-
-  if (typeof input === "string") {
-    const date = new Date(input);
-    return Number.isNaN(date.getTime()) ? null : date.toISOString();
-  }
-
-  return null;
 }
 
 export function extractPlainText(

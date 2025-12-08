@@ -62,27 +62,33 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle icon={<FiShield aria-hidden="true" />}>Guardrail Keywords &amp; Fallbacks</CardTitle>
+        <CardTitle icon={<FiShield aria-hidden="true" />}>
+          Guardrail Keywords &amp; Fallbacks
+        </CardTitle>
         <CardDescription>
-          Define how guardrails recognize chit-chat and how the assistant responds when light conversation or command intents are detected.
+          Define how guardrails recognize chit-chat and how the assistant
+          responds when light conversation or command intents are detected.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-          <Field
-            id="guardrailKeywords"
-            label="Chit-chat keywords"
-            description="Add keywords or phrases that should be treated as lightweight chit-chat and handled without hitting the knowledge base."
-          >
-            <Textarea
-              rows={3}
-              value={arrayToText(config.guardrails.chitchatKeywords)}
-              onChange={(event) =>
-                handleChitchatKeywordsChange(event.target.value)
-              }
-            />
-          </Field>
+        <Field
+          id="guardrailKeywords"
+          label="Chit-chat keywords"
+          description="Add keywords or phrases that should be treated as lightweight chit-chat and handled without hitting the knowledge base."
+        >
+          <Textarea
+            rows={3}
+            value={arrayToText(config.guardrails.chitchatKeywords)}
+            onChange={(event) =>
+              handleChitchatKeywordsChange(event.target.value)
+            }
+          />
+        </Field>
         <div className="ai-field">
-          <Label htmlFor="guardrailFallbackChitchat" className="ai-field__label">
+          <Label
+            htmlFor="guardrailFallbackChitchat"
+            className="ai-field__label"
+          >
             Chit-chat fallback context
           </Label>
           <Textarea
@@ -98,7 +104,8 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
             id="guardrail-fallback-chitchat-description"
             className="ai-field__description"
           >
-            The concise, friendly prompt injected whenever a chit-chat intent is detected.
+            The concise, friendly prompt injected whenever a chit-chat intent is
+            detected.
           </p>
         </div>
         <div className="ai-field">
@@ -118,7 +125,8 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
             id="guardrail-fallback-command-description"
             className="ai-meta-text"
           >
-            The polite refusal context shown whenever a user asks the assistant to run actions or commands.
+            The polite refusal context shown whenever a user asks the assistant
+            to run actions or commands.
           </p>
         </div>
       </CardContent>

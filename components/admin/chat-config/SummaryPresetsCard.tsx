@@ -19,7 +19,10 @@ export type SummaryPresetsCardProps = {
   updateConfig: (updater: (prev: AdminChatConfig) => AdminChatConfig) => void;
 };
 
-export function SummaryPresetsCard({ summaryPresets, updateConfig }: SummaryPresetsCardProps) {
+export function SummaryPresetsCard({
+  summaryPresets,
+  updateConfig,
+}: SummaryPresetsCardProps) {
   const summaryGridLabelClass =
     "ai-label-overline text-[0.9rem] text-[color:var(--ai-text-muted)]";
   const summaryGridHeaderClass =
@@ -45,15 +48,26 @@ export function SummaryPresetsCard({ summaryPresets, updateConfig }: SummaryPres
   return (
     <Card>
       <CardHeader>
-        <CardTitle icon={<FiBookOpen aria-hidden="true" />}>Summary Presets</CardTitle>
-        <CardDescription>Choose how often summaries run for each level.</CardDescription>
+        <CardTitle icon={<FiBookOpen aria-hidden="true" />}>
+          Summary Presets
+        </CardTitle>
+        <CardDescription>
+          Choose how often summaries run for each level.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <GridPanel className="gap-4 px-4 py-4">
           <div className="grid grid-cols-[minmax(150px,1fr)_repeat(3,minmax(0,1fr))] gap-3 items-center">
-            <div className={`${summaryGridLabelClass} ${summaryGridHeaderClass}`}>Summary level</div>
+            <div
+              className={`${summaryGridLabelClass} ${summaryGridHeaderClass}`}
+            >
+              Summary level
+            </div>
             {summaryLevelOptions.map((level) => (
-              <div key={`summary-header-${level}`} className={summaryGridHeaderClass}>
+              <div
+                key={`summary-header-${level}`}
+                className={summaryGridHeaderClass}
+              >
                 {level.charAt(0).toUpperCase() + level.slice(1)}
               </div>
             ))}
@@ -67,10 +81,7 @@ export function SummaryPresetsCard({ summaryPresets, updateConfig }: SummaryPres
                   aria-label={`Every n turns for ${level} summary`}
                   value={summaryPresets[level].every_n_turns}
                   onChange={(event) =>
-                    handleSummaryPresetChange(
-                      level,
-                      Number(event.target.value),
-                    )
+                    handleSummaryPresetChange(level, Number(event.target.value))
                   }
                 />
                 <span className="text-xs text-slate-500">turn(s)</span>

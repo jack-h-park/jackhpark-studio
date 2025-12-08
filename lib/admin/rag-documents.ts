@@ -1,4 +1,4 @@
-import { normalizeTimestamp } from "@/lib/rag";
+import { normalizeTimestamp } from "@/lib/rag/timestamp";
 import {
   DOC_TYPE_OPTIONS,
   mergeMetadata,

@@ -36,13 +36,9 @@ export function PromptWithCounter({
   textareaProps,
 }: PromptWithCounterProps) {
   const fallbackId = useId();
-  const descriptionId = helperText
-    ? `${id ?? fallbackId}-helper`
-    : undefined;
-  const {
-    "aria-describedby": textareaAriaDescribedBy,
-    ...restTextareaProps
-  } = textareaProps ?? {};
+  const descriptionId = helperText ? `${id ?? fallbackId}-helper` : undefined;
+  const { "aria-describedby": textareaAriaDescribedBy, ...restTextareaProps } =
+    textareaProps ?? {};
   const combinedAriaDescribedBy = descriptionId
     ? textareaAriaDescribedBy
       ? `${textareaAriaDescribedBy} ${descriptionId}`

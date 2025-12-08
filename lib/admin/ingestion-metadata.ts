@@ -1,5 +1,8 @@
 import { resolveEmbeddingSpace } from "../core/embedding-spaces";
-import { getEmbeddingSpaceOption,UNKNOWN_EMBEDDING_FILTER_VALUE  } from "./recent-runs-filters";
+import {
+  getEmbeddingSpaceOption,
+  UNKNOWN_EMBEDDING_FILTER_VALUE,
+} from "./recent-runs-filters";
 
 export function getStringMetadata(
   metadata: Record<string, unknown> | null,
@@ -92,7 +95,9 @@ export function getEmbeddingSpaceIdFromMetadata(
   return null;
 }
 
-export function collectSources(runs: Array<{ source?: string | null }>): string[] {
+export function collectSources(
+  runs: Array<{ source?: string | null }>,
+): string[] {
   const sourceSet = new Set<string>();
   for (const run of runs) {
     if (typeof run.source === "string" && run.source.length > 0) {

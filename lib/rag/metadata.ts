@@ -60,7 +60,11 @@ function normalizeTags(tags: unknown): string[] | undefined {
     new Set(
       tags
         .map((tag) =>
-          typeof tag === "string" ? tag.trim() : typeof tag === "number" ? String(tag) : "",
+          typeof tag === "string"
+            ? tag.trim()
+            : typeof tag === "number"
+              ? String(tag)
+              : "",
         )
         .filter(Boolean),
     ),
@@ -70,9 +74,7 @@ function normalizeTags(tags: unknown): string[] | undefined {
   return sorted;
 }
 
-function sortEntries(
-  entries: [string, unknown][],
-): [string, unknown][] {
+function sortEntries(entries: [string, unknown][]): [string, unknown][] {
   return entries.toSorted(([a], [b]) => a.localeCompare(b));
 }
 
@@ -162,9 +164,7 @@ export function mergeMetadata(
   return normalizeMetadata(merged);
 }
 
-export function parseRagDocumentMetadata(
-  value: unknown,
-): RagDocumentMetadata {
+export function parseRagDocumentMetadata(value: unknown): RagDocumentMetadata {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {};
   }

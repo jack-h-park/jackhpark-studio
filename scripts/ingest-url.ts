@@ -20,10 +20,7 @@ import {
   startIngestRun,
   upsertDocumentState,
 } from "../lib/rag";
-import {
-  isUnchanged,
-  shouldSkipIngest,
-} from "../lib/rag/ingest-helpers";
+import { isUnchanged, shouldSkipIngest } from "../lib/rag/ingest-helpers";
 import {
   mergeRagDocumentMetadata,
   parseRagDocumentMetadata,

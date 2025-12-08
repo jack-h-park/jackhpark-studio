@@ -52,7 +52,6 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
       typeof fields?.maxTokens === "number"
         ? fields.maxTokens
         : config.maxTokens;
-
   }
 
   _llmType() {
@@ -201,5 +200,4 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
     }
     return "";
   }
-
 }

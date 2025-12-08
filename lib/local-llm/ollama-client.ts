@@ -40,7 +40,9 @@ export class OllamaClient implements LocalLlmClient {
       .join("\n\n");
   }
 
-  private buildChatMessages(messages: LocalLlmRequest["messages"]): ChatMessage[] {
+  private buildChatMessages(
+    messages: LocalLlmRequest["messages"],
+  ): ChatMessage[] {
     const result: ChatMessage[] = [];
     for (const message of messages) {
       if (message.role === "system") {

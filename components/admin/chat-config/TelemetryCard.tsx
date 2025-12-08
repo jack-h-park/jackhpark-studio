@@ -1,10 +1,8 @@
-import type { AdminChatConfig, TelemetryDetailLevel } from "@/types/chat-config";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import type {
+  AdminChatConfig,
+  TelemetryDetailLevel,
+} from "@/types/chat-config";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Radiobutton } from "@/components/ui/radiobutton";
@@ -15,7 +13,11 @@ export type TelemetryCardProps = {
   updateConfig: (updater: (prev: AdminChatConfig) => AdminChatConfig) => void;
 };
 
-export function TelemetryCard({ telemetry, isFormBusy, updateConfig }: TelemetryCardProps) {
+export function TelemetryCard({
+  telemetry,
+  isFormBusy,
+  updateConfig,
+}: TelemetryCardProps) {
   const handleTelemetrySampleRateChange = (nextValue: string) => {
     updateConfig((prev) => ({
       ...prev,
@@ -26,7 +28,9 @@ export function TelemetryCard({ telemetry, isFormBusy, updateConfig }: Telemetry
     }));
   };
 
-  const handleTelemetryDetailLevelChange = (detailLevel: TelemetryDetailLevel) => {
+  const handleTelemetryDetailLevelChange = (
+    detailLevel: TelemetryDetailLevel,
+  ) => {
     updateConfig((prev) => ({
       ...prev,
       telemetry: {
@@ -40,7 +44,9 @@ export function TelemetryCard({ telemetry, isFormBusy, updateConfig }: Telemetry
     <Card className="mb-6">
       <CardHeader>
         <CardTitle>Telemetry &amp; Tracing</CardTitle>
-        <p className="ai-card-description">Control how much data is sent to Langfuse for analysis.</p>
+        <p className="ai-card-description">
+          Control how much data is sent to Langfuse for analysis.
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
@@ -57,7 +63,9 @@ export function TelemetryCard({ telemetry, isFormBusy, updateConfig }: Telemetry
             }
             disabled={isFormBusy}
           />
-          <p className="ai-meta-text">0 = no traces, 1 = all traces, 0.1 = ~10% sampling.</p>
+          <p className="ai-meta-text">
+            0 = no traces, 1 = all traces, 0.1 = ~10% sampling.
+          </p>
         </div>
 
         <div className="space-y-2">

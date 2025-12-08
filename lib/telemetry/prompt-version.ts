@@ -7,9 +7,8 @@ export function computeBasePromptVersion(
   presetKey: keyof AdminChatConfig["presets"] | string,
 ): string {
   const preset =
-    adminConfig.presets[
-      presetKey as keyof typeof adminConfig.presets
-    ] ?? adminConfig.presets.default;
+    adminConfig.presets[presetKey as keyof typeof adminConfig.presets] ??
+    adminConfig.presets.default;
 
   const base = [
     adminConfig.baseSystemPrompt,

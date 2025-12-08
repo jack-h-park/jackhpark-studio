@@ -14,7 +14,10 @@ import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOpenAIClient } from "@/lib/core/openai";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { getLocalLlmClient } from "@/lib/local-llm";
-import { normalizeMetadata, type RagDocumentMetadata } from "@/lib/rag/metadata";
+import {
+  normalizeMetadata,
+  type RagDocumentMetadata,
+} from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
 import { matchRagChunksForConfig } from "@/lib/rag/retrieval";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";

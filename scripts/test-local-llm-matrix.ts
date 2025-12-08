@@ -40,14 +40,14 @@ interface NativeChatResult {
   error?: string;
 }
 
-async function callNativeChat(backendOverride?: string): Promise<NativeChatResult> {
+async function callNativeChat(
+  backendOverride?: string,
+): Promise<NativeChatResult> {
   const response = await fetch(`${BASE_URL}/api/native_chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(backendOverride
-        ? { "x-local-llm-backend": backendOverride }
-        : {}),
+      ...(backendOverride ? { "x-local-llm-backend": backendOverride } : {}),
     },
     body: JSON.stringify({
       model: TEST_MODEL,
@@ -103,9 +103,16 @@ async function callNativeChat(backendOverride?: string): Promise<NativeChatResul
   return { status: response.status, streaming, chunk };
 }
 
-function printResult(label: string, backend: string | undefined, result: NativeChatResult) {
+function printResult(
+  label: string,
+  backend: string | undefined,
+  result: NativeChatResult,
+) {
   const backendLabel = backend ?? "unset";
-  const summaryParts = [`status=${result.status}`, `requireLocal=${TEST_REQUIRE_LOCAL}`];
+  const summaryParts = [
+    `status=${result.status}`,
+    `requireLocal=${TEST_REQUIRE_LOCAL}`,
+  ];
   if (result.streaming) {
     summaryParts.push("streaming=true");
   }

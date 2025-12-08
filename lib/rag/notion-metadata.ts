@@ -1,4 +1,8 @@
-import { type Block, type Decoration, type ExtendedRecordMap } from "notion-types";
+import {
+  type Block,
+  type Decoration,
+  type ExtendedRecordMap,
+} from "notion-types";
 import { getPageContentBlockIds, getTextContent } from "notion-utils";
 
 import { debugIngestionLog } from "@/lib/rag/debug";
@@ -108,7 +112,7 @@ function lookupProperty(
 
   // Try collection schema lookup first (database properties).
   const collectionId =
-    page.parent_table === "collection" ? page.parent_id ?? null : null;
+    page.parent_table === "collection" ? (page.parent_id ?? null) : null;
   if (collectionId) {
     const collection =
       (recordMap.collection?.[collectionId]?.value as {
@@ -291,8 +295,7 @@ function resolveNotionPageCoverUrl({
   recordMap: ExtendedRecordMap;
   pageId: string;
 }): string | null {
-  const pageBlock =
-    (recordMap.block?.[pageId]?.value as Block | null) ?? null;
+  const pageBlock = (recordMap.block?.[pageId]?.value as Block | null) ?? null;
   const rawCover = pageBlock?.format?.page_cover;
   return resolveNotionImageUrl({
     raw: rawCover,
@@ -322,7 +325,8 @@ function buildNotionBreadcrumb(
 
   while (cursorId) {
     const block: NotionPageBlockValue | null =
-      (recordMap.block?.[cursorId]?.value as NotionPageBlockValue | null) ?? null;
+      (recordMap.block?.[cursorId]?.value as NotionPageBlockValue | null) ??
+      null;
     const parentId: string | undefined = block?.parent_id;
     const parentTable: string | undefined = block?.parent_table;
 
@@ -362,7 +366,10 @@ function normalizeComparison(value: string | null | undefined): string | null {
   return trimmed || null;
 }
 
-function isSameText(first: string | null | undefined, second: string | null | undefined): boolean {
+function isSameText(
+  first: string | null | undefined,
+  second: string | null | undefined,
+): boolean {
   const normalizedFirst = normalizeComparison(first);
   const normalizedSecond = normalizeComparison(second);
 
@@ -408,8 +415,7 @@ function extractNotionTeaserText(
   let finalTeaser: string | undefined;
 
   for (const blockId of blockIds) {
-    const block =
-      (recordMap.block?.[blockId]?.value as Block | null) ?? null;
+    const block = (recordMap.block?.[blockId]?.value as Block | null) ?? null;
     if (!block || !shouldIncludeAsTeaser(block)) {
       continue;
     }
@@ -476,8 +482,7 @@ function resolveFirstContentImageUrl({
       continue;
     }
 
-    const block =
-      (recordMap.block?.[blockId]?.value as Block | null) ?? null;
+    const block = (recordMap.block?.[blockId]?.value as Block | null) ?? null;
     if (!block || block.type !== "image") {
       continue;
     }

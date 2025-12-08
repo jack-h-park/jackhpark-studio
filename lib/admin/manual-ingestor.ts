@@ -57,8 +57,7 @@ const WORKSPACE_ROOT_PAGE_ID = resolveWorkspaceRootPageId();
 
 function resolveWorkspaceRootPageId(): string {
   const candidate =
-    process.env.NOTION_ROOT_PAGE_ID ??
-    getSiteConfig("rootNotionPageId");
+    process.env.NOTION_ROOT_PAGE_ID ?? getSiteConfig("rootNotionPageId");
   const normalized =
     typeof candidate === "string"
       ? parsePageId(candidate, { uuid: true })
@@ -83,7 +82,7 @@ function normalizeNotionPageId(value?: string): string | undefined {
     return sanitized;
   }
 
-  const fallback = value.replaceAll('-', "");
+  const fallback = value.replaceAll("-", "");
   return fallback.length === 32 ? fallback : undefined;
 }
 
@@ -205,7 +204,7 @@ async function collectLinkedPagesFromSeeds(
         continue;
       }
 
-      const value = (blockValue as unknown) as Record<string, unknown> & {
+      const value = blockValue as unknown as Record<string, unknown> & {
         alive?: boolean;
       };
 
@@ -217,13 +216,12 @@ async function collectLinkedPagesFromSeeds(
       let candidateId: string | undefined;
 
       if (type === "link_to_page") {
-        candidateId =
-          (value.link_to_page as { page_id?: string } | undefined)
-            ?.page_id;
+        candidateId = (value.link_to_page as { page_id?: string } | undefined)
+          ?.page_id;
       } else if (type === "alias") {
-        candidateId =
-          (value.format as { alias_pointer?: { id?: string } } | undefined)
-            ?.alias_pointer?.id;
+        candidateId = (
+          value.format as { alias_pointer?: { id?: string } } | undefined
+        )?.alias_pointer?.id;
       } else if (type === "child_page" || type === "child_database") {
         if (typeof value.id === "string") {
           candidateId = value.id;
@@ -328,8 +326,7 @@ async function ingestNotionPage({
   const metadataUnchanged = metadataEquals(existingMetadata, nextMetadata);
 
   const providerHasChunks =
-    contentUnchanged &&
-    (await hasChunksForProvider(pageId, embeddingOptions));
+    contentUnchanged && (await hasChunksForProvider(pageId, embeddingOptions));
 
   const decision = decideIngestAction({
     contentUnchanged,
@@ -602,7 +599,9 @@ async function runNotionPageIngestion({
       });
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to enumerate linked pages.";
+        err instanceof Error
+          ? err.message
+          : "Failed to enumerate linked pages.";
       await emit({
         type: "log",
         level: "warn",
@@ -1049,8 +1048,7 @@ export async function runManualIngestion(
     const ingestionType = request.ingestionType ?? "partial";
     const includeLinkedPages = request.includeLinkedPages ?? true;
     const scope =
-      request.scope ??
-      (includeLinkedPages ? "workspace" : "selected");
+      request.scope ?? (includeLinkedPages ? "workspace" : "selected");
     await runNotionPageIngestion({
       scope,
       pageId: request.pageId,

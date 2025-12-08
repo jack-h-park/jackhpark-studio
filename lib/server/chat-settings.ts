@@ -354,7 +354,8 @@ function resolvePromptParts({
       : "default";
 
   const basePrompt =
-    adminConfig.baseSystemPrompt && adminConfig.baseSystemPrompt.trim().length > 0
+    adminConfig.baseSystemPrompt &&
+    adminConfig.baseSystemPrompt.trim().length > 0
       ? normalizeSystemPrompt(adminConfig.baseSystemPrompt)
       : DEFAULT_PROMPT_FALLBACK;
 
@@ -448,8 +449,7 @@ export async function loadChatModelSettings(options?: {
   });
   const defaults = getChatModelDefaults();
   const presetKey = resolvePresetKey(config, options?.sessionConfig);
-  const preset =
-    config.presets?.[presetKey] ?? config.presets?.default ?? null;
+  const preset = config.presets?.[presetKey] ?? config.presets?.default ?? null;
   const ollamaEnabled = isOllamaEnabled();
   const requireLocal = preset?.requireLocal ?? false;
 
@@ -499,11 +499,14 @@ export async function loadChatModelSettings(options?: {
   const localBackend = getLocalLlmBackend(localBackendOverride);
   const requiresLocalModel = llmSelection.isLocal;
   const requestedLocalBackend =
-    llmSelection.localBackend ?? (llmSelection.isLocal ? llmSelection.provider : null);
+    llmSelection.localBackend ??
+    (llmSelection.isLocal ? llmSelection.provider : null);
   const matchesSelectedBackend =
     Boolean(requestedLocalBackend) && localBackend === requestedLocalBackend;
   let localBackendAvailable =
-    Boolean(localClient) && matchesSelectedBackend && Boolean(requestedLocalBackend);
+    Boolean(localClient) &&
+    matchesSelectedBackend &&
+    Boolean(requestedLocalBackend);
   let fallbackFrom: ChatRuntimeFallbackFrom | undefined;
   let llmEngine: ChatEngineType;
   const initialLocalSelection = requiresLocalModel ? llmSelection : null;
@@ -639,8 +642,7 @@ export async function loadGuardrailSettings(options?: {
     similarityThreshold:
       numericLimits?.similarityThreshold?.default ??
       defaults.numeric.similarityThreshold,
-    ragTopK:
-      numericLimits?.ragTopK?.default ?? defaults.numeric.ragTopK,
+    ragTopK: numericLimits?.ragTopK?.default ?? defaults.numeric.ragTopK,
     ragContextTokenBudget:
       numericLimits?.contextBudget?.default ??
       defaults.numeric.ragContextTokenBudget,
@@ -676,8 +678,7 @@ export async function loadGuardrailSettings(options?: {
 
   const result: GuardrailSettingsResult = {
     chitchatKeywords: keywords?.length ? keywords : defaults.chitchatKeywords,
-    fallbackChitchat:
-      fallbackChitchat || defaults.fallbackChitchat,
+    fallbackChitchat: fallbackChitchat || defaults.fallbackChitchat,
     fallbackCommand: fallbackCommand || defaults.fallbackCommand,
     numeric,
     isDefault: {

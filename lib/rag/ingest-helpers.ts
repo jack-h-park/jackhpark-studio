@@ -1,4 +1,4 @@
-import { normalizeTimestamp } from "./index";
+import { normalizeTimestamp } from "./timestamp";
 
 type IngestionType = "full" | "partial";
 
@@ -32,8 +32,7 @@ export function isUnchanged(
   }
 
   const { contentHash, lastSourceUpdate } = input;
-  const sameHash =
-    !!contentHash && existingState.content_hash === contentHash;
+  const sameHash = !!contentHash && existingState.content_hash === contentHash;
 
   const normalizedLast = normalizeTimestamp(lastSourceUpdate ?? null);
   const normalizedExisting = normalizeTimestamp(

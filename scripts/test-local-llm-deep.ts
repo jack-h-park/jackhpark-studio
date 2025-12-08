@@ -48,7 +48,8 @@ const LONG_PROMPT = Array.from({ length: 60 }, () => LONG_SENTENCE).join(" ");
 const TEST_CASES: DeepTestCase[] = [
   {
     id: "short-chat",
-    description: "Basic short message to verify streaming starts and we receive at least one chunk.",
+    description:
+      "Basic short message to verify streaming starts and we receive at least one chunk.",
     buildPayload: () => ({
       messages: [
         {
@@ -60,7 +61,8 @@ const TEST_CASES: DeepTestCase[] = [
   },
   {
     id: "long-chat",
-    description: "Long prompt that should produce a longer response and multiple chunks.",
+    description:
+      "Long prompt that should produce a longer response and multiple chunks.",
     buildPayload: () => ({
       messages: [
         {
@@ -72,7 +74,8 @@ const TEST_CASES: DeepTestCase[] = [
   },
   {
     id: "rag-knowledge",
-    description: "RAG-related prompt that should trigger retrieval but not fail.",
+    description:
+      "RAG-related prompt that should trigger retrieval but not fail.",
     buildPayload: () => ({
       messages: [
         {
@@ -85,17 +88,20 @@ const TEST_CASES: DeepTestCase[] = [
   },
   {
     id: "multi-turn",
-    description: "Simulated conversation with multiple turns to exercise context retention.",
+    description:
+      "Simulated conversation with multiple turns to exercise context retention.",
     buildPayload: () => ({
       messages: [
         { role: "user", content: "Hi, I'm testing the local LLM." },
         {
           role: "assistant",
-          content: "Happy to help. Let me know what you need from the assistant.",
+          content:
+            "Happy to help. Let me know what you need from the assistant.",
         },
         {
           role: "user",
-          content: "Can you remind me what we were just talking about, in one sentence?",
+          content:
+            "Can you remind me what we were just talking about, in one sentence?",
         },
       ],
     }),
@@ -118,9 +124,15 @@ async function run() {
   console.log("Local LLM deep test complete");
 }
 
-async function runTestCase(backend: Backend, testCase: DeepTestCase): Promise<CaseResult> {
+async function runTestCase(
+  backend: Backend,
+  testCase: DeepTestCase,
+): Promise<CaseResult> {
   const payload = testCase.buildPayload();
-  const inputLength = payload.messages.reduce((sum, msg) => sum + msg.content.length, 0);
+  const inputLength = payload.messages.reduce(
+    (sum, msg) => sum + msg.content.length,
+    0,
+  );
 
   const startTime = Date.now();
 
@@ -225,7 +237,7 @@ async function collectStreamResult(response: Response): Promise<StreamResult> {
 
   const processBuffer = (flush: boolean) => {
     const sections = buffer.split("\n\n");
-    const remainder = flush ? "" : sections.pop() ?? "";
+    const remainder = flush ? "" : (sections.pop() ?? "");
 
     for (const section of sections) {
       const trimmed = section.trim();
@@ -353,7 +365,8 @@ function parseErrorMessage(body: string, statusText: string): string {
 
 function logCaseResult(backend: Backend, result: CaseResult) {
   const statusLabel = result.status !== null ? result.status : "error";
-  const streamingLabel = result.chunkCount > 0 ? "streaming=true" : "streaming=false";
+  const streamingLabel =
+    result.chunkCount > 0 ? "streaming=true" : "streaming=false";
   const parts = [
     `status=${statusLabel}`,
     `chunks=${result.chunkCount}`,
@@ -377,16 +390,15 @@ function logCaseResult(backend: Backend, result: CaseResult) {
   }
 
   if (result.error) {
-    console.log(
-      `  error="${result.error.replaceAll(/\s+/g, " ").trim()}"`,
-    );
+    console.log(`  error="${result.error.replaceAll(/\s+/g, " ").trim()}"`);
   }
 }
 
 function printBackendSummary(backend: Backend, summaries: CaseResult[]) {
   console.log(`Summary for backend=${backend}:`);
   for (const summary of summaries) {
-    const statusLabel = summary.status !== null ? `(${summary.status})` : "(error)";
+    const statusLabel =
+      summary.status !== null ? `(${summary.status})` : "(error)";
     const outcome = summary.error ? "FAIL" : "OK";
     console.log(
       `  ${summary.id}: ${outcome} ${statusLabel}  chunks=${summary.chunkCount}  total=${summary.totalDurationMs}ms`,

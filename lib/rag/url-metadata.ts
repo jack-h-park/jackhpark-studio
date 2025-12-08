@@ -1,6 +1,8 @@
 import type { RagDocumentMetadata } from "./metadata";
 
-export function deriveTitleFromUrl(sourceUrl?: string | null): string | undefined {
+export function deriveTitleFromUrl(
+  sourceUrl?: string | null,
+): string | undefined {
   if (!sourceUrl) {
     return undefined;
   }

@@ -1,10 +1,6 @@
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
-import {
-  type Dispatch,
-  Fragment,
-  type SetStateAction,
-} from "react";
+import { type Dispatch, Fragment, type SetStateAction } from "react";
 
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import {
@@ -19,7 +15,12 @@ import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
 import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
 import { Radiobutton } from "@/components/ui/radiobutton";
-import { Section, SectionContent, SectionHeader, SectionTitle } from "@/components/ui/section";
+import {
+  Section,
+  SectionContent,
+  SectionHeader,
+  SectionTitle,
+} from "@/components/ui/section";
 import {
   Select,
   SelectContent,
@@ -28,9 +29,11 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
- type AdminLlmModelOption,  presetDisplayNames,
+  type AdminLlmModelOption,
+  presetDisplayNames,
   presetDisplayOrder,
-  type PresetKey } from "@/hooks/use-admin-chat-config";
+  type PresetKey,
+} from "@/hooks/use-admin-chat-config";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { normalizeLlmModelId } from "@/lib/core/llm-registry";
 import {
@@ -92,7 +95,11 @@ function RetrievalSection({
   const hydeDisabled = ragDisabled || !allowlist.allowHyde;
 
   return (
-    <Section className="w-full" aria-disabled={ragDisabled} data-disabled={ragDisabled}>
+    <Section
+      className="w-full"
+      aria-disabled={ragDisabled}
+      data-disabled={ragDisabled}
+    >
       <SectionHeader className="items-center justify-between">
         <SectionTitle as="h3" className="text-sm">
           Enabled
@@ -114,9 +121,7 @@ function RetrievalSection({
             aria-label={`RAG Top K for ${displayName}`}
             value={preset.rag.topK}
             disabled={ragDisabled}
-            onChange={(event) =>
-              onTopKChange(Number(event.target.value))
-            }
+            onChange={(event) => onTopKChange(Number(event.target.value))}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -129,9 +134,7 @@ function RetrievalSection({
             aria-label={`Similarity for ${displayName}`}
             value={preset.rag.similarity}
             disabled={ragDisabled}
-            onChange={(event) =>
-              onSimilarityChange(Number(event.target.value))
-            }
+            onChange={(event) => onSimilarityChange(Number(event.target.value))}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -161,9 +164,7 @@ function RetrievalSection({
             disabled={ragDisabled}
             onValueChange={onRankerChange}
           >
-            <SelectTrigger
-              aria-label={`Ranker for ${displayName}`}
-            />
+            <SelectTrigger aria-label={`Ranker for ${displayName}`} />
             <SelectContent>
               {allowlist.rankers.map((ranker) => (
                 <SelectItem key={ranker} value={ranker}>
@@ -235,15 +236,12 @@ export function SessionPresetsCard({
 }: SessionPresetsCardProps) {
   const normalizedAllowlistIds = config.allowlist.llmModels
     .map((id) => normalizeLlmModelId(id) ?? id)
-    .filter(
-      (id): id is string => typeof id === "string" && id.length > 0,
-    );
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
   const normalizedAllowlistSet = new Set(normalizedAllowlistIds);
   const sessionGridLabelClass =
     "flex items-center ai-label-overline ai-label-overline--muted";
   const sessionGridValueClass = "flex flex-col gap-1";
-  const sessionGridHeaderClass =
-    "ai-label-overline ai-label-overline--small";
+  const sessionGridHeaderClass = "ai-label-overline ai-label-overline--small";
   const handleAdditionalSystemPromptChange = (
     presetKey: PresetKey,
     value: string,
@@ -288,7 +286,10 @@ export function SessionPresetsCard({
     }));
   };
 
-  const handleRagSimilarityChange = (presetKey: PresetKey, nextValue: number) => {
+  const handleRagSimilarityChange = (
+    presetKey: PresetKey,
+    nextValue: number,
+  ) => {
     updatePreset(presetKey, (prev) => ({
       ...prev,
       rag: {
@@ -328,24 +329,27 @@ export function SessionPresetsCard({
     }));
   };
 
-  const handleSummaryLevelChange = (presetKey: PresetKey, level: SummaryLevel) => {
+  const handleSummaryLevelChange = (
+    presetKey: PresetKey,
+    level: SummaryLevel,
+  ) => {
     updatePreset(presetKey, (prev) => ({
       ...prev,
       summaryLevel: level,
     }));
   };
 
-  const handleContextHistoryToggle = (presetKey: PresetKey, checked: boolean) => {
+  const handleContextHistoryToggle = (
+    presetKey: PresetKey,
+    checked: boolean,
+  ) => {
     setContextHistoryEnabled((prev) => ({
       ...prev,
       [presetKey]: checked,
     }));
   };
 
-  const handleTokenBudgetChange = (
-    presetKey: PresetKey,
-    nextValue: number,
-  ) => {
+  const handleTokenBudgetChange = (presetKey: PresetKey, nextValue: number) => {
     updatePreset(presetKey, (prev) => ({
       ...prev,
       context: {
@@ -368,10 +372,7 @@ export function SessionPresetsCard({
     }));
   };
 
-  const handleClipTokensChange = (
-    presetKey: PresetKey,
-    nextValue: number,
-  ) => {
+  const handleClipTokensChange = (presetKey: PresetKey, nextValue: number) => {
     updatePreset(presetKey, (prev) => ({
       ...prev,
       context: {
@@ -429,21 +430,25 @@ export function SessionPresetsCard({
     const isEnabled = contextHistoryEnabled[presetKey] ?? true;
     const isDisabled = !isEnabled;
     return (
-    <Section className="w-full" aria-disabled={isDisabled} data-disabled={isDisabled}>
-      <SectionHeader className="items-center justify-between">
-        <SectionTitle as="h3" className="text-sm">
-          Enabled
-        </SectionTitle>
-        <Switch
-          className="flex-shrink-0"
-          aria-label={`Enable Context & History for ${presetDisplayNames[presetKey]}`}
-          checked={isEnabled}
-          onCheckedChange={(checked) =>
-            handleContextHistoryToggle(presetKey, checked)
-          }
-        />
-      </SectionHeader>
-      <SectionContent className="flex flex-col gap-3">
+      <Section
+        className="w-full"
+        aria-disabled={isDisabled}
+        data-disabled={isDisabled}
+      >
+        <SectionHeader className="items-center justify-between">
+          <SectionTitle as="h3" className="text-sm">
+            Enabled
+          </SectionTitle>
+          <Switch
+            className="flex-shrink-0"
+            aria-label={`Enable Context & History for ${presetDisplayNames[presetKey]}`}
+            checked={isEnabled}
+            onCheckedChange={(checked) =>
+              handleContextHistoryToggle(presetKey, checked)
+            }
+          />
+        </SectionHeader>
+        <SectionContent className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <span className={SECTION_FIELD_LABEL_CLASS}>Token Budget</span>
             <Input
@@ -454,10 +459,7 @@ export function SessionPresetsCard({
               value={presets[presetKey].context.tokenBudget}
               disabled={isDisabled}
               onChange={(event) =>
-                handleTokenBudgetChange(
-                  presetKey,
-                  Number(event.target.value),
-                )
+                handleTokenBudgetChange(presetKey, Number(event.target.value))
               }
             />
           </div>
@@ -471,10 +473,7 @@ export function SessionPresetsCard({
               value={presets[presetKey].context.historyBudget}
               disabled={isDisabled}
               onChange={(event) =>
-                handleHistoryBudgetChange(
-                  presetKey,
-                  Number(event.target.value),
-                )
+                handleHistoryBudgetChange(presetKey, Number(event.target.value))
               }
             />
           </div>
@@ -488,10 +487,7 @@ export function SessionPresetsCard({
               value={presets[presetKey].context.clipTokens}
               disabled={isDisabled}
               onChange={(event) =>
-                handleClipTokensChange(
-                  presetKey,
-                  Number(event.target.value),
-                )
+                handleClipTokensChange(presetKey, Number(event.target.value))
               }
             />
           </div>
@@ -593,7 +589,9 @@ export function SessionPresetsCard({
                             )}
                           </span>
                         );
-                        const optionAllowed = normalizedAllowlistSet.has(option.id);
+                        const optionAllowed = normalizedAllowlistSet.has(
+                          option.id,
+                        );
                         return (
                           <SelectItem
                             key={option.id}
