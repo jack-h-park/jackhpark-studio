@@ -2,10 +2,9 @@ import { NotionAPI } from "notion-client";
 import { type ExtendedRecordMap } from "notion-types";
 import { getAllPagesInSpace, parsePageId } from "notion-utils";
 
-import { getSiteConfig } from "../get-config-value";
-
 import type { ModelProvider } from "../shared/model-provider";
 import { resolveEmbeddingSpace } from "../core/embedding-spaces";
+import { getSiteConfig } from "../get-config-value";
 import { debugIngestionLog } from "../rag/debug";
 import {
   chunkByTokens,
@@ -59,7 +58,7 @@ const WORKSPACE_ROOT_PAGE_ID = resolveWorkspaceRootPageId();
 function resolveWorkspaceRootPageId(): string {
   const candidate =
     process.env.NOTION_ROOT_PAGE_ID ??
-    getSiteConfig<string>("rootNotionPageId");
+    getSiteConfig("rootNotionPageId");
   const normalized =
     typeof candidate === "string"
       ? parsePageId(candidate, { uuid: true })
@@ -84,7 +83,7 @@ function normalizeNotionPageId(value?: string): string | undefined {
     return sanitized;
   }
 
-  const fallback = value.replace(/-/g, "");
+  const fallback = value.replaceAll('-', "");
   return fallback.length === 32 ? fallback : undefined;
 }
 
@@ -200,9 +199,17 @@ async function collectLinkedPagesFromSeeds(
     }
 
     for (const block of Object.values(recordMap.block ?? {})) {
-      const value = (block?.value ?? null) as Record<string, unknown>;
+      const blockValue = block?.value ?? null;
 
-      if (!value || value.alive === false) {
+      if (!blockValue) {
+        continue;
+      }
+
+      const value = (blockValue as unknown) as Record<string, unknown> & {
+        alive?: boolean;
+      };
+
+      if (value.alive === false) {
         continue;
       }
 
