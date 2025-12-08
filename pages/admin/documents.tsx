@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useCallback, useMemo, useState } from "react";
 
+import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
+import { IngestionSubNav } from "@/components/admin/navigation/IngestionSubNav";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,10 +15,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ClientSideDate } from "@/components/ui/client-side-date";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PageHeaderCard } from "@/components/ui/page-header-card";
 import {
   Select,
   SelectContent,
@@ -24,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { StatusPill } from "@/components/ui/status-pill";
 import {
   normalizeRagDocument,
   type RagDocumentRecord,
@@ -36,6 +39,9 @@ import {
 } from "@/lib/rag/metadata";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+
+const PAGE_TITLE = "RAG Documents";
+const PAGE_TAB_TITLE = "Admin · Ingestion · RAG Documents — Jack H. Park";
 
 type DocumentRow = RagDocumentRecord & {
   displayTitle: string;
@@ -102,44 +108,75 @@ export default function AdminDocumentsPage({
             </div>
           </div>
         ),
-        className: "min-w-[240px]",
+        className: "min-w-[240px] text-[color:var(--ai-text-muted)]",
+        size: "sm",
       },
       {
         header: "Source",
-        render: (doc) => doc.metadata?.source_type ?? "—",
-        variant: "muted",
+        render: (doc) =>
+          doc.metadata?.source_type ? (
+            <StatusPill variant="muted">{doc.metadata.source_type}</StatusPill>
+          ) : (
+            "—"
+          ),
+        size: "xs",
+        align: "center",
+        className: "text-[color:var(--ai-text-muted)]",
       },
       {
         header: "Doc Type",
-        render: (doc) => doc.metadata?.doc_type ?? "—",
-        variant: "muted",
+        render: (doc) =>
+          doc.metadata?.doc_type ? (
+            <StatusPill variant="muted">{doc.metadata.doc_type}</StatusPill>
+          ) : (
+            "—"
+          ),
+        size: "xs",
+        align: "center",
+        className: "text-[color:var(--ai-text-muted)]",
       },
       {
         header: "Persona",
-        render: (doc) => doc.metadata?.persona_type ?? "—",
-        variant: "muted",
+        render: (doc) =>
+          doc.metadata?.persona_type ? (
+            <StatusPill variant="muted">{doc.metadata.persona_type}</StatusPill>
+          ) : (
+            "—"
+          ),
+        size: "xs",
+        align: "center",
+        className: "text-[color:var(--ai-text-muted)]",
       },
       {
         header: "Public",
         render: (doc) =>
-          typeof doc.metadata?.is_public === "boolean"
-            ? doc.metadata.is_public
-              ? "Yes"
-              : "No"
-            : "—",
-        variant: "muted",
+          typeof doc.metadata?.is_public === "boolean" ? (
+            <StatusPill
+              variant={doc.metadata.is_public ? "success" : "muted"}
+              className={!doc.metadata.is_public ? "opacity-70" : undefined}
+            >
+              {doc.metadata.is_public ? "Public" : "Private"}
+            </StatusPill>
+          ) : (
+            "—"
+          ),
         align: "center",
-        width: "80px",
+        width: "100px",
+        size: "xs",
+        className: "text-[color:var(--ai-text-muted)]",
       },
       {
         header: "Last Ingested",
         render: (doc) =>
-          doc.last_ingested_at
-            ? new Date(doc.last_ingested_at).toLocaleString()
-            : "—",
+          doc.last_ingested_at ? (
+            <ClientSideDate value={doc.last_ingested_at} />
+          ) : (
+            "—"
+          ),
         variant: "muted",
         size: "xs",
-        width: "180px",
+        width: "160px",
+        className: "text-[color:var(--ai-text-muted)]",
       },
       {
         header: "Chunks",
@@ -147,6 +184,8 @@ export default function AdminDocumentsPage({
         variant: "numeric",
         align: "right",
         width: "90px",
+        size: "xs",
+        className: "text-[color:var(--ai-text-muted)]",
       },
     ];
   }, []);
@@ -155,14 +194,16 @@ export default function AdminDocumentsPage({
     pageSize > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
 
   const applyFilters = useCallback(
-    (override?: Partial<{
-      q: string;
-      docType: string;
-      personaType: string;
-      sourceType: string;
-      isPublic: string;
-      page: number;
-    }>) => {
+    (
+      override?: Partial<{
+        q: string;
+        docType: string;
+        personaType: string;
+        sourceType: string;
+        isPublic: string;
+        page: number;
+      }>,
+    ) => {
       const nextQuery = override?.q ?? query;
       const nextDocType = override?.docType ?? docType;
       const nextPersonaType = override?.personaType ?? personaType;
@@ -225,19 +266,23 @@ export default function AdminDocumentsPage({
   return (
     <>
       <Head>
-        <title>Admin · RAG Documents</title>
+        <title>{PAGE_TAB_TITLE}</title>
       </Head>
       <AiPageChrome
         headerRecordMap={headerRecordMap}
         headerBlockId={headerBlockId}
         bodyClassName="ai-body"
       >
-        <div className="ai-container space-y-6 pb-12">
-          <PageHeaderCard
-            title="RAG Documents"
-            description="Browse and manage ingested documents and their metadata."
-          />
-
+        <AdminPageShell
+          section="ingestion"
+          header={{
+            overline: "ADMIN · INGESTION",
+            title: PAGE_TITLE,
+            description:
+              "Browse and manage ingested documents and their metadata.",
+          }}
+          subNav={<IngestionSubNav />}
+        >
           <Card>
             <CardHeader>
               <CardTitle>Search & Filters</CardTitle>
@@ -360,44 +405,55 @@ export default function AdminDocumentsPage({
             </CardContent>
           </Card>
 
-          <section className="ai-card space-y-3 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="ai-section-title">Documents</h2>
-              <span className="ai-meta-text">{summaryText}</span>
-            </div>
-            <DataTable
-              columns={columns}
-              data={documents}
-              emptyMessage="No documents found."
-              rowKey={(doc) => doc.doc_id}
-            />
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ai-border-soft)] px-2 py-3">
-              <span className="ai-meta-text">
-                Page {page} of {totalPages}
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(Math.max(page - 1, 1))}
-                  disabled={page <= 1}
-                >
-                  Previous
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(Math.min(page + 1, totalPages))}
-                  disabled={page >= totalPages}
-                >
-                  Next
-                </Button>
+          <Card>
+            <CardHeader>
+              <CardTitle>Documents</CardTitle>
+              <CardDescription>
+                Browse all ingested text chunks and their associated metadata.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <DataTable
+                  columns={columns}
+                  data={documents}
+                  emptyMessage="No documents found."
+                  rowKey={(doc) => doc.doc_id}
+                />
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ai-border-soft)] px-4 py-3">
+                  <div>
+                    <span className="ai-meta-text">{summaryText}</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(Math.max(page - 1, 1))}
+                      disabled={page <= 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="ai-meta-text whitespace-nowrap">
+                      Page {page} of {totalPages}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        handlePageChange(Math.min(page + 1, totalPages))
+                      }
+                      disabled={page >= totalPages}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </section>
-        </div>
+            </CardContent>
+          </Card>
+        </AdminPageShell>
       </AiPageChrome>
     </>
   );
@@ -430,13 +486,9 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
       ? context.query.source_type
       : "";
   const isPublicParam =
-    typeof context.query.is_public === "string"
-      ? context.query.is_public
-      : "";
+    typeof context.query.is_public === "string" ? context.query.is_public : "";
   const isPublic =
-    isPublicParam === "true" || isPublicParam === "false"
-      ? isPublicParam
-      : "";
+    isPublicParam === "true" || isPublicParam === "false" ? isPublicParam : "";
 
   let query = supabase
     .from("rag_documents")

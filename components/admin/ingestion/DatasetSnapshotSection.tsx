@@ -4,6 +4,7 @@ import { FiDatabase } from "@react-icons/all-files/fi/FiDatabase";
 
 import type { DatasetSnapshotOverview } from "@/lib/admin/ingestion-types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClientSideDate } from "@/components/ui/client-side-date";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { StatCard } from "@/components/ui/stat-card";
@@ -16,8 +17,6 @@ import {
   SNAPSHOT_HISTORY_LIMIT,
 } from "@/lib/admin/ingestion-formatters";
 import { formatEmbeddingSpaceLabel } from "@/lib/admin/recent-runs-filters";
-
-import { ClientSideDate } from "./ClientSideDate";
 
 export function DatasetSnapshotSection({
   overview,

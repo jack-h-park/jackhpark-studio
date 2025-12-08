@@ -27,6 +27,9 @@ export type PageProps = {
   runtimeMeta: AdminChatRuntimeMeta;
 } & NotionNavigationHeader;
 
+const PAGE_TITLE = "Chat Configuration";
+const PAGE_TAB_TITLE = `Admin · ${PAGE_TITLE} — Jack H. Park`;
+
 export default function ChatConfigPage({
   adminConfig,
   lastUpdatedAt,
@@ -37,7 +40,7 @@ export default function ChatConfigPage({
   return (
     <>
       <Head>
-        <title>Chat Configuration · Admin</title>
+        <title>{PAGE_TAB_TITLE}</title>
       </Head>
       <AiPageChrome
         headerRecordMap={headerRecordMap}
@@ -47,6 +50,7 @@ export default function ChatConfigPage({
           adminConfig={adminConfig}
           lastUpdatedAt={lastUpdatedAt}
           runtimeMeta={runtimeMeta}
+          pageTitle={PAGE_TITLE}
         />
       </AiPageChrome>
     </>

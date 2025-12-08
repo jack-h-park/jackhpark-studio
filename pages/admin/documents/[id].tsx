@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useCallback, useMemo, useState } from "react";
 
+import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
+import { IngestionSubNav } from "@/components/admin/navigation/IngestionSubNav";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +18,6 @@ import {
 import { CheckboxChoice } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PageHeaderCard } from "@/components/ui/page-header-card";
 import {
   Select,
   SelectContent,
@@ -35,6 +36,9 @@ import {
 } from "@/lib/rag/metadata";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+
+const PAGE_TITLE = "RAG Document Details";
+const PAGE_TAB_TITLE = "Admin · Ingestion · RAG Document Details — Jack H. Park";
 
 type PageProps = {
   document: RagDocumentRecord;
@@ -132,22 +136,30 @@ export default function AdminDocumentDetailPage({
     }
   }, [docType, document.doc_id, isPublic, personaType, sourceType, tagArray]);
 
+  const headerMeta = document.last_ingested_at
+    ? `Last ingested ${new Date(document.last_ingested_at).toLocaleString()}`
+    : undefined;
+
   return (
     <>
       <Head>
-        <title>Admin · Document · {document.doc_id}</title>
+        <title>{PAGE_TAB_TITLE}</title>
       </Head>
       <AiPageChrome
         headerRecordMap={headerRecordMap}
         headerBlockId={headerBlockId}
         bodyClassName="ai-body"
       >
-        <div className="ai-container space-y-6 pb-12">
-          <PageHeaderCard
-            title="Document Details"
-            description="Inspect and edit RAG document metadata."
-          />
-
+        <AdminPageShell
+          section="ingestion"
+          header={{
+            overline: "ADMIN · INGESTION",
+            title: PAGE_TITLE,
+            description: "Inspect ingestion history and metadata for a single document.",
+            meta: headerMeta,
+          }}
+          subNav={<IngestionSubNav />}
+        >
           <Card>
             <CardHeader>
               <CardTitle>Document</CardTitle>
@@ -156,7 +168,7 @@ export default function AdminDocumentDetailPage({
                 {document.source_url ? (
                   <>
                     {" "}
-                    ·{" "}
+                    ·
                     <Link
                       href={document.source_url}
                       className="text-[color:var(--ai-text-soft)] underline underline-offset-4"
@@ -311,7 +323,7 @@ export default function AdminDocumentDetailPage({
               />
             </CardContent>
           </Card>
-        </div>
+        </AdminPageShell>
       </AiPageChrome>
     </>
   );

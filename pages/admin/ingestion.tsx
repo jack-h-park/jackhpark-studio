@@ -16,9 +16,10 @@ import { ManualIngestionPanel } from "@/components/admin/ingestion/ManualIngesti
 import { RagDocumentsOverview } from "@/components/admin/ingestion/RagDocumentsOverview";
 import { RecentRunsSection } from "@/components/admin/ingestion/RecentRunsSection";
 import { SystemHealthSection } from "@/components/admin/ingestion/SystemHealthSection";
+import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
+import { IngestionSubNav } from "@/components/admin/navigation/IngestionSubNav";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { LinkButton } from "@/components/ui/link-button";
-import { PageHeaderCard } from "@/components/ui/page-header-card";
 import { SNAPSHOT_HISTORY_LIMIT, toSnapshotSummary } from "@/lib/admin/ingestion-formatters";
 import { getStringMetadata } from "@/lib/admin/ingestion-metadata";
 import {
@@ -43,6 +44,9 @@ import {
 } from "@/lib/server/page-url";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
+const PAGE_TITLE = "Ingestion Dashboard";
+const PAGE_TAB_TITLE = `Admin · ${PAGE_TITLE} — Jack H. Park`;
+
 type PageProps = {
   datasetSnapshot: DatasetSnapshotOverview;
   systemHealth: SystemHealthOverview;
@@ -63,37 +67,40 @@ function IngestionDashboard({
   return (
     <>
       <Head>
-        <title>Ingestion Dashboard</title>
+        <title>{PAGE_TAB_TITLE}</title>
       </Head>
 
       <AiPageChrome
         headerRecordMap={headerRecordMap}
         headerBlockId={headerBlockId}
       >
-        <PageHeaderCard
-          icon={<FiPlayCircle aria-hidden="true" />}
-          overline="Admin"
-          title="Ingestion Dashboard"
-          description="Monitor ingestion health, trigger manual runs, and review the latest dataset snapshot."
-          actions={
-            <div className="flex flex-wrap items-center gap-2">
-              <LinkButton href="/admin/documents" variant="outline">
-                Manage RAG Documents
-              </LinkButton>
-              <LinkButton href="/admin/chat-config" variant="outline">
-                Chat Configuration
-              </LinkButton>
-            </div>
-          }
-        />
-
-        <ManualIngestionPanel />
-
-        <DatasetSnapshotSection overview={datasetSnapshot} />
-        <RagDocumentsOverview stats={documentsStats} />
-        <SystemHealthSection health={systemHealth} />
-
-        <RecentRunsSection initial={recentRuns} />
+        <AdminPageShell
+          section="ingestion"
+          header={{
+            icon: <FiPlayCircle aria-hidden="true" />,
+            overline: "ADMIN · INGESTION",
+            title: PAGE_TITLE,
+            description:
+              "Monitor ingestion health, trigger manual runs, and review the latest dataset snapshot.",
+            actions: (
+              <div className="flex flex-wrap items-center gap-2">
+                <LinkButton href="/admin/documents" variant="outline">
+                  Manage RAG Documents
+                </LinkButton>
+                <LinkButton href="/admin/chat-config" variant="outline">
+                  Chat Configuration
+                </LinkButton>
+              </div>
+            ),
+          }}
+          subNav={<IngestionSubNav />}
+        >
+          <ManualIngestionPanel />
+          <DatasetSnapshotSection overview={datasetSnapshot} />
+          <RagDocumentsOverview stats={documentsStats} />
+          <SystemHealthSection health={systemHealth} />
+          <RecentRunsSection initial={recentRuns} />
+        </AdminPageShell>
       </AiPageChrome>
     </>
   );

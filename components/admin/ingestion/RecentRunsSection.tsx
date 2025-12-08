@@ -16,6 +16,7 @@ import type {
 } from "@/lib/admin/ingestion-types";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClientSideDate } from "@/components/ui/client-side-date";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ErrorLogSummary } from "@/components/ui/error-log-summary";
 import { RecentRunsFilters } from "@/components/ui/recent-runs-filters";
@@ -57,8 +58,6 @@ import {
   formatEmbeddingSpaceLabel,
   getEmbeddingSpaceOption,
 } from "@/lib/admin/recent-runs-filters";
-
-import { ClientSideDate } from "./ClientSideDate";
 
 export function RecentRunsSection({
   initial,
