@@ -20,6 +20,9 @@ export type DataTableProps<T> = {
   isLoading?: boolean;
   rowKey?: (item: T, index: number) => string | number;
   className?: string;
+  stickyHeader?: boolean;
+  headerClassName?: string;
+  rowClassName?: string;
 };
 
 export function DataTable<T>({
@@ -30,6 +33,9 @@ export function DataTable<T>({
   isLoading = false,
   rowKey,
   className,
+  stickyHeader = false,
+  headerClassName,
+  rowClassName,
 }: DataTableProps<T>) {
   const hasData = data.length > 0;
   const variantClassMap: Record<
@@ -61,7 +67,14 @@ export function DataTable<T>({
       ) : null}
       <div className="overflow-x-auto">
         <table className="w-full min-w-full border-collapse">
-          <thead className="border-b border-[color-mix(in_srgb,hsl(var(--ai-border))_70%,transparent)] bg-[hsl(var(--ai-bg-muted))]">
+          <thead
+            className={cn(
+              "border-b border-[color-mix(in_srgb,hsl(var(--ai-border))_70%,transparent)] bg-[hsl(var(--ai-bg-muted))]",
+              stickyHeader &&
+                "border-b border-[color:var(--ai-border-subtle)] bg-[color:var(--ai-surface-elevated)] shadow-sm",
+              headerClassName,
+            )}
+          >
             <tr>
               {columns.map((column, index) => {
                 const alignment =
@@ -78,6 +91,8 @@ export function DataTable<T>({
                       "ai-table__header",
                       alignment,
                       column.className,
+                      stickyHeader &&
+                        "sticky top-0 z-20 bg-[color:var(--ai-surface-elevated)] border-b border-[color:var(--ai-border-subtle)] shadow-sm backdrop-blur",
                     )}
                     style={column.width ? { width: column.width } : undefined}
                   >
@@ -112,6 +127,7 @@ export function DataTable<T>({
                       rowIndex % 2 === 0
                         ? "bg-[hsl(var(--ai-surface))]"
                         : "bg-[hsl(var(--ai-bg-muted))]",
+                      rowClassName,
                     )}
                   >
                     {columns.map((column, cellIndex) => {

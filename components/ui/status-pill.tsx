@@ -17,7 +17,8 @@ const variantStyles: Record<StatusPillVariant, string> = {
   error:
     "bg-[var(--ai-error-muted)] border-[var(--ai-error)] text-[var(--ai-error)]",
   info: "bg-[var(--ai-accent-bg)] border-[var(--ai-accent)] text-[var(--ai-accent-strong)]",
-  muted: "border-[hsl(var(--ai-border))] ai-label-overline--muted",
+  muted:
+    "bg-[color:var(--ai-pill-bg)] border-[color:var(--ai-pill-border)] text-[color:var(--ai-text)]",
 };
 
 export type StatusPillProps = {

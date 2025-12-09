@@ -1,4 +1,5 @@
 import type { GetServerSideProps } from "next";
+import { FiFileText } from "@react-icons/all-files/fi/FiFileText";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -108,18 +109,89 @@ function buildDocumentDisplayInfo(doc: DocumentRow): DocumentDisplayInfo {
       : undefined;
   const trimmedSubtitle = metadata.subtitle?.trim();
   const subtitle = trimmedSubtitle || breadcrumbSubtitle;
-  const fallbackSubtitle =
-    subtitle ??
-    (doc.source_url ? formatSourceUrlForDisplay(doc.source_url) : undefined);
   const previewImageUrl = metadata.preview_image_url?.trim() || undefined;
   const teaserText = metadata.teaser_text?.trim() || undefined;
 
   return {
     metadata,
-    subtitle: fallbackSubtitle,
+    subtitle,
     previewImageUrl,
     teaserText,
   };
+}
+
+const PREVIEW_TEXT_LIMIT = 420;
+
+function buildPreviewSnippet(text?: string): string | undefined {
+  if (!text) {
+    return undefined;
+  }
+
+  const normalized = text.replaceAll(/\s+/g, " ").trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  return normalized.length <= PREVIEW_TEXT_LIMIT
+    ? normalized
+    : `${normalized.slice(0, PREVIEW_TEXT_LIMIT).trim()}…`;
+}
+
+type DocumentPreviewOverlayProps = {
+  doc: DocumentRow;
+  info: DocumentDisplayInfo;
+};
+
+function DocumentPreviewOverlay({ doc, info }: DocumentPreviewOverlayProps) {
+  const snippet = buildPreviewSnippet(info.teaserText);
+  const hasImagePreview = Boolean(info.previewImageUrl);
+  const hasSnippet = Boolean(snippet);
+  const overlayClassName =
+    "pointer-events-none absolute left-full top-1/2 ml-3 hidden w-[320px] -translate-y-1/2 flex-col rounded-xl border border-[color:var(--ai-border-soft)] bg-[color:var(--ai-surface-elevated)] p-3 shadow-2xl opacity-0 transition duration-150 ease-out group-hover:flex group-hover:opacity-100 z-50";
+
+  if (!hasImagePreview && !hasSnippet) {
+    return (
+      <div className={overlayClassName}>
+        <p className="text-xs text-[color:var(--ai-text-muted)]">
+          No preview available.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className={overlayClassName}>
+      {hasImagePreview ? (
+        <>
+          <div className="overflow-hidden rounded-lg border border-[color:var(--ai-border)] bg-[color:var(--ai-surface)]">
+            <img
+              src={info.previewImageUrl}
+              alt={doc.displayTitle}
+              className="h-40 w-full object-cover"
+              loading="lazy"
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="truncate text-sm font-semibold text-[color:var(--ai-text)]">
+              {doc.displayTitle}
+            </p>
+            {info.subtitle ? (
+              <p className="text-xs text-[color:var(--ai-text-muted)]">
+                {info.subtitle}
+              </p>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <div className="space-y-2">
+          <p className="truncate text-sm font-semibold text-[color:var(--ai-text)]">
+            {doc.displayTitle}
+          </p>
+          <p className="admin-doc-preview-overlay-body">{snippet}</p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function AdminDocumentsPage({
@@ -142,6 +214,37 @@ export default function AdminDocumentsPage({
   const columns = useMemo<DataTableColumn<DocumentRow>[]>(() => {
     return [
       {
+        header: <span className="sr-only">Preview</span>,
+        render: (doc) => {
+          const info = buildDocumentDisplayInfo(doc);
+          return (
+            <div className="flex justify-center">
+              <div className="group relative flex">
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-[color:var(--ai-border-soft)] bg-[color:var(--ai-surface-muted)] text-[color:var(--ai-text-muted)]">
+                  {info.previewImageUrl ? (
+                    <img
+                      src={info.previewImageUrl}
+                      alt={doc.displayTitle}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <FiFileText
+                      aria-hidden="true"
+                      className="text-lg text-[color:var(--ai-text-muted)]"
+                    />
+                  )}
+                </div>
+                <DocumentPreviewOverlay doc={doc} info={info} />
+              </div>
+            </div>
+          );
+        },
+        size: "xs",
+        width: "56px",
+        className: "px-2",
+      },
+      {
         header: "Title",
         render: (doc) => {
           const info = buildDocumentDisplayInfo(doc);
@@ -153,22 +256,19 @@ export default function AdminDocumentsPage({
               >
                 {doc.displayTitle}
               </Link>
-              <span className="text-xs text-[color:var(--ai-text-muted)] break-all truncate">
+              <span className="text-xs text-[color:var(--ai-text-muted)] break-all">
                 {info.subtitle ?? doc.doc_id}
               </span>
             </div>
           );
         },
-        className: "min-w-[240px] text-[color:var(--ai-text-muted)]",
+        className: "min-w-[280px] text-[color:var(--ai-text-muted)]",
         size: "sm",
       },
       {
         header: "Source",
         render: (doc) => {
           const info = buildDocumentDisplayInfo(doc);
-          const hasImagePreview = Boolean(info.previewImageUrl);
-          const hasTeaser = Boolean(info.teaserText);
-          const hasHoverContent = hasImagePreview || hasTeaser;
           return (
             <div className="flex flex-col items-start gap-1 text-xs">
               {info.metadata.source_type ? (
@@ -179,35 +279,15 @@ export default function AdminDocumentsPage({
                 <span className="text-[color:var(--ai-text-muted)]">—</span>
               )}
               {doc.source_url ? (
-                <div className="relative inline-flex group">
-                  <a
-                    href={doc.source_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-[color:var(--ai-text-muted)] hover:underline"
-                    title={doc.source_url}
-                  >
-                    {formatSourceUrlForDisplay(doc.source_url)}
-                  </a>
-                  {hasHoverContent ? (
-                    <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 flex w-64 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-                      <div className="overflow-hidden rounded-xl border border-[color:var(--ai-border-soft)] bg-[color:var(--ai-bg)] shadow-lg">
-                        {hasImagePreview ? (
-                          <img
-                            src={info.previewImageUrl}
-                            alt={doc.displayTitle}
-                            className="h-40 w-full object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <p className="admin-doc-preview-teaser">
-                            {info.teaserText}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
+                <a
+                  href={doc.source_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block w-full max-w-full truncate text-xs text-[color:var(--ai-text-muted)] hover:underline"
+                  title={doc.source_url}
+                >
+                  {formatSourceUrlForDisplay(doc.source_url)}
+                </a>
               ) : (
                 <span className="text-[color:var(--ai-text-muted)]">—</span>
               )}
@@ -227,7 +307,7 @@ export default function AdminDocumentsPage({
           ),
         size: "xs",
         align: "center",
-        className: "text-[color:var(--ai-text-muted)]",
+        className: "min-w-[130px] text-[color:var(--ai-text-muted)]",
       },
       {
         header: "Persona",
@@ -239,7 +319,7 @@ export default function AdminDocumentsPage({
           ),
         size: "xs",
         align: "center",
-        className: "text-[color:var(--ai-text-muted)]",
+        className: "min-w-[130px] text-[color:var(--ai-text-muted)]",
       },
       {
         header: "Public",
@@ -514,6 +594,7 @@ export default function AdminDocumentsPage({
                     data={documents}
                     emptyMessage="No documents found."
                     rowKey={(doc) => doc.doc_id}
+                    stickyHeader
                   />
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ai-border-soft)] px-4 py-3">
                     <div>
