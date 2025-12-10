@@ -65,6 +65,52 @@ async function callTextModel(options: ChatGenerationOptions): Promise<string> {
         .trim();
       return text ?? "";
     }
+    case "ollama":
+      try {
+        const baseUrl = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
+        const response = await fetch(`${baseUrl}/api/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: options.model,
+            stream: false,
+            messages: [
+              { role: "system", content: options.systemPrompt },
+              { role: "user", content: options.userPrompt },
+            ],
+            options: { temperature: options.temperature },
+          }),
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(
+            `Ollama API error: ${response.status} ${response.statusText} - ${text}`,
+          );
+        }
+        const data = await response.json();
+        let content = "";
+        const message = (data as any)?.message;
+        if (typeof message?.content === "string") {
+          content = message.content;
+        } else if (Array.isArray(message?.content)) {
+          content = message.content
+            .map((part: any) => {
+              if (typeof part === "string") return part;
+              if (typeof part?.text === "string") return part.text;
+              if (typeof part?.content === "string") return part.content;
+              return "";
+            })
+            .join("");
+        }
+        return content.trim();
+      } catch (err) {
+        throw new Error(
+          `[rag-enhancements] Ollama text generation failed for provider "${options.provider}" model "${options.model}": ${err}`,
+        );
+      }
+    
     default:
       throw new Error(
         `Text generation is not supported for provider "${options.provider}".`,

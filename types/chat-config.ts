@@ -92,6 +92,7 @@ export type PresetModelResolutions = Record<
 
 export type AdminChatRuntimeMeta = {
   defaultLlmModelId: LlmModelId;
+  defaultLlmModelExplicit: boolean;
   ollamaEnabled: boolean;
   lmstudioEnabled: boolean;
   localLlmBackendEnv: LocalLlmBackend | null;

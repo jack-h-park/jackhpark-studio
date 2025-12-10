@@ -32,6 +32,8 @@ const AVAILABLE_LLM_MODEL_OPTIONS =
   LLM_MODEL_DEFINITIONS.filter(isDefinitionEnabled).map(mapToOption);
 
 const ENV_DEFAULT_LLM_MODEL = process.env.DEFAULT_LLM_MODEL?.trim();
+const IS_DEFAULT_MODEL_EXPLICIT =
+  Boolean(ENV_DEFAULT_LLM_MODEL) && ENV_DEFAULT_LLM_MODEL!.length > 0;
 const DEFAULT_LLM_MODEL_ID =
   ENV_DEFAULT_LLM_MODEL && ENV_DEFAULT_LLM_MODEL.length > 0
     ? ENV_DEFAULT_LLM_MODEL
@@ -46,9 +48,6 @@ export function normalizeLlmModelId(
   if (!value) return null;
   const trimmed = value.trim();
   if (trimmed.length === 0) return null;
-  if (trimmed.toLowerCase() === "mistral") {
-    return "mistral-ollama";
-  }
   return trimmed;
 }
 
@@ -128,6 +127,10 @@ export function listLlmModelOptions(): LlmModelOption[] {
   return [...AVAILABLE_LLM_MODEL_OPTIONS];
 }
 
+export function listAllLlmModelOptions(): LlmModelOption[] {
+  return [...ALL_LLM_MODEL_OPTIONS];
+}
+
 export function findLlmModelOption(
   value: string | null | undefined,
 ): LlmModelOption | null {
@@ -139,5 +142,5 @@ export function findLlmModelOption(
 }
 
 export type { LlmModelOption };
-export { DEFAULT_LLM_MODEL_ID };
+export { DEFAULT_LLM_MODEL_ID, IS_DEFAULT_MODEL_EXPLICIT };
 export type { LlmModelId } from "@/lib/shared/models";

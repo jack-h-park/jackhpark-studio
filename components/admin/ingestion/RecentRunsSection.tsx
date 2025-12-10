@@ -750,14 +750,6 @@ export function RecentRunsSection({
     ],
   );
 
-  const handlePreviousPage = useCallback(() => {
-    handlePageChange(page - 1);
-  }, [handlePageChange, page]);
-
-  const handleNextPage = useCallback(() => {
-    handlePageChange(page + 1);
-  }, [handlePageChange, page]);
-
   const totalPagesSafe = Math.max(totalPages, 1);
   const startIndex = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const endIndex = totalCount === 0 ? 0 : Math.min(page * pageSize, totalCount);
@@ -1043,41 +1035,13 @@ export function RecentRunsSection({
             errorMessage={error}
             isLoading={isLoading}
             rowKey={(run) => run.id}
+            pagination={{
+              currentPage: page,
+              totalPages: totalPagesSafe,
+              onPageChange: handlePageChange,
+              summaryText,
+            }}
           />
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ai-border-soft)] px-4 py-3">
-            <div>
-              <span className="ai-meta-text">{summaryText}</span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handlePreviousPage}
-                disabled={page <= 1 || isLoading || totalCount === 0}
-              >
-                Previous
-              </Button>
-              <span className="ai-meta-text whitespace-nowrap">
-                Page {numberFormatter.format(page)} of{" "}
-                {numberFormatter.format(totalPagesSafe)}
-              </span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleNextPage}
-                disabled={
-                  page >= totalPagesSafe ||
-                  runs.length === 0 ||
-                  isLoading ||
-                  totalCount === 0
-                }
-              >
-                Next
-              </Button>
-            </div>
-          </div>
         </div>
       </CardContent>
     </section>

@@ -9,7 +9,10 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  const runtime = await loadChatModelSettings({ forceRefresh: true });
+  const runtime = await loadChatModelSettings({
+    forceRefresh: true,
+    sessionConfig: req.body.config,
+  });
   (req as any).chatRuntime = runtime;
   const engine = runtime.engine;
 

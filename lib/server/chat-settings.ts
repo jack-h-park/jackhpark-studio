@@ -5,10 +5,13 @@ import {
   normalizeSystemPrompt,
   SYSTEM_PROMPT_CACHE_TTL_MS,
 } from "@/lib/chat-prompts";
-import { normalizeLlmModelId } from "@/lib/core/llm-registry";
-import { isLmStudioEnabled } from "@/lib/core/lmstudio";
 import {
   DEFAULT_LLM_MODEL_ID,
+  IS_DEFAULT_MODEL_EXPLICIT,
+  normalizeLlmModelId,
+} from "@/lib/core/llm-registry";
+import { isLmStudioEnabled } from "@/lib/core/lmstudio";
+import {
   resolveEmbeddingSpace,
   resolveLlmModel,
 } from "@/lib/core/model-provider";
@@ -451,7 +454,8 @@ export async function loadChatModelSettings(options?: {
   const presetKey = resolvePresetKey(config, options?.sessionConfig);
   const preset = config.presets?.[presetKey] ?? config.presets?.default ?? null;
   const ollamaEnabled = isOllamaEnabled();
-  const requireLocal = preset?.requireLocal ?? false;
+  const requireLocal =
+    options?.sessionConfig?.requireLocal ?? preset?.requireLocal ?? false;
 
   if (process.env.NODE_ENV === "development") {
     console.log("[chat-settings preset]", {
@@ -462,7 +466,7 @@ export async function loadChatModelSettings(options?: {
   }
 
   const engine = normalizeChatEngine(
-    preset?.chatEngine ?? defaults.engine,
+    options?.sessionConfig?.chatEngine ?? preset?.chatEngine ?? defaults.engine,
     defaults.engine,
   );
 
@@ -470,12 +474,29 @@ export async function loadChatModelSettings(options?: {
     ollamaEnabled,
     lmstudioEnabled: isLmStudioEnabled(),
     defaultModelId: DEFAULT_LLM_MODEL_ID,
+    defaultModelExplicit: IS_DEFAULT_MODEL_EXPLICIT,
     allowedModelIds: config.allowlist?.llmModels,
   };
 
-  const rawLlmModelId = preset?.llmModel ?? defaults.llmModelId;
+  if (options?.sessionConfig?.llmModel) {
+    console.log(
+      "[DEBUG] loadChatModelSettings sessionConfig.llmModel:",
+      options.sessionConfig.llmModel,
+    );
+  }
+  const rawLlmModelId =
+    options?.sessionConfig?.llmModel ?? preset?.llmModel ?? defaults.llmModelId;
+
   const normalizedLlmModelId =
     normalizeLlmModelId(rawLlmModelId) ?? rawLlmModelId ?? defaults.llmModelId;
+
+  console.log("[DEBUG] Resolution trace:", {
+    raw: rawLlmModelId,
+    normalized: normalizedLlmModelId,
+    defaults: defaults.llmModelId,
+    session: options?.sessionConfig?.llmModel,
+  });
+
   if (
     process.env.NODE_ENV !== "production" &&
     typeof rawLlmModelId === "string" &&
@@ -557,9 +578,15 @@ export async function loadChatModelSettings(options?: {
   }
 
   const embeddingSelection = resolveEmbeddingSpace({
-    embeddingModelId: preset?.embeddingModel ?? defaults.embeddingModelId,
+    embeddingModelId:
+      options?.sessionConfig?.embeddingModel ??
+      preset?.embeddingModel ??
+      defaults.embeddingModelId,
     embeddingSpaceId: defaults.embeddingSpaceId,
-    model: preset?.embeddingModel ?? defaults.embeddingModel,
+    model:
+      options?.sessionConfig?.embeddingModel ??
+      preset?.embeddingModel ??
+      defaults.embeddingModel,
   });
 
   const reverseRagEnabled =

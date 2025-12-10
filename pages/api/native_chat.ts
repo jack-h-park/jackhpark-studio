@@ -1173,6 +1173,47 @@ async function* streamGemini(
   }
 }
 
+function normalizeLocalChunkContent(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((entry: any) => {
+        if (typeof entry === "string") {
+          return entry;
+        }
+        if (entry && typeof entry === "object") {
+          const candidate = entry as {
+            text?: unknown;
+            content?: unknown;
+          };
+          if (typeof candidate.text === "string") {
+            return candidate.text;
+          }
+          if (typeof candidate.content === "string") {
+            return candidate.content;
+          }
+        }
+        return "";
+      })
+      .join("");
+  }
+
+  if (content && typeof content === "object") {
+    const candidate = content as { text?: unknown; content?: unknown };
+    if (typeof candidate.text === "string") {
+      return candidate.text;
+    }
+    if (typeof candidate.content === "string") {
+      return candidate.content;
+    }
+  }
+
+  return "";
+}
+
 async function* streamLocalLlmChat(
   options: ChatStreamOptions,
 ): AsyncGenerator<string> {
@@ -1183,7 +1224,7 @@ async function* streamLocalLlmChat(
 
   const request: LocalLlmRequest = buildLocalLlmRequest(options);
   for await (const chunk of client.chat(request)) {
-    const content = chunk.content ?? "";
+    const content = normalizeLocalChunkContent((chunk as any).content);
     if (content.length > 0) {
       yield content;
     }

@@ -3,7 +3,10 @@ import Head from "next/head";
 
 import { ChatConfigPage as AdminChatConfigPage } from "@/components/admin/chat-config/ChatConfigPage";
 import { AiPageChrome } from "@/components/AiPageChrome";
-import { DEFAULT_LLM_MODEL_ID } from "@/lib/core/llm-registry";
+import {
+  DEFAULT_LLM_MODEL_ID,
+  IS_DEFAULT_MODEL_EXPLICIT,
+} from "@/lib/core/llm-registry";
 import { isLmStudioEnabled } from "@/lib/core/lmstudio";
 import { isOllamaEnabled } from "@/lib/core/ollama";
 import { getLocalLlmBackend } from "@/lib/local-llm";
@@ -66,6 +69,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
   const runtimeMeta: AdminChatRuntimeMeta = {
     defaultLlmModelId:
       DEFAULT_LLM_MODEL_ID as AdminChatRuntimeMeta["defaultLlmModelId"],
+    defaultLlmModelExplicit: IS_DEFAULT_MODEL_EXPLICIT,
     ollamaEnabled: isOllamaEnabled(),
     lmstudioEnabled: isLmStudioEnabled(),
     localLlmBackendEnv: getLocalLlmBackend(),

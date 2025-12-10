@@ -3,6 +3,7 @@ import { encode } from "gpt-tokenizer";
 import { host } from "@/lib/config";
 import { loadGuardrailSettings } from "@/lib/server/chat-settings";
 import { normalizePageId } from "@/lib/server/page-url";
+import { type SessionChatConfig } from "@/types/chat-config";
 
 const DEBUG_RAG_URLS =
   (process.env.DEBUG_RAG_URLS ?? "").toLowerCase() === "true";
@@ -95,20 +96,51 @@ const COMMAND_KEYWORDS = [
 
 export async function getChatGuardrailConfig(options?: {
   forceRefresh?: boolean;
+  sessionConfig?: SessionChatConfig;
 }): Promise<ChatGuardrailConfig> {
   const guardrailSettings = await loadGuardrailSettings({
     forceRefresh: options?.forceRefresh,
   });
   const numeric = guardrailSettings.numeric;
+  const session = options?.sessionConfig;
+
+  // Use session overrides if available, otherwise fall back to admin settings
+  const similarityThreshold =
+    typeof session?.rag?.similarity === "number"
+      ? session.rag.similarity
+      : numeric.similarityThreshold;
+
+  const ragTopK =
+    typeof session?.rag?.topK === "number" ? session.rag.topK : numeric.ragTopK;
+
+  const ragContextTokenBudget =
+    typeof session?.context?.tokenBudget === "number"
+      ? session.context.tokenBudget
+      : numeric.ragContextTokenBudget;
+
+  const ragContextClipTokens =
+    typeof session?.context?.clipTokens === "number"
+      ? session.context.clipTokens
+      : numeric.ragContextClipTokens;
+
+  const historyTokenBudget =
+    typeof session?.context?.historyBudget === "number"
+      ? session.context.historyBudget
+      : numeric.historyTokenBudget;
+
+  const summaryEnabled =
+    session?.summaryLevel && session.summaryLevel !== "off"
+      ? true
+      : numeric.summaryEnabled;
 
   return {
-    similarityThreshold: clamp(numeric.similarityThreshold, 0, 1),
-    ragTopK: Math.max(1, numeric.ragTopK),
-    ragContextTokenBudget: Math.max(200, numeric.ragContextTokenBudget),
-    ragContextClipTokens: Math.max(64, numeric.ragContextClipTokens),
-    historyTokenBudget: Math.max(200, numeric.historyTokenBudget),
+    similarityThreshold: clamp(similarityThreshold, 0, 1),
+    ragTopK: Math.max(1, ragTopK),
+    ragContextTokenBudget: Math.max(200, ragContextTokenBudget),
+    ragContextClipTokens: Math.max(64, ragContextClipTokens),
+    historyTokenBudget: Math.max(200, historyTokenBudget),
     summary: {
-      enabled: numeric.summaryEnabled,
+      enabled: summaryEnabled,
       triggerTokens: Math.max(200, numeric.summaryTriggerTokens),
       maxChars: Math.max(200, numeric.summaryMaxChars),
       maxTurns: Math.max(2, numeric.summaryMaxTurns),

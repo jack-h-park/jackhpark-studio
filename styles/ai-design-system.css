@@ -339,6 +339,33 @@
   color: var(--ai-text-strong);
 }
 
+.ai-warning-callout {
+  border: 1px solid color-mix(in srgb, var(--ai-warning) 50%, transparent);
+  background: var(--ai-warning-muted);
+  color: var(--ai-text-warning);
+  box-shadow: none;
+  padding: 0.75rem;
+  border-radius: var(--ai-radius-md);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.ai-warning-callout .ai-icon {
+  color: var(--ai-warning);
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.dark .ai-warning-callout,
+.dark-mode .ai-warning-callout {
+  background: color-mix(in srgb, var(--ai-warning) 15%, transparent);
+  border-color: color-mix(in srgb, var(--ai-warning) 40%, transparent);
+  color: var(--ai-text-strong);
+}
+
 /* ------------------------------------------------ */
 /* Fields & Form Layout                             */
 /* ------------------------------------------------ */

@@ -22,6 +22,7 @@ export type ModelResolutionContext = {
   ollamaEnabled: boolean;
   lmstudioEnabled: boolean;
   defaultModelId: string;
+  defaultModelExplicit?: boolean;
   allowedModelIds?: readonly string[];
 };
 
@@ -58,12 +59,14 @@ function findModelDefinition(
 function pickDefaultModelId(ctx: ModelResolutionContext): {
   modelId: string;
   reason: ModelResolutionReason;
-} {
-  const fallbackFromAllowlist = ctx.allowedModelIds?.[0];
-  if (fallbackFromAllowlist) {
-    return { modelId: fallbackFromAllowlist, reason: "NOT_IN_ALLOWLIST" };
+} | null {
+  // Strict mode: Only fallback if explicitly defined in environment
+  if (ctx.defaultModelExplicit) {
+    return { modelId: ctx.defaultModelId, reason: "UNKNOWN_MODEL" };
   }
-  return { modelId: ctx.defaultModelId, reason: "UNKNOWN_MODEL" };
+
+  // If not explicit, do not fallback
+  return null;
 }
 
 function isLocalModelDefinition(definition: LlmModelDefinition): boolean {
@@ -104,6 +107,14 @@ export function resolveLlmModelId(
 
   if (!definition) {
     const fallback = pickDefaultModelId(ctx);
+    if (!fallback) {
+      return {
+        requestedModelId: requested,
+        resolvedModelId: requested,
+        wasSubstituted: false,
+        reason: "NONE",
+      };
+    }
     const resolvedId =
       allowlist && !allowlist.has(fallback.modelId.toLowerCase())
         ? ctx.defaultModelId
@@ -119,6 +130,14 @@ export function resolveLlmModelId(
   const canonicalId = definition.id as LlmModelId;
   if (allowlist && !allowlist.has(canonicalId.toLowerCase())) {
     const fallback = pickDefaultModelId(ctx);
+    if (!fallback) {
+      return {
+        requestedModelId: canonicalId,
+        resolvedModelId: canonicalId,
+        wasSubstituted: false,
+        reason: "NONE",
+      };
+    }
     const resolvedId =
       allowlist && allowlist.has(fallback.modelId.toLowerCase())
         ? fallback.modelId
@@ -136,6 +155,14 @@ export function resolveLlmModelId(
     isBackendDisabled(definition, ctx)
   ) {
     const fallback = pickDefaultModelId(ctx);
+    if (!fallback) {
+      return {
+        requestedModelId: canonicalId,
+        resolvedModelId: canonicalId,
+        wasSubstituted: false,
+        reason: "LOCAL_LLM_DISABLED",
+      };
+    }
     const resolvedId =
       allowlist && allowlist.has(fallback.modelId.toLowerCase())
         ? fallback.modelId

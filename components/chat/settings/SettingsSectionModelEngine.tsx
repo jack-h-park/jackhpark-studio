@@ -21,7 +21,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
-import { listLlmModelOptions } from "@/lib/core/llm-registry";
+import { listAllLlmModelOptions } from "@/lib/core/llm-registry";
 import {
   CHAT_ENGINE_LABELS,
   type ChatEngine,
@@ -45,12 +45,24 @@ export function SettingsSectionModelEngine({
   const { runtimeMeta } = useChatConfig();
   const llmOptions = useMemo(() => {
     const allowlist = new Set(adminConfig.allowlist.llmModels);
-    const availableOptions = listLlmModelOptions();
+    // Use listAllLlmModelOptions to get all definitions, then filter by client-side runtimeMeta
+    const allOptions = listAllLlmModelOptions();
+    const availableOptions = allOptions.filter((option) => {
+      if (!option.isLocal) return true;
+      if (option.provider === "ollama") return runtimeMeta.ollamaEnabled;
+      if (option.provider === "lmstudio") return runtimeMeta.lmstudioEnabled;
+      return true;
+    });
+
     const filtered = availableOptions.filter((option) =>
       allowlist.has(option.id as LlmModelId),
     );
     return filtered.length > 0 ? filtered : availableOptions;
-  }, [adminConfig.allowlist.llmModels]);
+  }, [
+    adminConfig.allowlist.llmModels,
+    runtimeMeta.ollamaEnabled,
+    runtimeMeta.lmstudioEnabled,
+  ]);
 
   const embeddingOptions = useMemo(() => {
     const allowlist = new Set(adminConfig.allowlist.embeddingModels);
@@ -108,16 +120,22 @@ export function SettingsSectionModelEngine({
             </SelectContent>
           </Select>
           {sessionConfig.llmModelResolution?.wasSubstituted && (
-            <div className="ai-setting-section-header flex items-center justify-between gap-3">
-              <FiAlertCircle
-                aria-hidden="true"
-                className="shrink-0"
-                size={12}
-                title={`Model substituted at runtime: ${sessionConfig.llmModelResolution.requestedModelId} → ${sessionConfig.llmModelResolution.resolvedModelId ?? runtimeMeta.defaultLlmModelId}`}
-              />
-              <span className="leading-tight">
-                Using {sessionConfig.llmModelResolution.resolvedModelId} instead
-              </span>
+            <div className="ai-warning-callout mt-2">
+              <FiAlertCircle aria-hidden="true" className="ai-icon" size={16} />
+              <div className="flex flex-col gap-1">
+                <span className="font-medium">Model substituted</span>
+                <span className="opacity-90">
+                  Requested{" "}
+                  <strong>
+                    {sessionConfig.llmModelResolution.requestedModelId}
+                  </strong>{" "}
+                  but using{" "}
+                  <strong>
+                    {sessionConfig.llmModelResolution.resolvedModelId}
+                  </strong>{" "}
+                  instead.
+                </span>
+              </div>
             </div>
           )}
         </div>

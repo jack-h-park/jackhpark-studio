@@ -38,12 +38,12 @@ export function ChatFullPage({
 }
 
 function ChatShellContent() {
-  const { adminConfig } = useChatConfig();
+  const { adminConfig, sessionConfig } = useChatConfig();
   const [inputValue, setInputValue] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [telemetryExpanded, setTelemetryExpanded] = useState(true);
   const { messages, isLoading, loadingAssistantId, sendMessage } =
-    useChatSession({ source: "full-page" });
+    useChatSession({ source: "full-page", config: sessionConfig });
 
   const hasMessages = messages.length > 0;
   const showTelemetry = true;

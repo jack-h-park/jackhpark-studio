@@ -13,7 +13,10 @@ import {
 } from "@/lib/shared/model-provider";
 import { type ModelResolutionReason } from "@/lib/shared/model-resolution";
 import { type RankerMode, type ReverseRagMode } from "@/lib/shared/rag-config";
-import { type ChatEngineType } from "@/types/chat-config";
+import {
+  type ChatEngineType,
+  type SessionChatConfig,
+} from "@/types/chat-config";
 
 const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
 const DEBUG_LANGCHAIN_STREAM =
@@ -151,6 +154,7 @@ const getUserFacingErrorMessage = (error: unknown) => {
 
 export type UseChatSessionOptions = {
   source?: string;
+  config?: SessionChatConfig;
 };
 
 export type UseChatSessionResult = {
@@ -178,6 +182,7 @@ export function useChatSession(
   const isMountedRef = useRef(true);
 
   const sourceLabel = options?.source ?? "unknown";
+  const config = options?.config;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -305,6 +310,7 @@ export function useChatSession(
               body: JSON.stringify({
                 question: trimmed,
                 messages: sanitizedMessagesPayload,
+                config,
               }),
               signal: controller.signal,
             });
@@ -381,6 +387,7 @@ export function useChatSession(
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 messages: sanitizedMessagesPayload,
+                config,
               }),
               signal: controller.signal,
             });
@@ -465,7 +472,7 @@ export function useChatSession(
 
       await run();
     },
-    [isLoading, messages, runtimeConfig],
+    [isLoading, messages, runtimeConfig, config],
   );
 
   return {

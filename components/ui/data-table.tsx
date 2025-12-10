@@ -1,5 +1,6 @@
 import * as React from "react";
 
+import { Button } from "./button";
 import { cn } from "./utils";
 
 export type DataTableColumn<T> = {
@@ -23,6 +24,12 @@ export type DataTableProps<T> = {
   stickyHeader?: boolean;
   headerClassName?: string;
   rowClassName?: string;
+  pagination?: {
+    currentPage: number;
+    totalPages: number;
+    onPageChange: (page: number) => void;
+    summaryText?: React.ReactNode;
+  };
 };
 
 export function DataTable<T>({
@@ -36,6 +43,7 @@ export function DataTable<T>({
   stickyHeader = false,
   headerClassName,
   rowClassName,
+  pagination,
 }: DataTableProps<T>) {
   const hasData = data.length > 0;
   const variantClassMap: Record<
@@ -164,6 +172,45 @@ export function DataTable<T>({
       </div>
       {isLoading ? (
         <div className="absolute inset-0 bg-[color-mix(in_srgb,hsl(var(--ai-bg))_60%,transparent)] pointer-events-none" />
+      ) : null}
+      {pagination ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ai-border-soft)] px-4 py-3">
+          <div>
+            <span className="ai-meta-text">{pagination.summaryText}</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                pagination.onPageChange(Math.max(pagination.currentPage - 1, 1))
+              }
+              disabled={pagination.currentPage <= 1 || isLoading}
+            >
+              Previous
+            </Button>
+            <span className="ai-meta-text whitespace-nowrap">
+              Page {pagination.currentPage.toLocaleString()} of{" "}
+              {pagination.totalPages.toLocaleString()}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                pagination.onPageChange(
+                  Math.min(pagination.currentPage + 1, pagination.totalPages),
+                )
+              }
+              disabled={
+                pagination.currentPage >= pagination.totalPages || isLoading
+              }
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       ) : null}
     </div>
   );

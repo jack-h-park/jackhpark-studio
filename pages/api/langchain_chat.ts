@@ -95,6 +95,7 @@ type ChatRequestBody = {
   hydeEnabled?: unknown;
   rankerMode?: unknown;
   sessionConfig?: unknown;
+  config?: unknown;
 };
 
 const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
@@ -201,8 +202,9 @@ export default async function handler(
     const guardrails = await getChatGuardrailConfig();
     const adminConfig = await getAdminChatConfig();
     const sessionConfig =
-      body.sessionConfig && typeof body.sessionConfig === "object"
-        ? (body.sessionConfig as SessionChatConfig)
+      (body.sessionConfig || body.config) &&
+      typeof (body.sessionConfig || body.config) === "object"
+        ? ((body.sessionConfig || body.config) as SessionChatConfig)
         : undefined;
     const presetId =
       sessionConfig?.presetId ??
@@ -1076,41 +1078,77 @@ function parseTemperature(value: unknown): number {
   return Number.isFinite(parsed) ? parsed : DEFAULT_TEMPERATURE;
 }
 
+function messageContentToString(content: unknown): string {
+  if (typeof content === "string") {
+    return content;
+  }
+
+  if (Array.isArray(content)) {
+    return content
+      .map((entry: any) => {
+        if (typeof entry === "string") {
+          return entry;
+        }
+
+        if (entry && typeof entry === "object") {
+          // LangChain MessageContent-like shapes
+          const candidate = entry as {
+            type?: string;
+            text?: unknown;
+            content?: unknown;
+            data?: { text?: unknown };
+          };
+
+          // Common pattern: { type: "text", text: "..." }
+          if (typeof candidate.text === "string") {
+            return candidate.text;
+          }
+
+          // Some providers may put text in `content`
+          if (typeof candidate.content === "string") {
+            return candidate.content;
+          }
+
+          // Fallback: sometimes nested under data.text
+          if (candidate.data && typeof candidate.data.text === "string") {
+            return candidate.data.text;
+          }
+        }
+
+        return "";
+      })
+      .join("");
+  }
+
+  return "";
+}
+
 function renderStreamChunk(chunk: unknown): string | null {
   if (!chunk) {
     return null;
   }
 
+  // Already a plain string
   if (typeof chunk === "string") {
     return chunk;
   }
 
-  if (typeof chunk === "object") {
-    const candidate = chunk as { content?: unknown; text?: unknown };
-    if (typeof candidate.text === "string") {
-      return candidate.text;
-    }
-    if (typeof candidate.content === "string") {
-      return candidate.content;
-    }
-    if (Array.isArray(candidate.content)) {
-      const joined = candidate.content
-        .map((entry) => {
-          if (typeof entry === "string") {
-            return entry;
-          }
-          if (entry && typeof entry === "object" && "text" in entry) {
-            const value = (entry as { text?: unknown }).text;
-            return typeof value === "string" ? value : "";
-          }
-          return "";
-        })
-        .join("");
-      return joined.length > 0 ? joined : null;
-    }
+  if (typeof chunk !== "object") {
+    return null;
   }
 
-  return null;
+  const anyChunk = chunk as {
+    content?: unknown;
+    text?: unknown;
+    lc_kwargs?: { content?: unknown };
+  };
+
+  // Prefer the raw LangChain kwargs content when available (e.g., ChatOllama)
+  const rawContent =
+    anyChunk.lc_kwargs?.content ?? anyChunk.content ?? anyChunk.text;
+
+  const text = messageContentToString(rawContent);
+  return text.length > 0 ? text : null;
 }
 
 function rewriteLangchainDocument(

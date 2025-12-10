@@ -595,37 +595,13 @@ export default function AdminDocumentsPage({
                     emptyMessage="No documents found."
                     rowKey={(doc) => doc.doc_id}
                     stickyHeader
+                    pagination={{
+                      currentPage: page,
+                      totalPages,
+                      onPageChange: handlePageChange,
+                      summaryText,
+                    }}
                   />
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ai-border-soft)] px-4 py-3">
-                    <div>
-                      <span className="ai-meta-text">{summaryText}</span>
-                    </div>
-                    <div className="flex items-center gap-2.5">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePageChange(Math.max(page - 1, 1))}
-                        disabled={page <= 1}
-                      >
-                        Previous
-                      </Button>
-                      <span className="ai-meta-text whitespace-nowrap">
-                        Page {page} of {totalPages}
-                      </span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          handlePageChange(Math.min(page + 1, totalPages))
-                        }
-                        disabled={page >= totalPages}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>

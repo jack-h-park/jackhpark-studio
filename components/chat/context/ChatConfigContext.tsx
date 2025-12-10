@@ -185,11 +185,13 @@ export function ChatConfigProvider({
         ollamaEnabled: runtimeMeta.ollamaEnabled,
         lmstudioEnabled: runtimeMeta.lmstudioEnabled,
         defaultModelId: runtimeMeta.defaultLlmModelId,
+        defaultModelExplicit: runtimeMeta.defaultLlmModelExplicit,
         allowedModelIds: allowedModels,
       });
   }, [
     adminConfig.allowlist.llmModels,
     runtimeMeta.defaultLlmModelId,
+    runtimeMeta.defaultLlmModelExplicit,
     runtimeMeta.ollamaEnabled,
     runtimeMeta.lmstudioEnabled,
   ]);
