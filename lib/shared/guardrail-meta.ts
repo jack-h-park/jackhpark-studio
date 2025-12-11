@@ -42,6 +42,9 @@ export type GuardrailMeta = {
   summaryApplied: boolean;
   history?: GuardrailMetaHistory;
   context: GuardrailMetaContext;
+  llmModel?: string;
+  provider?: string;
+  embeddingModel?: string;
   enhancements?: GuardrailEnhancements;
   summaryConfig?: {
     enabled: boolean;

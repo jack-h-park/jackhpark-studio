@@ -510,6 +510,7 @@ export async function loadChatModelSettings(options?: {
     normalizedLlmModelId,
     modelResolutionContext,
   );
+
   let llmSelection = resolveLlmModel({
     modelId: llmResolution.resolvedModelId,
     model: llmResolution.resolvedModelId,
@@ -524,10 +525,17 @@ export async function loadChatModelSettings(options?: {
     (llmSelection.isLocal ? llmSelection.provider : null);
   const matchesSelectedBackend =
     Boolean(requestedLocalBackend) && localBackend === requestedLocalBackend;
-  let localBackendAvailable =
-    Boolean(localClient) &&
-    matchesSelectedBackend &&
-    Boolean(requestedLocalBackend);
+
+  let localBackendAvailable = false;
+  if (requestedLocalBackend === "lmstudio") {
+    localBackendAvailable = modelResolutionContext.lmstudioEnabled;
+  } else if (requestedLocalBackend === "ollama") {
+    localBackendAvailable = modelResolutionContext.ollamaEnabled;
+  } else if (requiresLocalModel) {
+    // Other local providers? Default to checking client existence for now
+    localBackendAvailable = Boolean(localClient) && matchesSelectedBackend;
+  }
+
   let fallbackFrom: ChatRuntimeFallbackFrom | undefined;
   let llmEngine: ChatEngineType;
   const initialLocalSelection = requiresLocalModel ? llmSelection : null;
@@ -537,6 +545,9 @@ export async function loadChatModelSettings(options?: {
       requestedLocalBackend === "lmstudio" ? "local-lmstudio" : "local-ollama";
     llmEngine = intendedLocalEngine;
     if (!localBackendAvailable) {
+      console.warn(
+        `[chat-settings] Local backend unavailable for ${llmSelection.id}. Falling back.`,
+      );
       if (!requireLocal) {
         if (initialLocalSelection) {
           fallbackFrom = {

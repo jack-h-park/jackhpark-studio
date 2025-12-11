@@ -5,7 +5,10 @@ import { AiOutlineInfoCircle } from "@react-icons/all-files/ai/AiOutlineInfoCirc
 import Image from "next/image";
 
 import type { ChatMessage } from "@/components/chat/hooks/useChatSession";
-import { MODEL_PROVIDER_LABELS } from "@/lib/shared/model-provider";
+import {
+  MODEL_PROVIDER_LABELS,
+  type ModelProvider,
+} from "@/lib/shared/model-provider";
 
 import styles from "./ChatMessagesPanel.module.css";
 // windowStyles is no longer needed since we moved all message styles to styles
@@ -238,17 +241,22 @@ export function ChatMessagesPanel({
                 ? `History not summarized (${historyTokensCount} tokens)`
                 : "History not summarized";
         const runtimeEngineLabel =
-          m.runtime?.engine === "lc"
+          m.meta?.provider || m.runtime?.engine === "lc"
             ? "LangChain"
             : m.runtime?.engine === "native"
               ? "Native"
               : null;
-        const runtimeLlmProviderLabel = m.runtime
-          ? m.runtime.llmProvider === "openai"
+
+        const rawProvider = m.meta?.provider ?? m.runtime?.llmProvider;
+        const runtimeLlmProviderLabel = rawProvider
+          ? rawProvider === "openai"
             ? "Open AI"
-            : MODEL_PROVIDER_LABELS[m.runtime.llmProvider]
+            : (MODEL_PROVIDER_LABELS[rawProvider as ModelProvider] ??
+              rawProvider)
           : null;
+
         const runtimeLlmModelLabel =
+          m.meta?.llmModel ??
           m.runtime?.resolvedLlmModelId ??
           m.runtime?.llmModelId ??
           m.runtime?.llmModel ??

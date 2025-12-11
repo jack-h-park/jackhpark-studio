@@ -15,6 +15,7 @@ import {
   shouldRetryGeminiModel,
 } from "@/lib/core/gemini";
 import { resolveLlmModel } from "@/lib/core/llm-registry";
+import { getLmStudioRuntimeConfig } from "@/lib/core/lmstudio";
 import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
@@ -199,13 +200,14 @@ export default async function handler(
     const body: ChatRequestBody =
       typeof req.body === "string" ? JSON.parse(req.body) : req.body || {};
 
-    const guardrails = await getChatGuardrailConfig();
-    const adminConfig = await getAdminChatConfig();
     const sessionConfig =
       (body.sessionConfig || body.config) &&
       typeof (body.sessionConfig || body.config) === "object"
         ? ((body.sessionConfig || body.config) as SessionChatConfig)
         : undefined;
+
+    const guardrails = await getChatGuardrailConfig({ sessionConfig });
+    const adminConfig = await getAdminChatConfig();
     const presetId =
       sessionConfig?.presetId ??
       (typeof sessionConfig?.appliedPreset === "string"
@@ -214,7 +216,11 @@ export default async function handler(
     const ragRanking = adminConfig.ragRanking;
     const runtime =
       (req as any).chatRuntime ??
-      (await loadChatModelSettings({ forceRefresh: true }));
+      (await loadChatModelSettings({
+        forceRefresh: true,
+        sessionConfig,
+      }));
+
     const fallbackQuestion =
       typeof body.question === "string" ? body.question : undefined;
     let rawMessages: ChatMessage[] = [];
@@ -825,6 +831,9 @@ export default async function handler(
           maxTurns: guardrails.summary.maxTurns,
           maxChars: guardrails.summary.maxChars,
         },
+        llmModel,
+        provider,
+        embeddingModel,
         summaryInfo,
       };
 
@@ -1027,6 +1036,20 @@ export default async function handler(
           if (!streamHeadersSent) {
             if (streamErr instanceof OllamaUnavailableError) {
               return respondWithOllamaUnavailable(res);
+            }
+            // Graceful handling for LM Studio "No models loaded" error
+            const errMessage = (streamErr as any)?.message || "";
+            if (
+              errMessage.includes("No models loaded") ||
+              errMessage.includes("connection refused")
+            ) {
+              return res.status(503).json({
+                error: {
+                  code: "LOCAL_LLM_UNAVAILABLE",
+                  message:
+                    "LM Studio에 로드된 모델이 없습니다. LM Studio 앱에서 모델을 Load 해주세요.",
+                },
+              });
             }
             throw streamErr;
           }
@@ -1236,6 +1259,22 @@ async function createChatModel(
       return new ChatGoogleGenerativeAI({
         model: modelName,
         apiKey,
+        temperature,
+        streaming: true,
+      });
+    }
+    case "lmstudio": {
+      const { ChatOpenAI } = await import("@langchain/openai");
+      const config = getLmStudioRuntimeConfig();
+      if (!config.enabled || !config.baseUrl) {
+        throw new Error("LM Studio provider is disabled or missing base URL.");
+      }
+      return new ChatOpenAI({
+        model: modelName,
+        apiKey: "lm-studio",
+        configuration: {
+          baseURL: config.baseUrl,
+        },
         temperature,
         streaming: true,
       });
