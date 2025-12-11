@@ -14,18 +14,38 @@ const unauthorizedResponse = NextResponse.json(
 );
 
 export async function GET(request: Request) {
-  const cronSecret = request.headers.get("x-cron-secret");
-  const expectedSecret = process.env.RAG_SNAPSHOT_CRON_SECRET;
+  // Single secret model:
+  // - Vercel Cron: Authorization: Bearer <CRON_SECRET>
+  // - Manual/local: x-cron-secret: <CRON_SECRET>
+  const authHeader = request.headers.get("authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length)
+    : null;
 
-  if (!cronSecret || !expectedSecret || cronSecret !== expectedSecret) {
+  const headerSecret = request.headers.get("x-cron-secret");
+  const secret = process.env.CRON_SECRET;
+
+  const authorized = Boolean(
+    secret &&
+    ((bearerToken && bearerToken === secret) ||
+      (headerSecret && headerSecret === secret)),
+  );
+
+  if (!authorized) {
     return unauthorizedResponse;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl =
+    process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    console.error("Missing Supabase configuration for RAG snapshot route");
+    console.error("Missing Supabase configuration for RAG snapshot route", {
+      hasSupabaseUrl: Boolean(supabaseUrl),
+      hasServiceRoleKey: Boolean(serviceRoleKey),
+      fromSupabaseUrl: Boolean(process.env.SUPABASE_URL),
+      fromNextPublic: Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL),
+    });
     return NextResponse.json(
       { ok: false, error: "Server misconfiguration" },
       { status: 500 },

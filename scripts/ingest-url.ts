@@ -22,10 +22,15 @@ import {
 } from "../lib/rag";
 import { isUnchanged, shouldSkipIngest } from "../lib/rag/ingest-helpers";
 import {
+  applyDefaultDocMetadata,
+  DEFAULT_INGEST_DOC_TYPE,
+  DEFAULT_INGEST_PERSONA_TYPE,
   mergeRagDocumentMetadata,
-  parseRagDocumentMetadata,
+  normalizeMetadata,
+  stripDocIdentifierFields,
 } from "../lib/rag/metadata";
 import { buildUrlRagDocumentMetadata } from "../lib/rag/url-metadata";
+import { deriveDocIdentifiers } from "../lib/server/doc-identifiers";
 
 const INGEST_CONCURRENCY = Math.max(
   1,
@@ -86,36 +91,62 @@ async function ingestUrl(
   ingestionType: RunMode["type"],
 ): Promise<void> {
   stats.documentsProcessed += 1;
+  const normalizedUrl = url.trim();
+  if (!normalizedUrl) {
+    console.warn("Empty URL provided; skipping ingestion.");
+    stats.documentsSkipped += 1;
+    return;
+  }
+  const { canonicalId, rawId } = deriveDocIdentifiers(normalizedUrl);
+  // NOTE: ID-sensitive ingestion path: must use deriveDocIdentifiers for doc_id/raw_doc_id.
 
   const { title, text, lastModified }: ExtractedArticle =
-    await extractMainContent(url);
+    await extractMainContent(normalizedUrl);
 
   if (!text) {
-    console.warn(`No text content extracted for ${url}; skipping`);
+    console.warn(`No text content extracted for ${normalizedUrl}; skipping`);
     stats.documentsSkipped += 1;
     return;
   }
 
-  const contentHash = hashChunk(`${url}:${text}`);
-  const existingState = await getDocumentState(url);
+  const contentHash = hashChunk(`${canonicalId}:${text}`);
+  const existingState = await getDocumentState(canonicalId);
+  if (existingState?.raw_doc_id && existingState.raw_doc_id !== rawId) {
+    console.warn("[doc-id] raw_doc_id drift detected", {
+      canonicalId,
+      previous: existingState.raw_doc_id,
+      incoming: rawId,
+    });
+  }
   const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
   const unchanged = isUnchanged(existingState, {
     contentHash,
     lastSourceUpdate: lastModified ?? null,
   });
 
-  const existingMetadata = parseRagDocumentMetadata(existingState?.metadata);
+  const existingMetadata = stripDocIdentifierFields(
+    existingState?.metadata ?? null,
+  );
   const sourceMetadata = buildUrlRagDocumentMetadata({
-    sourceUrl: url,
+    sourceUrl: normalizedUrl,
     htmlTitle: title,
   });
-  const nextMetadata = mergeRagDocumentMetadata(
+  const mergedMetadata = mergeRagDocumentMetadata(
     existingMetadata,
     sourceMetadata,
   );
+  const nextMetadata = applyDefaultDocMetadata(mergedMetadata, {
+    doc_type: DEFAULT_INGEST_DOC_TYPE,
+    persona_type: DEFAULT_INGEST_PERSONA_TYPE,
+  });
+  const metadataWithIds = normalizeMetadata({
+    ...nextMetadata,
+    doc_id: canonicalId,
+    raw_doc_id: rawId,
+  });
 
   const providerHasChunks =
-    unchanged && (await hasChunksForProvider(url, embeddingSpace));
+    unchanged && (await hasChunksForProvider(canonicalId, embeddingSpace));
   const shouldSkip = shouldSkipIngest({
     unchanged,
     ingestionType,
@@ -131,7 +162,7 @@ async function ingestUrl(
   const chunks = chunkByTokens(text, 450, 75);
 
   if (chunks.length === 0) {
-    console.warn(`Extracted content for ${url} produced no chunks; skipping`);
+    console.warn(`Extracted content for ${normalizedUrl} produced no chunks; skipping`);
     stats.documentsSkipped += 1;
     return;
   }
@@ -145,11 +176,11 @@ async function ingestUrl(
   const ingestedAt = new Date().toISOString();
 
   const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
-    doc_id: url,
-    source_url: url,
+    doc_id: canonicalId,
+    source_url: normalizedUrl,
     title,
     chunk,
-    chunk_hash: hashChunk(`${url}:${chunk}`),
+    chunk_hash: hashChunk(`${canonicalId}:${chunk}`),
     embedding: embeddings[index]!,
     ingested_at: ingestedAt,
   }));
@@ -157,20 +188,21 @@ async function ingestUrl(
   const chunkCount = rows.length;
   const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0);
 
-  await replaceChunks(url, rows, {
+  await replaceChunks(canonicalId, rows, {
     provider: embeddingSpace.provider,
     embeddingModelId: embeddingSpace.embeddingModelId,
     embeddingSpaceId: embeddingSpace.embeddingSpaceId,
     version: embeddingSpace.version,
   });
   await upsertDocumentState({
-    doc_id: url,
-    source_url: url,
+    doc_id: canonicalId,
+    raw_doc_id: rawId,
+    source_url: normalizedUrl,
     content_hash: contentHash,
     last_source_update: lastModified ?? null,
     chunk_count: chunkCount,
     total_characters: totalCharacters,
-    metadata: nextMetadata,
+    metadata: metadataWithIds,
   });
 
   if (existingState) {

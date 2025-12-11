@@ -88,12 +88,28 @@ function renderMessageContent(
   return nodes;
 }
 
-type Citation = { title?: string; source_url?: string; excerpt_count?: number };
+type Citation = {
+  title?: string;
+  source_url?: string;
+  excerpt_count?: number;
+  doc_type?: string;
+  persona_type?: string;
+  weight?: number;
+  rankIndex?: number;
+};
 
 const mergeCitations = (entries: Citation[]): Citation[] => {
   const merged = new Map<
     string,
-    { title?: string; source_url?: string; excerpt_count: number }
+    {
+      title?: string;
+      source_url?: string;
+      excerpt_count: number;
+      doc_type?: string;
+      persona_type?: string;
+      weight?: number;
+      rankIndex?: number;
+    }
   >();
 
   let index = 0;
@@ -117,17 +133,66 @@ const mergeCitations = (entries: Citation[]): Citation[] => {
       if (!existing.source_url && entry.source_url) {
         existing.source_url = entry.source_url;
       }
+      if (
+        existing.doc_type === undefined &&
+        entry.doc_type !== undefined
+      ) {
+        existing.doc_type = entry.doc_type;
+      }
+      if (
+        existing.persona_type === undefined &&
+        entry.persona_type !== undefined
+      ) {
+        existing.persona_type = entry.persona_type;
+      }
+      if (
+        existing.weight === undefined &&
+        entry.weight !== undefined
+      ) {
+        existing.weight = entry.weight;
+      }
+      if (
+        existing.rankIndex === undefined ||
+        (entry.rankIndex !== undefined &&
+          entry.rankIndex < existing.rankIndex)
+      ) {
+        existing.rankIndex = entry.rankIndex;
+      }
     } else {
       merged.set(key, {
         title: entry.title,
         source_url: entry.source_url,
         excerpt_count: entry.excerpt_count ?? 1,
+        doc_type: entry.doc_type,
+        persona_type: entry.persona_type,
+        weight: entry.weight,
+        rankIndex: entry.rankIndex,
       });
     }
     index += 1;
   }
 
-  return Array.from(merged.values());
+  const output = Array.from(merged.values());
+  output.sort((a, b) => {
+    const rankA =
+      typeof a.rankIndex === "number" ? a.rankIndex : Number.MAX_SAFE_INTEGER;
+    const rankB =
+      typeof b.rankIndex === "number" ? b.rankIndex : Number.MAX_SAFE_INTEGER;
+    if (rankA !== rankB) {
+      return rankA - rankB;
+    }
+    const weightA = typeof a.weight === "number" ? a.weight : 0;
+    const weightB = typeof b.weight === "number" ? b.weight : 0;
+    if (weightA !== weightB) {
+      return weightB - weightA;
+    }
+    return (
+      (a.title ?? "").localeCompare(b.title ?? "", undefined, {
+        sensitivity: "base",
+      }) || 0
+    );
+  });
+  return output;
 };
 
 const truncateText = (value: string | null | undefined, max = 60) => {
@@ -516,25 +581,48 @@ export function ChatMessagesPanel({
                         : 1;
                     const countLabel =
                       excerptCount > 1 ? `${excerptCount} excerpts` : null;
+                    const details = [
+                      citation.doc_type
+                        ? `Doc type: ${citation.doc_type}`
+                        : null,
+                      citation.persona_type
+                        ? `Persona: ${citation.persona_type}`
+                        : null,
+                      typeof citation.weight === "number"
+                        ? `Weight: ${citation.weight.toFixed(2)}`
+                        : null,
+                    ].filter(Boolean);
                     return (
                       <li key={`${m.id}-citation-${index}`}>
-                        {title}
-                        {url && (
-                          <>
-                            {" "}
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                            >
-                              {formatLinkLabel(url, citationLinkLength)}
-                            </a>
-                          </>
-                        )}
-                        {countLabel && (
-                          <span className={styles.citationCount}>
-                            ({countLabel})
+                        <div className={styles.citationHeading}>
+                          <span className={styles.citationIndex}>
+                            {index + 1}
                           </span>
+                          <div className={styles.citationTitle}>
+                            {title}
+                            {url && (
+                              <>
+                                {" "}
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer noopener"
+                                >
+                                  {formatLinkLabel(url, citationLinkLength)}
+                                </a>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {countLabel && (
+                          <div className={styles.citationCount}>
+                            ({countLabel})
+                          </div>
+                        )}
+                        {details.length > 0 && (
+                          <div className={styles.citationMeta}>
+                            {details.join(" · ")}
+                          </div>
                         )}
                       </li>
                     );

@@ -1,4 +1,3 @@
-// pages/api/langchain_chat.ts
 import type { Document } from "@langchain/core/documents";
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import type { BaseLanguageModelInterface } from "@langchain/core/language_models/base";
@@ -20,14 +19,21 @@ import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
-import {
-  normalizeMetadata,
-  type RagDocumentMetadata,
-} from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
+import {
+  type ChatRequestBody,
+  type Citation,
+  CITATIONS_SEPARATOR,
+  DEBUG_LANGCHAIN_STREAM,
+  DEBUG_RAG_MSGS,
+  DEBUG_RAG_STEPS,
+  DEBUG_RAG_URLS,
+  logRetrievalStage,
+  parseTemperature,
+} from "@/lib/server/chat-common";
 import {
   applyHistoryWindow,
   buildContextWindow,
@@ -40,6 +46,12 @@ import {
 } from "@/lib/server/chat-guardrails";
 import { type ChatMessage, sanitizeMessages } from "@/lib/server/chat-messages";
 import {
+  enrichAndFilterDocs,
+  extractDocIdsFromBaseDocs,
+  fetchRefinedMetadata,
+  processPreRetrieval,
+} from "@/lib/server/chat-rag-utils";
+import {
   buildFinalSystemPrompt,
   loadChatModelSettings,
 } from "@/lib/server/chat-settings";
@@ -49,11 +61,7 @@ import {
   type CanonicalPageLookup,
   loadCanonicalPageLookup,
 } from "@/lib/server/page-url";
-import {
-  applyRanker,
-  generateHydeDocument,
-  rewriteQuery,
-} from "@/lib/server/rag-enhancements";
+import { applyRanker } from "@/lib/server/rag-enhancements";
 import { logDebugRag } from "@/lib/server/rag-logger";
 import { resolveRagUrl } from "@/lib/server/rag-url-resolver";
 import {
@@ -62,7 +70,11 @@ import {
   serializeGuardrailMeta,
 } from "@/lib/shared/guardrail-meta";
 import { type ModelProvider } from "@/lib/shared/model-provider";
-import { DEFAULT_REVERSE_RAG_MODE } from "@/lib/shared/rag-config";
+import {
+  DEFAULT_REVERSE_RAG_MODE,
+  type ReverseRagMode,
+} from "@/lib/shared/rag-config";
+import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
 import { computeBasePromptVersion } from "@/lib/telemetry/prompt-version";
 
@@ -76,40 +88,7 @@ export const config = {
   },
 };
 
-type Citation = {
-  doc_id?: string;
-  title?: string;
-  source_url?: string;
-  excerpt_count?: number;
-};
-type ChatRequestBody = {
-  question?: unknown;
-  messages?: unknown;
-  provider?: unknown;
-  embeddingProvider?: unknown;
-  model?: unknown;
-  embeddingModel?: unknown;
-  embeddingSpaceId?: unknown;
-  temperature?: unknown;
-  reverseRagEnabled?: unknown;
-  reverseRagMode?: unknown;
-  hydeEnabled?: unknown;
-  rankerMode?: unknown;
-  sessionConfig?: unknown;
-  config?: unknown;
-};
-
-const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
-const DEBUG_LANGCHAIN_STREAM =
-  (process.env.DEBUG_LANGCHAIN_STREAM ?? "").toLowerCase() === "true";
-
 const DEBUG_LANGCHAIN_SEGMENT_SIZE = 60;
-const DEBUG_RAG_STEPS =
-  (process.env.DEBUG_RAG_STEPS ?? "").toLowerCase() === "true";
-const DEBUG_RAG_URLS =
-  (process.env.DEBUG_RAG_URLS ?? "").toLowerCase() === "true";
-const DEBUG_RAG_MSGS =
-  (process.env.DEBUG_RAG_MSGS ?? "").toLowerCase() === "true";
 
 function splitIntoSegments(value: string, size: number): string[] {
   if (!value || size <= 0) {
@@ -131,63 +110,10 @@ function formatChunkPreview(value: string) {
   return `${collapsed.slice(0, 60)}…`;
 }
 
-type RetrievalLogEntry = {
-  doc_id: string | null;
-  similarity: number | null;
-  weight?: number | null;
-  finalScore?: number | null;
-  doc_type?: string | null;
-  persona_type?: string | null;
-  is_public?: boolean | null;
-};
-
-function logRetrievalStage(
-  trace: ReturnType<typeof langfuse.trace> | null,
-  stage: string,
-  entries: RetrievalLogEntry[],
-  meta?: {
-    engine?: string;
-    presetKey?: string;
-    chatConfig?: ChatConfigSnapshot;
-  },
-) {
-  // Force-exclude detailed logs if DEBUG_RAG_STEPS is false, even if trace is active.
-  if (!DEBUG_RAG_STEPS && !trace) {
-    return;
-  }
-
-  const payload = entries.map((entry) => ({
-    doc_id: entry.doc_id,
-    similarity: entry.similarity,
-    weight: entry.weight,
-    finalScore: entry.finalScore,
-    doc_type: entry.doc_type ?? null,
-    persona_type: entry.persona_type ?? null,
-    is_public: entry.is_public ?? null,
-  }));
-
-  if (DEBUG_RAG_STEPS) {
-    console.log("[rag:langchain] retrieval", stage, payload);
-  }
-
-  void trace?.observation({
-    name: "rag_retrieval_stage",
-    metadata: {
-      stage,
-      engine: meta?.engine ?? "langchain",
-      presetKey: meta?.presetKey ?? meta?.chatConfig?.presetKey ?? "default",
-      chatConfig: meta?.chatConfig,
-      ragConfig: meta?.chatConfig,
-      entries: payload,
-    },
-  });
-}
-
 const SUPABASE_URL = process.env.SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env
   .SUPABASE_SERVICE_ROLE_KEY as string;
 const RAG_TOP_K = Number(process.env.RAG_TOP_K || 5);
-const DEFAULT_TEMPERATURE = Number(process.env.LLM_TEMPERATURE ?? 0);
 
 export default async function handler(
   req: NextApiRequest,
@@ -302,7 +228,8 @@ export default async function handler(
       traceMetadata.cache = cacheMeta;
     }
     const reverseRagEnabled = runtime.reverseRagEnabled;
-    const reverseRagMode = runtime.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE;
+    const reverseRagMode = (runtime.reverseRagMode ??
+      DEFAULT_REVERSE_RAG_MODE) as ReverseRagMode;
     const hydeEnabled = runtime.hydeEnabled;
     const rankerMode = runtime.rankerMode;
 
@@ -425,6 +352,8 @@ export default async function handler(
         "{question}",
       ].join("\n");
       const prompt = PromptTemplate.fromTemplate(promptTemplate);
+      // We also use getSupabaseAdminClient for metadata fetching now to align
+      const supabaseAdmin = getSupabaseAdminClient();
 
       let latestMeta: GuardrailMeta | null = null;
       let enhancementSummary: GuardrailEnhancements = {
@@ -478,80 +407,24 @@ export default async function handler(
           if (cacheMeta.retrievalHit === true) {
             logDebugRag("retrieval-cache", { hit: true, presetId });
           } else {
-            const rewrittenQuery = await rewriteQuery(
-              normalizedQuestion.normalized,
-              {
-                enabled: reverseRagEnabled,
-                mode: reverseRagMode,
-                provider,
-                model: llmModel,
-              },
-            );
-            if (trace && reverseRagEnabled) {
-              void trace.observation({
-                name: "reverse_rag",
-                input: normalizedQuestion.normalized,
-                output: rewrittenQuery,
-                metadata: {
-                  env,
-                  provider,
-                  model: llmModel,
-                  mode: reverseRagMode,
-                  stage: "reverse-rag",
-                  type: "reverse_rag",
-                },
-              });
-            }
-            logDebugRag("reverse-query", {
-              enabled: reverseRagEnabled,
-              mode: reverseRagMode,
-              original: normalizedQuestion.normalized,
-              rewritten: rewrittenQuery,
-            });
-            const hydeDocument = await generateHydeDocument(rewrittenQuery, {
-              enabled: hydeEnabled,
+            // --- Shared Pre-Retrieval ---
+            const preRetrieval = await processPreRetrieval({
+              question: normalizedQuestion.normalized,
+              reverseRagEnabled,
+              reverseRagMode,
+              hydeEnabled,
+              rankerMode,
               provider,
               model: llmModel,
+              trace,
+              env,
+              logDebugRag,
             });
-            enhancementSummary = {
-              reverseRag: {
-                enabled: reverseRagEnabled,
-                mode: reverseRagMode,
-                original: normalizedQuestion.normalized,
-                rewritten: rewrittenQuery,
-              },
-              hyde: {
-                enabled: hydeEnabled,
-                generated: hydeDocument ?? null,
-              },
-              ranker: {
-                mode: rankerMode,
-              },
-            };
-            if (trace) {
-              void trace.observation({
-                name: "hyde",
-                input: rewrittenQuery,
-                output: hydeDocument,
-                metadata: {
-                  env,
-                  provider,
-                  model: llmModel,
-                  enabled: hydeEnabled,
-                  stage: "hyde",
-                },
-              });
-            }
-            logDebugRag("hyde", {
-              enabled: hydeEnabled,
-              generated: hydeDocument,
-            });
-            const embeddingTarget = hydeDocument ?? rewrittenQuery;
-            logDebugRag("retrieval", {
-              query: embeddingTarget,
-              mode: rankerMode,
-            });
-            const queryEmbedding = await embeddings.embedQuery(embeddingTarget);
+            enhancementSummary = preRetrieval.enhancementSummary;
+
+            const queryEmbedding = await embeddings.embedQuery(
+              preRetrieval.embeddingTarget,
+            );
             const matchCount = Math.max(RAG_TOP_K, guardrails.ragTopK * 2);
             const store = new SupabaseVectorStore(embeddings, {
               client: supabase,
@@ -572,6 +445,7 @@ export default async function handler(
               return [rewrittenDoc, score] as (typeof matches)[number];
             });
 
+            // Map to BaseRetrievalItem for shared utilities
             const baseDocs = normalizedMatches.map(([doc, score]) => {
               const baseSimilarity =
                 typeof score === "number"
@@ -587,19 +461,35 @@ export default async function handler(
                 null;
 
               return {
-                doc,
+                doc, // keep original
+                // We add `chunk` so `enrichAndFilterDocs` -> `applyRanker` can find the text content
+                chunk: doc.pageContent,
                 docId,
                 baseSimilarity,
+                metadata: doc.metadata,
               };
             });
 
-            if (includeVerboseDetails) {
+            if (DEBUG_RAG_STEPS) {
+              console.log(
+                "[langchain_chat] baseDocs docId snapshot",
+                baseDocs.map((entry) => ({
+                  docId: entry.docId,
+                  metadataDocId: entry.doc.metadata?.doc_id ?? null,
+                })),
+              );
+            }
+
+            if (includeVerboseDetails && trace) {
               logRetrievalStage(
                 trace,
                 "raw_results",
                 baseDocs.map((entry) => ({
-                  doc_id: entry.docId,
+                  doc_id: entry.docId ?? null,
                   similarity: entry.baseSimilarity,
+                  doc_type: entry.metadata?.doc_type ?? null,
+                  persona_type: entry.metadata?.persona_type ?? null,
+                  is_public: entry.metadata?.is_public ?? null,
                 })),
                 {
                   engine: "langchain",
@@ -609,115 +499,38 @@ export default async function handler(
               );
             }
 
-            const docIds = Array.from(
-              new Set(
-                baseDocs
-                  .map((entry) => entry.docId)
-                  .filter(
-                    (id): id is string =>
-                      typeof id === "string" && id.length > 0,
-                  ),
-              ),
+            // --- Shared Post-Retrieval ---
+            const docIds = extractDocIdsFromBaseDocs(baseDocs);
+            const metadataMap = await fetchRefinedMetadata(
+              docIds,
+              supabaseAdmin,
             );
 
-            let metadataRows:
-              | { doc_id?: string; metadata?: RagDocumentMetadata | null }[]
-              | undefined;
-            if (docIds.length > 0) {
-              const { data } = await supabase
-                .from("rag_documents")
-                .select("doc_id, metadata")
-                .in("doc_id", docIds);
-              metadataRows = data as typeof metadataRows;
-            }
-
-            const metadataMap = new Map<string, RagDocumentMetadata | null>();
-            for (const row of metadataRows ?? []) {
-              const docId = (row as { doc_id?: string }).doc_id;
-              if (typeof docId === "string") {
-                metadataMap.set(
-                  docId,
-                  normalizeMetadata(
-                    (row as { metadata?: unknown })
-                      .metadata as RagDocumentMetadata,
-                  ),
-                );
-              }
-            }
-
-            const ragDocs = baseDocs
-              .map(({ doc, docId, baseSimilarity }) => {
-                const hydratedMeta =
-                  (docId ? (metadataMap.get(docId) ?? null) : null) ??
-                  normalizeMetadata(doc.metadata as RagDocumentMetadata) ??
-                  null;
-
-                if (hydratedMeta?.is_public === false) {
-                  return null;
-                }
-
-                const weight = computeMetadataWeight(
-                  hydratedMeta ?? undefined,
-                  ragRanking,
-                );
-                const finalScore = baseSimilarity * weight;
-
-                return {
-                  chunk: doc.pageContent,
-                  metadata: {
-                    ...doc.metadata,
-                    ...hydratedMeta,
-                    doc_id:
-                      docId ?? (doc.metadata?.doc_id as string | undefined),
-                  },
-                  similarity: finalScore,
-                  base_similarity: baseSimilarity,
-                  metadata_weight: weight,
-                };
-              })
-              .filter(
-                (
-                  doc,
-                ): doc is {
-                  chunk: string;
-                  metadata: any;
-                  similarity: number;
-                  base_similarity: number;
-                  metadata_weight: number;
-                } => doc !== null,
-              )
-              // eslint-disable-next-line unicorn/no-array-sort
-              .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
+            const enrichedDocs = enrichAndFilterDocs(
+              baseDocs,
+              metadataMap,
+              ragRanking,
+            );
 
             if (DEBUG_RAG_URLS) {
-              const urls = ragDocs
+              const urls = enrichedDocs
                 .map((d) => d.metadata?.source_url)
                 .filter(Boolean);
               console.log("[langchain_chat] retrieved urls:", urls);
             }
 
-            if (includeVerboseDetails) {
+            if (includeVerboseDetails && trace) {
               logRetrievalStage(
                 trace,
                 "after_weighting",
-                ragDocs.map((doc) => ({
-                  doc_id: (doc.metadata?.doc_id as string | null) ?? null,
-                  similarity:
-                    (doc as { base_similarity?: number }).base_similarity ??
-                    null,
-                  weight:
-                    (doc as { metadata_weight?: number }).metadata_weight ??
-                    null,
-                  finalScore: doc.similarity ?? null,
-                  doc_type:
-                    (doc.metadata as { doc_type?: string | null })?.doc_type ??
-                    null,
-                  persona_type:
-                    (doc.metadata as { persona_type?: string | null })
-                      ?.persona_type ?? null,
-                  is_public:
-                    (doc.metadata as { is_public?: boolean | null })
-                      ?.is_public ?? null,
+                enrichedDocs.map((doc) => ({
+                  doc_id: doc.docId,
+                  similarity: doc.baseSimilarity,
+                  weight: doc.metadata_weight,
+                  finalScore: doc.similarity,
+                  doc_type: doc.metadata?.doc_type,
+                  persona_type: doc.metadata?.persona_type,
+                  is_public: doc.metadata?.is_public,
                 })),
                 {
                   engine: "langchain",
@@ -726,34 +539,40 @@ export default async function handler(
                 },
               );
             }
+
             if (trace && includeVerboseDetails) {
               void trace.observation({
                 name: "retrieval",
-                input: embeddingTarget,
-                output: ragDocs,
+                input: preRetrieval.embeddingTarget,
+                output: enrichedDocs.map((d) => ({
+                  pageContent: d.chunk, // explicit for log
+                  metadata: d.metadata,
+                })),
                 metadata: {
                   env,
                   provider,
                   model: llmModel,
                   stage: "retrieval",
                   source: "supabase",
-                  results: ragDocs.length,
+                  results: enrichedDocs.length,
                   cache: {
                     retrievalHit: cacheMeta.retrievalHit,
                   },
                 },
               });
             }
-            const rankedDocs = await applyRanker(ragDocs, {
+
+            const rankedDocs = await applyRanker(enrichedDocs, {
               mode: rankerMode,
               maxResults: Math.max(guardrails.ragTopK, 1),
               embeddingSelection,
               queryEmbedding,
             });
+
             if (trace && includeVerboseDetails) {
               void trace.observation({
                 name: "reranker",
-                input: ragDocs,
+                input: enrichedDocs,
                 output: rankedDocs,
                 metadata: {
                   env,
@@ -768,6 +587,7 @@ export default async function handler(
                 },
               });
             }
+
             contextResult = buildContextWindow(rankedDocs, guardrails);
             if (retrievalCacheKey) {
               await memoryCacheClient.set(
@@ -792,6 +612,20 @@ export default async function handler(
                 insufficient: contextResult.insufficient,
                 rankerMode,
               });
+              console.log(
+                "[langchain_chat] included metadata sample",
+                contextResult.included.map((doc) => ({
+                  docId:
+                    (doc.metadata as { doc_id?: string | null })?.doc_id ??
+                    doc.doc_id ??
+                    null,
+                  doc_type: (doc.metadata as { doc_type?: string | null })
+                    ?.doc_type,
+                  persona_type: (
+                    doc.metadata as { persona_type?: string | null }
+                  )?.persona_type,
+                })),
+              );
             }
           }
         } else {
@@ -917,6 +751,10 @@ export default async function handler(
             title?: string;
             source_url?: string;
             excerpt_count: number;
+            doc_type?: string;
+            persona_type?: string;
+            weight?: number;
+            rankIndex?: number;
           }
         >();
         const includedDocs = contextResult.included as any[];
@@ -941,16 +779,34 @@ export default async function handler(
             doc?.metadata?.title ??
             doc?.metadata?.document_meta?.title ??
             undefined;
+          const docType =
+            (doc?.metadata as { doc_type?: string | null } | null)?.doc_type ??
+            undefined;
+          const personaType =
+            (doc?.metadata as { persona_type?: string | null } | null)
+              ?.persona_type ?? undefined;
+          const weight =
+            typeof (doc as any).metadata_weight === "number"
+              ? (doc as any).metadata_weight
+              : (computeMetadataWeight(
+                  doc?.metadata ?? null,
+                  ragRanking ?? null,
+                ) ?? undefined);
 
           const existing = citationMap.get(key);
           if (existing) {
             existing.excerpt_count += 1;
+            existing.rankIndex = Math.min(existing.rankIndex ?? index, index);
           } else {
             citationMap.set(key, {
               doc_id: docId,
               title,
               source_url: sourceUrl,
               excerpt_count: 1,
+              doc_type: docType,
+              persona_type: personaType,
+              weight,
+              rankIndex: index,
             });
           }
           index += 1;
@@ -1123,19 +979,6 @@ export default async function handler(
       .status(500)
       .json({ error: err?.message || "Internal Server Error" });
   }
-}
-
-function parseTemperature(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-
-  if (typeof value !== "string" || value.trim().length === 0) {
-    return DEFAULT_TEMPERATURE;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : DEFAULT_TEMPERATURE;
 }
 
 function messageContentToString(content: unknown): string {

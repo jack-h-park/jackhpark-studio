@@ -54,6 +54,7 @@ export type DocumentState = {
   doc_id: string;
   source_url: string;
   content_hash: string;
+  raw_doc_id: string | null;
   last_ingested_at: string;
   last_source_update: string | null;
   chunk_count: number | null;
@@ -65,6 +66,7 @@ export type DocumentStateUpsert = {
   doc_id: string;
   source_url: string;
   content_hash: string;
+  raw_doc_id?: string | null;
   last_source_update?: string | null;
   chunk_count?: number;
   total_characters?: number;
@@ -104,7 +106,7 @@ export async function getDocumentState(
   const { data, error } = await supabaseClient
     .from(DOCUMENTS_TABLE)
     .select(
-      "doc_id, source_url, content_hash, last_ingested_at, last_source_update, chunk_count, total_characters, metadata",
+      "doc_id, raw_doc_id, source_url, content_hash, last_ingested_at, last_source_update, chunk_count, total_characters, metadata",
     )
     .eq("doc_id", docId)
     .maybeSingle();
@@ -129,6 +131,7 @@ export async function upsertDocumentState(
 
   const payload: {
     doc_id: string;
+    raw_doc_id?: string | null;
     source_url: string;
     content_hash: string;
     last_ingested_at: string;
@@ -142,6 +145,11 @@ export async function upsertDocumentState(
     content_hash: toUpsert.content_hash,
     last_ingested_at: new Date().toISOString(),
   };
+
+  if ("raw_doc_id" in toUpsert) {
+    payload.raw_doc_id =
+      toUpsert.raw_doc_id === undefined ? null : toUpsert.raw_doc_id;
+  }
 
   if ("last_source_update" in toUpsert) {
     payload.last_source_update =

@@ -38,6 +38,17 @@
   min-height: 0;
 }
 
+.messages {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-bottom: 16px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
 .hero {
   flex: 1;
   min-height: 0;

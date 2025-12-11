@@ -8,6 +8,7 @@ import { normalizeTimestamp } from "@/lib/rag/timestamp";
 
 export type RagDocumentRecord = {
   doc_id: string;
+  raw_doc_id: string | null;
   source_url: string | null;
   last_ingested_at: string | null;
   last_source_update: string | null;
@@ -44,6 +45,7 @@ export function normalizeRagDocument(input: unknown): RagDocumentRecord | null {
         ? record.total_characters
         : null,
     metadata: metadata ?? null,
+    raw_doc_id: typeof record.raw_doc_id === "string" ? record.raw_doc_id : null,
   };
 }
 

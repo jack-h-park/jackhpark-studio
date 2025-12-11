@@ -9,9 +9,9 @@ import { debugIngestionLog } from "@/lib/rag/debug";
 
 import { mapImageUrl } from "../map-image-url";
 import {
-  DOC_TYPE_OPTIONS,
   normalizeMetadata,
-  PERSONA_TYPE_OPTIONS,
+  parseDocType,
+  parsePersonaType,
   type RagDocumentMetadata,
 } from "./metadata";
 
@@ -26,6 +26,23 @@ type PropertyLookup = {
   value: NotionPropertyValue;
   type?: string | null;
 } | null;
+
+function normalizePropertyName(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed
+    .replace(/^_+/, "")
+    .replaceAll(/[\s_-]+/g, "")
+    .replaceAll(/[.:]+/g, "")
+    .toLowerCase();
+}
 
 function safeText(value: NotionPropertyValue): string | undefined {
   if (!value || !Array.isArray(value)) {
@@ -113,6 +130,7 @@ function lookupProperty(
   // Try collection schema lookup first (database properties).
   const collectionId =
     page.parent_table === "collection" ? (page.parent_id ?? null) : null;
+  const normalizedTarget = normalizePropertyName(propertyName);
   if (collectionId) {
     const collection =
       (recordMap.collection?.[collectionId]?.value as {
@@ -120,9 +138,17 @@ function lookupProperty(
       } | null) ?? null;
 
     const schemaEntries = Object.entries(collection?.schema ?? {});
-    const match = schemaEntries.find(
+
+    let match = schemaEntries.find(
       ([, schema]) => schema?.name === propertyName,
     );
+
+    if (!match && normalizedTarget) {
+      match = schemaEntries.find(([, schema]) => {
+        const normalizedSchemaName = normalizePropertyName(schema?.name);
+        return normalizedSchemaName === normalizedTarget;
+      });
+    }
 
     if (match) {
       const [propertyId, schema] = match;
@@ -136,6 +162,17 @@ function lookupProperty(
   // Fallback: direct property key on the page.
   if (properties[propertyName] !== undefined) {
     return { value: properties[propertyName], type: null };
+  }
+
+  if (normalizedTarget) {
+    const fallback = Object.entries(properties).find(([key]) => {
+      const normalizedKey = normalizePropertyName(key);
+      return normalizedKey === normalizedTarget;
+    });
+    if (fallback) {
+      const [, value] = fallback;
+      return { value, type: null };
+    }
   }
 
   return null;
@@ -205,15 +242,26 @@ export function extractNotionMetadata(
     source_type: "notion",
   };
 
-  if (typeof docType === "string" && docType) {
-    if ((DOC_TYPE_OPTIONS as readonly string[]).includes(docType)) {
-      metadata.doc_type = docType as any;
+  const coerceToString = (
+    value: string | string[] | number | boolean | undefined,
+  ): string | undefined => {
+    if (typeof value === "string") return value;
+    if (Array.isArray(value) && value.length > 0) {
+      const first = value[0];
+      if (typeof first === "string" && first.trim()) {
+        return first;
+      }
     }
+    return undefined;
+  };
+
+  const normalizedDocType = parseDocType(coerceToString(docType));
+  if (normalizedDocType) {
+    metadata.doc_type = normalizedDocType;
   }
-  if (typeof personaType === "string" && personaType) {
-    if ((PERSONA_TYPE_OPTIONS as readonly string[]).includes(personaType)) {
-      metadata.persona_type = personaType as any;
-    }
+  const normalizedPersonaType = parsePersonaType(coerceToString(personaType));
+  if (normalizedPersonaType) {
+    metadata.persona_type = normalizedPersonaType;
   }
   if (typeof isPublic === "boolean") {
     metadata.is_public = isPublic;
@@ -221,6 +269,14 @@ export function extractNotionMetadata(
   if (Array.isArray(tags) && tags.length > 0) {
     metadata.tags = tags;
   }
+
+  debugIngestionLog("notion-metadata-lookup", {
+    pageId,
+    docType,
+    personaType,
+    normalizedDocType,
+    normalizedPersonaType,
+  });
 
   return normalizeMetadata(metadata) ?? { source_type: "notion" };
 }

@@ -6,6 +6,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
 import { IngestionSubNav } from "@/components/admin/navigation/IngestionSubNav";
+import { DocumentIdCell } from "@/components/admin/rag/DocumentIdCell";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { Button } from "@/components/ui/button";
 import {
@@ -269,6 +270,24 @@ export default function AdminDocumentDetailPage({
 
             <Card>
               <CardHeader>
+                <CardTitle>Identifiers</CardTitle>
+                <CardDescription>
+                  Raw and canonical IDs stored for this document.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DocumentIdCell
+                  canonicalId={document.doc_id}
+                  rawId={document.raw_doc_id ?? document.metadata?.raw_doc_id ?? null}
+                  short={false}
+                  showRawCopy
+                  rawMissingLabel="(not available)"
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle>Stats</CardTitle>
                 <CardDescription>
                   Ingestion snapshot for this document.
@@ -355,7 +374,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   const { data, error } = await supabase
     .from("rag_documents")
     .select(
-      "doc_id, source_url, last_ingested_at, last_source_update, chunk_count, total_characters, metadata",
+      "doc_id, raw_doc_id, source_url, last_ingested_at, last_source_update, chunk_count, total_characters, metadata",
     )
     .eq("doc_id", docId)
     .maybeSingle();

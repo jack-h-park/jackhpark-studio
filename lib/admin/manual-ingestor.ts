@@ -34,17 +34,23 @@ import {
   shouldSkipIngest,
 } from "../rag/ingest-helpers";
 import {
+  applyDefaultDocMetadata,
+  DEFAULT_INGEST_DOC_TYPE,
+  DEFAULT_INGEST_PERSONA_TYPE,
   mergeMetadata,
   mergeRagDocumentMetadata,
   metadataEquals,
   normalizeMetadata,
   parseRagDocumentMetadata,
+  stripDocIdentifierFields,
 } from "../rag/metadata";
 import {
   buildNotionSourceMetadata,
   extractNotionMetadata,
 } from "../rag/notion-metadata";
 import { buildUrlRagDocumentMetadata } from "../rag/url-metadata";
+import { deriveDocIdentifiers } from "../server/doc-identifiers";
+import { formatNotionPageId } from "../server/page-url";
 
 const notion = new NotionAPI();
 
@@ -263,6 +269,9 @@ async function ingestNotionPage({
   emit: EmitFn;
   embeddingOptions: EmbedBatchOptions;
 }): Promise<void> {
+  const rawNotionId = formatNotionPageId(pageId) ?? pageId;
+  const { canonicalId, rawId } = deriveDocIdentifiers(rawNotionId);
+  // NOTE: ID-sensitive ingestion path: must use deriveDocIdentifiers for doc_id/raw_doc_id.
   stats.documentsProcessed += 1;
   const title = getPageTitle(recordMap, pageId);
   await emit({
@@ -300,33 +309,52 @@ async function ingestNotionPage({
   });
 
   const lastEditedTime = getPageLastEditedTime(recordMap, pageId);
-  const contentHash = hashChunk(`${pageId}:${plainText}`);
+  const contentHash = hashChunk(`${canonicalId}:${plainText}`);
   const sourceUrl = getPageUrl(pageId);
 
-  const existingState = await getDocumentState(pageId);
+  const existingState = await getDocumentState(canonicalId);
+  if (existingState?.raw_doc_id && existingState.raw_doc_id !== rawId) {
+    console.warn("[doc-id] raw_doc_id drift detected", {
+      canonicalId,
+      previous: existingState.raw_doc_id,
+      incoming: rawId,
+    });
+  }
   const contentUnchanged =
     !!existingState && existingState.content_hash === contentHash;
-  const existingMetadata = normalizeMetadata(existingState?.metadata ?? null);
+  const existingMetadata = stripDocIdentifierFields(
+    existingState?.metadata ?? null,
+  );
   const incomingMetadata = extractNotionMetadata(recordMap, pageId);
   const adminMetadata =
     mergeMetadata(existingMetadata, incomingMetadata) ??
     existingMetadata ??
     null;
   const sourceMetadata = buildNotionSourceMetadata(recordMap, pageId);
-  const nextMetadata = mergeRagDocumentMetadata(
+  const mergedMetadata = mergeRagDocumentMetadata(
     adminMetadata ?? existingMetadata ?? undefined,
     sourceMetadata,
   );
+  const nextMetadata = applyDefaultDocMetadata(mergedMetadata, {
+    doc_type: DEFAULT_INGEST_DOC_TYPE,
+    persona_type: DEFAULT_INGEST_PERSONA_TYPE,
+  });
+  const metadataWithIds = normalizeMetadata({
+    ...nextMetadata,
+    doc_id: canonicalId,
+    raw_doc_id: rawId,
+  });
   debugIngestionLog("final-document-metadata", {
-    docId: pageId,
-    title: nextMetadata.title,
-    teaser_text: nextMetadata.teaser_text,
-    preview_image_url: nextMetadata.preview_image_url,
+    docId: canonicalId,
+    rawId,
+    title: nextMetadata?.title,
+    teaser_text: nextMetadata?.teaser_text,
+    preview_image_url: nextMetadata?.preview_image_url,
   });
   const metadataUnchanged = metadataEquals(existingMetadata, nextMetadata);
 
   const providerHasChunks =
-    contentUnchanged && (await hasChunksForProvider(pageId, embeddingOptions));
+    contentUnchanged && (await hasChunksForProvider(canonicalId, embeddingOptions));
 
   const decision = decideIngestAction({
     contentUnchanged,
@@ -347,11 +375,12 @@ async function ingestNotionPage({
 
   if (decision === "metadata-only") {
     await upsertDocumentState({
-      doc_id: pageId,
+      doc_id: canonicalId,
+      raw_doc_id: rawId,
       source_url: sourceUrl,
       content_hash: contentHash,
       last_source_update: lastEditedTime ?? null,
-      metadata: nextMetadata,
+      metadata: metadataWithIds,
       chunk_count: existingState?.chunk_count ?? undefined,
       total_characters: existingState?.total_characters ?? undefined,
     });
@@ -402,11 +431,11 @@ async function ingestNotionPage({
   const ingestedAt = new Date().toISOString();
 
   const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
-    doc_id: pageId,
+    doc_id: canonicalId,
     source_url: sourceUrl,
     title,
     chunk,
-    chunk_hash: hashChunk(`${pageId}:${chunk}`),
+    chunk_hash: hashChunk(`${canonicalId}:${chunk}`),
     embedding: embeddings[index]!,
     ingested_at: ingestedAt,
   }));
@@ -419,15 +448,16 @@ async function ingestNotionPage({
     step: "saving",
     percent: 85,
   });
-  await replaceChunks(pageId, rows, embeddingOptions);
+  await replaceChunks(canonicalId, rows, embeddingOptions);
   await upsertDocumentState({
-    doc_id: pageId,
+    doc_id: canonicalId,
+    raw_doc_id: rawId,
     source_url: sourceUrl,
     content_hash: contentHash,
     last_source_update: lastEditedTime ?? null,
     chunk_count: chunkCount,
     total_characters: totalCharacters,
-    metadata: nextMetadata,
+    metadata: metadataWithIds,
   });
 
   if (existingState) {

@@ -19,6 +19,8 @@ export interface RagDocumentMetadata {
   breadcrumb?: string[];
   preview_image_url?: string | null;
   teaser_text?: string;
+  doc_id?: string;
+  raw_doc_id?: string;
 
   source_type?: SourceType;
   doc_type?: DocType;
@@ -43,6 +45,29 @@ export const PERSONA_TYPE_OPTIONS: readonly PersonaType[] = [
   "professional",
   "hybrid",
 ] as const;
+
+const DOC_TYPE_SET = new Set(DOC_TYPE_OPTIONS);
+const PERSONA_TYPE_SET = new Set(PERSONA_TYPE_OPTIONS);
+
+export function parseDocType(value?: string | null): DocType | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const candidate = value.trim().toLowerCase();
+  return DOC_TYPE_SET.has(candidate as DocType)
+    ? (candidate as DocType)
+    : undefined;
+}
+
+export function parsePersonaType(value?: string | null): PersonaType | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const candidate = value.trim().toLowerCase();
+  return PERSONA_TYPE_SET.has(candidate as PersonaType)
+    ? (candidate as PersonaType)
+    : undefined;
+}
 
 export const SOURCE_TYPE_OPTIONS: readonly SourceType[] = [
   "notion",
@@ -111,6 +136,31 @@ export function normalizeMetadata(
   }
 
   return Object.fromEntries(sortEntries(entries)) as RagDocumentMetadata;
+}
+
+export function applyDefaultDocMetadata(
+  metadata: RagDocumentMetadata | null | undefined,
+  defaults?: {
+    doc_type?: DocType | null;
+    persona_type?: PersonaType | null;
+  },
+): RagDocumentMetadata | null {
+  const normalized = normalizeMetadata(metadata ?? null);
+  const docType = defaults?.doc_type ?? null;
+  const personaType = defaults?.persona_type ?? null;
+  if (!normalized && !docType && !personaType) {
+    return null;
+  }
+  const enriched: RagDocumentMetadata = {
+    ...normalized,
+  };
+  if (!enriched.doc_type && docType) {
+    enriched.doc_type = docType;
+  }
+  if (!enriched.persona_type && personaType) {
+    enriched.persona_type = personaType;
+  }
+  return normalizeMetadata(enriched);
 }
 
 function stableSerialize(value: unknown): string {
@@ -188,7 +238,55 @@ export function mergeRagDocumentMetadata(
     breadcrumb: incomingNormalized.breadcrumb,
     preview_image_url: incomingNormalized.preview_image_url,
     teaser_text: incomingNormalized.teaser_text,
+    doc_type:
+      incomingNormalized.doc_type ??
+      base.doc_type ??
+      undefined,
+    persona_type:
+      incomingNormalized.persona_type ??
+      base.persona_type ??
+      undefined,
+    is_public:
+      incomingNormalized.is_public ??
+      base.is_public ??
+      undefined,
+    tags:
+      incomingNormalized.tags ??
+      base.tags ??
+      undefined,
   };
 
   return normalizeMetadata(merged) ?? {};
 }
+
+export function stripDocIdentifierFields(
+  metadata: RagDocumentMetadata | null | undefined,
+): RagDocumentMetadata | null {
+  if (!metadata) {
+    return null;
+  }
+
+  const { doc_id: _doc_id, raw_doc_id: _raw_doc_id, ...rest } = metadata;
+  if (Object.keys(rest).length === 0) {
+    return null;
+  }
+
+  return normalizeMetadata(rest);
+}
+
+const rawDefaultDocType = process.env.RAG_DEFAULT_DOC_TYPE;
+const rawDefaultPersonaType = process.env.RAG_DEFAULT_PERSONA_TYPE;
+
+const FALLBACK_DOC_TYPE: DocType | null =
+  rawDefaultDocType === ""
+    ? null
+    : parseDocType(rawDefaultDocType ?? "kb_article") ?? "kb_article";
+const FALLBACK_PERSONA_TYPE: PersonaType | null =
+  rawDefaultPersonaType === ""
+    ? null
+    : parsePersonaType(rawDefaultPersonaType ?? "professional") ??
+      "professional";
+
+export const DEFAULT_INGEST_DOC_TYPE: DocType | null = FALLBACK_DOC_TYPE;
+export const DEFAULT_INGEST_PERSONA_TYPE: PersonaType | null =
+  FALLBACK_PERSONA_TYPE;

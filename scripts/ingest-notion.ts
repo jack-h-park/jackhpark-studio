@@ -23,21 +23,27 @@ import {
   type IngestRunHandle,
   type IngestRunStats,
   replaceChunks,
-  startIngestRun, // This line is already present, no change needed.
+  startIngestRun,
   upsertDocumentState,
 } from "../lib/rag";
 import { debugIngestionLog } from "../lib/rag/debug";
 import { decideIngestAction } from "../lib/rag/ingest-helpers";
 import {
+  applyDefaultDocMetadata,
+  DEFAULT_INGEST_DOC_TYPE,
+  DEFAULT_INGEST_PERSONA_TYPE,
   mergeMetadata,
   mergeRagDocumentMetadata,
   metadataEquals,
   normalizeMetadata,
+  stripDocIdentifierFields,
 } from "../lib/rag/metadata";
 import {
   buildNotionSourceMetadata,
   extractNotionMetadata,
 } from "../lib/rag/notion-metadata";
+import { deriveDocIdentifiers } from "../lib/server/doc-identifiers";
+import { formatNotionPageId } from "../lib/server/page-url";
 
 const notion = new NotionAPI();
 const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
@@ -92,6 +98,9 @@ async function ingestPage(
   ingestionType: RunMode["type"],
 ): Promise<void> {
   stats.documentsProcessed += 1;
+  const rawNotionId = formatNotionPageId(pageId) ?? pageId;
+  const { canonicalId, rawId } = deriveDocIdentifiers(rawNotionId);
+  // NOTE: ID-sensitive ingestion path: must use deriveDocIdentifiers for doc_id/raw_doc_id.
 
   const title = getPageTitle(recordMap, pageId);
   const plainText = extractPlainText(recordMap, pageId);
@@ -103,34 +112,53 @@ async function ingestPage(
   }
 
   const lastEditedTime = getPageLastEditedTime(recordMap, pageId);
-  const pageHash = hashChunk(`${pageId}:${plainText}`);
+  const pageHash = hashChunk(`${canonicalId}:${plainText}`);
   const sourceUrl = getPageUrl(pageId);
 
-  const existingState = await getDocumentState(pageId);
+  const existingState = await getDocumentState(canonicalId);
+  if (existingState?.raw_doc_id && existingState.raw_doc_id !== rawId) {
+    console.warn("[doc-id] raw_doc_id drift detected", {
+      canonicalId,
+      previous: existingState.raw_doc_id,
+      incoming: rawId,
+    });
+  }
   const contentUnchanged =
     !!existingState && existingState.content_hash === pageHash;
-  const existingMetadata = normalizeMetadata(existingState?.metadata ?? null);
+  const existingMetadata = stripDocIdentifierFields(
+    existingState?.metadata ?? null,
+  );
   const incomingMetadata = extractNotionMetadata(recordMap, pageId);
+  const sourceMetadata = buildNotionSourceMetadata(recordMap, pageId);
   const adminMetadata =
     mergeMetadata(existingMetadata, incomingMetadata) ??
     existingMetadata ??
     null;
-  const sourceMetadata = buildNotionSourceMetadata(recordMap, pageId);
-  const nextMetadata = mergeRagDocumentMetadata(
+  const mergedMetadata = mergeRagDocumentMetadata(
     adminMetadata ?? existingMetadata ?? undefined,
     sourceMetadata,
   );
+  const nextMetadata = applyDefaultDocMetadata(mergedMetadata, {
+    doc_type: DEFAULT_INGEST_DOC_TYPE,
+    persona_type: DEFAULT_INGEST_PERSONA_TYPE,
+  });
+  const metadataWithIds = normalizeMetadata({
+    ...nextMetadata,
+    doc_id: canonicalId,
+    raw_doc_id: rawId,
+  });
   debugIngestionLog("final-document-metadata", {
-    docId: pageId,
-    title: nextMetadata.title,
-    teaser_text: nextMetadata.teaser_text,
-    preview_image_url: nextMetadata.preview_image_url,
+    docId: canonicalId,
+    rawId,
+    title: nextMetadata?.title,
+    teaser_text: nextMetadata?.teaser_text,
+    preview_image_url: nextMetadata?.preview_image_url,
   });
   const metadataUnchanged = metadataEquals(existingMetadata, nextMetadata);
 
   const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
   const providerHasChunks =
-    contentUnchanged && (await hasChunksForProvider(pageId, embeddingSpace));
+    contentUnchanged && (await hasChunksForProvider(canonicalId, embeddingSpace));
   const decision = decideIngestAction({
     contentUnchanged,
     metadataUnchanged,
@@ -148,11 +176,12 @@ async function ingestPage(
 
   if (decision === "metadata-only") {
     await upsertDocumentState({
-      doc_id: pageId,
+      doc_id: canonicalId,
+      raw_doc_id: rawId,
       source_url: sourceUrl,
       content_hash: pageHash,
       last_source_update: lastEditedTime ?? null,
-      metadata: nextMetadata,
+      metadata: metadataWithIds,
       chunk_count: existingState?.chunk_count ?? undefined,
       total_characters: existingState?.total_characters ?? undefined,
     });
@@ -190,11 +219,11 @@ async function ingestPage(
   const ingestedAt = new Date().toISOString();
 
   const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
-    doc_id: pageId,
+    doc_id: canonicalId,
     source_url: sourceUrl,
     title,
     chunk,
-    chunk_hash: hashChunk(`${pageId}:${chunk}`),
+    chunk_hash: hashChunk(`${canonicalId}:${chunk}`),
     embedding: embeddings[index]!,
     ingested_at: ingestedAt,
   }));
@@ -202,20 +231,21 @@ async function ingestPage(
   const chunkCount = rows.length;
   const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0);
 
-  await replaceChunks(pageId, rows, {
+  await replaceChunks(canonicalId, rows, {
     provider: embeddingSpace.provider,
     embeddingModelId: embeddingSpace.embeddingModelId,
     embeddingSpaceId: embeddingSpace.embeddingSpaceId,
     version: embeddingSpace.version,
   });
   await upsertDocumentState({
-    doc_id: pageId,
+    doc_id: canonicalId,
+    raw_doc_id: rawId,
     source_url: sourceUrl,
     content_hash: pageHash,
     last_source_update: lastEditedTime ?? null,
     chunk_count: chunkCount,
     total_characters: totalCharacters,
-    metadata: nextMetadata,
+    metadata: metadataWithIds,
   });
 
   if (existingState) {

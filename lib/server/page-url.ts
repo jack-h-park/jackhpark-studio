@@ -86,3 +86,14 @@ export function normalizePageId(pageId?: string | null): string | null {
 
   return stripped;
 }
+
+export function formatNotionPageId(value?: string | null): string | null {
+  const normalized = normalizePageId(value);
+  if (!normalized) {
+    return null;
+  }
+  return `${normalized.slice(0, 8)}-${normalized.slice(8, 12)}-${normalized.slice(
+    12,
+    16,
+  )}-${normalized.slice(16, 20)}-${normalized.slice(20)}`;
+}

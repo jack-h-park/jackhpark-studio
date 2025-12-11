@@ -7,6 +7,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
 import { IngestionSubNav } from "@/components/admin/navigation/IngestionSubNav";
+import { DocumentIdCell } from "@/components/admin/rag/DocumentIdCell";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { Button } from "@/components/ui/button";
 import {
@@ -288,17 +289,28 @@ export default function AdminDocumentsPage({
                 >
                   {formatSourceUrlForDisplay(doc.source_url)}
                 </a>
-              ) : (
-                <span className="text-[color:var(--ai-text-muted)]">—</span>
-              )}
-            </div>
-          );
-        },
-        size: "xs",
-        className: "text-[color:var(--ai-text-muted)]",
+            ) : (
+              <span className="text-[color:var(--ai-text-muted)]">—</span>
+            )}
+          </div>
+        );
       },
+      size: "xs",
+      className: "text-[color:var(--ai-text-muted)]",
+    },
       {
-        header: "Doc Type",
+        header: "Identifiers",
+        render: (doc) => (
+          <DocumentIdCell
+            canonicalId={doc.doc_id}
+            rawId={doc.raw_doc_id ?? doc.metadata?.raw_doc_id ?? null}
+          />
+        ),
+        size: "sm",
+        className: "max-w-[240px]",
+      },
+    {
+      header: "Doc Type",
         render: (doc) =>
           doc.metadata?.doc_type ? (
             <StatusPill variant="muted">{doc.metadata.doc_type}</StatusPill>
@@ -646,7 +658,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   let query = supabase
     .from("rag_documents")
     .select(
-      "doc_id, source_url, last_ingested_at, last_source_update, chunk_count, total_characters, metadata",
+      "doc_id, raw_doc_id, source_url, last_ingested_at, last_source_update, chunk_count, total_characters, metadata",
       { count: "exact" },
     )
     .order("last_ingested_at", { ascending: false, nullsFirst: false });

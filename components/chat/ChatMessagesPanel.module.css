@@ -282,23 +282,55 @@
 }
 
 .messageCitations {
-  margin-top: 4px;
-  padding-left: 18px;
-  font-size: 0.6rem;
-  line-height: 1.2;
+  margin-top: 8px;
+  padding-left: 0;
+  font-size: 0.65rem;
+  line-height: 1.35;
   color: #4b5563;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .messageCitations li {
-  margin-bottom: 2px;
   word-break: break-word;
 }
 
 .messageCitations a {
   color: #1d4ed8;
 }
+
+.citationHeading {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.citationIndex {
+  font-weight: 600;
+  color: #0f172a;
+  min-width: 20px;
+}
+
+.citationTitle {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  color: #0f172a;
+  font-weight: 600;
+}
+
 .citationCount {
-  margin-left: 4px;
   color: #6b7280;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
+  margin-left: 28px;
+}
+
+.citationMeta {
+  font-size: 0.55rem;
+  color: #4b5563;
+  margin-top: 2px;
+  margin-left: 28px;
+  letter-spacing: 0.02em;
 }

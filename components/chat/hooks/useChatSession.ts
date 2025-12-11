@@ -26,6 +26,8 @@ export type Citation = {
   title?: string;
   source_url?: string;
   excerpt_count?: number;
+  doc_type?: string;
+  persona_type?: string;
 };
 
 export type ChatRuntimeFallbackFrom = {

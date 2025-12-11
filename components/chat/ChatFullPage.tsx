@@ -93,33 +93,35 @@ function ChatShellContent() {
           </Button>
         </header>
         <div className={styles.body}>
-          {!hasMessages && (
-            <div className={styles.hero}>
-              <Image
-                src="/images/7FAD09AA-76ED-4C18-A8E9-34D81940A59E.png"
-                alt="Jack's AI Assistant"
-                width={220}
-                height={220}
+          <div className={styles.messages}>
+            {!hasMessages && (
+              <div className={styles.hero}>
+                <Image
+                  src="/images/7FAD09AA-76ED-4C18-A8E9-34D81940A59E.png"
+                  alt="Jack's AI Assistant"
+                  width={220}
+                  height={220}
+                />
+                <p>
+                  Ask anything about Jack’s work. Once you send a message, the
+                  assistant will stream a response with citations and telemetry.
+                </p>
+              </div>
+            )}
+            {hasMessages && (
+              <ChatMessagesPanel
+                messages={messages}
+                isLoading={isLoading}
+                loadingAssistantId={loadingAssistantId}
+                showTelemetry={showTelemetry}
+                telemetryExpanded={telemetryExpanded}
+                onToggleTelemetryExpanded={toggleTelemetryExpanded}
+                showCitations={showCitations}
+                showPlaceholder={false}
+                citationLinkLength={60}
               />
-              <p>
-                Ask anything about Jack’s work. Once you send a message, the
-                assistant will stream a response with citations and telemetry.
-              </p>
-            </div>
-          )}
-          {hasMessages && (
-            <ChatMessagesPanel
-              messages={messages}
-              isLoading={isLoading}
-              loadingAssistantId={loadingAssistantId}
-              showTelemetry={showTelemetry}
-              telemetryExpanded={telemetryExpanded}
-              onToggleTelemetryExpanded={toggleTelemetryExpanded}
-              showCitations={showCitations}
-              showPlaceholder={false}
-              citationLinkLength={60}
-            />
-          )}
+            )}
+          </div>
           <ChatInputBar
             value={inputValue}
             onChange={setInputValue}
