@@ -10,9 +10,10 @@ export function decideTelemetryMode(
   sampleRate: number,
   detailLevel: TelemetryDetailLevel,
   random: () => number = Math.random,
+  forceEmitTrace = false,
 ): TelemetryDecision {
-  const r = random();
-  const shouldEmitTrace = sampleRate > 0 && r <= sampleRate;
+  const shouldEmitTrace =
+    forceEmitTrace || (sampleRate > 0 && random() <= sampleRate);
 
   if (!shouldEmitTrace) {
     return {

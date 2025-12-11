@@ -88,113 +88,6 @@ function renderMessageContent(
   return nodes;
 }
 
-type Citation = {
-  title?: string;
-  source_url?: string;
-  excerpt_count?: number;
-  doc_type?: string;
-  persona_type?: string;
-  weight?: number;
-  rankIndex?: number;
-};
-
-const mergeCitations = (entries: Citation[]): Citation[] => {
-  const merged = new Map<
-    string,
-    {
-      title?: string;
-      source_url?: string;
-      excerpt_count: number;
-      doc_type?: string;
-      persona_type?: string;
-      weight?: number;
-      rankIndex?: number;
-    }
-  >();
-
-  let index = 0;
-  for (const entry of entries) {
-    const urlKey = entry.source_url?.trim().toLowerCase();
-    const docKey = entry.title?.trim().toLowerCase();
-    const fallbackKey = `idx:${index}`;
-    const key =
-      urlKey && urlKey.length > 0
-        ? urlKey
-        : docKey && docKey.length > 0
-          ? docKey
-          : fallbackKey;
-
-    const existing = merged.get(key);
-    if (existing) {
-      existing.excerpt_count += entry.excerpt_count ?? 1;
-      if (!existing.title && entry.title) {
-        existing.title = entry.title;
-      }
-      if (!existing.source_url && entry.source_url) {
-        existing.source_url = entry.source_url;
-      }
-      if (
-        existing.doc_type === undefined &&
-        entry.doc_type !== undefined
-      ) {
-        existing.doc_type = entry.doc_type;
-      }
-      if (
-        existing.persona_type === undefined &&
-        entry.persona_type !== undefined
-      ) {
-        existing.persona_type = entry.persona_type;
-      }
-      if (
-        existing.weight === undefined &&
-        entry.weight !== undefined
-      ) {
-        existing.weight = entry.weight;
-      }
-      if (
-        existing.rankIndex === undefined ||
-        (entry.rankIndex !== undefined &&
-          entry.rankIndex < existing.rankIndex)
-      ) {
-        existing.rankIndex = entry.rankIndex;
-      }
-    } else {
-      merged.set(key, {
-        title: entry.title,
-        source_url: entry.source_url,
-        excerpt_count: entry.excerpt_count ?? 1,
-        doc_type: entry.doc_type,
-        persona_type: entry.persona_type,
-        weight: entry.weight,
-        rankIndex: entry.rankIndex,
-      });
-    }
-    index += 1;
-  }
-
-  const output = Array.from(merged.values());
-  output.sort((a, b) => {
-    const rankA =
-      typeof a.rankIndex === "number" ? a.rankIndex : Number.MAX_SAFE_INTEGER;
-    const rankB =
-      typeof b.rankIndex === "number" ? b.rankIndex : Number.MAX_SAFE_INTEGER;
-    if (rankA !== rankB) {
-      return rankA - rankB;
-    }
-    const weightA = typeof a.weight === "number" ? a.weight : 0;
-    const weightB = typeof b.weight === "number" ? b.weight : 0;
-    if (weightA !== weightB) {
-      return weightB - weightA;
-    }
-    return (
-      (a.title ?? "").localeCompare(b.title ?? "", undefined, {
-        sensitivity: "base",
-      }) || 0
-    );
-  });
-  return output;
-};
-
 const truncateText = (value: string | null | undefined, max = 60) => {
   if (!value) return "";
   return value.length <= max ? value : `${value.slice(0, max)}…`;
@@ -244,10 +137,8 @@ export function ChatMessagesPanel({
   return (
     <>
       {messages.map((m) => {
-        const mergedCitations =
-          m.citations && m.citations.length > 0
-            ? mergeCitations(m.citations)
-            : null;
+      const citations =
+        m.citations && m.citations.length > 0 ? m.citations : null;
         const contextStats = m.meta?.context;
         const totalExcerptsRaw =
           contextStats?.retrieved ??
@@ -566,68 +457,156 @@ export function ChatMessagesPanel({
             )}
             {m.role === "assistant" &&
               showCitations &&
-              mergedCitations &&
-              mergedCitations.length > 0 && (
-                <ol className={styles.messageCitations}>
-                  {mergedCitations.map((citation, index) => {
-                    const title =
-                      (citation.title ?? "").trim() ||
-                      (citation.source_url ?? "").trim() ||
-                      `Source ${index + 1}`;
-                    const url = (citation.source_url ?? "").trim();
-                    const excerptCount =
-                      typeof citation.excerpt_count === "number"
-                        ? citation.excerpt_count
-                        : 1;
-                    const countLabel =
-                      excerptCount > 1 ? `${excerptCount} excerpts` : null;
-                    const details = [
-                      citation.doc_type
-                        ? `Doc type: ${citation.doc_type}`
-                        : null,
-                      citation.persona_type
-                        ? `Persona: ${citation.persona_type}`
-                        : null,
-                      typeof citation.weight === "number"
-                        ? `Weight: ${citation.weight.toFixed(2)}`
-                        : null,
-                    ].filter(Boolean);
-                    return (
-                      <li key={`${m.id}-citation-${index}`}>
-                        <div className={styles.citationHeading}>
-                          <span className={styles.citationIndex}>
-                            {index + 1}
-                          </span>
-                          <div className={styles.citationTitle}>
-                            {title}
-                            {url && (
-                              <>
-                                {" "}
-                                <a
-                                  href={url}
-                                  target="_blank"
-                                  rel="noreferrer noopener"
+              citations &&
+              citations.length > 0 && (
+                <div className={styles.messageCitationsPanel}>
+                  {m.citationMeta && (
+                    <div className={styles.citationMetaBanner}>
+                      <span>
+                        Showing {m.citationMeta.uniqueDocs} document
+                        {m.citationMeta.uniqueDocs > 1 ? "s" : ""} (
+                        {m.citationMeta.topKChunks
+                          ? `Top ${m.citationMeta.topKChunks} chunks → grouped into ${m.citationMeta.uniqueDocs} documents`
+                          : "Chunks grouped by document"}
+                        )
+                      </span>
+                    </div>
+                  )}
+                  <ol className={styles.messageCitations}>
+                    {citations.map((citation, index) => {
+                      const title =
+                        (citation.title ?? "").trim() ||
+                        (citation.url ?? "").trim() ||
+                        `Document ${index + 1}`;
+                      const url = (citation.url ?? "").trim();
+                      const docMetaDetails = [
+                        citation.docType ? `Doc type: ${citation.docType}` : null,
+                        citation.personaType
+                          ? `Persona: ${citation.personaType}`
+                          : null,
+                      ].filter(Boolean);
+                      const relevance =
+                        Number.isFinite(citation.normalizedScore)
+                          ? citation.normalizedScore
+                          : 0;
+                      const excerptLabel =
+                        citation.excerptCount > 1
+                          ? `${citation.excerptCount} excerpts`
+                          : "1 excerpt";
+                      return (
+                        <li
+                          key={`${m.id}-citation-${index}`}
+                          className={styles.citationItem}
+                        >
+                          <div className={styles.citationHeader}>
+                            <span className={styles.citationIndex}>
+                              {index + 1}
+                            </span>
+                            <div className={styles.citationTitleBlock}>
+                              <div className={styles.citationTitle}>
+                                {title}
+                                {url && (
+                                  <>
+                                    {" "}
+                                    <a
+                                      href={url}
+                                      target="_blank"
+                                      rel="noreferrer noopener"
+                                    >
+                                      {formatLinkLabel(url, citationLinkLength)}
+                                    </a>
+                                  </>
+                                )}
+                              </div>
+                              {docMetaDetails.length > 0 && (
+                                <div className={styles.citationDocMeta}>
+                                  {docMetaDetails.join(" · ")}
+                                </div>
+                              )}
+                            </div>
+                            <div className={styles.citationRelevance}>
+                              <span>Relevance: {relevance}/100</span>
+                              <span className={styles.citationSubtext}>
+                                (score {citation.finalScore.toFixed(4)})
+                              </span>
+                            </div>
+                          </div>
+                          <div className={styles.citationBadgeRow}>
+                            <span
+                              className={styles.citationMultiplier}
+                              title="Multiplier applied to similarity score based on document metadata."
+                            >
+                              Persona/type multiplier:{" "}
+                              {citation.weight.toFixed(2)}
+                            </span>
+                            <span className={styles.citationExcerptCount}>
+                              {excerptLabel}
+                            </span>
+                          </div>
+                          <details className={styles.citationDetails}>
+                            <summary>Details</summary>
+                            <div className={styles.citationDetailGrid}>
+                              <div>
+                                <div className={styles.citationDetailLabel}>
+                                  Similarity max
+                                </div>
+                                <div>{citation.similarityMax.toFixed(4)}</div>
+                              </div>
+                              <div>
+                                <div className={styles.citationDetailLabel}>
+                                  Similarity avg
+                                </div>
+                                <div>{citation.similarityAvg.toFixed(4)}</div>
+                              </div>
+                              <div>
+                                <div className={styles.citationDetailLabel}>
+                                  Weight
+                                </div>
+                                <div>{citation.weight.toFixed(2)}</div>
+                              </div>
+                              <div>
+                                <div className={styles.citationDetailLabel}>
+                                  Final score
+                                </div>
+                                <div>{citation.finalScore.toFixed(4)}</div>
+                              </div>
+                              <div>
+                                <div className={styles.citationDetailLabel}>
+                                  Normalized
+                                </div>
+                                <div>{citation.normalizedScore}/100</div>
+                              </div>
+                            </div>
+                            <div className={styles.citationChunkList}>
+                              {citation.chunks.map((chunk) => (
+                                <article
+                                  key={`${citation.docId ?? index}-${chunk.chunkIndex}`}
+                                  className={styles.citationChunkItem}
                                 >
-                                  {formatLinkLabel(url, citationLinkLength)}
-                                </a>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        {countLabel && (
-                          <div className={styles.citationCount}>
-                            ({countLabel})
-                          </div>
-                        )}
-                        {details.length > 0 && (
-                          <div className={styles.citationMeta}>
-                            {details.join(" · ")}
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ol>
+                                  <p className={styles.citationChunkSnippet}>
+                                    {chunk.snippet}
+                                  </p>
+                                  <div className={styles.citationChunkMeta}>
+                                    {`similarity ${chunk.similarity.toFixed(
+                                      3,
+                                    )} · final ${chunk.finalScore.toFixed(3)}`}
+                                  </div>
+                                </article>
+                              ))}
+                            </div>
+                            <p className={styles.citationChunkNotice}>
+                              This document contributed {citation.excerptCount} of
+                              the top-
+                              {m.citationMeta?.topKChunks ??
+                                citation.excerptCount}{" "}
+                              retrieved chunks.
+                            </p>
+                          </details>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
               )}
           </div>
         );

@@ -17,17 +17,33 @@ import {
   type ChatEngineType,
   type SessionChatConfig,
 } from "@/types/chat-config";
+import type {
+  CitationDocScore,
+  CitationMeta,
+  CitationPayload,
+} from "@/lib/types/citation";
 
 const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
 const DEBUG_LANGCHAIN_STREAM =
   process.env.NEXT_PUBLIC_DEBUG_LANGCHAIN_STREAM === "true";
 
-export type Citation = {
-  title?: string;
-  source_url?: string;
-  excerpt_count?: number;
-  doc_type?: string;
-  persona_type?: string;
+const parseCitationPayload = (
+  raw?: string | null,
+): CitationPayload | undefined => {
+  if (!raw) return undefined;
+  try {
+    const candidate = JSON.parse(raw);
+    if (
+      candidate &&
+      typeof candidate === "object" &&
+      Array.isArray((candidate as CitationPayload).citations)
+    ) {
+      return candidate as CitationPayload;
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return undefined;
 };
 
 export type ChatRuntimeFallbackFrom = {
@@ -65,14 +81,15 @@ export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   meta?: GuardrailMeta | null;
-  citations?: Citation[];
+  citations?: CitationDocScore[];
+  citationMeta?: CitationMeta | null;
   runtime?: ChatRuntimeConfig | null;
   isComplete?: boolean;
 };
 
 type ChatResponse = {
   answer: string;
-  citations: Citation[];
+  citations?: CitationPayload;
 };
 
 class ChatRequestError extends Error {
@@ -286,7 +303,12 @@ export function useChatSession(
                   content:
                     typeof content === "string" ? content : message.content,
                   ...(meta !== undefined ? { meta } : {}),
-                  ...(citations !== undefined ? { citations } : {}),
+                  ...(citations !== undefined
+                    ? {
+                        citations: citations.citations ?? [],
+                        citationMeta: citations.citationMeta ?? null,
+                      }
+                    : {}),
                   ...(runtime !== undefined ? { runtime } : {}),
                   ...(isComplete !== undefined ? { isComplete } : {}),
                 }
@@ -372,24 +394,13 @@ export function useChatSession(
             const [answer, citationsJson] =
               fullContent.split(CITATIONS_SEPARATOR);
             const finalContent = (answer ?? "").trim();
-            let parsedCitations: ChatResponse["citations"] = [];
-
-            if (citationsJson) {
-              try {
-                const candidate = JSON.parse(citationsJson);
-                if (Array.isArray(candidate)) {
-                  parsedCitations = candidate as ChatResponse["citations"];
-                }
-              } catch {
-                // ignore json parse errors
-              }
-            }
+            const parsedPayload = parseCitationPayload(citationsJson);
 
             if (isMountedRef.current) {
               updateAssistant(
                 finalContent,
                 guardrailMeta,
-                parsedCitations,
+                parsedPayload,
                 activeRuntime ?? null,
                 true,
               );
@@ -444,24 +455,13 @@ export function useChatSession(
             const [answer, citationsJson] =
               fullContent.split(CITATIONS_SEPARATOR);
             const finalContent = (answer ?? "").trim();
-            let parsedCitations: ChatResponse["citations"] = [];
-
-            if (citationsJson) {
-              try {
-                const candidate = JSON.parse(citationsJson);
-                if (Array.isArray(candidate)) {
-                  parsedCitations = candidate as ChatResponse["citations"];
-                }
-              } catch {
-                // ignore json parse errors
-              }
-            }
+            const parsedPayload = parseCitationPayload(citationsJson);
 
             if (isMountedRef.current) {
               updateAssistant(
                 finalContent,
                 guardrailMeta,
-                parsedCitations,
+                parsedPayload,
                 activeRuntime ?? null,
                 true,
               );

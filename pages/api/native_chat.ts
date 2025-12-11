@@ -15,7 +15,6 @@ import { getOpenAIClient } from "@/lib/core/openai";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { getLocalLlmClient } from "@/lib/local-llm";
 import { type RagDocumentMetadata } from "@/lib/rag/metadata";
-import { computeMetadataWeight } from "@/lib/rag/ranking";
 import { matchRagChunksForConfig } from "@/lib/rag/retrieval";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
@@ -72,6 +71,10 @@ import {
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
 import { computeBasePromptVersion } from "@/lib/telemetry/prompt-version";
+import {
+  buildCitationPayload,
+  type CitationPayload,
+} from "@/lib/types/citation";
 
 type RagDocument = {
   id?: string | null;
@@ -198,9 +201,17 @@ export default async function handler(
         : routingDecision.intent === "command"
           ? "command"
           : "normal";
+    const forceVerboseRetrievalLogs =
+      (process.env.FORCE_RAG_VERBOSE_RETRIEVAL_LOGS ?? "").toLowerCase() ===
+      "true";
+    const telemetryDetailLevel = forceVerboseRetrievalLogs
+      ? "verbose"
+      : adminConfig.telemetry.detailLevel;
     const telemetryDecision = decideTelemetryMode(
       adminConfig.telemetry.sampleRate,
-      adminConfig.telemetry.detailLevel,
+      telemetryDetailLevel,
+      undefined,
+      forceVerboseRetrievalLogs,
     );
     const basePromptVersion = computeBasePromptVersion(adminConfig, presetId);
     const chatConfigSnapshot: ChatConfigSnapshot | undefined =
@@ -363,6 +374,7 @@ export default async function handler(
       insufficient: routingDecision.intent !== "knowledge",
       highestScore: 0,
     };
+    let citationPayload: CitationPayload | null = null;
 
     if (routingDecision.intent === "knowledge") {
       let retrievalCacheKey: string | null = null;
@@ -567,6 +579,14 @@ export default async function handler(
         }
 
         contextResult = buildContextWindow(rankedDocuments, guardrails);
+        const topKChunks = Math.max(
+          guardrails.ragTopK,
+          contextResult.included.length + (contextResult.dropped ?? 0),
+        );
+        citationPayload = buildCitationPayload(contextResult.included, {
+          topKChunks,
+          ragRanking,
+        });
         if (retrievalCacheKey) {
           await memoryCacheClient.set(
             retrievalCacheKey,
@@ -766,72 +786,17 @@ export default async function handler(
         res.write(chunk);
       }
 
-      // Calculate citations
-      const citationMap = new Map<
-        string,
-        {
-          doc_id?: string | null;
-          title?: string | null;
-          source_url?: string | null;
-          excerpt_count: number;
-          doc_type?: string | null;
-          persona_type?: string | null;
-          weight?: number | null;
-          rankIndex?: number;
-        }
-      >();
-      const includedDocs = contextResult.included as any[];
-      let index = 0;
-      for (const doc of includedDocs) {
-        const docId =
-          doc?.metadata?.doc_id ??
-          doc?.metadata?.docId ??
-          doc?.metadata?.page_id ??
-          doc?.metadata?.pageId ??
-          undefined;
-        const sourceUrl =
-          doc?.metadata?.source_url ?? doc?.metadata?.sourceUrl ?? undefined;
-        const normalizedUrl = sourceUrl ? sourceUrl.trim().toLowerCase() : "";
-        const key =
-          normalizedUrl.length > 0
-            ? normalizedUrl
-            : docId
-              ? `doc:${docId}`
-              : `idx:${index}`;
-        const title =
-          doc?.metadata?.title ?? doc?.metadata?.document_meta?.title ?? null;
-        const docType =
-          (doc?.metadata as { doc_type?: string | null } | null)?.doc_type ??
-          null;
-        const personaType =
-          (doc?.metadata as { persona_type?: string | null } | null)
-            ?.persona_type ?? null;
-        const weight =
-          typeof (doc as any).metadata_weight === "number"
-            ? (doc as any).metadata_weight
-            : computeMetadataWeight(doc?.metadata ?? null, ragRanking ?? null);
-
-        const existing = citationMap.get(key);
-        if (existing) {
-          existing.excerpt_count += 1;
-          existing.rankIndex = Math.min(existing.rankIndex ?? index, index);
-        } else {
-          citationMap.set(key, {
-            doc_id: docId,
-            title,
-            source_url: sourceUrl,
-            excerpt_count: 1,
-            doc_type: docType,
-            persona_type: personaType,
-            weight,
-            rankIndex: index,
-          });
-        }
-        index += 1;
-      }
-      const citations = Array.from(citationMap.values());
-      const citationJson = JSON.stringify(citations);
-
+      const resolvedCitationPayload =
+        citationPayload ??
+        buildCitationPayload(contextResult.included, {
+          topKChunks: Math.max(
+            guardrails.ragTopK,
+            contextResult.included.length +
+              (contextResult.dropped ?? 0),
+          ),
+          ragRanking,
+        });
+      const citationJson = JSON.stringify(resolvedCitationPayload);
       if (responseCacheKey) {
         await memoryCacheClient.set(
           responseCacheKey,

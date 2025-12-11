@@ -19,13 +19,11 @@ import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
-import { computeMetadataWeight } from "@/lib/rag/ranking";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
 import {
   type ChatRequestBody,
-  type Citation,
   CITATIONS_SEPARATOR,
   DEBUG_LANGCHAIN_STREAM,
   DEBUG_RAG_MSGS,
@@ -77,6 +75,10 @@ import {
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
 import { computeBasePromptVersion } from "@/lib/telemetry/prompt-version";
+import {
+  buildCitationPayload,
+  type CitationPayload,
+} from "@/lib/types/citation";
 
 /**
  * Pages Router API (Node.js runtime).
@@ -182,9 +184,17 @@ export default async function handler(
         : routingDecision.intent === "command"
           ? "command"
           : "normal";
+    const forceVerboseRetrievalLogs =
+      (process.env.FORCE_RAG_VERBOSE_RETRIEVAL_LOGS ?? "").toLowerCase() ===
+      "true";
+    const telemetryDetailLevel = forceVerboseRetrievalLogs
+      ? "verbose"
+      : adminConfig.telemetry.detailLevel;
     const telemetryDecision = decideTelemetryMode(
       adminConfig.telemetry.sampleRate,
-      adminConfig.telemetry.detailLevel,
+      telemetryDetailLevel,
+      undefined,
+      forceVerboseRetrievalLogs,
     );
     const basePromptVersion = computeBasePromptVersion(adminConfig, presetId);
     const chatConfigSnapshot: ChatConfigSnapshot | undefined =
@@ -376,11 +386,13 @@ export default async function handler(
         tableName: string,
         queryName: string,
         llmInstance: BaseLanguageModelInterface,
-      ): Promise<{ stream: AsyncIterable<string>; citations: Citation[] }> => {
+      ): Promise<{ stream: AsyncIterable<string>; citationPayload: CitationPayload }> => {
         let contextResult: ContextWindowResult = buildIntentContextFallback(
           routingDecision.intent,
           guardrails,
         );
+        let citationPayload: CitationPayload | null = null;
+        let topKChunks = guardrails.ragTopK;
         let retrievalCacheKey: string | null = null;
 
         if (routingDecision.intent === "knowledge") {
@@ -589,6 +601,15 @@ export default async function handler(
             }
 
             contextResult = buildContextWindow(rankedDocs, guardrails);
+            topKChunks = Math.max(
+              guardrails.ragTopK,
+              contextResult.included.length +
+                (contextResult.dropped ?? 0),
+            );
+            citationPayload = buildCitationPayload(contextResult.included, {
+              topKChunks,
+              ragRanking,
+            });
             if (retrievalCacheKey) {
               await memoryCacheClient.set(
                 retrievalCacheKey,
@@ -727,6 +748,13 @@ export default async function handler(
           );
         }
 
+        const resolvedCitationPayload =
+          citationPayload ??
+          buildCitationPayload(contextResult.included, {
+            topKChunks,
+            ragRanking,
+          });
+
         if (trace) {
           void trace.observation({
             name: "generation",
@@ -744,77 +772,7 @@ export default async function handler(
           });
         }
         const stream = await llmInstance.stream(promptInput);
-        const citationMap = new Map<
-          string,
-          {
-            doc_id?: string;
-            title?: string;
-            source_url?: string;
-            excerpt_count: number;
-            doc_type?: string;
-            persona_type?: string;
-            weight?: number;
-            rankIndex?: number;
-          }
-        >();
-        const includedDocs = contextResult.included as any[];
-        let index = 0;
-        for (const doc of includedDocs) {
-          const docId =
-            doc?.metadata?.doc_id ??
-            doc?.metadata?.docId ??
-            doc?.metadata?.page_id ??
-            doc?.metadata?.pageId ??
-            undefined;
-          const sourceUrl =
-            doc?.metadata?.source_url ?? doc?.metadata?.sourceUrl ?? undefined;
-          const normalizedUrl = sourceUrl ? sourceUrl.trim().toLowerCase() : "";
-          const key =
-            normalizedUrl.length > 0
-              ? normalizedUrl
-              : docId
-                ? `doc:${docId}`
-                : `idx:${index}`;
-          const title =
-            doc?.metadata?.title ??
-            doc?.metadata?.document_meta?.title ??
-            undefined;
-          const docType =
-            (doc?.metadata as { doc_type?: string | null } | null)?.doc_type ??
-            undefined;
-          const personaType =
-            (doc?.metadata as { persona_type?: string | null } | null)
-              ?.persona_type ?? undefined;
-          const weight =
-            typeof (doc as any).metadata_weight === "number"
-              ? (doc as any).metadata_weight
-              : (computeMetadataWeight(
-                  doc?.metadata ?? null,
-                  ragRanking ?? null,
-                ) ?? undefined);
-
-          const existing = citationMap.get(key);
-          if (existing) {
-            existing.excerpt_count += 1;
-            existing.rankIndex = Math.min(existing.rankIndex ?? index, index);
-          } else {
-            citationMap.set(key, {
-              doc_id: docId,
-              title,
-              source_url: sourceUrl,
-              excerpt_count: 1,
-              doc_type: docType,
-              persona_type: personaType,
-              weight,
-              rankIndex: index,
-            });
-          }
-          index += 1;
-        }
-
-        const citations: Citation[] = Array.from(citationMap.values());
-
-        return { stream, citations };
+        return { stream, citationPayload: resolvedCitationPayload };
       };
 
       const primaryTable = getLcChunksView(embeddingSelection);
@@ -830,7 +788,7 @@ export default async function handler(
         const llm = await createChatModel(provider, candidate, temperature);
 
         try {
-          const { stream, citations } = await executeWithResources(
+          const { stream, citationPayload } = await executeWithResources(
             primaryTable,
             primaryFunction,
             llm,
@@ -904,10 +862,11 @@ export default async function handler(
                 `[langchain_chat] stream completed after ${chunkIndex} chunk(s)`,
               );
             }
+            const citationJson = JSON.stringify(citationPayload);
             if (responseCacheKey) {
               await memoryCacheClient.set(
                 responseCacheKey,
-                { output: finalOutput, citations },
+                { output: finalOutput, citations: citationJson },
                 responseCacheTtl,
               );
               cacheMeta.responseHit = false;
@@ -915,7 +874,6 @@ export default async function handler(
                 traceMetadata.cache.responseHit = false;
               }
             }
-            const citationJson = JSON.stringify(citations);
             if (!res.writableEnded) {
               res.write(`${CITATIONS_SEPARATOR}${citationJson}`);
             }
