@@ -110,7 +110,7 @@ async function callTextModel(options: ChatGenerationOptions): Promise<string> {
           `[rag-enhancements] Ollama text generation failed for provider "${options.provider}" model "${options.model}": ${err}`,
         );
       }
-    
+
     default:
       throw new Error(
         `Text generation is not supported for provider "${options.provider}".`,
