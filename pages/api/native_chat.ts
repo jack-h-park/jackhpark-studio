@@ -62,7 +62,12 @@ import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
 import { computeBasePromptVersion } from "@/lib/telemetry/prompt-version";
 
-const RAG_DEBUG = (process.env.RAG_DEBUG ?? "").toLowerCase() === "true";
+const DEBUG_RAG_STEPS =
+  (process.env.DEBUG_RAG_STEPS ?? "").toLowerCase() === "true";
+const DEBUG_RAG_URLS =
+  (process.env.DEBUG_RAG_URLS ?? "").toLowerCase() === "true";
+const DEBUG_RAG_MSGS =
+  (process.env.DEBUG_RAG_MSGS ?? "").toLowerCase() === "true";
 
 type RetrievalLogEntry = {
   doc_id: string | null;
@@ -84,7 +89,7 @@ function logRetrievalStage(
     chatConfig?: ChatConfigSnapshot;
   },
 ) {
-  if (!RAG_DEBUG && !trace) {
+  if (!DEBUG_RAG_STEPS && !trace) {
     return;
   }
 
@@ -98,7 +103,7 @@ function logRetrievalStage(
     is_public: entry.is_public ?? null,
   }));
 
-  if (RAG_DEBUG) {
+  if (DEBUG_RAG_STEPS) {
     console.log("[rag:native] retrieval", stage, payload);
   }
 
@@ -392,21 +397,23 @@ export default async function handler(
       },
     };
 
-    console.log("[native_chat] guardrails", {
-      intent: routingDecision.intent,
-      reason: routingDecision.reason,
-      historyTokens: historyWindow.tokenCount,
-      summaryApplied: Boolean(historyWindow.summaryMemory),
-      provider,
-      embeddingProvider,
-      llmModel,
-      embeddingModel,
-      embeddingSpaceId: embeddingSelection.embeddingSpaceId,
-      reverseRagEnabled,
-      reverseRagMode,
-      hydeEnabled,
-      rankerMode,
-    });
+    if (DEBUG_RAG_STEPS) {
+      console.log("[native_chat] guardrails", {
+        intent: routingDecision.intent,
+        reason: routingDecision.reason,
+        historyTokens: historyWindow.tokenCount,
+        summaryApplied: Boolean(historyWindow.summaryMemory),
+        provider,
+        embeddingProvider,
+        llmModel,
+        embeddingModel,
+        embeddingSpaceId: embeddingSelection.embeddingSpaceId,
+        reverseRagEnabled,
+        reverseRagMode,
+        hydeEnabled,
+        rankerMode,
+      });
+    }
 
     let contextResult: ContextWindowResult = {
       contextBlock: "",
@@ -664,6 +671,13 @@ export default async function handler(
           // eslint-disable-next-line unicorn/no-array-sort
           .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
 
+        if (DEBUG_RAG_URLS) {
+          const urls = enrichedDocuments
+            .map((d) => d.metadata?.source_url)
+            .filter(Boolean);
+          console.log("[native_chat] retrieved urls:", urls);
+        }
+
         if (includeVerboseDetails) {
           logRetrievalStage(
             trace,
@@ -830,6 +844,9 @@ export default async function handler(
       },
       summaryInfo,
       enhancements,
+      provider,
+      llmModel,
+      embeddingModel,
     };
     res.setHeader("Content-Encoding", "identity");
     res.setHeader(
@@ -880,6 +897,17 @@ export default async function handler(
           stage: "generation",
         },
       });
+    }
+
+    if (DEBUG_RAG_MSGS) {
+      console.log("[native_chat] debug context:", {
+        systemPromptLength: systemPrompt.length,
+        messageCount: messages.length,
+      });
+      console.log(
+        "[native_chat] system prompt preview:",
+        systemPrompt.slice(0, 500).replaceAll("\n", "\\n"),
+      );
     }
 
     const stream = streamChatCompletion({
@@ -991,6 +1019,20 @@ export default async function handler(
         if (streamErr instanceof OllamaUnavailableError) {
           return respondWithOllamaUnavailable(res);
         }
+
+        const errMessage = (streamErr as any)?.message || "";
+        if (
+          errMessage.includes("No models loaded") ||
+          errMessage.includes("connection refused")
+        ) {
+          return res.status(503).json({
+            error: {
+              code: "LOCAL_LLM_UNAVAILABLE",
+              message:
+                "LM Studio에 로드된 모델이 없습니다. LM Studio 앱에서 모델을 Load 해주세요.",
+            },
+          });
+        }
         throw streamErr;
       }
       throw streamErr;
@@ -1081,6 +1123,7 @@ async function* streamChatCompletion(
       yield* streamGemini(options);
       break;
     case "ollama":
+    case "lmstudio":
       yield* streamLocalLlmChat(options);
       break;
     default:

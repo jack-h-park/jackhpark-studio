@@ -273,7 +273,9 @@ export function ChatMessagesPanel({
         const hasGuardrailMeta = Boolean(contextStats);
         const enhancements = m.meta?.enhancements;
         const hasEnhancements = Boolean(enhancements);
-        const telemetryActive = showTelemetry && telemetryExpanded;
+        const telemetryReady = m.isComplete ?? true;
+        const telemetryActive =
+          showTelemetry && telemetryExpanded && telemetryReady;
         const showRuntimeCard = telemetryActive && hasRuntime;
         const showGuardrailCards = telemetryActive && contextStats;
         const showEnhancementCard = telemetryActive && hasEnhancements;

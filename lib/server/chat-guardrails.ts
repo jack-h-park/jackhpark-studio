@@ -1,4 +1,4 @@
-import { encode } from "gpt-tokenizer";
+import { decode, encode } from "gpt-tokenizer";
 
 import { host } from "@/lib/config";
 import { loadGuardrailSettings } from "@/lib/server/chat-settings";
@@ -378,7 +378,7 @@ function clipTextToTokens(
   }
 
   const truncated = tokens.slice(0, limit);
-  const decoded = safeDecode(truncated);
+  const decoded = decode(truncated);
   return {
     text: `${decoded}…`,
     clipped: true,
@@ -621,18 +621,4 @@ function matchesChitchatKeyword(text: string, keyword: string): boolean {
 
   const remainderWordCount = remainder.split(/\s+/).filter(Boolean).length;
   return remainderWordCount <= 2;
-}
-
-function safeDecode(tokens: number[]): string {
-  const decoder = new TextDecoder();
-  while (tokens.length > 0) {
-    try {
-      return decoder.decode(new Uint8Array(tokens));
-    } catch {
-      // The byte sequence is likely invalid, which can happen if a multi-byte
-      // character is cut in the middle. Remove the last token and retry.
-      tokens.pop();
-    }
-  }
-  return "";
 }

@@ -64,7 +64,8 @@ export type ChatMessage = {
   content: string;
   meta?: GuardrailMeta | null;
   citations?: Citation[];
-  runtime?: ChatRuntimeConfig;
+  runtime?: ChatRuntimeConfig | null;
+  isComplete?: boolean;
 };
 
 type ChatResponse = {
@@ -253,7 +254,7 @@ export function useChatSession(
         id: assistantMessageId,
         role: "assistant",
         content: "",
-        runtime: runtimeConfig ?? undefined,
+        isComplete: false,
       };
 
       setLoadingAssistantId(assistantMessageId);
@@ -272,6 +273,8 @@ export function useChatSession(
         content?: string,
         meta?: GuardrailMeta | null,
         citations?: ChatResponse["citations"],
+        runtime?: ChatRuntimeConfig | null,
+        isComplete?: boolean,
       ) => {
         setMessages((prev) =>
           prev.map((message) =>
@@ -282,6 +285,8 @@ export function useChatSession(
                     typeof content === "string" ? content : message.content,
                   ...(meta !== undefined ? { meta } : {}),
                   ...(citations !== undefined ? { citations } : {}),
+                  ...(runtime !== undefined ? { runtime } : {}),
+                  ...(isComplete !== undefined ? { isComplete } : {}),
                 }
               : message,
           ),
@@ -379,7 +384,13 @@ export function useChatSession(
             }
 
             if (isMountedRef.current) {
-              updateAssistant(finalContent, guardrailMeta, parsedCitations);
+              updateAssistant(
+                finalContent,
+                guardrailMeta,
+                parsedCitations,
+                activeRuntime ?? null,
+                true,
+              );
             }
           } else {
             const response = await fetch(endpoint, {
@@ -445,7 +456,13 @@ export function useChatSession(
             }
 
             if (isMountedRef.current) {
-              updateAssistant(finalContent, guardrailMeta, parsedCitations);
+              updateAssistant(
+                finalContent,
+                guardrailMeta,
+                parsedCitations,
+                activeRuntime ?? null,
+                true,
+              );
             }
           }
         } catch (err) {
@@ -457,7 +474,11 @@ export function useChatSession(
           setMessages((prev) =>
             prev.map((item) =>
               item.id === assistantMessageId
-                ? { ...item, content: `Warning: ${message}` }
+                ? {
+                    ...item,
+                    content: `Warning: ${message}`,
+                    isComplete: true,
+                  }
                 : item,
             ),
           );

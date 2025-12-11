@@ -104,7 +104,12 @@ const DEBUG_LANGCHAIN_STREAM =
   (process.env.DEBUG_LANGCHAIN_STREAM ?? "").toLowerCase() === "true";
 
 const DEBUG_LANGCHAIN_SEGMENT_SIZE = 60;
-const RAG_DEBUG = (process.env.RAG_DEBUG ?? "").toLowerCase() === "true";
+const DEBUG_RAG_STEPS =
+  (process.env.DEBUG_RAG_STEPS ?? "").toLowerCase() === "true";
+const DEBUG_RAG_URLS =
+  (process.env.DEBUG_RAG_URLS ?? "").toLowerCase() === "true";
+const DEBUG_RAG_MSGS =
+  (process.env.DEBUG_RAG_MSGS ?? "").toLowerCase() === "true";
 
 function splitIntoSegments(value: string, size: number): string[] {
   if (!value || size <= 0) {
@@ -146,7 +151,8 @@ function logRetrievalStage(
     chatConfig?: ChatConfigSnapshot;
   },
 ) {
-  if (!RAG_DEBUG && !trace) {
+  // Force-exclude detailed logs if DEBUG_RAG_STEPS is false, even if trace is active.
+  if (!DEBUG_RAG_STEPS && !trace) {
     return;
   }
 
@@ -160,7 +166,7 @@ function logRetrievalStage(
     is_public: entry.is_public ?? null,
   }));
 
-  if (RAG_DEBUG) {
+  if (DEBUG_RAG_STEPS) {
     console.log("[rag:langchain] retrieval", stage, payload);
   }
 
@@ -381,702 +387,733 @@ export default async function handler(
       ]);
 
     const embeddings = await createEmbeddingsInstance(embeddingSelection);
-    console.log("[langchain_chat] guardrails", {
-      intent: routingDecision.intent,
-      reason: routingDecision.reason,
-      historyTokens: historyWindow.tokenCount,
-      summaryApplied: Boolean(historyWindow.summaryMemory),
-      provider,
-      embeddingProvider,
-      llmModel,
-      embeddingModel,
-      embeddingSpaceId: embeddingSelection.embeddingSpaceId,
-      reverseRagEnabled,
-      reverseRagMode,
-      hydeEnabled,
-      rankerMode,
-    });
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const basePrompt = buildFinalSystemPrompt({
-      adminConfig,
-      sessionConfig,
-    });
-    const promptTemplate = [
-      escapeForPromptTemplate(basePrompt),
-      "",
-      "Guardrails:",
-      "{intent}",
-      "",
-      "Conversation summary:",
-      "{memory}",
-      "",
-      "Question:",
-      "{question}",
-      "",
-      "Relevant excerpts:",
-      "{context}",
-    ].join("\n");
-    const prompt = PromptTemplate.fromTemplate(promptTemplate);
-
-    let latestMeta: GuardrailMeta | null = null;
-    let enhancementSummary: GuardrailEnhancements = {
-      reverseRag: {
-        enabled: reverseRagEnabled,
-        mode: reverseRagMode,
-        original: normalizedQuestion.normalized,
-        rewritten: normalizedQuestion.normalized,
-      },
-      hyde: {
-        enabled: hydeEnabled,
-        generated: null,
-      },
-      ranker: {
-        mode: rankerMode,
-      },
-    };
-
-    const executeWithResources = async (
-      tableName: string,
-      queryName: string,
-      llmInstance: BaseLanguageModelInterface,
-    ): Promise<{ stream: AsyncIterable<string>; citations: Citation[] }> => {
-      let contextResult: ContextWindowResult = buildIntentContextFallback(
-        routingDecision.intent,
-        guardrails,
-      );
-      let retrievalCacheKey: string | null = null;
-
-      if (routingDecision.intent === "knowledge") {
-        if (retrievalCacheTtl > 0) {
-          retrievalCacheKey = `chat:retrieval:${presetId}:${hashPayload({
-            question: normalizedQuestion.normalized,
-            presetId,
-            ragTopK: guardrails.ragTopK,
-            similarityThreshold: guardrails.similarityThreshold,
-          })}`;
-          const cachedContext =
-            await memoryCacheClient.get<ContextWindowResult>(retrievalCacheKey);
-          if (cachedContext) {
-            cacheMeta.retrievalHit = true;
-            contextResult = cachedContext;
-            if (traceMetadata.cache) {
-              traceMetadata.cache.retrievalHit = true;
-            }
-          }
-        }
-
-        if (cacheMeta.retrievalHit === true) {
-          logDebugRag("retrieval-cache", { hit: true, presetId });
-        } else {
-          const rewrittenQuery = await rewriteQuery(
-            normalizedQuestion.normalized,
-            {
-              enabled: reverseRagEnabled,
-              mode: reverseRagMode,
-              provider,
-              model: llmModel,
-            },
-          );
-          if (trace && reverseRagEnabled) {
-            void trace.observation({
-              name: "reverse_rag",
-              input: normalizedQuestion.normalized,
-              output: rewrittenQuery,
-              metadata: {
-                env,
-                provider,
-                model: llmModel,
-                mode: reverseRagMode,
-                stage: "reverse-rag",
-                type: "reverse_rag",
-              },
-            });
-          }
-          logDebugRag("reverse-query", {
-            enabled: reverseRagEnabled,
-            mode: reverseRagMode,
-            original: normalizedQuestion.normalized,
-            rewritten: rewrittenQuery,
-          });
-          const hydeDocument = await generateHydeDocument(rewrittenQuery, {
-            enabled: hydeEnabled,
-            provider,
-            model: llmModel,
-          });
-          enhancementSummary = {
-            reverseRag: {
-              enabled: reverseRagEnabled,
-              mode: reverseRagMode,
-              original: normalizedQuestion.normalized,
-              rewritten: rewrittenQuery,
-            },
-            hyde: {
-              enabled: hydeEnabled,
-              generated: hydeDocument ?? null,
-            },
-            ranker: {
-              mode: rankerMode,
-            },
-          };
-          if (trace) {
-            void trace.observation({
-              name: "hyde",
-              input: rewrittenQuery,
-              output: hydeDocument,
-              metadata: {
-                env,
-                provider,
-                model: llmModel,
-                enabled: hydeEnabled,
-                stage: "hyde",
-              },
-            });
-          }
-          logDebugRag("hyde", {
-            enabled: hydeEnabled,
-            generated: hydeDocument,
-          });
-          const embeddingTarget = hydeDocument ?? rewrittenQuery;
-          logDebugRag("retrieval", {
-            query: embeddingTarget,
-            mode: rankerMode,
-          });
-          const queryEmbedding = await embeddings.embedQuery(embeddingTarget);
-          const matchCount = Math.max(RAG_TOP_K, guardrails.ragTopK * 2);
-          const store = new SupabaseVectorStore(embeddings, {
-            client: supabase,
-            tableName,
-            queryName,
-          });
-          const matches = await store.similaritySearchVectorWithScore(
-            queryEmbedding,
-            matchCount,
-          );
-          const canonicalLookup = await loadCanonicalPageLookup();
-          const normalizedMatches = matches.map(([doc, score], index) => {
-            const rewrittenDoc = rewriteLangchainDocument(
-              doc,
-              canonicalLookup,
-              index,
-            );
-            return [rewrittenDoc, score] as (typeof matches)[number];
-          });
-
-          const baseDocs = normalizedMatches.map(([doc, score]) => {
-            const baseSimilarity =
-              typeof score === "number"
-                ? score
-                : typeof doc?.metadata?.similarity === "number"
-                  ? (doc.metadata.similarity as number)
-                  : 0;
-            const docId =
-              (doc.metadata?.doc_id as string | undefined) ??
-              (doc.metadata?.docId as string | undefined) ??
-              (doc.metadata?.document_id as string | undefined) ??
-              (doc.metadata?.documentId as string | undefined) ??
-              null;
-
-            return {
-              doc,
-              docId,
-              baseSimilarity,
-            };
-          });
-
-          if (includeVerboseDetails) {
-            logRetrievalStage(
-              trace,
-              "raw_results",
-              baseDocs.map((entry) => ({
-                doc_id: entry.docId,
-                similarity: entry.baseSimilarity,
-              })),
-              {
-                engine: "langchain",
-                presetKey: chatConfigSnapshot?.presetKey,
-                chatConfig: chatConfigSnapshot,
-              },
-            );
-          }
-
-          const docIds = Array.from(
-            new Set(
-              baseDocs
-                .map((entry) => entry.docId)
-                .filter(
-                  (id): id is string => typeof id === "string" && id.length > 0,
-                ),
-            ),
-          );
-
-          let metadataRows:
-            | { doc_id?: string; metadata?: RagDocumentMetadata | null }[]
-            | undefined;
-          if (docIds.length > 0) {
-            const { data } = await supabase
-              .from("rag_documents")
-              .select("doc_id, metadata")
-              .in("doc_id", docIds);
-            metadataRows = data as typeof metadataRows;
-          }
-
-          const metadataMap = new Map<string, RagDocumentMetadata | null>();
-          for (const row of metadataRows ?? []) {
-            const docId = (row as { doc_id?: string }).doc_id;
-            if (typeof docId === "string") {
-              metadataMap.set(
-                docId,
-                normalizeMetadata(
-                  (row as { metadata?: unknown })
-                    .metadata as RagDocumentMetadata,
-                ),
-              );
-            }
-          }
-
-          const ragDocs = baseDocs
-            .map(({ doc, docId, baseSimilarity }) => {
-              const hydratedMeta =
-                (docId ? (metadataMap.get(docId) ?? null) : null) ??
-                normalizeMetadata(doc.metadata as RagDocumentMetadata) ??
-                null;
-
-              if (hydratedMeta?.is_public === false) {
-                return null;
-              }
-
-              const weight = computeMetadataWeight(
-                hydratedMeta ?? undefined,
-                ragRanking,
-              );
-              const finalScore = baseSimilarity * weight;
-
-              return {
-                chunk: doc.pageContent,
-                metadata: {
-                  ...doc.metadata,
-                  ...hydratedMeta,
-                  doc_id: docId ?? (doc.metadata?.doc_id as string | undefined),
-                },
-                similarity: finalScore,
-                base_similarity: baseSimilarity,
-                metadata_weight: weight,
-              };
-            })
-            .filter(
-              (
-                doc,
-              ): doc is {
-                chunk: string;
-                metadata: any;
-                similarity: number;
-                base_similarity: number;
-                metadata_weight: number;
-              } => doc !== null,
-            )
-            // eslint-disable-next-line unicorn/no-array-sort
-            .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
-
-          if (includeVerboseDetails) {
-            logRetrievalStage(
-              trace,
-              "after_weighting",
-              ragDocs.map((doc) => ({
-                doc_id: (doc.metadata?.doc_id as string | null) ?? null,
-                similarity:
-                  (doc as { base_similarity?: number }).base_similarity ?? null,
-                weight:
-                  (doc as { metadata_weight?: number }).metadata_weight ?? null,
-                finalScore: doc.similarity ?? null,
-                doc_type:
-                  (doc.metadata as { doc_type?: string | null })?.doc_type ??
-                  null,
-                persona_type:
-                  (doc.metadata as { persona_type?: string | null })
-                    ?.persona_type ?? null,
-                is_public:
-                  (doc.metadata as { is_public?: boolean | null })?.is_public ??
-                  null,
-              })),
-              {
-                engine: "langchain",
-                presetKey: chatConfigSnapshot?.presetKey,
-                chatConfig: chatConfigSnapshot,
-              },
-            );
-          }
-          if (trace && includeVerboseDetails) {
-            void trace.observation({
-              name: "retrieval",
-              input: embeddingTarget,
-              output: ragDocs,
-              metadata: {
-                env,
-                provider,
-                model: llmModel,
-                stage: "retrieval",
-                source: "supabase",
-                results: ragDocs.length,
-                cache: {
-                  retrievalHit: cacheMeta.retrievalHit,
-                },
-              },
-            });
-          }
-          const rankedDocs = await applyRanker(ragDocs, {
-            mode: rankerMode,
-            maxResults: Math.max(guardrails.ragTopK, 1),
-            embeddingSelection,
-            queryEmbedding,
-          });
-          if (trace && includeVerboseDetails) {
-            void trace.observation({
-              name: "reranker",
-              input: ragDocs,
-              output: rankedDocs,
-              metadata: {
-                env,
-                provider,
-                model: llmModel,
-                mode: rankerMode,
-                stage: "reranker",
-                results: rankedDocs.length,
-                cache: {
-                  retrievalHit: cacheMeta.retrievalHit,
-                },
-              },
-            });
-          }
-          contextResult = buildContextWindow(rankedDocs, guardrails);
-          if (retrievalCacheKey) {
-            await memoryCacheClient.set(
-              retrievalCacheKey,
-              contextResult,
-              retrievalCacheTtl,
-            );
-            cacheMeta.retrievalHit = false;
-            if (traceMetadata.cache) {
-              traceMetadata.cache.retrievalHit = false;
-            }
-          }
-          console.log("[langchain_chat] context compression", {
-            retrieved: normalizedMatches.length,
-            ranked: rankedDocs.length,
-            included: contextResult.included.length,
-            dropped: contextResult.dropped,
-            totalTokens: contextResult.totalTokens,
-            highestScore: Number(contextResult.highestScore.toFixed(3)),
-            insufficient: contextResult.insufficient,
-            rankerMode,
-          });
-        }
-      } else {
-        console.log("[langchain_chat] intent fallback", {
-          intent: routingDecision.intent,
-        });
-      }
-      if (
-        routingDecision.intent !== "knowledge" &&
-        cacheMeta.retrievalHit !== null
-      ) {
-        cacheMeta.retrievalHit = null;
-        if (traceMetadata.cache) {
-          traceMetadata.cache.retrievalHit = null;
-        }
-      }
-
-      const summaryTokens =
-        historyWindow.summaryMemory && historyWindow.summaryMemory.length > 0
-          ? estimateTokens(historyWindow.summaryMemory)
-          : null;
-      const summaryInfo =
-        summaryTokens !== null
-          ? {
-              originalTokens: historyWindow.tokenCount,
-              summaryTokens,
-              trimmedTurns: historyWindow.trimmed.length,
-              maxTurns: guardrails.summary.maxTurns,
-            }
-          : undefined;
-
-      latestMeta = {
+    if (DEBUG_RAG_STEPS) {
+      console.log("[langchain_chat] guardrails", {
         intent: routingDecision.intent,
         reason: routingDecision.reason,
         historyTokens: historyWindow.tokenCount,
         summaryApplied: Boolean(historyWindow.summaryMemory),
-        history: {
-          tokens: historyWindow.tokenCount,
-          budget: guardrails.historyTokenBudget,
-          trimmedTurns: historyWindow.trimmed.length,
-          preservedTurns: historyWindow.preserved.length,
-        },
-        context: {
-          included: contextResult.included.length,
-          dropped: contextResult.dropped,
-          totalTokens: contextResult.totalTokens,
-          insufficient: contextResult.insufficient,
-          retrieved: contextResult.included.length + contextResult.dropped,
-          similarityThreshold: guardrails.similarityThreshold,
-          highestSimilarity: Number.isFinite(contextResult.highestScore)
-            ? contextResult.highestScore
-            : undefined,
-          contextTokenBudget: guardrails.ragContextTokenBudget,
-          contextClipTokens: guardrails.ragContextClipTokens,
-        },
-        enhancements: enhancementSummary,
-        summaryConfig: {
-          enabled: guardrails.summary.enabled,
-          triggerTokens: guardrails.summary.triggerTokens,
-          maxTurns: guardrails.summary.maxTurns,
-          maxChars: guardrails.summary.maxChars,
-        },
-        llmModel,
         provider,
+        embeddingProvider,
+        llmModel,
         embeddingModel,
-        summaryInfo,
+        embeddingSpaceId: embeddingSelection.embeddingSpaceId,
+        reverseRagEnabled,
+        reverseRagMode,
+        hydeEnabled,
+        rankerMode,
+      });
+
+      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      const basePrompt = buildFinalSystemPrompt({
+        adminConfig,
+        sessionConfig,
+      });
+      const promptTemplate = [
+        escapeForPromptTemplate(basePrompt),
+        "",
+        "Guardrails:",
+        "{intent}",
+        "",
+        "Conversation summary:",
+        "{memory}",
+        "",
+        "Relevant excerpts:",
+        "{context}",
+        "",
+        "Question:",
+        "{question}",
+      ].join("\n");
+      const prompt = PromptTemplate.fromTemplate(promptTemplate);
+
+      let latestMeta: GuardrailMeta | null = null;
+      let enhancementSummary: GuardrailEnhancements = {
+        reverseRag: {
+          enabled: reverseRagEnabled,
+          mode: reverseRagMode,
+          original: normalizedQuestion.normalized,
+          rewritten: normalizedQuestion.normalized,
+        },
+        hyde: {
+          enabled: hydeEnabled,
+          generated: null,
+        },
+        ranker: {
+          mode: rankerMode,
+        },
       };
 
-      const guardrailMeta = [
-        `Intent: ${routingDecision.intent} (${routingDecision.reason})`,
-        contextResult.insufficient
-          ? "Context status: insufficient matches. Be explicit when information is missing."
-          : `Context status: ${contextResult.included.length} excerpts (${contextResult.totalTokens} tokens).`,
-      ].join(" | ");
-      const contextValue =
-        contextResult.contextBlock.length > 0
-          ? contextResult.contextBlock
-          : "(No relevant context was found.)";
-      const memoryValue =
-        historyWindow.summaryMemory ??
-        "(No summarized prior turns. Treat this as a standalone exchange.)";
-
-      const promptInput = await prompt.format({
-        question,
-        context: contextValue,
-        memory: memoryValue,
-        intent: guardrailMeta,
-      });
-      if (trace) {
-        void trace.observation({
-          name: "generation",
-          input: {
-            prompt: promptInput,
-            context: contextValue,
-          },
-          metadata: {
-            env,
-            provider,
-            model: llmModel,
-            temperature,
-            stage: "generation",
-          },
-        });
-      }
-      const stream = await llmInstance.stream(promptInput);
-      const citationMap = new Map<
-        string,
-        {
-          doc_id?: string;
-          title?: string;
-          source_url?: string;
-          excerpt_count: number;
-        }
-      >();
-      const includedDocs = contextResult.included as any[];
-      let index = 0;
-      for (const doc of includedDocs) {
-        const docId =
-          doc?.metadata?.doc_id ??
-          doc?.metadata?.docId ??
-          doc?.metadata?.page_id ??
-          doc?.metadata?.pageId ??
-          undefined;
-        const sourceUrl =
-          doc?.metadata?.source_url ?? doc?.metadata?.sourceUrl ?? undefined;
-        const normalizedUrl = sourceUrl ? sourceUrl.trim().toLowerCase() : "";
-        const key =
-          normalizedUrl.length > 0
-            ? normalizedUrl
-            : docId
-              ? `doc:${docId}`
-              : `idx:${index}`;
-        const title =
-          doc?.metadata?.title ??
-          doc?.metadata?.document_meta?.title ??
-          undefined;
-
-        const existing = citationMap.get(key);
-        if (existing) {
-          existing.excerpt_count += 1;
-        } else {
-          citationMap.set(key, {
-            doc_id: docId,
-            title,
-            source_url: sourceUrl,
-            excerpt_count: 1,
-          });
-        }
-        index += 1;
-      }
-
-      const citations: Citation[] = Array.from(citationMap.values());
-
-      return { stream, citations };
-    };
-
-    const primaryTable = getLcChunksView(embeddingSelection);
-    const primaryFunction = getLcMatchFunction(embeddingSelection);
-
-    const modelCandidates =
-      provider === "gemini" ? getGeminiModelCandidates(llmModel) : [llmModel];
-    let lastGeminiError: unknown;
-
-    for (let index = 0; index < modelCandidates.length; index++) {
-      const candidate = modelCandidates[index];
-      const nextModel = modelCandidates[index + 1];
-      const llm = await createChatModel(provider, candidate, temperature);
-
-      try {
-        const { stream, citations } = await executeWithResources(
-          primaryTable,
-          primaryFunction,
-          llm,
+      const executeWithResources = async (
+        tableName: string,
+        queryName: string,
+        llmInstance: BaseLanguageModelInterface,
+      ): Promise<{ stream: AsyncIterable<string>; citations: Citation[] }> => {
+        let contextResult: ContextWindowResult = buildIntentContextFallback(
+          routingDecision.intent,
+          guardrails,
         );
-        res.setHeader("Content-Encoding", "identity");
-        if (latestMeta) {
-          res.setHeader(
-            "X-Guardrail-Meta",
-            encodeURIComponent(serializeGuardrailMeta(latestMeta)),
-          );
-        }
-        if (candidate !== llmModel) {
-          console.warn(
-            `[langchain_chat] Gemini model "${candidate}" succeeded after falling back from "${llmModel}".`,
-          );
-        }
+        let retrievalCacheKey: string | null = null;
 
-        let streamHeadersSent = false;
-        let finalOutput = "";
-        let chunkIndex = 0;
-        const ensureStreamHeaders = () => {
-          if (!streamHeadersSent) {
-            res.writeHead(200, {
-              "Content-Type": "text/plain; charset=utf-8",
-              "Transfer-Encoding": "chunked",
-            });
-            streamHeadersSent = true;
-          }
-        };
-
-        const delayBetweenChunks = DEBUG_LANGCHAIN_STREAM ? 75 : 0;
-        const wait = (ms: number) =>
-          new Promise((resolve) => setTimeout(resolve, ms));
-
-        try {
-          for await (const chunk of stream) {
-            const rendered = renderStreamChunk(chunk);
-            if (!rendered || res.writableEnded) {
-              continue;
-            }
-            const segments = DEBUG_LANGCHAIN_STREAM
-              ? splitIntoSegments(rendered, DEBUG_LANGCHAIN_SEGMENT_SIZE)
-              : [rendered];
-
-            for (const segment of segments) {
-              if (!segment || res.writableEnded) {
-                continue;
-              }
-              chunkIndex += 1;
-              if (DEBUG_LANGCHAIN_STREAM) {
-                const preview =
-                  segment.length > 0 ? formatChunkPreview(segment) : "<empty>";
-                console.debug(
-                  `[langchain_chat] chunk ${chunkIndex} (${segment.length} chars): ${preview}`,
-                );
-              }
-              ensureStreamHeaders();
-              finalOutput += segment;
-              res.write(segment);
-              if (delayBetweenChunks > 0) {
-                await wait(delayBetweenChunks);
+        if (routingDecision.intent === "knowledge") {
+          if (retrievalCacheTtl > 0) {
+            retrievalCacheKey = `chat:retrieval:${presetId}:${hashPayload({
+              question: normalizedQuestion.normalized,
+              presetId,
+              ragTopK: guardrails.ragTopK,
+              similarityThreshold: guardrails.similarityThreshold,
+            })}`;
+            const cachedContext =
+              await memoryCacheClient.get<ContextWindowResult>(
+                retrievalCacheKey,
+              );
+            if (cachedContext) {
+              cacheMeta.retrievalHit = true;
+              contextResult = cachedContext;
+              if (traceMetadata.cache) {
+                traceMetadata.cache.retrievalHit = true;
               }
             }
           }
 
-          ensureStreamHeaders();
-          if (DEBUG_LANGCHAIN_STREAM) {
-            console.debug(
-              `[langchain_chat] stream completed after ${chunkIndex} chunk(s)`,
+          if (cacheMeta.retrievalHit === true) {
+            logDebugRag("retrieval-cache", { hit: true, presetId });
+          } else {
+            const rewrittenQuery = await rewriteQuery(
+              normalizedQuestion.normalized,
+              {
+                enabled: reverseRagEnabled,
+                mode: reverseRagMode,
+                provider,
+                model: llmModel,
+              },
             );
-          }
-          if (responseCacheKey) {
-            await memoryCacheClient.set(
-              responseCacheKey,
-              { output: finalOutput, citations },
-              responseCacheTtl,
-            );
-            cacheMeta.responseHit = false;
-            if (traceMetadata.cache) {
-              traceMetadata.cache.responseHit = false;
-            }
-          }
-          const citationJson = JSON.stringify(citations);
-          if (!res.writableEnded) {
-            res.write(`${CITATIONS_SEPARATOR}${citationJson}`);
-          }
-          if (trace) {
-            void trace.update({
-              output: finalOutput,
-              metadata: traceMetadata,
-            });
-          }
-          return res.end();
-        } catch (streamErr) {
-          if (!streamHeadersSent) {
-            if (streamErr instanceof OllamaUnavailableError) {
-              return respondWithOllamaUnavailable(res);
-            }
-            // Graceful handling for LM Studio "No models loaded" error
-            const errMessage = (streamErr as any)?.message || "";
-            if (
-              errMessage.includes("No models loaded") ||
-              errMessage.includes("connection refused")
-            ) {
-              return res.status(503).json({
-                error: {
-                  code: "LOCAL_LLM_UNAVAILABLE",
-                  message:
-                    "LM Studio에 로드된 모델이 없습니다. LM Studio 앱에서 모델을 Load 해주세요.",
+            if (trace && reverseRagEnabled) {
+              void trace.observation({
+                name: "reverse_rag",
+                input: normalizedQuestion.normalized,
+                output: rewrittenQuery,
+                metadata: {
+                  env,
+                  provider,
+                  model: llmModel,
+                  mode: reverseRagMode,
+                  stage: "reverse-rag",
+                  type: "reverse_rag",
                 },
               });
             }
+            logDebugRag("reverse-query", {
+              enabled: reverseRagEnabled,
+              mode: reverseRagMode,
+              original: normalizedQuestion.normalized,
+              rewritten: rewrittenQuery,
+            });
+            const hydeDocument = await generateHydeDocument(rewrittenQuery, {
+              enabled: hydeEnabled,
+              provider,
+              model: llmModel,
+            });
+            enhancementSummary = {
+              reverseRag: {
+                enabled: reverseRagEnabled,
+                mode: reverseRagMode,
+                original: normalizedQuestion.normalized,
+                rewritten: rewrittenQuery,
+              },
+              hyde: {
+                enabled: hydeEnabled,
+                generated: hydeDocument ?? null,
+              },
+              ranker: {
+                mode: rankerMode,
+              },
+            };
+            if (trace) {
+              void trace.observation({
+                name: "hyde",
+                input: rewrittenQuery,
+                output: hydeDocument,
+                metadata: {
+                  env,
+                  provider,
+                  model: llmModel,
+                  enabled: hydeEnabled,
+                  stage: "hyde",
+                },
+              });
+            }
+            logDebugRag("hyde", {
+              enabled: hydeEnabled,
+              generated: hydeDocument,
+            });
+            const embeddingTarget = hydeDocument ?? rewrittenQuery;
+            logDebugRag("retrieval", {
+              query: embeddingTarget,
+              mode: rankerMode,
+            });
+            const queryEmbedding = await embeddings.embedQuery(embeddingTarget);
+            const matchCount = Math.max(RAG_TOP_K, guardrails.ragTopK * 2);
+            const store = new SupabaseVectorStore(embeddings, {
+              client: supabase,
+              tableName,
+              queryName,
+            });
+            const matches = await store.similaritySearchVectorWithScore(
+              queryEmbedding,
+              matchCount,
+            );
+            const canonicalLookup = await loadCanonicalPageLookup();
+            const normalizedMatches = matches.map(([doc, score], index) => {
+              const rewrittenDoc = rewriteLangchainDocument(
+                doc,
+                canonicalLookup,
+                index,
+              );
+              return [rewrittenDoc, score] as (typeof matches)[number];
+            });
+
+            const baseDocs = normalizedMatches.map(([doc, score]) => {
+              const baseSimilarity =
+                typeof score === "number"
+                  ? score
+                  : typeof doc?.metadata?.similarity === "number"
+                    ? (doc.metadata.similarity as number)
+                    : 0;
+              const docId =
+                (doc.metadata?.doc_id as string | undefined) ??
+                (doc.metadata?.docId as string | undefined) ??
+                (doc.metadata?.document_id as string | undefined) ??
+                (doc.metadata?.documentId as string | undefined) ??
+                null;
+
+              return {
+                doc,
+                docId,
+                baseSimilarity,
+              };
+            });
+
+            if (includeVerboseDetails) {
+              logRetrievalStage(
+                trace,
+                "raw_results",
+                baseDocs.map((entry) => ({
+                  doc_id: entry.docId,
+                  similarity: entry.baseSimilarity,
+                })),
+                {
+                  engine: "langchain",
+                  presetKey: chatConfigSnapshot?.presetKey,
+                  chatConfig: chatConfigSnapshot,
+                },
+              );
+            }
+
+            const docIds = Array.from(
+              new Set(
+                baseDocs
+                  .map((entry) => entry.docId)
+                  .filter(
+                    (id): id is string =>
+                      typeof id === "string" && id.length > 0,
+                  ),
+              ),
+            );
+
+            let metadataRows:
+              | { doc_id?: string; metadata?: RagDocumentMetadata | null }[]
+              | undefined;
+            if (docIds.length > 0) {
+              const { data } = await supabase
+                .from("rag_documents")
+                .select("doc_id, metadata")
+                .in("doc_id", docIds);
+              metadataRows = data as typeof metadataRows;
+            }
+
+            const metadataMap = new Map<string, RagDocumentMetadata | null>();
+            for (const row of metadataRows ?? []) {
+              const docId = (row as { doc_id?: string }).doc_id;
+              if (typeof docId === "string") {
+                metadataMap.set(
+                  docId,
+                  normalizeMetadata(
+                    (row as { metadata?: unknown })
+                      .metadata as RagDocumentMetadata,
+                  ),
+                );
+              }
+            }
+
+            const ragDocs = baseDocs
+              .map(({ doc, docId, baseSimilarity }) => {
+                const hydratedMeta =
+                  (docId ? (metadataMap.get(docId) ?? null) : null) ??
+                  normalizeMetadata(doc.metadata as RagDocumentMetadata) ??
+                  null;
+
+                if (hydratedMeta?.is_public === false) {
+                  return null;
+                }
+
+                const weight = computeMetadataWeight(
+                  hydratedMeta ?? undefined,
+                  ragRanking,
+                );
+                const finalScore = baseSimilarity * weight;
+
+                return {
+                  chunk: doc.pageContent,
+                  metadata: {
+                    ...doc.metadata,
+                    ...hydratedMeta,
+                    doc_id:
+                      docId ?? (doc.metadata?.doc_id as string | undefined),
+                  },
+                  similarity: finalScore,
+                  base_similarity: baseSimilarity,
+                  metadata_weight: weight,
+                };
+              })
+              .filter(
+                (
+                  doc,
+                ): doc is {
+                  chunk: string;
+                  metadata: any;
+                  similarity: number;
+                  base_similarity: number;
+                  metadata_weight: number;
+                } => doc !== null,
+              )
+              // eslint-disable-next-line unicorn/no-array-sort
+              .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
+
+            if (DEBUG_RAG_URLS) {
+              const urls = ragDocs
+                .map((d) => d.metadata?.source_url)
+                .filter(Boolean);
+              console.log("[langchain_chat] retrieved urls:", urls);
+            }
+
+            if (includeVerboseDetails) {
+              logRetrievalStage(
+                trace,
+                "after_weighting",
+                ragDocs.map((doc) => ({
+                  doc_id: (doc.metadata?.doc_id as string | null) ?? null,
+                  similarity:
+                    (doc as { base_similarity?: number }).base_similarity ??
+                    null,
+                  weight:
+                    (doc as { metadata_weight?: number }).metadata_weight ??
+                    null,
+                  finalScore: doc.similarity ?? null,
+                  doc_type:
+                    (doc.metadata as { doc_type?: string | null })?.doc_type ??
+                    null,
+                  persona_type:
+                    (doc.metadata as { persona_type?: string | null })
+                      ?.persona_type ?? null,
+                  is_public:
+                    (doc.metadata as { is_public?: boolean | null })
+                      ?.is_public ?? null,
+                })),
+                {
+                  engine: "langchain",
+                  presetKey: chatConfigSnapshot?.presetKey,
+                  chatConfig: chatConfigSnapshot,
+                },
+              );
+            }
+            if (trace && includeVerboseDetails) {
+              void trace.observation({
+                name: "retrieval",
+                input: embeddingTarget,
+                output: ragDocs,
+                metadata: {
+                  env,
+                  provider,
+                  model: llmModel,
+                  stage: "retrieval",
+                  source: "supabase",
+                  results: ragDocs.length,
+                  cache: {
+                    retrievalHit: cacheMeta.retrievalHit,
+                  },
+                },
+              });
+            }
+            const rankedDocs = await applyRanker(ragDocs, {
+              mode: rankerMode,
+              maxResults: Math.max(guardrails.ragTopK, 1),
+              embeddingSelection,
+              queryEmbedding,
+            });
+            if (trace && includeVerboseDetails) {
+              void trace.observation({
+                name: "reranker",
+                input: ragDocs,
+                output: rankedDocs,
+                metadata: {
+                  env,
+                  provider,
+                  model: llmModel,
+                  mode: rankerMode,
+                  stage: "reranker",
+                  results: rankedDocs.length,
+                  cache: {
+                    retrievalHit: cacheMeta.retrievalHit,
+                  },
+                },
+              });
+            }
+            contextResult = buildContextWindow(rankedDocs, guardrails);
+            if (retrievalCacheKey) {
+              await memoryCacheClient.set(
+                retrievalCacheKey,
+                contextResult,
+                retrievalCacheTtl,
+              );
+              cacheMeta.retrievalHit = false;
+              if (traceMetadata.cache) {
+                traceMetadata.cache.retrievalHit = false;
+              }
+            }
+            if (DEBUG_RAG_STEPS) {
+              console.log("[langchain_chat] context compression", {
+                retrieved:
+                  contextResult.included.length + contextResult.dropped,
+                ranked: contextResult.included.length + contextResult.dropped,
+                included: contextResult.included.length,
+                dropped: contextResult.dropped,
+                totalTokens: contextResult.totalTokens,
+                highestScore: Number(contextResult.highestScore.toFixed(3)),
+                insufficient: contextResult.insufficient,
+                rankerMode,
+              });
+            }
+          }
+        } else {
+          console.log("[langchain_chat] intent fallback", {
+            intent: routingDecision.intent,
+          });
+        }
+        if (
+          routingDecision.intent !== "knowledge" &&
+          cacheMeta.retrievalHit !== null
+        ) {
+          cacheMeta.retrievalHit = null;
+          if (traceMetadata.cache) {
+            traceMetadata.cache.retrievalHit = null;
+          }
+        }
+
+        const summaryTokens =
+          historyWindow.summaryMemory && historyWindow.summaryMemory.length > 0
+            ? estimateTokens(historyWindow.summaryMemory)
+            : null;
+        const summaryInfo =
+          summaryTokens !== null
+            ? {
+                originalTokens: historyWindow.tokenCount,
+                summaryTokens,
+                trimmedTurns: historyWindow.trimmed.length,
+                maxTurns: guardrails.summary.maxTurns,
+              }
+            : undefined;
+
+        latestMeta = {
+          intent: routingDecision.intent,
+          reason: routingDecision.reason,
+          historyTokens: historyWindow.tokenCount,
+          summaryApplied: Boolean(historyWindow.summaryMemory),
+          history: {
+            tokens: historyWindow.tokenCount,
+            budget: guardrails.historyTokenBudget,
+            trimmedTurns: historyWindow.trimmed.length,
+            preservedTurns: historyWindow.preserved.length,
+          },
+          context: {
+            included: contextResult.included.length,
+            dropped: contextResult.dropped,
+            totalTokens: contextResult.totalTokens,
+            insufficient: contextResult.insufficient,
+            retrieved: contextResult.included.length + contextResult.dropped,
+            similarityThreshold: guardrails.similarityThreshold,
+            highestSimilarity: Number.isFinite(contextResult.highestScore)
+              ? contextResult.highestScore
+              : undefined,
+            contextTokenBudget: guardrails.ragContextTokenBudget,
+            contextClipTokens: guardrails.ragContextClipTokens,
+          },
+          enhancements: enhancementSummary,
+          summaryConfig: {
+            enabled: guardrails.summary.enabled,
+            triggerTokens: guardrails.summary.triggerTokens,
+            maxTurns: guardrails.summary.maxTurns,
+            maxChars: guardrails.summary.maxChars,
+          },
+          llmModel,
+          provider,
+          embeddingModel,
+          summaryInfo,
+        };
+
+        const guardrailMeta = [
+          `Intent: ${routingDecision.intent} (${routingDecision.reason})`,
+          contextResult.insufficient
+            ? "Context status: insufficient matches. Be explicit when information is missing."
+            : `Context status: ${contextResult.included.length} excerpts (${contextResult.totalTokens} tokens).`,
+        ].join(" | ");
+        const contextValue =
+          contextResult.contextBlock.length > 0
+            ? contextResult.contextBlock
+            : "(No relevant context was found.)";
+        const memoryValue =
+          historyWindow.summaryMemory ??
+          "(No summarized prior turns. Treat this as a standalone exchange.)";
+
+        const promptInput = await prompt.format({
+          question,
+          context: contextValue,
+          memory: memoryValue,
+          intent: guardrailMeta,
+        });
+
+        if (DEBUG_RAG_MSGS) {
+          console.log("[langchain_chat] debug context:", {
+            length: contextValue.length,
+            preview: contextValue.slice(0, 100).replaceAll("\n", "\\n"),
+            insufficient: contextResult.insufficient,
+          });
+          console.log(
+            "[langchain_chat] prompt input preview:",
+            promptInput.slice(0, 500).replaceAll("\n", "\\n"),
+          );
+        }
+
+        if (trace) {
+          void trace.observation({
+            name: "generation",
+            input: {
+              prompt: promptInput,
+              context: contextValue,
+            },
+            metadata: {
+              env,
+              provider,
+              model: llmModel,
+              temperature,
+              stage: "generation",
+            },
+          });
+        }
+        const stream = await llmInstance.stream(promptInput);
+        const citationMap = new Map<
+          string,
+          {
+            doc_id?: string;
+            title?: string;
+            source_url?: string;
+            excerpt_count: number;
+          }
+        >();
+        const includedDocs = contextResult.included as any[];
+        let index = 0;
+        for (const doc of includedDocs) {
+          const docId =
+            doc?.metadata?.doc_id ??
+            doc?.metadata?.docId ??
+            doc?.metadata?.page_id ??
+            doc?.metadata?.pageId ??
+            undefined;
+          const sourceUrl =
+            doc?.metadata?.source_url ?? doc?.metadata?.sourceUrl ?? undefined;
+          const normalizedUrl = sourceUrl ? sourceUrl.trim().toLowerCase() : "";
+          const key =
+            normalizedUrl.length > 0
+              ? normalizedUrl
+              : docId
+                ? `doc:${docId}`
+                : `idx:${index}`;
+          const title =
+            doc?.metadata?.title ??
+            doc?.metadata?.document_meta?.title ??
+            undefined;
+
+          const existing = citationMap.get(key);
+          if (existing) {
+            existing.excerpt_count += 1;
+          } else {
+            citationMap.set(key, {
+              doc_id: docId,
+              title,
+              source_url: sourceUrl,
+              excerpt_count: 1,
+            });
+          }
+          index += 1;
+        }
+
+        const citations: Citation[] = Array.from(citationMap.values());
+
+        return { stream, citations };
+      };
+
+      const primaryTable = getLcChunksView(embeddingSelection);
+      const primaryFunction = getLcMatchFunction(embeddingSelection);
+
+      const modelCandidates =
+        provider === "gemini" ? getGeminiModelCandidates(llmModel) : [llmModel];
+      let lastGeminiError: unknown;
+
+      for (let index = 0; index < modelCandidates.length; index++) {
+        const candidate = modelCandidates[index];
+        const nextModel = modelCandidates[index + 1];
+        const llm = await createChatModel(provider, candidate, temperature);
+
+        try {
+          const { stream, citations } = await executeWithResources(
+            primaryTable,
+            primaryFunction,
+            llm,
+          );
+          res.setHeader("Content-Encoding", "identity");
+          if (latestMeta) {
+            res.setHeader(
+              "X-Guardrail-Meta",
+              encodeURIComponent(serializeGuardrailMeta(latestMeta)),
+            );
+          }
+          if (candidate !== llmModel) {
+            console.warn(
+              `[langchain_chat] Gemini model "${candidate}" succeeded after falling back from "${llmModel}".`,
+            );
+          }
+
+          let streamHeadersSent = false;
+          let finalOutput = "";
+          let chunkIndex = 0;
+          const ensureStreamHeaders = () => {
+            if (!streamHeadersSent) {
+              res.writeHead(200, {
+                "Content-Type": "text/plain; charset=utf-8",
+                "Transfer-Encoding": "chunked",
+              });
+              streamHeadersSent = true;
+            }
+          };
+
+          const delayBetweenChunks = DEBUG_LANGCHAIN_STREAM ? 75 : 0;
+          const wait = (ms: number) =>
+            new Promise((resolve) => setTimeout(resolve, ms));
+
+          try {
+            for await (const chunk of stream) {
+              const rendered = renderStreamChunk(chunk);
+              if (!rendered || res.writableEnded) {
+                continue;
+              }
+              const segments = DEBUG_LANGCHAIN_STREAM
+                ? splitIntoSegments(rendered, DEBUG_LANGCHAIN_SEGMENT_SIZE)
+                : [rendered];
+
+              for (const segment of segments) {
+                if (!segment || res.writableEnded) {
+                  continue;
+                }
+                chunkIndex += 1;
+                if (DEBUG_LANGCHAIN_STREAM) {
+                  const preview =
+                    segment.length > 0
+                      ? formatChunkPreview(segment)
+                      : "<empty>";
+                  console.debug(
+                    `[langchain_chat] chunk ${chunkIndex} (${segment.length} chars): ${preview}`,
+                  );
+                }
+                ensureStreamHeaders();
+                finalOutput += segment;
+                res.write(segment);
+                if (delayBetweenChunks > 0) {
+                  await wait(delayBetweenChunks);
+                }
+              }
+            }
+
+            ensureStreamHeaders();
+            if (DEBUG_LANGCHAIN_STREAM) {
+              console.debug(
+                `[langchain_chat] stream completed after ${chunkIndex} chunk(s)`,
+              );
+            }
+            if (responseCacheKey) {
+              await memoryCacheClient.set(
+                responseCacheKey,
+                { output: finalOutput, citations },
+                responseCacheTtl,
+              );
+              cacheMeta.responseHit = false;
+              if (traceMetadata.cache) {
+                traceMetadata.cache.responseHit = false;
+              }
+            }
+            const citationJson = JSON.stringify(citations);
+            if (!res.writableEnded) {
+              res.write(`${CITATIONS_SEPARATOR}${citationJson}`);
+            }
+            if (trace) {
+              void trace.update({
+                output: finalOutput,
+                metadata: traceMetadata,
+              });
+            }
+            return res.end();
+          } catch (streamErr) {
+            if (!streamHeadersSent) {
+              if (streamErr instanceof OllamaUnavailableError) {
+                return respondWithOllamaUnavailable(res);
+              }
+              // Graceful handling for LM Studio "No models loaded" error
+              const errMessage = (streamErr as any)?.message || "";
+              if (
+                errMessage.includes("No models loaded") ||
+                errMessage.includes("connection refused")
+              ) {
+                return res.status(503).json({
+                  error: {
+                    code: "LOCAL_LLM_UNAVAILABLE",
+                    message:
+                      "LM Studio에 로드된 모델이 없습니다. LM Studio 앱에서 모델을 Load 해주세요.",
+                  },
+                });
+              }
+              throw streamErr;
+            }
             throw streamErr;
           }
-          throw streamErr;
-        }
-      } catch (err) {
-        lastGeminiError = err;
-        const shouldRetry =
-          provider === "gemini" &&
-          Boolean(nextModel) &&
-          shouldRetryGeminiModel(candidate, err);
+        } catch (err) {
+          lastGeminiError = err;
+          const shouldRetry =
+            provider === "gemini" &&
+            Boolean(nextModel) &&
+            shouldRetryGeminiModel(candidate, err);
 
-        if (!shouldRetry) {
-          throw err;
-        }
+          if (!shouldRetry) {
+            throw err;
+          }
 
-        console.warn(
-          `[langchain_chat] Gemini model "${candidate}" failed (${err instanceof Error ? err.message : String(err)}). Falling back to "${nextModel}".`,
-        );
+          console.warn(
+            `[langchain_chat] Gemini model "${candidate}" failed (${err instanceof Error ? err.message : String(err)}). Falling back to "${nextModel}".`,
+          );
+        }
+      }
+
+      if (lastGeminiError) {
+        throw lastGeminiError;
       }
     }
-
-    if (lastGeminiError) {
-      throw lastGeminiError;
-    }
-
-    throw new Error("Failed to initialize Gemini model.");
   } catch (err: any) {
     console.error("[api/langchain_chat] error:", err);
     if (err instanceof OllamaUnavailableError) {

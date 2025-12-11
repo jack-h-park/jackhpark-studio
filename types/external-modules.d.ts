@@ -35,4 +35,5 @@ declare module "@supabase/supabase-js" {
 
 declare module "gpt-tokenizer" {
   export function encode(value: string): number[];
+  export function decode(tokens: number[]): string;
 }
