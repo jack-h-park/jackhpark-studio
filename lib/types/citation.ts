@@ -1,6 +1,6 @@
-import { computeMetadataWeight } from "@/lib/rag/ranking";
 import type { RagDocument } from "@/lib/server/chat-guardrails";
 import type { RagRankingConfig } from "@/types/chat-config";
+import { computeMetadataWeight } from "@/lib/rag/ranking";
 
 export type CitationChunkDetail = {
   chunkIndex: number;
@@ -43,7 +43,7 @@ const MAX_SNIPPET_LENGTH = 240;
 function buildSnippet(doc: RagDocument): string {
   const rawSnippet =
     (doc.prunedChunk ?? doc.chunk ?? doc.content ?? "").trim() ?? "";
-  const condensed = rawSnippet.replace(/\s+/g, " ").trim();
+  const condensed = rawSnippet.replaceAll(/\s+/g, " ").trim();
   if (condensed.length <= MAX_SNIPPET_LENGTH) {
     return condensed;
   }
@@ -137,7 +137,7 @@ export function buildCitationPayload(
   };
 
   const docMap = new Map<string, AggregatedDoc>();
-  documents.forEach((doc, chunkIndex) => {
+  for (const [chunkIndex, doc] of documents.entries()) {
     const similarity =
       typeof doc.similarity === "number" && Number.isFinite(doc.similarity)
         ? doc.similarity
@@ -187,7 +187,7 @@ export function buildCitationPayload(
         ],
       });
     }
-  });
+  }
 
   const docs = Array.from(docMap.values());
   const highestFinalScore = docs.reduce((max, doc) => {
@@ -221,7 +221,7 @@ export function buildCitationPayload(
         chunks: doc.chunkDetails,
       };
     })
-    .sort((a, b) => {
+    .toSorted((a, b) => {
       if (b.finalScore !== a.finalScore) {
         return b.finalScore - a.finalScore;
       }

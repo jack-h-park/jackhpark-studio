@@ -2,6 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import type {
+  CitationDocScore,
+  CitationMeta,
+  CitationPayload,
+} from "@/lib/types/citation";
 import {
   deserializeGuardrailMeta,
   type GuardrailMeta,
@@ -17,11 +22,6 @@ import {
   type ChatEngineType,
   type SessionChatConfig,
 } from "@/types/chat-config";
-import type {
-  CitationDocScore,
-  CitationMeta,
-  CitationPayload,
-} from "@/lib/types/citation";
 
 const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
 const DEBUG_LANGCHAIN_STREAM =

@@ -19,6 +19,7 @@ import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
+import { getLoggingConfig } from "@/lib/logging/logger";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
@@ -184,17 +185,12 @@ export default async function handler(
         : routingDecision.intent === "command"
           ? "command"
           : "normal";
-    const forceVerboseRetrievalLogs =
-      (process.env.FORCE_RAG_VERBOSE_RETRIEVAL_LOGS ?? "").toLowerCase() ===
-      "true";
-    const telemetryDetailLevel = forceVerboseRetrievalLogs
-      ? "verbose"
-      : adminConfig.telemetry.detailLevel;
+    const loggingConfig = await getLoggingConfig();
+    const { enabled, sampleRate, detailLevel } = loggingConfig.telemetry;
     const telemetryDecision = decideTelemetryMode(
-      adminConfig.telemetry.sampleRate,
-      telemetryDetailLevel,
-      undefined,
-      forceVerboseRetrievalLogs,
+      enabled ? sampleRate : 0,
+      detailLevel,
+      Math.random,
     );
     const basePromptVersion = computeBasePromptVersion(adminConfig, presetId);
     const chatConfigSnapshot: ChatConfigSnapshot | undefined =

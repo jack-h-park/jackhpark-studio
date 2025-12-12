@@ -14,6 +14,7 @@ import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOpenAIClient } from "@/lib/core/openai";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { getLocalLlmClient } from "@/lib/local-llm";
+import { getLoggingConfig } from "@/lib/logging/logger";
 import { type RagDocumentMetadata } from "@/lib/rag/metadata";
 import { matchRagChunksForConfig } from "@/lib/rag/retrieval";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
@@ -201,17 +202,12 @@ export default async function handler(
         : routingDecision.intent === "command"
           ? "command"
           : "normal";
-    const forceVerboseRetrievalLogs =
-      (process.env.FORCE_RAG_VERBOSE_RETRIEVAL_LOGS ?? "").toLowerCase() ===
-      "true";
-    const telemetryDetailLevel = forceVerboseRetrievalLogs
-      ? "verbose"
-      : adminConfig.telemetry.detailLevel;
+    const loggingConfig = await getLoggingConfig();
+    const { enabled, sampleRate, detailLevel } = loggingConfig.telemetry;
     const telemetryDecision = decideTelemetryMode(
-      adminConfig.telemetry.sampleRate,
-      telemetryDetailLevel,
-      undefined,
-      forceVerboseRetrievalLogs,
+      enabled ? sampleRate : 0,
+      detailLevel,
+      Math.random,
     );
     const basePromptVersion = computeBasePromptVersion(adminConfig, presetId);
     const chatConfigSnapshot: ChatConfigSnapshot | undefined =

@@ -376,6 +376,11 @@ flowchart LR
 | Runtimes      | Edge + Node + Docker                   | Native vs LangChain vs Local |
 | Utilities     | jsdom, Readability, gpt-tokenizer, SSE | Ingestion + streaming        |
 
+### Logging & Telemetry
+
+For the shared telemetry and logging architecture across the Native and
+LangChain runtimes, see [Logging & Telemetry Architecture](./docs/telemetry-logging.md).
+
 ---
 
 > _v0.1.0 — Initial Structured Release_  

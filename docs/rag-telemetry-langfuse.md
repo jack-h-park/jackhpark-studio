@@ -1,5 +1,8 @@
 # RAG Telemetry + Langfuse Dashboard Notes
 
+> The logging & telemetry architecture (telemetry merge rules, env knobs, etc.) is
+> covered in [docs/telemetry-logging.md](./telemetry-logging.md).
+
 This repo now emits a normalized chat configuration snapshot and retrieval telemetry into Langfuse for every chat request.
 
 ## Chat Config Snapshot

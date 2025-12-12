@@ -1,4 +1,5 @@
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
+import type { TelemetryDetailLevel } from "@/lib/logging/types";
 import type { DocType, PersonaType } from "@/lib/rag/metadata";
 import type { ChatEngine } from "@/lib/shared/model-provider";
 import type { ModelResolution } from "@/lib/shared/model-resolution";
@@ -9,6 +10,8 @@ import type {
 } from "@/lib/shared/models";
 
 export type SummaryLevel = "off" | "low" | "medium" | "high";
+
+
 
 export interface AdminNumericLimit {
   min: number;
@@ -52,8 +55,6 @@ export type RagRankingConfig = {
   docTypeWeights: Partial<Record<DocType, number>>;
   personaTypeWeights: Partial<Record<PersonaType, number>>;
 };
-
-export type TelemetryDetailLevel = "minimal" | "standard" | "verbose";
 
 export type AdminTelemetryConfig = {
   /**
@@ -166,6 +167,7 @@ export function getAdditionalPromptMaxLength(config: AdminChatConfig): number {
   );
 }
 
+export {type TelemetryDetailLevel} from "@/lib/logging/types";
 export {
   type ModelResolution,
   type ModelResolutionReason,
