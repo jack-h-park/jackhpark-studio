@@ -5,7 +5,11 @@ import router from "next/router";
 import { parsePageId } from "notion-utils";
 import * as React from "react";
 import ReactModal from "react-modal";
-import { type MapImageUrlFn, type NotionComponents } from "react-notion-x";
+import {
+  type MapImageUrlFn,
+  type NotionComponents,
+  useNotionContext,
+} from "react-notion-x";
 import { Collection } from "react-notion-x/build/third-party/collection";
 import { Equation } from "react-notion-x/build/third-party/equation";
 import { Modal } from "react-notion-x/build/third-party/modal";
@@ -79,6 +83,66 @@ const transformInlineTitleBold = (title: any, shouldBold: boolean): any => {
   });
 
   return changed ? transformed : title;
+};
+
+const CollectionWithDescription = (props: any) => {
+  const { recordMap, components } = useNotionContext();
+  const collectionId = props.block?.collection_id;
+  const collection = recordMap?.collection?.[collectionId]?.value as any;
+  const description = collection?.description;
+  const Text = (components as any).Text;
+
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const descRef = React.useRef<HTMLDivElement>(null);
+
+  // 1. If no description, render original Collection to preserve layout
+  if (!description) {
+    return <Collection {...props} />;
+  }
+
+  // 2. If description exists, inject it after the header via DOM manipulation
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  React.useEffect(() => {
+    const container = containerRef.current;
+    const desc = descRef.current;
+    if (!container || !desc) return;
+
+    const collectionEl = container.querySelector(".notion-collection");
+    if (!collectionEl) return;
+
+    // Standard Notion Structure: header -> view
+    const header = collectionEl.querySelector(".notion-collection-header");
+
+    if (header) {
+      if (header.nextSibling !== desc) {
+        header.after(desc);
+      }
+    } else {
+      // Fallback: prepend if no header found
+      if (collectionEl.firstChild !== desc) {
+        collectionEl.prepend(desc);
+      }
+    }
+
+    desc.style.display = "block";
+  }, [description]);
+
+  return (
+    <div ref={containerRef} style={{ width: "100%" }}>
+      <div
+        ref={descRef}
+        className="notion-collection-description"
+        style={{ display: "none", marginTop: "0.5em", marginBottom: "1em" }}
+      >
+        {Text ? (
+          <Text value={description} block={props.block} />
+        ) : (
+          <span>{JSON.stringify(description)}</span>
+        )}
+      </div>
+      <Collection {...props} />
+    </div>
+  );
 };
 
 interface NotionPageRendererProps {
@@ -328,7 +392,7 @@ export function NotionPageRenderer({
     () => ({
       ...parentComponents,
       Code: NotionCode,
-      Collection,
+      Collection: CollectionWithDescription,
       Equation,
       Pdf,
       Modal,

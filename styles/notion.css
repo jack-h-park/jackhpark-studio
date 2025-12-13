@@ -15,10 +15,12 @@
 .notion-select,
 .notion-multi-select,
 .notion-property-multi_select,
+.notion-property-select-item,
 .notion-pill {
   /* padding: 2px 6px !important; */
   padding-top: 2px !important;
   padding-bottom: 2px !important;
+  font-size: 13px !important;
 }
 
 .notion-table-cell-multi_select {
@@ -271,9 +273,12 @@ svg[data-processed-mermaid] .section-root tspan {
   line-height: 1.4;
 }
 
-.notion-table-view td {
+.notion-table-view td,
+.notion-table-view th,
+.notion-table-view-header-cell {
   vertical-align: middle !important;
-  padding: 2px 4px !important;
+  /* padding-left를 0으로 설정하여 제목(Professional Experience)과 시작점을 맞춤 */
+  padding: 8px 0 !important;
 }
 
 /* 인라인 DB 제목과 아이콘을 한 줄 정렬 */
@@ -287,10 +292,10 @@ svg[data-processed-mermaid] .section-root tspan {
 /* 인라인 DB 컨테이너 패딩 초기화 */
 .notion-table,
 .notion-table-view {
-  margin-left: 0 !important;
-  /* padding-left: 16px !important; 
-  padding-right: 16px !important; */
-  width: 100% !important;
+  margin-left: 20px !important; /* Move the whole table right */
+  width: auto !important; /* Let it shrink to fit */
+  padding-left: 0 !important; /* Alignment handled by margin */
+  padding-right: 0 !important;
   box-sizing: border-box;
 }
 .notion-table {
@@ -1127,4 +1132,19 @@ svg.notion-collection-column-title-icon {
 }
 .log-warn .log-message {
   color: #facc15;
+}
+
+/* Hide collection row properties that are empty */
+.notion-collection-row-property:has(.notion-property:empty),
+.notion-collection-row-property:has(.notion-property-select:empty),
+.notion-collection-row-property:has(.notion-property-multi_select:empty),
+.notion-collection-row-property:has(.notion-property-text:empty),
+.notion-collection-row-property:has(.notion-property-date:empty),
+.notion-collection-row-property:has(.notion-property-person:empty),
+.notion-collection-row-property:has(.notion-property-file:empty),
+.notion-collection-row-property:has(.notion-property-checkbox:empty),
+.notion-collection-row-property:has(.notion-property-url:empty),
+.notion-collection-row-property:has(.notion-property-email:empty),
+.notion-collection-row-property:has(.notion-property-phone_number:empty) {
+  display: none !important;
 }
