@@ -14,7 +14,7 @@ import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOpenAIClient } from "@/lib/core/openai";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { getLocalLlmClient } from "@/lib/local-llm";
-import { getLoggingConfig, ragLogger } from "@/lib/logging/logger";
+import { getLoggingConfig, llmLogger, ragLogger } from "@/lib/logging/logger";
 import { type RagDocumentMetadata } from "@/lib/rag/metadata";
 import { matchRagChunksForConfig } from "@/lib/rag/retrieval";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
@@ -136,7 +136,7 @@ export default async function handler(
         localBackendOverride,
       }));
     if (process.env.NODE_ENV === "development") {
-      console.log("[native_chat runtime]", {
+      llmLogger.debug("[native_chat runtime]", {
         presetKey: presetId,
         llmEngine: runtime.llmEngine,
         requireLocal: runtime.requireLocal,
@@ -152,7 +152,7 @@ export default async function handler(
     const isLocalEngine = localEngineTypes.includes(runtime.llmEngine);
 
     if (isLocalEngine && effectiveRequireLocal && !localBackendAvailable) {
-      console.error(
+      llmLogger.error(
         "[api/native_chat] local backend required but not available",
         {
           engine: runtime.llmEngine,
@@ -595,12 +595,11 @@ export default async function handler(
               doc.doc_id ??
               null,
             doc_type: (doc.metadata as { doc_type?: string | null })?.doc_type,
-            persona_type: (
-              doc.metadata as { persona_type?: string | null }
-            )?.persona_type,
+            persona_type: (doc.metadata as { persona_type?: string | null })
+              ?.persona_type,
           })),
         });
-        console.log("[native_chat] context compression", {
+        llmLogger.debug("[native_chat] context compression", {
           retrieved: normalizedDocuments.length,
           ranked: rankedDocuments.length,
           included: contextResult.included.length,
@@ -616,7 +615,7 @@ export default async function handler(
         routingDecision.intent,
         guardrails,
       );
-      console.log("[native_chat] intent fallback", {
+      llmLogger.debug("[native_chat] intent fallback", {
         intent: routingDecision.intent,
       });
     }
@@ -776,8 +775,7 @@ export default async function handler(
         buildCitationPayload(contextResult.included, {
           topKChunks: Math.max(
             guardrails.ragTopK,
-            contextResult.included.length +
-              (contextResult.dropped ?? 0),
+            contextResult.included.length + (contextResult.dropped ?? 0),
           ),
           ragRanking,
         });
@@ -1007,7 +1005,7 @@ async function* streamGemini(
         throw err;
       }
 
-      console.warn(
+      llmLogger.info(
         `[native_chat] Gemini model "${modelName}" failed (${err instanceof Error ? err.message : String(err)}). Falling back to "${nextModelName}".`,
       );
     }

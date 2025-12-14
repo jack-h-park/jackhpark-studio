@@ -6,12 +6,31 @@ import {
 
 export type LoggingDomain = "rag" | "ingestion" | "notion" | "externalLLM";
 
-const LOG_LEVEL_PRIORITY: LogLevel[] = ["off", "error", "info", "debug", "trace"];
+const LOG_LEVEL_PRIORITY: LogLevel[] = [
+  "off",
+  "error",
+  "info",
+  "debug",
+  "trace",
+];
 
-const domainState = buildDomainLoggingState();
-
+let fallbackDomainState: ReturnType<typeof buildDomainLoggingState> | null =
+  null;
 let cachedConfig: LoggingConfig | null = null;
 let configPromise: Promise<LoggingConfig> | null = null;
+
+// Helper to get the best-available domain state synchronously
+function getDomainStateSync(): ReturnType<typeof buildDomainLoggingState> {
+  // 1. Prefer the full resolved config if available
+  if (cachedConfig) {
+    return cachedConfig;
+  }
+  // 2. Otherwise use the lazy fallback (computed once)
+  if (!fallbackDomainState) {
+    fallbackDomainState = buildDomainLoggingState();
+  }
+  return fallbackDomainState;
+}
 
 async function ensureLoggingConfig(): Promise<LoggingConfig> {
   if (cachedConfig) {
@@ -38,7 +57,8 @@ async function ensureLoggingConfig(): Promise<LoggingConfig> {
 }
 
 function getDomainLevel(domain: LoggingDomain): LogLevel {
-  return domainState[domain]?.level ?? domainState.globalLevel;
+  const state = getDomainStateSync();
+  return state[domain]?.level ?? state.globalLevel;
 }
 
 function shouldLog(currentLevel: LogLevel, target: LogLevel): boolean {

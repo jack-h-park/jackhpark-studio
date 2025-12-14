@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
+import { llmLogger } from "@/lib/logging/logger";
 import { loadChatModelSettings } from "@/lib/server/chat-settings";
 
 import langchainChat from "./langchain_chat";
@@ -9,11 +10,14 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  console.log("[api/chat] entering", {
+  llmLogger.debug("[api/chat] entering", {
     method: req.method,
-    ended: res.writableEnded,
+    url: req.url,
   });
+
+  // Basic CORS or method check could go here if needed...
   let engine: string | undefined;
+
   try {
     const runtime = await loadChatModelSettings({
       forceRefresh: true,
@@ -21,31 +25,29 @@ export default async function handler(
     });
     (req as any).chatRuntime = runtime;
     engine = runtime.engine;
-    console.log("[api/chat] dispatch", { engine, method: req.method });
 
-    if (engine === "native") {
-      await nativeChat(req, res);
-    } else {
+    llmLogger.debug("[api/chat] dispatch", { engine, method: req.method });
+
+    if (engine === "langchain") {
       await langchainChat(req, res);
+    } else {
+      await nativeChat(req, res);
     }
   } catch (err) {
-    console.error("[api/chat] handler error", err);
-    if (!res.headersSent && !res.writableEnded) {
+    llmLogger.error("[api/chat] handler error", { error: err });
+    if (!res.writableEnded) {
       res.status(500).json({ error: "Internal Server Error" });
-    } else if (!res.writableEnded) {
-      res.end();
     }
   } finally {
     if (!res.writableEnded) {
-      console.warn("[api/chat] response not ended before exit", {
+      llmLogger.error("[api/chat] response not ended before exit", {
         engine: engine ?? null,
-        headersSent: res.headersSent,
       });
+      // Safety net: ensure we don't leave the request hanging
+      res.end();
     }
-    console.log("[api/chat] exiting", {
-      engine: engine ?? null,
-      ended: res.writableEnded,
-      headersSent: res.headersSent,
+    llmLogger.debug("[api/chat] exiting", {
+      sent: res.writableEnded,
     });
   }
 }

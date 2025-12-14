@@ -1,6 +1,7 @@
 import { type NextApiRequest, type NextApiResponse } from "next";
 
 import type * as types from "../../lib/types";
+import { notionLogger } from "../../lib/logging/logger";
 import { search } from "../../lib/notion";
 
 export default async function searchNotion(
@@ -13,9 +14,12 @@ export default async function searchNotion(
 
   const searchParams: types.SearchParams = req.body;
 
-  console.log("<<< lambda search-notion", searchParams);
+  notionLogger.debug("lambda search-notion input", { searchParams });
   const results = await search(searchParams);
-  console.log(">>> lambda search-notion", results);
+  notionLogger.debug("lambda search-notion output", {
+    resultCount: results.results.length,
+    total: results.total,
+  });
 
   res.setHeader(
     "Cache-Control",

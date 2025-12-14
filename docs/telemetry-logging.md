@@ -111,18 +111,18 @@ The domain loggers read their level from `LoggingConfig` and replace ad-hoc `con
 await ragLogger.debug("resolved retrieval candidates", { urls });
 ```
 
-Avoid legacy `DEBUG_*` env vars; they are deprecated and deprecated env detection will warn you at startup.
+Avoid legacy `DEBUG_*` env vars; they are deprecated and are no longer effective (some may trigger warnings). Use the unified config instead.
 
 ### Replacing legacy `DEBUG_*` flags
 
-| Legacy flag(s) | Replacement | Notes |
-| --- | --- | --- |
-| `DEBUG_RAG_STEPS`, `DEBUG_RAG_URLS`, `DEBUG_RAG_MSGS` | `LOG_RAG_LEVEL=debug` or `trace` | Enables guardrail, retrieval, and prompt logs across both engines. |
-| `DEBUG_LANGCHAIN_STREAM`, `NEXT_PUBLIC_DEBUG_LANGCHAIN_STREAM`, `DEBUG_OLLAMA_TIMING` | `LOG_LLM_LEVEL=trace` (server/client) | Emits streaming chunk previews and timing metrics without throttling the response. |
-| `DEBUG_INGESTION` | `LOG_INGESTION_LEVEL=debug` | Prints ingestion metadata snapshots. |
-| `DEBUG_NOTION_X` | `LOG_NOTION_LEVEL=debug` | Enables verbose Notion renderer logs on both client and server. |
-| `DEBUG_NOTION_PAGE_ID` | `scripts/ingest-notion.ts --page=<pageId>` | Use the CLI flag to ingest a single page in place of the env toggle. |
-| `FORCE_RAG_VERBOSE_RETRIEVAL_LOGS` | `TELEMETRY_DETAIL_OVERRIDE=verbose` (non-prod) | Telemetry detail governs when retrieval payloads are attached to Langfuse traces. |
+| Legacy flag(s)                                                                        | Replacement                                    | Notes                                                                              |
+| ------------------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `DEBUG_RAG_STEPS`, `DEBUG_RAG_URLS`, `DEBUG_RAG_MSGS`                                 | `LOG_RAG_LEVEL=debug` or `trace`               | Enables guardrail, retrieval, and prompt logs across both engines.                 |
+| `DEBUG_LANGCHAIN_STREAM`, `NEXT_PUBLIC_DEBUG_LANGCHAIN_STREAM`, `DEBUG_OLLAMA_TIMING` | `LOG_LLM_LEVEL=trace` (server/client)          | Emits streaming chunk previews and timing metrics without throttling the response. |
+| `DEBUG_INGESTION`                                                                     | `LOG_INGESTION_LEVEL=debug`                    | Prints ingestion metadata snapshots.                                               |
+| `DEBUG_NOTION_X`                                                                      | `LOG_NOTION_LEVEL=debug`                       | Enables verbose Notion renderer logs on both client and server.                    |
+| `DEBUG_NOTION_PAGE_ID`                                                                | `scripts/ingest-notion.ts --page=<pageId>`     | Use the CLI flag to ingest a single page in place of the env toggle.               |
+| `FORCE_RAG_VERBOSE_RETRIEVAL_LOGS`                                                    | `TELEMETRY_DETAIL_OVERRIDE=verbose` (non-prod) | Telemetry detail governs when retrieval payloads are attached to Langfuse traces.  |
 
 When you need temporary higher fidelity, set the domain-specific `LOG_*` env var (or overrides) rather than reintroducing ad-hoc env toggles.
 
@@ -131,6 +131,7 @@ When you need temporary higher fidelity, set the domain-specific `LOG_*` env var
 ### Recommended production configuration
 
 # ---------- Global log levels ----------
+
 LOG_GLOBAL_LEVEL=info
 LOG_RAG_LEVEL=info
 LOG_INGESTION_LEVEL=info
@@ -138,6 +139,7 @@ LOG_NOTION_LEVEL=info
 LOG_LLM_LEVEL=info
 
 # ---------- Telemetry / Langfuse ----------
+
 TELEMETRY_ENABLED=true
 TELEMETRY_SAMPLE_RATE_DEFAULT=1
 TELEMETRY_SAMPLE_RATE_MAX=1
@@ -145,12 +147,15 @@ TELEMETRY_DETAIL_DEFAULT=standard
 TELEMETRY_DETAIL_MAX=standard
 
 # Production strictly ignores these overrides:
+
 # TELEMETRY_DETAIL_OVERRIDE
+
 # TELEMETRY_SAMPLE_RATE_OVERRIDE
 
 ### Recommended non-production configuration
 
 # ---------- Global log levels ----------
+
 LOG_GLOBAL_LEVEL=debug
 LOG_RAG_LEVEL=debug
 LOG_INGESTION_LEVEL=debug
@@ -158,6 +163,7 @@ LOG_NOTION_LEVEL=debug
 LOG_LLM_LEVEL=debug
 
 # ---------- Telemetry / Langfuse ----------
+
 TELEMETRY_ENABLED=true
 TELEMETRY_SAMPLE_RATE_DEFAULT=1
 TELEMETRY_SAMPLE_RATE_MAX=1
@@ -165,7 +171,9 @@ TELEMETRY_DETAIL_DEFAULT=verbose
 TELEMETRY_DETAIL_MAX=verbose
 
 # Non-production overrides (for debugging only)
+
 # TELEMETRY_DETAIL_OVERRIDE=verbose
+
 # TELEMETRY_SAMPLE_RATE_OVERRIDE=1
 
 ## Deprecated Environment Variables

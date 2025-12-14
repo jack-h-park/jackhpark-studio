@@ -2,6 +2,7 @@
 import pMap from "p-map";
 
 import { resolveEmbeddingSpace } from "../lib/core/embedding-spaces";
+import { ingestionLogger } from "../lib/logging/logger";
 import {
   chunkByTokens,
   type ChunkInsert,
@@ -93,7 +94,9 @@ async function ingestUrl(
   stats.documentsProcessed += 1;
   const normalizedUrl = url.trim();
   if (!normalizedUrl) {
-    console.warn("Empty URL provided; skipping ingestion.");
+    ingestionLogger.error(
+      "[ingest-url] Empty URL provided; skipping ingestion.",
+    );
     stats.documentsSkipped += 1;
     return;
   }
@@ -104,7 +107,9 @@ async function ingestUrl(
     await extractMainContent(normalizedUrl);
 
   if (!text) {
-    console.warn(`No text content extracted for ${normalizedUrl}; skipping`);
+    ingestionLogger.error(
+      `[ingest-url] No text content extracted for ${normalizedUrl}; skipping`,
+    );
     stats.documentsSkipped += 1;
     return;
   }
@@ -112,7 +117,7 @@ async function ingestUrl(
   const contentHash = hashChunk(`${canonicalId}:${text}`);
   const existingState = await getDocumentState(canonicalId);
   if (existingState?.raw_doc_id && existingState.raw_doc_id !== rawId) {
-    console.warn("[doc-id] raw_doc_id drift detected", {
+    ingestionLogger.error("[doc-id] raw_doc_id drift detected", {
       canonicalId,
       previous: existingState.raw_doc_id,
       incoming: rawId,
@@ -154,7 +159,7 @@ async function ingestUrl(
   });
 
   if (shouldSkip) {
-    console.log(`Skipping unchanged URL: ${title}`);
+    ingestionLogger.info(`[ingest-url] Skipping unchanged URL: ${title}`);
     stats.documentsSkipped += 1;
     return;
   }
@@ -162,7 +167,9 @@ async function ingestUrl(
   const chunks = chunkByTokens(text, 450, 75);
 
   if (chunks.length === 0) {
-    console.warn(`Extracted content for ${normalizedUrl} produced no chunks; skipping`);
+    ingestionLogger.error(
+      `[ingest-url] Extracted content for ${normalizedUrl} produced no chunks; skipping`,
+    );
     stats.documentsSkipped += 1;
     return;
   }
@@ -267,7 +274,9 @@ async function main(): Promise<void> {
           const message =
             err instanceof Error ? err.message : JSON.stringify(err);
           errorLogs.push({ context: url, message });
-          console.error(`Failed to ingest ${url}: ${message}`);
+          ingestionLogger.error(
+            `[ingest-url] Failed to ingest ${url}: ${message}`,
+          );
         }
       },
       { concurrency: INGEST_CONCURRENCY },
