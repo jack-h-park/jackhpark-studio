@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { buildRetrievalTelemetryEntries } from "@/lib/server/chat-common";
 import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
 
 const always = (value: number) => () => value;
@@ -57,5 +58,67 @@ void describe("decideTelemetryMode", () => {
     );
     assert.equal(decision.shouldEmitTrace, true);
     assert.equal(decision.includeRetrievalDetails, true);
+  });
+});
+
+void describe("buildRetrievalTelemetryEntries", () => {
+  void it("limits entries and normalizes the common fields", () => {
+    const docs = [
+      {
+        docId: "first-doc",
+        baseSimilarity: 0.9,
+        similarity: 0.95,
+        metadata_weight: 0.2,
+        metadata: {
+          doc_type: "article",
+          persona_type: "persona",
+          is_public: true,
+        },
+      },
+      {
+        doc_id: "second-doc",
+        similarity: 0.5,
+        metadata_weight: 0.3,
+        metadata: {
+          doc_type: "note",
+          persona_type: "assistant",
+        },
+      },
+    ];
+    const entries = buildRetrievalTelemetryEntries(docs, 1);
+    assert.equal(entries.length, 1);
+    assert.deepEqual(entries[0], {
+      doc_id: "first-doc",
+      similarity: 0.9,
+      weight: 0.2,
+      finalScore: 0.95,
+      doc_type: "article",
+      persona_type: "persona",
+      is_public: true,
+    });
+  });
+
+  void it("falls back to alternate doc identifiers and metadata weight", () => {
+    const docs = [
+      {
+        document_id: "legacy-doc",
+        similarity: 0.33,
+        metadata: {
+          docType: "legacy-type",
+          personaType: "legacy-persona",
+          weight: 0.4,
+        },
+      },
+    ];
+    const entries = buildRetrievalTelemetryEntries(docs, 5);
+    assert.deepEqual(entries[0], {
+      doc_id: "legacy-doc",
+      similarity: 0.33,
+      weight: 0.4,
+      finalScore: 0.33,
+      doc_type: "legacy-type",
+      persona_type: "legacy-persona",
+      is_public: null,
+    });
   });
 });

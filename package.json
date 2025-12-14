@@ -29,7 +29,7 @@
     "analyze:server": "cross-env BUNDLE_ANALYZE=server next build",
     "analyze:browser": "cross-env BUNDLE_ANALYZE=browser next build",
     "test": "run-p test:*",
-    "test:unit": "if ls test/**/*.test.ts >/dev/null 2>&1; then tsx --test \"test/**/*.test.ts\"; else echo \"No unit tests found, skipping\"; fi",
+    "test:unit": "sh -c 'set -euo pipefail; files=$(find test -type f -name \"*.test.ts\" -print0 | xargs -0 echo); if [ -z \"${files}\" ]; then echo \"No unit tests found, skipping\"; exit 0; fi; node --import ./test/setup-env.ts --import tsx --test ${files}'",
     "lint": "eslint .",
     "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check",
     "build:instrumentation": "esbuild instrumentation.ts --platform=node --format=esm --outfile=instrumentation.js",

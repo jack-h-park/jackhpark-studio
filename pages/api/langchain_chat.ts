@@ -3,7 +3,7 @@ import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import type { BaseLanguageModelInterface } from "@langchain/core/language_models/base";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-import type { ChatConfigSnapshot, GuardrailRoute } from "@/lib/rag/types";
+import type { GuardrailRoute } from "@/lib/rag/types";
 import type { SessionChatConfig } from "@/types/chat-config";
 import {
   type EmbeddingSpace,
@@ -24,9 +24,11 @@ import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
 import {
+  buildRetrievalTelemetryEntries,
   type ChatRequestBody,
   CITATIONS_SEPARATOR,
   logRetrievalStage,
+  MAX_RETRIEVAL_TELEMETRY_ITEMS,
   parseTemperature,
 } from "@/lib/server/chat-common";
 import {
@@ -71,6 +73,7 @@ import {
 } from "@/lib/shared/rag-config";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
+import { buildLangfuseTags } from "@/lib/telemetry/langfuse-tags";
 import { computeBasePromptVersion } from "@/lib/telemetry/prompt-version";
 import {
   buildCitationPayload,
@@ -195,14 +198,23 @@ export default async function handler(
       detailLevel,
       Math.random,
     );
-    const basePromptVersion = computeBasePromptVersion(adminConfig, presetId);
-    const chatConfigSnapshot: ChatConfigSnapshot | undefined =
-      telemetryDecision.includeConfigSnapshot
-        ? buildChatConfigSnapshot(adminConfig, presetId, {
-            guardrailRoute,
-            basePromptVersion,
-          })
+    const shouldEmitTrace = telemetryDecision.shouldEmitTrace;
+    const includeConfigSnapshot = telemetryDecision.includeConfigSnapshot;
+    const includeVerboseDetails = telemetryDecision.includeRetrievalDetails;
+    const shouldCaptureConfig = shouldEmitTrace && includeConfigSnapshot;
+    const traceInput =
+      shouldEmitTrace && detailLevel !== "minimal"
+        ? normalizedQuestion.normalized
         : undefined;
+    const basePromptVersion = shouldCaptureConfig
+      ? computeBasePromptVersion(adminConfig, presetId)
+      : undefined;
+    const chatConfigSnapshot = shouldCaptureConfig
+      ? buildChatConfigSnapshot(adminConfig, presetId, {
+          guardrailRoute,
+          basePromptVersion,
+        })
+      : undefined;
     const env = getAppEnv();
     const cacheMeta: {
       responseHit: boolean | null;
@@ -211,31 +223,37 @@ export default async function handler(
       responseHit: adminConfig.cache.responseTtlSeconds > 0 ? false : null,
       retrievalHit: adminConfig.cache.retrievalTtlSeconds > 0 ? false : null,
     };
-    const includeVerboseDetails = telemetryDecision.includeRetrievalDetails;
-    const traceMetadata: {
-      [key: string]: unknown;
-      cache?: typeof cacheMeta;
-    } = {
-      env,
-      config: {
-        reverseRagEnabled: runtime.reverseRagEnabled,
-        reverseRagMode: runtime.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE,
-        hydeEnabled: runtime.hydeEnabled,
-        rankerMode: runtime.rankerMode,
-        guardrailRoute,
-      },
-      llmResolution: {
-        requestedModelId: runtime.requestedLlmModelId,
-        resolvedModelId: runtime.resolvedLlmModelId,
-        wasSubstituted: runtime.llmModelWasSubstituted,
-        substitutionReason: runtime.llmSubstitutionReason,
-      },
-    };
-    if (chatConfigSnapshot) {
+    const traceMetadata:
+      | {
+          [key: string]: unknown;
+          cache?: typeof cacheMeta;
+        }
+      | undefined = shouldEmitTrace
+      ? {
+          env,
+          config: {
+            reverseRagEnabled: runtime.reverseRagEnabled,
+            reverseRagMode: runtime.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE,
+            hydeEnabled: runtime.hydeEnabled,
+            rankerMode: runtime.rankerMode,
+            guardrailRoute,
+          },
+          llmResolution: {
+            requestedModelId: runtime.requestedLlmModelId,
+            resolvedModelId: runtime.resolvedLlmModelId,
+            wasSubstituted: runtime.llmModelWasSubstituted,
+            substitutionReason: runtime.llmSubstitutionReason,
+          },
+        }
+      : undefined;
+    if (traceMetadata && chatConfigSnapshot) {
       traceMetadata.chatConfig = chatConfigSnapshot;
       traceMetadata.ragConfig = chatConfigSnapshot;
       traceMetadata.cache = cacheMeta;
     }
+    const traceTags = shouldEmitTrace
+      ? buildLangfuseTags(env, presetId, guardrailRoute)
+      : undefined;
     const reverseRagEnabled = runtime.reverseRagEnabled;
     const reverseRagMode = (runtime.reverseRagMode ??
       DEFAULT_REVERSE_RAG_MODE) as ReverseRagMode;
@@ -268,17 +286,20 @@ export default async function handler(
       typeof req.headers["x-user-id"] === "string"
         ? req.headers["x-user-id"]
         : undefined;
-    traceMetadata.provider = provider;
-    traceMetadata.model = llmModel;
-    traceMetadata.embeddingProvider = embeddingProvider;
-    traceMetadata.embeddingModel = embeddingModel;
-    const trace = telemetryDecision.shouldEmitTrace
+    if (traceMetadata) {
+      traceMetadata.provider = provider;
+      traceMetadata.model = llmModel;
+      traceMetadata.embeddingProvider = embeddingProvider;
+      traceMetadata.embeddingModel = embeddingModel;
+    }
+    const trace = shouldEmitTrace
       ? langfuse.trace({
           name: "langchain-chat-turn",
           sessionId,
           userId,
-          input: normalizedQuestion.normalized,
+          input: traceInput,
           metadata: traceMetadata,
+          tags: traceTags,
         })
       : null;
     const responseCacheTtl = adminConfig.cache.responseTtlSeconds;
@@ -298,7 +319,7 @@ export default async function handler(
       }>(responseCacheKey);
       if (cached) {
         cacheMeta.responseHit = true;
-        if (traceMetadata.cache) {
+        if (traceMetadata?.cache) {
           traceMetadata.cache.responseHit = true;
           void trace?.update({
             metadata: traceMetadata,
@@ -410,7 +431,7 @@ export default async function handler(
           if (cachedContext) {
             cacheMeta.retrievalHit = true;
             contextResult = cachedContext;
-            if (traceMetadata.cache) {
+            if (traceMetadata?.cache) {
               traceMetadata.cache.retrievalHit = true;
             }
           }
@@ -494,13 +515,10 @@ export default async function handler(
             logRetrievalStage(
               trace,
               "raw_results",
-              baseDocs.map((entry) => ({
-                doc_id: entry.docId ?? null,
-                similarity: entry.baseSimilarity,
-                doc_type: entry.metadata?.doc_type ?? null,
-                persona_type: entry.metadata?.persona_type ?? null,
-                is_public: entry.metadata?.is_public ?? null,
-              })),
+              buildRetrievalTelemetryEntries(
+                baseDocs,
+                MAX_RETRIEVAL_TELEMETRY_ITEMS,
+              ),
               {
                 engine: "langchain",
                 presetKey: chatConfigSnapshot?.presetKey,
@@ -529,15 +547,10 @@ export default async function handler(
             logRetrievalStage(
               trace,
               "after_weighting",
-              enrichedDocs.map((doc) => ({
-                doc_id: doc.docId,
-                similarity: doc.baseSimilarity,
-                weight: doc.metadata_weight,
-                finalScore: doc.similarity,
-                doc_type: doc.metadata?.doc_type,
-                persona_type: doc.metadata?.persona_type,
-                is_public: doc.metadata?.is_public,
-              })),
+              buildRetrievalTelemetryEntries(
+                enrichedDocs,
+                MAX_RETRIEVAL_TELEMETRY_ITEMS,
+              ),
               {
                 engine: "langchain",
                 presetKey: chatConfigSnapshot?.presetKey,
@@ -547,13 +560,14 @@ export default async function handler(
           }
 
           if (trace && includeVerboseDetails) {
+            const retrievalTelemetry = buildRetrievalTelemetryEntries(
+              enrichedDocs,
+              MAX_RETRIEVAL_TELEMETRY_ITEMS,
+            );
             void trace.observation({
               name: "retrieval",
               input: preRetrieval.embeddingTarget,
-              output: enrichedDocs.map((d) => ({
-                pageContent: d.chunk, // explicit for log
-                metadata: d.metadata,
-              })),
+              output: retrievalTelemetry,
               metadata: {
                 env,
                 provider,
@@ -576,10 +590,18 @@ export default async function handler(
           });
 
           if (trace && includeVerboseDetails) {
+            const rerankerInputTelemetry = buildRetrievalTelemetryEntries(
+              enrichedDocs,
+              MAX_RETRIEVAL_TELEMETRY_ITEMS,
+            );
+            const rerankerOutputTelemetry = buildRetrievalTelemetryEntries(
+              rankedDocs,
+              MAX_RETRIEVAL_TELEMETRY_ITEMS,
+            );
             void trace.observation({
               name: "reranker",
-              input: enrichedDocs,
-              output: rankedDocs,
+              input: rerankerInputTelemetry,
+              output: rerankerOutputTelemetry,
               metadata: {
                 env,
                 provider,
@@ -610,7 +632,7 @@ export default async function handler(
               retrievalCacheTtl,
             );
             cacheMeta.retrievalHit = false;
-            if (traceMetadata.cache) {
+            if (traceMetadata?.cache) {
               traceMetadata.cache.retrievalHit = false;
             }
           }
@@ -647,7 +669,7 @@ export default async function handler(
         cacheMeta.retrievalHit !== null
       ) {
         cacheMeta.retrievalHit = null;
-        if (traceMetadata.cache) {
+        if (traceMetadata?.cache) {
           traceMetadata.cache.retrievalHit = null;
         }
       }
@@ -839,7 +861,7 @@ export default async function handler(
               responseCacheTtl,
             );
             cacheMeta.responseHit = false;
-            if (traceMetadata.cache) {
+            if (traceMetadata?.cache) {
               traceMetadata.cache.responseHit = false;
             }
           }

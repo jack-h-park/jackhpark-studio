@@ -3,10 +3,15 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
+import { type ChatMessage } from "@/components/chat/hooks/useChatSession";
+import {
+  getImpactWarningMessage,
+  type ImpactKey} from "@/components/chat/settings/impact";
 import { Button } from "@/components/ui/button";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 
 import styles from "./ChatAdvancedSettingsDrawer.module.css";
+import { DrawerInlineWarning } from "./DrawerInlineWarning";
 import { SettingsSectionContextHistory } from "./SettingsSectionContextHistory";
 import { SettingsSectionCoreSummary } from "./SettingsSectionCoreSummary";
 import { SettingsSectionDisplay } from "./SettingsSectionDisplay";
@@ -18,11 +23,20 @@ import { SettingsSectionSessionAdditionalPrompt } from "./SettingsSectionSession
 type DrawerProps = {
   open: boolean;
   onClose: () => void;
+  messages: ChatMessage[];
 };
 
-export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
+export function ChatAdvancedSettingsDrawer({
+  open,
+  onClose,
+  messages,
+}: DrawerProps) {
   const { adminConfig, sessionConfig, setSessionConfig } = useChatConfig();
   const [mounted, setMounted] = useState(false);
+  const [warningState, setWarningState] = useState<{
+    visible: boolean;
+    message: string;
+  }>({ visible: false, message: "" });
 
   useEffect(() => {
     setMounted(true);
@@ -30,6 +44,8 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
 
   useEffect(() => {
     if (!open) {
+      // Reset warning when drawer closes
+      setWarningState({ visible: false, message: "" });
       return;
     }
 
@@ -59,7 +75,14 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
     };
   }, [open, onClose]);
 
-  const resetToDefault = () =>
+  const triggerImpactWarning = (key: ImpactKey) => {
+    const message = getImpactWarningMessage(key);
+    // Only update if not already visible or if message is different (optional enhancement)
+    // Detailed requirement: "Avoid spamming: if banner is already visible, don’t re-add multiple banners; optionally update the message"
+    setWarningState({ visible: true, message });
+  };
+
+  const resetToDefault = () => {
     setSessionConfig(() => ({
       ...adminConfig.presets.default,
       presetId: "default",
@@ -67,6 +90,8 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
         adminConfig.presets.default.additionalSystemPrompt ?? "",
       appliedPreset: "default",
     }));
+    triggerImpactWarning("reset");
+  };
 
   if (!mounted) return null;
 
@@ -99,6 +124,15 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
               </Button>
             </div>
             <div className={`${styles.content} space-y-4`}>
+              {warningState.visible && (
+                <DrawerInlineWarning
+                  message={warningState.message}
+                  onDismiss={() =>
+                    setWarningState((prev) => ({ ...prev, visible: false }))
+                  }
+                />
+              )}
+
               <SettingsSectionCoreSummary
                 summary={adminConfig.baseSystemPromptSummary ?? ""}
               />
@@ -110,6 +144,7 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
                 sessionConfig={sessionConfig}
                 helperText="The chosen preset cascades into the following engine, retrieval, and prompt controls."
                 setSessionConfig={setSessionConfig}
+                onDisruptiveChange={(key) => triggerImpactWarning(key)}
               />
 
               <div className={`${styles.cascade} space-y-4`}>
@@ -129,6 +164,8 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
                   adminConfig={adminConfig}
                   sessionConfig={sessionConfig}
                   setSessionConfig={setSessionConfig}
+                  messages={messages}
+                  onDisruptiveChange={(key) => triggerImpactWarning(key)}
                 />
 
                 <SettingsSectionSessionAdditionalPrompt

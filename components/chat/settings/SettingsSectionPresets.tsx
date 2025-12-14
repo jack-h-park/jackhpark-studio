@@ -2,7 +2,6 @@
 
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 
-import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
 import {
   Section,
@@ -10,6 +9,14 @@ import {
   SectionHeader,
   SectionTitle,
 } from "@/components/ui/section";
+import { setLastDiffReason } from "@/lib/chat/historyPreviewDiffTelemetry";
+import {
+  type AdminChatConfig,
+  type SessionChatConfig,
+} from "@/types/chat-config";
+
+import type { ImpactKey } from "./impact";
+import { ImpactBadge } from "./ImpactBadge";
 
 type PresetKey = "default" | "fast" | "highRecall";
 
@@ -20,6 +27,7 @@ type Props = {
   setSessionConfig: (
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
   ) => void;
+  onDisruptiveChange?: (key: ImpactKey) => void;
 };
 
 const PRESET_LABELS: Record<PresetKey, string> = {
@@ -33,6 +41,7 @@ export function SettingsSectionPresets({
   sessionConfig,
   helperText,
   setSessionConfig,
+  onDisruptiveChange,
 }: Props) {
   const applyPreset = (presetKey: PresetKey) => {
     setSessionConfig(() => ({
@@ -42,6 +51,8 @@ export function SettingsSectionPresets({
         adminConfig.presets[presetKey].additionalSystemPrompt ?? "",
       appliedPreset: presetKey,
     }));
+    onDisruptiveChange?.("preset");
+    setLastDiffReason("preset");
   };
 
   return (
@@ -49,6 +60,7 @@ export function SettingsSectionPresets({
       <SectionHeader>
         <SectionTitle as="p" icon={<FiLayers aria-hidden="true" />}>
           AI Orchestration Presets (Session-Wide)
+          <ImpactBadge controlId="preset" />
         </SectionTitle>
       </SectionHeader>
       <SectionContent className="flex flex-col gap-3">

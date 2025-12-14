@@ -141,6 +141,7 @@ function ChatShellContent() {
       <ChatAdvancedSettingsDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        messages={messages}
       />
     </div>
   );

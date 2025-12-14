@@ -100,3 +100,59 @@ export function logRetrievalStage(
     },
   });
 }
+
+export const MAX_RETRIEVAL_TELEMETRY_ITEMS = 8;
+
+type RawRetrievalDocument = {
+  docId?: string | null;
+  doc_id?: string | null;
+  documentId?: string | null;
+  document_id?: string | null;
+  similarity?: number | null;
+  baseSimilarity?: number | null;
+  metadata_weight?: number | null;
+  metadata?: {
+    doc_type?: string | null;
+    docType?: string | null;
+    persona_type?: string | null;
+    personaType?: string | null;
+    is_public?: boolean | null;
+    weight?: number | null;
+  } | null;
+  [key: string]: unknown;
+};
+
+export function buildRetrievalTelemetryEntries<T extends RawRetrievalDocument>(
+  documents: T[],
+  limit = MAX_RETRIEVAL_TELEMETRY_ITEMS,
+): RetrievalLogEntry[] {
+  const safeLimit = Math.max(0, limit);
+  return documents.slice(0, safeLimit).map((doc) => {
+    const docId =
+      doc.docId ?? doc.doc_id ?? doc.documentId ?? doc.document_id ?? null;
+    const similarity =
+      typeof doc.baseSimilarity === "number"
+        ? doc.baseSimilarity
+        : typeof doc.similarity === "number"
+          ? doc.similarity
+          : null;
+    return {
+      doc_id: docId,
+      similarity,
+      weight:
+        typeof doc.metadata_weight === "number"
+          ? doc.metadata_weight
+          : (doc.metadata?.weight ?? null),
+      finalScore:
+        typeof doc.similarity === "number"
+          ? doc.similarity
+          : typeof doc.baseSimilarity === "number"
+            ? doc.baseSimilarity
+            : null,
+      doc_type: doc.metadata?.doc_type ?? doc.metadata?.docType ?? null,
+      persona_type:
+        doc.metadata?.persona_type ?? doc.metadata?.personaType ?? null,
+      is_public: doc.metadata?.is_public ?? null,
+    };
+  });
+}
