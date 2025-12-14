@@ -19,6 +19,7 @@ type AiPageChromeProps = {
   children: ReactNode;
   rootClassName?: string;
   bodyClassName?: string;
+  fullBleed?: boolean;
 };
 
 export function AiPageChrome({
@@ -27,6 +28,7 @@ export function AiPageChrome({
   children,
   rootClassName,
   bodyClassName,
+  fullBleed = false,
 }: AiPageChromeProps) {
   const { isDarkMode } = useDarkMode();
   const canonicalHeaderBlockId = headerBlockId?.replaceAll("-", "");
@@ -38,7 +40,14 @@ export function AiPageChrome({
   const headerBlock = headerBlockEntry?.value as PageBlock | undefined;
 
   return (
-    <div className={cn(styles.chrome, "notion", rootClassName)}>
+    <div
+      className={cn(
+        styles.chrome,
+        "notion",
+        fullBleed && styles.chromeFullBleed,
+        rootClassName,
+      )}
+    >
       <div className={styles.header}>
         {headerRecordMap && headerBlock ? (
           <NotionContextProvider
@@ -75,7 +84,15 @@ export function AiPageChrome({
           </header>
         )}
       </div>
-      <main className={cn(styles.body, bodyClassName)}>{children}</main>
+      <main
+        className={cn(
+          styles.body,
+          fullBleed && styles.bodyFullBleed,
+          bodyClassName,
+        )}
+      >
+        {children}
+      </main>
       <div className={styles.footer}>
         <Footer />
       </div>

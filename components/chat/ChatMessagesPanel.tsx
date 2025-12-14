@@ -98,8 +98,8 @@ export type ChatMessagesPanelProps = {
   isLoading?: boolean;
   loadingAssistantId?: string | null;
   showTelemetry?: boolean;
-  telemetryExpanded?: boolean;
-  onToggleTelemetryExpanded?: () => void;
+  diagnosticsExpanded?: boolean;
+  onToggleDiagnostics?: () => void;
   showCitations?: boolean;
   showPlaceholder?: boolean;
   citationLinkLength?: number;
@@ -110,8 +110,8 @@ export function ChatMessagesPanel({
   isLoading = false,
   loadingAssistantId = null,
   showTelemetry = false,
-  telemetryExpanded = false,
-  onToggleTelemetryExpanded = () => undefined,
+  diagnosticsExpanded = false,
+  onToggleDiagnostics = () => undefined,
   showCitations = false,
   showPlaceholder = true,
   citationLinkLength = 24,
@@ -137,8 +137,8 @@ export function ChatMessagesPanel({
   return (
     <>
       {messages.map((m) => {
-      const citations =
-        m.citations && m.citations.length > 0 ? m.citations : null;
+        const citations =
+          m.citations && m.citations.length > 0 ? m.citations : null;
         const contextStats = m.meta?.context;
         const totalExcerptsRaw =
           contextStats?.retrieved ??
@@ -230,12 +230,30 @@ export function ChatMessagesPanel({
         const enhancements = m.meta?.enhancements;
         const hasEnhancements = Boolean(enhancements);
         const telemetryReady = m.isComplete ?? true;
+        const hasAnyMeta = hasRuntime || hasGuardrailMeta || hasEnhancements;
+
+        // Has relevant content check
+        const hasMetadata = hasAnyMeta;
+        const hasCitations = citations && citations.length > 0;
+
+        // Button visibility logic: Show if either feature is enabled AND there is actual content
+        // However, the requested logic is: "SHOW/HIDE DIAGNOSTICS" button... controls BOTH metadata and citations.
+        // And we should show the button if at least one of these is enabled in settings (AND has content).
+        const showExpansionButton =
+          (showTelemetry && hasMetadata) || (showCitations && hasCitations);
+
         const telemetryActive =
-          showTelemetry && telemetryExpanded && telemetryReady;
+          showTelemetry && diagnosticsExpanded && telemetryReady;
+
+        // Update content visibility based on diagnosticsExpanded
         const showRuntimeCard = telemetryActive && hasRuntime;
         const showGuardrailCards = telemetryActive && contextStats;
         const showEnhancementCard = telemetryActive && hasEnhancements;
-        const hasAnyMeta = hasRuntime || hasGuardrailMeta || hasEnhancements;
+
+        // Citation visibility: check settings, expanded state, and existence
+        const showCitationsSection =
+          showCitations && diagnosticsExpanded && hasCitations;
+
         const isStreamingAssistant =
           m.role === "assistant" && isLoading && loadingAssistantId === m.id;
 
@@ -257,18 +275,18 @@ export function ChatMessagesPanel({
                 </div>
               )}
             </div>
-            {m.role === "assistant" && hasAnyMeta && (
+            {m.role === "assistant" && (hasAnyMeta || hasCitations) && (
               <div className={styles.messageMeta}>
-                {showTelemetry && (
+                {showExpansionButton && (
                   <div className={styles.telemetryCollapseRow}>
                     <button
                       type="button"
                       className={styles.telemetryCollapseBtn}
-                      onClick={onToggleTelemetryExpanded}
+                      onClick={onToggleDiagnostics}
                     >
-                      {telemetryExpanded
-                        ? "Hide telemetry details"
-                        : "Show telemetry details"}
+                      {diagnosticsExpanded
+                        ? "Hide diagnostics"
+                        : "Show diagnostics"}
                     </button>
                   </div>
                 )}
@@ -455,159 +473,155 @@ export function ChatMessagesPanel({
                 )}
               </div>
             )}
-            {m.role === "assistant" &&
-              showCitations &&
-              citations &&
-              citations.length > 0 && (
-                <div className={styles.messageCitationsPanel}>
-                  {m.citationMeta && (
-                    <div className={styles.citationMetaBanner}>
-                      <span>
-                        Showing {m.citationMeta.uniqueDocs} document
-                        {m.citationMeta.uniqueDocs > 1 ? "s" : ""} (
-                        {m.citationMeta.topKChunks
-                          ? `Top ${m.citationMeta.topKChunks} chunks → grouped into ${m.citationMeta.uniqueDocs} documents`
-                          : "Chunks grouped by document"}
-                        )
-                      </span>
-                    </div>
-                  )}
-                  <ol className={styles.messageCitations}>
-                    {citations.map((citation, index) => {
-                      const title =
-                        (citation.title ?? "").trim() ||
-                        (citation.url ?? "").trim() ||
-                        `Document ${index + 1}`;
-                      const url = (citation.url ?? "").trim();
-                      const docMetaDetails = [
-                        citation.docType ? `Doc type: ${citation.docType}` : null,
-                        citation.personaType
-                          ? `Persona: ${citation.personaType}`
-                          : null,
-                      ].filter(Boolean);
-                      const relevance =
-                        Number.isFinite(citation.normalizedScore)
-                          ? citation.normalizedScore
-                          : 0;
-                      const excerptLabel =
-                        citation.excerptCount > 1
-                          ? `${citation.excerptCount} excerpts`
-                          : "1 excerpt";
-                      return (
-                        <li
-                          key={`${m.id}-citation-${index}`}
-                          className={styles.citationItem}
-                        >
-                          <div className={styles.citationHeader}>
-                            <span className={styles.citationIndex}>
-                              {index + 1}
-                            </span>
-                            <div className={styles.citationTitleBlock}>
-                              <div className={styles.citationTitle}>
-                                {title}
-                                {url && (
-                                  <>
-                                    {" "}
-                                    <a
-                                      href={url}
-                                      target="_blank"
-                                      rel="noreferrer noopener"
-                                    >
-                                      {formatLinkLabel(url, citationLinkLength)}
-                                    </a>
-                                  </>
-                                )}
-                              </div>
-                              {docMetaDetails.length > 0 && (
-                                <div className={styles.citationDocMeta}>
-                                  {docMetaDetails.join(" · ")}
-                                </div>
+            {m.role === "assistant" && showCitationsSection && (
+              <div className={styles.messageCitationsPanel}>
+                {m.citationMeta && (
+                  <div className={styles.citationMetaBanner}>
+                    <span>
+                      Showing {m.citationMeta.uniqueDocs} document
+                      {m.citationMeta.uniqueDocs > 1 ? "s" : ""} (
+                      {m.citationMeta.topKChunks
+                        ? `Top ${m.citationMeta.topKChunks} chunks → grouped into ${m.citationMeta.uniqueDocs} documents`
+                        : "Chunks grouped by document"}
+                      )
+                    </span>
+                  </div>
+                )}
+                <ol className={styles.messageCitations}>
+                  {citations.map((citation, index) => {
+                    const title =
+                      (citation.title ?? "").trim() ||
+                      (citation.url ?? "").trim() ||
+                      `Document ${index + 1}`;
+                    const url = (citation.url ?? "").trim();
+                    const docMetaDetails = [
+                      citation.docType ? `Doc type: ${citation.docType}` : null,
+                      citation.personaType
+                        ? `Persona: ${citation.personaType}`
+                        : null,
+                    ].filter(Boolean);
+                    const relevance = Number.isFinite(citation.normalizedScore)
+                      ? citation.normalizedScore
+                      : 0;
+                    const excerptLabel =
+                      citation.excerptCount > 1
+                        ? `${citation.excerptCount} excerpts`
+                        : "1 excerpt";
+                    return (
+                      <li
+                        key={`${m.id}-citation-${index}`}
+                        className={styles.citationItem}
+                      >
+                        <div className={styles.citationHeader}>
+                          <span className={styles.citationIndex}>
+                            {index + 1}
+                          </span>
+                          <div className={styles.citationTitleBlock}>
+                            <div className={styles.citationTitle}>
+                              {title}
+                              {url && (
+                                <>
+                                  {" "}
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                  >
+                                    {formatLinkLabel(url, citationLinkLength)}
+                                  </a>
+                                </>
                               )}
                             </div>
-                            <div className={styles.citationRelevance}>
-                              <span>Relevance: {relevance}/100</span>
-                              <span className={styles.citationSubtext}>
-                                (score {citation.finalScore.toFixed(4)})
-                              </span>
-                            </div>
+                            {docMetaDetails.length > 0 && (
+                              <div className={styles.citationDocMeta}>
+                                {docMetaDetails.join(" · ")}
+                              </div>
+                            )}
                           </div>
-                          <div className={styles.citationBadgeRow}>
-                            <span
-                              className={styles.citationMultiplier}
-                              title="Multiplier applied to similarity score based on document metadata."
-                            >
-                              Persona/type multiplier:{" "}
-                              {citation.weight.toFixed(2)}
-                            </span>
-                            <span className={styles.citationExcerptCount}>
-                              {excerptLabel}
+                          <div className={styles.citationRelevance}>
+                            <span>Relevance: {relevance}/100</span>
+                            <span className={styles.citationSubtext}>
+                              (score {citation.finalScore.toFixed(4)})
                             </span>
                           </div>
-                          <details className={styles.citationDetails}>
-                            <summary>Details</summary>
-                            <div className={styles.citationDetailGrid}>
-                              <div>
-                                <div className={styles.citationDetailLabel}>
-                                  Similarity max
-                                </div>
-                                <div>{citation.similarityMax.toFixed(4)}</div>
+                        </div>
+                        <div className={styles.citationBadgeRow}>
+                          <span
+                            className={styles.citationMultiplier}
+                            title="Multiplier applied to similarity score based on document metadata."
+                          >
+                            Persona/type multiplier:{" "}
+                            {citation.weight.toFixed(2)}
+                          </span>
+                          <span className={styles.citationExcerptCount}>
+                            {excerptLabel}
+                          </span>
+                        </div>
+                        <details className={styles.citationDetails}>
+                          <summary>Details</summary>
+                          <div className={styles.citationDetailGrid}>
+                            <div>
+                              <div className={styles.citationDetailLabel}>
+                                Similarity max
                               </div>
-                              <div>
-                                <div className={styles.citationDetailLabel}>
-                                  Similarity avg
-                                </div>
-                                <div>{citation.similarityAvg.toFixed(4)}</div>
-                              </div>
-                              <div>
-                                <div className={styles.citationDetailLabel}>
-                                  Weight
-                                </div>
-                                <div>{citation.weight.toFixed(2)}</div>
-                              </div>
-                              <div>
-                                <div className={styles.citationDetailLabel}>
-                                  Final score
-                                </div>
-                                <div>{citation.finalScore.toFixed(4)}</div>
-                              </div>
-                              <div>
-                                <div className={styles.citationDetailLabel}>
-                                  Normalized
-                                </div>
-                                <div>{citation.normalizedScore}/100</div>
-                              </div>
+                              <div>{citation.similarityMax.toFixed(4)}</div>
                             </div>
-                            <div className={styles.citationChunkList}>
-                              {citation.chunks.map((chunk) => (
-                                <article
-                                  key={`${citation.docId ?? index}-${chunk.chunkIndex}`}
-                                  className={styles.citationChunkItem}
-                                >
-                                  <p className={styles.citationChunkSnippet}>
-                                    {chunk.snippet}
-                                  </p>
-                                  <div className={styles.citationChunkMeta}>
-                                    {`similarity ${chunk.similarity.toFixed(
-                                      3,
-                                    )} · final ${chunk.finalScore.toFixed(3)}`}
-                                  </div>
-                                </article>
-                              ))}
+                            <div>
+                              <div className={styles.citationDetailLabel}>
+                                Similarity avg
+                              </div>
+                              <div>{citation.similarityAvg.toFixed(4)}</div>
                             </div>
-                            <p className={styles.citationChunkNotice}>
-                              This document contributed {citation.excerptCount} of
-                              the top-
-                              {m.citationMeta?.topKChunks ??
-                                citation.excerptCount}{" "}
-                              retrieved chunks.
-                            </p>
-                          </details>
-                        </li>
-                      );
-                    })}
-                  </ol>
-                </div>
-              )}
+                            <div>
+                              <div className={styles.citationDetailLabel}>
+                                Weight
+                              </div>
+                              <div>{citation.weight.toFixed(2)}</div>
+                            </div>
+                            <div>
+                              <div className={styles.citationDetailLabel}>
+                                Final score
+                              </div>
+                              <div>{citation.finalScore.toFixed(4)}</div>
+                            </div>
+                            <div>
+                              <div className={styles.citationDetailLabel}>
+                                Normalized
+                              </div>
+                              <div>{citation.normalizedScore}/100</div>
+                            </div>
+                          </div>
+                          <div className={styles.citationChunkList}>
+                            {citation.chunks.map((chunk) => (
+                              <article
+                                key={`${citation.docId ?? index}-${chunk.chunkIndex}`}
+                                className={styles.citationChunkItem}
+                              >
+                                <p className={styles.citationChunkSnippet}>
+                                  {chunk.snippet}
+                                </p>
+                                <div className={styles.citationChunkMeta}>
+                                  {`similarity ${chunk.similarity.toFixed(
+                                    3,
+                                  )} · final ${chunk.finalScore.toFixed(3)}`}
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                          <p className={styles.citationChunkNotice}>
+                            This document contributed {citation.excerptCount} of
+                            the top-
+                            {m.citationMeta?.topKChunks ??
+                              citation.excerptCount}{" "}
+                            retrieved chunks.
+                          </p>
+                        </details>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            )}
           </div>
         );
       })}

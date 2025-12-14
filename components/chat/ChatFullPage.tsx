@@ -41,7 +41,7 @@ function ChatShellContent() {
   const { adminConfig, sessionConfig } = useChatConfig();
   const [inputValue, setInputValue] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [telemetryExpanded, setTelemetryExpanded] = useState(true);
+  const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(true);
   const {
     messages,
     isLoading,
@@ -67,8 +67,8 @@ function ChatShellContent() {
     setInputValue("");
   };
 
-  const toggleTelemetryExpanded = () => {
-    setTelemetryExpanded((prev) => !prev);
+  const toggleDiagnosticsExpanded = () => {
+    setDiagnosticsExpanded((prev) => !prev);
   };
 
   return (
@@ -119,8 +119,8 @@ function ChatShellContent() {
                 isLoading={isLoading}
                 loadingAssistantId={loadingAssistantId}
                 showTelemetry={showTelemetry}
-                telemetryExpanded={telemetryExpanded}
-                onToggleTelemetryExpanded={toggleTelemetryExpanded}
+                diagnosticsExpanded={diagnosticsExpanded}
+                onToggleDiagnostics={toggleDiagnosticsExpanded}
                 showCitations={showCitations}
                 showPlaceholder={false}
                 citationLinkLength={60}

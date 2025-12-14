@@ -57,43 +57,24 @@ export function ChatFloatingWindow({
 
   const {
     showTelemetry,
-    telemetryAutoExpand,
     showCitations,
     setShowTelemetry: setDisplayShowTelemetry,
-    setTelemetryAutoExpand: setDisplayTelemetryAutoExpand,
     setShowCitations: setDisplayShowCitations,
   } = useChatDisplaySettings();
-  const [telemetryExpanded, setTelemetryExpanded] = useState(false);
+  const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false);
 
-  useEffect(() => {
-    if (!showTelemetry) {
-      setTelemetryExpanded(false);
-      return;
-    }
-    if (telemetryAutoExpand) {
-      setTelemetryExpanded(true);
-    }
-  }, [showTelemetry, telemetryAutoExpand]);
+  const toggleDiagnosticsExpanded = () => {
+    setDiagnosticsExpanded((prev) => !prev);
+  };
 
   const toggleTelemetry = () => {
     const next = !showTelemetry;
     setDisplayShowTelemetry(next);
-    setTelemetryExpanded(next ? true : false);
-  };
-
-  const toggleTelemetryExpanded = () => {
-    setTelemetryExpanded((prev) => !prev);
-  };
-
-  const handleAutoExpandChange = (checked: boolean) => {
-    setDisplayTelemetryAutoExpand(checked);
-    if (checked && showTelemetry) {
-      setTelemetryExpanded(true);
-    }
   };
 
   const toggleCitations = () => {
-    setDisplayShowCitations(!showCitations);
+    const next = !showCitations;
+    setDisplayShowCitations(next);
   };
 
   const handleTelemetrySwitchChange = (checked: boolean) => {
@@ -406,21 +387,6 @@ export function ChatFloatingWindow({
                     aria-label="Toggle telemetry visibility"
                   />
                 </div>
-                <div
-                  className={`${styles.guardrailToggleRow} ${styles.guardrailToggleRowAuto}`}
-                >
-                  <div className={`${styles.guardrailDescription} ai-choice`}>
-                    <span className="ai-choice__label">
-                      Auto expand telemetry on toggle
-                    </span>
-                  </div>
-                  <Switch
-                    className={styles.guardrailToggleRowSwitch}
-                    checked={telemetryAutoExpand}
-                    onCheckedChange={handleAutoExpandChange}
-                    aria-label="Toggle auto expand telemetry"
-                  />
-                </div>
               </div>
               <div className={styles.chatControlBlock}>
                 <div className={styles.guardrailToggleRow}>
@@ -448,8 +414,8 @@ export function ChatFloatingWindow({
             isLoading={isLoading}
             loadingAssistantId={loadingAssistantId}
             showTelemetry={showTelemetry}
-            telemetryExpanded={telemetryExpanded}
-            onToggleTelemetryExpanded={toggleTelemetryExpanded}
+            diagnosticsExpanded={diagnosticsExpanded}
+            onToggleDiagnostics={toggleDiagnosticsExpanded}
             showCitations={showCitations}
             showPlaceholder={false}
             citationLinkLength={24}

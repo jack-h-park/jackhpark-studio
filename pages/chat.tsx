@@ -44,6 +44,7 @@ export default function ChatPage({
       <AiPageChrome
         headerRecordMap={headerRecordMap}
         headerBlockId={headerBlockId}
+        fullBleed
       >
         <ChatFullPage adminConfig={adminConfig} runtimeMeta={runtimeMeta} />
       </AiPageChrome>

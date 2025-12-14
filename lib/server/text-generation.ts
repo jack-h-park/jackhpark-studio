@@ -1,8 +1,8 @@
-import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
-import { getLmStudioRuntimeConfig } from "@/lib/core/lmstudio";
-import { getOpenAIClient } from "@/lib/core/openai";
-import { requireProviderApiKey } from "@/lib/core/model-provider";
 import type { ModelProvider } from "@/lib/shared/model-provider";
+import { getLmStudioRuntimeConfig } from "@/lib/core/lmstudio";
+import { requireProviderApiKey } from "@/lib/core/model-provider";
+import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
+import { getOpenAIClient } from "@/lib/core/openai";
 
 export type TextGenRequest = {
   provider: ModelProvider;
@@ -158,11 +158,12 @@ async function generateWithLmStudio(request: TextGenRequest): Promise<string> {
 
   const baseUrl = config.baseUrl.replace(/\/$/, "");
   const url = `${baseUrl}/chat/completions`;
+  const baseMessages = buildMessages(request);
   const payload = {
     model: request.model,
     temperature: request.temperature,
     max_tokens: request.maxTokens,
-    messages: buildMessages(request),
+    messages: adaptMessagesForLmStudio(baseMessages),
   };
 
   try {
@@ -199,11 +200,59 @@ async function generateWithLmStudio(request: TextGenRequest): Promise<string> {
   }
 }
 
-function buildMessages(request: TextGenRequest) {
+type ChatCompletionMessage = {
+  role: "system" | "user" | "assistant";
+  content: string;
+};
+
+function buildMessages(request: TextGenRequest): ChatCompletionMessage[] {
   return [
     { role: "system", content: request.systemPrompt },
     { role: "user", content: request.userPrompt },
   ];
+}
+
+function adaptMessagesForLmStudio(
+  messages: ChatCompletionMessage[],
+): Array<{ role: "user" | "assistant"; content: string }> {
+  const normalized: Array<{ role: "user" | "assistant"; content: string }> = [];
+  let pendingSystem: string[] = [];
+
+  for (const message of messages) {
+    if (message.role === "system") {
+      if (message.content?.trim()) {
+        pendingSystem.push(message.content.trim());
+      }
+      continue;
+    }
+
+    const contentParts = [] as string[];
+    if (pendingSystem.length > 0) {
+      contentParts.push(pendingSystem.join("\n\n"));
+      pendingSystem = [];
+    }
+    if (message.content?.trim()) {
+      contentParts.push(message.content.trim());
+    }
+
+    if (contentParts.length === 0) {
+      continue;
+    }
+
+    normalized.push({
+      role: message.role === "assistant" ? "assistant" : "user",
+      content: contentParts.join("\n\n"),
+    });
+  }
+
+  if (pendingSystem.length > 0) {
+    normalized.unshift({
+      role: "user",
+      content: pendingSystem.join("\n\n"),
+    });
+  }
+
+  return normalized;
 }
 
 function buildOllamaOptions(
