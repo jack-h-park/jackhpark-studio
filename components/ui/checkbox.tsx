@@ -1,5 +1,6 @@
 import * as React from "react";
 
+import { useInteraction } from "./interaction-context";
 import { cn } from "./utils";
 
 export type CheckboxProps = Omit<
@@ -15,6 +16,9 @@ export const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
     { className, checked = false, onCheckedChange, disabled, ...props },
     ref,
   ) => {
+    const interaction = useInteraction();
+    const isDisabled = disabled || interaction.disabled;
+
     return (
       <button
         type="button"
@@ -24,12 +28,12 @@ export const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
         className={cn("ai-checkbox focus-ring", className)}
         onClick={(event) => {
           event.preventDefault();
-          if (disabled) {
+          if (isDisabled) {
             return;
           }
           onCheckedChange?.(!checked);
         }}
-        disabled={disabled}
+        disabled={isDisabled}
         ref={ref}
         {...props}
       >
@@ -74,6 +78,9 @@ export function CheckboxChoice({
   className,
   ...checkboxProps
 }: CheckboxChoiceProps) {
+  const interaction = useInteraction();
+  const isDisabled = disabled || interaction.disabled;
+
   const internalId = React.useId();
   const labelId = id ?? `${internalId}-label`;
   const checkboxRef = React.useRef<HTMLButtonElement | null>(null);
@@ -81,7 +88,7 @@ export function CheckboxChoice({
   const handleWrapperClick: React.MouseEventHandler<HTMLDivElement> = (
     event,
   ) => {
-    if (disabled) return;
+    if (isDisabled) return;
 
     if (
       event.target instanceof HTMLElement &&
@@ -98,16 +105,16 @@ export function CheckboxChoice({
       className={cn(
         "ai-choice__label-row",
         layout === "stacked" && "ai-choice__label-row--stacked",
-        disabled && "opacity-60 cursor-not-allowed",
+        isDisabled && "opacity-60 cursor-not-allowed",
         className,
       )}
       onClick={handleWrapperClick}
-      aria-disabled={disabled || undefined}
+      aria-disabled={isDisabled || undefined}
     >
       <Checkbox
         ref={checkboxRef}
         aria-labelledby={labelId}
-        disabled={disabled}
+        disabled={disabled} // Passed prop, Checkbox will also check context, but logic holds.
         {...checkboxProps}
       />
       <div className="flex flex-col gap-0.5">

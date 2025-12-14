@@ -1,13 +1,13 @@
-import { isLmStudioEnabled } from "@/lib/core/lmstudio";
-import { isOllamaEnabled } from "@/lib/core/ollama";
+import { isLmStudioConfigured } from "@/lib/core/lmstudio";
+import { isOllamaConfigured } from "@/lib/core/ollama";
 
 export type ModelProvider = "openai" | "gemini" | "ollama" | "lmstudio";
 export type ChatEngine = "native" | "lc";
 
 const BASE_MODEL_PROVIDERS: ModelProvider[] = ["openai", "gemini"];
 const LOCAL_MODEL_PROVIDERS: ModelProvider[] = [
-  ...(isOllamaEnabled() ? ["ollama" as const] : []),
-  ...(isLmStudioEnabled() ? ["lmstudio" as const] : []),
+  ...(isOllamaConfigured() ? ["ollama" as const] : []),
+  ...(isLmStudioConfigured() ? ["lmstudio" as const] : []),
 ];
 
 export const MODEL_PROVIDERS: readonly ModelProvider[] = [

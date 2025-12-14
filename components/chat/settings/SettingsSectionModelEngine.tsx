@@ -49,8 +49,8 @@ export function SettingsSectionModelEngine({
     const allOptions = listAllLlmModelOptions();
     const availableOptions = allOptions.filter((option) => {
       if (!option.isLocal) return true;
-      if (option.provider === "ollama") return runtimeMeta.ollamaEnabled;
-      if (option.provider === "lmstudio") return runtimeMeta.lmstudioEnabled;
+      if (option.provider === "ollama") return runtimeMeta.ollamaConfigured;
+      if (option.provider === "lmstudio") return runtimeMeta.lmstudioConfigured;
       return true;
     });
 
@@ -60,8 +60,8 @@ export function SettingsSectionModelEngine({
     return filtered.length > 0 ? filtered : availableOptions;
   }, [
     adminConfig.allowlist.llmModels,
-    runtimeMeta.ollamaEnabled,
-    runtimeMeta.lmstudioEnabled,
+    runtimeMeta.ollamaConfigured,
+    runtimeMeta.lmstudioConfigured,
   ]);
 
   const embeddingOptions = useMemo(() => {

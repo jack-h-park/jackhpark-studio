@@ -45,8 +45,8 @@ type AllowedAllowlistValue =
 type AllowlistCardProps = {
   allowlist: AdminChatConfig["allowlist"];
   llmModelOptions: AdminLlmModelOption[];
-  ollamaEnabled: boolean;
-  lmstudioEnabled: boolean;
+  ollamaConfigured: boolean;
+  lmstudioConfigured: boolean;
   defaultLlmModelId: string;
   localLlmBackendEnv: LocalLlmBackend | null;
   toggleAllowlistValue: (
@@ -60,8 +60,8 @@ type AllowlistCardProps = {
 export function AllowlistCard({
   allowlist,
   llmModelOptions,
-  ollamaEnabled,
-  lmstudioEnabled,
+  ollamaConfigured,
+  lmstudioConfigured,
   defaultLlmModelId,
   localLlmBackendEnv,
   toggleAllowlistValue,
@@ -104,7 +104,7 @@ export function AllowlistCard({
           }`}
         />
         <span>
-          {label}: {isActive ? "Enabled" : "Not configured"}
+          {label}: {isActive ? "Configured" : "Not configured"}
         </span>
       </span>
     );
@@ -125,9 +125,9 @@ export function AllowlistCard({
               : undefined;
         const disabledByEnv =
           backend === "ollama"
-            ? !ollamaEnabled
+            ? !ollamaConfigured
             : backend === "lmstudio"
-              ? !lmstudioEnabled
+              ? !lmstudioConfigured
               : false;
         const tooltip = disabledByEnv
           ? `${backendLabel ?? "Local backend"} is unavailable in this environment. Using ${defaultLlmModelId} instead.`

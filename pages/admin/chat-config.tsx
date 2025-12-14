@@ -7,8 +7,8 @@ import {
   DEFAULT_LLM_MODEL_ID,
   IS_DEFAULT_MODEL_EXPLICIT,
 } from "@/lib/core/llm-registry";
-import { isLmStudioEnabled } from "@/lib/core/lmstudio";
-import { isOllamaEnabled } from "@/lib/core/ollama";
+import { isLmStudioConfigured } from "@/lib/core/lmstudio";
+import { isOllamaConfigured } from "@/lib/core/ollama";
 import { getLocalLlmBackend } from "@/lib/local-llm";
 import {
   getAdminChatConfig,
@@ -70,8 +70,8 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
     defaultLlmModelId:
       DEFAULT_LLM_MODEL_ID as AdminChatRuntimeMeta["defaultLlmModelId"],
     defaultLlmModelExplicit: IS_DEFAULT_MODEL_EXPLICIT,
-    ollamaEnabled: isOllamaEnabled(),
-    lmstudioEnabled: isLmStudioEnabled(),
+    ollamaConfigured: isOllamaConfigured(),
+    lmstudioConfigured: isLmStudioConfigured(),
     localLlmBackendEnv: getLocalLlmBackend(),
     presetResolutions: buildPresetModelResolutions(adminConfig),
   };

@@ -1,11 +1,15 @@
 import * as React from "react";
 
+import { useInteraction } from "./interaction-context";
 import { cn } from "./utils";
 
 export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type = "text", ...props }, ref) => {
+  ({ className, type = "text", disabled, ...props }, ref) => {
+    const interaction = useInteraction();
+    const isDisabled = disabled || interaction.disabled;
+
     return (
       <input
         type={type}
@@ -13,6 +17,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           "ai-input file:border-0 file:bg-transparent file:text-sm file:font-medium focus-ring",
           className,
         )}
+        disabled={isDisabled}
         ref={ref}
         {...props}
       />

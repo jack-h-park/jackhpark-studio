@@ -1,6 +1,7 @@
 import { FiChevronDown } from "@react-icons/all-files/fi/FiChevronDown";
 import * as React from "react";
 
+import { useInteraction } from "./interaction-context";
 import { cn } from "./utils";
 
 function isElementOfType<P>(
@@ -46,6 +47,9 @@ export function Select({
     ...restTrigger
   } = triggerProps ?? {};
 
+  const interaction = useInteraction();
+  const isDisabled = disabled ?? triggerDisabled ?? interaction.disabled;
+
   return (
     <div className="relative w-full">
       <select
@@ -53,7 +57,7 @@ export function Select({
         className={cn("ai-select focus-ring", className)}
         value={value ?? ""}
         onChange={(event) => onValueChange?.(event.target.value)}
-        disabled={disabled ?? triggerDisabled}
+        disabled={isDisabled}
       >
         {placeholder && (
           <option value="" disabled>

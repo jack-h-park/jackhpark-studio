@@ -45,6 +45,9 @@ const sanitizeModel = <T extends string>(
   allowlistValues: readonly T[],
   fallback: T,
 ): T => {
+  if (value && allowlistValues.length === 0) {
+    return value as T;
+  }
   if (value && allowlistValues.includes(value as T)) {
     return value as T;
   }
@@ -182,8 +185,8 @@ export function ChatConfigProvider({
     const allowedModels = adminConfig.allowlist.llmModels;
     return (modelId: string): ModelResolution =>
       resolveLlmModelId(modelId, {
-        ollamaEnabled: runtimeMeta.ollamaEnabled,
-        lmstudioEnabled: runtimeMeta.lmstudioEnabled,
+        ollamaConfigured: runtimeMeta.ollamaConfigured,
+        lmstudioConfigured: runtimeMeta.lmstudioConfigured,
         defaultModelId: runtimeMeta.defaultLlmModelId,
         defaultModelExplicit: runtimeMeta.defaultLlmModelExplicit,
         allowedModelIds: allowedModels,
@@ -192,8 +195,8 @@ export function ChatConfigProvider({
     adminConfig.allowlist.llmModels,
     runtimeMeta.defaultLlmModelId,
     runtimeMeta.defaultLlmModelExplicit,
-    runtimeMeta.ollamaEnabled,
-    runtimeMeta.lmstudioEnabled,
+    runtimeMeta.ollamaConfigured,
+    runtimeMeta.lmstudioConfigured,
   ]);
 
   const defaultConfig = useMemo(

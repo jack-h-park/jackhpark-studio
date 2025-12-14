@@ -13,6 +13,7 @@ import {
 import { CheckboxChoice } from "@/components/ui/checkbox";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
+import { InteractionScope } from "@/components/ui/interaction-context";
 import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
 import { Radiobutton } from "@/components/ui/radiobutton";
 import {
@@ -213,8 +214,8 @@ export type SessionPresetsCardProps = {
   llmModelOptions: AdminLlmModelOption[];
   additionalPromptMaxLength: number;
   presetResolutions: AdminChatRuntimeMeta["presetResolutions"];
-  ollamaEnabled: boolean;
-  lmstudioEnabled: boolean;
+  ollamaConfigured: boolean;
+  lmstudioConfigured: boolean;
   localLlmBackendEnv: LocalLlmBackend | null;
   defaultLlmModelId: string;
 };
@@ -229,8 +230,8 @@ export function SessionPresetsCard({
   llmModelOptions,
   additionalPromptMaxLength,
   presetResolutions,
-  ollamaEnabled,
-  lmstudioEnabled,
+  ollamaConfigured,
+  lmstudioConfigured,
   localLlmBackendEnv,
   defaultLlmModelId,
 }: SessionPresetsCardProps) {
@@ -448,50 +449,52 @@ export function SessionPresetsCard({
             }
           />
         </SectionHeader>
-        <SectionContent className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <span className={SECTION_FIELD_LABEL_CLASS}>Token Budget</span>
-            <Input
-              type="number"
-              min={numericLimits.contextBudget.min}
-              max={numericLimits.contextBudget.max}
-              aria-label={`Token Budget for ${presetDisplayNames[presetKey]}`}
-              value={presets[presetKey].context.tokenBudget}
-              disabled={isDisabled}
-              onChange={(event) =>
-                handleTokenBudgetChange(presetKey, Number(event.target.value))
-              }
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className={SECTION_FIELD_LABEL_CLASS}>History Budget</span>
-            <Input
-              type="number"
-              min={numericLimits.historyBudget.min}
-              max={numericLimits.historyBudget.max}
-              aria-label={`History Budget for ${presetDisplayNames[presetKey]}`}
-              value={presets[presetKey].context.historyBudget}
-              disabled={isDisabled}
-              onChange={(event) =>
-                handleHistoryBudgetChange(presetKey, Number(event.target.value))
-              }
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <span className={SECTION_FIELD_LABEL_CLASS}>Clip Tokens</span>
-            <Input
-              type="number"
-              min={numericLimits.clipTokens.min}
-              max={numericLimits.clipTokens.max}
-              aria-label={`Clip Tokens for ${presetDisplayNames[presetKey]}`}
-              value={presets[presetKey].context.clipTokens}
-              disabled={isDisabled}
-              onChange={(event) =>
-                handleClipTokensChange(presetKey, Number(event.target.value))
-              }
-            />
-          </div>
-        </SectionContent>
+        <InteractionScope disabled={isDisabled}>
+          <SectionContent className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <span className={SECTION_FIELD_LABEL_CLASS}>Token Budget</span>
+              <Input
+                type="number"
+                min={numericLimits.contextBudget.min}
+                max={numericLimits.contextBudget.max}
+                aria-label={`Token Budget for ${presetDisplayNames[presetKey]}`}
+                value={presets[presetKey].context.tokenBudget}
+                onChange={(event) =>
+                  handleTokenBudgetChange(presetKey, Number(event.target.value))
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className={SECTION_FIELD_LABEL_CLASS}>History Budget</span>
+              <Input
+                type="number"
+                min={numericLimits.historyBudget.min}
+                max={numericLimits.historyBudget.max}
+                aria-label={`History Budget for ${presetDisplayNames[presetKey]}`}
+                value={presets[presetKey].context.historyBudget}
+                onChange={(event) =>
+                  handleHistoryBudgetChange(
+                    presetKey,
+                    Number(event.target.value),
+                  )
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className={SECTION_FIELD_LABEL_CLASS}>Clip Tokens</span>
+              <Input
+                type="number"
+                min={numericLimits.clipTokens.min}
+                max={numericLimits.clipTokens.max}
+                aria-label={`Clip Tokens for ${presetDisplayNames[presetKey]}`}
+                value={presets[presetKey].context.clipTokens}
+                onChange={(event) =>
+                  handleClipTokensChange(presetKey, Number(event.target.value))
+                }
+              />
+            </div>
+          </SectionContent>
+        </InteractionScope>
       </Section>
     );
   };
@@ -567,9 +570,9 @@ export function SessionPresetsCard({
                               : undefined;
                         const backendEnabled =
                           localProvider === "ollama"
-                            ? ollamaEnabled
+                            ? ollamaConfigured
                             : localProvider === "lmstudio"
-                              ? lmstudioEnabled
+                              ? lmstudioConfigured
                               : true;
                         const disabledByEnv =
                           Boolean(localProvider) && !backendEnabled;

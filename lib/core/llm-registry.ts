@@ -1,5 +1,5 @@
-import { isLmStudioEnabled } from "@/lib/core/lmstudio";
-import { isOllamaEnabled } from "@/lib/core/ollama";
+import { isLmStudioConfigured } from "@/lib/core/lmstudio";
+import { isOllamaConfigured } from "@/lib/core/ollama";
 import { normalizeModelProvider } from "@/lib/shared/model-provider";
 import {
   LLM_MODEL_DEFINITIONS,
@@ -19,10 +19,10 @@ const mapToOption = (definition: LlmModelDefinition): LlmModelOption =>
 
 const isDefinitionEnabled = (definition: LlmModelDefinition) => {
   if (definition.localBackend === "ollama") {
-    return isOllamaEnabled();
+    return isOllamaConfigured();
   }
   if (definition.localBackend === "lmstudio") {
-    return isLmStudioEnabled();
+    return isLmStudioConfigured();
   }
   return true;
 };

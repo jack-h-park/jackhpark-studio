@@ -54,7 +54,7 @@ export function getOllamaRuntimeConfig(): OllamaRuntimeConfig {
   return runtimeConfig;
 }
 
-export function isOllamaEnabled(): boolean {
+export function isOllamaConfigured(): boolean {
   return runtimeConfig.enabled;
 }
 

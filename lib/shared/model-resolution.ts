@@ -19,8 +19,8 @@ export type ModelResolution = {
 };
 
 export type ModelResolutionContext = {
-  ollamaEnabled: boolean;
-  lmstudioEnabled: boolean;
+  ollamaConfigured: boolean;
+  lmstudioConfigured: boolean;
   defaultModelId: string;
   defaultModelExplicit?: boolean;
   allowedModelIds?: readonly string[];
@@ -78,10 +78,10 @@ function isBackendDisabled(
   ctx: ModelResolutionContext,
 ): boolean {
   if (definition.localBackend === "ollama") {
-    return !ctx.ollamaEnabled;
+    return !ctx.ollamaConfigured;
   }
   if (definition.localBackend === "lmstudio") {
-    return !ctx.lmstudioEnabled;
+    return !ctx.lmstudioConfigured;
   }
   return false;
 }

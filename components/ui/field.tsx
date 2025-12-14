@@ -1,5 +1,10 @@
 import * as React from "react";
 
+import {
+  InteractionScope,
+  useInteraction,
+} from "@/components/ui/interaction-context";
+
 import { Checkbox } from "./checkbox";
 import { Label } from "./label";
 import { SliderNumberField } from "./slider-number-field";
@@ -23,6 +28,22 @@ export type FieldProps = {
   children: React.ReactElement<FieldControlProps>;
 };
 
+export function DependentGroup({
+  isEnabled,
+  children,
+}: {
+  isEnabled: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <InteractionScope disabled={!isEnabled}>
+      <div className="ml-3 pl-4 border-l border-[color:var(--ai-border)]">
+        {children}
+      </div>
+    </InteractionScope>
+  );
+}
+
 export function Field({
   id,
   label,
@@ -32,10 +53,18 @@ export function Field({
   variant = "plain",
   children,
 }: FieldProps) {
+  const interaction = useInteraction();
+  const isDependentDisabled = interaction.disabled;
+
   const descriptionId = description ? `${id}-description` : undefined;
   const baseClass = "ai-field";
   const variantClass =
     variant === "tile" ? "ai-field--tile ai-allowlist-tile" : "";
+
+  // Automatically apply disabled styling if in a disabled dependent group
+  const disabledLabelClass = isDependentDisabled
+    ? "ai-field--disabled-label"
+    : "";
 
   const descriptionValue =
     descriptionId && React.isValidElement(children)
@@ -56,7 +85,7 @@ export function Field({
     : children;
 
   return (
-    <div className={cn(baseClass, variantClass, className)}>
+    <div className={cn(baseClass, variantClass, disabledLabelClass, className)}>
       <Label htmlFor={id} className="ai-field__label">
         {label}
         {required ? <span aria-hidden="true"> *</span> : null}

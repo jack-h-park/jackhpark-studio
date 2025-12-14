@@ -3,7 +3,7 @@
 import { FiMonitor } from "@react-icons/all-files/fi/FiMonitor";
 
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
-import { SwitchField } from "@/components/ui/field";
+import { DependentGroup, SwitchField } from "@/components/ui/field";
 import {
   Section,
   SectionContent,
@@ -43,7 +43,7 @@ export function SettingsSectionDisplay() {
           variant="plain"
         />
 
-        <div className="ml-3 pl-4 border-l border-[color:var(--ai-border)]">
+        <DependentGroup isEnabled={showTelemetry}>
           <SwitchField
             id="telemetry-auto-expand"
             label="Auto expand telemetry on toggle"
@@ -52,10 +52,8 @@ export function SettingsSectionDisplay() {
             checked={telemetryAutoExpand}
             onCheckedChange={setTelemetryAutoExpand}
             variant="plain"
-            className={!showTelemetry ? "ai-field--disabled-label" : ""}
-            switchProps={{ disabled: !showTelemetry }}
           />
-        </div>
+        </DependentGroup>
 
         <SwitchField
           id="citations"

@@ -30,6 +30,6 @@ export function getLmStudioRuntimeConfig(): LmStudioRuntimeConfig {
   return runtimeConfig;
 }
 
-export function isLmStudioEnabled(): boolean {
+export function isLmStudioConfigured(): boolean {
   return runtimeConfig.enabled;
 }

@@ -55,8 +55,8 @@ export function ChatConfigPage({
     updatePreset,
   } = useAdminChatConfig({ adminConfig, lastUpdatedAt, runtimeMeta });
   const {
-    ollamaEnabled,
-    lmstudioEnabled,
+    ollamaConfigured,
+    lmstudioConfigured,
     localLlmBackendEnv,
     defaultLlmModelId,
     presetResolutions,
@@ -126,8 +126,8 @@ export function ChatConfigPage({
       <AllowlistCard
         allowlist={config.allowlist}
         llmModelOptions={llmModelOptions}
-        ollamaEnabled={ollamaEnabled}
-        lmstudioEnabled={lmstudioEnabled}
+        ollamaConfigured={ollamaConfigured}
+        lmstudioConfigured={lmstudioConfigured}
         localLlmBackendEnv={localLlmBackendEnv}
         defaultLlmModelId={defaultLlmModelId}
         toggleAllowlistValue={toggleAllowlistValue}
@@ -169,8 +169,8 @@ export function ChatConfigPage({
         llmModelOptions={llmModelOptions}
         additionalPromptMaxLength={additionalPromptMaxLength}
         presetResolutions={presetResolutions}
-        ollamaEnabled={ollamaEnabled}
-        lmstudioEnabled={lmstudioEnabled}
+        ollamaConfigured={ollamaConfigured}
+        lmstudioConfigured={lmstudioConfigured}
         localLlmBackendEnv={localLlmBackendEnv}
         defaultLlmModelId={defaultLlmModelId}
       />

@@ -10,12 +10,12 @@ import {
   IS_DEFAULT_MODEL_EXPLICIT,
   normalizeLlmModelId,
 } from "@/lib/core/llm-registry";
-import { isLmStudioEnabled } from "@/lib/core/lmstudio";
+import { isLmStudioConfigured } from "@/lib/core/lmstudio";
 import {
   resolveEmbeddingSpace,
   resolveLlmModel,
 } from "@/lib/core/model-provider";
-import { isOllamaEnabled } from "@/lib/core/ollama";
+import { isOllamaConfigured } from "@/lib/core/ollama";
 import { getLocalLlmBackend, getLocalLlmClient } from "@/lib/local-llm";
 import {
   loadAdminChatConfig,
@@ -453,7 +453,7 @@ export async function loadChatModelSettings(options?: {
   const defaults = getChatModelDefaults();
   const presetKey = resolvePresetKey(config, options?.sessionConfig);
   const preset = config.presets?.[presetKey] ?? config.presets?.default ?? null;
-  const ollamaEnabled = isOllamaEnabled();
+  const ollamaConfigured = isOllamaConfigured();
   const requireLocal =
     options?.sessionConfig?.requireLocal ?? preset?.requireLocal ?? false;
 
@@ -471,8 +471,8 @@ export async function loadChatModelSettings(options?: {
   );
 
   const modelResolutionContext = {
-    ollamaEnabled,
-    lmstudioEnabled: isLmStudioEnabled(),
+    ollamaConfigured,
+    lmstudioConfigured: isLmStudioConfigured(),
     defaultModelId: DEFAULT_LLM_MODEL_ID,
     defaultModelExplicit: IS_DEFAULT_MODEL_EXPLICIT,
     allowedModelIds: config.allowlist?.llmModels,
@@ -528,9 +528,9 @@ export async function loadChatModelSettings(options?: {
 
   let localBackendAvailable = false;
   if (requestedLocalBackend === "lmstudio") {
-    localBackendAvailable = modelResolutionContext.lmstudioEnabled;
+    localBackendAvailable = modelResolutionContext.lmstudioConfigured;
   } else if (requestedLocalBackend === "ollama") {
-    localBackendAvailable = modelResolutionContext.ollamaEnabled;
+    localBackendAvailable = modelResolutionContext.ollamaConfigured;
   } else if (requiresLocalModel) {
     // Other local providers? Default to checking client existence for now
     localBackendAvailable = Boolean(localClient) && matchesSelectedBackend;
