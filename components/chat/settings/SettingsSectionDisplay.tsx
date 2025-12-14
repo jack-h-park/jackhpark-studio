@@ -34,11 +34,16 @@ export function SettingsSectionDisplay() {
           label="Telemetry badges"
           description="Show engine, guardrail, and enhancement insights."
           checked={showTelemetry}
-          onCheckedChange={setShowTelemetry}
+          onCheckedChange={(checked) => {
+            setShowTelemetry(checked);
+            if (!checked) {
+              setTelemetryAutoExpand(false);
+            }
+          }}
           variant="plain"
         />
 
-        <div className="pl-12">
+        <div className="ml-3 pl-4 border-l border-[color:var(--ai-border)]">
           <SwitchField
             id="telemetry-auto-expand"
             label="Auto expand telemetry on toggle"
@@ -47,7 +52,7 @@ export function SettingsSectionDisplay() {
             checked={telemetryAutoExpand}
             onCheckedChange={setTelemetryAutoExpand}
             variant="plain"
-            className="ai-allowlist-tile--dependent"
+            className={!showTelemetry ? "ai-field--disabled-label" : ""}
             switchProps={{ disabled: !showTelemetry }}
           />
         </div>

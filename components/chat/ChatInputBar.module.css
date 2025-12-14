@@ -1,14 +1,16 @@
 .chatInputForm {
   display: flex;
   padding: 16px;
-  border-top: 1px solid #eee;
-  background: #fff;
+  border-top: 1px solid hsl(var(--ai-border));
+  background: hsl(var(--ai-bg));
   flex-shrink: 0;
 }
 
 .chatInput {
   flex-grow: 1;
-  border: 1px solid #ddd;
+  border: 1px solid hsl(var(--ai-border));
+  background: hsl(var(--ai-bg-muted));
+  color: hsl(var(--ai-fg));
   border-radius: 20px;
   padding: 10px 16px;
   font-size: 0.9rem;
@@ -17,7 +19,7 @@
 
 .chatInput:focus {
   outline: none;
-  border-color: #007aff;
+  border-color: var(--ai-accent);
 }
 
 .chatSubmitButton {
@@ -25,7 +27,7 @@
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: #007aff;
+  background: var(--ai-accent);
   color: white;
   display: flex;
   align-items: center;
@@ -34,5 +36,6 @@
 }
 
 .chatSubmitButton:disabled {
-  background: #ccc;
+  background: hsl(var(--ai-bg-muted));
+  color: hsl(var(--ai-fg-muted));
 }

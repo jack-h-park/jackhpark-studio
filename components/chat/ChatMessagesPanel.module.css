@@ -22,19 +22,19 @@
 
 .message a:hover,
 .message a:focus {
-  color: #0f172a;
+  color: hsl(var(--ai-fg));
 }
 
 .user {
-  background: #007aff;
+  background: var(--ai-accent);
   color: white;
   align-self: flex-end;
   border-bottom-right-radius: 4px;
 }
 
 .assistant {
-  background: #e5e5ea;
-  color: #000;
+  background: hsl(var(--ai-bg-muted));
+  color: hsl(var(--ai-fg));
   align-self: flex-start;
   border-bottom-left-radius: 4px;
 }
@@ -64,7 +64,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(10, 69, 132, 0.6);
+  background: color-mix(in srgb, var(--ai-accent) 60%, transparent);
   animation: assistant-pulse 0.8s infinite ease-in-out;
 }
 
@@ -96,33 +96,33 @@
 }
 
 .metaCard {
-  border: 1px solid #d1d5db;
+  border: 1px solid hsl(var(--ai-border));
   border-radius: 10px;
   padding: 8px 10px;
-  background: #fff;
+  background: hsl(var(--ai-bg));
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
 }
 
 .metaCardRuntime {
-  border-color: #cbd5f5;
-  background: #edf2ff;
+  border-color: color-mix(in srgb, var(--ai-accent) 20%, transparent);
+  background: color-mix(in srgb, var(--ai-accent) 5%, hsl(var(--ai-bg)));
 }
 
 .metaCardGuardrail {
-  border-color: #cbd5f5;
-  background: #f8fafc;
+  border-color: hsl(var(--ai-border));
+  background: hsl(var(--ai-bg-muted));
 }
 
 .metaCardEnhancements {
-  border-color: #fcd34d;
-  background: #fff7ed;
+  border-color: color-mix(in srgb, var(--ai-warning) 30%, transparent);
+  background: color-mix(in srgb, var(--ai-warning) 5%, hsl(var(--ai-bg)));
 }
 
 .metaCardHeading {
   font-size: 0.6rem;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: #475569;
+  color: hsl(var(--ai-fg-muted));
 }
 
 .metaCardGrid {
@@ -146,7 +146,7 @@
   font-size: 0.55rem;
   text-transform: uppercase;
   letter-spacing: 0.15em;
-  color: #6b7280;
+  color: hsl(var(--ai-fg-muted));
 }
 
 .metaCardBlockRow {
@@ -158,7 +158,7 @@
 .metaCardBlockValue {
   font-weight: 600;
   font-size: 0.55rem;
-  color: #0f172a;
+  color: hsl(var(--ai-fg));
 }
 
 .telemetryCollapseRow {
@@ -172,7 +172,7 @@
   letter-spacing: 0.15em;
   background: none;
   border: none;
-  color: #2563eb;
+  color: var(--ai-accent);
   cursor: pointer;
   padding: 0;
 }
@@ -183,7 +183,7 @@
 }
 
 .metaCardBlockValue.warning {
-  color: #b45309;
+  color: var(--ai-warning); /* #b45309 previously */
 }
 
 .metaCardFooter {
@@ -205,8 +205,9 @@
   margin-top: 6px;
   padding: 6px 8px;
   border-radius: 6px;
-  background: rgba(15, 23, 42, 0.9);
-  color: #fff;
+  background: hsl(var(--ai-bg) / 0.95);
+  color: hsl(var(--ai-fg));
+  border: 1px solid hsl(var(--ai-border));
   font-size: 0.65rem;
   white-space: pre-line;
   visibility: hidden;
@@ -226,7 +227,7 @@
   margin-top: -6px; /* Overlap with tooltip */
   border-width: 6px;
   border-style: solid;
-  border-color: transparent transparent rgba(15, 23, 42, 0.9) transparent;
+  border-color: transparent transparent hsl(var(--ai-border)) transparent;
   visibility: hidden;
   opacity: 0;
   pointer-events: none;
@@ -246,24 +247,24 @@
   font-size: 0.6rem;
   padding: 2px 6px;
   border-radius: 4px;
-  background: #eef2ff;
-  color: #4f46e5;
+  background: color-mix(in srgb, var(--ai-accent) 10%, transparent);
+  color: var(--ai-accent);
   font-weight: 500;
 }
 
 .metaChip.warning {
-  background: rgba(255, 140, 0, 0.15);
-  color: #b45309;
+  background: color-mix(in srgb, var(--ai-warning) 15%, transparent);
+  color: var(--ai-warning);
 }
 
 .metaDebug {
   margin-top: 6px;
   padding: 8px;
   border-radius: 8px;
-  background: #fff;
-  border: 1px solid #e0e7ff;
+  background: hsl(var(--ai-bg));
+  border: 1px solid hsl(var(--ai-border));
   font-size: 0.75rem;
-  color: #374151;
+  color: hsl(var(--ai-fg));
   line-height: 1.3;
 }
 .metaDebugItem {
@@ -274,25 +275,25 @@
   gap: 0.5rem;
 }
 .metaDebugLabel {
-  color: #475569;
+  color: hsl(var(--ai-fg-muted));
 }
 .metaDebugValue {
   font-weight: 600;
-  color: #0f172a;
+  color: hsl(var(--ai-fg));
 }
 
 .messageCitationsPanel {
   margin-top: 3px;
-  border: 1px solid #cbd5f5;
+  border: 1px solid hsl(var(--ai-border-muted));
   border-radius: 8px;
   padding: 3px;
-  background: #f8fafc;
+  background: hsl(var(--ai-bg-muted));
 }
 
 .citationMetaBanner {
   margin-bottom: 3px;
   font-size: 0.58rem;
-  color: #475569;
+  color: hsl(var(--ai-fg-muted));
   font-weight: 500;
   letter-spacing: 0.02em;
 }
@@ -307,8 +308,8 @@
 }
 
 .citationItem {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: hsl(var(--ai-bg));
+  border: 1px solid hsl(var(--ai-border));
   border-radius: 8px;
   padding: 8px 10px;
   font-size: 0.72rem;
@@ -322,7 +323,7 @@
 
 .citationIndex {
   font-weight: 700;
-  color: #0f172a;
+  color: hsl(var(--ai-fg));
   min-width: 26px;
   font-size: 0.7rem;
 }
@@ -334,7 +335,7 @@
 
 .citationTitle {
   font-weight: 600;
-  color: #0f172a;
+  color: hsl(var(--ai-fg));
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
@@ -343,14 +344,14 @@
 }
 
 .citationTitle a {
-  color: #2563eb;
+  color: var(--ai-accent);
   font-size: 0.62rem;
 }
 
 .citationDocMeta {
   font-size: 0.55rem;
   letter-spacing: 0.02em;
-  color: #475569;
+  color: hsl(var(--ai-fg-muted));
   margin-top: 4px;
 }
 
@@ -358,12 +359,13 @@
   font-size: 0.72rem;
   text-align: right;
   min-width: 100px;
+  color: hsl(var(--ai-fg));
 }
 
 .citationSubtext {
   display: block;
   font-size: 0.45rem;
-  color: #6b7280;
+  color: hsl(var(--ai-fg-muted));
 }
 
 .citationBadgeRow {
@@ -371,7 +373,7 @@
   justify-content: space-between;
   margin-top: 6px;
   font-size: 0.64rem;
-  color: #475569;
+  color: hsl(var(--ai-fg-muted));
 }
 
 .citationMultiplier {
@@ -382,12 +384,12 @@
 }
 
 .citationExcerptCount {
-  color: #6b7280;
+  color: hsl(var(--ai-fg-muted));
 }
 
 .citationDetails {
   margin-top: 8px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid hsl(var(--ai-border));
   padding-top: 8px;
   font-size: 0.5rem;
 }
@@ -396,6 +398,7 @@
   font-weight: 600;
   cursor: pointer;
   outline: none;
+  color: hsl(var(--ai-fg));
 }
 
 .citationDetailGrid {
@@ -409,7 +412,7 @@
   font-size: 0.6rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #6b7280;
+  color: hsl(var(--ai-fg-muted));
   margin-bottom: 2px;
 }
 
@@ -421,26 +424,26 @@
 }
 
 .citationChunkItem {
-  border: 1px solid #e5e7eb;
+  border: 1px solid hsl(var(--ai-border-muted));
   border-radius: 6px;
   padding: 4px;
-  background: #fdfdfd;
+  background: hsl(var(--ai-bg-muted));
 }
 
 .citationChunkSnippet {
   margin: 0;
   font-size: 0.7rem;
-  color: #111827;
+  color: hsl(var(--ai-fg));
 }
 
 .citationChunkMeta {
   font-size: 0.62rem;
-  color: #475569;
+  color: hsl(var(--ai-fg-muted));
   margin-top: 2px;
 }
 
 .citationChunkNotice {
   margin-top: 6px;
   font-size: 0.6rem;
-  color: #475569;
+  color: hsl(var(--ai-fg-muted));
 }

@@ -2,9 +2,10 @@
   width: 375px;
   height: 550px;
   max-height: calc(100vh - 140px);
-  background: #f9f9f9;
+  background: hsl(var(--ai-bg));
   border-radius: 16px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--ai-shadow-soft);
+  border: 1px solid transparent; /* Prepare for dark mode border */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -15,6 +16,10 @@
     transform 0.3s ease;
   pointer-events: none;
   overscroll-behavior-y: contain;
+}
+
+:global(.dark) .chatPanel {
+  border-color: hsl(var(--ai-border));
 }
 
 .chatPanel.isOpen {
@@ -31,8 +36,8 @@
 
 .chatHeader {
   padding: 16px;
-  background: #fff;
-  border-bottom: 1px solid #eee;
+  background: hsl(var(--ai-bg));
+  border-bottom: 1px solid hsl(var(--ai-border));
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -61,7 +66,7 @@
 .chatHeaderTitle :global(svg) {
   width: 20px;
   height: 20px;
-  color: #0a4584;
+  color: var(--ai-accent);
 }
 
 .chatEngineRow {
@@ -75,7 +80,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #0a4584;
+  background: var(--ai-accent);
   color: #fff;
   border-radius: 999px;
   padding: 2px 10px;
@@ -90,7 +95,7 @@
 
 .chatEngineFallbackNotice {
   font-size: 0.75rem;
-  color: #475569;
+  color: hsl(var(--ai-fg-muted));
 }
 
 .chatEngineErrorBanner {
@@ -104,10 +109,16 @@
   font-size: 0.85rem;
 }
 
+/* Dark mode override for error banner manually for now as it's specific */
+:global(.dark) .chatEngineErrorBanner {
+  background: #7f1d1d;
+  color: #fecaca;
+}
+
 .chatConfigToggle {
-  background: #f0f4ff;
-  color: #0a4584;
-  border: 1px solid #d0dbff;
+  background: hsl(var(--ai-bg-muted));
+  color: var(--ai-accent);
+  border: 1px solid hsl(var(--ai-border));
   border-radius: 999px;
   padding: 5px 10px;
   font-size: 0.7rem;
@@ -117,15 +128,15 @@
 }
 
 .chatConfigToggle:hover {
-  background: #e3eaff;
+  background: hsl(var(--ai-border)); /* Slightly darker than muted */
 }
 
 .chatConfigBar {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: #f4f6fb;
-  border: 1px solid #e3e7f2;
+  background: hsl(var(--ai-bg-muted));
+  border: 1px solid hsl(var(--ai-border));
   border-radius: 10px;
   padding: 11px;
   margin-top: 10px;
@@ -142,7 +153,7 @@
   flex-direction: column;
   gap: 8px;
   padding-bottom: 6px;
-  border-bottom: 1px solid #e5e7f2;
+  border-bottom: 1px solid hsl(var(--ai-border));
 }
 
 .chatRuntimeSummaryRow {
@@ -156,14 +167,14 @@
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #475569;
+  color: hsl(var(--ai-fg-muted));
   font-weight: 600;
 }
 
 .chatRuntimeSummaryValue {
   font-size: 0.85rem;
   font-weight: 600;
-  color: #0f172a;
+  color: hsl(var(--ai-fg));
   display: flex;
   align-items: center;
   gap: 4px;
@@ -177,13 +188,13 @@
 }
 
 .chatRuntimeFlag {
-  background: #fff;
-  border: 1px solid #d3d8ee;
+  background: hsl(var(--ai-bg));
+  border: 1px solid hsl(var(--ai-border));
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.75rem;
   font-weight: 600;
-  color: #0f172a;
+  color: hsl(var(--ai-fg));
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -194,14 +205,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  background: #fff;
-  border: 1px solid #d3d8ee;
+  background: hsl(var(--ai-bg));
+  border: 1px solid hsl(var(--ai-border));
   border-radius: 8px;
   padding: 8px 10px;
 }
 
 .guardrailToggleRowAuto {
-  background: #f9fafb;
+  background: hsl(var(--ai-bg-muted));
 }
 
 .guardrailDescription {
@@ -216,6 +227,7 @@
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
+  color: hsl(var(--ai-fg));
 }
 
 .chatCloseButton {
@@ -226,7 +238,7 @@
   border: none;
   cursor: pointer;
   padding: 4px;
-  color: #555;
+  color: hsl(var(--ai-fg-muted));
 }
 
 .chatExpandButton {
@@ -237,13 +249,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #555;
+  color: hsl(var(--ai-fg-muted));
   transition: color 0.2s ease;
 }
 
 .chatCloseButton:hover,
 .chatExpandButton:hover {
-  color: #000;
+  color: hsl(var(--ai-fg));
 }
 
 @media (max-width: 480px) {

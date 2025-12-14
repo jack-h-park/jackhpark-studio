@@ -85,7 +85,7 @@ const transformInlineTitleBold = (title: any, shouldBold: boolean): any => {
   return changed ? transformed : title;
 };
 
-const CollectionWithDescription = (props: any) => {
+function CollectionWithDescription(props: any) {
   const { recordMap, components } = useNotionContext();
   const collectionId = props.block?.collection_id;
   const collection = recordMap?.collection?.[collectionId]?.value as any;
@@ -101,7 +101,7 @@ const CollectionWithDescription = (props: any) => {
   }
 
   // 2. If description exists, inject it after the header via DOM manipulation
-  // eslint-disable-next-line react-hooks/rules-of-hooks
+   
   React.useEffect(() => {
     const container = containerRef.current;
     const desc = descRef.current;
@@ -143,7 +143,7 @@ const CollectionWithDescription = (props: any) => {
       <Collection {...props} />
     </div>
   );
-};
+}
 
 interface NotionPageRendererProps {
   recordMap: ExtendedRecordMap;
