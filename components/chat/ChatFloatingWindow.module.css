@@ -140,6 +140,24 @@
   border-radius: 10px;
   padding: 11px;
   margin-top: 10px;
+  /* Reverted max-height to allow full scroll flow */
+}
+
+.scrollableContent {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  min-height: 0; /* Important for flex child scrolling */
+}
+
+/* Remove internal scrolling from messages container since parent handles it */
+.chatMessages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .chatControlBlock {
@@ -270,9 +288,7 @@
 }
 
 .chatMessages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
+  /* Scroll handled by parent .scrollableContent */
   display: flex;
   flex-direction: column;
   gap: 12px;

@@ -17,6 +17,7 @@ import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { ChatMessagesPanel } from "@/components/chat/ChatMessagesPanel";
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { useChatSession } from "@/components/chat/hooks/useChatSession";
+import { useChatScroll } from "@/components/chat/hooks/useChatScroll";
 import { Switch } from "@/components/ui/switch";
 import {
   MODEL_PROVIDER_LABELS,
@@ -43,7 +44,7 @@ export function ChatFloatingWindow({
   const [input, setInput] = useState("");
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  // const messagesEndRef = useRef<HTMLDivElement>(null); // Removed: using useChatScroll
   const inputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -150,13 +151,10 @@ export function ChatFloatingWindow({
     setIsExpanded((prev) => !prev);
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  const { scrollRef, onScroll } = useChatScroll({
+    messages,
+    isLoading,
+  });
 
   useEffect(() => {
     if (isOpen) {
@@ -237,6 +235,12 @@ export function ChatFloatingWindow({
               )}
             </div>
           </div>
+        </header>
+        <div
+          className={styles.scrollableContent}
+          ref={scrollRef}
+          onScroll={onScroll}
+        >
           {(showRuntimeEngineLabel || showFallbackNotice) && (
             <div className={styles.chatEngineRow}>
               {showRuntimeEngineLabel && (
@@ -406,21 +410,20 @@ export function ChatFloatingWindow({
               </div>
             </div>
           )}
-        </header>
 
-        <div className={styles.chatMessages}>
-          <ChatMessagesPanel
-            messages={messages}
-            isLoading={isLoading}
-            loadingAssistantId={loadingAssistantId}
-            showTelemetry={showTelemetry}
-            diagnosticsExpanded={diagnosticsExpanded}
-            onToggleDiagnostics={toggleDiagnosticsExpanded}
-            showCitations={showCitations}
-            showPlaceholder={false}
-            citationLinkLength={24}
-          />
-          <div ref={messagesEndRef} />
+          <div className={styles.chatMessages}>
+            <ChatMessagesPanel
+              messages={messages}
+              isLoading={isLoading}
+              loadingAssistantId={loadingAssistantId}
+              showTelemetry={showTelemetry}
+              diagnosticsExpanded={diagnosticsExpanded}
+              onToggleDiagnostics={toggleDiagnosticsExpanded}
+              showCitations={showCitations}
+              showPlaceholder={false}
+              citationLinkLength={24}
+            />
+          </div>
         </div>
 
         <ChatInputBar

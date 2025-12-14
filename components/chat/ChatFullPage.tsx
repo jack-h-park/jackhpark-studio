@@ -20,6 +20,7 @@ import { ChatAdvancedSettingsDrawer } from "@/components/chat/settings/ChatAdvan
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import { useChatScroll } from "@/components/chat/hooks/useChatScroll";
 
 import styles from "./ChatFullPage.module.css";
 
@@ -71,6 +72,11 @@ function ChatShellContent() {
     setDiagnosticsExpanded((prev) => !prev);
   };
 
+  const { scrollRef, onScroll } = useChatScroll({
+    messages,
+    isLoading,
+  });
+
   return (
     <div className={styles.shell}>
       <Card className={styles.panel}>
@@ -98,7 +104,7 @@ function ChatShellContent() {
           </Button>
         </header>
         <div className={styles.body}>
-          <div className={styles.messages}>
+          <div className={styles.messages} ref={scrollRef} onScroll={onScroll}>
             {!hasMessages && (
               <div className={styles.hero}>
                 <Image
