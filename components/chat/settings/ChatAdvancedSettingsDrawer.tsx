@@ -1,7 +1,6 @@
-"use client";
-
+import { createPortal } from "react-dom";
 import { FiSettings } from "@react-icons/all-files/fi/FiSettings";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,11 @@ type DrawerProps = {
 
 export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
   const { adminConfig, sessionConfig, setSessionConfig } = useChatConfig();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -64,7 +68,9 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
       appliedPreset: "default",
     }));
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       <div
         className={`${styles.overlay} ${open ? styles.overlayVisible : ""}`}
@@ -143,6 +149,7 @@ export function ChatAdvancedSettingsDrawer({ open, onClose }: DrawerProps) {
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }

@@ -4,6 +4,7 @@ import { AiOutlineArrowsAlt } from "@react-icons/all-files/ai/AiOutlineArrowsAlt
 import { AiOutlineClose } from "@react-icons/all-files/ai/AiOutlineClose";
 import { AiOutlineCompress } from "@react-icons/all-files/ai/AiOutlineCompress";
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
+import { FiChevronRight } from "@react-icons/all-files/fi/FiChevronRight";
 import { GiBrain } from "@react-icons/all-files/gi/GiBrain";
 import {
   type ReactNode,
@@ -59,8 +60,10 @@ export function ChatFloatingWindow({
   const {
     showTelemetry,
     showCitations,
+    detailsExpanded,
     setShowTelemetry: setDisplayShowTelemetry,
     setShowCitations: setDisplayShowCitations,
+    setDetailsExpanded,
   } = useChatDisplaySettings();
   const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false);
 
@@ -76,6 +79,10 @@ export function ChatFloatingWindow({
   const toggleCitations = () => {
     const next = !showCitations;
     setDisplayShowCitations(next);
+  };
+
+  const toggleDetails = () => {
+    setDetailsExpanded(!detailsExpanded);
   };
 
   const handleTelemetrySwitchChange = (checked: boolean) => {
@@ -120,23 +127,24 @@ export function ChatFloatingWindow({
         return MODEL_PROVIDER_LABELS[provider as ModelProvider] ?? provider;
     }
   };
-  const runtimeEngineDisplay = runtimeConfig
-    ? `${runtimeConfig.isLocal ? "Local" : "Cloud"} (${formatProviderLabel(
-        runtimeConfig.llmProvider,
-      )})`
-    : "Unknown engine";
-  const showRuntimeEngineLabel = Boolean(runtimeConfig?.llmEngine);
+
+  // Removed runtimeEngineDisplay and badge logic as requested
   const showRequireLocalError =
     runtimeConfig?.requireLocal &&
     runtimeConfig?.llmEngine?.startsWith("local") &&
     !runtimeConfig.localBackendAvailable;
-  const fallbackLabel =
-    runtimeConfig?.fallbackFrom?.type === "local"
-      ? ` (fallback from Local (${formatProviderLabel(
-          runtimeConfig.fallbackFrom.provider,
-        )}))`
-      : null;
-  const showFallbackNotice = !showRequireLocalError && Boolean(fallbackLabel);
+
+  // Condensed Summary construction
+  const engineStr = runtimeConfig?.engine === "lc" ? "LangChain" : "Native";
+  const llmStr = runtimeConfig
+    ? `${runtimeConfig.llmProvider === "openai" ? "OpenAI" : MODEL_PROVIDER_LABELS[runtimeConfig.llmProvider]} ${runtimeConfig.llmModel ?? "custom"}`
+    : "Loading...";
+  const embedStr =
+    runtimeConfig?.embeddingModelId ??
+    runtimeConfig?.embeddingModel ??
+    "custom embedding";
+
+  const summaryLine = `${engineStr} · ${llmStr} · ${embedStr}`;
 
   const focusInput = useCallback(() => {
     if (!isOpen) {
@@ -241,25 +249,6 @@ export function ChatFloatingWindow({
           ref={scrollRef}
           onScroll={onScroll}
         >
-          {(showRuntimeEngineLabel || showFallbackNotice) && (
-            <div className={styles.chatEngineRow}>
-              {showRuntimeEngineLabel && (
-                <span className={styles.chatEngineBadge}>
-                  {runtimeEngineDisplay}
-                  {showFallbackNotice && fallbackLabel && (
-                    <span className={styles.chatEngineFallbackLabel}>
-                      {fallbackLabel}
-                    </span>
-                  )}
-                </span>
-              )}
-              {showFallbackNotice && !showRuntimeEngineLabel && (
-                <span className={styles.chatEngineFallbackNotice}>
-                  Local backend unavailable, using default cloud model.
-                </span>
-              )}
-            </div>
-          )}
           {showRequireLocalError && (
             <div className={styles.chatEngineErrorBanner}>
               <FiAlertCircle aria-hidden="true" />
@@ -270,144 +259,102 @@ export function ChatFloatingWindow({
               </span>
             </div>
           )}
+
           {showOptions && (
             <div className={styles.chatConfigBar}>
-              <div className={styles.chatControlBlock}>
-                <span className="ai-field__label">Engine &amp; model</span>
-                {runtimeConfig ? (
-                  <>
-                    <div className={styles.chatRuntimeSummary}>
-                      <div className={styles.chatRuntimeSummaryRow}>
-                        <span className={styles.chatRuntimeSummaryLabel}>
-                          Engine
-                        </span>
-                        <span className={styles.chatRuntimeSummaryValue}>
-                          {runtimeConfig.engine === "lc"
-                            ? "LangChain"
-                            : "Native"}
-                        </span>
-                      </div>
-                      <div className={styles.chatRuntimeSummaryRow}>
-                        <span className={styles.chatRuntimeSummaryLabel}>
-                          LLM
-                        </span>
-                        <span
-                          className={`${styles.chatRuntimeSummaryValue} inline-flex items-center gap-1`}
-                        >
-                          {runtimeConfig.llmProvider === "openai"
-                            ? "OpenAI"
-                            : MODEL_PROVIDER_LABELS[
-                                runtimeConfig.llmProvider
-                              ]}{" "}
-                          {runtimeConfig.llmModel ?? "custom model"}
-                          {runtimeLlmWasSubstituted && (
-                            <FiAlertCircle
-                              aria-hidden="true"
-                              className="text-slate-500"
-                              size={12}
-                              title={runtimeSubstitutionTooltip}
-                            />
-                          )}
-                        </span>
-                      </div>
-                      <div className={styles.chatRuntimeSummaryRow}>
-                        <span className={styles.chatRuntimeSummaryLabel}>
-                          Embedding
-                        </span>
-                        <span className={styles.chatRuntimeSummaryValue}>
-                          {runtimeConfig.embeddingModelId ??
-                            runtimeConfig.embeddingModel ??
-                            "custom embedding"}
-                        </span>
-                      </div>
-                    </div>
-                    <div className={styles.chatRuntimeFlags}>
-                      <span
-                        className={styles.chatRuntimeFlag}
-                        title="Reverse RAG enables query rewriting before retrieval"
-                      >
-                        Reverse RAG:{" "}
-                        {runtimeConfig.reverseRagEnabled
-                          ? `on (${runtimeConfig.reverseRagMode})`
-                          : "off"}
-                      </span>
-                      <span
-                        className={styles.chatRuntimeFlag}
-                        title="Ranker mode applied after the initial retrieval"
-                      >
-                        Ranker: {runtimeConfig.rankerMode.toUpperCase()}
-                      </span>
-                      <span
-                        className={styles.chatRuntimeFlag}
-                        title="HyDE generates a hypothetical document before embedding"
-                      >
-                        HyDE: {runtimeConfig.hydeEnabled ? "on" : "off"}
-                      </span>
-                      {runtimeLlmWasSubstituted && (
-                        <span
-                          className={styles.chatRuntimeFlag}
-                          title={runtimeSubstitutionTooltip}
-                        >
-                          Model substituted
-                        </span>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className={styles.chatRuntimeSummary}>
-                      <div className={styles.chatRuntimeSummaryRow}>
-                        <span className={styles.chatRuntimeSummaryLabel}>
-                          Engine
-                        </span>
-                        <span className={styles.chatRuntimeSummaryValue}>
-                          Default preset
-                        </span>
-                      </div>
-                      <div className={styles.chatRuntimeSummaryRow}>
-                        <span className={styles.chatRuntimeSummaryLabel}>
-                          LLM
-                        </span>
-                        <span className={styles.chatRuntimeSummaryValue}>
-                          Loading…
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                )}
+              {/* 1. Condensed Summary Line */}
+              <div
+                className={styles.modelSummaryRow}
+                onClick={toggleDetails}
+                role="button"
+                tabIndex={0}
+                aria-expanded={detailsExpanded}
+                aria-label="Toggle details"
+              >
+                <div className={styles.modelSummaryText} title={summaryLine}>
+                  {summaryLine}
+                </div>
+                <FiChevronRight
+                  className={`${styles.chevron} ${detailsExpanded ? styles.chevronRotated : ""}`}
+                />
               </div>
-              <div className={styles.chatControlBlock}>
-                <div className={styles.guardrailToggleRow}>
-                  <div className={`${styles.guardrailDescription} ai-choice`}>
-                    <span className="ai-choice__label">Telemetry badges</span>
-                    <p className="ai-choice__description">
-                      Show engine, guardrail, and enhancement insights
-                    </p>
-                  </div>
+
+              {/* 2. Compact Switches */}
+              <div className={styles.compactSwitches}>
+                <div
+                  className={styles.compactSwitchRow}
+                  title="Show debug telemetry like performance metrics and model info."
+                >
+                  <span>Telemetry</span>
                   <Switch
-                    className={styles.guardrailToggleRowSwitch}
                     checked={showTelemetry}
                     onCheckedChange={handleTelemetrySwitchChange}
-                    aria-label="Toggle telemetry visibility"
+                    aria-label="Toggle telemetry"
                   />
                 </div>
-              </div>
-              <div className={styles.chatControlBlock}>
-                <div className={styles.guardrailToggleRow}>
-                  <div className={`${styles.guardrailDescription} ai-choice`}>
-                    <span className="ai-choice__label">Citations</span>
-                    <p className="ai-choice__description">
-                      Show every retrieved source (tiny text)
-                    </p>
-                  </div>
+                <div
+                  className={styles.compactSwitchRow}
+                  title="Show source citations in chat responses."
+                >
+                  <span>Citations</span>
                   <Switch
-                    className={styles.guardrailToggleRowSwitch}
                     checked={showCitations}
                     onCheckedChange={handleCitationsSwitchChange}
-                    aria-label="Toggle citation visibility"
+                    aria-label="Toggle citations"
                   />
                 </div>
               </div>
+
+              {/* 3. Details Section */}
+              {detailsExpanded && (
+                <div className={styles.detailsSection}>
+                  <div className={styles.detailsRow}>
+                    <span className={styles.detailsLabel}>Engine:</span>
+                    <span className={styles.detailsValue}>{engineStr}</span>
+                  </div>
+                  <div className={styles.detailsRow}>
+                    <span className={styles.detailsLabel}>LLM:</span>
+                    <span className={styles.detailsValue}>
+                      {runtimeConfig?.llmProvider === "openai"
+                        ? "OpenAI"
+                        : MODEL_PROVIDER_LABELS[
+                            runtimeConfig?.llmProvider as ModelProvider
+                          ]}{" "}
+                      {runtimeConfig?.llmModel ?? "custom"} (
+                      {runtimeConfig?.isLocal ? "Local" : "Cloud"})
+                    </span>
+                  </div>
+                  <div className={styles.detailsRow}>
+                    <span className={styles.detailsLabel}>Embed:</span>
+                    <span className={styles.detailsValue}>{embedStr}</span>
+                  </div>
+
+                  {runtimeConfig && (
+                    <>
+                      <div className={styles.detailsRow}>
+                        <span className={styles.detailsLabel}>Rev RAG:</span>
+                        <span className={styles.detailsValue}>
+                          {runtimeConfig.reverseRagEnabled
+                            ? `on (${runtimeConfig.reverseRagMode})`
+                            : "off"}
+                        </span>
+                      </div>
+                      <div className={styles.detailsRow}>
+                        <span className={styles.detailsLabel}>Ranker:</span>
+                        <span className={styles.detailsValue}>
+                          {runtimeConfig.rankerMode.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className={styles.detailsRow}>
+                        <span className={styles.detailsLabel}>HyDE:</span>
+                        <span className={styles.detailsValue}>
+                          {runtimeConfig.hydeEnabled ? "on" : "off"}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

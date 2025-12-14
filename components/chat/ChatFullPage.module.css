@@ -9,6 +9,7 @@
 
 .panel {
   width: min(900px, 100%);
+  height: 92vh; /* Fixed height to keep input bar at bottom */
   max-height: 92vh;
   display: flex;
   flex-direction: column;
@@ -51,6 +52,7 @@
   padding-bottom: 16px;
   overscroll-behavior: contain;
   scrollbar-width: thin;
+  gap: 24px;
 }
 
 .hero {

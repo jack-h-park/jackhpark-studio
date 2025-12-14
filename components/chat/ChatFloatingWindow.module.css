@@ -69,46 +69,6 @@
   color: var(--ai-accent);
 }
 
-.chatEngineRow {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.chatEngineBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--ai-accent);
-  color: #fff;
-  border-radius: 999px;
-  padding: 2px 10px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.chatEngineFallbackLabel {
-  font-size: 0.65rem;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.chatEngineFallbackNotice {
-  font-size: 0.75rem;
-  color: hsl(var(--ai-fg-muted));
-}
-
-.chatEngineErrorBanner {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #fee2e2;
-  color: #991b1b;
-  border-radius: 10px;
-  padding: 8px 10px;
-  font-size: 0.85rem;
-}
-
 /* Dark mode override for error banner manually for now as it's specific */
 :global(.dark) .chatEngineErrorBanner {
   background: #7f1d1d;
@@ -134,111 +94,110 @@
 .chatConfigBar {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
   background: hsl(var(--ai-bg-muted));
   border: 1px solid hsl(var(--ai-border));
   border-radius: 10px;
-  padding: 11px;
+  padding: 8px;
   margin-top: 10px;
-  /* Reverted max-height to allow full scroll flow */
 }
 
-.scrollableContent {
-  flex: 1;
-  overflow-y: auto;
+.modelSummaryRow {
   display: flex;
-  flex-direction: column;
-  padding: 16px;
-  gap: 12px;
-  min-height: 0; /* Important for flex child scrolling */
-}
-
-/* Remove internal scrolling from messages container since parent handles it */
-.chatMessages {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.chatControlBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.chatRuntimeSummary {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid hsl(var(--ai-border));
-}
-
-.chatRuntimeSummaryRow {
-  display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
   gap: 8px;
-}
-
-.chatRuntimeSummaryLabel {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: hsl(var(--ai-fg-muted));
-  font-weight: 600;
-}
-
-.chatRuntimeSummaryValue {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: hsl(var(--ai-fg));
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.chatRuntimeFlags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding-top: 6px;
-}
-
-.chatRuntimeFlag {
-  background: hsl(var(--ai-bg));
-  border: 1px solid hsl(var(--ai-border));
-  border-radius: 999px;
-  padding: 4px 10px;
+  cursor: pointer;
+  user-select: none;
   font-size: 0.75rem;
   font-weight: 600;
   color: hsl(var(--ai-fg));
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
 }
 
-.guardrailToggleRow {
+.modelSummaryRow:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+:global(.dark) .modelSummaryRow:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.modelSummaryText {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  transition: transform 0.2s ease;
+  color: hsl(var(--ai-fg-muted));
+}
+
+.chevronRotated {
+  transform: rotate(90deg);
+  color: hsl(var(--ai-fg));
+}
+
+.compactSwitches {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.compactSwitchRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
   background: hsl(var(--ai-bg));
   border: 1px solid hsl(var(--ai-border));
-  border-radius: 8px;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.detailsSection {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid hsl(var(--ai-border));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailsRow {
+  display: flex;
+  gap: 6px;
+  font-size: 0.75rem;
+  align-items: baseline;
+}
+
+.detailsLabel {
+  color: hsl(var(--ai-fg-muted));
+  font-weight: 600;
+  min-width: 60px;
+}
+
+.detailsValue {
+  color: hsl(var(--ai-fg));
+}
+
+/* Reusing chatEngineErrorBanner for error state only */
+.chatEngineErrorBanner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 10px;
   padding: 8px 10px;
-}
-
-.guardrailToggleRowAuto {
-  background: hsl(var(--ai-bg-muted));
-}
-
-.guardrailDescription {
-  flex: 1;
-}
-
-.guardrailToggleRowSwitch {
-  margin-left: auto;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
 }
 
 .chatHeader h3 {
@@ -248,6 +207,7 @@
   color: hsl(var(--ai-fg));
 }
 
+/* Existing button styles */
 .chatCloseButton {
   display: flex;
   align-items: center;
@@ -287,9 +247,20 @@
   }
 }
 
+.scrollableContent {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  min-height: 0; /* Important for flex child scrolling */
+}
+
+/* Remove internal scrolling from messages container since parent handles it */
 .chatMessages {
   /* Scroll handled by parent .scrollableContent */
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }

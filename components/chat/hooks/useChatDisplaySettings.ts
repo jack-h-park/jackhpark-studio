@@ -5,16 +5,19 @@ import { useCallback, useSyncExternalStore } from "react";
 type DisplaySettings = {
   showTelemetry: boolean;
   showCitations: boolean;
+  detailsExpanded: boolean;
 };
 
 const STORAGE_KEYS = {
   telemetry: "chat_guardrail_debug",
   citations: "chat_show_citations",
+  details: "chat_settings_details_expanded",
 } as const;
 
 const DEFAULT_SETTINGS: DisplaySettings = {
   showTelemetry: false,
   showCitations: false,
+  detailsExpanded: false,
 };
 
 let settingsStore: DisplaySettings = DEFAULT_SETTINGS;
@@ -28,6 +31,7 @@ const readFromLocalStorage = (): DisplaySettings => {
   return {
     showTelemetry: window.localStorage.getItem(STORAGE_KEYS.telemetry) === "1",
     showCitations: window.localStorage.getItem(STORAGE_KEYS.citations) === "1",
+    detailsExpanded: window.localStorage.getItem(STORAGE_KEYS.details) === "1",
   };
 };
 
@@ -42,6 +46,10 @@ const persistToLocalStorage = (settings: DisplaySettings) => {
   window.localStorage.setItem(
     STORAGE_KEYS.citations,
     settings.showCitations ? "1" : "0",
+  );
+  window.localStorage.setItem(
+    STORAGE_KEYS.details,
+    settings.detailsExpanded ? "1" : "0",
   );
 };
 
@@ -93,9 +101,14 @@ export function useChatDisplaySettings() {
     updateStore({ showCitations: value });
   }, []);
 
+  const setDetailsExpanded = useCallback((value: boolean) => {
+    updateStore({ detailsExpanded: value });
+  }, []);
+
   return {
     ...settings,
     setShowTelemetry,
     setShowCitations,
+    setDetailsExpanded,
   };
 }
