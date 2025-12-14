@@ -17,6 +17,7 @@ import {
 } from "@/lib/core/model-provider";
 import { isOllamaConfigured } from "@/lib/core/ollama";
 import { getLocalLlmBackend, getLocalLlmClient } from "@/lib/local-llm";
+import { ragLogger } from "@/lib/logging/logger";
 import {
   loadAdminChatConfig,
   type SummaryLevel,
@@ -457,13 +458,11 @@ export async function loadChatModelSettings(options?: {
   const requireLocal =
     options?.sessionConfig?.requireLocal ?? preset?.requireLocal ?? false;
 
-  if (process.env.NODE_ENV === "development") {
-    console.log("[chat-settings preset]", {
-      presetKey,
-      presetRequireLocal: preset?.requireLocal,
-      sessionPreset: options?.sessionConfig?.appliedPreset ?? null,
-    });
-  }
+  ragLogger.debug("[chat-settings preset]", {
+    presetKey,
+    presetRequireLocal: preset?.requireLocal,
+    sessionPreset: options?.sessionConfig?.appliedPreset ?? null,
+  });
 
   const engine = normalizeChatEngine(
     options?.sessionConfig?.chatEngine ?? preset?.chatEngine ?? defaults.engine,
@@ -479,8 +478,8 @@ export async function loadChatModelSettings(options?: {
   };
 
   if (options?.sessionConfig?.llmModel) {
-    console.log(
-      "[DEBUG] loadChatModelSettings sessionConfig.llmModel:",
+    ragLogger.debug(
+      "[chat-settings] sessionConfig.llmModel override",
       options.sessionConfig.llmModel,
     );
   }
@@ -490,7 +489,7 @@ export async function loadChatModelSettings(options?: {
   const normalizedLlmModelId =
     normalizeLlmModelId(rawLlmModelId) ?? rawLlmModelId ?? defaults.llmModelId;
 
-  console.log("[DEBUG] Resolution trace:", {
+  ragLogger.debug("[chat-settings] resolution trace", {
     raw: rawLlmModelId,
     normalized: normalizedLlmModelId,
     defaults: defaults.llmModelId,

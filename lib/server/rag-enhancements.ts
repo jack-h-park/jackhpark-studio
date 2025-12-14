@@ -1,9 +1,7 @@
 import type { EmbeddingSpace } from "@/lib/core/embedding-spaces";
 import type { ModelProvider } from "@/lib/shared/model-provider";
 import { embedTexts } from "@/lib/core/embeddings";
-import { getLmStudioRuntimeConfig } from "@/lib/core/lmstudio";
-import { requireProviderApiKey } from "@/lib/core/model-provider";
-import { getOpenAIClient } from "@/lib/core/openai";
+import { generateText } from "@/lib/server/text-generation";
 import {
   DEFAULT_REVERSE_RAG_MODE,
   type RankerMode,
@@ -15,177 +13,6 @@ const REVERSE_RAG_TEMPERATURE = 0.2;
 const HYDE_MAX_TOKENS = 220;
 const HYDE_TEMPERATURE = 0.35;
 const MMR_LAMBDA = 0.5;
-
-type ChatGenerationOptions = {
-  provider: ModelProvider;
-  model: string;
-  systemPrompt: string;
-  userPrompt: string;
-  temperature: number;
-  maxTokens: number;
-};
-
-async function callTextModel(options: ChatGenerationOptions): Promise<string> {
-  switch (options.provider) {
-    case "openai": {
-      const client = getOpenAIClient();
-      const response = await client.chat.completions.create({
-        model: options.model,
-        temperature: options.temperature,
-        max_tokens: options.maxTokens,
-        messages: [
-          { role: "system", content: options.systemPrompt },
-          { role: "user", content: options.userPrompt },
-        ],
-      });
-      return response.choices?.at(0)?.message?.content?.trim() ?? "";
-    }
-    case "gemini": {
-      const { GoogleGenerativeAI } = await import("@google/generative-ai");
-      const apiKey = requireProviderApiKey("gemini");
-      const client = new GoogleGenerativeAI(apiKey);
-      const model = client.getGenerativeModel({
-        model: options.model,
-        systemInstruction: options.systemPrompt,
-      });
-      const result = await model.generateContent({
-        contents: [
-          {
-            role: "user",
-            parts: [{ text: options.userPrompt }],
-          },
-        ],
-        generationConfig: {
-          temperature: options.temperature,
-          maxOutputTokens: options.maxTokens,
-        },
-      });
-      const text = result.response.candidates?.[0]?.content?.parts
-        ?.map((part: { text?: string }) => part.text ?? "")
-        .join("")
-        .trim();
-      return text ?? "";
-    }
-    case "ollama":
-      try {
-        const baseUrl = process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434";
-        const response = await fetch(`${baseUrl}/api/chat`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: options.model,
-            stream: false,
-            messages: [
-              { role: "system", content: options.systemPrompt },
-              { role: "user", content: options.userPrompt },
-            ],
-            options: { temperature: options.temperature },
-          }),
-        });
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(
-            `Ollama API error: ${response.status} ${response.statusText} - ${text}`,
-          );
-        }
-        const data = await response.json();
-        let content = "";
-        const message = (data as any)?.message;
-        if (typeof message?.content === "string") {
-          content = message.content;
-        } else if (Array.isArray(message?.content)) {
-          content = message.content
-            .map((part: any) => {
-              if (typeof part === "string") return part;
-              if (typeof part?.text === "string") return part.text;
-              if (typeof part?.content === "string") return part.content;
-              return "";
-            })
-            .join("");
-        }
-        return content.trim();
-      } catch (err) {
-        throw new Error(
-          `[rag-enhancements] Ollama text generation failed for provider "${options.provider}" model "${options.model}": ${err}`,
-        );
-      }
-    case "lmstudio": {
-      const config = getLmStudioRuntimeConfig();
-      if (!config.enabled || !config.baseUrl) {
-        throw new Error(
-          `[rag-enhancements] LM Studio provider is disabled or missing a base URL.`,
-        );
-      }
-
-      const baseUrl = config.baseUrl.replace(/\/$/, "");
-      const url = `${baseUrl}/chat/completions`;
-      const payload = {
-        model: options.model,
-        temperature: options.temperature,
-        max_tokens: options.maxTokens,
-        messages: [
-          { role: "system", content: options.systemPrompt },
-          { role: "user", content: options.userPrompt },
-        ],
-      };
-
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      const apiKey = process.env.LMSTUDIO_API_KEY?.trim();
-      if (apiKey) {
-        headers.Authorization = `Bearer ${apiKey}`;
-      }
-
-      const controller =
-        typeof config.timeoutMs === "number" && config.timeoutMs > 0
-          ? new AbortController()
-          : null;
-      const timeoutHandle = controller
-        ? setTimeout(() => controller.abort(), config.timeoutMs!)
-        : null;
-
-      try {
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload),
-          signal: controller?.signal,
-        });
-
-        if (!response.ok) {
-          const text = await response.text();
-          throw new Error(
-            `LM Studio API error: ${response.status} ${response.statusText} - ${text}`,
-          );
-        }
-
-        const data = (await response.json()) as {
-          choices?: Array<{ message?: { content?: string }; text?: string }>;
-        };
-        const choice = data.choices?.[0];
-        const content =
-          choice?.message?.content ?? (typeof choice?.text === "string" ? choice.text : "");
-        return content?.trim() ?? "";
-      } catch (err) {
-        throw new Error(
-          `[rag-enhancements] LM Studio text generation failed for provider "${options.provider}" model "${options.model}": ${err}`,
-        );
-      } finally {
-        if (timeoutHandle) {
-          clearTimeout(timeoutHandle);
-        }
-      }
-    }
-
-    default:
-      throw new Error(
-        `Text generation is not supported for provider "${options.provider}".`,
-      );
-  }
-}
 
 export type ReverseRagOptions = {
   enabled: boolean;
@@ -222,7 +49,7 @@ export async function rewriteQuery(
   ].join("\n");
 
   try {
-    const rewritten = await callTextModel({
+    const rewritten = await generateText({
       provider: options.provider,
       model: options.model,
       systemPrompt,
@@ -256,7 +83,7 @@ export async function generateHydeDocument(
   const userPrompt = ["Question:", query].join("\n");
 
   try {
-    const hyde = await callTextModel({
+    const hyde = await generateText({
       provider: options.provider,
       model: options.model,
       systemPrompt,
