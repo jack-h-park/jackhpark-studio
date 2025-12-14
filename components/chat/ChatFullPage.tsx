@@ -15,12 +15,12 @@ import {
   ChatConfigProvider,
   useChatConfig,
 } from "@/components/chat/context/ChatConfigContext";
+import { useChatScroll } from "@/components/chat/hooks/useChatScroll";
 import { useChatSession } from "@/components/chat/hooks/useChatSession";
 import { ChatAdvancedSettingsDrawer } from "@/components/chat/settings/ChatAdvancedSettingsDrawer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
-import { useChatScroll } from "@/components/chat/hooks/useChatScroll";
 
 import styles from "./ChatFullPage.module.css";
 

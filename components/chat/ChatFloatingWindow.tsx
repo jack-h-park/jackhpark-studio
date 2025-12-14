@@ -16,8 +16,8 @@ import {
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { ChatMessagesPanel } from "@/components/chat/ChatMessagesPanel";
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
-import { useChatSession } from "@/components/chat/hooks/useChatSession";
 import { useChatScroll } from "@/components/chat/hooks/useChatScroll";
+import { useChatSession } from "@/components/chat/hooks/useChatSession";
 import { Switch } from "@/components/ui/switch";
 import {
   MODEL_PROVIDER_LABELS,

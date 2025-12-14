@@ -1,10 +1,5 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-  type MutableRefObject,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import type { ChatMessage } from "@/components/chat/hooks/useChatSession";
 
 export type UseChatScrollProps = {
