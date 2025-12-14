@@ -1,6 +1,6 @@
-import { createPortal } from "react-dom";
 import { FiSettings } from "@react-icons/all-files/fi/FiSettings";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
 import { Button } from "@/components/ui/button";

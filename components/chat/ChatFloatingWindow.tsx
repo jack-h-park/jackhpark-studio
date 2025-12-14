@@ -65,11 +65,6 @@ export function ChatFloatingWindow({
     setShowCitations: setDisplayShowCitations,
     setDetailsExpanded,
   } = useChatDisplaySettings();
-  const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false);
-
-  const toggleDiagnosticsExpanded = () => {
-    setDiagnosticsExpanded((prev) => !prev);
-  };
 
   const toggleTelemetry = () => {
     const next = !showTelemetry;
@@ -109,24 +104,6 @@ export function ChatFloatingWindow({
     runtimeConfig?.llmModelId ??
     runtimeConfig?.llmModel ??
     null;
-  const runtimeSubstitutionTooltip = runtimeLlmWasSubstituted
-    ? `Model substituted at runtime: ${runtimeRequestedModelId ?? "requested"} → ${runtimeResolvedModelId ?? "resolved"}`
-    : undefined;
-  const formatProviderLabel = (provider?: string) => {
-    if (!provider) return "Unknown";
-    switch (provider) {
-      case "openai":
-        return "OpenAI";
-      case "gemini":
-        return "Gemini";
-      case "ollama":
-        return "Ollama";
-      case "lmstudio":
-        return "LM Studio";
-      default:
-        return MODEL_PROVIDER_LABELS[provider as ModelProvider] ?? provider;
-    }
-  };
 
   // Removed runtimeEngineDisplay and badge logic as requested
   const showRequireLocalError =
@@ -364,8 +341,6 @@ export function ChatFloatingWindow({
               isLoading={isLoading}
               loadingAssistantId={loadingAssistantId}
               showTelemetry={showTelemetry}
-              diagnosticsExpanded={diagnosticsExpanded}
-              onToggleDiagnostics={toggleDiagnosticsExpanded}
               showCitations={showCitations}
               showPlaceholder={false}
               citationLinkLength={24}
