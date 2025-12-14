@@ -1,19 +1,11 @@
 import type { langfuse } from "@/lib/langfuse";
 import type { ChatConfigSnapshot } from "@/lib/rag/types";
+import { isDomainLogLevelEnabled, ragLogger } from "@/lib/logging/logger";
 
 // ... types ...
 
 export const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
 export const DEFAULT_TEMPERATURE = Number(process.env.LLM_TEMPERATURE ?? 0);
-
-export const DEBUG_LANGCHAIN_STREAM =
-  (process.env.DEBUG_LANGCHAIN_STREAM ?? "").toLowerCase() === "true";
-export const DEBUG_RAG_STEPS =
-  (process.env.DEBUG_RAG_STEPS ?? "").toLowerCase() === "true";
-export const DEBUG_RAG_URLS =
-  (process.env.DEBUG_RAG_URLS ?? "").toLowerCase() === "true";
-export const DEBUG_RAG_MSGS =
-  (process.env.DEBUG_RAG_MSGS ?? "").toLowerCase() === "true";
 
 export type Citation = {
   doc_id?: string | null;
@@ -77,8 +69,7 @@ export function logRetrievalStage(
     chatConfig?: ChatConfigSnapshot;
   },
 ) {
-  // Force-exclude detailed logs if DEBUG_RAG_STEPS is false, even if trace is active.
-  if (!DEBUG_RAG_STEPS && !trace) {
+  if (!trace && !isDomainLogLevelEnabled("rag", "trace")) {
     return;
   }
 
@@ -92,9 +83,10 @@ export function logRetrievalStage(
     is_public: entry.is_public ?? null,
   }));
 
-  if (DEBUG_RAG_STEPS) {
-    console.log(`[rag:${meta?.engine ?? "unknown"}] retrieval`, stage, payload);
-  }
+  ragLogger.trace(
+    `[rag:${meta?.engine ?? "unknown"}] retrieval ${stage}`,
+    payload,
+  );
 
   void trace?.observation({
     name: "rag_retrieval_stage",

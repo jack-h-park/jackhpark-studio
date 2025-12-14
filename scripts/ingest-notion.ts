@@ -86,6 +86,36 @@ function parseRunMode(defaultType: "full" | "partial"): RunMode {
 
   return mode;
 }
+
+function parseTargetPageId(): string | null {
+  const args = process.argv.slice(2);
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index]!;
+    if (arg === "--page" || arg === "--page-id") {
+      const candidate = args[index + 1];
+      if (candidate && !candidate.startsWith("--")) {
+        return candidate;
+      }
+    }
+
+    if (arg.startsWith("--page=")) {
+      const value = arg.split("=", 2)[1];
+      if (value) {
+        return value;
+      }
+    }
+
+    if (arg.startsWith("--page-id=")) {
+      const value = arg.split("=", 2)[1];
+      if (value) {
+        return value;
+      }
+    }
+  }
+
+  return null;
+}
 const INGEST_CONCURRENCY = Math.max(
   1,
   Number.parseInt(process.env.INGEST_CONCURRENCY ?? "2", 10),
@@ -359,11 +389,13 @@ async function main() {
   const stats = createEmptyRunStats();
   const errorLogs: IngestRunErrorLog[] = [];
   const started = Date.now();
+  const targetPageId = parseTargetPageId();
 
   try {
-    if (process.env.DEBUG_NOTION_PAGE_ID) {
+    if (targetPageId) {
+      console.log("[ingest-notion] ingesting single page", { targetPageId });
       await ingestSinglePage(
-        process.env.DEBUG_NOTION_PAGE_ID,
+        targetPageId,
         stats,
         errorLogs,
         mode.type,

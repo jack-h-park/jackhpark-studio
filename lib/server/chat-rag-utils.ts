@@ -1,12 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { RankerMode, ReverseRagMode } from "@/lib/shared/rag-config";
+import { ragLogger } from "@/lib/logging/logger";
 import {
   normalizeMetadata,
   type RagDocumentMetadata,
 } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
-import { DEBUG_RAG_STEPS } from "@/lib/server/chat-common";
 import {
   formatNotionPageId,
   normalizePageId,
@@ -213,16 +213,13 @@ export async function fetchRefinedMetadata(
     }
   }
 
-  if (DEBUG_RAG_STEPS) {
-    console.log(
-      "[rag:common] metadataMap snapshot",
-      Array.from(metadataMap.entries()).map(([docId, metadata]) => ({
-        docId,
-        doc_type: metadata?.doc_type ?? null,
-        persona_type: metadata?.persona_type ?? null,
-      })),
-    );
-  }
+  ragLogger.debug("[rag:common] metadataMap snapshot", {
+    entries: Array.from(metadataMap.entries()).map(([docId, metadata]) => ({
+      docId,
+      doc_type: metadata?.doc_type ?? null,
+      persona_type: metadata?.persona_type ?? null,
+    })),
+  });
 
   return metadataMap;
 }
@@ -257,9 +254,7 @@ export function extractDocIdsFromBaseDocs(docs: BaseRetrievalItem[]): string[] {
     }
   }
 
-  if (DEBUG_RAG_STEPS) {
-    console.log("[rag:common] docIdSet contents", Array.from(docIdSet));
-  }
+  ragLogger.debug("[rag:common] docIdSet contents", Array.from(docIdSet));
 
   return Array.from(docIdSet).filter(
     (id): id is string => typeof id === "string" && id.length > 0,

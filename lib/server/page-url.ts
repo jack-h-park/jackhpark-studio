@@ -1,11 +1,10 @@
 import { host } from "@/lib/config";
 import { getSiteMap } from "@/lib/get-site-map";
+import { notionLogger } from "@/lib/logging/logger";
 
 export type CanonicalPageLookup = Record<string, string>;
 
 let canonicalLookupPromise: Promise<CanonicalPageLookup> | null = null;
-const DEBUG_PAGE_URLS =
-  (process.env.DEBUG_RAG_URLS ?? "").toLowerCase() === "true";
 
 export async function loadCanonicalPageLookup(): Promise<CanonicalPageLookup> {
   if (!canonicalLookupPromise) {
@@ -36,11 +35,9 @@ async function buildCanonicalLookup(): Promise<CanonicalPageLookup> {
     }
   }
 
-  if (DEBUG_PAGE_URLS) {
-    console.log("[page-url] canonical map loaded", {
-      count: Object.keys(lookup).length,
-    });
-  }
+  notionLogger.debug("[page-url] canonical map loaded", {
+    count: Object.keys(lookup).length,
+  });
 
   return lookup;
 }
@@ -51,17 +48,13 @@ export function resolvePublicPageUrl(
 ): string | null {
   const normalized = normalizePageId(pageId);
   if (!normalized) {
-    if (DEBUG_PAGE_URLS) {
-      console.log("[page-url] invalid id", { pageId });
-    }
+    notionLogger.debug("[page-url] invalid id", { pageId });
     return null;
   }
 
   const canonicalPath = lookup[normalized];
   if (!canonicalPath) {
-    if (DEBUG_PAGE_URLS) {
-      console.log("[page-url] canonical miss", { pageId, normalized });
-    }
+    notionLogger.debug("[page-url] canonical miss", { pageId, normalized });
     return null;
   }
 

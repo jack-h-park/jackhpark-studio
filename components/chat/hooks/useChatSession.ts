@@ -7,6 +7,7 @@ import type {
   CitationMeta,
   CitationPayload,
 } from "@/lib/types/citation";
+import { isClientLogLevelEnabled } from "@/lib/logging/client";
 import {
   deserializeGuardrailMeta,
   type GuardrailMeta,
@@ -24,8 +25,10 @@ import {
 } from "@/types/chat-config";
 
 const CITATIONS_SEPARATOR = `\n\n--- begin citations ---\n`;
-const DEBUG_LANGCHAIN_STREAM =
-  process.env.NEXT_PUBLIC_DEBUG_LANGCHAIN_STREAM === "true";
+const STREAM_TRACE_LOGGING_ENABLED = isClientLogLevelEnabled(
+  "externalLLM",
+  "trace",
+);
 
 const parseCitationPayload = (
   raw?: string | null,
@@ -376,7 +379,7 @@ export function useChatSession(
               }
               fullContent += chunkText;
               clientChunkIndex += 1;
-              if (DEBUG_LANGCHAIN_STREAM) {
+              if (STREAM_TRACE_LOGGING_ENABLED) {
                 // eslint-disable-next-line unicorn/prefer-string-replace-all
                 const preview = chunkText.replace(/\s+/g, " ").trim();
                 console.debug(

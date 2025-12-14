@@ -3,8 +3,8 @@ import { fileURLToPath } from "node:url";
 
 import bundleAnalyzer from "@next/bundle-analyzer";
 
+/* eslint-disable no-process-env */
 const withBundleAnalyzer = bundleAnalyzer({
-  // eslint-disable-next-line no-process-env
   enabled: process.env.ANALYZE === "true",
 });
 
@@ -24,6 +24,14 @@ export default withBundleAnalyzer({
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
+  env: {
+    LOG_GLOBAL_LEVEL: process.env.LOG_GLOBAL_LEVEL,
+    LOG_RAG_LEVEL: process.env.LOG_RAG_LEVEL,
+    LOG_INGESTION_LEVEL: process.env.LOG_INGESTION_LEVEL,
+    LOG_NOTION_LEVEL: process.env.LOG_NOTION_LEVEL,
+    LOG_LLM_LEVEL: process.env.LOG_LLM_LEVEL,
+    APP_ENV: process.env.APP_ENV,
+  },
 
   webpack: (config) => {
     // Workaround for ensuring that `react` and `react-dom` resolve correctly
@@ -41,3 +49,4 @@ export default withBundleAnalyzer({
   // See https://react-tweet.vercel.app/next#troubleshooting
   transpilePackages: ["react-tweet"],
 });
+/* eslint-enable no-process-env */

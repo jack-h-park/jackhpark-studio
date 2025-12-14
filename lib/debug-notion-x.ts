@@ -1,25 +1,20 @@
-const normalizeDebugValue = (value: string | undefined | null) =>
-  (value ?? "").trim().toLowerCase();
+import type { LogLevel } from "@/lib/logging/types";
+import { isClientLogLevelEnabled } from "@/lib/logging/client";
 
-const rawDebugValue = normalizeDebugValue(process.env.DEBUG_NOTION_X);
-
-export const debugNotionXEnabled =
-  rawDebugValue === "1" ||
-  rawDebugValue === "true" ||
-  rawDebugValue === "yes" ||
-  rawDebugValue === "on";
+export const debugNotionXEnabled = isClientLogLevelEnabled("notion", "debug");
 
 type ConsoleMethod = (...args: unknown[]) => void;
 
 const wrap =
-  (method: ConsoleMethod): ConsoleMethod =>
+  (targetLevel: LogLevel, method: ConsoleMethod): ConsoleMethod =>
   (...args) => {
-    if (!debugNotionXEnabled) return;
+    if (!isClientLogLevelEnabled("notion", targetLevel)) return;
     method.apply(console, args);
   };
 
 export const debugNotionXLogger = {
-  log: wrap(console.log),
-  info: wrap(console.info),
-  debug: wrap(console.debug),
+  log: wrap("info", console.log),
+  info: wrap("info", console.info),
+  debug: wrap("debug", console.debug),
+  trace: wrap("trace", console.trace),
 };

@@ -1,12 +1,10 @@
 import { host } from "@/lib/config";
+import { ragLogger } from "@/lib/logging/logger";
 import {
   type CanonicalPageLookup,
   normalizePageId,
   resolvePublicPageUrl,
 } from "@/lib/server/page-url";
-
-const DEBUG_RAG_URLS =
-  (process.env.DEBUG_RAG_URLS ?? "").toLowerCase() === "true";
 
 type RagUrlCandidates = {
   docIdCandidates: Array<unknown>;
@@ -38,15 +36,13 @@ export function resolveRagUrl({
     rawSourceUrl ??
     null;
 
-  if (DEBUG_RAG_URLS) {
-    console.log(`[${debugLabel ?? "rag:url"}]`, {
-      index,
-      docId,
-      sourceUrl: rawSourceUrl,
-      canonicalUrl,
-      rewrittenSource: resolvedSource,
-    });
-  }
+  ragLogger.trace(`[${debugLabel ?? "rag:url"}]`, {
+    index,
+    docId,
+    sourceUrl: rawSourceUrl,
+    canonicalUrl,
+    rewrittenSource: resolvedSource,
+  });
 
   return { docId, sourceUrl: resolvedSource };
 }
@@ -111,13 +107,11 @@ function rewriteNotionUrl(
     (hostname.includes("notion.so") || hostname.includes("notion.site"))
   ) {
     const rewritten = `${baseHost}/${derivedDocId}`;
-    if (DEBUG_RAG_URLS) {
-      console.log("[rag:url:fallback]", {
-        sourceUrl,
-        derivedDocId,
-        rewritten,
-      });
-    }
+    ragLogger.trace("[rag:url:fallback]", {
+      sourceUrl,
+      derivedDocId,
+      rewritten,
+    });
     return rewritten;
   }
 

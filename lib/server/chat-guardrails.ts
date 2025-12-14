@@ -1,12 +1,10 @@
 import { decode, encode } from "gpt-tokenizer";
 
 import { host } from "@/lib/config";
+import { ragLogger } from "@/lib/logging/logger";
 import { loadGuardrailSettings } from "@/lib/server/chat-settings";
 import { normalizePageId } from "@/lib/server/page-url";
 import { type SessionChatConfig } from "@/types/chat-config";
-
-const DEBUG_RAG_URLS =
-  (process.env.DEBUG_RAG_URLS ?? "").toLowerCase() === "true";
 
 export type GuardrailChatMessage = {
   role: "user" | "assistant";
@@ -501,21 +499,17 @@ function getPublicSourceUrl(doc: RagDocument): string | null {
     (hostname.includes("notion.so") || hostname.includes("notion.site"))
   ) {
     const rewritten = `${host.replace(/\/+$/, "")}/${derivedDocId}`;
-    if (DEBUG_RAG_URLS) {
-      console.log("[chat-guardrails:url]", {
-        source: rawSource,
-        docId: derivedDocId,
-        rewritten,
-      });
-    }
+    ragLogger.trace("[chat-guardrails:url]", {
+      source: rawSource,
+      docId: derivedDocId,
+      rewritten,
+    });
     return rewritten;
   }
 
-  if (DEBUG_RAG_URLS) {
-    console.log("[chat-guardrails:url:passthrough]", {
-      source: rawSource,
-    });
-  }
+  ragLogger.trace("[chat-guardrails:url:passthrough]", {
+    source: rawSource,
+  });
 
   return normalizedSource;
 }

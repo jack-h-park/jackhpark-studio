@@ -4,7 +4,7 @@ import {
   buildLoggingConfig,
 } from "@/lib/logging/config";
 
-type LoggingDomain = "rag" | "ingestion" | "notion" | "externalLLM";
+export type LoggingDomain = "rag" | "ingestion" | "notion" | "externalLLM";
 
 const LOG_LEVEL_PRIORITY: LogLevel[] = ["off", "error", "info", "debug", "trace"];
 
@@ -87,6 +87,13 @@ function createDomainLogger(domain: LoggingDomain) {
 
 export async function getLoggingConfig(): Promise<LoggingConfig> {
   return ensureLoggingConfig();
+}
+
+export function isDomainLogLevelEnabled(
+  domain: LoggingDomain,
+  targetLevel: LogLevel,
+): boolean {
+  return shouldLog(getDomainLevel(domain), targetLevel);
 }
 
 export const ragLogger = createDomainLogger("rag");

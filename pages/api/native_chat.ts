@@ -14,7 +14,7 @@ import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOpenAIClient } from "@/lib/core/openai";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
 import { getLocalLlmClient } from "@/lib/local-llm";
-import { getLoggingConfig } from "@/lib/logging/logger";
+import { getLoggingConfig, ragLogger } from "@/lib/logging/logger";
 import { type RagDocumentMetadata } from "@/lib/rag/metadata";
 import { matchRagChunksForConfig } from "@/lib/rag/retrieval";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
@@ -23,9 +23,6 @@ import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
 import {
   type ChatRequestBody,
   CITATIONS_SEPARATOR,
-  DEBUG_RAG_MSGS,
-  DEBUG_RAG_STEPS,
-  DEBUG_RAG_URLS,
   DEFAULT_TEMPERATURE,
   logRetrievalStage,
 } from "@/lib/server/chat-common";
@@ -344,23 +341,21 @@ export default async function handler(
       },
     };
 
-    if (DEBUG_RAG_STEPS) {
-      console.log("[native_chat] guardrails", {
-        intent: routingDecision.intent,
-        reason: routingDecision.reason,
-        historyTokens: historyWindow.tokenCount,
-        summaryApplied: Boolean(historyWindow.summaryMemory),
-        provider,
-        embeddingProvider,
-        llmModel,
-        embeddingModel,
-        embeddingSpaceId: embeddingSelection.embeddingSpaceId,
-        reverseRagEnabled,
-        reverseRagMode,
-        hydeEnabled,
-        rankerMode,
-      });
-    }
+    ragLogger.debug("[native_chat] guardrails", {
+      intent: routingDecision.intent,
+      reason: routingDecision.reason,
+      historyTokens: historyWindow.tokenCount,
+      summaryApplied: Boolean(historyWindow.summaryMemory),
+      provider,
+      embeddingProvider,
+      llmModel,
+      embeddingModel,
+      embeddingSpaceId: embeddingSelection.embeddingSpaceId,
+      reverseRagEnabled,
+      reverseRagMode,
+      hydeEnabled,
+      rankerMode,
+    });
 
     let contextResult: ContextWindowResult = {
       contextBlock: "",
@@ -495,12 +490,11 @@ export default async function handler(
           ragRanking,
         );
 
-        if (DEBUG_RAG_URLS) {
-          const urls = enrichedDocuments
+        ragLogger.debug("[native_chat] retrieved urls", {
+          urls: enrichedDocuments
             .map((d) => d.metadata?.source_url)
-            .filter(Boolean);
-          console.log("[native_chat] retrieved urls:", urls);
-        }
+            .filter(Boolean),
+        });
 
         if (includeVerboseDetails && trace) {
           logRetrievalStage(
@@ -594,21 +588,18 @@ export default async function handler(
             traceMetadata.cache.retrievalHit = false;
           }
         }
-        if (DEBUG_RAG_STEPS) {
-          console.log(
-            "[native_chat] included metadata sample",
-            contextResult.included.map((doc) => ({
-              docId:
-                (doc.metadata as { doc_id?: string | null })?.doc_id ??
-                doc.doc_id ??
-                null,
-              doc_type: (doc.metadata as { doc_type?: string | null })
-                ?.doc_type,
-              persona_type: (doc.metadata as { persona_type?: string | null })
-                ?.persona_type,
-            })),
-          );
-        }
+        ragLogger.debug("[native_chat] included metadata sample", {
+          entries: contextResult.included.map((doc) => ({
+            docId:
+              (doc.metadata as { doc_id?: string | null })?.doc_id ??
+              doc.doc_id ??
+              null,
+            doc_type: (doc.metadata as { doc_type?: string | null })?.doc_type,
+            persona_type: (
+              doc.metadata as { persona_type?: string | null }
+            )?.persona_type,
+          })),
+        });
         console.log("[native_chat] context compression", {
           retrieved: normalizedDocuments.length,
           ranked: rankedDocuments.length,
@@ -740,16 +731,14 @@ export default async function handler(
       });
     }
 
-    if (DEBUG_RAG_MSGS) {
-      console.log("[native_chat] debug context:", {
-        systemPromptLength: systemPrompt.length,
-        messageCount: messages.length,
-      });
-      console.log(
-        "[native_chat] system prompt preview:",
-        systemPrompt.slice(0, 500).replaceAll("\n", "\\n"),
-      );
-    }
+    ragLogger.trace("[native_chat] debug context", {
+      systemPromptLength: systemPrompt.length,
+      messageCount: messages.length,
+    });
+    ragLogger.trace(
+      "[native_chat] system prompt preview",
+      systemPrompt.slice(0, 500).replaceAll("\n", "\\n"),
+    );
 
     const stream = streamChatCompletion({
       provider,
@@ -850,6 +839,16 @@ export default async function handler(
       res.status(500).json({ error: errorMessage });
     } else {
       res.end();
+    }
+  } finally {
+    if (!res.writableEnded) {
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .json({ error: "Native chat handler did not produce a response" });
+      } else {
+        res.end();
+      }
     }
   }
 }

@@ -13,15 +13,11 @@ import { ChatGenerationChunk } from "@langchain/core/outputs";
 import type { LocalLlmMessage, LocalLlmRequest } from "@/lib/local-llm/client";
 import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { getLocalLlmClient } from "@/lib/local-llm";
+import { llmLogger } from "@/lib/logging/logger";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 
-const debugOllamaTiming =
-  (process.env.DEBUG_OLLAMA_TIMING ?? "").toLowerCase() === "true";
 const logOllamaTiming = (durationMs: number, completed: boolean) => {
-  if (!debugOllamaTiming) {
-    return;
-  }
-  console.info("[chat-ollama] /api/chat response time", {
+  llmLogger.debug("[chat-ollama] response time", {
     durationMs,
     completed,
   });

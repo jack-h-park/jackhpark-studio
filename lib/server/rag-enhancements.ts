@@ -1,6 +1,7 @@
 import type { EmbeddingSpace } from "@/lib/core/embedding-spaces";
 import type { ModelProvider } from "@/lib/shared/model-provider";
 import { embedTexts } from "@/lib/core/embeddings";
+import { getLmStudioRuntimeConfig } from "@/lib/core/lmstudio";
 import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOpenAIClient } from "@/lib/core/openai";
 import {
@@ -110,6 +111,74 @@ async function callTextModel(options: ChatGenerationOptions): Promise<string> {
           `[rag-enhancements] Ollama text generation failed for provider "${options.provider}" model "${options.model}": ${err}`,
         );
       }
+    case "lmstudio": {
+      const config = getLmStudioRuntimeConfig();
+      if (!config.enabled || !config.baseUrl) {
+        throw new Error(
+          `[rag-enhancements] LM Studio provider is disabled or missing a base URL.`,
+        );
+      }
+
+      const baseUrl = config.baseUrl.replace(/\/$/, "");
+      const url = `${baseUrl}/chat/completions`;
+      const payload = {
+        model: options.model,
+        temperature: options.temperature,
+        max_tokens: options.maxTokens,
+        messages: [
+          { role: "system", content: options.systemPrompt },
+          { role: "user", content: options.userPrompt },
+        ],
+      };
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      const apiKey = process.env.LMSTUDIO_API_KEY?.trim();
+      if (apiKey) {
+        headers.Authorization = `Bearer ${apiKey}`;
+      }
+
+      const controller =
+        typeof config.timeoutMs === "number" && config.timeoutMs > 0
+          ? new AbortController()
+          : null;
+      const timeoutHandle = controller
+        ? setTimeout(() => controller.abort(), config.timeoutMs!)
+        : null;
+
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload),
+          signal: controller?.signal,
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(
+            `LM Studio API error: ${response.status} ${response.statusText} - ${text}`,
+          );
+        }
+
+        const data = (await response.json()) as {
+          choices?: Array<{ message?: { content?: string }; text?: string }>;
+        };
+        const choice = data.choices?.[0];
+        const content =
+          choice?.message?.content ?? (typeof choice?.text === "string" ? choice.text : "");
+        return content?.trim() ?? "";
+      } catch (err) {
+        throw new Error(
+          `[rag-enhancements] LM Studio text generation failed for provider "${options.provider}" model "${options.model}": ${err}`,
+        );
+      } finally {
+        if (timeoutHandle) {
+          clearTimeout(timeoutHandle);
+        }
+      }
+    }
 
     default:
       throw new Error(

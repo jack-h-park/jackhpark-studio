@@ -19,17 +19,13 @@ import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv, langfuse } from "@/lib/langfuse";
-import { getLoggingConfig } from "@/lib/logging/logger";
+import { getLoggingConfig, llmLogger, ragLogger } from "@/lib/logging/logger";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
 import {
   type ChatRequestBody,
   CITATIONS_SEPARATOR,
-  DEBUG_LANGCHAIN_STREAM,
-  DEBUG_RAG_MSGS,
-  DEBUG_RAG_STEPS,
-  DEBUG_RAG_URLS,
   logRetrievalStage,
   parseTemperature,
 } from "@/lib/server/chat-common";
@@ -91,19 +87,6 @@ export const config = {
   },
 };
 
-const DEBUG_LANGCHAIN_SEGMENT_SIZE = 60;
-
-function splitIntoSegments(value: string, size: number): string[] {
-  if (!value || size <= 0) {
-    return [value];
-  }
-  const segments: string[] = [];
-  for (let index = 0; index < value.length; index += size) {
-    segments.push(value.slice(index, index + size));
-  }
-  return segments;
-}
-
 function formatChunkPreview(value: string) {
   // eslint-disable-next-line unicorn/prefer-string-replace-all
   const collapsed = value.replace(/\s+/g, " ").trim();
@@ -122,12 +105,32 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", ["POST"]);
-    return res.status(405).json({ error: "Method Not Allowed" });
-  }
+  console.log("[langchain_chat] entering", {
+    method: req.method,
+    hasBody: req.body !== undefined,
+    bodyKeys:
+      req.body && typeof req.body === "object" ? Object.keys(req.body) : null,
+  });
+  const logReturn = (label: string) => {
+    console.log(`[langchain_chat] returning from ${label}`, {
+      headersSent: res.headersSent,
+      ended: res.writableEnded,
+    });
+  };
 
   try {
+    console.log("[env-check] LOG_LLM_LEVEL=", process.env.LOG_LLM_LEVEL);
+    llmLogger.debug("logger smoke test", {
+      LOG_LLM_LEVEL: process.env.LOG_LLM_LEVEL,
+    });
+
+    if (req.method !== "POST") {
+      res.setHeader("Allow", ["POST"]);
+      const response = res.status(405).json({ error: "Method Not Allowed" });
+      logReturn("method-not-allowed");
+      return response;
+    }
+
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Supabase server env is missing");
     }
@@ -169,7 +172,9 @@ export default async function handler(
     const lastMessage = messages.at(-1);
 
     if (!lastMessage) {
-      return res.status(400).json({ error: "question is required" });
+      const response = res.status(400).json({ error: "question is required" });
+      logReturn("missing-question");
+      return response;
     }
 
     const question = lastMessage.content;
@@ -308,6 +313,7 @@ export default async function handler(
             ? `${cached.output}${CITATIONS_SEPARATOR}${cached.citations}`
             : cached.output;
         res.end(body);
+        logReturn("response-cache-hit");
         return;
       }
     }
@@ -320,76 +326,78 @@ export default async function handler(
       ]);
 
     const embeddings = await createEmbeddingsInstance(embeddingSelection);
-    if (DEBUG_RAG_STEPS) {
-      console.log("[langchain_chat] guardrails", {
-        intent: routingDecision.intent,
-        reason: routingDecision.reason,
-        historyTokens: historyWindow.tokenCount,
-        summaryApplied: Boolean(historyWindow.summaryMemory),
-        provider,
-        embeddingProvider,
-        llmModel,
-        embeddingModel,
-        embeddingSpaceId: embeddingSelection.embeddingSpaceId,
-        reverseRagEnabled,
-        reverseRagMode,
-        hydeEnabled,
-        rankerMode,
-      });
+    ragLogger.debug("[langchain_chat] guardrails", {
+      intent: routingDecision.intent,
+      reason: routingDecision.reason,
+      historyTokens: historyWindow.tokenCount,
+      summaryApplied: Boolean(historyWindow.summaryMemory),
+      provider,
+      embeddingProvider,
+      llmModel,
+      embeddingModel,
+      embeddingSpaceId: embeddingSelection.embeddingSpaceId,
+      reverseRagEnabled,
+      reverseRagMode,
+      hydeEnabled,
+      rankerMode,
+    });
 
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      const basePrompt = buildFinalSystemPrompt({
-        adminConfig,
-        sessionConfig,
-      });
-      const promptTemplate = [
-        escapeForPromptTemplate(basePrompt),
-        "",
-        "Guardrails:",
-        "{intent}",
-        "",
-        "Conversation summary:",
-        "{memory}",
-        "",
-        "Relevant excerpts:",
-        "{context}",
-        "",
-        "Question:",
-        "{question}",
-      ].join("\n");
-      const prompt = PromptTemplate.fromTemplate(promptTemplate);
-      // We also use getSupabaseAdminClient for metadata fetching now to align
-      const supabaseAdmin = getSupabaseAdminClient();
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const basePrompt = buildFinalSystemPrompt({
+      adminConfig,
+      sessionConfig,
+    });
+    const promptTemplate = [
+      escapeForPromptTemplate(basePrompt),
+      "",
+      "Guardrails:",
+      "{intent}",
+      "",
+      "Conversation summary:",
+      "{memory}",
+      "",
+      "Relevant excerpts:",
+      "{context}",
+      "",
+      "Question:",
+      "{question}",
+    ].join("\n");
+    const prompt = PromptTemplate.fromTemplate(promptTemplate);
+    // We also use getSupabaseAdminClient for metadata fetching now to align
+    const supabaseAdmin = getSupabaseAdminClient();
 
-      let latestMeta: GuardrailMeta | null = null;
-      let enhancementSummary: GuardrailEnhancements = {
-        reverseRag: {
-          enabled: reverseRagEnabled,
-          mode: reverseRagMode,
-          original: normalizedQuestion.normalized,
-          rewritten: normalizedQuestion.normalized,
-        },
-        hyde: {
-          enabled: hydeEnabled,
-          generated: null,
-        },
-        ranker: {
-          mode: rankerMode,
-        },
-      };
+    let latestMeta: GuardrailMeta | null = null;
+    let enhancementSummary: GuardrailEnhancements = {
+      reverseRag: {
+        enabled: reverseRagEnabled,
+        mode: reverseRagMode,
+        original: normalizedQuestion.normalized,
+        rewritten: normalizedQuestion.normalized,
+      },
+      hyde: {
+        enabled: hydeEnabled,
+        generated: null,
+      },
+      ranker: {
+        mode: rankerMode,
+      },
+    };
 
-      const executeWithResources = async (
-        tableName: string,
-        queryName: string,
-        llmInstance: BaseLanguageModelInterface,
-      ): Promise<{ stream: AsyncIterable<string>; citationPayload: CitationPayload }> => {
-        let contextResult: ContextWindowResult = buildIntentContextFallback(
-          routingDecision.intent,
-          guardrails,
-        );
-        let citationPayload: CitationPayload | null = null;
-        let topKChunks = guardrails.ragTopK;
-        let retrievalCacheKey: string | null = null;
+    const executeWithResources = async (
+      tableName: string,
+      queryName: string,
+      llmInstance: BaseLanguageModelInterface,
+    ): Promise<{
+      stream: AsyncIterable<string>;
+      citationPayload: CitationPayload;
+    }> => {
+      let contextResult: ContextWindowResult = buildIntentContextFallback(
+        routingDecision.intent,
+        guardrails,
+      );
+      let citationPayload: CitationPayload | null = null;
+      let topKChunks = guardrails.ragTopK;
+      let retrievalCacheKey: string | null = null;
 
         if (routingDecision.intent === "knowledge") {
           if (retrievalCacheTtl > 0) {
@@ -478,15 +486,13 @@ export default async function handler(
               };
             });
 
-            if (DEBUG_RAG_STEPS) {
-              console.log(
-                "[langchain_chat] baseDocs docId snapshot",
-                baseDocs.map((entry) => ({
-                  docId: entry.docId,
-                  metadataDocId: entry.doc.metadata?.doc_id ?? null,
-                })),
-              );
-            }
+            ragLogger.debug(
+              "[langchain_chat] baseDocs docId snapshot",
+              baseDocs.map((entry) => ({
+                docId: entry.docId,
+                metadataDocId: entry.doc.metadata?.doc_id ?? null,
+              })),
+            );
 
             if (includeVerboseDetails && trace) {
               logRetrievalStage(
@@ -520,12 +526,11 @@ export default async function handler(
               ragRanking,
             );
 
-            if (DEBUG_RAG_URLS) {
-              const urls = enrichedDocs
+            ragLogger.debug("[langchain_chat] retrieved urls", {
+              urls: enrichedDocs
                 .map((d) => d.metadata?.source_url)
-                .filter(Boolean);
-              console.log("[langchain_chat] retrieved urls:", urls);
-            }
+                .filter(Boolean),
+            });
 
             if (includeVerboseDetails && trace) {
               logRetrievalStage(
@@ -599,8 +604,7 @@ export default async function handler(
             contextResult = buildContextWindow(rankedDocs, guardrails);
             topKChunks = Math.max(
               guardrails.ragTopK,
-              contextResult.included.length +
-                (contextResult.dropped ?? 0),
+              contextResult.included.length + (contextResult.dropped ?? 0),
             );
             citationPayload = buildCitationPayload(contextResult.included, {
               topKChunks,
@@ -617,36 +621,32 @@ export default async function handler(
                 traceMetadata.cache.retrievalHit = false;
               }
             }
-            if (DEBUG_RAG_STEPS) {
-              console.log("[langchain_chat] context compression", {
-                retrieved:
-                  contextResult.included.length + contextResult.dropped,
-                ranked: contextResult.included.length + contextResult.dropped,
-                included: contextResult.included.length,
-                dropped: contextResult.dropped,
-                totalTokens: contextResult.totalTokens,
-                highestScore: Number(contextResult.highestScore.toFixed(3)),
-                insufficient: contextResult.insufficient,
-                rankerMode,
-              });
-              console.log(
-                "[langchain_chat] included metadata sample",
-                contextResult.included.map((doc) => ({
-                  docId:
-                    (doc.metadata as { doc_id?: string | null })?.doc_id ??
-                    doc.doc_id ??
-                    null,
-                  doc_type: (doc.metadata as { doc_type?: string | null })
-                    ?.doc_type,
-                  persona_type: (
-                    doc.metadata as { persona_type?: string | null }
-                  )?.persona_type,
-                })),
-              );
-            }
+            ragLogger.debug("[langchain_chat] context compression", {
+              retrieved: contextResult.included.length + contextResult.dropped,
+              ranked: contextResult.included.length + contextResult.dropped,
+              included: contextResult.included.length,
+              dropped: contextResult.dropped,
+              totalTokens: contextResult.totalTokens,
+              highestScore: Number(contextResult.highestScore.toFixed(3)),
+              insufficient: contextResult.insufficient,
+              rankerMode,
+            });
+            ragLogger.debug("[langchain_chat] included metadata sample", {
+              entries: contextResult.included.map((doc) => ({
+                docId:
+                  (doc.metadata as { doc_id?: string | null })?.doc_id ??
+                  doc.doc_id ??
+                  null,
+                doc_type: (doc.metadata as { doc_type?: string | null })
+                  ?.doc_type,
+                persona_type: (
+                  doc.metadata as { persona_type?: string | null }
+                )?.persona_type,
+              })),
+            });
           }
         } else {
-          console.log("[langchain_chat] intent fallback", {
+          ragLogger.info("[langchain_chat] intent fallback", {
             intent: routingDecision.intent,
           });
         }
@@ -732,17 +732,15 @@ export default async function handler(
           intent: guardrailMeta,
         });
 
-        if (DEBUG_RAG_MSGS) {
-          console.log("[langchain_chat] debug context:", {
-            length: contextValue.length,
-            preview: contextValue.slice(0, 100).replaceAll("\n", "\\n"),
-            insufficient: contextResult.insufficient,
-          });
-          console.log(
-            "[langchain_chat] prompt input preview:",
-            promptInput.slice(0, 500).replaceAll("\n", "\\n"),
-          );
-        }
+        ragLogger.trace("[langchain_chat] debug context", {
+          length: contextValue.length,
+          preview: contextValue.slice(0, 100).replaceAll("\n", "\\n"),
+          insufficient: contextResult.insufficient,
+        });
+        ragLogger.trace(
+          "[langchain_chat] prompt input preview",
+          promptInput.slice(0, 500).replaceAll("\n", "\\n"),
+        );
 
         const resolvedCitationPayload =
           citationPayload ??
@@ -776,6 +774,11 @@ export default async function handler(
 
       const modelCandidates =
         provider === "gemini" ? getGeminiModelCandidates(llmModel) : [llmModel];
+      if (modelCandidates.length === 0) {
+        throw new Error(
+          `No Gemini model candidates resolved for requested model: ${String(llmModel)}`,
+        );
+      }
       let lastGeminiError: unknown;
 
       for (let index = 0; index < modelCandidates.length; index++) {
@@ -815,49 +818,27 @@ export default async function handler(
             }
           };
 
-          const delayBetweenChunks = DEBUG_LANGCHAIN_STREAM ? 75 : 0;
-          const wait = (ms: number) =>
-            new Promise((resolve) => setTimeout(resolve, ms));
-
           try {
             for await (const chunk of stream) {
               const rendered = renderStreamChunk(chunk);
               if (!rendered || res.writableEnded) {
                 continue;
               }
-              const segments = DEBUG_LANGCHAIN_STREAM
-                ? splitIntoSegments(rendered, DEBUG_LANGCHAIN_SEGMENT_SIZE)
-                : [rendered];
-
-              for (const segment of segments) {
-                if (!segment || res.writableEnded) {
-                  continue;
-                }
-                chunkIndex += 1;
-                if (DEBUG_LANGCHAIN_STREAM) {
-                  const preview =
-                    segment.length > 0
-                      ? formatChunkPreview(segment)
-                      : "<empty>";
-                  console.debug(
-                    `[langchain_chat] chunk ${chunkIndex} (${segment.length} chars): ${preview}`,
-                  );
-                }
-                ensureStreamHeaders();
-                finalOutput += segment;
-                res.write(segment);
-                if (delayBetweenChunks > 0) {
-                  await wait(delayBetweenChunks);
-                }
-              }
+              chunkIndex += 1;
+              llmLogger.trace("[langchain_chat] stream chunk", {
+                chunkIndex,
+                length: rendered.length,
+                preview: formatChunkPreview(rendered),
+              });
+              ensureStreamHeaders();
+              finalOutput += rendered;
+              res.write(rendered);
             }
 
             ensureStreamHeaders();
-            if (DEBUG_LANGCHAIN_STREAM) {
-              console.debug(
-                `[langchain_chat] stream completed after ${chunkIndex} chunk(s)`,
-              );
-            }
+            llmLogger.trace("[langchain_chat] stream completed", {
+              chunkCount: chunkIndex,
+            });
             const citationJson = JSON.stringify(citationPayload);
             if (responseCacheKey) {
               await memoryCacheClient.set(
@@ -879,11 +860,15 @@ export default async function handler(
                 metadata: traceMetadata,
               });
             }
-            return res.end();
+            res.end();
+            logReturn("stream-success");
+            return;
           } catch (streamErr) {
             if (!streamHeadersSent) {
               if (streamErr instanceof OllamaUnavailableError) {
-                return respondWithOllamaUnavailable(res);
+                const response = respondWithOllamaUnavailable(res);
+                logReturn("stream-ollama-unavailable");
+                return response;
               }
               // Graceful handling for LM Studio "No models loaded" error
               const errMessage = (streamErr as any)?.message || "";
@@ -891,13 +876,15 @@ export default async function handler(
                 errMessage.includes("No models loaded") ||
                 errMessage.includes("connection refused")
               ) {
-                return res.status(503).json({
+                const response = res.status(503).json({
                   error: {
                     code: "LOCAL_LLM_UNAVAILABLE",
                     message:
                       "LM Studio에 로드된 모델이 없습니다. LM Studio 앱에서 모델을 Load 해주세요.",
                   },
                 });
+                logReturn("stream-local-llm-unavailable");
+                return response;
               }
               throw streamErr;
             }
@@ -923,15 +910,36 @@ export default async function handler(
       if (lastGeminiError) {
         throw lastGeminiError;
       }
-    }
   } catch (err: any) {
     console.error("[api/langchain_chat] error:", err);
-    if (err instanceof OllamaUnavailableError) {
-      return respondWithOllamaUnavailable(res);
+    if (res.headersSent) {
+      if (!res.writableEnded) {
+        res.end();
+      }
+      logReturn("error-headers-already-sent");
+      return;
     }
-    return res
+    if (err instanceof OllamaUnavailableError) {
+      const response = respondWithOllamaUnavailable(res);
+      logReturn("error-ollama-unavailable");
+      return response;
+    }
+    const response = res
       .status(500)
       .json({ error: err?.message || "Internal Server Error" });
+    logReturn("error-generic-500");
+    return response;
+  } finally {
+    if (!res.writableEnded) {
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .json({ error: "LangChain handler did not produce a response" });
+      } else {
+        res.end();
+      }
+      logReturn("finally-safety-net");
+    }
   }
 }
 

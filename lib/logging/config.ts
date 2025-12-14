@@ -14,6 +14,32 @@ const TELEMETRY_DETAIL_ORDER: TelemetryDetailLevel[] = [
   "verbose",
 ];
 
+const LOG_LEVEL_SET = new Set<LogLevel>([
+  "off",
+  "error",
+  "info",
+  "debug",
+  "trace",
+]);
+
+function parseLogLevel(value: string | undefined): LogLevel | null {
+  if (!value) {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (LOG_LEVEL_SET.has(normalized as LogLevel)) {
+    return normalized as LogLevel;
+  }
+  return null;
+}
+
+function parseLogLevelWithFallback(
+  value: string | undefined,
+  fallback: LogLevel,
+): LogLevel {
+  return parseLogLevel(value) ?? fallback;
+}
+
 const DEPRECATED_LOGGING_ENV_KEYS = [
   "FORCE_RAG_VERBOSE_RETRIEVAL_LOGS",
   "DEBUG_RAG_URLS",
@@ -116,26 +142,44 @@ export function resolveLoggingEnv(): LoggingConfig["env"] {
 }
 
 export function resolveGlobalLogLevel(env: LoggingConfig["env"]): LogLevel {
-  return env === "production" ? "info" : "debug";
+  const fallback = env === "production" ? "info" : "debug";
+  return parseLogLevelWithFallback(process.env.LOG_GLOBAL_LEVEL, fallback);
 }
 
 function buildDomainConfig(level: LogLevel): DomainLoggingConfig {
   return { level };
 }
 
+// Domain console logging levels are controlled via LOG_GLOBAL_LEVEL and per-domain overrides
+// (LOG_RAG_LEVEL, LOG_INGESTION_LEVEL, LOG_NOTION_LEVEL, LOG_LLM_LEVEL).
 export function buildDomainLoggingState(
   env?: LoggingConfig["env"],
 ): Omit<LoggingConfig, "telemetry"> {
   const resolvedEnv = env ?? resolveLoggingEnv();
   const globalLevel = resolveGlobalLogLevel(resolvedEnv);
-
+  const ragLevel = parseLogLevelWithFallback(
+    process.env.LOG_RAG_LEVEL,
+    globalLevel,
+  );
+  const ingestionLevel = parseLogLevelWithFallback(
+    process.env.LOG_INGESTION_LEVEL,
+    globalLevel,
+  );
+  const notionLevel = parseLogLevelWithFallback(
+    process.env.LOG_NOTION_LEVEL,
+    globalLevel,
+  );
+  const llmLevel = parseLogLevelWithFallback(
+    process.env.LOG_LLM_LEVEL,
+    globalLevel,
+  );
   return {
     env: resolvedEnv,
     globalLevel,
-    rag: buildDomainConfig(globalLevel),
-    ingestion: buildDomainConfig(globalLevel),
-    notion: buildDomainConfig(globalLevel),
-    externalLLM: buildDomainConfig(globalLevel),
+    rag: buildDomainConfig(ragLevel),
+    ingestion: buildDomainConfig(ingestionLevel),
+    notion: buildDomainConfig(notionLevel),
+    externalLLM: buildDomainConfig(llmLevel),
   };
 }
 

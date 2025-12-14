@@ -113,6 +113,19 @@ await ragLogger.debug("resolved retrieval candidates", { urls });
 
 Avoid legacy `DEBUG_*` env vars; they are deprecated and deprecated env detection will warn you at startup.
 
+### Replacing legacy `DEBUG_*` flags
+
+| Legacy flag(s) | Replacement | Notes |
+| --- | --- | --- |
+| `DEBUG_RAG_STEPS`, `DEBUG_RAG_URLS`, `DEBUG_RAG_MSGS` | `LOG_RAG_LEVEL=debug` or `trace` | Enables guardrail, retrieval, and prompt logs across both engines. |
+| `DEBUG_LANGCHAIN_STREAM`, `NEXT_PUBLIC_DEBUG_LANGCHAIN_STREAM`, `DEBUG_OLLAMA_TIMING` | `LOG_LLM_LEVEL=trace` (server/client) | Emits streaming chunk previews and timing metrics without throttling the response. |
+| `DEBUG_INGESTION` | `LOG_INGESTION_LEVEL=debug` | Prints ingestion metadata snapshots. |
+| `DEBUG_NOTION_X` | `LOG_NOTION_LEVEL=debug` | Enables verbose Notion renderer logs on both client and server. |
+| `DEBUG_NOTION_PAGE_ID` | `scripts/ingest-notion.ts --page=<pageId>` | Use the CLI flag to ingest a single page in place of the env toggle. |
+| `FORCE_RAG_VERBOSE_RETRIEVAL_LOGS` | `TELEMETRY_DETAIL_OVERRIDE=verbose` (non-prod) | Telemetry detail governs when retrieval payloads are attached to Langfuse traces. |
+
+When you need temporary higher fidelity, set the domain-specific `LOG_*` env var (or overrides) rather than reintroducing ad-hoc env toggles.
+
 ## Environment Variables
 
 ### Recommended production configuration
@@ -157,7 +170,7 @@ TELEMETRY_DETAIL_MAX=verbose
 
 ## Deprecated Environment Variables
 
-These env vars are phased out and the config builder now warns when they are present:
+These env vars are phased out and the config builder now warns when they are present (see the table above for supported replacements):
 
 - `FORCE_RAG_VERBOSE_RETRIEVAL_LOGS`
 - `DEBUG_RAG_URLS`
