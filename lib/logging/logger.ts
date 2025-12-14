@@ -4,7 +4,12 @@ import {
   buildLoggingConfig,
 } from "@/lib/logging/config";
 
-export type LoggingDomain = "rag" | "ingestion" | "notion" | "externalLLM";
+export type LoggingDomain =
+  | "rag"
+  | "ingestion"
+  | "notion"
+  | "externalLLM"
+  | "telemetryLog";
 
 const LOG_LEVEL_PRIORITY: LogLevel[] = [
   "off",
@@ -120,3 +125,4 @@ export const ragLogger = createDomainLogger("rag");
 export const ingestionLogger = createDomainLogger("ingestion");
 export const notionLogger = createDomainLogger("notion");
 export const llmLogger = createDomainLogger("externalLLM");
+export const telemetryLogger = createDomainLogger("telemetryLog");

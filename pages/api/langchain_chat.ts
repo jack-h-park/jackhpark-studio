@@ -6,6 +6,11 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import type { GuardrailRoute } from "@/lib/rag/types";
 import type { SessionChatConfig } from "@/types/chat-config";
 import {
+  captureChatCompletion,
+  classifyChatCompletionError,
+  isPostHogEnabled,
+} from "@/lib/analytics/posthog";
+import {
   type EmbeddingSpace,
   resolveEmbeddingSpace,
 } from "@/lib/core/embedding-spaces";
@@ -73,7 +78,6 @@ import {
 } from "@/lib/shared/rag-config";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
-import { buildLangfuseTags } from "@/lib/telemetry/langfuse-tags";
 import { computeBasePromptVersion } from "@/lib/telemetry/prompt-version";
 import {
   buildCitationPayload,
@@ -104,6 +108,48 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env
   .SUPABASE_SERVICE_ROLE_KEY as string;
 const RAG_TOP_K = Number(process.env.RAG_TOP_K || 5);
 
+function mergeLangfuseTags(
+  existingTags: string[] | undefined,
+  ...stableTags: string[]
+): string[] {
+  return Array.from(new Set([...(existingTags ?? []), ...stableTags]));
+}
+
+function buildStableLangfuseTags(
+  existingTags: string[] | undefined,
+  presetKey: string,
+  guardrailRoute?: GuardrailRoute,
+): string[] {
+  const envTag =
+    process.env.NODE_ENV === "production" ? "env:prod" : "env:dev";
+  const normalizedPreset =
+    typeof presetKey === "string" ? presetKey.trim() : "";
+  const presetTag =
+    normalizedPreset.length > 0 ? `preset:${normalizedPreset}` : "preset:unknown";
+  if (
+    normalizedPreset.length === 0 &&
+    process.env.NODE_ENV !== "production"
+  ) {
+    console.warn(
+      "[Langfuse] preset key missing when building trace tags; using preset:unknown",
+    );
+  }
+  const guardrailTag =
+    guardrailRoute !== undefined
+      ? `guardrail:${guardrailRoute}`
+      : "guardrail:normal";
+  if (guardrailRoute === undefined && process.env.NODE_ENV !== "production") {
+    console.warn(
+      "[Langfuse] guardrail route missing from chat config snapshot; using guardrail:normal",
+    );
+  }
+  const tags = mergeLangfuseTags(existingTags, envTag, presetTag, guardrailTag);
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[Langfuse] tags", tags);
+  }
+  return tags;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
@@ -120,6 +166,13 @@ export default async function handler(
       ended: res.writableEnded,
     });
   };
+
+  const requestStart = Date.now();
+  const shouldTrackPosthog = isPostHogEnabled();
+  let capturePosthogEvent:
+    | ((status: "success" | "error", errorType?: string | null) => void)
+    | null = null;
+  let _analyticsTotalTokens: number | null = null;
 
   try {
     // Legacy LOG_LLM_LEVEL check removed.
@@ -252,7 +305,11 @@ export default async function handler(
       traceMetadata.cache = cacheMeta;
     }
     const traceTags = shouldEmitTrace
-      ? buildLangfuseTags(env, presetId, guardrailRoute)
+      ? buildStableLangfuseTags(
+          undefined,
+          presetId,
+          chatConfigSnapshot?.guardrails?.route,
+        )
       : undefined;
     const reverseRagEnabled = runtime.reverseRagEnabled;
     const reverseRagMode = (runtime.reverseRagMode ??
@@ -302,6 +359,81 @@ export default async function handler(
           tags: traceTags,
         })
       : null;
+    const analyticsModelState = {
+      provider,
+      model: llmModel,
+      embeddingModel,
+    };
+    const resolvePosthogDistinctId = () => {
+      const requestId =
+        typeof req.headers["x-request-id"] === "string"
+          ? req.headers["x-request-id"]
+          : undefined;
+      const anonymousId =
+        typeof req.headers["x-anonymous-id"] === "string"
+          ? req.headers["x-anonymous-id"]
+          : undefined;
+      const traceId = trace?.traceId ?? null;
+      const candidates = [
+        userId,
+        anonymousId,
+        sessionId,
+        traceId ?? undefined,
+        requestId,
+      ];
+      return (
+        candidates.find(
+          (value): value is string =>
+            typeof value === "string" && value.trim().length > 0,
+        ) ?? null
+      );
+    };
+    const initializePosthogCapture = () => {
+      if (!shouldTrackPosthog) {
+        return null;
+      }
+      let posthogCaptured = false;
+
+      return (
+        status: "success" | "error",
+        errorType: string | null = null,
+      ) => {
+        if (posthogCaptured) {
+          return;
+        }
+        const distinctId = resolvePosthogDistinctId();
+        if (!distinctId) {
+          posthogCaptured = true;
+          return;
+        }
+        posthogCaptured = true;
+        const latencyMs = Date.now() - requestStart;
+        captureChatCompletion({
+          distinctId,
+          properties: {
+            env,
+            trace_id: trace?.traceId ?? null,
+            chat_session_id: sessionId ?? null,
+            preset_key: chatConfigSnapshot?.presetKey ?? presetId ?? "unknown",
+            chat_engine: "langchain",
+            rag_enabled: guardrails.ragTopK > 0,
+            prompt_version:
+              chatConfigSnapshot?.prompt?.baseVersion ?? "unknown",
+            guardrail_route: guardrailRoute ?? "normal",
+            provider: analyticsModelState.provider ?? null,
+            model: analyticsModelState.model ?? null,
+            embedding_model: analyticsModelState.embeddingModel ?? null,
+            latency_ms: latencyMs,
+            total_tokens: _analyticsTotalTokens,
+            response_cache_hit: cacheMeta.responseHit,
+            retrieval_cache_hit: cacheMeta.retrievalHit,
+            status,
+            error_type: errorType,
+          },
+        });
+      };
+    };
+    capturePosthogEvent = initializePosthogCapture();
     const responseCacheTtl = adminConfig.cache.responseTtlSeconds;
     const retrievalCacheTtl = adminConfig.cache.retrievalTtlSeconds;
     const responseCacheKey =
@@ -332,6 +464,7 @@ export default async function handler(
             ? `${cached.output}${CITATIONS_SEPARATOR}${cached.citations}`
             : cached.output;
         res.end(body);
+        capturePosthogEvent?.("success", null);
         logReturn("response-cache-hit");
         return;
       }
@@ -780,6 +913,7 @@ export default async function handler(
         });
       }
       const stream = await llmInstance.stream(promptInput);
+      _analyticsTotalTokens = contextResult.totalTokens ?? null;
       return { stream, citationPayload: resolvedCitationPayload };
     };
 
@@ -875,11 +1009,13 @@ export default async function handler(
             });
           }
           res.end();
+          capturePosthogEvent?.("success", null);
           logReturn("stream-success");
           return;
         } catch (streamErr) {
           if (!streamHeadersSent) {
             if (streamErr instanceof OllamaUnavailableError) {
+              capturePosthogEvent?.("error", "local_llm_unavailable");
               const response = respondWithOllamaUnavailable(res);
               logReturn("stream-ollama-unavailable");
               return response;
@@ -890,6 +1026,7 @@ export default async function handler(
               errMessage.includes("No models loaded") ||
               errMessage.includes("connection refused")
             ) {
+              capturePosthogEvent?.("error", "local_llm_unavailable");
               const response = res.status(503).json({
                 error: {
                   code: "LOCAL_LLM_UNAVAILABLE",
@@ -925,6 +1062,11 @@ export default async function handler(
       throw lastGeminiError;
     }
   } catch (err: any) {
+    const errorType =
+      err instanceof OllamaUnavailableError
+        ? "local_llm_unavailable"
+        : classifyChatCompletionError(err);
+    capturePosthogEvent?.("error", errorType);
     llmLogger.error("[api/langchain_chat] error:", { error: err });
     if (res.headersSent) {
       if (!res.writableEnded) {

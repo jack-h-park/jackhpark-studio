@@ -151,7 +151,7 @@ function buildDomainConfig(level: LogLevel): DomainLoggingConfig {
 }
 
 // Domain console logging levels are controlled via LOG_GLOBAL_LEVEL and per-domain overrides
-// (LOG_RAG_LEVEL, LOG_INGESTION_LEVEL, LOG_NOTION_LEVEL, LOG_LLM_LEVEL).
+// (LOG_RAG_LEVEL, LOG_INGESTION_LEVEL, LOG_NOTION_LEVEL, LOG_LLM_LEVEL, LOG_TELEMETRY_LEVEL).
 export function buildDomainLoggingState(
   env?: LoggingConfig["env"],
 ): Omit<LoggingConfig, "telemetry"> {
@@ -173,6 +173,10 @@ export function buildDomainLoggingState(
     process.env.LOG_LLM_LEVEL,
     globalLevel,
   );
+  const telemetryLogLevel = parseLogLevelWithFallback(
+    process.env.LOG_TELEMETRY_LEVEL,
+    globalLevel,
+  );
   return {
     env: resolvedEnv,
     globalLevel,
@@ -180,6 +184,7 @@ export function buildDomainLoggingState(
     ingestion: buildDomainConfig(ingestionLevel),
     notion: buildDomainConfig(notionLevel),
     externalLLM: buildDomainConfig(llmLevel),
+    telemetryLog: buildDomainConfig(telemetryLogLevel),
   };
 }
 

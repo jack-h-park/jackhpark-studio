@@ -20,42 +20,44 @@ const langfuseClient = isLangfuseConfigured
   : null;
 let ingestionEnabled = Boolean(langfuseClient);
 
-const DEFAULT_SAMPLE_RATES: Record<AppEnv, number> = {
-  prod: 1,
-  preview: 1,
-  dev: 0.3,
-};
+const LEGACY_SAMPLE_RATE_ENVS = [
+  "LANGFUSE_SAMPLE_RATE_DEV",
+  "LANGFUSE_SAMPLE_RATE_PREVIEW",
+  "LANGFUSE_SAMPLE_RATE_PROD",
+] as const;
 
-const SAMPLE_RATES: Record<AppEnv, number> = {
-  dev: sanitizeSampleRate(
-    process.env.LANGFUSE_SAMPLE_RATE_DEV,
-    DEFAULT_SAMPLE_RATES.dev,
-  ),
-  preview: sanitizeSampleRate(
-    process.env.LANGFUSE_SAMPLE_RATE_PREVIEW,
-    DEFAULT_SAMPLE_RATES.preview,
-  ),
-  prod: sanitizeSampleRate(
-    process.env.LANGFUSE_SAMPLE_RATE_PROD,
-    DEFAULT_SAMPLE_RATES.prod,
-  ),
-};
+let didLogLangfuseInit = false;
 
-function sanitizeSampleRate(
-  value: string | undefined,
-  fallback: number,
-): number {
-  if (!value) {
-    return fallback;
+async function logLangfuseInitStatus() {
+  if (didLogLangfuseInit) {
+    return;
   }
 
-  const parsed = Number(value);
-  if (Number.isNaN(parsed)) {
-    return fallback;
+  didLogLangfuseInit = true;
+  if (process.env.NODE_ENV === "production") {
+    return;
   }
 
-  return Math.min(1, Math.max(0, parsed));
+  const { telemetryLogger } = await import("@/lib/logging/logger");
+  telemetryLogger.debug("Langfuse telemetry wiring", {
+    provider: "langfuse",
+    hasPublicKey: Boolean(process.env.LANGFUSE_PUBLIC_KEY),
+    hasSecretKey: Boolean(process.env.LANGFUSE_SECRET_KEY),
+    baseUrl: langfuseBaseUrl ?? "(default)",
+  });
+
+  const deprecatedSamples = LEGACY_SAMPLE_RATE_ENVS.filter(
+    (key) => process.env[key] != null,
+  );
+  if (deprecatedSamples.length > 0) {
+    telemetryLogger.debug(
+      "Langfuse sample rate vars are ignored; telemetry sampling is controlled via TELEMETRY_SAMPLE_RATE_*",
+      { envVars: deprecatedSamples },
+    );
+  }
 }
+
+await logLangfuseInitStatus();
 
 export function getAppEnv(): AppEnv {
   const fromAppEnv = process.env.APP_ENV?.toLowerCase();
@@ -83,15 +85,6 @@ export function getAppEnv(): AppEnv {
   }
 
   return "dev";
-}
-
-export function shouldTrace(env: AppEnv): boolean {
-  if (!isLangfuseConfigured) {
-    return false;
-  }
-
-  const sampleRate = SAMPLE_RATES[env] ?? 0;
-  return Math.random() < sampleRate;
 }
 
 export type LangfuseMetadata = Record<string, unknown>;
@@ -221,10 +214,6 @@ export function createTrace(
   }
 
   const env = getAppEnv();
-  if (!shouldTrace(env)) {
-    return undefined;
-  }
-
   const traceId = options.id ?? options.sessionId ?? randomUUID();
   const traceEnvironment = options.environment ?? env;
   let currentTraceFields: LangfuseTraceOptions & {
@@ -304,14 +293,15 @@ async function sendIngestionEvents(
       batch: events,
     });
   } catch (err) {
+    const { telemetryLogger } = await import("@/lib/logging/logger");
     const statusCode = (err as { statusCode?: number }).statusCode;
     if (statusCode === 401) {
       ingestionEnabled = false;
-      console.warn(
+      telemetryLogger.error(
         "[langfuse] disabled tracing because Langfuse ingestion is unauthorized",
       );
     }
-    console.error("[langfuse] failed to emit events", err);
+    telemetryLogger.error("[langfuse] failed to emit events", err);
   }
 }
 

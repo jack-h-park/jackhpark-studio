@@ -61,6 +61,7 @@ interface LoggingConfig {
   ingestion: DomainLoggingConfig;
   notion: DomainLoggingConfig;
   externalLLM: DomainLoggingConfig;
+  telemetryLog: DomainLoggingConfig;
   telemetry: TelemetryConfig;
 }
 ```
@@ -104,6 +105,7 @@ Telemetry (Langfuse traces / observations) is controlled by `loggingConfig.telem
 - `ingestionLogger`
 - `notionLogger`
 - `llmLogger`
+- `telemetryLogger` (`telemetryLog` domain, used for telemetry wiring/diagnostics)
 
 The domain loggers read their level from `LoggingConfig` and replace ad-hoc `console.log` calls. They enable consistent filtering per subsystem.
 
@@ -126,6 +128,27 @@ Avoid legacy `DEBUG_*` env vars; they are deprecated and are no longer effective
 
 When you need temporary higher fidelity, set the domain-specific `LOG_*` env var (or overrides) rather than reintroducing ad-hoc env toggles.
 
+We also emit one non-production debug entry from `telemetryLogger` on startup, showing `provider=langfuse`, whether public/secret keys are present, and the base URL (or `(default)`). The message never prints secrets and helps troubleshoot “Langfuse shows no traces”.
+
+Langfuse no longer performs its own sampling; the legacy `LANGFUSE_SAMPLE_RATE_DEV`, `LANGFUSE_SAMPLE_RATE_PREVIEW`, and `LANGFUSE_SAMPLE_RATE_PROD` vars are ignored and will not affect runtime behavior. Sampling is instead governed entirely by `TELEMETRY_SAMPLE_RATE_*` plus the Admin telemetry config, and the startup log lists any ignored legacy vars in non‑production environments.
+
+## PostHog analytics
+
+Set `POSTHOG_API_KEY` (and optionally `POSTHOG_HOST`) to forward a small `chat_completion` event per chat request.
+
+- Event name: `chat_completion`
+- Required env vars:
+  - `POSTHOG_API_KEY`
+  - `POSTHOG_HOST` (optional, defaults to `https://app.posthog.com`)
+- Captured properties:
+  - `env`, `trace_id`, `chat_session_id`, `preset_key`, `chat_engine`, `rag_enabled`, `prompt_version`, `guardrail_route`
+  - `provider`, `model`, `embedding_model`
+  - `latency_ms`, `total_tokens`, `response_cache_hit`, `retrieval_cache_hit`
+  - `status` (`"success"` / `"error"`), `error_type` (short classifier)
+  - Distinct IDs prefer user ID, then anonymous/session IDs, trace ID, then `x-request-id`
+- Privacy: no prompts, messages, chunk text, URLs, headers, cookies, IPs, or emails are transmitted.
+- The events are fire-and-forget, nonblocking, and include `trace_id` so you can join them with Langfuse traces for richer dashboards.
+
 ## Environment Variables
 
 ### Recommended production configuration
@@ -137,6 +160,7 @@ LOG_RAG_LEVEL=info
 LOG_INGESTION_LEVEL=info
 LOG_NOTION_LEVEL=info
 LOG_LLM_LEVEL=info
+LOG_TELEMETRY_LEVEL=info
 
 # ---------- Telemetry / Langfuse ----------
 
@@ -161,6 +185,7 @@ LOG_RAG_LEVEL=debug
 LOG_INGESTION_LEVEL=debug
 LOG_NOTION_LEVEL=debug
 LOG_LLM_LEVEL=debug
+LOG_TELEMETRY_LEVEL=debug
 
 # ---------- Telemetry / Langfuse ----------
 

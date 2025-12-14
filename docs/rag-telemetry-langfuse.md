@@ -33,6 +33,14 @@ When telemetry `detailLevel` is not `"minimal"`, the snapshot is attached to the
   - Compare prompt versions by filtering on `chatConfig.prompt.baseVersion`.
   - Segment by guardrail route using `chatConfig.guardrails.route` to see normal vs chit-chat vs command fallbacks.
 
+## Langfuse Tags
+
+- `env:prod` / `env:dev` (derived from `NODE_ENV`, never staging-style values)
+- `preset:<presetKey>` (falls back to `preset:unknown` when the preset key is missing)
+- `guardrail:<route>` (mirrors `chatConfig.guardrails.route`, falls back to `guardrail:normal` when the route cannot be captured)
+
+Tags are intentionally minimal; detailed chat configuration stays in `metadata.chatConfig`, and dashboards can group/filter responses via the Tags dimension to compare envs, presets, or guardrail routes.
+
 ## Caching + cache telemetry
 
 - Admin cache settings:

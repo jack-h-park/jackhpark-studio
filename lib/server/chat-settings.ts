@@ -114,13 +114,9 @@ export type ChatModelSettings = {
 
 export type LangfuseSettings = {
   envTag: string;
-  sampleRateDev: number;
-  sampleRatePreview: number;
   attachProviderMetadata: boolean;
   isDefault: {
     envTag: boolean;
-    sampleRateDev: boolean;
-    sampleRatePreview: boolean;
     attachProviderMetadata: boolean;
   };
 };
@@ -213,22 +209,12 @@ const DEFAULT_LANGFUSE_ENV_TAG =
   process.env.APP_ENV ??
   process.env.NODE_ENV ??
   "dev";
-const DEFAULT_LANGFUSE_SAMPLE_RATE_DEV = clampSampleRate(
-  process.env.LANGFUSE_SAMPLE_RATE_DEV,
-  0.3,
-);
-const DEFAULT_LANGFUSE_SAMPLE_RATE_PREVIEW = clampSampleRate(
-  process.env.LANGFUSE_SAMPLE_RATE_PREVIEW,
-  1,
-);
 const DEFAULT_LANGFUSE_ATTACH_PROVIDER_METADATA =
   (process.env.LANGFUSE_ATTACH_PROVIDER_METADATA ?? "true").toLowerCase() !==
   "false";
 
 const DEFAULT_LANGFUSE_SETTINGS = {
   envTag: DEFAULT_LANGFUSE_ENV_TAG,
-  sampleRateDev: DEFAULT_LANGFUSE_SAMPLE_RATE_DEV,
-  sampleRatePreview: DEFAULT_LANGFUSE_SAMPLE_RATE_PREVIEW,
   attachProviderMetadata: DEFAULT_LANGFUSE_ATTACH_PROVIDER_METADATA,
 } as const;
 
@@ -312,13 +298,9 @@ export function getGuardrailDefaults(): GuardrailDefaults {
 export function getLangfuseDefaults(): LangfuseSettings {
   return {
     envTag: DEFAULT_LANGFUSE_SETTINGS.envTag,
-    sampleRateDev: DEFAULT_LANGFUSE_SETTINGS.sampleRateDev,
-    sampleRatePreview: DEFAULT_LANGFUSE_SETTINGS.sampleRatePreview,
     attachProviderMetadata: DEFAULT_LANGFUSE_SETTINGS.attachProviderMetadata,
     isDefault: {
       envTag: true,
-      sampleRateDev: true,
-      sampleRatePreview: true,
       attachProviderMetadata: true,
     },
   };
@@ -790,22 +772,6 @@ function ensureMin(value: number, min: number): number {
     return min;
   }
   return Math.max(min, value);
-}
-
-function clampSampleRate(
-  candidate: string | number | undefined,
-  fallback: number,
-): number {
-  if (candidate === undefined || candidate === null) {
-    return fallback;
-  }
-  const parsed = typeof candidate === "number" ? candidate : Number(candidate);
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-  if (parsed < 0) return 0;
-  if (parsed > 1) return 1;
-  return parsed;
 }
 
 function parseKeywordList(

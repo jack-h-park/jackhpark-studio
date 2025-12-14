@@ -20,6 +20,7 @@ export interface LoggingConfig {
   ingestion: DomainLoggingConfig;
   notion: DomainLoggingConfig;
   externalLLM: DomainLoggingConfig;
+  telemetryLog: DomainLoggingConfig;
 
   telemetry: TelemetryConfig;
 }

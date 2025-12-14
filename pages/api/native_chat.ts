@@ -3,6 +3,11 @@ import { type NextApiRequest, type NextApiResponse } from "next";
 import type { LocalLlmMessage, LocalLlmRequest } from "@/lib/local-llm/client";
 import type { GuardrailRoute } from "@/lib/rag/types";
 import type { SessionChatConfig } from "@/types/chat-config";
+import {
+  captureChatCompletion,
+  classifyChatCompletionError,
+  isPostHogEnabled,
+} from "@/lib/analytics/posthog";
 import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
 import { embedText } from "@/lib/core/embeddings";
 import {
@@ -70,7 +75,6 @@ import {
 } from "@/lib/shared/rag-config";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
-import { buildLangfuseTags } from "@/lib/telemetry/langfuse-tags";
 import { computeBasePromptVersion } from "@/lib/telemetry/prompt-version";
 import {
   buildCitationPayload,
@@ -96,6 +100,48 @@ type RagDocument = {
 
 const DEFAULT_MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 512);
 
+function mergeLangfuseTags(
+  existingTags: string[] | undefined,
+  ...stableTags: string[]
+): string[] {
+  return Array.from(new Set([...(existingTags ?? []), ...stableTags]));
+}
+
+function buildStableLangfuseTags(
+  existingTags: string[] | undefined,
+  presetKey: string,
+  guardrailRoute?: GuardrailRoute,
+): string[] {
+  const envTag =
+    process.env.NODE_ENV === "production" ? "env:prod" : "env:dev";
+  const normalizedPreset =
+    typeof presetKey === "string" ? presetKey.trim() : "";
+  const presetTag =
+    normalizedPreset.length > 0 ? `preset:${normalizedPreset}` : "preset:unknown";
+  if (
+    normalizedPreset.length === 0 &&
+    process.env.NODE_ENV !== "production"
+  ) {
+    console.warn(
+      "[Langfuse] preset key missing when building trace tags; using preset:unknown",
+    );
+  }
+  const guardrailTag =
+    guardrailRoute !== undefined
+      ? `guardrail:${guardrailRoute}`
+      : "guardrail:normal";
+  if (guardrailRoute === undefined && process.env.NODE_ENV !== "production") {
+    console.warn(
+      "[Langfuse] guardrail route missing from chat config snapshot; using guardrail:normal",
+    );
+  }
+  const tags = mergeLangfuseTags(existingTags, envTag, presetTag, guardrailTag);
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[Langfuse] tags", tags);
+  }
+  return tags;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
@@ -104,6 +150,13 @@ export default async function handler(
     res.setHeader("Allow", ["POST"]);
     return res.status(405).json({ error: "Method Not Allowed" });
   }
+
+  const requestStart = Date.now();
+  const shouldTrackPosthog = isPostHogEnabled();
+  let capturePosthogEvent:
+    | ((status: "success" | "error", errorType?: string | null) => void)
+    | null = null;
+  let _analyticsTotalTokens: number | null = null;
 
   try {
     const body: ChatRequestBody =
@@ -202,6 +255,14 @@ export default async function handler(
         : routingDecision.intent === "command"
           ? "command"
           : "normal";
+    const sessionId =
+      (req.headers["x-chat-id"] as string) ??
+      (req.headers["x-request-id"] as string) ??
+      normalizedQuestion.normalized;
+    const userId =
+      typeof req.headers["x-user-id"] === "string"
+        ? req.headers["x-user-id"]
+        : undefined;
     const loggingConfig = await getLoggingConfig();
     const { enabled, sampleRate, detailLevel } = loggingConfig.telemetry;
     const telemetryDecision = decideTelemetryMode(
@@ -266,7 +327,11 @@ export default async function handler(
       traceMetadata.cache = cacheMeta;
     }
     const traceTags = shouldEmitTrace
-      ? buildLangfuseTags(env, presetId, guardrailRoute)
+      ? buildStableLangfuseTags(
+          undefined,
+          presetId,
+          chatConfigSnapshot?.guardrails?.route,
+        )
       : undefined;
     const reverseRagEnabled = runtime.reverseRagEnabled;
     const reverseRagMode = (runtime.reverseRagMode ??
@@ -291,14 +356,6 @@ export default async function handler(
     const embeddingProvider = embeddingSelection.provider;
     const llmModel = llmSelection.model;
     const embeddingModel = embeddingSelection.model;
-    const sessionId =
-      (req.headers["x-chat-id"] as string) ??
-      (req.headers["x-request-id"] as string) ??
-      normalizedQuestion.normalized;
-    const userId =
-      typeof req.headers["x-user-id"] === "string"
-        ? req.headers["x-user-id"]
-        : undefined;
     if (traceMetadata) {
       traceMetadata.provider = provider;
       traceMetadata.model = llmModel;
@@ -315,6 +372,80 @@ export default async function handler(
           tags: traceTags,
         })
       : null;
+    const analyticsModelState = {
+      provider,
+      model: llmModel,
+      embeddingModel,
+    };
+    const resolvePosthogDistinctId = () => {
+      const requestId =
+        typeof req.headers["x-request-id"] === "string"
+          ? req.headers["x-request-id"]
+          : undefined;
+      const anonymousId =
+        typeof req.headers["x-anonymous-id"] === "string"
+          ? req.headers["x-anonymous-id"]
+          : undefined;
+      const traceId = trace?.traceId ?? null;
+      const candidates = [
+        userId,
+        anonymousId,
+        sessionId,
+        traceId ?? undefined,
+        requestId,
+      ];
+      return (
+        candidates.find(
+          (value): value is string =>
+            typeof value === "string" && value.trim().length > 0,
+        ) ?? null
+      );
+    };
+    const initializePosthogCapture = () => {
+      if (!shouldTrackPosthog) {
+        return null;
+      }
+      let posthogCaptured = false;
+
+      return (
+        status: "success" | "error",
+        errorType: string | null = null,
+      ) => {
+        if (posthogCaptured) {
+          return;
+        }
+        const distinctId = resolvePosthogDistinctId();
+        if (!distinctId) {
+          posthogCaptured = true;
+          return;
+        }
+        posthogCaptured = true;
+        captureChatCompletion({
+          distinctId,
+          properties: {
+            env,
+            trace_id: trace?.traceId ?? null,
+            chat_session_id: sessionId ?? null,
+            preset_key: chatConfigSnapshot?.presetKey ?? presetId ?? "unknown",
+            chat_engine: "native",
+            rag_enabled: guardrails.ragTopK > 0,
+            prompt_version:
+              chatConfigSnapshot?.prompt?.baseVersion ?? "unknown",
+            guardrail_route: guardrailRoute ?? "normal",
+            provider: analyticsModelState.provider ?? null,
+            model: analyticsModelState.model ?? null,
+            embedding_model: analyticsModelState.embeddingModel ?? null,
+            latency_ms: Date.now() - requestStart,
+            total_tokens: _analyticsTotalTokens,
+            response_cache_hit: cacheMeta.responseHit,
+            retrieval_cache_hit: cacheMeta.retrievalHit,
+            status,
+            error_type: errorType,
+          },
+        });
+      };
+    };
+    capturePosthogEvent = initializePosthogCapture();
     const responseCacheTtl = adminConfig.cache.responseTtlSeconds;
     const retrievalCacheTtl = adminConfig.cache.retrievalTtlSeconds;
     const responseCacheKey =
@@ -340,6 +471,7 @@ export default async function handler(
         }
         res.status(200).setHeader("Content-Type", "text/plain; charset=utf-8");
         res.end(cachedResponse.output);
+        capturePosthogEvent?.("success", null);
         return;
       }
     }
@@ -654,6 +786,11 @@ export default async function handler(
       }
     }
 
+    _analyticsTotalTokens =
+      typeof contextResult.totalTokens === "number"
+        ? contextResult.totalTokens
+        : null;
+
     const summaryTokens =
       historyWindow.summaryMemory && historyWindow.summaryMemory.length > 0
         ? estimateTokens(historyWindow.summaryMemory)
@@ -829,9 +966,11 @@ export default async function handler(
           metadata: traceMetadata,
         });
       }
+      capturePosthogEvent?.("success", null);
     } catch (streamErr) {
       if (!streamHeadersSent) {
         if (streamErr instanceof OllamaUnavailableError) {
+          capturePosthogEvent?.("error", "local_llm_unavailable");
           return respondWithOllamaUnavailable(res);
         }
 
@@ -840,6 +979,7 @@ export default async function handler(
           errMessage.includes("No models loaded") ||
           errMessage.includes("connection refused")
         ) {
+          capturePosthogEvent?.("error", "local_llm_unavailable");
           return res.status(503).json({
             error: {
               code: "LOCAL_LLM_UNAVAILABLE",
@@ -853,6 +993,11 @@ export default async function handler(
       throw streamErr;
     }
   } catch (err: any) {
+    const errorType =
+      err instanceof OllamaUnavailableError
+        ? "local_llm_unavailable"
+        : classifyChatCompletionError(err);
+    capturePosthogEvent?.("error", errorType);
     console.error("Chat API error:", err);
     const errorMessage = err?.message || "An unexpected error occurred";
     if (!res.headersSent) {
