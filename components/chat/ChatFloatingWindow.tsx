@@ -52,6 +52,7 @@ export function ChatFloatingWindow({
     runtimeConfig,
     loadingAssistantId,
     sendMessage,
+    abortActiveRequest,
   } = useChatSession({ source: "floating-widget" });
 
   const {
@@ -460,6 +461,7 @@ export function ChatFloatingWindow({
           value={input}
           onChange={setInput}
           onSubmit={handleSubmit}
+          onStop={abortActiveRequest}
           isLoading={isLoading}
           inputRef={inputRef}
           placeholder="Ask me anything about Jack..."

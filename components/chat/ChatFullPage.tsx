@@ -42,8 +42,13 @@ function ChatShellContent() {
   const [inputValue, setInputValue] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [telemetryExpanded, setTelemetryExpanded] = useState(true);
-  const { messages, isLoading, loadingAssistantId, sendMessage } =
-    useChatSession({ source: "full-page", config: sessionConfig });
+  const {
+    messages,
+    isLoading,
+    loadingAssistantId,
+    sendMessage,
+    abortActiveRequest,
+  } = useChatSession({ source: "full-page", config: sessionConfig });
 
   const hasMessages = messages.length > 0;
   const showTelemetry = true;
@@ -126,6 +131,7 @@ function ChatShellContent() {
             value={inputValue}
             onChange={setInputValue}
             onSubmit={handleSend}
+            onStop={abortActiveRequest}
             isLoading={isLoading}
             disabled={isLoading}
             placeholder="Ask me anything about Jack..."

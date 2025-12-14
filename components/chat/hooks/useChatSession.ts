@@ -471,10 +471,24 @@ export function useChatSession(
             }
           }
         } catch (err) {
-          console.error("[useChatSession] chat request failed", err);
-          if (controller.signal.aborted || !isMountedRef.current) {
+          if (!isMountedRef.current) {
             return;
           }
+          if (controller.signal.aborted) {
+            setMessages((prev) =>
+              prev.map((item) =>
+                item.id === assistantMessageId
+                  ? {
+                      ...item,
+                      content: item.content.trim() + " [Stopped]",
+                      isComplete: true,
+                    }
+                  : item,
+              ),
+            );
+            return;
+          }
+          console.error("[useChatSession] chat request failed", err);
           const message = getUserFacingErrorMessage(err);
           setMessages((prev) =>
             prev.map((item) =>

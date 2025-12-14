@@ -2,6 +2,7 @@
 
 import type { FormEvent, RefObject } from "react";
 import { AiOutlineSend } from "@react-icons/all-files/ai/AiOutlineSend";
+import { VscDebugStop } from "@react-icons/all-files/vsc/VscDebugStop";
 
 import styles from "./ChatInputBar.module.css";
 
@@ -9,6 +10,7 @@ export type ChatInputBarProps = {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  onStop?: () => void;
   isLoading: boolean;
   disabled?: boolean;
   inputRef?: RefObject<HTMLInputElement | null>;
@@ -19,6 +21,7 @@ export function ChatInputBar({
   value,
   onChange,
   onSubmit,
+  onStop,
   isLoading,
   disabled = false,
   inputRef,
@@ -29,6 +32,10 @@ export function ChatInputBar({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isLoading && onStop) {
+      onStop();
+      return;
+    }
     if (isSubmitDisabled) {
       return;
     }
@@ -48,10 +55,10 @@ export function ChatInputBar({
       <button
         type="submit"
         className={styles.chatSubmitButton}
-        disabled={isSubmitDisabled}
-        aria-label="Send message"
+        disabled={!isLoading && isSubmitDisabled}
+        aria-label={isLoading ? "Stop generation" : "Send message"}
       >
-        <AiOutlineSend size={20} />
+        {isLoading ? <VscDebugStop size={20} /> : <AiOutlineSend size={20} />}
       </button>
     </form>
   );
