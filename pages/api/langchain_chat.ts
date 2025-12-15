@@ -1,10 +1,11 @@
-import type { Document } from "@langchain/core/documents";
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import type { BaseLanguageModelInterface } from "@langchain/core/language_models/base";
+import type { PromptTemplate } from "@langchain/core/prompts";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { GuardrailRoute } from "@/lib/rag/types";
-import type { SessionChatConfig } from "@/types/chat-config";
+import type { RagRankingConfig, SessionChatConfig } from "@/types/chat-config";
 import {
   captureChatCompletion,
   classifyChatCompletionError,
@@ -23,49 +24,36 @@ import { getLmStudioRuntimeConfig } from "@/lib/core/lmstudio";
 import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
-import { getAppEnv, langfuse } from "@/lib/langfuse";
+import { getAppEnv, langfuse,type LangfuseTrace  } from "@/lib/langfuse";
 import { getLoggingConfig, llmLogger, ragLogger } from "@/lib/logging/logger";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
 import {
-  buildRetrievalTelemetryEntries,
   type ChatRequestBody,
   CITATIONS_SEPARATOR,
-  logRetrievalStage,
-  MAX_RETRIEVAL_TELEMETRY_ITEMS,
   parseTemperature,
 } from "@/lib/server/chat-common";
 import {
   applyHistoryWindow,
-  buildContextWindow,
   buildIntentContextFallback,
+  type ChatGuardrailConfig,
   type ContextWindowResult,
   estimateTokens,
   getChatGuardrailConfig,
+  type HistoryWindowResult,
+  type NormalizedQuestion,
   normalizeQuestion,
+  type RoutedQuestion,
   routeQuestion,
 } from "@/lib/server/chat-guardrails";
 import { type ChatMessage, sanitizeMessages } from "@/lib/server/chat-messages";
-import {
-  enrichAndFilterDocs,
-  extractDocIdsFromBaseDocs,
-  fetchRefinedMetadata,
-  processPreRetrieval,
-} from "@/lib/server/chat-rag-utils";
-import {
-  buildFinalSystemPrompt,
-  loadChatModelSettings,
-} from "@/lib/server/chat-settings";
+import { buildFinalSystemPrompt, loadChatModelSettings } from "@/lib/server/chat-settings";
+import { buildRagAnswerChain } from "@/lib/server/langchain/ragAnswerChain";
+import { buildRagRetrievalChain } from "@/lib/server/langchain/ragRetrievalChain";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
-import {
-  type CanonicalPageLookup,
-  loadCanonicalPageLookup,
-} from "@/lib/server/page-url";
-import { applyRanker } from "@/lib/server/rag-enhancements";
 import { logDebugRag } from "@/lib/server/rag-logger";
-import { resolveRagUrl } from "@/lib/server/rag-url-resolver";
 import {
   type GuardrailEnhancements,
   type GuardrailMeta,
@@ -74,6 +62,7 @@ import {
 import { type ModelProvider } from "@/lib/shared/model-provider";
 import {
   DEFAULT_REVERSE_RAG_MODE,
+  type RankerMode,
   type ReverseRagMode,
 } from "@/lib/shared/rag-config";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -106,8 +95,6 @@ function formatChunkPreview(value: string) {
 const SUPABASE_URL = process.env.SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env
   .SUPABASE_SERVICE_ROLE_KEY as string;
-const RAG_TOP_K = Number(process.env.RAG_TOP_K || 5);
-
 function mergeLangfuseTags(
   existingTags: string[] | undefined,
   ...stableTags: string[]
@@ -148,6 +135,479 @@ function buildStableLangfuseTags(
     console.log("[Langfuse] tags", tags);
   }
   return tags;
+}
+
+type TraceMetadataSnapshot = {
+  [key: string]: unknown;
+  cache?: {
+    responseHit: boolean | null;
+    retrievalHit: boolean | null;
+  };
+};
+
+type ResponseCacheMeta = {
+  responseHit: boolean | null;
+  retrievalHit: boolean | null;
+};
+
+interface ComputeRagContextParams {
+  guardrails: ChatGuardrailConfig;
+  normalizedQuestion: NormalizedQuestion;
+  routingDecision: RoutedQuestion;
+  reverseRagEnabled: boolean;
+  reverseRagMode: ReverseRagMode;
+  hydeEnabled: boolean;
+  rankerMode: RankerMode;
+  provider: ModelProvider;
+  llmModel: string;
+  embeddingModel: string;
+  embeddingSelection: EmbeddingSpace;
+  embeddings: EmbeddingsInterface;
+  supabase: SupabaseClient;
+  supabaseAdmin: SupabaseClient;
+  tableName: string;
+  queryName: string;
+  chatConfigSnapshot: ReturnType<typeof buildChatConfigSnapshot> | undefined;
+  includeVerboseDetails: boolean;
+  trace: LangfuseTrace | null;
+  env: ReturnType<typeof getAppEnv>;
+  memoryCacheClient: typeof memoryCacheClient;
+  retrievalCacheTtl: number;
+  presetId: string;
+  cacheMeta: ResponseCacheMeta;
+  traceMetadata: TraceMetadataSnapshot | undefined;
+  historyWindow: HistoryWindowResult;
+  ragRanking?: RagRankingConfig | null;
+}
+
+interface ComputeRagContextResult {
+  contextResult: ContextWindowResult;
+  citations: CitationPayload;
+  latestMeta: GuardrailMeta;
+  enhancementSummary: GuardrailEnhancements;
+}
+
+interface StreamAnswerParams {
+  llmInstance: BaseLanguageModelInterface;
+  prompt: PromptTemplate;
+  question: string;
+  historyWindow: HistoryWindowResult;
+  contextResult: ContextWindowResult;
+  citationPayload: CitationPayload;
+  latestMeta: GuardrailMeta;
+  routingDecision: RoutedQuestion;
+  env: ReturnType<typeof getAppEnv>;
+  temperature: number;
+  requestedModelId: string;
+  candidateModelId: string;
+  responseCacheKey: string | null;
+  responseCacheTtl: number;
+  cacheMeta: ResponseCacheMeta;
+  trace: LangfuseTrace | null;
+  traceMetadata: TraceMetadataSnapshot | undefined;
+  res: NextApiResponse;
+  capturePosthogEvent:
+    | ((status: "success" | "error", errorType?: string | null) => void)
+    | null;
+  logReturn: (label: string) => void;
+}
+
+interface StreamAnswerResult {
+  finalOutput: string;
+  handledEarlyExit?: boolean;
+}
+
+async function computeRagContextAndCitations({
+  guardrails,
+  normalizedQuestion,
+  routingDecision,
+  reverseRagEnabled,
+  reverseRagMode,
+  hydeEnabled,
+  rankerMode,
+  provider,
+  llmModel,
+  embeddingModel,
+  embeddingSelection,
+  embeddings,
+  supabase,
+  supabaseAdmin,
+  tableName,
+  queryName,
+  chatConfigSnapshot,
+  includeVerboseDetails,
+  trace,
+  env,
+  memoryCacheClient,
+  retrievalCacheTtl,
+  presetId,
+  cacheMeta,
+  traceMetadata,
+  historyWindow,
+  ragRanking,
+}: ComputeRagContextParams): Promise<ComputeRagContextResult> {
+  let contextResult = buildIntentContextFallback(
+    routingDecision.intent,
+    guardrails,
+  );
+  let citationPayload: CitationPayload | null = null;
+  let topKChunks = guardrails.ragTopK;
+  let retrievalCacheKey: string | null = null;
+  let enhancementSummary: GuardrailEnhancements = {
+    reverseRag: {
+      enabled: reverseRagEnabled,
+      mode: reverseRagMode,
+      original: normalizedQuestion.normalized,
+      rewritten: normalizedQuestion.normalized,
+    },
+    hyde: {
+      enabled: hydeEnabled,
+      generated: null,
+    },
+    ranker: {
+      mode: rankerMode,
+    },
+  };
+
+  if (routingDecision.intent === "knowledge") {
+    if (retrievalCacheTtl > 0) {
+      retrievalCacheKey = `chat:retrieval:${presetId}:${hashPayload({
+        question: normalizedQuestion.normalized,
+        presetId,
+        ragTopK: guardrails.ragTopK,
+        similarityThreshold: guardrails.similarityThreshold,
+      })}`;
+      const cachedContext =
+        await memoryCacheClient.get<ContextWindowResult>(retrievalCacheKey);
+      if (cachedContext) {
+        cacheMeta.retrievalHit = true;
+        contextResult = cachedContext;
+        if (traceMetadata?.cache) {
+          traceMetadata.cache.retrievalHit = true;
+        }
+      }
+    }
+
+    if (cacheMeta.retrievalHit === true) {
+      logDebugRag("retrieval-cache", { hit: true, presetId });
+    } else {
+      const ragChain = buildRagRetrievalChain();
+      const ragResult = await ragChain.invoke({
+        guardrails,
+        question: normalizedQuestion.normalized,
+        reverseRagEnabled,
+        reverseRagMode,
+        hydeEnabled,
+        rankerMode,
+        provider,
+        llmModel,
+        embeddingModel,
+        embeddingSelection,
+        embeddings,
+        supabase,
+        supabaseAdmin,
+        tableName,
+        queryName,
+        chatConfigSnapshot,
+        includeVerboseDetails,
+        trace,
+        env,
+        logDebugRag,
+        ragRanking,
+        cacheMeta,
+      });
+
+      enhancementSummary = ragResult.preRetrieval.enhancementSummary;
+      contextResult = ragResult.contextResult;
+      topKChunks = Math.max(
+        guardrails.ragTopK,
+        contextResult.included.length + (contextResult.dropped ?? 0),
+      );
+      citationPayload = buildCitationPayload(contextResult.included, {
+        topKChunks,
+        ragRanking,
+      });
+      if (retrievalCacheKey) {
+        await memoryCacheClient.set(
+          retrievalCacheKey,
+          contextResult,
+          retrievalCacheTtl,
+        );
+        cacheMeta.retrievalHit = false;
+        if (traceMetadata?.cache) {
+          traceMetadata.cache.retrievalHit = false;
+        }
+      }
+      ragLogger.debug("[langchain_chat] context compression", {
+        retrieved: contextResult.included.length + contextResult.dropped,
+        ranked: contextResult.included.length + contextResult.dropped,
+        included: contextResult.included.length,
+        dropped: contextResult.dropped,
+        totalTokens: contextResult.totalTokens,
+        highestScore: Number(contextResult.highestScore.toFixed(3)),
+        insufficient: contextResult.insufficient,
+        rankerMode,
+      });
+      ragLogger.debug("[langchain_chat] included metadata sample", {
+        entries: contextResult.included.map((doc) => ({
+          docId:
+            (doc.metadata as { doc_id?: string | null })?.doc_id ??
+            doc.doc_id ??
+            null,
+          doc_type: (doc.metadata as { doc_type?: string | null })?.doc_type,
+          persona_type: (doc.metadata as { persona_type?: string | null })?.persona_type,
+        })),
+      });
+    }
+  }
+
+  if (
+    routingDecision.intent !== "knowledge" &&
+    cacheMeta.retrievalHit !== null
+  ) {
+    cacheMeta.retrievalHit = null;
+    if (traceMetadata?.cache) {
+      traceMetadata.cache.retrievalHit = null;
+    }
+  }
+
+  const summaryTokens =
+    historyWindow.summaryMemory && historyWindow.summaryMemory.length > 0
+      ? estimateTokens(historyWindow.summaryMemory)
+      : null;
+  const summaryInfo =
+    summaryTokens !== null
+      ? {
+          originalTokens: historyWindow.tokenCount,
+          summaryTokens,
+          trimmedTurns: historyWindow.trimmed.length,
+          maxTurns: guardrails.summary.maxTurns,
+        }
+      : undefined;
+
+  const latestMeta: GuardrailMeta = {
+    intent: routingDecision.intent,
+    reason: routingDecision.reason,
+    historyTokens: historyWindow.tokenCount,
+    summaryApplied: Boolean(historyWindow.summaryMemory),
+    history: {
+      tokens: historyWindow.tokenCount,
+      budget: guardrails.historyTokenBudget,
+      trimmedTurns: historyWindow.trimmed.length,
+      preservedTurns: historyWindow.preserved.length,
+    },
+    context: {
+      included: contextResult.included.length,
+      dropped: contextResult.dropped,
+      totalTokens: contextResult.totalTokens,
+      insufficient: contextResult.insufficient,
+      retrieved: contextResult.included.length + contextResult.dropped,
+      similarityThreshold: guardrails.similarityThreshold,
+      highestSimilarity: Number.isFinite(contextResult.highestScore)
+        ? contextResult.highestScore
+        : undefined,
+      contextTokenBudget: guardrails.ragContextTokenBudget,
+      contextClipTokens: guardrails.ragContextClipTokens,
+    },
+    enhancements: enhancementSummary,
+    summaryConfig: {
+      enabled: guardrails.summary.enabled,
+      triggerTokens: guardrails.summary.triggerTokens,
+      maxTurns: guardrails.summary.maxTurns,
+      maxChars: guardrails.summary.maxChars,
+    },
+    llmModel,
+    provider,
+    embeddingModel,
+    summaryInfo,
+  };
+
+  const resolvedCitations =
+    citationPayload ??
+    buildCitationPayload(contextResult.included, {
+      topKChunks,
+      ragRanking,
+    });
+
+  return {
+    contextResult,
+    citations: resolvedCitations,
+    latestMeta,
+    enhancementSummary,
+  };
+}
+
+async function streamAnswerWithPrompt({
+  llmInstance,
+  prompt,
+  question,
+  historyWindow,
+  contextResult,
+  citationPayload,
+  latestMeta,
+  routingDecision,
+  env,
+  temperature,
+  requestedModelId,
+  candidateModelId,
+  responseCacheKey,
+  responseCacheTtl,
+  cacheMeta,
+  trace,
+  traceMetadata,
+  res,
+  capturePosthogEvent,
+  logReturn,
+}: StreamAnswerParams): Promise<StreamAnswerResult> {
+  const guardrailMeta = [
+    `Intent: ${routingDecision.intent} (${routingDecision.reason})`,
+    contextResult.insufficient
+      ? "Context status: insufficient matches. Be explicit when information is missing."
+      : `Context status: ${contextResult.included.length} excerpts (${contextResult.totalTokens} tokens).`,
+  ].join(" | ");
+  const contextValue =
+    contextResult.contextBlock.length > 0
+      ? contextResult.contextBlock
+      : "(No relevant context was found.)";
+  const memoryValue =
+    historyWindow.summaryMemory ??
+    "(No summarized prior turns. Treat this as a standalone exchange.)";
+  const answerChain = buildRagAnswerChain();
+  const answerResult = await answerChain.invoke({
+    question,
+    guardrailMeta,
+    contextValue,
+    memoryValue,
+    prompt,
+    llmInstance,
+  });
+  const { promptInput, stream } = answerResult;
+
+  if (candidateModelId !== requestedModelId) {
+    llmLogger.info(
+      `[langchain_chat] Gemini model "${candidateModelId}" succeeded after falling back from "${requestedModelId}".`,
+    );
+  }
+
+  ragLogger.trace("[langchain_chat] debug context", {
+    length: contextValue.length,
+    preview: contextValue.slice(0, 100).replaceAll("\n", "\\n"),
+    insufficient: contextResult.insufficient,
+  });
+  ragLogger.trace(
+    "[langchain_chat] prompt input preview",
+    promptInput.slice(0, 500).replaceAll("\n", "\\n"),
+  );
+
+  if (latestMeta) {
+    res.setHeader(
+      "X-Guardrail-Meta",
+      encodeURIComponent(serializeGuardrailMeta(latestMeta)),
+    );
+  }
+  res.setHeader("Content-Encoding", "identity");
+
+  if (trace) {
+    void trace.observation({
+      name: "generation",
+      input: {
+        prompt: promptInput,
+        context: contextValue,
+      },
+      metadata: {
+        env,
+        provider: latestMeta.provider,
+        model: latestMeta.llmModel,
+        temperature,
+        stage: "generation",
+      },
+    });
+  }
+
+  let streamHeadersSent = false;
+  let finalOutput = "";
+  let chunkIndex = 0;
+  const ensureStreamHeaders = () => {
+    if (!streamHeadersSent) {
+      res.writeHead(200, {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+      });
+      streamHeadersSent = true;
+    }
+  };
+
+  try {
+    for await (const chunk of stream) {
+      const rendered = renderStreamChunk(chunk);
+      if (!rendered || res.writableEnded) {
+        continue;
+      }
+      chunkIndex += 1;
+      llmLogger.trace("[langchain_chat] stream chunk", {
+        chunkIndex,
+        length: rendered.length,
+        preview: formatChunkPreview(rendered),
+      });
+      ensureStreamHeaders();
+      finalOutput += rendered;
+      res.write(rendered);
+    }
+
+    ensureStreamHeaders();
+    llmLogger.trace("[langchain_chat] stream completed", {
+      chunkCount: chunkIndex,
+    });
+    const citationJson = JSON.stringify(citationPayload);
+    if (responseCacheKey) {
+      await memoryCacheClient.set(
+        responseCacheKey,
+        { output: finalOutput, citations: citationJson },
+        responseCacheTtl,
+      );
+      cacheMeta.responseHit = false;
+      if (traceMetadata?.cache) {
+        traceMetadata.cache.responseHit = false;
+      }
+    }
+    if (!res.writableEnded) {
+      res.write(`${CITATIONS_SEPARATOR}${citationJson}`);
+    }
+    if (trace) {
+      void trace.update({
+        output: finalOutput,
+        metadata: traceMetadata,
+      });
+    }
+    res.end();
+    return { finalOutput };
+  } catch (streamErr) {
+    if (!streamHeadersSent) {
+      const errMessage = (streamErr as any)?.message || "";
+      if (streamErr instanceof OllamaUnavailableError) {
+        capturePosthogEvent?.("error", "local_llm_unavailable");
+        respondWithOllamaUnavailable(res);
+        logReturn("stream-ollama-unavailable");
+        return { finalOutput: "", handledEarlyExit: true };
+      }
+      if (
+        errMessage.includes("No models loaded") ||
+        errMessage.includes("connection refused")
+      ) {
+        capturePosthogEvent?.("error", "local_llm_unavailable");
+        res.status(503).json({
+          error: {
+            code: "LOCAL_LLM_UNAVAILABLE",
+            message:
+              "LM Studio에 로드된 모델이 없습니다. LM Studio 앱에서 모델을 Load 해주세요.",
+          },
+        });
+        logReturn("stream-local-llm-unavailable");
+        return { finalOutput: "", handledEarlyExit: true };
+      }
+    }
+    throw streamErr;
+  }
 }
 
 export default async function handler(
@@ -269,10 +729,7 @@ export default async function handler(
         })
       : undefined;
     const env = getAppEnv();
-    const cacheMeta: {
-      responseHit: boolean | null;
-      retrievalHit: boolean | null;
-    } = {
+    const cacheMeta: ResponseCacheMeta = {
       responseHit: adminConfig.cache.responseTtlSeconds > 0 ? false : null,
       retrievalHit: adminConfig.cache.retrievalTtlSeconds > 0 ? false : null,
     };
@@ -315,7 +772,7 @@ export default async function handler(
     const reverseRagMode = (runtime.reverseRagMode ??
       DEFAULT_REVERSE_RAG_MODE) as ReverseRagMode;
     const hydeEnabled = runtime.hydeEnabled;
-    const rankerMode = runtime.rankerMode;
+    const rankerMode: RankerMode = runtime.rankerMode;
 
     const llmModelId = runtime.resolvedLlmModelId ?? runtime.llmModelId;
     const llmSelection = resolveLlmModel({
@@ -357,7 +814,7 @@ export default async function handler(
           input: traceInput,
           metadata: traceMetadata,
           tags: traceTags,
-        })
+        }) ?? null
       : null;
     const analyticsModelState = {
       provider,
@@ -470,12 +927,10 @@ export default async function handler(
       }
     }
 
-    const [{ createClient }, { SupabaseVectorStore }, { PromptTemplate }] =
-      await Promise.all([
-        import("@supabase/supabase-js"),
-        import("@langchain/community/vectorstores/supabase"),
-        import("@langchain/core/prompts"),
-      ]);
+    const [{ createClient }, { PromptTemplate }] = await Promise.all([
+      import("@supabase/supabase-js"),
+      import("@langchain/core/prompts"),
+    ]);
 
     const embeddings = await createEmbeddingsInstance(embeddingSelection);
     ragLogger.debug("[langchain_chat] guardrails", {
@@ -518,405 +973,70 @@ export default async function handler(
     // We also use getSupabaseAdminClient for metadata fetching now to align
     const supabaseAdmin = getSupabaseAdminClient();
 
-    let latestMeta: GuardrailMeta | null = null;
-    let enhancementSummary: GuardrailEnhancements = {
-      reverseRag: {
-        enabled: reverseRagEnabled,
-        mode: reverseRagMode,
-        original: normalizedQuestion.normalized,
-        rewritten: normalizedQuestion.normalized,
-      },
-      hyde: {
-        enabled: hydeEnabled,
-        generated: null,
-      },
-      ranker: {
-        mode: rankerMode,
-      },
-    };
-
     const executeWithResources = async (
       tableName: string,
       queryName: string,
       llmInstance: BaseLanguageModelInterface,
-    ): Promise<{
-      stream: AsyncIterable<string>;
-      citationPayload: CitationPayload;
-    }> => {
-      let contextResult: ContextWindowResult = buildIntentContextFallback(
-        routingDecision.intent,
+      candidateModelId: string,
+    ): Promise<boolean> => {
+      const ragResult = await computeRagContextAndCitations({
         guardrails,
-      );
-      let citationPayload: CitationPayload | null = null;
-      let topKChunks = guardrails.ragTopK;
-      let retrievalCacheKey: string | null = null;
-
-      if (routingDecision.intent === "knowledge") {
-        if (retrievalCacheTtl > 0) {
-          retrievalCacheKey = `chat:retrieval:${presetId}:${hashPayload({
-            question: normalizedQuestion.normalized,
-            presetId,
-            ragTopK: guardrails.ragTopK,
-            similarityThreshold: guardrails.similarityThreshold,
-          })}`;
-          const cachedContext =
-            await memoryCacheClient.get<ContextWindowResult>(retrievalCacheKey);
-          if (cachedContext) {
-            cacheMeta.retrievalHit = true;
-            contextResult = cachedContext;
-            if (traceMetadata?.cache) {
-              traceMetadata.cache.retrievalHit = true;
-            }
-          }
-        }
-
-        if (cacheMeta.retrievalHit === true) {
-          logDebugRag("retrieval-cache", { hit: true, presetId });
-        } else {
-          // --- Shared Pre-Retrieval ---
-          const preRetrieval = await processPreRetrieval({
-            question: normalizedQuestion.normalized,
-            reverseRagEnabled,
-            reverseRagMode,
-            hydeEnabled,
-            rankerMode,
-            provider,
-            model: llmModel,
-            trace,
-            env,
-            logDebugRag,
-          });
-          enhancementSummary = preRetrieval.enhancementSummary;
-
-          const queryEmbedding = await embeddings.embedQuery(
-            preRetrieval.embeddingTarget,
-          );
-          const matchCount = Math.max(RAG_TOP_K, guardrails.ragTopK * 2);
-          const store = new SupabaseVectorStore(embeddings, {
-            client: supabase,
-            tableName,
-            queryName,
-          });
-          const matches = await store.similaritySearchVectorWithScore(
-            queryEmbedding,
-            matchCount,
-          );
-          const canonicalLookup = await loadCanonicalPageLookup();
-          const normalizedMatches = matches.map(([doc, score], index) => {
-            const rewrittenDoc = rewriteLangchainDocument(
-              doc,
-              canonicalLookup,
-              index,
-            );
-            return [rewrittenDoc, score] as (typeof matches)[number];
-          });
-
-          // Map to BaseRetrievalItem for shared utilities
-          const baseDocs = normalizedMatches.map(([doc, score]) => {
-            const baseSimilarity =
-              typeof score === "number"
-                ? score
-                : typeof doc?.metadata?.similarity === "number"
-                  ? (doc.metadata.similarity as number)
-                  : 0;
-            const docId =
-              (doc.metadata?.doc_id as string | undefined) ??
-              (doc.metadata?.docId as string | undefined) ??
-              (doc.metadata?.document_id as string | undefined) ??
-              (doc.metadata?.documentId as string | undefined) ??
-              null;
-
-            return {
-              doc, // keep original
-              // We add `chunk` so `enrichAndFilterDocs` -> `applyRanker` can find the text content
-              chunk: doc.pageContent,
-              docId,
-              baseSimilarity,
-              metadata: doc.metadata,
-            };
-          });
-
-          ragLogger.debug(
-            "[langchain_chat] baseDocs docId snapshot",
-            baseDocs.map((entry) => ({
-              docId: entry.docId,
-              metadataDocId: entry.doc.metadata?.doc_id ?? null,
-            })),
-          );
-
-          if (includeVerboseDetails && trace) {
-            logRetrievalStage(
-              trace,
-              "raw_results",
-              buildRetrievalTelemetryEntries(
-                baseDocs,
-                MAX_RETRIEVAL_TELEMETRY_ITEMS,
-              ),
-              {
-                engine: "langchain",
-                presetKey: chatConfigSnapshot?.presetKey,
-                chatConfig: chatConfigSnapshot,
-              },
-            );
-          }
-
-          // --- Shared Post-Retrieval ---
-          const docIds = extractDocIdsFromBaseDocs(baseDocs);
-          const metadataMap = await fetchRefinedMetadata(docIds, supabaseAdmin);
-
-          const enrichedDocs = enrichAndFilterDocs(
-            baseDocs,
-            metadataMap,
-            ragRanking,
-          );
-
-          ragLogger.debug("[langchain_chat] retrieved urls", {
-            urls: enrichedDocs
-              .map((d) => d.metadata?.source_url)
-              .filter(Boolean),
-          });
-
-          if (includeVerboseDetails && trace) {
-            logRetrievalStage(
-              trace,
-              "after_weighting",
-              buildRetrievalTelemetryEntries(
-                enrichedDocs,
-                MAX_RETRIEVAL_TELEMETRY_ITEMS,
-              ),
-              {
-                engine: "langchain",
-                presetKey: chatConfigSnapshot?.presetKey,
-                chatConfig: chatConfigSnapshot,
-              },
-            );
-          }
-
-          if (trace && includeVerboseDetails) {
-            const retrievalTelemetry = buildRetrievalTelemetryEntries(
-              enrichedDocs,
-              MAX_RETRIEVAL_TELEMETRY_ITEMS,
-            );
-            void trace.observation({
-              name: "retrieval",
-              input: preRetrieval.embeddingTarget,
-              output: retrievalTelemetry,
-              metadata: {
-                env,
-                provider,
-                model: llmModel,
-                stage: "retrieval",
-                source: "supabase",
-                results: enrichedDocs.length,
-                cache: {
-                  retrievalHit: cacheMeta.retrievalHit,
-                },
-              },
-            });
-          }
-
-          const rankedDocs = await applyRanker(enrichedDocs, {
-            mode: rankerMode,
-            maxResults: Math.max(guardrails.ragTopK, 1),
-            embeddingSelection,
-            queryEmbedding,
-          });
-
-          if (trace && includeVerboseDetails) {
-            const rerankerInputTelemetry = buildRetrievalTelemetryEntries(
-              enrichedDocs,
-              MAX_RETRIEVAL_TELEMETRY_ITEMS,
-            );
-            const rerankerOutputTelemetry = buildRetrievalTelemetryEntries(
-              rankedDocs,
-              MAX_RETRIEVAL_TELEMETRY_ITEMS,
-            );
-            void trace.observation({
-              name: "reranker",
-              input: rerankerInputTelemetry,
-              output: rerankerOutputTelemetry,
-              metadata: {
-                env,
-                provider,
-                model: llmModel,
-                mode: rankerMode,
-                stage: "reranker",
-                results: rankedDocs.length,
-                cache: {
-                  retrievalHit: cacheMeta.retrievalHit,
-                },
-              },
-            });
-          }
-
-          contextResult = buildContextWindow(rankedDocs, guardrails);
-          topKChunks = Math.max(
-            guardrails.ragTopK,
-            contextResult.included.length + (contextResult.dropped ?? 0),
-          );
-          citationPayload = buildCitationPayload(contextResult.included, {
-            topKChunks,
-            ragRanking,
-          });
-          if (retrievalCacheKey) {
-            await memoryCacheClient.set(
-              retrievalCacheKey,
-              contextResult,
-              retrievalCacheTtl,
-            );
-            cacheMeta.retrievalHit = false;
-            if (traceMetadata?.cache) {
-              traceMetadata.cache.retrievalHit = false;
-            }
-          }
-          ragLogger.debug("[langchain_chat] context compression", {
-            retrieved: contextResult.included.length + contextResult.dropped,
-            ranked: contextResult.included.length + contextResult.dropped,
-            included: contextResult.included.length,
-            dropped: contextResult.dropped,
-            totalTokens: contextResult.totalTokens,
-            highestScore: Number(contextResult.highestScore.toFixed(3)),
-            insufficient: contextResult.insufficient,
-            rankerMode,
-          });
-          ragLogger.debug("[langchain_chat] included metadata sample", {
-            entries: contextResult.included.map((doc) => ({
-              docId:
-                (doc.metadata as { doc_id?: string | null })?.doc_id ??
-                doc.doc_id ??
-                null,
-              doc_type: (doc.metadata as { doc_type?: string | null })
-                ?.doc_type,
-              persona_type: (doc.metadata as { persona_type?: string | null })
-                ?.persona_type,
-            })),
-          });
-        }
-      } else {
-        ragLogger.info("[langchain_chat] intent fallback", {
-          intent: routingDecision.intent,
-        });
-      }
-      if (
-        routingDecision.intent !== "knowledge" &&
-        cacheMeta.retrievalHit !== null
-      ) {
-        cacheMeta.retrievalHit = null;
-        if (traceMetadata?.cache) {
-          traceMetadata.cache.retrievalHit = null;
-        }
-      }
-
-      const summaryTokens =
-        historyWindow.summaryMemory && historyWindow.summaryMemory.length > 0
-          ? estimateTokens(historyWindow.summaryMemory)
-          : null;
-      const summaryInfo =
-        summaryTokens !== null
-          ? {
-              originalTokens: historyWindow.tokenCount,
-              summaryTokens,
-              trimmedTurns: historyWindow.trimmed.length,
-              maxTurns: guardrails.summary.maxTurns,
-            }
-          : undefined;
-
-      latestMeta = {
-        intent: routingDecision.intent,
-        reason: routingDecision.reason,
-        historyTokens: historyWindow.tokenCount,
-        summaryApplied: Boolean(historyWindow.summaryMemory),
-        history: {
-          tokens: historyWindow.tokenCount,
-          budget: guardrails.historyTokenBudget,
-          trimmedTurns: historyWindow.trimmed.length,
-          preservedTurns: historyWindow.preserved.length,
-        },
-        context: {
-          included: contextResult.included.length,
-          dropped: contextResult.dropped,
-          totalTokens: contextResult.totalTokens,
-          insufficient: contextResult.insufficient,
-          retrieved: contextResult.included.length + contextResult.dropped,
-          similarityThreshold: guardrails.similarityThreshold,
-          highestSimilarity: Number.isFinite(contextResult.highestScore)
-            ? contextResult.highestScore
-            : undefined,
-          contextTokenBudget: guardrails.ragContextTokenBudget,
-          contextClipTokens: guardrails.ragContextClipTokens,
-        },
-        enhancements: enhancementSummary,
-        summaryConfig: {
-          enabled: guardrails.summary.enabled,
-          triggerTokens: guardrails.summary.triggerTokens,
-          maxTurns: guardrails.summary.maxTurns,
-          maxChars: guardrails.summary.maxChars,
-        },
-        llmModel,
+        normalizedQuestion,
+        routingDecision,
+        reverseRagEnabled,
+        reverseRagMode,
+        hydeEnabled,
+        rankerMode,
         provider,
+        llmModel,
         embeddingModel,
-        summaryInfo,
-      };
+        embeddingSelection,
+        embeddings,
+        supabase,
+        supabaseAdmin,
+        tableName,
+        queryName,
+        chatConfigSnapshot,
+        includeVerboseDetails,
+        trace,
+        env,
+        memoryCacheClient,
+        retrievalCacheTtl,
+        presetId,
+        cacheMeta,
+        traceMetadata,
+        historyWindow,
+        ragRanking,
+      });
 
-      const guardrailMeta = [
-        `Intent: ${routingDecision.intent} (${routingDecision.reason})`,
-        contextResult.insufficient
-          ? "Context status: insufficient matches. Be explicit when information is missing."
-          : `Context status: ${contextResult.included.length} excerpts (${contextResult.totalTokens} tokens).`,
-      ].join(" | ");
-      const contextValue =
-        contextResult.contextBlock.length > 0
-          ? contextResult.contextBlock
-          : "(No relevant context was found.)";
-      const memoryValue =
-        historyWindow.summaryMemory ??
-        "(No summarized prior turns. Treat this as a standalone exchange.)";
+      _analyticsTotalTokens =
+        ragResult.contextResult.totalTokens ?? null;
 
-      const promptInput = await prompt.format({
+      const streamResult = await streamAnswerWithPrompt({
+        llmInstance,
+        prompt,
         question,
-        context: contextValue,
-        memory: memoryValue,
-        intent: guardrailMeta,
+        historyWindow,
+        contextResult: ragResult.contextResult,
+        citationPayload: ragResult.citations,
+        latestMeta: ragResult.latestMeta,
+        routingDecision,
+        env,
+        temperature,
+        requestedModelId: llmModel,
+        candidateModelId,
+        responseCacheKey,
+        responseCacheTtl,
+        cacheMeta,
+        trace,
+        traceMetadata,
+        res,
+        capturePosthogEvent,
+        logReturn,
       });
 
-      ragLogger.trace("[langchain_chat] debug context", {
-        length: contextValue.length,
-        preview: contextValue.slice(0, 100).replaceAll("\n", "\\n"),
-        insufficient: contextResult.insufficient,
-      });
-      ragLogger.trace(
-        "[langchain_chat] prompt input preview",
-        promptInput.slice(0, 500).replaceAll("\n", "\\n"),
-      );
-
-      const resolvedCitationPayload =
-        citationPayload ??
-        buildCitationPayload(contextResult.included, {
-          topKChunks,
-          ragRanking,
-        });
-
-      if (trace) {
-        void trace.observation({
-          name: "generation",
-          input: {
-            prompt: promptInput,
-            context: contextValue,
-          },
-          metadata: {
-            env,
-            provider,
-            model: llmModel,
-            temperature,
-            stage: "generation",
-          },
-        });
-      }
-      const stream = await llmInstance.stream(promptInput);
-      _analyticsTotalTokens = contextResult.totalTokens ?? null;
-      return { stream, citationPayload: resolvedCitationPayload };
+      return !streamResult.handledEarlyExit;
     };
-
     const primaryTable = getLcChunksView(embeddingSelection);
     const primaryFunction = getLcMatchFunction(embeddingSelection);
 
@@ -935,112 +1055,18 @@ export default async function handler(
       const llm = await createChatModel(provider, candidate, temperature);
 
       try {
-        const { stream, citationPayload } = await executeWithResources(
+        const streamSucceeded = await executeWithResources(
           primaryTable,
           primaryFunction,
           llm,
+          candidate,
         );
-        res.setHeader("Content-Encoding", "identity");
-        if (latestMeta) {
-          res.setHeader(
-            "X-Guardrail-Meta",
-            encodeURIComponent(serializeGuardrailMeta(latestMeta)),
-          );
-        }
-        if (candidate !== llmModel) {
-          llmLogger.info(
-            `[langchain_chat] Gemini model "${candidate}" succeeded after falling back from "${llmModel}".`,
-          );
-        }
-
-        let streamHeadersSent = false;
-        let finalOutput = "";
-        let chunkIndex = 0;
-        const ensureStreamHeaders = () => {
-          if (!streamHeadersSent) {
-            res.writeHead(200, {
-              "Content-Type": "text/plain; charset=utf-8",
-              "Transfer-Encoding": "chunked",
-            });
-            streamHeadersSent = true;
-          }
-        };
-
-        try {
-          for await (const chunk of stream) {
-            const rendered = renderStreamChunk(chunk);
-            if (!rendered || res.writableEnded) {
-              continue;
-            }
-            chunkIndex += 1;
-            llmLogger.trace("[langchain_chat] stream chunk", {
-              chunkIndex,
-              length: rendered.length,
-              preview: formatChunkPreview(rendered),
-            });
-            ensureStreamHeaders();
-            finalOutput += rendered;
-            res.write(rendered);
-          }
-
-          ensureStreamHeaders();
-          llmLogger.trace("[langchain_chat] stream completed", {
-            chunkCount: chunkIndex,
-          });
-          const citationJson = JSON.stringify(citationPayload);
-          if (responseCacheKey) {
-            await memoryCacheClient.set(
-              responseCacheKey,
-              { output: finalOutput, citations: citationJson },
-              responseCacheTtl,
-            );
-            cacheMeta.responseHit = false;
-            if (traceMetadata?.cache) {
-              traceMetadata.cache.responseHit = false;
-            }
-          }
-          if (!res.writableEnded) {
-            res.write(`${CITATIONS_SEPARATOR}${citationJson}`);
-          }
-          if (trace) {
-            void trace.update({
-              output: finalOutput,
-              metadata: traceMetadata,
-            });
-          }
-          res.end();
-          capturePosthogEvent?.("success", null);
-          logReturn("stream-success");
+        if (!streamSucceeded) {
           return;
-        } catch (streamErr) {
-          if (!streamHeadersSent) {
-            if (streamErr instanceof OllamaUnavailableError) {
-              capturePosthogEvent?.("error", "local_llm_unavailable");
-              const response = respondWithOllamaUnavailable(res);
-              logReturn("stream-ollama-unavailable");
-              return response;
-            }
-            // Graceful handling for LM Studio "No models loaded" error
-            const errMessage = (streamErr as any)?.message || "";
-            if (
-              errMessage.includes("No models loaded") ||
-              errMessage.includes("connection refused")
-            ) {
-              capturePosthogEvent?.("error", "local_llm_unavailable");
-              const response = res.status(503).json({
-                error: {
-                  code: "LOCAL_LLM_UNAVAILABLE",
-                  message:
-                    "LM Studio에 로드된 모델이 없습니다. LM Studio 앱에서 모델을 Load 해주세요.",
-                },
-              });
-              logReturn("stream-local-llm-unavailable");
-              return response;
-            }
-            throw streamErr;
-          }
-          throw streamErr;
         }
+        capturePosthogEvent?.("success", null);
+        logReturn("stream-success");
+        return;
       } catch (err) {
         lastGeminiError = err;
         const shouldRetry =
@@ -1170,38 +1196,6 @@ function renderStreamChunk(chunk: unknown): string | null {
 
   const text = messageContentToString(rawContent);
   return text.length > 0 ? text : null;
-}
-
-function rewriteLangchainDocument(
-  doc: Document,
-  canonicalLookup: CanonicalPageLookup,
-  index: number,
-): Document {
-  const meta = doc.metadata ?? {};
-  const { docId, sourceUrl } = resolveRagUrl({
-    docIdCandidates: [
-      meta.doc_id,
-      meta.docId,
-      meta.page_id,
-      meta.pageId,
-      meta.document_id,
-      meta.documentId,
-    ],
-    sourceUrlCandidates: [meta.source_url, meta.sourceUrl, meta.url],
-    canonicalLookup,
-    debugLabel: "langchain_chat:url",
-    index,
-  });
-
-  if (sourceUrl) {
-    doc.metadata = {
-      ...meta,
-      doc_id: docId ?? meta.doc_id ?? null,
-      source_url: sourceUrl,
-    };
-  }
-
-  return doc;
 }
 
 function escapeForPromptTemplate(value: string): string {
