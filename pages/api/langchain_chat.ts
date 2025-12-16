@@ -49,8 +49,14 @@ import {
 } from "@/lib/server/chat-guardrails";
 import { type ChatMessage, sanitizeMessages } from "@/lib/server/chat-messages";
 import { buildFinalSystemPrompt, loadChatModelSettings } from "@/lib/server/chat-settings";
+import { createRequestAbortSignal } from "@/lib/server/langchain/abort";
 import { buildRagAnswerChain } from "@/lib/server/langchain/ragAnswerChain";
 import { buildRagRetrievalChain } from "@/lib/server/langchain/ragRetrievalChain";
+import {
+  buildChainRunnableConfig,
+  type ChainRunContext,
+  makeRunName,
+} from "@/lib/server/langchain/runnableConfig";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 import { logDebugRag } from "@/lib/server/rag-logger";
@@ -178,6 +184,8 @@ interface ComputeRagContextParams {
   traceMetadata: TraceMetadataSnapshot | undefined;
   historyWindow: HistoryWindowResult;
   ragRanking?: RagRankingConfig | null;
+  abortSignal?: AbortSignal | null;
+  chainRunContext: ChainRunContext;
 }
 
 interface ComputeRagContextResult {
@@ -209,6 +217,8 @@ interface StreamAnswerParams {
   capturePosthogEvent:
     | ((status: "success" | "error", errorType?: string | null) => void)
     | null;
+  abortSignal?: AbortSignal | null;
+  chainRunContext: ChainRunContext;
   logReturn: (label: string) => void;
 }
 
@@ -245,6 +255,8 @@ async function computeRagContextAndCitations({
   traceMetadata,
   historyWindow,
   ragRanking,
+  abortSignal,
+  chainRunContext,
 }: ComputeRagContextParams): Promise<ComputeRagContextResult> {
   let contextResult = buildIntentContextFallback(
     routingDecision.intent,
@@ -292,30 +304,41 @@ async function computeRagContextAndCitations({
       logDebugRag("retrieval-cache", { hit: true, presetId });
     } else {
       const ragChain = buildRagRetrievalChain();
-      const ragResult = await ragChain.invoke({
-        guardrails,
-        question: normalizedQuestion.normalized,
-        reverseRagEnabled,
-        reverseRagMode,
-        hydeEnabled,
-        rankerMode,
-        provider,
-        llmModel,
-        embeddingModel,
-        embeddingSelection,
-        embeddings,
-        supabase,
-        supabaseAdmin,
-        tableName,
-        queryName,
-        chatConfigSnapshot,
-        includeVerboseDetails,
-        trace,
-        env,
-        logDebugRag,
-        ragRanking,
-        cacheMeta,
+      const ragChainRunnableConfig = buildChainRunnableConfig({
+        ...chainRunContext,
+        stage: "rag",
       });
+      const ragResult = await ragChain.invoke(
+        {
+          guardrails,
+          question: normalizedQuestion.normalized,
+          reverseRagEnabled,
+          reverseRagMode,
+          hydeEnabled,
+          rankerMode,
+          provider,
+          llmModel,
+          embeddingModel,
+          embeddingSelection,
+          embeddings,
+          supabase,
+          supabaseAdmin,
+          tableName,
+          queryName,
+          chatConfigSnapshot,
+          includeVerboseDetails,
+          trace,
+          env,
+          logDebugRag,
+          ragRanking,
+          cacheMeta,
+        },
+        {
+          ...ragChainRunnableConfig,
+          runName: makeRunName("rag", "root"),
+          signal: abortSignal ?? undefined,
+        },
+      );
 
       enhancementSummary = ragResult.preRetrieval.enhancementSummary;
       contextResult = ragResult.contextResult;
@@ -456,7 +479,9 @@ async function streamAnswerWithPrompt({
   trace,
   traceMetadata,
   res,
+  abortSignal,
   capturePosthogEvent,
+  chainRunContext,
   logReturn,
 }: StreamAnswerParams): Promise<StreamAnswerResult> {
   const guardrailMeta = [
@@ -473,56 +498,11 @@ async function streamAnswerWithPrompt({
     historyWindow.summaryMemory ??
     "(No summarized prior turns. Treat this as a standalone exchange.)";
   const answerChain = buildRagAnswerChain();
-  const answerResult = await answerChain.invoke({
-    question,
-    guardrailMeta,
-    contextValue,
-    memoryValue,
-    prompt,
-    llmInstance,
+  const answerChainRunnableConfig = buildChainRunnableConfig({
+    ...chainRunContext,
+    stage: "answer",
   });
-  const { promptInput, stream } = answerResult;
-
-  if (candidateModelId !== requestedModelId) {
-    llmLogger.info(
-      `[langchain_chat] Gemini model "${candidateModelId}" succeeded after falling back from "${requestedModelId}".`,
-    );
-  }
-
-  ragLogger.trace("[langchain_chat] debug context", {
-    length: contextValue.length,
-    preview: contextValue.slice(0, 100).replaceAll("\n", "\\n"),
-    insufficient: contextResult.insufficient,
-  });
-  ragLogger.trace(
-    "[langchain_chat] prompt input preview",
-    promptInput.slice(0, 500).replaceAll("\n", "\\n"),
-  );
-
-  if (latestMeta) {
-    res.setHeader(
-      "X-Guardrail-Meta",
-      encodeURIComponent(serializeGuardrailMeta(latestMeta)),
-    );
-  }
-  res.setHeader("Content-Encoding", "identity");
-
-  if (trace) {
-    void trace.observation({
-      name: "generation",
-      input: {
-        prompt: promptInput,
-        context: contextValue,
-      },
-      metadata: {
-        env,
-        provider: latestMeta.provider,
-        model: latestMeta.llmModel,
-        temperature,
-        stage: "generation",
-      },
-    });
-  }
+  const signal = abortSignal ?? undefined;
 
   let streamHeadersSent = false;
   let finalOutput = "";
@@ -537,8 +517,69 @@ async function streamAnswerWithPrompt({
     }
   };
 
+  if (latestMeta) {
+    res.setHeader(
+      "X-Guardrail-Meta",
+      encodeURIComponent(serializeGuardrailMeta(latestMeta)),
+    );
+  }
+  res.setHeader("Content-Encoding", "identity");
+
   try {
+    const answerResult = await answerChain.invoke(
+      {
+        question,
+        guardrailMeta,
+        contextValue,
+        memoryValue,
+        prompt,
+        llmInstance,
+      },
+      {
+        ...answerChainRunnableConfig,
+        runName: makeRunName("answer", "root"),
+        signal,
+      },
+    );
+    const { promptInput, stream } = answerResult;
+
+    if (candidateModelId !== requestedModelId) {
+      llmLogger.info(
+        `[langchain_chat] Gemini model "${candidateModelId}" succeeded after falling back from "${requestedModelId}".`,
+      );
+    }
+
+    ragLogger.trace("[langchain_chat] debug context", {
+      length: contextValue.length,
+      preview: contextValue.slice(0, 100).replaceAll("\n", "\\n"),
+      insufficient: contextResult.insufficient,
+    });
+    ragLogger.trace(
+      "[langchain_chat] prompt input preview",
+      promptInput.slice(0, 500).replaceAll("\n", "\\n"),
+    );
+
+    if (trace) {
+      void trace.observation({
+        name: "generation",
+        input: {
+          prompt: promptInput,
+          context: contextValue,
+        },
+        metadata: {
+          env,
+          provider: latestMeta.provider,
+          model: latestMeta.llmModel,
+          temperature,
+          stage: "generation",
+        },
+      });
+    }
+
     for await (const chunk of stream) {
+      if (abortSignal?.aborted) {
+        break;
+      }
       const rendered = renderStreamChunk(chunk);
       if (!rendered || res.writableEnded) {
         continue;
@@ -549,9 +590,16 @@ async function streamAnswerWithPrompt({
         length: rendered.length,
         preview: formatChunkPreview(rendered),
       });
+      if (abortSignal?.aborted) {
+        break;
+      }
       ensureStreamHeaders();
       finalOutput += rendered;
       res.write(rendered);
+    }
+
+    if (abortSignal?.aborted) {
+      return { finalOutput, handledEarlyExit: true };
     }
 
     ensureStreamHeaders();
@@ -559,7 +607,7 @@ async function streamAnswerWithPrompt({
       chunkCount: chunkIndex,
     });
     const citationJson = JSON.stringify(citationPayload);
-    if (responseCacheKey) {
+    if (!abortSignal?.aborted && responseCacheKey) {
       await memoryCacheClient.set(
         responseCacheKey,
         { output: finalOutput, citations: citationJson },
@@ -573,7 +621,7 @@ async function streamAnswerWithPrompt({
     if (!res.writableEnded) {
       res.write(`${CITATIONS_SEPARATOR}${citationJson}`);
     }
-    if (trace) {
+    if (trace && !abortSignal?.aborted) {
       void trace.update({
         output: finalOutput,
         metadata: traceMetadata,
@@ -582,6 +630,9 @@ async function streamAnswerWithPrompt({
     res.end();
     return { finalOutput };
   } catch (streamErr) {
+    if (abortSignal?.aborted) {
+      return { finalOutput, handledEarlyExit: true };
+    }
     if (!streamHeadersSent) {
       const errMessage = (streamErr as any)?.message || "";
       if (streamErr instanceof OllamaUnavailableError) {
@@ -633,6 +684,8 @@ export default async function handler(
     | ((status: "success" | "error", errorType?: string | null) => void)
     | null = null;
   let _analyticsTotalTokens: number | null = null;
+  let requestAbortSignal: AbortSignal | null = null;
+  let cleanupRequestAbort: (() => void) | null = null;
 
   try {
     // Legacy LOG_LLM_LEVEL check removed.
@@ -644,6 +697,10 @@ export default async function handler(
       logReturn("method-not-allowed");
       return response;
     }
+
+    const abortState = createRequestAbortSignal(req, res);
+    requestAbortSignal = abortState.signal;
+    cleanupRequestAbort = abortState.cleanup;
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error("Supabase server env is missing");
@@ -792,9 +849,13 @@ export default async function handler(
     const llmModel = llmSelection.model;
     const embeddingModel = embeddingSelection.model;
     const temperature = parseTemperature(undefined);
+    const requestIdHeader =
+      typeof req.headers["x-request-id"] === "string"
+        ? req.headers["x-request-id"]
+        : undefined;
     const sessionId =
       (req.headers["x-chat-id"] as string) ??
-      (req.headers["x-request-id"] as string) ??
+      requestIdHeader ??
       normalizedQuestion.normalized;
     const userId =
       typeof req.headers["x-user-id"] === "string"
@@ -821,11 +882,21 @@ export default async function handler(
       model: llmModel,
       embeddingModel,
     };
+    const chainRunContext: ChainRunContext = {
+      requestId:
+        requestIdHeader ?? sessionId ?? normalizedQuestion.normalized,
+      sessionId,
+      intent: routingDecision.intent,
+      guardrailRoute,
+      provider,
+      llmModel,
+      presetId,
+      embeddingSelection,
+      telemetryDecision,
+      traceId: trace?.traceId ?? null,
+      langfuseTraceId: trace?.id ?? null,
+    };
     const resolvePosthogDistinctId = () => {
-      const requestId =
-        typeof req.headers["x-request-id"] === "string"
-          ? req.headers["x-request-id"]
-          : undefined;
       const anonymousId =
         typeof req.headers["x-anonymous-id"] === "string"
           ? req.headers["x-anonymous-id"]
@@ -836,7 +907,7 @@ export default async function handler(
         anonymousId,
         sessionId,
         traceId ?? undefined,
-        requestId,
+        requestIdHeader,
       ];
       return (
         candidates.find(
@@ -1007,6 +1078,8 @@ export default async function handler(
         traceMetadata,
         historyWindow,
         ragRanking,
+        abortSignal: requestAbortSignal,
+        chainRunContext,
       });
 
       _analyticsTotalTokens =
@@ -1031,7 +1104,9 @@ export default async function handler(
         trace,
         traceMetadata,
         res,
+        abortSignal: requestAbortSignal,
         capturePosthogEvent,
+        chainRunContext,
         logReturn,
       });
 
@@ -1112,6 +1187,7 @@ export default async function handler(
     logReturn("error-generic-500");
     return response;
   } finally {
+    cleanupRequestAbort?.();
     if (!res.writableEnded) {
       if (!res.headersSent) {
         res

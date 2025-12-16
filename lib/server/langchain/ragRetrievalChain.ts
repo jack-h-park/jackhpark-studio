@@ -29,6 +29,7 @@ import {
   fetchRefinedMetadata,
   type PreRetrievalResult,
 } from "@/lib/server/chat-rag-utils";
+import { makeRunName } from "@/lib/server/langchain/runnableConfig";
 import {
   type CanonicalPageLookup,
   loadCanonicalPageLookup,
@@ -159,6 +160,8 @@ export function buildRagRetrievalChain() {
     });
 
     return { ...input, rewrittenQuery };
+  }).withConfig({
+    runName: makeRunName("rag", "reverseRag"),
   });
 
   const hydeRunnable = RunnableLambda.from<
@@ -219,6 +222,8 @@ export function buildRagRetrievalChain() {
     };
 
     return { ...input, hydeDocument, embeddingTarget, preRetrieval };
+  }).withConfig({
+    runName: makeRunName("rag", "hyde"),
   });
 
   const weightedRetrievalRunnable = RunnableLambda.from<
@@ -348,6 +353,8 @@ export function buildRagRetrievalChain() {
     }
 
     return { ...input, queryEmbedding, enrichedDocs };
+  }).withConfig({
+    runName: makeRunName("rag", "retrieve"),
   });
 
   const rankerRunnable = RunnableLambda.from<
@@ -394,6 +401,8 @@ export function buildRagRetrievalChain() {
     }
 
     return { ...input, rankedDocs };
+  }).withConfig({
+    runName: makeRunName("rag", "rank"),
   });
 
   const contextWindowRunnable = RunnableLambda.from<
@@ -408,6 +417,8 @@ export function buildRagRetrievalChain() {
       rankedDocs: input.rankedDocs,
       preRetrieval: input.preRetrieval!,
     };
+  }).withConfig({
+    runName: makeRunName("rag", "compress"),
   });
 
   return RunnableSequence.from([

@@ -2,6 +2,8 @@ import type { BaseLanguageModelInterface } from "@langchain/core/language_models
 import type { PromptTemplate } from "@langchain/core/prompts";
 import { RunnableLambda, RunnableSequence } from "@langchain/core/runnables";
 
+import { makeRunName } from "@/lib/server/langchain/runnableConfig";
+
 type RagAnswerChainInput = {
   question: string;
   guardrailMeta: string;
@@ -32,6 +34,8 @@ export function buildRagAnswerChain() {
       intent: input.guardrailMeta,
     });
     return { ...input, promptInput };
+  }).withConfig({
+    runName: makeRunName("answer", "prompt"),
   });
 
   const llmRunnable = RunnableLambda.from<
@@ -40,6 +44,8 @@ export function buildRagAnswerChain() {
   >(async (input) => {
     const stream = await input.llmInstance.stream(input.promptInput);
     return { ...input, stream };
+  }).withConfig({
+    runName: makeRunName("answer", "llm"),
   });
 
   return RunnableSequence.from([promptRunnable, llmRunnable]);
