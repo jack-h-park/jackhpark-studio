@@ -1,9 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const CHAT_DEBUG = process.env.CHAT_DEBUG === "1";
+import { isChatDebugEnabled } from "@/lib/server/debug/chat-debug";
+
+const chatDebugEnabled = isChatDebugEnabled();
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (!CHAT_DEBUG) {
+  if (!chatDebugEnabled) {
     res.status(404).json({ error: "Not Found" });
     return;
   }
@@ -11,6 +13,6 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   res.status(200).json({
     stage: "debug-enabled",
     explanation:
-      "CHAT_DEBUG=1 allows deep insights into langchain_chat imports; toggle query flags to exercise debug flows.",
+      "CHAT_DEBUG=1 unlocks deeper diagnostics for langchain_chat imports; toggle query flags to exercise debug flows.",
   });
 }

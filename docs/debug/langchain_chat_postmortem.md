@@ -7,8 +7,14 @@
 ## Fix summary
 - Rebuilt `lib/langfuse` as a server-only boundary (`lib/langfuse.server.ts`) so instrumentation doesn’t resolve Node builtins, keeping the shim/entry path lightweight.
 - Added an early header/first-byte guarantee inside `langchain_chat_impl_heavy.ts` (headers are emitted and flushed before any Saturn work, and the streaming helper reuses the same flags) so the connection never stays at 0 bytes.
-- Removed the diagnostic probes/debug routes/scripts now that the core issue is addressed, and documented the new guardrails.
+- Reined in RCA diagnostics: `/api/_debug/heavy-import` survives as the guarded debug doorway, while the precompile route and trace-heavy-import script were retired so production stays lean.
 - Cleaned up the handler so every path writes/ends the response without ever returning objects (avoids Next’s “API handler should not return a value” warning).
+
+## Cleanup inventory
+- `pages/api/_debug/heavy-import.ts`: **KEEP (dev-only)** – debug entry point stays available for deep tracing but is gated behind `CHAT_DEBUG=1` so it never impacts normal traffic.
+- `pages/api/_debug/precompile-langchain-chat.ts`: **REMOVE** – the temporary precompile probe from RCA is no longer part of the guardrails and has been deleted.
+- `scripts/trace-heavy-imports.ts` & `pnpm diagnose:heavy-imports`: **REMOVE** – the ad-hoc import trace helper is retired to keep the repo focused on production essentials.
+- `debug_early_flush` / `debug_no_external` query flags in `langchain_chat_impl_heavy.ts`: **HARDEN** – they now leverage `isChatDebugEnabled()` so they are no-ops unless `CHAT_DEBUG=1`.
 
 ## Verification
 1. `curl -i --max-time 3 http://127.0.0.1:3000/api/langchain_chat`
@@ -26,7 +32,7 @@
 Run this script after starting `pnpm dev` to ensure the first-byte guarantee and streaming behavior stay working without needing manual curl commands.
 
 ## Re-enabling deep tracing (developer option)
-Set `CHAT_DEBUG=1` and visit `/api/_debug/heavy-import` to unlock extra diagnostics (debug query flags, verbose log hooks, etc.). Without that env var the route responds 404 and `debug_early_flush` / `debug_no_external` are no-ops, so production traffic stays lean. `CHAT_DEBUG=1` also enables the early marker/headers when `debug_early_flush=1`. The instrumentation `register()` hook can point to a helper that imports the heavy handler with its own timeout (e.g., `scripts/diagnose-heavy-import.ts`) when deeper tracing is necessary.
+Set `CHAT_DEBUG=1` and visit `/api/_debug/heavy-import` to unlock extra diagnostics (debug query flags, verbose log hooks, etc.). Without that env var the route responds 404 and `debug_early_flush` / `debug_no_external` are no-ops, so production traffic stays lean. `CHAT_DEBUG=1` also enables the early marker/headers when `debug_early_flush=1`, and `debug_no_external=1` can short-circuit streaming to aid instrumentation runs. Deeper tracing still requires ad-hoc scripts or custom instrumentation; the previous `scripts/trace-heavy-imports.ts` helper has been retired in favor of the guarded route.
 
 ### Server-only / telemetry guardrails
 - `pages/api/*` and all `lib/server/api/*` code must only import the Node-safe `lib/langfuse.server.ts`; the `lib/langfuse.next-server.ts` wrapper (which pulls in `server-only`) is reserved for App Router server components and must never be referenced in API routes.  

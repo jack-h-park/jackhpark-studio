@@ -93,13 +93,11 @@ async function main() {
   console.log("[smoke] base url", BASE_URL);
   await smokeGet();
   await smokePost();
-  if (CHAT_DEBUG) {
-    await debugRouteCheck();
-  }
+  await verifyDebugRoute(CHAT_DEBUG ? 200 : 404);
   console.log("[smoke] langchain chat smoke checks passed");
 }
 
-async function debugRouteCheck() {
+async function verifyDebugRoute(expectedStatus) {
   const controller = new AbortController();
   const timeout = wait(GET_TIMEOUT_MS).then(() => controller.abort());
   try {
@@ -107,12 +105,16 @@ async function debugRouteCheck() {
       method: "GET",
       signal: controller.signal,
     });
-    if (response.status !== 200) {
+    if (response.status !== expectedStatus) {
       throw new Error(
-        `debug route expected 200 but received ${response.status} ${response.statusText}`,
+        `debug route expected ${expectedStatus} but received ${response.status} ${response.statusText}`,
       );
     }
-    console.log("[smoke] debug route OK");
+    console.log(
+      `[smoke] debug route responded ${response.status} (CHAT_DEBUG=${
+        CHAT_DEBUG ? "1" : "0"
+      })`,
+    );
   } finally {
     controller.abort();
     await timeout.catch(() => undefined);

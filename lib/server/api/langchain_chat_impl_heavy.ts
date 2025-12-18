@@ -56,6 +56,7 @@ import {
   buildFinalSystemPrompt,
   loadChatModelSettings,
 } from "@/lib/server/chat-settings";
+import { isChatDebugEnabled } from "@/lib/server/debug/chat-debug";
 import { createRequestAbortSignal } from "@/lib/server/langchain/abort";
 import { buildRagAnswerChain } from "@/lib/server/langchain/ragAnswerChain";
 import { buildRagRetrievalChain } from "@/lib/server/langchain/ragRetrievalChain";
@@ -99,7 +100,7 @@ function formatChunkPreview(value: string) {
   return `${collapsed.slice(0, 60)}…`;
 }
 
-const CHAT_DEBUG = process.env.CHAT_DEBUG === "1";
+const chatDebugEnabled = isChatDebugEnabled();
 
 const SUPABASE_URL = process.env.SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env
@@ -835,7 +836,7 @@ export async function handleLangchainChat(
   };
 
   const getDebugFlag = (key: string) => {
-    if (!CHAT_DEBUG) {
+    if (!chatDebugEnabled) {
       return false;
     }
     const queryValue = req.query[key];

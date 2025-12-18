@@ -2,7 +2,6 @@ import { setTimeout as wait } from "node:timers/promises";
 
 const BASE_URL = process.env.LANGCHAIN_CHAT_BASE_URL ?? "http://127.0.0.1:3000";
 const PING_URL = `${BASE_URL}/api/ping`;
-const PRECOMPILE_URL = `${BASE_URL}/api/_debug/precompile-langchain-chat`;
 const MAX_PING_MS = 30_000;
 const PING_INTERVAL_MS = 1_000;
 
@@ -22,27 +21,13 @@ async function waitForPing() {
   throw new Error("Ping endpoint did not become ready within 30s");
 }
 
-async function precompileHeavy() {
-  const start = Date.now();
-  const response = await fetch(PRECOMPILE_URL);
-  if (!response.ok) {
-    throw new Error(
-      `Precompile endpoint failed with ${response.status} ${response.statusText}`,
-    );
-  }
-  const body = await response.json();
-  console.log(
-    `[prewarm] precompile complete in ${Date.now() - start}ms`,
-    body,
-  );
-}
-
 async function main() {
   console.log("[prewarm] waiting for ping...");
   await waitForPing();
-  console.log("[prewarm] ping ready, invoking precompile");
-  await precompileHeavy();
-  console.log("[prewarm] langchain chat prewarm completed");
+  console.log(
+    "[prewarm] ping ready; /api/_debug/precompile-langchain-chat has been retired",
+  );
+  console.log("[prewarm] langchain chat prewarm check completed");
 }
 
 main().catch((error) => {

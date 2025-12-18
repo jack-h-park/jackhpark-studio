@@ -43,7 +43,7 @@
     "dev:prewarm:run": "node scripts/prewarm-langchain-chat.mjs",
     "dev:prewarm:all": "run-p dev:prewarm dev:prewarm:run",
     "smoke:langchain-chat": "node scripts/smoke-langchain-chat.mjs",
-    "diagnose:heavy-imports": "tsx scripts/trace-heavy-imports.ts"
+    "check:server-only-pages": "node scripts/check-server-only-pages.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.32",
