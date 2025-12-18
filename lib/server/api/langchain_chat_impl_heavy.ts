@@ -56,7 +56,7 @@ import {
   buildFinalSystemPrompt,
   loadChatModelSettings,
 } from "@/lib/server/chat-settings";
-import { isChatDebugEnabled } from "@/lib/server/debug/chat-debug";
+import { isDebugSurfacesEnabled } from "@/lib/server/debug/debug-surfaces";
 import { createRequestAbortSignal } from "@/lib/server/langchain/abort";
 import { buildRagAnswerChain } from "@/lib/server/langchain/ragAnswerChain";
 import { buildRagRetrievalChain } from "@/lib/server/langchain/ragRetrievalChain";
@@ -72,6 +72,7 @@ import {
   createTelemetryBuffer,
   type TelemetryContext,
 } from "@/lib/server/telemetry/telemetry-buffer";
+import { isTelemetryEnabled } from "@/lib/server/telemetry/telemetry-enabled";
 import {
   type GuardrailEnhancements,
   type GuardrailMeta,
@@ -100,7 +101,8 @@ function formatChunkPreview(value: string) {
   return `${collapsed.slice(0, 60)}…`;
 }
 
-const chatDebugEnabled = isChatDebugEnabled();
+const debugSurfacesEnabled = isDebugSurfacesEnabled();
+const telemetryEnabled = isTelemetryEnabled();
 
 const SUPABASE_URL = process.env.SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env
@@ -836,7 +838,7 @@ export async function handleLangchainChat(
   };
 
   const getDebugFlag = (key: string) => {
-    if (!chatDebugEnabled) {
+    if (!debugSurfacesEnabled) {
       return false;
     }
     const queryValue = req.query[key];
@@ -862,11 +864,22 @@ export async function handleLangchainChat(
   const telemetryContext: TelemetryContext = {
     requestId: requestIdHeader,
   };
-  const telemetryBuffer = createTelemetryBuffer(telemetryContext);
-  telemetryBuffer.push("handler-start", { method: req.method });
+  const telemetryBuffer = telemetryEnabled
+    ? createTelemetryBuffer(telemetryContext)
+    : null;
+  const pushTelemetryEvent = (
+    name: string,
+    detail?: Record<string, unknown>,
+  ) => {
+    if (!telemetryBuffer) {
+      return;
+    }
+    telemetryBuffer.push(name, detail);
+  };
+  pushTelemetryEvent("handler-start", { method: req.method });
   let telemetryScheduled = false;
   const scheduleTelemetryFlush = () => {
-    if (telemetryScheduled) {
+    if (!telemetryBuffer || telemetryScheduled) {
       return;
     }
     telemetryScheduled = true;
@@ -876,8 +889,10 @@ export async function handleLangchainChat(
       }),
     );
   };
-  res.once("finish", scheduleTelemetryFlush);
-  res.once("close", scheduleTelemetryFlush);
+  if (telemetryBuffer) {
+    res.once("finish", scheduleTelemetryFlush);
+    res.once("close", scheduleTelemetryFlush);
+  }
 
   mark("handler-start");
   scheduleWatchdog();
@@ -938,7 +953,7 @@ export async function handleLangchainChat(
     const guardrails = await runStage("guardrails", () =>
       getChatGuardrailConfig({ sessionConfig }),
     );
-    telemetryBuffer.push("guardrails-computed", {
+    pushTelemetryEvent("guardrails-computed", {
       sessionPreset: sessionConfig?.presetId ?? null,
     });
     const adminConfig = await runStage("admin-config", () =>
@@ -949,7 +964,7 @@ export async function handleLangchainChat(
       (typeof sessionConfig?.appliedPreset === "string"
         ? sessionConfig.appliedPreset
         : "default");
-    telemetryBuffer.push("admin-config", {
+    pushTelemetryEvent("admin-config", {
       presetId,
       ragRanking: Boolean(adminConfig.ragRanking),
     });
@@ -1004,7 +1019,7 @@ export async function handleLangchainChat(
         : undefined;
     telemetryContext.sessionId = sessionId;
     telemetryContext.question = question;
-    telemetryBuffer.push("quadrant-question", {
+    pushTelemetryEvent("quadrant-question", {
       questionLength: question.length,
       guardrailRoute,
     });
@@ -1021,7 +1036,7 @@ export async function handleLangchainChat(
     const shouldEmitTrace = telemetryDecision.shouldEmitTrace;
     const includeConfigSnapshot = telemetryDecision.includeConfigSnapshot;
     const includeVerboseDetails = telemetryDecision.includeRetrievalDetails;
-    telemetryBuffer.push("telemetry-decision", {
+    pushTelemetryEvent("telemetry-decision", {
       shouldEmitTrace,
       includeConfigSnapshot,
       includeVerboseDetails,
@@ -1112,7 +1127,7 @@ export async function handleLangchainChat(
       traceMetadata.embeddingModel = embeddingModel;
     }
     if (shouldEmitTrace) {
-      telemetryBuffer.push("telemetry-enabled", {
+      pushTelemetryEvent("telemetry-enabled", {
         traceInput,
         metadata: traceMetadata,
         tags: traceTags,
@@ -1233,7 +1248,7 @@ export async function handleLangchainChat(
       cacheMeta.responseHit = true;
       if (traceMetadata?.cache) {
         traceMetadata.cache.responseHit = true;
-        telemetryBuffer.push("cache-hit", {
+        pushTelemetryEvent("cache-hit", {
           responseCacheKey,
           outputLength: cachedSnapshot.output.length,
         });
@@ -1407,7 +1422,7 @@ export async function handleLangchainChat(
           return;
         }
         capturePosthogEvent?.("success", null);
-        telemetryBuffer.push("stream-success", {
+        pushTelemetryEvent("stream-success", {
           provider,
           candidate,
           table: primaryTable,
@@ -1435,7 +1450,7 @@ export async function handleLangchainChat(
       throw lastGeminiError;
     }
   } catch (err: any) {
-    telemetryBuffer.push("handler-error", {
+    pushTelemetryEvent("handler-error", {
       stage: lastStage,
       message: err instanceof Error ? err.message : String(err),
     });

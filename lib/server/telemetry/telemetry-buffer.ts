@@ -1,4 +1,5 @@
 import type { LangfuseTraceOptions } from "@/lib/langfuse";
+import { isTelemetryEnabled } from "@/lib/server/telemetry/telemetry-enabled";
 
 type TelemetryEvent = {
   name: string;
@@ -20,7 +21,7 @@ export function createTelemetryBuffer(context: TelemetryContext = {}) {
   };
 
   const flush = async () => {
-    if (process.env.TELEMETRY_ENABLED !== "true") {
+    if (!isTelemetryEnabled()) {
       return;
     }
     if (events.length === 0) {

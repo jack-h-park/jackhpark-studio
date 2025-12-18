@@ -39,10 +39,12 @@
     "test:llm:deep": "tsx scripts/test-local-llm-deep.ts",
     "dev:trace": "REQUIRE_TRACE=1 NODE_OPTIONS=\"--require ./scripts/require-trace.cjs\" pnpm next dev",
     "dev:trace:turbo": "REQUIRE_TRACE=1 NODE_OPTIONS=\"--require ./scripts/require-trace.cjs\" pnpm next dev --turbo",
-    "dev:prewarm": "CHAT_DEBUG=1 pnpm next dev",
+    "dev:prewarm": "DEBUG_SURFACES_ENABLED=1 pnpm next dev",
     "dev:prewarm:run": "node scripts/prewarm-langchain-chat.mjs",
     "dev:prewarm:all": "run-p dev:prewarm dev:prewarm:run",
     "smoke:langchain-chat": "node scripts/smoke-langchain-chat.mjs",
+    "smoke:langchain-chat:strict-debug-on": "EXPECT_DEBUG_SURFACES=1 node scripts/smoke-langchain-chat.mjs",
+    "smoke:langchain-chat:strict-debug-off": "EXPECT_DEBUG_SURFACES=0 node scripts/smoke-langchain-chat.mjs",
     "check:server-only-pages": "node scripts/check-server-only-pages.mjs"
   },
   "dependencies": {

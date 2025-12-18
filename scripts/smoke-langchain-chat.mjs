@@ -1,8 +1,6 @@
 import { setTimeout as wait } from "node:timers/promises";
 
 const BASE_URL = process.env.LANGCHAIN_CHAT_BASE_URL ?? "http://127.0.0.1:3000";
-
-const CHAT_DEBUG = process.env.CHAT_DEBUG === "1";
 const JSON_BODY = JSON.stringify({
   messages: [{ role: "user", content: "hi" }],
 });
@@ -12,8 +10,49 @@ const HEADERS = {
 };
 
 const GET_TIMEOUT_MS = 3_000;
-const FIRST_BYTE_MS = CHAT_DEBUG ? 2_000 : 10_000;
 const POST_TIMEOUT_MS = 30_000;
+
+const smokeEnvDebug = parseEnvFlag("DEBUG_SURFACES_ENABLED", false);
+const smokeEnvTelemetry = parseEnvFlag("TELEMETRY_ENABLED", true);
+const FIRST_BYTE_MS = smokeEnvDebug ? 2_000 : 10_000;
+const EXPECT_DEBUG_SURFACES = parseExpectation("EXPECT_DEBUG_SURFACES");
+const EXPECT_TELEMETRY = parseExpectation("EXPECT_TELEMETRY");
+
+console.log(
+  `[smoke] process env DEBUG_SURFACES_ENABLED=${
+    smokeEnvDebug ? "1" : "0"
+  } TELEMETRY_ENABLED=${smokeEnvTelemetry ? "1" : "0"} (may differ from server)`,
+);
+
+function parseEnvFlag(name, fallback) {
+  const rawValue = process.env[name];
+  if (rawValue == null) {
+    return fallback;
+  }
+  const normalized = rawValue.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  return fallback;
+}
+
+function parseExpectation(name) {
+  const rawValue = process.env[name];
+  if (rawValue == null) {
+    return null;
+  }
+  const normalized = rawValue.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+  return null;
+}
 
 async function smokeGet() {
   const controller = new AbortController();
@@ -75,7 +114,6 @@ async function smokePost() {
     }
     console.log(`[smoke] POST first byte ${elapsed}ms`);
 
-    // Drain the rest of the stream before finishing.
     while (!firstChunk.done) {
       firstChunk = await reader.read();
     }
@@ -89,15 +127,7 @@ async function smokePost() {
   }
 }
 
-async function main() {
-  console.log("[smoke] base url", BASE_URL);
-  await smokeGet();
-  await smokePost();
-  await verifyDebugRoute(CHAT_DEBUG ? 200 : 404);
-  console.log("[smoke] langchain chat smoke checks passed");
-}
-
-async function verifyDebugRoute(expectedStatus) {
+async function verifyDebugRoute() {
   const controller = new AbortController();
   const timeout = wait(GET_TIMEOUT_MS).then(() => controller.abort());
   try {
@@ -105,20 +135,49 @@ async function verifyDebugRoute(expectedStatus) {
       method: "GET",
       signal: controller.signal,
     });
-    if (response.status !== expectedStatus) {
+    let inferredDebugEnabled;
+    if (response.status === 200) {
+      inferredDebugEnabled = true;
+    } else if (response.status === 404) {
+      inferredDebugEnabled = false;
+    } else {
       throw new Error(
-        `debug route expected ${expectedStatus} but received ${response.status} ${response.statusText}`,
+        `debug route unexpected status ${response.status} ${response.statusText}`,
       );
     }
     console.log(
-      `[smoke] debug route responded ${response.status} (CHAT_DEBUG=${
-        CHAT_DEBUG ? "1" : "0"
-      })`,
+      `[smoke] debug surfaces inferred: ${
+        inferredDebugEnabled ? "ON" : "OFF"
+      } (status=${response.status})`,
     );
+
+    if (EXPECT_DEBUG_SURFACES !== null) {
+      if (EXPECT_DEBUG_SURFACES !== inferredDebugEnabled) {
+        throw new Error(
+          `EXPECTED_DEBUG_SURFACES=${EXPECT_DEBUG_SURFACES ? "1" : "0"} but server reported ${
+            inferredDebugEnabled ? "ON" : "OFF"
+          }`,
+        );
+      }
+    }
+
+    if (EXPECT_TELEMETRY !== null) {
+      console.log(
+        `[smoke] strict telemetry expectation=${EXPECT_TELEMETRY ? "ON" : "OFF"} (no inference performed)`,
+      );
+    }
   } finally {
     controller.abort();
     await timeout.catch(() => undefined);
   }
+}
+
+async function main() {
+  console.log("[smoke] base url", BASE_URL);
+  await smokeGet();
+  await smokePost();
+  await verifyDebugRoute();
+  console.log("[smoke] langchain chat smoke checks passed");
 }
 
 main().catch((error) => {
