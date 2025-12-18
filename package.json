@@ -31,11 +31,19 @@
     "test": "run-p test:*",
     "test:unit": "sh -c 'set -euo pipefail; files=$(find test -type f -name \"*.test.ts\" -print0 | xargs -0 echo); if [ -z \"${files}\" ]; then echo \"No unit tests found, skipping\"; exit 0; fi; node --import ./test/setup-env.ts --import tsx --test ${files}'",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
     "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check",
     "build:instrumentation": "esbuild instrumentation.ts --platform=node --format=esm --outfile=instrumentation.js",
     "check:katex": "node --import=tsx scripts/check-katex-usage.ts",
     "test:llm:matrix": "tsx scripts/test-local-llm-matrix.ts",
-    "test:llm:deep": "tsx scripts/test-local-llm-deep.ts"
+    "test:llm:deep": "tsx scripts/test-local-llm-deep.ts",
+    "dev:trace": "REQUIRE_TRACE=1 NODE_OPTIONS=\"--require ./scripts/require-trace.cjs\" pnpm next dev",
+    "dev:trace:turbo": "REQUIRE_TRACE=1 NODE_OPTIONS=\"--require ./scripts/require-trace.cjs\" pnpm next dev --turbo",
+    "dev:prewarm": "CHAT_DEBUG=1 pnpm next dev",
+    "dev:prewarm:run": "node scripts/prewarm-langchain-chat.mjs",
+    "dev:prewarm:all": "run-p dev:prewarm dev:prewarm:run",
+    "smoke:langchain-chat": "node scripts/smoke-langchain-chat.mjs",
+    "diagnose:heavy-imports": "tsx scripts/trace-heavy-imports.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.32",
@@ -82,7 +90,8 @@
     "react-notion-x": "github:jack-h-park/react-notion-x#7.7.1-jp.2",
     "react-tweet": "^3.2.2",
     "react-use": "^17.6.0",
-    "rss": "^1.2.2"
+    "rss": "^1.2.2",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@fisch0920/config": "^1.2.1",

@@ -72,6 +72,7 @@ type RagChainInput = {
   cacheMeta: {
     retrievalHit: boolean | null;
   };
+  candidateK: number;
 };
 
 type RagChainState = RagChainInput & {
@@ -234,7 +235,7 @@ export function buildRagRetrievalChain() {
     }
   >(async (input) => {
     const queryEmbedding = await input.embeddings.embedQuery(input.embeddingTarget);
-    const matchCount = Math.max(RAG_TOP_K, input.guardrails.ragTopK * 2);
+    const matchCount = Math.max(RAG_TOP_K, input.candidateK);
     const store = new SupabaseVectorStore(input.embeddings, {
       client: input.supabase,
       tableName: input.tableName,

@@ -111,15 +111,26 @@ const sanitizeNumericConfig = (
     : false;
   const hyde = allowlist.allowHyde ? Boolean(candidate.features.hyde) : false;
 
+  const sanitizedEmbeddingModel = sanitizeModel(
+    candidate.embeddingModel,
+    allowlist.embeddingModels,
+    adminConfig.presets.default.embeddingModel,
+  );
+
+  if (candidate.embeddingModel !== sanitizedEmbeddingModel) {
+    console.log("[ChatConfigContext] Embedding model sanitizer change:", {
+      candidate: candidate.embeddingModel,
+      sanitized: sanitizedEmbeddingModel,
+      allowlist: allowlist.embeddingModels,
+      fallback: adminConfig.presets.default.embeddingModel,
+    });
+  }
+
   return {
     presetId: candidate.presetId ?? candidate.appliedPreset ?? "default",
     additionalSystemPrompt: additionalPrompt,
     llmModel: llmResolution.resolvedModelId as SessionChatConfig["llmModel"],
-    embeddingModel: sanitizeModel(
-      candidate.embeddingModel,
-      allowlist.embeddingModels,
-      adminConfig.presets.default.embeddingModel,
-    ),
+    embeddingModel: sanitizedEmbeddingModel,
     chatEngine: sanitizeModel(
       candidate.chatEngine,
       allowlist.chatEngines,
