@@ -12,6 +12,7 @@ import type {
 export type SummaryLevel = "off" | "low" | "medium" | "high";
 
 export type RagAutoMode = "off" | "on" | "auto";
+export type RagMultiQueryMode = "off" | "auto";
 
 
 export interface AdminNumericLimit {
@@ -107,6 +108,8 @@ export interface AdminChatConfig {
   additionalPromptMaxLength?: number;
   hydeMode?: RagAutoMode;
   rewriteMode?: RagAutoMode;
+  ragMultiQueryMode?: RagMultiQueryMode;
+  ragMultiQueryMaxQueries?: number;
   numericLimits: {
     ragTopK: AdminNumericLimit;
     similarityThreshold: AdminNumericLimit;

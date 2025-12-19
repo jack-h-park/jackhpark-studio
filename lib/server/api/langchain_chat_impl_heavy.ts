@@ -7,6 +7,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import type { GuardrailRoute } from "@/lib/rag/types";
 import type {
   RagAutoMode,
+  RagMultiQueryMode,
   RagRankingConfig,
   SessionChatConfig,
 } from "@/types/chat-config";
@@ -44,6 +45,7 @@ import {
 } from "@/lib/server/chat-common";
 import {
   applyHistoryWindow,
+  buildContextWindow,
   buildIntentContextFallback,
   type ChatGuardrailConfig,
   type ContextWindowResult,
@@ -64,6 +66,11 @@ import {
 } from "@/lib/server/chat-settings";
 import { isDebugSurfacesEnabled } from "@/lib/server/debug/debug-surfaces";
 import { createRequestAbortSignal } from "@/lib/server/langchain/abort";
+import {
+  mergeCandidates,
+  type MultiQueryAltType,
+  pickAltQueryType,
+} from "@/lib/server/langchain/multi-query";
 import { buildRagAnswerChain } from "@/lib/server/langchain/ragAnswerChain";
 import { buildRagRetrievalChain } from "@/lib/server/langchain/ragRetrievalChain";
 import {
@@ -114,8 +121,46 @@ const AUTO_SCORE_MARGIN = 0.05;
 const AUTO_MIN_INCLUDED = 3;
 const AUTO_REWRITE_TOKEN_LIMIT = 10;
 const AUTO_PASS_TIMEOUT_MS = 2000;
+const MULTI_QUERY_TIMEOUT_MS = 1200;
 const AUTO_SUPPRESS_TOPK = 18;
 const AUTO_SUPPRESS_SIMILARITY = 0.1;
+
+function buildResponseCacheKeyPayload(args: {
+  presetId: string;
+  intent: string;
+  messages: ChatMessage[];
+  guardrails: {
+    ragTopK: number;
+    similarityThreshold: number;
+    ragContextTokenBudget: number;
+    ragContextClipTokens: number;
+  };
+  runtimeFlags: {
+    reverseRagEnabled: boolean;
+    reverseRagMode: ReverseRagMode;
+    hydeEnabled: boolean;
+    rankerMode: RankerMode;
+    hydeMode: RagAutoMode;
+    rewriteMode: RagAutoMode;
+    ragMultiQueryMode: RagMultiQueryMode;
+    ragMultiQueryMaxQueries: number;
+  };
+  decision?: RagDecisionSignature | null;
+}) {
+  const payload = {
+    presetId: args.presetId,
+    intent: args.intent,
+    messages: args.messages,
+    guardrails: args.guardrails,
+    runtime: args.runtimeFlags,
+  } as Record<string, unknown>;
+
+  if (args.decision) {
+    payload.decision = args.decision;
+  }
+
+  return payload;
+}
 
 const SUPABASE_URL = process.env.SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env
@@ -183,6 +228,8 @@ interface ComputeRagContextParams {
   hydeEnabled: boolean;
   hydeMode: RagAutoMode;
   rewriteMode: RagAutoMode;
+  ragMultiQueryMode: RagMultiQueryMode;
+  ragMultiQueryMaxQueries: number;
   rankerMode: RankerMode;
   provider: ModelProvider;
   llmModel: string;
@@ -214,6 +261,7 @@ interface ComputeRagContextResult {
   citations: CitationPayload;
   latestMeta: GuardrailMeta;
   enhancementSummary: GuardrailEnhancements;
+  decisionSignature?: RagDecisionSignature;
 }
 
 type AutoBaseDecision = {
@@ -235,10 +283,35 @@ type RetrievalPassMetrics = {
 type AutoDecisionMetrics = {
   enabledHydeMode: RagAutoMode;
   enabledRewriteMode: RagAutoMode;
+  enabledMultiQueryMode: RagMultiQueryMode;
   autoTriggered: boolean;
   winner: "base" | "auto" | null;
   base: RetrievalPassMetrics;
   auto?: RetrievalPassMetrics;
+  multiQuery?: {
+    enabled: boolean;
+    ran: boolean;
+    altType: MultiQueryAltType;
+    mergedCandidates: number;
+    baseCandidates: number;
+    altCandidates: number;
+    tookMsAlt?: number;
+    skippedReason?:
+      | "not_enabled"
+      | "not_weak"
+      | "no_alt"
+      | "aborted"
+      | "timeout"
+      | "error";
+  };
+};
+
+type RagDecisionSignature = {
+  autoTriggered: boolean;
+  winner: "base" | "auto" | null;
+  altType: MultiQueryAltType;
+  multiQueryRan: boolean;
+  altQueryHash?: string | null;
 };
 
 function resolveAutoMode(
@@ -380,6 +453,8 @@ async function computeRagContextAndCitations({
   hydeEnabled,
   hydeMode,
   rewriteMode,
+  ragMultiQueryMode,
+  ragMultiQueryMaxQueries,
   rankerMode,
   provider,
   llmModel,
@@ -412,6 +487,7 @@ async function computeRagContextAndCitations({
   let citationPayload: CitationPayload | null = null;
   let topKChunks = guardrails.ragTopK;
   let retrievalCacheKey: string | null = null;
+  let retrievalCacheWriteKey: string | null = null;
   let enhancementSummary: GuardrailEnhancements = {
     reverseRag: {
       enabled: reverseRagEnabled,
@@ -428,6 +504,7 @@ async function computeRagContextAndCitations({
     },
   };
   let autoDecisionMetrics: AutoDecisionMetrics | undefined;
+  let decisionSignature: RagDecisionSignature | undefined;
 
   if (routingDecision.intent === "knowledge") {
     const finalK = guardrails.ragTopK;
@@ -457,7 +534,11 @@ async function computeRagContextAndCitations({
         rankerMode,
         hydeMode,
         rewriteMode,
+        ragMultiQueryMode,
+        ragMultiQueryMaxQueries,
+        altQueryType: "none",
       })}`;
+      retrievalCacheWriteKey = retrievalCacheKey;
       const cachedContext =
         await memoryCacheClient.get<ContextWindowResult>(retrievalCacheKey);
       if (cachedContext) {
@@ -542,15 +623,23 @@ async function computeRagContextAndCitations({
         baseFlags.reverseRagEnabled,
         Date.now() - baseStart,
       );
+      const multiQueryEnabled =
+        ragMultiQueryMode === "auto" && ragMultiQueryMaxQueries >= 2;
+      const autoPassTimeoutMs = multiQueryEnabled
+        ? Math.min(AUTO_PASS_TIMEOUT_MS, MULTI_QUERY_TIMEOUT_MS)
+        : AUTO_PASS_TIMEOUT_MS;
       autoDecisionMetrics = {
         enabledHydeMode: hydeMode,
         enabledRewriteMode: rewriteMode,
+        enabledMultiQueryMode: ragMultiQueryMode,
         autoTriggered: false,
         winner: "base",
         base: baseMetrics,
       };
       let selectedResult = baseResult;
       let autoWinner: "base" | "auto" = "base";
+      let autoResult: typeof baseResult | null = null;
+      let autoFailureReason: "timeout" | "error" | null = null;
       const baseWeak = isWeakRetrieval(
         baseResult.contextResult,
         guardrails.similarityThreshold,
@@ -573,13 +662,13 @@ async function computeRagContextAndCitations({
         };
         autoDecisionMetrics.autoTriggered = true;
         const autoStart = Date.now();
-        let autoResult: typeof baseResult | null = null;
+        autoResult = null;
         let timeoutId: ReturnType<typeof setTimeout> | null = null;
         try {
           const timeoutPromise = new Promise<never>((_, reject) => {
             timeoutId = setTimeout(
               () => reject(new AutoPassTimeoutError()),
-              AUTO_PASS_TIMEOUT_MS,
+              autoPassTimeoutMs,
             );
           });
           autoResult = await Promise.race([
@@ -607,6 +696,7 @@ async function computeRagContextAndCitations({
             clearTimeout(timeoutId);
           }
           if (err instanceof AutoPassTimeoutError) {
+            autoFailureReason = "timeout";
             autoDecisionMetrics.auto = buildFailedAutoMetrics(
               autoFlags.hydeEnabled,
               autoFlags.reverseRagEnabled,
@@ -615,6 +705,7 @@ async function computeRagContextAndCitations({
           } else if (abortSignal?.aborted) {
             throw err;
           } else {
+            autoFailureReason = "error";
             autoDecisionMetrics.auto = buildFailedAutoMetrics(
               autoFlags.hydeEnabled,
               autoFlags.reverseRagEnabled,
@@ -627,12 +718,125 @@ async function computeRagContextAndCitations({
         autoDecisionMetrics.winner = autoWinner;
       }
 
+      const altQueryType = pickAltQueryType({
+        firedRewrite: shouldAutoRewrite,
+        firedHyde: shouldAutoHyde,
+        rewriteQuery: autoResult?.preRetrieval?.rewrittenQuery,
+        hydeQuery: autoResult?.preRetrieval?.embeddingTarget,
+      });
+      let skippedReason:
+        | "not_enabled"
+        | "not_weak"
+        | "no_alt"
+        | "aborted"
+        | "timeout"
+        | "error"
+        | undefined;
+      if (!multiQueryEnabled) {
+        skippedReason = "not_enabled";
+      } else if (!baseWeak) {
+        skippedReason = "not_weak";
+      } else if (altQueryType === "none") {
+        skippedReason = "no_alt";
+      } else if (abortSignal?.aborted) {
+        skippedReason = "aborted";
+      } else if (!autoResult) {
+        skippedReason = autoFailureReason ?? "error";
+      }
+      const shouldRunMultiQuery =
+        multiQueryEnabled &&
+        baseWeak &&
+        altQueryType !== "none" &&
+        autoResult &&
+        !abortSignal?.aborted;
+
+      if (autoDecisionMetrics) {
+        autoDecisionMetrics.multiQuery = {
+          enabled: multiQueryEnabled,
+          ran: false,
+          altType: altQueryType,
+          mergedCandidates: baseResult.rankedDocs.length,
+          baseCandidates: baseResult.rankedDocs.length,
+          altCandidates: autoResult?.rankedDocs?.length ?? 0,
+          tookMsAlt: autoDecisionMetrics.auto?.tookMs,
+          skippedReason,
+        };
+      }
+
+      if (shouldRunMultiQuery && autoResult) {
+        const altQueryHash = hashPayload({
+          altType: altQueryType,
+          query: autoResult.preRetrieval.embeddingTarget,
+        });
+        if (retrievalCacheTtl > 0) {
+          retrievalCacheWriteKey = `chat:retrieval:${presetId}:${hashPayload({
+            question: normalizedQuestion.normalized,
+            presetId,
+            ragTopK: guardrails.ragTopK,
+            similarityThreshold: guardrails.similarityThreshold,
+            candidateK,
+            reverseRagEnabled: reverseRagDecision.baseEnabled,
+            reverseRagMode,
+            hydeEnabled: hydeDecision.baseEnabled,
+            rankerMode,
+            hydeMode,
+            rewriteMode,
+            ragMultiQueryMode,
+            ragMultiQueryMaxQueries,
+            altQueryType,
+            altQueryHash,
+          })}`;
+        }
+        const mergedCandidates = mergeCandidates(
+          baseResult.rankedDocs,
+          autoResult.rankedDocs,
+        );
+        const mergedContext = buildContextWindow(mergedCandidates, guardrails, {
+          includeVerboseDetails,
+        });
+        contextResult = mergedContext;
+        if (autoDecisionMetrics?.multiQuery) {
+          autoDecisionMetrics.multiQuery = {
+            ...autoDecisionMetrics.multiQuery,
+            ran: true,
+            mergedCandidates: mergedCandidates.length,
+            baseCandidates: baseResult.rankedDocs.length,
+            altCandidates: autoResult.rankedDocs.length,
+          };
+        }
+      } else {
+        contextResult = selectedResult.contextResult;
+      }
+
+      const autoOrMultiEnabled =
+        hydeMode === "auto" ||
+        rewriteMode === "auto" ||
+        ragMultiQueryMode === "auto";
+      let altQueryHashForDecision: string | null = null;
+      if (autoOrMultiEnabled && altQueryType !== "none" && autoResult) {
+        const altQuery =
+          altQueryType === "rewrite"
+            ? autoResult.preRetrieval.rewrittenQuery
+            : autoResult.preRetrieval.embeddingTarget;
+        altQueryHashForDecision = altQuery
+          ? hashPayload({ q: altQuery })
+          : null;
+      }
+      if (autoOrMultiEnabled && autoDecisionMetrics) {
+        decisionSignature = {
+          autoTriggered: autoDecisionMetrics.autoTriggered,
+          winner: autoDecisionMetrics.winner,
+          altType: autoDecisionMetrics.multiQuery?.altType ?? "none",
+          multiQueryRan: autoDecisionMetrics.multiQuery?.ran ?? false,
+          altQueryHash: altQueryHashForDecision,
+        };
+      }
+
       if (autoDecisionMetrics && includeVerboseDetails) {
         ragLogger.debug("[langchain_chat] rag auto decision", autoDecisionMetrics);
       }
 
       enhancementSummary = selectedResult.preRetrieval.enhancementSummary;
-      contextResult = selectedResult.contextResult;
       const droppedCount = contextResult.dropped ?? 0;
       const retrievedCount = contextResult.included.length + droppedCount;
       topKChunks = Math.max(finalK, retrievedCount);
@@ -640,9 +844,9 @@ async function computeRagContextAndCitations({
         topKChunks,
         ragRanking,
       });
-      if (retrievalCacheKey) {
+      if (retrievalCacheWriteKey) {
         await memoryCacheClient.set(
-          retrievalCacheKey,
+          retrievalCacheWriteKey,
           contextResult,
           retrievalCacheTtl,
         );
@@ -759,6 +963,19 @@ async function computeRagContextAndCitations({
       ragRanking,
     });
 
+  const autoOrMultiEnabled =
+    hydeMode === "auto" ||
+    rewriteMode === "auto" ||
+    ragMultiQueryMode === "auto";
+  if (autoOrMultiEnabled && !decisionSignature) {
+    decisionSignature = {
+      autoTriggered: false,
+      winner: null,
+      altType: "none",
+      multiQueryRan: false,
+    };
+  }
+
   if (traceMetadata && includeVerboseDetails && autoDecisionMetrics) {
     traceMetadata.retrievalAutoDecision = autoDecisionMetrics;
   }
@@ -768,6 +985,7 @@ async function computeRagContextAndCitations({
     citations: resolvedCitations,
     latestMeta,
     enhancementSummary,
+    decisionSignature,
   };
 }
 
@@ -1248,6 +1466,12 @@ export async function handleLangchainChat(
     );
     const hydeMode: RagAutoMode = adminConfig.hydeMode ?? "off";
     const rewriteMode: RagAutoMode = adminConfig.rewriteMode ?? "off";
+    const ragMultiQueryMode: RagMultiQueryMode =
+      adminConfig.ragMultiQueryMode ?? "off";
+    const ragMultiQueryMaxQueries =
+      typeof adminConfig.ragMultiQueryMaxQueries === "number"
+        ? adminConfig.ragMultiQueryMaxQueries
+        : 2;
     const presetId =
       sessionConfig?.presetId ??
       (typeof sessionConfig?.appliedPreset === "string"
@@ -1523,63 +1747,91 @@ export async function handleLangchainChat(
     capturePosthogEvent = initializePosthogCapture();
     const responseCacheTtl = adminConfig.cache.responseTtlSeconds;
     const retrievalCacheTtl = adminConfig.cache.retrievalTtlSeconds;
-    const responseCacheKey =
-      responseCacheTtl > 0
-        ? `chat:response:${presetId}:${hashPayload({
-            presetId,
-            intent: routingDecision.intent,
-            messages,
-            guardrails: {
-              ragTopK: guardrails.ragTopK,
-              similarityThreshold: guardrails.similarityThreshold,
-              ragContextTokenBudget: guardrails.ragContextTokenBudget,
-              ragContextClipTokens: guardrails.ragContextClipTokens,
-            },
-            runtime: {
-              reverseRagEnabled,
-              reverseRagMode,
-              hydeEnabled,
-              rankerMode,
-              hydeMode,
-              rewriteMode,
-            },
-          })}`
-        : null;
+    const autoOrMultiEnabled =
+      hydeMode === "auto" ||
+      rewriteMode === "auto" ||
+      ragMultiQueryMode === "auto";
+    let responseCacheKey: string | null = null;
+    const responseCacheStrategy: "early" | "late" = autoOrMultiEnabled
+      ? "late"
+      : "early";
     let cachedSnapshot: {
       output: string;
       citations?: string;
     } | null = null;
-    mark("cache-lookup-start");
-    if (responseCacheKey) {
-      cachedSnapshot = await memoryCacheClient.get(responseCacheKey);
-    }
-    mark("cache-lookup-done");
-    mark("cache-lookup", {
-      responseCacheKey,
-      cacheHit: Boolean(cachedSnapshot),
-    });
-    if (cachedSnapshot) {
+    const buildResponseCacheKey = (decision?: RagDecisionSignature | null) =>
+      responseCacheTtl > 0
+        ? `chat:response:${presetId}:${hashPayload(
+            buildResponseCacheKeyPayload({
+              presetId,
+              intent: routingDecision.intent,
+              messages,
+              guardrails: {
+                ragTopK: guardrails.ragTopK,
+                similarityThreshold: guardrails.similarityThreshold,
+                ragContextTokenBudget: guardrails.ragContextTokenBudget,
+                ragContextClipTokens: guardrails.ragContextClipTokens,
+              },
+              runtimeFlags: {
+                reverseRagEnabled,
+                reverseRagMode,
+                hydeEnabled,
+                rankerMode,
+                hydeMode,
+                rewriteMode,
+                ragMultiQueryMode,
+                ragMultiQueryMaxQueries,
+              },
+              decision,
+            }),
+          )}`
+        : null;
+    const handleResponseCacheHit = (
+      cacheKey: string,
+      snapshot: { output: string; citations?: string },
+    ) => {
       mark("cache-response-hit");
       cacheMeta.responseHit = true;
       if (traceMetadata?.cache) {
         traceMetadata.cache.responseHit = true;
         pushTelemetryEvent("cache-hit", {
-          responseCacheKey,
-          outputLength: cachedSnapshot.output.length,
+          responseCacheKey: cacheKey,
+          outputLength: snapshot.output.length,
         });
       }
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       const body =
-        cachedSnapshot.citations !== undefined
-          ? `${cachedSnapshot.output}${CITATIONS_SEPARATOR}${cachedSnapshot.citations}`
-          : cachedSnapshot.output;
+        snapshot.citations !== undefined
+          ? `${snapshot.output}${CITATIONS_SEPARATOR}${snapshot.citations}`
+          : snapshot.output;
       clearWatchdog();
       res.end(body);
       capturePosthogEvent?.("success", null);
       logReturn("response-cache-hit");
-      return;
+    };
+
+    if (!autoOrMultiEnabled) {
+      responseCacheKey = buildResponseCacheKey(null);
+      mark("cache-lookup-start");
+      if (responseCacheKey) {
+        cachedSnapshot = await memoryCacheClient.get(responseCacheKey);
+      }
+      mark("cache-lookup-done");
+      mark("cache-lookup", {
+        responseCacheKey,
+        cacheHit: Boolean(cachedSnapshot),
+      });
+      if (cachedSnapshot && responseCacheKey) {
+        handleResponseCacheHit(responseCacheKey, cachedSnapshot);
+        return;
+      }
+      mark("cache-miss");
     }
-    mark("cache-miss");
+    if (includeVerboseDetails) {
+      ragLogger.debug("[langchain_chat] response cache strategy", {
+        responseCacheStrategy,
+      });
+    }
 
     const [{ createClient }, { PromptTemplate }] = await Promise.all([
       import("@supabase/supabase-js"),
@@ -1650,6 +1902,8 @@ export async function handleLangchainChat(
         hydeEnabled,
         hydeMode,
         rewriteMode,
+        ragMultiQueryMode,
+        ragMultiQueryMaxQueries,
         rankerMode,
         provider,
         llmModel,
@@ -1678,6 +1932,39 @@ export async function handleLangchainChat(
       mark("after-rag-context");
 
       _analyticsTotalTokens = ragResult.contextResult.totalTokens ?? null;
+
+      if (autoOrMultiEnabled && responseCacheTtl > 0) {
+        const decision = ragResult.decisionSignature ?? null;
+        responseCacheKey = buildResponseCacheKey(decision);
+        mark("cache-lookup-start");
+        if (responseCacheKey) {
+          cachedSnapshot = await memoryCacheClient.get(responseCacheKey);
+        }
+        mark("cache-lookup-done");
+        mark("cache-lookup", {
+          responseCacheKey,
+          cacheHit: Boolean(cachedSnapshot),
+        });
+        if (includeVerboseDetails) {
+          ragLogger.debug("[langchain_chat] response cache strategy", {
+            responseCacheStrategy,
+            decision: decision
+              ? {
+                  autoTriggered: decision.autoTriggered,
+                  winner: decision.winner,
+                  altType: decision.altType,
+                  multiQueryRan: decision.multiQueryRan,
+                }
+              : null,
+            altQueryHashPresent: Boolean(decision?.altQueryHash),
+          });
+        }
+        if (cachedSnapshot && responseCacheKey) {
+          handleResponseCacheHit(responseCacheKey, cachedSnapshot);
+          return false;
+        }
+        mark("cache-miss");
+      }
 
       mark("before-streaming");
       const streamResult = await streamAnswerWithPrompt({

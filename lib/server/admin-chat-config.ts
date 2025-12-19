@@ -13,6 +13,7 @@ import {
   type AdminChatConfig,
   DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH,
   type RagAutoMode,
+  type RagMultiQueryMode,
 } from "@/types/chat-config";
 
 export const ADMIN_CHAT_CONFIG_KEY = "admin_chat_config";
@@ -116,6 +117,8 @@ export type RagRankingConfig = {
 
 const DEFAULT_HYDE_MODE: RagAutoMode = "off";
 const DEFAULT_REWRITE_MODE: RagAutoMode = "off";
+const DEFAULT_MULTI_QUERY_MODE: RagMultiQueryMode = "off";
+const DEFAULT_MULTI_QUERY_MAX = 2;
 
 function normalizeRagAutoMode(
   value: unknown,
@@ -129,6 +132,26 @@ function normalizeRagAutoMode(
   if (normalized === "on") return "on";
   if (normalized === "auto") return "auto";
   return fallback;
+}
+
+function normalizeMultiQueryMode(
+  value: unknown,
+  fallback: RagMultiQueryMode,
+): RagMultiQueryMode {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "off") return "off";
+  if (normalized === "auto") return "auto";
+  return fallback;
+}
+
+function normalizeMultiQueryMax(value: unknown, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+  return value >= 2 ? 2 : 1;
 }
 
 type AdminChatConfigRow = {
@@ -234,6 +257,14 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     mergedConfig.rewriteMode,
     DEFAULT_REWRITE_MODE,
   );
+  const ragMultiQueryMode = normalizeMultiQueryMode(
+    mergedConfig.ragMultiQueryMode,
+    DEFAULT_MULTI_QUERY_MODE,
+  );
+  const ragMultiQueryMaxQueries = normalizeMultiQueryMax(
+    mergedConfig.ragMultiQueryMaxQueries,
+    DEFAULT_MULTI_QUERY_MAX,
+  );
 
   return {
     ...mergedConfig,
@@ -241,6 +272,8 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     additionalPromptMaxLength,
     hydeMode,
     rewriteMode,
+    ragMultiQueryMode,
+    ragMultiQueryMaxQueries,
     presets: {
       ...mergedConfig.presets,
       "local-required": localRequiredPreset,
