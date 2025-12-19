@@ -113,6 +113,9 @@ const telemetryEnabled = isTelemetryEnabled();
 const AUTO_SCORE_MARGIN = 0.05;
 const AUTO_MIN_INCLUDED = 3;
 const AUTO_REWRITE_TOKEN_LIMIT = 10;
+const AUTO_PASS_TIMEOUT_MS = 2000;
+const AUTO_SUPPRESS_TOPK = 18;
+const AUTO_SUPPRESS_SIMILARITY = 0.1;
 
 const SUPABASE_URL = process.env.SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env
@@ -163,6 +166,7 @@ type TraceMetadataSnapshot = {
     responseHit: boolean | null;
     retrievalHit: boolean | null;
   };
+  retrievalAutoDecision?: AutoDecisionMetrics;
 };
 
 type ResponseCacheMeta = {
@@ -217,6 +221,26 @@ type AutoBaseDecision = {
   autoAllowed: boolean;
 };
 
+type RetrievalPassMetrics = {
+  pass: "base" | "auto";
+  firedHyde: boolean;
+  firedRewrite: boolean;
+  highestScore: number | null;
+  includedCount: number;
+  droppedCount: number;
+  insufficient: boolean;
+  tookMs: number;
+};
+
+type AutoDecisionMetrics = {
+  enabledHydeMode: RagAutoMode;
+  enabledRewriteMode: RagAutoMode;
+  autoTriggered: boolean;
+  winner: "base" | "auto" | null;
+  base: RetrievalPassMetrics;
+  auto?: RetrievalPassMetrics;
+};
+
 function resolveAutoMode(
   mode: RagAutoMode,
   baseEnabled: boolean,
@@ -258,6 +282,58 @@ function selectBetterRetrieval(
     return autoResult.insufficient ? "base" : "auto";
   }
   return "base";
+}
+
+class AutoPassTimeoutError extends Error {
+  constructor() {
+    super("auto-pass-timeout");
+  }
+}
+
+function buildPassMetrics(
+  pass: "base" | "auto",
+  result: ContextWindowResult,
+  firedHyde: boolean,
+  firedRewrite: boolean,
+  tookMs: number,
+): RetrievalPassMetrics {
+  return {
+    pass,
+    firedHyde,
+    firedRewrite,
+    highestScore: Number.isFinite(result.highestScore)
+      ? Number(result.highestScore.toFixed(3))
+      : null,
+    includedCount: result.included.length,
+    droppedCount: result.dropped ?? 0,
+    insufficient: result.insufficient,
+    tookMs,
+  };
+}
+
+function buildFailedAutoMetrics(
+  firedHyde: boolean,
+  firedRewrite: boolean,
+  tookMs: number,
+): RetrievalPassMetrics {
+  return {
+    pass: "auto",
+    firedHyde,
+    firedRewrite,
+    highestScore: null,
+    includedCount: 0,
+    droppedCount: 0,
+    insufficient: true,
+    tookMs,
+  };
+}
+
+function shouldSuppressAuto(guardrails: ChatGuardrailConfig): boolean {
+  // Suppress auto when user settings already favor high recall.
+  return (
+    guardrails.ragTopK >= AUTO_SUPPRESS_TOPK &&
+    guardrails.similarityThreshold <= AUTO_SUPPRESS_SIMILARITY
+  );
 }
 
 interface StreamAnswerParams {
@@ -351,6 +427,7 @@ async function computeRagContextAndCitations({
       mode: rankerMode,
     },
   };
+  let autoDecisionMetrics: AutoDecisionMetrics | undefined;
 
   if (routingDecision.intent === "knowledge") {
     const finalK = guardrails.ragTopK;
@@ -456,7 +533,22 @@ async function computeRagContextAndCitations({
         reverseRagEnabled: reverseRagDecision.baseEnabled,
         hydeEnabled: hydeDecision.baseEnabled,
       };
+      const baseStart = Date.now();
       const baseResult = await runRetrieval(baseFlags, "before-rag-retrieve");
+      const baseMetrics = buildPassMetrics(
+        "base",
+        baseResult.contextResult,
+        baseFlags.hydeEnabled,
+        baseFlags.reverseRagEnabled,
+        Date.now() - baseStart,
+      );
+      autoDecisionMetrics = {
+        enabledHydeMode: hydeMode,
+        enabledRewriteMode: rewriteMode,
+        autoTriggered: false,
+        winner: "base",
+        base: baseMetrics,
+      };
       let selectedResult = baseResult;
       let autoWinner: "base" | "auto" = "base";
       const baseWeak = isWeakRetrieval(
@@ -464,61 +556,79 @@ async function computeRagContextAndCitations({
         guardrails.similarityThreshold,
         finalK,
       );
+      const suppressAuto = shouldSuppressAuto(guardrails);
       const shouldAutoRewrite =
         reverseRagDecision.autoAllowed &&
-        (baseWeak || questionTokens < AUTO_REWRITE_TOKEN_LIMIT);
-      const shouldAutoHyde = hydeDecision.autoAllowed && baseWeak;
+        (baseWeak || questionTokens < AUTO_REWRITE_TOKEN_LIMIT) &&
+        !suppressAuto;
+      const shouldAutoHyde =
+        hydeDecision.autoAllowed && baseWeak && !suppressAuto;
 
-      if (shouldAutoRewrite || shouldAutoHyde) {
+      if ((shouldAutoRewrite || shouldAutoHyde) && !abortSignal?.aborted) {
         const autoFlags = {
           reverseRagEnabled: shouldAutoRewrite
             ? true
             : baseFlags.reverseRagEnabled,
           hydeEnabled: shouldAutoHyde ? true : baseFlags.hydeEnabled,
         };
-        const autoResult = await runRetrieval(
-          autoFlags,
-          "auto-rag-retrieve",
-        );
-        autoWinner = selectBetterRetrieval(
-          baseResult.contextResult,
-          autoResult.contextResult,
-        );
-        selectedResult = autoWinner === "auto" ? autoResult : baseResult;
-
-        if (includeVerboseDetails) {
-          ragLogger.debug("[langchain_chat] auto retrieval", {
-            hydeAutoFired: shouldAutoHyde,
-            rewriteAutoFired: shouldAutoRewrite,
-            winner: autoWinner,
-            highestScoreBefore: Number(
-              baseResult.contextResult.highestScore.toFixed(3),
-            ),
-            highestScoreAfter: Number(
-              selectedResult.contextResult.highestScore.toFixed(3),
-            ),
-            includedBefore: baseResult.contextResult.included.length,
-            includedAfter: selectedResult.contextResult.included.length,
-            insufficientBefore: baseResult.contextResult.insufficient,
-            insufficientAfter: selectedResult.contextResult.insufficient,
+        autoDecisionMetrics.autoTriggered = true;
+        const autoStart = Date.now();
+        let autoResult: typeof baseResult | null = null;
+        let timeoutId: ReturnType<typeof setTimeout> | null = null;
+        try {
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(
+              () => reject(new AutoPassTimeoutError()),
+              AUTO_PASS_TIMEOUT_MS,
+            );
           });
+          autoResult = await Promise.race([
+            runRetrieval(autoFlags, "auto-rag-retrieve"),
+            timeoutPromise,
+          ]);
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+          const autoMetrics = buildPassMetrics(
+            "auto",
+            autoResult.contextResult,
+            autoFlags.hydeEnabled,
+            autoFlags.reverseRagEnabled,
+            Date.now() - autoStart,
+          );
+          autoDecisionMetrics.auto = autoMetrics;
+          autoWinner = selectBetterRetrieval(
+            baseResult.contextResult,
+            autoResult.contextResult,
+          );
+          selectedResult = autoWinner === "auto" ? autoResult : baseResult;
+        } catch (err) {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+          if (err instanceof AutoPassTimeoutError) {
+            autoDecisionMetrics.auto = buildFailedAutoMetrics(
+              autoFlags.hydeEnabled,
+              autoFlags.reverseRagEnabled,
+              Date.now() - autoStart,
+            );
+          } else if (abortSignal?.aborted) {
+            throw err;
+          } else {
+            autoDecisionMetrics.auto = buildFailedAutoMetrics(
+              autoFlags.hydeEnabled,
+              autoFlags.reverseRagEnabled,
+              Date.now() - autoStart,
+            );
+          }
+          autoWinner = "base";
+          selectedResult = baseResult;
         }
-      } else if (includeVerboseDetails) {
-        ragLogger.debug("[langchain_chat] auto retrieval", {
-          hydeAutoFired: false,
-          rewriteAutoFired: false,
-          winner: "base",
-          highestScoreBefore: Number(
-            baseResult.contextResult.highestScore.toFixed(3),
-          ),
-          highestScoreAfter: Number(
-            baseResult.contextResult.highestScore.toFixed(3),
-          ),
-          includedBefore: baseResult.contextResult.included.length,
-          includedAfter: baseResult.contextResult.included.length,
-          insufficientBefore: baseResult.contextResult.insufficient,
-          insufficientAfter: baseResult.contextResult.insufficient,
-        });
+        autoDecisionMetrics.winner = autoWinner;
+      }
+
+      if (autoDecisionMetrics && includeVerboseDetails) {
+        ragLogger.debug("[langchain_chat] rag auto decision", autoDecisionMetrics);
       }
 
       enhancementSummary = selectedResult.preRetrieval.enhancementSummary;
@@ -648,6 +758,10 @@ async function computeRagContextAndCitations({
       topKChunks,
       ragRanking,
     });
+
+  if (traceMetadata && includeVerboseDetails && autoDecisionMetrics) {
+    traceMetadata.retrievalAutoDecision = autoDecisionMetrics;
+  }
 
   return {
     contextResult,
