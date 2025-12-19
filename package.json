@@ -43,8 +43,8 @@
     "dev:prewarm:run": "node scripts/prewarm-langchain-chat.mjs",
     "dev:prewarm:all": "run-p dev:prewarm dev:prewarm:run",
     "smoke:langchain-chat": "node scripts/smoke-langchain-chat.mjs",
-    "smoke:langchain-chat:strict-debug-on": "EXPECT_DEBUG_SURFACES=1 node scripts/smoke-langchain-chat.mjs",
-    "smoke:langchain-chat:strict-debug-off": "EXPECT_DEBUG_SURFACES=0 node scripts/smoke-langchain-chat.mjs",
+    "smoke:langchain-chat:debug-off": "EXPECT_DEBUG_SURFACES=0 pnpm smoke:langchain-chat",
+    "smoke:langchain-chat:debug-on": "EXPECT_DEBUG_SURFACES=1 pnpm smoke:langchain-chat",
     "check:server-only-pages": "node scripts/check-server-only-pages.mjs"
   },
   "dependencies": {

@@ -16,13 +16,27 @@ const smokeEnvDebug = parseEnvFlag("DEBUG_SURFACES_ENABLED", false);
 const smokeEnvTelemetry = parseEnvFlag("TELEMETRY_ENABLED", true);
 const FIRST_BYTE_MS = smokeEnvDebug ? 2_000 : 10_000;
 const EXPECT_DEBUG_SURFACES = parseExpectation("EXPECT_DEBUG_SURFACES");
-const EXPECT_TELEMETRY = parseExpectation("EXPECT_TELEMETRY");
 
 console.log(
   `[smoke] process env DEBUG_SURFACES_ENABLED=${
     smokeEnvDebug ? "1" : "0"
-  } TELEMETRY_ENABLED=${smokeEnvTelemetry ? "1" : "0"} (may differ from server)`,
+  } TELEMETRY_ENABLED=${smokeEnvTelemetry ? "1" : "0"} (script infers server status via /api/_debug/heavy-import)`,
 );
+
+if (
+  EXPECT_DEBUG_SURFACES !== null &&
+  EXPECT_DEBUG_SURFACES !== smokeEnvDebug
+) {
+  console.warn(
+    `[smoke] WARNING: EXPECT_DEBUG_SURFACES=${
+      EXPECT_DEBUG_SURFACES ? "1" : "0"
+    } differs from DEBUG_SURFACES_ENABLED=${
+      smokeEnvDebug ? "1" : "0"
+    }; restart your dev server with DEBUG_SURFACES_ENABLED=${
+      EXPECT_DEBUG_SURFACES ? "1" : "0"
+    } before rerunning this smoke check.`,
+  );
+}
 
 function parseEnvFlag(name, fallback) {
   const rawValue = process.env[name];
@@ -151,21 +165,28 @@ async function verifyDebugRoute() {
       } (status=${response.status})`,
     );
 
+    if (smokeEnvDebug !== inferredDebugEnabled) {
+      console.warn(
+        `[smoke] WARNING: DEBUG_SURFACES_ENABLED=${smokeEnvDebug ? "1" : "0"} differs from server inference (${
+          inferredDebugEnabled ? "ON" : "OFF"
+        }); restart your dev server with DEBUG_SURFACES_ENABLED=${
+          inferredDebugEnabled ? "1" : "0"
+        } before relying on matching behavior.`,
+      );
+    }
+
     if (EXPECT_DEBUG_SURFACES !== null) {
       if (EXPECT_DEBUG_SURFACES !== inferredDebugEnabled) {
+        const expectedStatus = EXPECT_DEBUG_SURFACES ? "ON" : "OFF";
+        const actualStatus = inferredDebugEnabled ? "ON" : "OFF";
         throw new Error(
-          `EXPECTED_DEBUG_SURFACES=${EXPECT_DEBUG_SURFACES ? "1" : "0"} but server reported ${
-            inferredDebugEnabled ? "ON" : "OFF"
-          }`,
+          `EXPECT_DEBUG_SURFACES=${EXPECT_DEBUG_SURFACES ? "1" : "0"} (expecting debug surfaces ${expectedStatus}) but the server reported ${actualStatus}; restart the server with DEBUG_SURFACES_ENABLED=${
+            EXPECT_DEBUG_SURFACES ? "1" : "0"
+          } before rerunning this smoke check.`,
         );
       }
     }
 
-    if (EXPECT_TELEMETRY !== null) {
-      console.log(
-        `[smoke] strict telemetry expectation=${EXPECT_TELEMETRY ? "ON" : "OFF"} (no inference performed)`,
-      );
-    }
   } finally {
     controller.abort();
     await timeout.catch(() => undefined);

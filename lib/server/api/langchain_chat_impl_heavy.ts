@@ -837,6 +837,20 @@ export async function handleLangchainChat(
     earlyStreamStarted = true;
   };
 
+  const getHeaderValue = (name: string): string | undefined => {
+    const value = req.headers[name.toLowerCase()];
+    if (Array.isArray(value)) {
+      return value.find(
+        (entry): entry is string =>
+          typeof entry === "string" && entry.trim().length > 0,
+      );
+    }
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+    return undefined;
+  };
+
   const getDebugFlag = (key: string) => {
     if (!debugSurfacesEnabled) {
       return false;
@@ -857,12 +871,11 @@ export async function handleLangchainChat(
     return;
   }
 
-  const requestIdHeader =
-    typeof req.headers["x-request-id"] === "string"
-      ? req.headers["x-request-id"]
-      : undefined;
+  const requestIdHeader = getHeaderValue("x-request-id");
+  const telemetrySessionId = getHeaderValue("x-chat-id");
   const telemetryContext: TelemetryContext = {
     requestId: requestIdHeader,
+    sessionId: telemetrySessionId,
   };
   const telemetryBuffer = telemetryEnabled
     ? createTelemetryBuffer(telemetryContext)
@@ -1010,14 +1023,13 @@ export async function handleLangchainChat(
           ? "command"
           : "normal";
     const sessionId =
-      (req.headers["x-chat-id"] as string) ??
+      telemetrySessionId ??
       requestIdHeader ??
       normalizedQuestion.normalized;
     const userId =
       typeof req.headers["x-user-id"] === "string"
         ? req.headers["x-user-id"]
         : undefined;
-    telemetryContext.sessionId = sessionId;
     telemetryContext.question = question;
     pushTelemetryEvent("quadrant-question", {
       questionLength: question.length,

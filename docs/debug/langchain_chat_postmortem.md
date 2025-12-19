@@ -5,15 +5,13 @@
 - Even when the import eventually succeeded, the streaming path would wait for the first LM chunk, so simple `curl` clients saw 0 bytes and timed out before the first token arrived.
 
 ## Fix summary
-- Rebuilt `lib/langfuse` as a server-only boundary (`lib/langfuse.server.ts`) so instrumentation doesn’t resolve Node builtins, keeping the shim/entry path lightweight.
+- Rebuilt `lib/langfuse` as a Node-safe boundary (`lib/langfuse.node.ts` + the neutral `lib/langfuse.ts` re-export) so instrumentation doesn’t resolve Node builtins, while the `lib/langfuse.server.ts`/`langfuse.next-server.ts` wrappers stay available for App Router-only workloads.
 - Added an early header/first-byte guarantee inside `langchain_chat_impl_heavy.ts` (headers are emitted and flushed before any Saturn work, and the streaming helper reuses the same flags) so the connection never stays at 0 bytes.
-- Reined in RCA diagnostics: `/api/_debug/heavy-import` survives as the guarded debug doorway, while the precompile route and trace-heavy-import script were retired so production stays lean.
+- Reined in RCA diagnostics: `/api/_debug/heavy-import` survives as the guarded debug doorway behind `DEBUG_SURFACES_ENABLED`, so instrumentation probes stay isolated from normal traffic.
 - Cleaned up the handler so every path writes/ends the response without ever returning objects (avoids Next’s “API handler should not return a value” warning).
 
 ## Cleanup inventory
 - `pages/api/_debug/heavy-import.ts`: **KEEP (dev-only)** – debug entry point stays available for deep tracing but is gated behind `DEBUG_SURFACES_ENABLED=1` so it never impacts normal traffic.
-- `pages/api/_debug/precompile-langchain-chat.ts`: **REMOVE** – the temporary precompile probe from RCA is no longer part of the guardrails and has been deleted.
-- `scripts/trace-heavy-imports.ts` & `pnpm diagnose:heavy-imports`: **REMOVE** – the ad-hoc import trace helper is retired to keep the repo focused on production essentials.
 - `debug_early_flush` / `debug_no_external` query flags in `langchain_chat_impl_heavy.ts`: **HARDEN** – they now leverage `isDebugSurfacesEnabled()` so they are no-ops unless `DEBUG_SURFACES_ENABLED=1`.
 
 ## Verification
@@ -31,11 +29,21 @@
 
 Run this script after starting `pnpm dev` to ensure the first-byte guarantee and streaming behavior stay working without needing manual curl commands.
 
-If your dev server runs with `DEBUG_SURFACES_ENABLED=1`, you can still run `pnpm smoke:langchain-chat` without exporting that same variable—the script now infers whether debug surfaces are on (200) or off (404) and will only fail if you explicitly set `EXPECT_DEBUG_SURFACES=1|0` and the server disagrees. Explicit hints keep strict checks CI-friendly while letting day-to-day smoke runs stay lenient.
+## Debug surfaces vs Telemetry
+- `DEBUG_SURFACES_ENABLED`: enables `/api/_debug/heavy-import`, `debug_early_flush`/`debug_no_external`, and other instrumentation hooks so you can exercise deeper diagnostics. This toggle is independent of telemetry and defaults to off.
+- `TELEMETRY_ENABLED`: gates Langfuse buffering and flush activity; it never flips on debug routes or query flags. The telemetry helper and smoke script keep it off the request path until the flush runs on finish/close.
+
+### Required smoke/test loops
+1. `EXPECT_DEBUG_SURFACES=0 pnpm smoke:langchain-chat` (or `pnpm smoke:langchain-chat:debug-off`) – your baseline check for GET=405, POST streaming, and debug-route inference; when you need to prove the server is honoring `DEBUG_SURFACES_ENABLED=1`, run `pnpm smoke:langchain-chat:debug-on` instead.
+2. Whenever telemetry logic changes, rerun the same smoke (use the debug-off script unless you really need DEBUG=1) and confirm the dev server log prints `[telemetry] flush-start` with `requestId`, `sessionId`, and `question` so you know telemetry still flushed asynchronously without overwriting the session ID with the question text.
+
+If your dev server runs with `DEBUG_SURFACES_ENABLED=1`, you can still run `pnpm smoke:langchain-chat` without exporting that same variable—the script infers whether debug surfaces are ON (200) or OFF (404) and only fails when you explicitly set `EXPECT_DEBUG_SURFACES=1|0` and the server disagrees. Explicit hints keep strict checks CI-friendly while letting day-to-day smoke runs stay lenient. The script also warns whenever your shell’s `DEBUG_SURFACES_ENABLED` disagrees with the server inference so you remember to restart the server with the desired value before relying on matching behavior.
+
+Telemetry instrumentation remains gated by `TELEMETRY_ENABLED`; disabling it keeps the chat stream untouched while ceasing Langfuse buffer/flush activity.
 
 ## Re-enabling deep tracing (developer option)
-Set `DEBUG_SURFACES_ENABLED=1` and visit `/api/_debug/heavy-import` to unlock extra diagnostics (debug query flags, verbose log hooks, etc.). Without that env var the route responds 404 and `debug_early_flush` / `debug_no_external` are no-ops, so production traffic stays lean. `DEBUG_SURFACES_ENABLED=1` also enables the early marker/headers when `debug_early_flush=1`, and `debug_no_external=1` can short-circuit streaming to aid instrumentation runs. Deeper tracing still requires ad-hoc scripts or custom instrumentation; the previous `scripts/trace-heavy-imports.ts` helper has been retired in favor of the guarded route.
+Set `DEBUG_SURFACES_ENABLED=1` and visit `/api/_debug/heavy-import` to unlock extra diagnostics (debug query flags, verbose log hooks, etc.). Without that env var the route responds 404 and `debug_early_flush` / `debug_no_external` are no-ops, so production traffic stays lean. `DEBUG_SURFACES_ENABLED=1` also enables the early marker/headers when `debug_early_flush=1`, and `debug_no_external=1` can short-circuit streaming to aid instrumentation runs.
 
 ### Server-only / telemetry guardrails
-- `pages/api/*` and all `lib/server/api/*` code must only import the Node-safe `lib/langfuse.server.ts`; the `lib/langfuse.next-server.ts` wrapper (which pulls in `server-only`) is reserved for App Router server components and must never be referenced in API routes.  
-- When `TELEMETRY_ENABLED=false`, no telemetry packages are imported at all; the handler merely buffers events and flushes them *after* the response, so telemetry toggles cannot block the chat stream.
+- `pages/api/*` and all `lib/server/api/*` code must only import the Node-safe `@/lib/langfuse` entry (which re-exports the `langfuse.node.ts` implementation); the `lib/langfuse.server.ts` / `langfuse.next-server.ts` wrappers (which include `import "server-only"`) are reserved for App Router server components and must never be referenced from Pages/Pages API routes.  
+- When `TELEMETRY_ENABLED=false`, no telemetry packages (Langfuse or PostHog) are imported at all; the handler merely buffers—in-memory events and flushes nothing—so telemetry toggles cannot block the chat stream.

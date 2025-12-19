@@ -1,6 +1,7 @@
 import { PostHog } from "posthog-node";
 
 import { telemetryLogger } from "@/lib/logging/logger";
+import { isTelemetryEnabled } from "@/lib/server/telemetry/telemetry-enabled";
 
 const posthogApiKey = process.env.POSTHOG_API_KEY;
 const posthogHost = process.env.POSTHOG_HOST ?? "https://app.posthog.com";
@@ -9,14 +10,24 @@ const isDevEnvironment = process.env.NODE_ENV !== "production";
 let didLogPostHogInit = false;
 let didLogPostHogFirstSuccess = false;
 
-const posthogClient = posthogApiKey
-  ? new PostHog(posthogApiKey, {
-      host: posthogHost,
-    })
-  : null;
+const telemetryEnabled = isTelemetryEnabled();
+
+const posthogClient =
+  telemetryEnabled && posthogApiKey
+    ? new PostHog(posthogApiKey, {
+        host: posthogHost,
+      })
+    : null;
 
 function logPosthogInit(): void {
   if (!isDevEnvironment || didLogPostHogInit) {
+    return;
+  }
+
+  didLogPostHogInit = true;
+
+  if (!telemetryEnabled) {
+    telemetryLogger.debug("[posthog] disabled (TELEMETRY_ENABLED=false)");
     return;
   }
 
@@ -25,21 +36,19 @@ function logPosthogInit(): void {
     enabled: Boolean(posthogClient),
     host: posthogHost,
   });
-
-  didLogPostHogInit = true;
 }
 
 logPosthogInit();
 
 export function isPostHogEnabled(): boolean {
-  return Boolean(posthogClient);
+  return telemetryEnabled && Boolean(posthogClient);
 }
 
 export function captureChatCompletion(options: {
   distinctId: string;
   properties: Record<string, unknown>;
 }): void {
-  if (!posthogClient) {
+  if (!telemetryEnabled || !posthogClient) {
     return;
   }
 
