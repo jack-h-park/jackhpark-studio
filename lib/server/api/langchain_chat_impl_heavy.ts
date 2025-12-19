@@ -5,7 +5,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { GuardrailRoute } from "@/lib/rag/types";
-import type { RagRankingConfig, SessionChatConfig } from "@/types/chat-config";
+import type {
+  RagAutoMode,
+  RagRankingConfig,
+  SessionChatConfig,
+} from "@/types/chat-config";
 import {
   captureChatCompletion,
   classifyChatCompletionError,
@@ -50,6 +54,8 @@ import {
   normalizeQuestion,
   type RoutedQuestion,
   routeQuestion,
+  type SanitizationChange,
+  sanitizeChatSettings,
 } from "@/lib/server/chat-guardrails";
 import { type ChatMessage, sanitizeMessages } from "@/lib/server/chat-messages";
 import {
@@ -103,6 +109,10 @@ function formatChunkPreview(value: string) {
 
 const debugSurfacesEnabled = isDebugSurfacesEnabled();
 const telemetryEnabled = isTelemetryEnabled();
+
+const AUTO_SCORE_MARGIN = 0.05;
+const AUTO_MIN_INCLUDED = 3;
+const AUTO_REWRITE_TOKEN_LIMIT = 10;
 
 const SUPABASE_URL = process.env.SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env
@@ -167,6 +177,8 @@ interface ComputeRagContextParams {
   reverseRagEnabled: boolean;
   reverseRagMode: ReverseRagMode;
   hydeEnabled: boolean;
+  hydeMode: RagAutoMode;
+  rewriteMode: RagAutoMode;
   rankerMode: RankerMode;
   provider: ModelProvider;
   llmModel: string;
@@ -198,6 +210,54 @@ interface ComputeRagContextResult {
   citations: CitationPayload;
   latestMeta: GuardrailMeta;
   enhancementSummary: GuardrailEnhancements;
+}
+
+type AutoBaseDecision = {
+  baseEnabled: boolean;
+  autoAllowed: boolean;
+};
+
+function resolveAutoMode(
+  mode: RagAutoMode,
+  baseEnabled: boolean,
+): AutoBaseDecision {
+  if (mode === "on") {
+    return { baseEnabled: true, autoAllowed: false };
+  }
+  if (mode === "auto") {
+    return { baseEnabled, autoAllowed: !baseEnabled };
+  }
+  return { baseEnabled, autoAllowed: false };
+}
+
+function isWeakRetrieval(
+  result: ContextWindowResult,
+  similarityThreshold: number,
+  finalK: number,
+): boolean {
+  return (
+    result.insufficient ||
+    result.highestScore < similarityThreshold + AUTO_SCORE_MARGIN ||
+    result.included.length < Math.min(finalK, AUTO_MIN_INCLUDED)
+  );
+}
+
+function selectBetterRetrieval(
+  baseResult: ContextWindowResult,
+  autoResult: ContextWindowResult,
+): "base" | "auto" {
+  if (autoResult.highestScore !== baseResult.highestScore) {
+    return autoResult.highestScore > baseResult.highestScore ? "auto" : "base";
+  }
+  if (autoResult.included.length !== baseResult.included.length) {
+    return autoResult.included.length > baseResult.included.length
+      ? "auto"
+      : "base";
+  }
+  if (autoResult.insufficient !== baseResult.insufficient) {
+    return autoResult.insufficient ? "base" : "auto";
+  }
+  return "base";
 }
 
 interface StreamAnswerParams {
@@ -242,6 +302,8 @@ async function computeRagContextAndCitations({
   reverseRagEnabled,
   reverseRagMode,
   hydeEnabled,
+  hydeMode,
+  rewriteMode,
   rankerMode,
   provider,
   llmModel,
@@ -299,6 +361,12 @@ async function computeRagContextAndCitations({
       CANDIDATE_MIN,
       Math.min(CANDIDATE_MAX, finalK * CANDIDATE_MULTIPLIER),
     );
+    const reverseRagDecision = resolveAutoMode(
+      rewriteMode,
+      reverseRagEnabled,
+    );
+    const hydeDecision = resolveAutoMode(hydeMode, hydeEnabled);
+    const questionTokens = estimateTokens(normalizedQuestion.normalized);
     if (retrievalCacheTtl > 0) {
       retrievalCacheKey = `chat:retrieval:${presetId}:${hashPayload({
         question: normalizedQuestion.normalized,
@@ -306,6 +374,12 @@ async function computeRagContextAndCitations({
         ragTopK: guardrails.ragTopK,
         similarityThreshold: guardrails.similarityThreshold,
         candidateK,
+        reverseRagEnabled: reverseRagDecision.baseEnabled,
+        reverseRagMode,
+        hydeEnabled: hydeDecision.baseEnabled,
+        rankerMode,
+        hydeMode,
+        rewriteMode,
       })}`;
       const cachedContext =
         await memoryCacheClient.get<ContextWindowResult>(retrievalCacheKey);
@@ -327,7 +401,6 @@ async function computeRagContextAndCitations({
         similarityThreshold: guardrails.similarityThreshold,
       });
     } else {
-      markStage?.("before-rag-retrieve");
       logDebugRag("retrieval-cache", {
         hit: false,
         presetId,
@@ -335,46 +408,121 @@ async function computeRagContextAndCitations({
         candidateK,
         similarityThreshold: guardrails.similarityThreshold,
       });
-      const ragChain = buildRagRetrievalChain();
-      const ragChainRunnableConfig = buildChainRunnableConfig({
-        ...chainRunContext,
-        stage: "rag",
-      });
-      const ragResult = await ragChain.invoke(
-        {
-          guardrails,
-          question: normalizedQuestion.normalized,
-          reverseRagEnabled,
-          reverseRagMode,
-          hydeEnabled,
-          rankerMode,
-          provider,
-          llmModel,
-          embeddingModel,
-          embeddingSelection,
-          embeddings,
-          supabase,
-          supabaseAdmin,
-          tableName,
-          queryName,
-          chatConfigSnapshot,
-          includeVerboseDetails,
-          trace,
-          env,
-          logDebugRag,
-          ragRanking,
-          cacheMeta,
-          candidateK,
-        },
-        {
-          ...ragChainRunnableConfig,
-          runName: makeRunName("rag", "root"),
-          signal: abortSignal ?? undefined,
-        },
-      );
+      const runRetrieval = async (
+        flags: { reverseRagEnabled: boolean; hydeEnabled: boolean },
+        stageLabel: string,
+      ) => {
+        markStage?.(stageLabel);
+        const ragChain = buildRagRetrievalChain();
+        const ragChainRunnableConfig = buildChainRunnableConfig({
+          ...chainRunContext,
+          stage: "rag",
+        });
+        return ragChain.invoke(
+          {
+            guardrails,
+            question: normalizedQuestion.normalized,
+            reverseRagEnabled: flags.reverseRagEnabled,
+            reverseRagMode,
+            hydeEnabled: flags.hydeEnabled,
+            rankerMode,
+            provider,
+            llmModel,
+            embeddingModel,
+            embeddingSelection,
+            embeddings,
+            supabase,
+            supabaseAdmin,
+            tableName,
+            queryName,
+            chatConfigSnapshot,
+            includeVerboseDetails,
+            trace,
+            env,
+            logDebugRag,
+            ragRanking,
+            cacheMeta,
+            candidateK,
+          },
+          {
+            ...ragChainRunnableConfig,
+            runName: makeRunName("rag", "root"),
+            signal: abortSignal ?? undefined,
+          },
+        );
+      };
 
-      enhancementSummary = ragResult.preRetrieval.enhancementSummary;
-      contextResult = ragResult.contextResult;
+      const baseFlags = {
+        reverseRagEnabled: reverseRagDecision.baseEnabled,
+        hydeEnabled: hydeDecision.baseEnabled,
+      };
+      const baseResult = await runRetrieval(baseFlags, "before-rag-retrieve");
+      let selectedResult = baseResult;
+      let autoWinner: "base" | "auto" = "base";
+      const baseWeak = isWeakRetrieval(
+        baseResult.contextResult,
+        guardrails.similarityThreshold,
+        finalK,
+      );
+      const shouldAutoRewrite =
+        reverseRagDecision.autoAllowed &&
+        (baseWeak || questionTokens < AUTO_REWRITE_TOKEN_LIMIT);
+      const shouldAutoHyde = hydeDecision.autoAllowed && baseWeak;
+
+      if (shouldAutoRewrite || shouldAutoHyde) {
+        const autoFlags = {
+          reverseRagEnabled: shouldAutoRewrite
+            ? true
+            : baseFlags.reverseRagEnabled,
+          hydeEnabled: shouldAutoHyde ? true : baseFlags.hydeEnabled,
+        };
+        const autoResult = await runRetrieval(
+          autoFlags,
+          "auto-rag-retrieve",
+        );
+        autoWinner = selectBetterRetrieval(
+          baseResult.contextResult,
+          autoResult.contextResult,
+        );
+        selectedResult = autoWinner === "auto" ? autoResult : baseResult;
+
+        if (includeVerboseDetails) {
+          ragLogger.debug("[langchain_chat] auto retrieval", {
+            hydeAutoFired: shouldAutoHyde,
+            rewriteAutoFired: shouldAutoRewrite,
+            winner: autoWinner,
+            highestScoreBefore: Number(
+              baseResult.contextResult.highestScore.toFixed(3),
+            ),
+            highestScoreAfter: Number(
+              selectedResult.contextResult.highestScore.toFixed(3),
+            ),
+            includedBefore: baseResult.contextResult.included.length,
+            includedAfter: selectedResult.contextResult.included.length,
+            insufficientBefore: baseResult.contextResult.insufficient,
+            insufficientAfter: selectedResult.contextResult.insufficient,
+          });
+        }
+      } else if (includeVerboseDetails) {
+        ragLogger.debug("[langchain_chat] auto retrieval", {
+          hydeAutoFired: false,
+          rewriteAutoFired: false,
+          winner: "base",
+          highestScoreBefore: Number(
+            baseResult.contextResult.highestScore.toFixed(3),
+          ),
+          highestScoreAfter: Number(
+            baseResult.contextResult.highestScore.toFixed(3),
+          ),
+          includedBefore: baseResult.contextResult.included.length,
+          includedAfter: baseResult.contextResult.included.length,
+          insufficientBefore: baseResult.contextResult.insufficient,
+          insufficientAfter: baseResult.contextResult.insufficient,
+        });
+      }
+
+      enhancementSummary = selectedResult.preRetrieval.enhancementSummary;
+      contextResult = selectedResult.contextResult;
       const droppedCount = contextResult.dropped ?? 0;
       const retrievedCount = contextResult.included.length + droppedCount;
       topKChunks = Math.max(finalK, retrievedCount);
@@ -407,6 +555,18 @@ async function computeRagContextAndCitations({
         rankerMode,
         similarityThreshold: guardrails.similarityThreshold,
       });
+      if (includeVerboseDetails && contextResult.selection) {
+        ragLogger.debug("[langchain_chat] context selection", {
+          finalK,
+          quotaStart: contextResult.selection.quotaStart,
+          quotaEnd: contextResult.selection.quotaEnd,
+          droppedByDedupe: contextResult.selection.droppedByDedupe,
+          droppedByQuota: contextResult.selection.droppedByQuota,
+          uniqueDocs: contextResult.selection.uniqueDocs,
+          mmrLite: contextResult.selection.mmrLite,
+          mmrLambda: contextResult.selection.mmrLambda,
+        });
+      }
       ragLogger.debug("[langchain_chat] included metadata sample", {
         entries: contextResult.included.map((doc) => ({
           docId:
@@ -963,7 +1123,7 @@ export async function handleLangchainChat(
         ? ((body.sessionConfig || body.config) as SessionChatConfig)
         : undefined;
 
-    const guardrails = await runStage("guardrails", () =>
+    let guardrails = await runStage("guardrails", () =>
       getChatGuardrailConfig({ sessionConfig }),
     );
     pushTelemetryEvent("guardrails-computed", {
@@ -972,6 +1132,8 @@ export async function handleLangchainChat(
     const adminConfig = await runStage("admin-config", () =>
       getAdminChatConfig(),
     );
+    const hydeMode: RagAutoMode = adminConfig.hydeMode ?? "off";
+    const rewriteMode: RagAutoMode = adminConfig.rewriteMode ?? "off";
     const presetId =
       sessionConfig?.presetId ??
       (typeof sessionConfig?.appliedPreset === "string"
@@ -990,6 +1152,25 @@ export async function handleLangchainChat(
           sessionConfig,
         }),
       ));
+
+    const runtimeFlags = {
+      reverseRagEnabled: runtime.reverseRagEnabled,
+      reverseRagMode: (runtime.reverseRagMode ??
+        DEFAULT_REVERSE_RAG_MODE) as ReverseRagMode,
+      hydeEnabled: runtime.hydeEnabled,
+      rankerMode: runtime.rankerMode as RankerMode,
+    };
+    const sanitizedSettings = sanitizeChatSettings({
+      guardrails,
+      runtimeFlags,
+    });
+    guardrails = sanitizedSettings.guardrails;
+    const sanitizationChanges: SanitizationChange[] =
+      sanitizedSettings.changes;
+    const reverseRagEnabled = sanitizedSettings.runtimeFlags.reverseRagEnabled;
+    const reverseRagMode = sanitizedSettings.runtimeFlags.reverseRagMode;
+    const hydeEnabled = sanitizedSettings.runtimeFlags.hydeEnabled;
+    const rankerMode = sanitizedSettings.runtimeFlags.rankerMode;
 
     const fallbackQuestion =
       typeof body.question === "string" ? body.question : undefined;
@@ -1081,10 +1262,12 @@ export async function handleLangchainChat(
       ? {
           env,
           config: {
-            reverseRagEnabled: runtime.reverseRagEnabled,
-            reverseRagMode: runtime.reverseRagMode ?? DEFAULT_REVERSE_RAG_MODE,
-            hydeEnabled: runtime.hydeEnabled,
-            rankerMode: runtime.rankerMode,
+            reverseRagEnabled,
+            reverseRagMode,
+            hydeEnabled,
+            rankerMode,
+            hydeMode,
+            rewriteMode,
             guardrailRoute,
           },
           llmResolution: {
@@ -1108,11 +1291,6 @@ export async function handleLangchainChat(
         )
       : undefined;
     const trace: LangfuseTrace | null = null;
-    const reverseRagEnabled = runtime.reverseRagEnabled;
-    const reverseRagMode = (runtime.reverseRagMode ??
-      DEFAULT_REVERSE_RAG_MODE) as ReverseRagMode;
-    const hydeEnabled = runtime.hydeEnabled;
-    const rankerMode: RankerMode = runtime.rankerMode;
 
     const llmModelId = runtime.resolvedLlmModelId ?? runtime.llmModelId;
     const llmSelection = resolveLlmModel({
@@ -1146,6 +1324,15 @@ export async function handleLangchainChat(
       });
     }
     mark("telemetry-done");
+    if (
+      (includeVerboseDetails || env !== "prod") &&
+      sanitizationChanges.length > 0
+    ) {
+      ragLogger.debug("[langchain_chat] settings sanitized", {
+        changesCount: sanitizationChanges.length,
+        changes: sanitizationChanges,
+      });
+    }
     const analyticsModelState = {
       provider,
       model: llmModel,
@@ -1239,6 +1426,8 @@ export async function handleLangchainChat(
               reverseRagMode,
               hydeEnabled,
               rankerMode,
+              hydeMode,
+              rewriteMode,
             },
           })}`
         : null;
@@ -1345,6 +1534,8 @@ export async function handleLangchainChat(
         reverseRagEnabled,
         reverseRagMode,
         hydeEnabled,
+        hydeMode,
+        rewriteMode,
         rankerMode,
         provider,
         llmModel,

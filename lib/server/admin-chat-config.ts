@@ -12,6 +12,7 @@ import { supabaseClient } from "@/lib/core/supabase";
 import {
   type AdminChatConfig,
   DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH,
+  type RagAutoMode,
 } from "@/types/chat-config";
 
 export const ADMIN_CHAT_CONFIG_KEY = "admin_chat_config";
@@ -113,6 +114,23 @@ export type RagRankingConfig = {
   personaTypeWeights: Partial<Record<PersonaType, number>>;
 };
 
+const DEFAULT_HYDE_MODE: RagAutoMode = "off";
+const DEFAULT_REWRITE_MODE: RagAutoMode = "off";
+
+function normalizeRagAutoMode(
+  value: unknown,
+  fallback: RagAutoMode,
+): RagAutoMode {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "off") return "off";
+  if (normalized === "on") return "on";
+  if (normalized === "auto") return "auto";
+  return fallback;
+}
+
 type AdminChatConfigRow = {
   value: unknown;
   updated_at: string | null;
@@ -208,11 +226,21 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     typeof mergedConfig.additionalPromptMaxLength === "number"
       ? mergedConfig.additionalPromptMaxLength
       : DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH;
+  const hydeMode = normalizeRagAutoMode(
+    mergedConfig.hydeMode,
+    DEFAULT_HYDE_MODE,
+  );
+  const rewriteMode = normalizeRagAutoMode(
+    mergedConfig.rewriteMode,
+    DEFAULT_REWRITE_MODE,
+  );
 
   return {
     ...mergedConfig,
     baseSystemPromptSummary: mergedConfig.baseSystemPromptSummary ?? "",
     additionalPromptMaxLength,
+    hydeMode,
+    rewriteMode,
     presets: {
       ...mergedConfig.presets,
       "local-required": localRequiredPreset,

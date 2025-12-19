@@ -410,7 +410,11 @@ export function buildRagRetrievalChain() {
     RagChainState & { rankedDocs: EnrichedRetrievalItem<BaseRetrievalItem>[] },
     RagChainOutput
   >(async (input) => {
-    const contextResult = buildContextWindow(input.rankedDocs, input.guardrails);
+    const contextResult = buildContextWindow(
+      input.rankedDocs,
+      input.guardrails,
+      { includeVerboseDetails: input.includeVerboseDetails },
+    );
     return {
       ...input,
       contextResult,
