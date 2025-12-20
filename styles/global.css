@@ -123,8 +123,7 @@ body {
   --notion-header-height: 45px;
 }
 
-.dark,
-.dark-mode {
+.dark {
   --fg-color: rgba(255, 255, 255, 0.9);
   --fg-color-0: var(--fg-color);
   --fg-color-1: var(--fg-color);
@@ -228,8 +227,6 @@ footer {
 }
 
 .dark .ai-settings-section__title,
-.dark-mode .ai-settings-section__title,
-.dark .ai-chat-message__label,
-.dark-mode .ai-chat-message__label {
+.dark .ai-chat-message__label {
   color: var(--ai-text);
 }

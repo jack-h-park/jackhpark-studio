@@ -46,8 +46,7 @@
   --ai-ring: var(--select-color-0);
 }
 
-.dark,
-.dark-mode {
+.dark {
   --ai-bg: 203 8% 20%;
   --ai-bg-muted: 203 6% 26%;
   --ai-fg: 60 4% 90%;
@@ -148,9 +147,7 @@
 }
 
 .dark .text-ai-muted,
-.dark-mode .text-ai-muted,
-.dark .ai-text-muted,
-.dark-mode .ai-text-muted {
+.dark .ai-text-muted {
   color: var(--ai-text);
 }
 
@@ -272,8 +269,7 @@
   border-top: none;
 }
 
-.dark .ai-page-header-card,
-.dark-mode .ai-page-header-card {
+.dark .ai-page-header-card {
   border-color: color-mix(in srgb, hsl(var(--ai-border)) 40%, transparent);
   background: linear-gradient(
     180deg,
@@ -285,8 +281,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-.dark .ai-card-description,
-.dark-mode .ai-card-description {
+.dark .ai-card-description {
   color: var(--ai-text);
 }
 
@@ -324,18 +319,15 @@
   margin: 0;
 }
 
-.dark .ai-tip-callout,
-.dark-mode .ai-tip-callout {
+.dark .ai-tip-callout {
   color: var(--ai-text);
 }
 
-.dark .ai-tip-callout__title,
-.dark-mode .ai-tip-callout__title {
+.dark .ai-tip-callout__title {
   color: var(--ai-accent-strong);
 }
 
-.dark .ai-tip-callout__body,
-.dark-mode .ai-tip-callout__body {
+.dark .ai-tip-callout__body {
   color: var(--ai-text-strong);
 }
 
@@ -359,8 +351,7 @@
   margin-top: 0.15rem;
 }
 
-.dark .ai-warning-callout,
-.dark-mode .ai-warning-callout {
+.dark .ai-warning-callout {
   background: color-mix(in srgb, var(--ai-warning) 15%, transparent);
   border-color: color-mix(in srgb, var(--ai-warning) 40%, transparent);
   color: var(--ai-text-strong);
@@ -463,11 +454,8 @@
 }
 
 .dark .ai-choice__description,
-.dark-mode .ai-choice__description,
 .dark .ai-field__description,
-.dark-mode .ai-field__description,
-.dark .ai-helper-text,
-.dark-mode .ai-helper-text {
+.dark .ai-helper-text {
   color: var(--ai-text);
 }
 
@@ -899,8 +887,7 @@
   background-color: color-mix(in srgb, #000 6%, transparent);
 }
 
-.dark .ai-table__row:hover,
-.dark-mode .ai-table__row:hover {
+.dark .ai-table__row:hover {
   background-color: color-mix(in srgb, #fff 6%, transparent);
 }
 
