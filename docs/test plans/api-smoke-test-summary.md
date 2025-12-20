@@ -6,7 +6,7 @@ This document summarizes the API-level smoke tests that exercise the local LLM `
 
 ## Scripts
 
-### `scripts/test-local-llm-matrix.ts`
+### `scripts/smoke/test-local-llm-matrix.ts`
 
 - Purpose: Matrix test `/api/native_chat` across backend combinations (e.g., `ollama`, `lmstudio`, unset, invalid).
 - Coverage:
@@ -19,7 +19,7 @@ This document summarizes the API-level smoke tests that exercise the local LLM `
   - Optional first chunk preview
   - Error message (if any)
 
-### `scripts/test-local-llm-deep.ts`
+### `scripts/smoke/test-local-llm-deep.ts`
 
 - Purpose: Deeper smoke test that iterates multiple prompt scenarios across local backends.
 - Coverage:

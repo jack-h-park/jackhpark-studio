@@ -51,10 +51,10 @@
 
 단위 테스트와 별도로, 로컬 LLM 통합/스모크 테스트 스크립트가 존재합니다.
 
-- `scripts/test-local-llm-matrix.ts`
+- `scripts/smoke/test-local-llm-matrix.ts`
   - `/api/native_chat` 호출을 백엔드 조합별로 매트릭스 테스트
   - 스트리밍 응답 여부 및 상태 코드/에러 요약
-- `scripts/test-local-llm-deep.ts`
+- `scripts/smoke/test-local-llm-deep.ts`
   - 멀티턴/롱프롬프트/RAG 관련 프롬프트 등 다양한 케이스를 순회
   - 스트리밍 청크 수, TTFB, 총 응답 시간, 에러 요약 출력
 

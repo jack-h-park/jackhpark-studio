@@ -28,15 +28,15 @@
 ## Operational checklist
 
 - **Environment**
-  - `LOCAL_LLM_BACKEND` (and any overrides) points to `ollama` or `lmstudio`; confirm this via your shell or the `x-local-llm-backend` header used in the matrix test (`scripts/test-local-llm-matrix.ts`).
+  - `LOCAL_LLM_BACKEND` (and any overrides) points to `ollama` or `lmstudio`; confirm this via your shell or the `x-local-llm-backend` header used in the matrix test (`scripts/smoke/test-local-llm-matrix.ts`).
   - The corresponding service (Ollama default `http://127.0.0.1:11434`, LM Studio default `http://127.0.0.1:1234/v1`) is running and reachable; `getLocalLlmClient` will pick it up automatically and `loadChatModelSettings` logs `localBackendAvailable=true` when ready.
 - **Presets**
   - At least one preset selects a local LLM model (e.g., a definition whose provider is `ollama` from `lib/shared/models.ts`) and logs as `llmEngine=local-ollama`/`local-lmstudio` in `loadChatModelSettings` (`lib/server/chat-settings.ts`).
   - `requireLocal` is set to `true` for strict local usage, or `false` if you are willing to fall back to the cloud; the admin UI (`components/admin/chat-config/SessionPresetsCard.tsx`) toggles the same flag that the runtime exposes in `ChatConfigContext`. Confirm runtime output via the development log in `pages/api/native_chat.ts` if needed.
   - If reverse RAG should rewrite queries for that preset, confirm `reverseRAG` is enabled in the preset’s `features` block; the rewrite will invoke the same model provider as the preset, keeping privacy aligned.
 - **Tests**
-  - `pnpm test:llm:matrix` (scripts/test-local-llm-matrix.ts) hits `/api/native_chat` with `requireLocal=true` by default, varying headers: expect HTTP 200 for `ollama`/`lmstudio` when those backends run, and HTTP 500 for `unset`/`invalid` overrides because the preset requires local.
-  - `pnpm test:llm:deep` (scripts/test-local-llm-deep.ts) runs the scripted scenarios against both `ollama` and `lmstudio`, logging chunk counts, latency (first chunk + total), and RAG-aware prompts; watch the summaries for successful 200 responses and a realistic feel for multi-turn/RAG behavior.
+  - `pnpm test:llm:matrix` (scripts/smoke/test-local-llm-matrix.ts) hits `/api/native_chat` with `requireLocal=true` by default, varying headers: expect HTTP 200 for `ollama`/`lmstudio` when those backends run, and HTTP 500 for `unset`/`invalid` overrides because the preset requires local.
+  - `pnpm test:llm:deep` (scripts/smoke/test-local-llm-deep.ts) runs the scripted scenarios against both `ollama` and `lmstudio`, logging chunk counts, latency (first chunk + total), and RAG-aware prompts; watch the summaries for successful 200 responses and a realistic feel for multi-turn/RAG behavior.
 - **Monitoring**
   - Use Langfuse/PostHog dashboards keyed by `llmEngine` to confirm local vs. cloud traffic separation and to catch spikes in `fallbackFrom` events.
   - Track error rates for “local required but backend missing” events (the handler returns a 500 with `engine/localBackendEnv` metadata) and keep them near zero before shipping.
