@@ -153,6 +153,7 @@ Set `POSTHOG_API_KEY` (and optionally `POSTHOG_HOST`) to forward a small `chat_c
 
 ### Recommended production configuration
 
+```bash
 # ---------- Global log levels ----------
 
 LOG_GLOBAL_LEVEL=info
@@ -175,9 +176,11 @@ TELEMETRY_DETAIL_MAX=standard
 # TELEMETRY_DETAIL_OVERRIDE
 
 # TELEMETRY_SAMPLE_RATE_OVERRIDE
+```
 
 ### Recommended non-production configuration
 
+```bash
 # ---------- Global log levels ----------
 
 LOG_GLOBAL_LEVEL=debug
@@ -200,6 +203,31 @@ TELEMETRY_DETAIL_MAX=verbose
 # TELEMETRY_DETAIL_OVERRIDE=verbose
 
 # TELEMETRY_SAMPLE_RATE_OVERRIDE=1
+```
+
+## Design Principles & Implementation Details
+
+Our telemetry and logging implementation follows several key principles to ensure performance, security, and reliability:
+
+- **Performance-First Gating**: Sampling and detail-level decisions are made upfront (via `decideTelemetryMode`). Expensive operations like building configuration snapshots or retrieval spans are only performed if the trace is sampled and the detail level requires it.
+- **Shared Logic**: Both **Native** and **LangChain** engines share the same telemetry helpers (`decideTelemetryMode`, `buildLangfuseTags`, `buildRetrievalTelemetryEntries`), ensuring consistent tagging and payload structure across the entire application.
+- **Fail-Safe Operation**: Telemetry is non-blocking and non-fatal. Errors in the telemetry client (e.g., Langfuse ingestion guards) do not affect the main chat response.
+- **PII & Data Sanitization**:
+  - `minimal` detail level omits user inputs and retrieval details entirely.
+  - `standard` and `verbose` levels include the config snapshot.
+  - `verbose` level includes retrieval spans, but payloads are capped and sanitized. For example, chunk text and potential PII from retrieval candidates are never transmitted to Langfuse; only metadata like `doc_id`, `similarity`, and `weight` are recorded.
+- **Capped Payloads**: Retrieval telemetry is limited to the top **8 items** (controlled by `MAX_RETRIEVAL_TELEMETRY_ITEMS` in `lib/server/chat-common.ts`) to keep trace sizes manageable and avoid hitting ingestion limits.
+
+## Testing
+
+To verify the telemetry and logging configuration locally:
+
+- **Unit Tests**: Run `pnpm test:unit` (or `node --import tsx --test test/chat-langfuse.test.ts` for specifically testing telemetry logic).
+- **Diagnostics**: On startup (in non-production), `telemetryLogger` prints a summary including the provider (`langfuse`), visibility of API keys, and base URL. It also warns about any ignored legacy environment variables.
+
+## Langfuse Guide
+
+For detailed information on the specific data fields sent to Langfuse and how to build dashboards, see [Langfuse Guide](./langfuse-guide.md).
 
 ## Deprecated Environment Variables
 
