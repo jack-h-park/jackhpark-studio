@@ -11,6 +11,7 @@ import {
 } from "react";
 
 import { resolveLlmModelId } from "@/lib/shared/model-resolution";
+import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
 import {
   type AdminChatConfig,
   type AdminChatRuntimeMeta,
@@ -111,26 +112,22 @@ const sanitizeNumericConfig = (
     : false;
   const hyde = allowlist.allowHyde ? Boolean(candidate.features.hyde) : false;
 
-  const sanitizedEmbeddingModel = sanitizeModel(
-    candidate.embeddingModel,
-    allowlist.embeddingModels,
+  const candidateSpace = resolveEmbeddingSpace(candidate.embeddingModel);
+  const fallbackSpace = resolveEmbeddingSpace(
     adminConfig.presets.default.embeddingModel,
   );
 
-  if (candidate.embeddingModel !== sanitizedEmbeddingModel) {
-    console.log("[ChatConfigContext] Embedding model sanitizer change:", {
-      candidate: candidate.embeddingModel,
-      sanitized: sanitizedEmbeddingModel,
-      allowlist: allowlist.embeddingModels,
-      fallback: adminConfig.presets.default.embeddingModel,
-    });
-  }
+  const sanitizedEmbeddingModel = sanitizeModel(
+    candidateSpace.embeddingSpaceId,
+    allowlist.embeddingModels,
+    fallbackSpace.embeddingSpaceId as any,
+  );
 
-  return {
+  const result: SessionChatConfig = {
     presetId: candidate.presetId ?? candidate.appliedPreset ?? "default",
     additionalSystemPrompt: additionalPrompt,
     llmModel: llmResolution.resolvedModelId as SessionChatConfig["llmModel"],
-    embeddingModel: sanitizedEmbeddingModel,
+    embeddingModel: sanitizedEmbeddingModel as any,
     chatEngine: sanitizeModel(
       candidate.chatEngine,
       allowlist.chatEngines,
@@ -156,6 +153,16 @@ const sanitizeNumericConfig = (
     appliedPreset: candidate.appliedPreset,
     requireLocal: Boolean(candidate.requireLocal),
   };
+
+  if (candidate.llmModel !== result.llmModel) {
+    console.log("[ChatConfigContext] LLM model RESET:", {
+      from: candidate.llmModel,
+      to: result.llmModel,
+      allowlist: allowlist.llmModels,
+    });
+  }
+
+  return result;
 };
 
 const buildDefaultSessionConfig = (
