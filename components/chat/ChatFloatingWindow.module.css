@@ -255,6 +255,7 @@
   padding: 16px;
   gap: 12px;
   min-height: 0; /* Important for flex child scrolling */
+  scrollbar-gutter: stable;
 }
 
 /* Remove internal scrolling from messages container since parent handles it */
