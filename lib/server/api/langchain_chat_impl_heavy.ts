@@ -95,7 +95,7 @@ import {
   type SafeTraceInputSummary,
   type SafeTraceOutputSummary,
 } from "@/lib/server/telemetry/telemetry-summaries";
-import { buildSpanTiming } from "@/lib/server/telemetry/withSpan";
+import { buildSpanTiming, withSpan } from "@/lib/server/telemetry/withSpan";
 import {
   type GuardrailEnhancements,
   type GuardrailMeta,
@@ -1087,9 +1087,22 @@ async function computeRagContextAndCitations({
             finalK,
             quotaStart: contextResult.selection.quotaStart,
             quotaEnd: contextResult.selection.quotaEnd,
+            quotaEndUsed: contextResult.selection.quotaEndUsed,
             droppedByDedupe: contextResult.selection.droppedByDedupe,
             droppedByQuota: contextResult.selection.droppedByQuota,
             uniqueDocs: contextResult.selection.uniqueDocs,
+            finalSelectedCount: contextResult.selection.finalSelectedCount,
+            selectionUnit: contextResult.selection.selectionUnit,
+            inputCount: contextResult.selection.inputCount,
+            uniqueBeforeDedupe: contextResult.selection.uniqueBeforeDedupe,
+            uniqueAfterDedupe: contextResult.selection.uniqueAfterDedupe,
+            docInputCount: contextResult.selection.docSelection.inputCount,
+            docUniqueBeforeDedupe:
+              contextResult.selection.docSelection.uniqueBeforeDedupe,
+            docUniqueAfterDedupe:
+              contextResult.selection.docSelection.uniqueAfterDedupe,
+            docDroppedByDedupe:
+              contextResult.selection.docSelection.droppedByDedupe,
             mmrLite: contextResult.selection.mmrLite,
             mmrLambda: contextResult.selection.mmrLambda,
           });
@@ -1365,96 +1378,122 @@ async function streamAnswerWithPrompt({
     });
   };
 
+  const answerMetadata = buildTelemetryMetadata({
+    kind: "llm",
+    requestId: chainRunContext.requestId ?? null,
+    generationProvider: provider,
+    generationModel: model,
+    additional: {
+      responseCacheHit: cacheMeta.responseHit,
+    },
+  });
+  let handledEarlyExit = false;
+
   try {
-    markStage?.("before-llm-call");
-    markStage?.("answer-chain-invoked");
-    const answerResult = await answerChain.invoke(
+    await withSpan(
       {
-        question,
-        guardrailMeta,
-        contextValue,
-        memoryValue,
-        prompt,
-        llmInstance,
+        trace,
+        requestId: chainRunContext.requestId ?? null,
+        name: "answer:llm",
+        metadata: answerMetadata,
       },
-      {
-        ...answerChainRunnableConfig,
-        runName: makeRunName("answer", "root"),
-        signal,
+      async () => {
+        try {
+          markStage?.("before-llm-call");
+          markStage?.("answer-chain-invoked");
+          const answerResult = await answerChain.invoke(
+            {
+              question,
+              guardrailMeta,
+              contextValue,
+              memoryValue,
+              prompt,
+              llmInstance,
+            },
+            {
+              ...answerChainRunnableConfig,
+              runName: makeRunName("answer", "root"),
+              signal,
+            },
+          );
+          const { promptInput, stream } = answerResult;
+          markStage?.("stream-loop-started");
+
+          if (candidateModelId !== requestedModelId) {
+            llmLogger.info(
+              `[langchain_chat] Gemini model "${candidateModelId}" succeeded after falling back from "${requestedModelId}".`,
+            );
+          }
+
+          ragLogger.trace("[langchain_chat] debug context", {
+            length: contextValue.length,
+            preview: contextValue.slice(0, 100).replaceAll("\n", "\\n"),
+            insufficient: contextResult.insufficient,
+          });
+          ragLogger.trace(
+            "[langchain_chat] prompt input preview",
+            promptInput.slice(0, 500).replaceAll("\n", "\\n"),
+          );
+
+          for await (const chunk of stream) {
+            if (abortSignal?.aborted) {
+              break;
+            }
+            const rendered = renderStreamChunk(chunk);
+            if (!rendered || res.writableEnded) {
+              continue;
+            }
+            chunkIndex += 1;
+            llmLogger.trace("[langchain_chat] stream chunk", {
+              chunkIndex,
+              length: rendered.length,
+              preview: formatChunkPreview(rendered),
+            });
+            if (chunkIndex === 1) {
+              markStage?.("first-chunk-sent", {
+                chunkIndex,
+                chunkLength: rendered.length,
+              });
+              markStage?.("after-llm-first-byte", {
+                chunkIndex,
+                chunkLength: rendered.length,
+              });
+            }
+            if (abortSignal?.aborted) {
+              break;
+            }
+            ensureStreamHeaders();
+            finalOutput += rendered;
+            res.write(rendered);
+          }
+
+          if (abortSignal?.aborted) {
+            answerMetadata.aborted = true;
+            answerMetadata.finishReason = "aborted";
+            emitTraceOutput(true);
+            handledEarlyExit = true;
+            return;
+          }
+
+          ensureStreamHeaders();
+          llmLogger.trace("[langchain_chat] stream completed", {
+            chunkCount: chunkIndex,
+          });
+          answerMetadata.aborted = false;
+          answerMetadata.finishReason = "success";
+          emitTraceOutput(false);
+        } catch (spanErr) {
+          answerMetadata.aborted = true;
+          answerMetadata.finishReason = "error";
+          throw spanErr;
+        }
       },
     );
-    const { promptInput, stream } = answerResult;
-    markStage?.("stream-loop-started");
 
-    if (candidateModelId !== requestedModelId) {
-      llmLogger.info(
-        `[langchain_chat] Gemini model "${candidateModelId}" succeeded after falling back from "${requestedModelId}".`,
-      );
-    }
-
-    ragLogger.trace("[langchain_chat] debug context", {
-      length: contextValue.length,
-      preview: contextValue.slice(0, 100).replaceAll("\n", "\\n"),
-      insufficient: contextResult.insufficient,
-    });
-    ragLogger.trace(
-      "[langchain_chat] prompt input preview",
-      promptInput.slice(0, 500).replaceAll("\n", "\\n"),
-    );
-
-    for await (const chunk of stream) {
-      if (abortSignal?.aborted) {
-        break;
-      }
-      const rendered = renderStreamChunk(chunk);
-      if (!rendered || res.writableEnded) {
-        continue;
-      }
-      chunkIndex += 1;
-      llmLogger.trace("[langchain_chat] stream chunk", {
-        chunkIndex,
-        length: rendered.length,
-        preview: formatChunkPreview(rendered),
-      });
-      if (chunkIndex === 1) {
-        markStage?.("first-chunk-sent", {
-          chunkIndex,
-          chunkLength: rendered.length,
-        });
-        markStage?.("after-llm-first-byte", {
-          chunkIndex,
-          chunkLength: rendered.length,
-        });
-      }
-      if (abortSignal?.aborted) {
-        break;
-      }
-      ensureStreamHeaders();
-      finalOutput += rendered;
-      res.write(rendered);
-    }
-
-    if (abortSignal?.aborted) {
-      emitTraceOutput(true);
+    if (handledEarlyExit) {
       return { finalOutput, handledEarlyExit: true };
     }
 
-    ensureStreamHeaders();
-    llmLogger.trace("[langchain_chat] stream completed", {
-      chunkCount: chunkIndex,
-    });
-    if (trace) {
-      void trace.observation({
-        name: "answer:llm",
-        metadata: {
-          provider,
-          model,
-          responseCacheHit: cacheMeta.responseHit,
-          aborted: false,
-        },
-      });
-    }
-    emitTraceOutput(false);
     const citationJson = JSON.stringify(citationPayload);
     if (!abortSignal?.aborted && responseCacheKey) {
       await memoryCacheClient.set(

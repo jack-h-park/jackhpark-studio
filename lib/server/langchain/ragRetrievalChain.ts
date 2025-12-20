@@ -591,11 +591,24 @@ export function buildRagRetrievalChain() {
           kind: "selection",
           requestId: input.requestId,
           additional: {
-            quotaStart: contextResult.selection.quotaStart,
-            uniqueDocs: contextResult.selection.uniqueDocs,
+            selectionUnit: contextResult.selection.selectionUnit,
+            inputCount: contextResult.selection.inputCount,
+            uniqueBeforeDedupe: contextResult.selection.uniqueBeforeDedupe,
+            uniqueAfterDedupe: contextResult.selection.uniqueAfterDedupe,
             droppedByDedupe: contextResult.selection.droppedByDedupe,
+            finalSelectedCount: contextResult.selection.finalSelectedCount,
+            docInputCount: contextResult.selection.docSelection.inputCount,
+            docUniqueBeforeDedupe:
+              contextResult.selection.docSelection.uniqueBeforeDedupe,
+            docUniqueAfterDedupe:
+              contextResult.selection.docSelection.uniqueAfterDedupe,
+            docDroppedByDedupe:
+              contextResult.selection.docSelection.droppedByDedupe,
+            quotaStart: contextResult.selection.quotaStart,
+            quotaEnd: contextResult.selection.quotaEnd,
+            quotaEndUsed: contextResult.selection.quotaEndUsed,
             droppedByQuota: contextResult.selection.droppedByQuota,
-            quotaEndUsed: contextResult.selection.quotaEnd,
+            uniqueDocs: contextResult.selection.uniqueDocs,
             mmrLite: contextResult.selection.mmrLite,
             mmrLambda: contextResult.selection.mmrLambda,
           },

@@ -63,6 +63,39 @@ export type RagDocument = {
   [key: string]: any;
 };
 
+export type SelectionUnit = "chunk" | "doc";
+
+export type SelectionDedupMetrics = {
+  selectionUnit: SelectionUnit;
+  inputCount: number;
+  uniqueBeforeDedupe: number;
+  uniqueAfterDedupe: number;
+  droppedByDedupe: number;
+  dedupedDocs: RagDocument[];
+};
+
+export type ContextSelectionMetrics = {
+  quotaStart: number;
+  quotaEnd: number;
+  quotaEndUsed: number;
+  droppedByDedupe: number;
+  droppedByQuota: number;
+  uniqueDocs: number;
+  mmrLite: boolean;
+  mmrLambda: number;
+  selectionUnit: SelectionUnit;
+  inputCount: number;
+  uniqueBeforeDedupe: number;
+  uniqueAfterDedupe: number;
+  finalSelectedCount: number;
+  docSelection: {
+    inputCount: number;
+    uniqueBeforeDedupe: number;
+    uniqueAfterDedupe: number;
+    droppedByDedupe: number;
+  };
+};
+
 export type ContextWindowResult = {
   contextBlock: string;
   included: Array<
@@ -76,15 +109,7 @@ export type ContextWindowResult = {
   totalTokens: number;
   insufficient: boolean;
   highestScore: number;
-  selection?: {
-    quotaStart: number;
-    quotaEnd: number;
-    droppedByDedupe: number;
-    droppedByQuota: number;
-    uniqueDocs: number;
-    mmrLite: boolean;
-    mmrLambda: number;
-  };
+  selection?: ContextSelectionMetrics;
 };
 
 export type SanitizationChange = {
@@ -154,6 +179,40 @@ const resolveDocId = (doc: RagDocument, index: number): string => {
     `doc:${index}`
   );
 };
+
+export function dedupeSelectionDocuments(
+  docs: RagDocument[],
+  keyFn: (doc: RagDocument, index: number) => string | null,
+  selectionUnit: SelectionUnit,
+): SelectionDedupMetrics {
+  const seen = new Set<string>();
+  const uniqueKeys = new Set<string>();
+  const deduped: RagDocument[] = [];
+
+  docs.forEach((doc, index) => {
+    const key = keyFn(doc, index);
+    const uniqueKey = key ?? `__no-key:${selectionUnit}:${index}`;
+    uniqueKeys.add(uniqueKey);
+    if (!key) {
+      deduped.push(doc);
+      return;
+    }
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(doc);
+    }
+  });
+
+  const uniqueAfterDedupe = deduped.length;
+  return {
+    selectionUnit,
+    inputCount: docs.length,
+    uniqueBeforeDedupe: uniqueKeys.size,
+    uniqueAfterDedupe,
+    droppedByDedupe: docs.length - uniqueAfterDedupe,
+    dedupedDocs: deduped,
+  };
+}
 
 const COMMAND_KEYWORDS = [
   "delete",
@@ -556,12 +615,22 @@ export function buildContextWindow(
     // eslint-disable-next-line unicorn/no-array-sort
     .sort((a, b) => getDocScore(b) - getDocScore(a));
 
-  const rankedDocs = normalizedDocs;
+  const chunkDedupe = dedupeSelectionDocuments(
+    normalizedDocs,
+    (doc) => (typeof doc.chunk === "string" ? fingerprintChunk(doc.chunk) : null),
+    "chunk",
+  );
+  const docDedupe = dedupeSelectionDocuments(
+    normalizedDocs,
+    resolveDocId,
+    "doc",
+  );
+
+  const rankedDocs = chunkDedupe.dedupedDocs;
   const finalK = config.ragTopK;
   const quotaStart = DEFAULT_MAX_CHUNKS_PER_DOC;
   let quotaEnd = quotaStart;
   let selectionMeta = {
-    droppedByDedupe: 0,
     droppedByQuota: 0,
     uniqueDocs: 0,
   };
@@ -663,7 +732,6 @@ export function buildContextWindow(
     tokensUsed = pass.tokensUsed;
     quotaEnd = quota;
     selectionMeta = {
-      droppedByDedupe: pass.droppedByDedupe,
       droppedByQuota: pass.droppedByQuota,
       uniqueDocs: pass.uniqueDocs,
     };
@@ -681,14 +749,15 @@ export function buildContextWindow(
     })
     .join("\n\n---\n\n");
 
-  const highestScore = getDocScore(normalizedDocs[0]);
+  const highestScoreDoc = chunkDedupe.dedupedDocs[0] ?? normalizedDocs[0];
+  const highestScore = highestScoreDoc ? getDocScore(highestScoreDoc) : 0;
   const insufficient =
     highestScore < config.similarityThreshold || included.length === 0;
 
   return {
     contextBlock,
     included,
-    dropped: normalizedDocs.length - included.length,
+    dropped: chunkDedupe.dedupedDocs.length - included.length,
     totalTokens: tokensUsed,
     insufficient,
     highestScore,
@@ -696,9 +765,21 @@ export function buildContextWindow(
       ? {
           quotaStart,
           quotaEnd,
-          droppedByDedupe: selectionMeta.droppedByDedupe,
+          quotaEndUsed: quotaEnd,
+          droppedByDedupe: chunkDedupe.droppedByDedupe,
           droppedByQuota: selectionMeta.droppedByQuota,
           uniqueDocs: selectionMeta.uniqueDocs,
+          selectionUnit: chunkDedupe.selectionUnit,
+          inputCount: chunkDedupe.inputCount,
+          uniqueBeforeDedupe: chunkDedupe.uniqueBeforeDedupe,
+          uniqueAfterDedupe: chunkDedupe.uniqueAfterDedupe,
+          finalSelectedCount: included.length,
+          docSelection: {
+            inputCount: docDedupe.inputCount,
+            uniqueBeforeDedupe: docDedupe.uniqueBeforeDedupe,
+            uniqueAfterDedupe: docDedupe.uniqueAfterDedupe,
+            droppedByDedupe: docDedupe.droppedByDedupe,
+          },
           mmrLite: true,
           mmrLambda: MMR_LITE_LAMBDA,
         }

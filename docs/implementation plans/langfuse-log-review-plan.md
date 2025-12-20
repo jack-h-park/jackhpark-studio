@@ -129,6 +129,12 @@ Ensure selection metrics match the **actual document list semantics**.
 - `uniqueAfterDedupe`
 - `droppedByDedupe`
 
+### Latest Fixes (Phase 3)
+
+- Recorded that duplicates occurred because dedupe happened inside selection while telemetry was still looking at the undeduped candidate list; hence `droppedByDedupe` looked like `0`.
+- Introduced a dedicated dedupe helper that computes chunk- and doc-level metrics (`inputCount`, `selectionUnit`, `uniqueBefore/After`, `droppedByDedupe`) before quota/MMR.
+- `context:selection` now outputs those metrics plus `finalSelectedCount`, `quotaEndUsed`, and doc-level dedupe totals, so the telemetry reflects the exact list handed to quota/MMR.
+
 ### Exit Criteria
 
 - Metrics match visible selection list
@@ -215,6 +221,6 @@ Improve Langfuse readability and reduce log volume.
 
 - Phase 1: ✅ Completed (withSpan wrapper + finally lifecycle)
 - Phase 2: ✅ Completed (metadata semantics cleanup)
-- Phase 3: ⏸ Pending
+- Phase 3: ✅ Completed (selection metrics + dedupe truths)
 - Phase 4: ⏸ Pending
 - Phase 5: ⏸ Pending
