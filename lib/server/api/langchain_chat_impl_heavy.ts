@@ -124,6 +124,15 @@ function formatChunkPreview(value: string) {
 
 const debugSurfacesEnabled = isDebugSurfacesEnabled();
 const telemetryEnabled = isTelemetryEnabled();
+const SMOKE_HEADERS_ENABLED =
+  process.env.SMOKE_HEADERS === "1" || process.env.NODE_ENV !== "production";
+
+function setSmokeHeaders(res: NextApiResponse, cacheHit: boolean | null) {
+  if (!SMOKE_HEADERS_ENABLED) {
+    return;
+  }
+  res.setHeader("x-cache-hit", cacheHit === true ? "1" : "0");
+}
 
 const AUTO_SCORE_MARGIN = 0.05;
 const AUTO_MIN_INCLUDED = 3;
@@ -132,6 +141,8 @@ const AUTO_PASS_TIMEOUT_MS = 2000;
 const MULTI_QUERY_TIMEOUT_MS = 1200;
 const AUTO_SUPPRESS_TOPK = 18;
 const AUTO_SUPPRESS_SIMILARITY = 0.1;
+
+const MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 1024);
 
 function buildResponseCacheKeyPayload(args: {
   presetId: string;
@@ -1309,6 +1320,7 @@ async function streamAnswerWithPrompt({
       return;
     }
     if (!streamHeadersSent) {
+      setSmokeHeaders(res, cacheMeta.responseHit);
       res.writeHead(200, {
         "Content-Type": "text/plain; charset=utf-8",
         "Transfer-Encoding": "chunked",
@@ -2218,6 +2230,7 @@ export async function handleLangchainChat(
           return 0;
         }
       })();
+      setSmokeHeaders(res, true);
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       const body =
         snapshot.citations !== undefined
@@ -2356,8 +2369,8 @@ export async function handleLangchainChat(
       mark("before-rag-context");
       const includeSelectionTelemetry = Boolean(
         trace &&
-          routingDecision.intent === "knowledge" &&
-          (detailLevel === "standard" || detailLevel === "verbose"),
+        routingDecision.intent === "knowledge" &&
+        (detailLevel === "standard" || detailLevel === "verbose"),
       );
       const ragResult = await computeRagContextAndCitations({
         guardrails,
@@ -2505,7 +2518,12 @@ export async function handleLangchainChat(
     for (let index = 0; index < modelCandidates.length; index++) {
       const candidate = modelCandidates[index];
       const nextModel = modelCandidates[index + 1];
-      const llm = await createChatModel(provider, candidate, temperature);
+      const llm = await createChatModel(
+        provider,
+        candidate,
+        temperature,
+        MAX_TOKENS,
+      );
 
       try {
         const streamSucceeded = await executeWithResources(
@@ -2765,6 +2783,7 @@ async function createChatModel(
   provider: ModelProvider,
   modelName: string,
   temperature: number,
+  maxTokens: number,
 ): Promise<BaseLanguageModelInterface> {
   switch (provider) {
     case "openai": {
@@ -2775,6 +2794,7 @@ async function createChatModel(
         apiKey,
         temperature,
         streaming: true,
+        maxTokens,
       });
     }
     case "gemini": {
@@ -2786,6 +2806,7 @@ async function createChatModel(
         apiKey,
         temperature,
         streaming: true,
+        maxOutputTokens: maxTokens,
       });
     }
     case "lmstudio": {
@@ -2802,6 +2823,7 @@ async function createChatModel(
         },
         temperature,
         streaming: true,
+        maxTokens,
       });
     }
     case "ollama": {

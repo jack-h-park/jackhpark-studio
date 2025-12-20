@@ -225,7 +225,8 @@ export function ChatMessageItem({
   const showGuardrailCards = telemetryActive && contextStats;
   const showEnhancementCard = telemetryActive && hasEnhancements;
 
-  // Citation visibility: check settings, expanded state, and existence
+  // Citation visibility: check settings and existence
+  // Reverted: Citations are hidden by default and shown only when expanded (User request)
   const showCitationsSection = showCitations && isExpanded && hasCitations;
 
   const isStreamingAssistant =

@@ -99,6 +99,22 @@ type RagDocument = {
 };
 
 const DEFAULT_MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 512);
+const SMOKE_HEADERS_ENABLED =
+  process.env.SMOKE_HEADERS === "1" || process.env.NODE_ENV !== "production";
+
+function setSmokeHeaders(
+  res: NextApiResponse,
+  cacheHit: boolean | null,
+  traceId?: string | null,
+) {
+  if (!SMOKE_HEADERS_ENABLED) {
+    return;
+  }
+  res.setHeader("x-cache-hit", cacheHit === true ? "1" : "0");
+  if (traceId) {
+    res.setHeader("x-trace-id", traceId);
+  }
+}
 
 function mergeLangfuseTags(
   existingTags: string[] | undefined,
@@ -464,6 +480,7 @@ export default async function handler(
             output: cachedResponse.output,
           });
         }
+        setSmokeHeaders(res, true, trace?.traceId ?? null);
         res.status(200).setHeader("Content-Type", "text/plain; charset=utf-8");
         res.end(cachedResponse.output);
         capturePosthogEvent?.("success", null);
@@ -909,6 +926,7 @@ export default async function handler(
     let streamHeadersSent = false;
     const ensureStreamHeaders = () => {
       if (!streamHeadersSent) {
+        setSmokeHeaders(res, cacheMeta.responseHit, trace?.traceId ?? null);
         res.writeHead(200, {
           "Content-Type": "text/plain; charset=utf-8",
           "Transfer-Encoding": "chunked",
