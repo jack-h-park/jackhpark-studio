@@ -1,8 +1,8 @@
 import * as React from "react";
 
-import { cn } from "./utils";
 import { LoadingIcon } from "../LoadingIcon";
 import { useInteraction } from "./interaction-context";
+import { cn } from "./utils";
 
 const baseStyles = "ai-button focus-ring";
 

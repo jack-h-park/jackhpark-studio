@@ -51,7 +51,6 @@ Always use tokens instead of hardcoded values.
 
 - **Typography**: `.ai-label-overline` (metadata), `.ai-helper-text` (desc), `.ai-text-muted`.
 - **Interactivity**: `.focus-ring`, `.ai-selectable--active`.
-- **Tooltips**: Elements with `data-tooltip="..."` automatically show a styled tooltip on hover.
 
 ---
 
@@ -66,10 +65,11 @@ Always use tokens instead of hardcoded values.
 
 ## 4. UI Primitives & Patterns (React Layer)
 
-### A. Atomic Primitives (`components/ui/`)
+### A.- **Atomic Primitives** (`components/ui/`):
 
-- **[button.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/button.tsx)**: Standardized variants (`default`, `outline`, `ghost`).
-- **[input.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/input.tsx)**: Standard input with focus rings.
+- `Button`, `Input`, `Select`, `Switch`, `Checkbox`: Core interactive elements that consume `InteractionScope`.
+- `Tooltip`: Accessible tooltip implementation using `@radix-ui/react-tooltip`.
+- `Card`, `Section`, `HeadingWithIcon`: Structural building blocks.
 
 ### B. Higher-Order Patterns
 
@@ -91,9 +91,7 @@ Always use tokens instead of hardcoded values.
 
 ### Grounding Rules for Implementation
 
-1. **Utility-First for Layout**: Use Tailwind utilities (`p-4`, `flex`, `gap-2`) for layout and spacing.
-2. **Tokens for Visuals**: Use `ai-` prefixed Tailwind classes or CSS variables for colors, borders, and shadows.
-3. **Limit `@apply`**: Use `@apply` only for recurring atomic patterns (like `.ai-label-overline`). For one-off components, prefer inline Tailwind classes.
-4. **Never Hardcode Colors**: Use tokens. If a variation is needed, use `color-mix`.
-5. **Accessibility**: Always use `aria-describedby` to link inputs with helper text.
-6. **Interaction Scope**: Use `InteractionScope` to propagate disabled states down the tree automatically.
+1.  **Utility-first for layout, tokens for visuals.** Only use `@apply` for complex component-specific logic.
+2.  **No hardcoded colors.** Use tokens (`hsl(var(--ai-...))`) or `color-mix` for transparency.
+3.  **Interaction over props.** Prefer `InteractionScope` for managing groups of disabled/loading/readOnly states.
+4.  **Accessibility is first-class.** Always use descriptive labels and prefer the React `Tooltip` component (Radix UI) over manual `data-tooltip` implementations.

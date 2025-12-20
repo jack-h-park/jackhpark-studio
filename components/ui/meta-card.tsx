@@ -1,5 +1,4 @@
-import * as React from "react";
-
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 import { cn } from "./utils";
 
 export interface MetaCardItem {
@@ -35,20 +34,32 @@ export function MetaCard({
     <div className={cn("ai-meta-card", variantClass, className)}>
       <div className="ai-meta-card-heading">{title}</div>
       <div className="ai-meta-card-grid">
-        {items.map((item, idx) => (
-          <div key={idx} className={cn("ai-meta-card-block", item.className)}>
-            <div className="ai-meta-card-label">{item.label}</div>
+        {items.map((item, idx) => {
+          const content = (
             <div
               className={cn(
                 "ai-meta-card-value",
                 item.isWarning && "ai-meta-card-value--warning",
               )}
-              data-tooltip={item.tooltip}
             >
               {item.value}
             </div>
-          </div>
-        ))}
+          );
+
+          return (
+            <div key={idx} className={cn("ai-meta-card-block", item.className)}>
+              <div className="ai-meta-card-label">{item.label}</div>
+              {item.tooltip ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>{content}</TooltipTrigger>
+                  <TooltipContent>{item.tooltip}</TooltipContent>
+                </Tooltip>
+              ) : (
+                content
+              )}
+            </div>
+          );
+        })}
       </div>
       {footer && <div className="ai-meta-card-footer">{footer}</div>}
     </div>

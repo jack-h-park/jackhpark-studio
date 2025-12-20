@@ -851,46 +851,8 @@
 }
 
 /* ------------------------------------------------ */
-/* Icons & Tooltips                                 */
+/* Icons & Utilities                                */
 /* ------------------------------------------------ */
-[data-tooltip] {
-  cursor: help;
-  position: relative;
-}
-
-[data-tooltip]::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  margin-top: 6px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: var(--ai-text-strong);
-  color: hsl(var(--ai-bg));
-  font-size: 0.65rem;
-  font-weight: 500;
-  white-space: pre-line;
-  visibility: hidden;
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    opacity 0.2s ease,
-    visibility 0.2s ease;
-  z-index: 100;
-  min-width: max-content;
-  max-width: 200px;
-  box-shadow: var(--ai-shadow-soft);
-  text-transform: none;
-  letter-spacing: normal;
-}
-
-[data-tooltip]:hover::after {
-  visibility: visible;
-  opacity: 1;
-}
-
 .ai-info-icon {
   display: inline-flex;
   align-items: center;

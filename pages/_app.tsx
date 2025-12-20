@@ -11,6 +11,7 @@ import { posthog } from "posthog-js";
 import React, { useEffect } from "react";
 
 import { DarkModeProvider } from "@/components/DarkModeProvider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { fathomConfig, fathomId, posthogConfig, posthogId } from "@/lib/config";
 
 // extend window with gtag
@@ -90,7 +91,9 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <DarkModeProvider>
-      <Component {...pageProps} />
+      <TooltipProvider>
+        <Component {...pageProps} />
+      </TooltipProvider>
     </DarkModeProvider>
   );
 }

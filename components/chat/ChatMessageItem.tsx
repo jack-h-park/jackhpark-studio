@@ -6,6 +6,11 @@ import { type JSX, useState } from "react";
 import type { ChatMessage } from "@/components/chat/hooks/useChatSession";
 import { MetaCard, MetaChip } from "@/components/ui/meta-card";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   MODEL_PROVIDER_LABELS,
   type ModelProvider,
 } from "@/lib/shared/model-provider";
@@ -330,12 +335,16 @@ export function ChatMessageItem({
                             : historySummaryLabel}
                         </div>
                         {summaryInfo && (
-                          <div
-                            className="ai-info-icon"
-                            data-tooltip={`${summaryInfo.trimmedTurns} of ${summaryInfo.maxTurns} turns summarized`}
-                          >
-                            <AiOutlineInfoCircle />
-                          </div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="ai-info-icon">
+                                <AiOutlineInfoCircle />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {`${summaryInfo.trimmedTurns} of ${summaryInfo.maxTurns} turns summarized`}
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                       </div>
                     </div>
@@ -358,48 +367,60 @@ export function ChatMessageItem({
                   label: "REVERSE RAG",
                   value: (
                     <div className="flex items-center gap-1">
-                      <div
-                        className="cursor-help"
-                        data-tooltip={
-                          enhancements?.reverseRag
-                            ? `mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`
-                            : ""
-                        }
-                      >
-                        {enhancements?.reverseRag?.enabled
-                          ? enhancements.reverseRag.mode
-                          : "off"}
-                      </div>
+                      {enhancements?.reverseRag ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="cursor-help">
+                              {enhancements.reverseRag.enabled
+                                ? enhancements.reverseRag.mode
+                                : "off"}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {`mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        "off"
+                      )}
                       {enhancements?.reverseRag?.enabled && (
-                        <div
-                          className="ai-info-icon"
-                          data-tooltip={`original: ${truncateText(
-                            enhancements.reverseRag.original,
-                            40,
-                          )}\nrewritten: ${truncateText(
-                            enhancements.reverseRag.rewritten,
-                            40,
-                          )}`}
-                        >
-                          <AiOutlineInfoCircle />
-                        </div>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="ai-info-icon">
+                              <AiOutlineInfoCircle />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {`original: ${truncateText(
+                              enhancements.reverseRag.original,
+                              40,
+                            )}\nrewritten: ${truncateText(
+                              enhancements.reverseRag.rewritten,
+                              40,
+                            )}`}
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </div>
                   ),
                 },
                 {
                   label: "HyDE",
-                  value: (
-                    <div
-                      className="cursor-help"
-                      data-tooltip={enhancements?.hyde?.generated ?? ""}
-                    >
-                      {enhancements?.hyde?.enabled
-                        ? enhancements.hyde.generated
-                          ? truncateText(enhancements.hyde.generated, 40)
-                          : "generated"
-                        : "off"}
-                    </div>
+                  value: enhancements?.hyde?.enabled ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="cursor-help">
+                          {enhancements.hyde.generated
+                            ? truncateText(enhancements.hyde.generated, 40)
+                            : "generated"}
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {enhancements.hyde.generated ?? ""}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    "off"
                   ),
                 },
                 {
