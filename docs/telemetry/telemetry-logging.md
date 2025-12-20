@@ -13,6 +13,23 @@ This document explains how we configure **logging** and **Langfuse telemetry** a
   - `TELEMETRY_SAMPLE_RATE_MAX` / `TELEMETRY_DETAIL_MAX` cap the maximum detail and sample rate.
   - `TELEMETRY_DETAIL_OVERRIDE` / `TELEMETRY_SAMPLE_RATE_OVERRIDE` are allowed only in non-production and are meant for temporary debugging.
 
+## Codebase Structure
+
+The logging and telemetry implementation is split into two main directories:
+
+### Core Logging (`lib/logging/`)
+
+- `logger.ts`: Main entry point for domain loggers (`ragLogger`, `llmLogger`, etc.) and server-side log emission.
+- `config.ts`: Consolidates environment variables and database settings into a unified `LoggingConfig`.
+- `client.ts`: Lightweight logging helper for client-side components (e.g., Notion renderer).
+- `types.ts`: Shared TypeScript interfaces for levels, domains, and configuration.
+
+### Telemetry Helpers (`lib/telemetry/`)
+
+- `chat-langfuse.ts`: Logic for sampling decisions and determining trace detail levels.
+- `langfuse-tags.ts`: Standardizes how traces are tagged (env, preset, guardrail).
+- `prompt-version.ts`: Generates the SHA256 version hash for system prompts.
+
 All engines consume telemetry via `getLoggingConfig().telemetry` and never read the telemetry env vars directly.
 
 ## Environments & Priority Rules
