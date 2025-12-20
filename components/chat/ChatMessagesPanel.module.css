@@ -95,86 +95,9 @@
   margin-top: 4px;
 }
 
-.metaCard {
-  border: 1px solid hsl(var(--ai-border));
-  border-radius: 10px;
-  padding: 8px 10px;
-  background: hsl(var(--ai-bg));
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
-}
-
-.metaCardRuntime {
-  border-color: color-mix(in srgb, var(--ai-accent) 20%, transparent);
-  background: color-mix(in srgb, var(--ai-accent) 5%, hsl(var(--ai-bg)));
-}
-
-.metaCardGuardrail {
-  border-color: hsl(var(--ai-border));
-  background: hsl(var(--ai-bg-muted));
-}
-
-.metaCardEnhancements {
-  border-color: color-mix(in srgb, var(--ai-warning) 30%, transparent);
-  background: color-mix(in srgb, var(--ai-warning) 5%, hsl(var(--ai-bg)));
-}
-
-.metaCardHeading {
-  font-size: 0.6rem;
-  letter-spacing: 0.25em;
-  text-transform: uppercase;
-  color: hsl(var(--ai-fg-muted));
-}
-
-.metaCardGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.metaCardBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.metaCardBlockSummary {
-  margin-top: 10px;
-}
-
-.metaCardBlockLabel {
-  font-size: 0.55rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  color: hsl(var(--ai-fg-muted));
-}
-
-.metaCardBlockRow {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.metaCardBlockValue {
-  font-weight: 600;
-  font-size: 0.55rem;
-  color: hsl(var(--ai-fg));
-}
-
 .telemetryCollapseRow {
   display: flex;
   justify-content: flex-end;
-}
-
-.telemetryCollapseBtn {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  background: none;
-  border: none;
-  color: var(--ai-accent);
-  cursor: pointer;
-  padding: 0;
 }
 
 .telemetryCollapseRowTop,

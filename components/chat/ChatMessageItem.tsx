@@ -1,9 +1,10 @@
 "use client";
 
 import { AiOutlineInfoCircle } from "@react-icons/all-files/ai/AiOutlineInfoCircle";
-import { type JSX , useState } from "react";
+import { type JSX, useState } from "react";
 
 import type { ChatMessage } from "@/components/chat/hooks/useChatSession";
+import { MetaCard, MetaChip } from "@/components/ui/meta-card";
 import {
   MODEL_PROVIDER_LABELS,
   type ModelProvider,
@@ -249,7 +250,7 @@ export function ChatMessageItem({
             <div className={styles.telemetryCollapseRow}>
               <button
                 type="button"
-                className={styles.telemetryCollapseBtn}
+                className="ai-meta-collapse-btn"
                 onClick={() => setIsExpanded(!isExpanded)}
               >
                 {isExpanded ? "Hide diagnostics" : "Show diagnostics"}
@@ -257,169 +258,156 @@ export function ChatMessageItem({
             </div>
           )}
           {showRuntimeCard && (
-            <div className={`${styles.metaCard} ${styles.metaCardRuntime}`}>
-              <div className={styles.metaCardHeading}>Engine &amp; Model</div>
-              <div className={styles.metaCardGrid}>
-                {runtimeEngineLabel && (
-                  <div className={styles.metaCardBlock}>
-                    <div className={styles.metaCardBlockLabel}>ENGINE</div>
-                    <div className={styles.metaCardBlockValue}>
-                      {runtimeEngineLabel}
-                    </div>
-                  </div>
-                )}
-                {runtimeLlmDisplay && (
-                  <div className={styles.metaCardBlock}>
-                    <div className={styles.metaCardBlockLabel}>LLM</div>
-                    <div className={styles.metaCardBlockValue}>
-                      {runtimeLlmDisplay}
-                    </div>
-                  </div>
-                )}
-                {runtimeEmbeddingModelLabel && (
-                  <div className={styles.metaCardBlock}>
-                    <div className={styles.metaCardBlockLabel}>EMBEDDING</div>
-                    <div className={styles.metaCardBlockValue}>
-                      {runtimeEmbeddingModelLabel}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <MetaCard
+              title="Engine & Model"
+              variant="runtime"
+              items={
+                [
+                  runtimeEngineLabel && {
+                    label: "ENGINE",
+                    value: runtimeEngineLabel,
+                  },
+                  runtimeLlmDisplay && {
+                    label: "LLM",
+                    value: runtimeLlmDisplay,
+                  },
+                  runtimeEmbeddingModelLabel && {
+                    label: "EMBEDDING",
+                    value: runtimeEmbeddingModelLabel,
+                  },
+                ].filter(Boolean) as any
+              }
+            />
           )}
           {showGuardrailCards && (
-            <div className={`${styles.metaCard} ${styles.metaCardGuardrail}`}>
-              <div className={styles.metaCardHeading}>Guardrails</div>
-              <div className={styles.metaCardGrid}>
-                <div className={styles.metaCardBlock}>
-                  <div className={styles.metaCardBlockLabel}>ROUTE</div>
-                  <div className={styles.metaCardBlockValue}>
-                    {m.meta!.reason ?? m.meta!.intent}
-                  </div>
-                </div>
-                <div className={styles.metaCardBlock}>
-                  <div className={styles.metaCardBlockLabel}>CONTEXT</div>
-                  <div
-                    className={`${styles.metaCardBlockValue} ${
-                      contextStats.insufficient ? styles.warning : ""
-                    }`}
-                  >
-                    {contextUsageLabel}
-                    {contextTokensLabel ? ` ${contextTokensLabel}` : ""}
-                  </div>
-                </div>
-                {historyLabel && (
-                  <div className={styles.metaCardBlock}>
-                    <div className={styles.metaCardBlockLabel}>HISTORY</div>
-                    <div className={styles.metaCardBlockValue}>
-                      {historyLabel}
-                    </div>
-                  </div>
-                )}
-                {similarityThreshold !== null && (
-                  <div className={styles.metaCardBlock}>
-                    <div className={styles.metaCardBlockLabel}>SIMILARITY</div>
-                    <div
-                      className={`${styles.metaCardBlockValue} ${
-                        contextStats.insufficient ? styles.warning : ""
-                      }`}
-                    >
-                      {highestSimilarity !== null
-                        ? highestSimilarity.toFixed(3)
-                        : "—"}{" "}
-                      / min {similarityThreshold.toFixed(2)}
-                      {contextStats.insufficient ? " (Insufficient)" : ""}
-                    </div>
-                  </div>
-                )}
-              </div>
-              {showSummaryBlock && (
-                <div
-                  className={`${styles.metaCardBlock} ${styles.metaCardBlockSummary}`}
-                >
-                  <div className={styles.metaCardBlockLabel}>SUMMARY</div>
-                  <div className={styles.metaCardBlockRow}>
-                    <div className={styles.metaCardBlockValue}>
-                      {summaryInfo
-                        ? `History summarized (${summaryInfo.originalTokens} → ${summaryInfo.summaryTokens} tokens)`
-                        : historySummaryLabel}
-                    </div>
-                    {summaryInfo ? (
-                      <div
-                        className="ai-info-icon"
-                        data-tooltip={`${summaryInfo.trimmedTurns} of ${summaryInfo.maxTurns} turns summarized`}
-                      >
-                        <AiOutlineInfoCircle />
+            <MetaCard
+              title="Guardrails"
+              variant="guardrail"
+              items={
+                [
+                  {
+                    label: "ROUTE",
+                    value: m.meta!.reason ?? m.meta!.intent,
+                  },
+                  {
+                    label: "CONTEXT",
+                    value: (
+                      <>
+                        {contextUsageLabel}
+                        {contextTokensLabel ? ` ${contextTokensLabel}` : ""}
+                      </>
+                    ),
+                    isWarning: contextStats.insufficient,
+                  },
+                  historyLabel && {
+                    label: "HISTORY",
+                    value: historyLabel,
+                  },
+                  similarityThreshold !== null && {
+                    label: "SIMILARITY",
+                    value: (
+                      <>
+                        {highestSimilarity !== null
+                          ? highestSimilarity.toFixed(3)
+                          : "—"}{" "}
+                        / min {similarityThreshold.toFixed(2)}
+                        {contextStats.insufficient ? " (Insufficient)" : ""}
+                      </>
+                    ),
+                    isWarning: contextStats.insufficient,
+                  },
+                ].filter(Boolean) as any
+              }
+              footer={
+                <>
+                  {showSummaryBlock && (
+                    <div className="flex flex-col gap-0.5 w-full mt-2.5">
+                      <div className="ai-meta-card-label">SUMMARY</div>
+                      <div className="flex items-center gap-1">
+                        <div className="ai-meta-card-value">
+                          {summaryInfo
+                            ? `History summarized (${summaryInfo.originalTokens} → ${summaryInfo.summaryTokens} tokens)`
+                            : historySummaryLabel}
+                        </div>
+                        {summaryInfo && (
+                          <div
+                            className="ai-info-icon"
+                            data-tooltip={`${summaryInfo.trimmedTurns} of ${summaryInfo.maxTurns} turns summarized`}
+                          >
+                            <AiOutlineInfoCircle />
+                          </div>
+                        )}
                       </div>
-                    ) : null}
-                  </div>
-                </div>
-              )}
-              {m.meta?.summaryApplied && (
-                <div className={styles.metaCardFooter}>
-                  <span className={styles.metaChip}>Summary applied</span>
-                </div>
-              )}
-            </div>
+                    </div>
+                  )}
+                  {m.meta?.summaryApplied && (
+                    <div className="mt-2 text-right">
+                      <MetaChip>Summary applied</MetaChip>
+                    </div>
+                  )}
+                </>
+              }
+            />
           )}
           {showEnhancementCard && (
-            <div
-              className={`${styles.metaCard} ${styles.metaCardEnhancements}`}
-            >
-              <div className={styles.metaCardHeading}>Enhancements</div>
-              <div className={styles.metaCardGrid}>
-                <div className={styles.metaCardBlock}>
-                  <div className={styles.metaCardBlockLabel}>REVERSE RAG</div>
-                  <div className={styles.metaCardBlockRow}>
+            <MetaCard
+              title="Enhancements"
+              variant="enhancements"
+              items={[
+                {
+                  label: "REVERSE RAG",
+                  value: (
+                    <div className="flex items-center gap-1">
+                      <div
+                        className="cursor-help"
+                        data-tooltip={
+                          enhancements?.reverseRag
+                            ? `mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`
+                            : ""
+                        }
+                      >
+                        {enhancements?.reverseRag?.enabled
+                          ? enhancements.reverseRag.mode
+                          : "off"}
+                      </div>
+                      {enhancements?.reverseRag?.enabled && (
+                        <div
+                          className="ai-info-icon"
+                          data-tooltip={`original: ${truncateText(
+                            enhancements.reverseRag.original,
+                            40,
+                          )}\nrewritten: ${truncateText(
+                            enhancements.reverseRag.rewritten,
+                            40,
+                          )}`}
+                        >
+                          <AiOutlineInfoCircle />
+                        </div>
+                      )}
+                    </div>
+                  ),
+                },
+                {
+                  label: "HyDE",
+                  value: (
                     <div
-                      className={`${styles.metaCardBlockValue} ${styles.enhancementChip}`}
-                      data-tooltip={
-                        enhancements?.reverseRag
-                          ? `mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`
-                          : ""
-                      }
+                      className="cursor-help"
+                      data-tooltip={enhancements?.hyde?.generated ?? ""}
                     >
-                      {enhancements?.reverseRag?.enabled
-                        ? enhancements.reverseRag.mode
+                      {enhancements?.hyde?.enabled
+                        ? enhancements.hyde.generated
+                          ? truncateText(enhancements.hyde.generated, 40)
+                          : "generated"
                         : "off"}
                     </div>
-                    {enhancements?.reverseRag?.enabled && (
-                      <div
-                        className="ai-info-icon"
-                        data-tooltip={`original: ${truncateText(
-                          enhancements.reverseRag.original,
-                          40,
-                        )}\nrewritten: ${truncateText(
-                          enhancements.reverseRag.rewritten,
-                          40,
-                        )}`}
-                      >
-                        <AiOutlineInfoCircle />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className={styles.metaCardBlock}>
-                  <div className={styles.metaCardBlockLabel}>HyDE</div>
-                  <div
-                    className={`${styles.metaCardBlockValue} ${styles.enhancementChip}`}
-                    data-tooltip={enhancements?.hyde?.generated ?? ""}
-                  >
-                    {enhancements?.hyde?.enabled
-                      ? enhancements.hyde.generated
-                        ? truncateText(enhancements.hyde.generated, 40)
-                        : "generated"
-                      : "off"}
-                  </div>
-                </div>
-                <div className={styles.metaCardBlock}>
-                  <div className={styles.metaCardBlockLabel}>RANKER</div>
-                  <div className={styles.metaCardBlockValue}>
-                    {enhancements?.ranker?.mode ?? "none"}
-                  </div>
-                </div>
-              </div>
-            </div>
+                  ),
+                },
+                {
+                  label: "RANKER",
+                  value: enhancements?.ranker?.mode ?? "none",
+                },
+              ]}
+            />
           )}
         </div>
       )}

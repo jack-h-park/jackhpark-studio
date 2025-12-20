@@ -20,7 +20,7 @@ export function CardHeader({
   return (
     <div
       className={cn(
-        "p-[1.2rem] border-b border-[hsl(var(--ai-border))] flex flex-col gap-[0.32rem]",
+        "p-5 border-b border-ai-border flex flex-col gap-1.5",
         className,
       )}
       {...props}
@@ -78,7 +78,7 @@ export function CardContent({
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("p-[0.6rem]", className)} {...props}>
+    <div className={cn("p-2.5", className)} {...props}>
       {children}
     </div>
   );
@@ -92,7 +92,7 @@ export function CardFooter({
   return (
     <div
       className={cn(
-        "p-[1.2rem] border-t border-[hsl(var(--ai-border))] flex items-center justify-end gap-[0.4rem]",
+        "p-5 border-t border-ai-border flex items-center justify-end gap-2",
         className,
       )}
       {...props}

@@ -14,6 +14,16 @@ Every trace is automatically tagged with the following to allow easy segmentatio
 
 Dashboards should use these tags for high-level filtering (e.g., comparing performance between production and development).
 
+## Prompt Versioning
+
+The `prompt.baseVersion` found in the metadata is a unique 12-character SHA256 hash generated from the combination of:
+
+1. `baseSystemPrompt`
+2. `baseSystemPromptSummary`
+3. `additionalSystemPrompt` (from the specific preset)
+
+This ensures that any change to the prompt text—even a single character—results in a new version string, allowing for precise A/B testing and regression tracking in Langfuse.
+
 ## Chat Configuration Snapshot
 
 When telemetry `detailLevel` is `"standard"` or `"verbose"`, a normalized snapshot of the chat configuration is attached to the trace metadata under `metadata.chatConfig`.

@@ -37,9 +37,7 @@ export function DependentGroup({
 }) {
   return (
     <InteractionScope disabled={!isEnabled}>
-      <div className="ml-3 pl-4 border-l border-[color:var(--ai-border)]">
-        {children}
-      </div>
+      <div className="ml-3 pl-4 border-l border-ai-border">{children}</div>
     </InteractionScope>
   );
 }

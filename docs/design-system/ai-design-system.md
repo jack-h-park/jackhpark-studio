@@ -1,6 +1,6 @@
 # AI Design System Guidelines
 
-This document outlines the architecture and principles of the AI Design System, maintaining a clean separation between the **Style Layer** (CSS) and the **Component Layer** (React).
+This document outlines the architecture and principles of the AI Design System, maintaining a clean separation between the **Style Layer** (CSS) and the **Component Layer** (React), while leveraging **Tailwind CSS** for layout and utility-first styling.
 
 ---
 
@@ -13,57 +13,60 @@ This document outlines the architecture and principles of the AI Design System, 
 
 ---
 
-## 2. The Style Layer (Global CSS & Tokens)
+## 2. Technical Infrastructure
 
-The foundational styles are defined in `styles/ai-design-system.css`. This layer provides the "look and feel" through design tokens and utility classes.
+### A. Tailwind CSS Integration
+
+The design system is bridged to Tailwind via `tailwind.config.cjs`. This allows using design tokens directly as utility classes:
+
+- **Colors**: `bg-ai-bg`, `text-ai-fg`, `border-ai-border`, `bg-ai-accent`.
+- **Radii**: `rounded-ai`, `rounded-ai-sm`.
+- **Shadows**: `shadow-ai-soft`.
+
+### B. The `cn` Utility
+
+Always use the `cn` helper (from `@/lib/utils`) for merging class names. It uses `tailwind-merge` to resolve conflicts intelligently.
+
+```tsx
+import { cn } from "@/lib/utils";
+<div className={cn("p-4 border-ai-border", className)} />;
+```
+
+---
+
+## 3. The Style Layer (Global CSS & Tokens)
+
+The foundational styles are defined in `styles/ai-design-system.css`.
 
 ### A. Design Tokens
 
 Always use tokens instead of hardcoded values.
-| Type | Example Tokens |
-| :--- | :--- |
-| **Color** | `var(--ai-bg)`, `var(--ai-fg)`, `var(--ai-accent)`, `var(--ai-border)` |
-| **Radius** | `var(--ai-radius-sm)`, `var(--ai-radius-md)`, `var(--ai-radius-lg)` |
-| **Shadow** | `var(--ai-shadow-soft)`, `var(--ai-shadow-elevated)` |
+| Type | Example Tokens | Tailwind Equivalent |
+| :--- | :--- | :--- |
+| **Color** | `var(--ai-bg)`, `var(--ai-fg)` | `bg-ai-bg`, `text-ai-fg` |
+| **Radius** | `var(--ai-radius-md)` | `rounded-ai` |
+| **Shadow** | `var(--ai-shadow-soft)` | `shadow-ai-soft` |
 
-### B. Global CSS Selectors (Primitives)
+### B. Global CSS Primitives
 
-Low-level classes that can be applied to any element:
-
-- **Typography**: `.ai-label-overline` (uppercase metadata), `.ai-helper-text` (small desc), `.ai-text-muted`.
-- **Interactivity**: `.focus-ring`, `.ai-selectable--active`, `.ai-selectable--hoverable`.
-- **Special**: `.ai-info-icon` (hoverable tooltip triggers), `.ai-check-circle`.
+- **Typography**: `.ai-label-overline` (metadata), `.ai-helper-text` (desc), `.ai-text-muted`.
+- **Interactivity**: `.focus-ring`, `.ai-selectable--active`.
+- **Tooltips**: Elements with `data-tooltip="..."` automatically show a styled tooltip on hover.
 
 ---
 
-## 3. UI Primitives (Atomic React Components)
+## 4. UI Primitives & Patterns (React Layer)
 
-Located in `components/ui/`, these components encapsulate global CSS primitives into reusable React building blocks.
+### A. Atomic Primitives (`components/ui/`)
 
-- **[button.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/button.tsx)**
-  - Wraps `.ai-button` with variants: `default`, `outline`, `ghost`.
-  - Automatically includes `.focus-ring`.
-- **[input.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/input.tsx)** / **[switch.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/switch.tsx)**
-  - Wraps `.ai-input`, `.ai-switch`.
-  - Handles state via data-attributes like `[data-state="checked"]`.
-- **[label.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/label.tsx)**
-  - Wraps typography primitives like `.ai-label-overline`.
+- **[button.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/button.tsx)**: Standardized variants (`default`, `outline`, `ghost`).
+- **[input.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/input.tsx)**: Standard input with focus rings.
 
----
+### B. Higher-Order Patterns
 
-## 4. Non-Primitive Components (Patterns & Features)
-
-These are complex components that combine multiple primitives or define specific domain patterns.
-
-### A. UI Layout Patterns (`components/ui/`)
-
-- **[card.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/card.tsx)**: Implements `.ai-card` structure with sub-components (`CardHeader`, `CardTitle`, `CardContent`).
-- **[section.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/section.tsx)**: Implements `.ai-setting-section`, frequently used in setting drawers/panels.
-- **[field.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/field.tsx)**: A high-level pattern that combines a `Label`, a `Control` (Input/Switch), and a `Description`.
-
-### B. Feature-Specific Components (`components/chat/`, `components/admin/`)
-
-- **[ChatMessageItem.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/chat/ChatMessageItem.tsx)**: Combines local CSS Modules for message bubble layout with global tokens and patterns (like `ai-info-icon`) for telemetry diagnostics.
+- **[card.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/card.tsx)**: Structural cards using `.ai-card`.
+- **[meta-card.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/meta-card.tsx)**: **[NEW]** Diagnostic display for telemetry and guardrail data.
+- **[field.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/field.tsx)**: Combines Label + Control + Helper text.
 
 ---
 
@@ -71,19 +74,17 @@ These are complex components that combine multiple primitives or define specific
 
 ### File Naming
 
-Follow these rules to keep the codebase navigable:
-
-| Target                        | Naming                  | Example                       |
-| :---------------------------- | :---------------------- | :---------------------------- |
-| **Atomic UI Component**       | `kebab-case.tsx`        | `button.tsx`, `stat-card.tsx` |
-| **Complex Feature Component** | `PascalCase.tsx`        | `ChatMessageItem.tsx`         |
-| **Global Styles**             | `kebab-case.css`        | `ai-design-system.css`        |
-| **Component Styles**          | `PascalCase.module.css` | `Tabs.module.css`             |
-| **Custom Hooks**              | `use-kebab-case.ts`     | `use-chat-scroll.ts`          |
+| Target                  | Naming           | Example                |
+| :---------------------- | :--------------- | :--------------------- |
+| **Atomic UI Component** | `kebab-case.tsx` | `button.tsx`           |
+| **Feature Component**   | `PascalCase.tsx` | `ChatMessageItem.tsx`  |
+| **Global Styles**       | `kebab-case.css` | `ai-design-system.css` |
 
 ### Grounding Rules for Implementation
 
-1. **Never Hardcode Colors**: Always use a CSS variable. If a shade is needed that doesn't exist, use `color-mix(in srgb, var(--ai-text) 10%, transparent)`.
-2. **Prop Transparency**: Atomic components (`Button`, `Input`) should always spread `...props` to allow standard HTML attributes.
-3. **Accessibility First**: Use `aria-describedby` in `Field` components (automatically handled by the `Field` pattern) to link labels and descriptions to inputs.
-4. **Theme Continuity**: If a component looks wrong in dark mode, adjust the token values or use `color-mix` rather than hardcoding a "dark" specific hex code.
+1. **Utility-First for Layout**: Use Tailwind utilities (`p-4`, `flex`, `gap-2`) for layout and spacing.
+2. **Tokens for Visuals**: Use `ai-` prefixed Tailwind classes or CSS variables for colors, borders, and shadows.
+3. **Limit `@apply`**: Use `@apply` only for recurring atomic patterns (like `.ai-label-overline`). For one-off components, prefer inline Tailwind classes.
+4. **Never Hardcode Colors**: Use tokens. If a variation is needed, use `color-mix`.
+5. **Accessibility**: Always use `aria-describedby` to link inputs with helper text.
+6. **Interaction Scope**: Use `InteractionScope` to propagate disabled states down the tree automatically.
