@@ -9,15 +9,24 @@ export type CheckboxProps = Omit<
 > & {
   checked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
+  readOnly?: boolean;
 };
 
 export const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
   (
-    { className, checked = false, onCheckedChange, disabled, ...props },
+    {
+      className,
+      checked = false,
+      onCheckedChange,
+      disabled,
+      readOnly,
+      ...props
+    },
     ref,
   ) => {
     const interaction = useInteraction();
     const isDisabled = disabled || interaction.disabled;
+    const isReadOnly = readOnly || interaction.readOnly;
 
     return (
       <button
@@ -25,10 +34,11 @@ export const Checkbox = React.forwardRef<HTMLButtonElement, CheckboxProps>(
         role="checkbox"
         aria-checked={checked}
         data-state={checked ? "checked" : "unchecked"}
+        data-readonly={isReadOnly ? "true" : undefined}
         className={cn("ai-checkbox focus-ring", className)}
         onClick={(event) => {
           event.preventDefault();
-          if (isDisabled) {
+          if (isDisabled || isReadOnly) {
             return;
           }
           onCheckedChange?.(!checked);
@@ -67,6 +77,7 @@ export type CheckboxChoiceProps = CheckboxProps & {
   description?: React.ReactNode;
   layout?: "inline" | "stacked";
   id?: string;
+  readOnly?: boolean;
 };
 
 export function CheckboxChoice({
@@ -75,11 +86,13 @@ export function CheckboxChoice({
   layout = "inline",
   id,
   disabled,
+  readOnly,
   className,
   ...checkboxProps
 }: CheckboxChoiceProps) {
   const interaction = useInteraction();
   const isDisabled = disabled || interaction.disabled;
+  const isReadOnly = readOnly || interaction.readOnly;
 
   const internalId = React.useId();
   const labelId = id ?? `${internalId}-label`;
@@ -106,15 +119,18 @@ export function CheckboxChoice({
         "ai-choice__label-row",
         layout === "stacked" && "ai-choice__label-row--stacked",
         isDisabled && "opacity-60 cursor-not-allowed",
+        isReadOnly && "ai-choice__label-row--readonly",
         className,
       )}
       onClick={handleWrapperClick}
       aria-disabled={isDisabled || undefined}
+      data-readonly={isReadOnly || undefined}
     >
       <Checkbox
         ref={checkboxRef}
         aria-labelledby={labelId}
-        disabled={disabled} // Passed prop, Checkbox will also check context, but logic holds.
+        disabled={disabled}
+        readOnly={readOnly}
         {...checkboxProps}
       />
       <div className="flex flex-col gap-0.5">

@@ -9,15 +9,24 @@ export type SwitchProps = Omit<
 > & {
   checked?: boolean;
   onCheckedChange?: (checked: boolean) => void;
+  readOnly?: boolean;
 };
 
 export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
   (
-    { className, checked = false, onCheckedChange, disabled, ...props },
+    {
+      className,
+      checked = false,
+      onCheckedChange,
+      disabled,
+      readOnly,
+      ...props
+    },
     ref,
   ) => {
     const interaction = useInteraction();
     const isDisabled = disabled || interaction.disabled;
+    const isReadOnly = readOnly || interaction.readOnly;
 
     return (
       <button
@@ -26,10 +35,11 @@ export const Switch = React.forwardRef<HTMLButtonElement, SwitchProps>(
         aria-checked={checked}
         data-state={checked ? "checked" : "unchecked"}
         data-disabled={isDisabled ? "true" : undefined}
+        data-readonly={isReadOnly ? "true" : undefined}
         className={cn("ai-switch shrink-0 focus-ring", className)}
         onClick={(event) => {
           event.preventDefault();
-          if (isDisabled) {
+          if (isDisabled || isReadOnly) {
             return;
           }
           onCheckedChange?.(!checked);

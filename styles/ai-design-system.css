@@ -586,6 +586,10 @@
   border-radius: var(--ai-radius-pill);
 }
 
+.ai-button--loading {
+  cursor: wait;
+}
+
 .ai-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -681,6 +685,13 @@
     color, background-color, border-color, text-decoration-color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ai-checkbox[data-readonly="true"] {
+  cursor: default;
+  opacity: 0.8;
 }
 
 .ai-checkbox:disabled {
@@ -709,6 +720,14 @@
     color, background-color, border-color, text-decoration-color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
+}
+
+.ai-input--readonly,
+.ai-input[data-readonly="true"],
+.ai-textarea[data-readonly="true"],
+.ai-select[data-readonly="true"] {
+  cursor: default;
+  opacity: 0.8;
 }
 
 .ai-input::placeholder,

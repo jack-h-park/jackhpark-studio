@@ -1,6 +1,8 @@
 import * as React from "react";
 
 import { cn } from "./utils";
+import { LoadingIcon } from "../LoadingIcon";
+import { useInteraction } from "./interaction-context";
 
 const baseStyles = "ai-button focus-ring";
 
@@ -23,6 +25,7 @@ export type ButtonSize = keyof typeof buttonSizeStyles;
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   size?: ButtonSize;
+  loading?: boolean;
 };
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -32,10 +35,16 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       variant = "default",
       size = "default",
       type = "button",
+      loading: loadingProp,
+      children,
       ...props
     },
     ref,
   ) => {
+    const interaction = useInteraction();
+    const isLoading = loadingProp || interaction.loading;
+    const isDisabled = props.disabled || interaction.disabled || isLoading;
+
     return (
       <button
         type={type}
@@ -43,11 +52,22 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
           baseStyles,
           buttonVariantStyles[variant] ?? buttonVariantStyles.default,
           buttonSizeStyles[size] ?? buttonSizeStyles.default,
+          isLoading && "ai-button--loading",
           className,
         )}
         ref={ref}
+        disabled={isDisabled}
         {...props}
-      />
+      >
+        {isLoading ? (
+          <>
+            <LoadingIcon className="mr-2 h-4 w-4 animate-spin" />
+            {children}
+          </>
+        ) : (
+          children
+        )}
+      </button>
     );
   },
 );

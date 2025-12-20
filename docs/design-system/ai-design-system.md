@@ -55,6 +55,15 @@ Always use tokens instead of hardcoded values.
 
 ---
 
+### C. Interaction Management
+
+- **InteractionScope**: A context-aware wrapper used to propagate UI states (disabled, loading, readOnly) down the component tree automatically.
+  - `disabled`: Prevents all interaction and applies "greyed out" styling.
+  - `loading`: Primarily for buttons; shows a spinner and prevents clicks. Also disables nested inputs.
+  - `readOnly`: For inputs; prevents modification but maintains higher visibility/contrast than `disabled`.
+
+---
+
 ## 4. UI Primitives & Patterns (React Layer)
 
 ### A. Atomic Primitives (`components/ui/`)
