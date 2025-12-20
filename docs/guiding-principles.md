@@ -1,7 +1,0 @@
-- 코드 파편화 최소화
-- 유지보수성 중요
-- 가독성 중요
-- 불필요한 코드 최소화
-- 코드 일관성 유지
-- 로깅 관련 구현은 docs/telemetry/telemetry-logging.md 와 docs/telemetry/langfuse-guide.md 참고
-- UI/UX 관련 구현은 docs/design-system/ai-design-system.md 참고

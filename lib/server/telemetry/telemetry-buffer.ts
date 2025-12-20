@@ -1,7 +1,9 @@
 import type { LangfuseTrace, LangfuseTraceOptions } from "@/lib/langfuse";
 import { hashPayload } from "@/lib/server/chat-cache";
 import { isTelemetryEnabled } from "@/lib/server/telemetry/telemetry-enabled";
+import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
 import { buildSafeTraceInputSummary } from "@/lib/server/telemetry/telemetry-summaries";
+import { withSpan } from "@/lib/server/telemetry/withSpan";
 
 type TelemetryEvent = {
   name: string;
@@ -111,22 +113,30 @@ export function createTelemetryBuffer(context: TelemetryContext = {}) {
       const questionLength = question?.length ?? 0;
       const questionHash = question ? hashPayload({ q: question }) : null;
       const includePii = currentContext.includePii === true;
-      const responseMetadata: Record<string, unknown> = {
+      const metadataAdditional: Record<string, unknown> = {
         eventCount: events.length,
         requestId: currentContext.requestId ?? null,
         questionHash,
         questionLength,
       };
       if (includePii && question) {
-        responseMetadata.question = question;
+        metadataAdditional.question = question;
       }
-
-      await trace.observation({
-        name: "response-summary",
-        metadata: {
-          ...responseMetadata,
-        },
+      const metadata = buildTelemetryMetadata({
+        kind: "response",
+        requestId: currentContext.requestId ?? null,
+        additional: metadataAdditional,
       });
+
+      await withSpan(
+        {
+          trace,
+          requestId: currentContext.requestId ?? null,
+          name: "response-summary",
+          metadata,
+        },
+        async () => undefined,
+      );
       telemetryLogger.debug("[telemetry] flush-done", {
         events: events.length,
       });

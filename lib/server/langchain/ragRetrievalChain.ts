@@ -40,6 +40,8 @@ import {
   rewriteQuery,
 } from "@/lib/server/rag-enhancements";
 import { resolveRagUrl } from "@/lib/server/rag-url-resolver";
+import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
+import { buildSpanTiming, withSpan } from "@/lib/server/telemetry/withSpan";
 import {
   DEFAULT_RERANK_K,
   type RankerMode,
@@ -79,6 +81,7 @@ export function normalizeRagK(params: {
 }
 
 type RagChainInput = {
+  requestId?: string | null;
   guardrails: ChatGuardrailConfig;
   question: string;
   reverseRagEnabled: boolean;
@@ -167,29 +170,40 @@ export function buildRagRetrievalChain() {
     RagChainState & { rewrittenQuery: string }
   >(async (input) => {
     input.updateTrace?.({ metadata: { rag: { retrieval_attempted: true } } });
-    const rewrittenQuery = await rewriteQuery(input.question, {
-      enabled: input.reverseRagEnabled,
-      mode: input.reverseRagMode,
-      provider: input.provider,
-      model: input.llmModel,
+    const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
+    const reverseRagMetadata = buildTelemetryMetadata({
+      kind: "llm",
+      requestId: input.requestId,
+      generationProvider: input.provider,
+      generationModel: input.llmModel,
+      additional: {
+        env: input.env,
+        mode: input.reverseRagMode,
+        stage: "reverse-rag",
+        type: "reverse_rag",
+      },
     });
-
-    if (input.trace && input.reverseRagEnabled) {
-      const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
-      void input.trace.observation({
-        name: "reverse_rag",
-        input: allowPii ? input.question : undefined,
-        output: allowPii ? rewrittenQuery : undefined,
-        metadata: {
-          env: input.env,
-          provider: input.provider,
-          model: input.llmModel,
-          mode: input.reverseRagMode,
-          stage: "reverse-rag",
-          type: "reverse_rag",
-        },
+    const runRewrite = () =>
+      rewriteQuery(input.question, {
+        enabled: input.reverseRagEnabled,
+        mode: input.reverseRagMode,
+        provider: input.provider,
+        model: input.llmModel,
       });
-    }
+    const rewrittenQuery =
+      input.trace && input.reverseRagEnabled
+        ? await withSpan(
+            {
+              trace: input.trace,
+              requestId: input.requestId,
+              name: "reverse_rag",
+              input: allowPii ? input.question : undefined,
+              metadata: reverseRagMetadata,
+            },
+            runRewrite,
+            (result) => ({ output: allowPii ? result : undefined }),
+          )
+        : await runRewrite();
 
     input.logDebugRag?.("reverse-query", {
       enabled: input.reverseRagEnabled,
@@ -207,27 +221,37 @@ export function buildRagRetrievalChain() {
     RagChainState & { rewrittenQuery: string },
     RagChainState & { embeddingTarget: string; hydeDocument: string | null }
   >(async (input) => {
-    const hydeDocument = await generateHydeDocument(input.rewrittenQuery, {
-      enabled: input.hydeEnabled,
-      provider: input.provider,
-      model: input.llmModel,
+    const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
+    const hydeMetadata = buildTelemetryMetadata({
+      kind: "llm",
+      requestId: input.requestId,
+      generationProvider: input.provider,
+      generationModel: input.llmModel,
+      additional: {
+        env: input.env,
+        enabled: input.hydeEnabled,
+        stage: "hyde",
+      },
     });
-
-    if (input.trace) {
-      const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
-      void input.trace.observation({
-        name: "hyde",
-        input: allowPii ? input.rewrittenQuery : undefined,
-        output: allowPii ? hydeDocument : undefined,
-        metadata: {
-          env: input.env,
-          provider: input.provider,
-          model: input.llmModel,
-          enabled: input.hydeEnabled,
-          stage: "hyde",
-        },
+    const runHyde = () =>
+      generateHydeDocument(input.rewrittenQuery, {
+        enabled: input.hydeEnabled,
+        provider: input.provider,
+        model: input.llmModel,
       });
-    }
+    const hydeDocument = input.trace
+      ? await withSpan(
+          {
+            trace: input.trace,
+            requestId: input.requestId,
+            name: "hyde",
+            input: allowPii ? input.rewrittenQuery : undefined,
+            metadata: hydeMetadata,
+          },
+          runHyde,
+          (result) => ({ output: allowPii ? result : undefined }),
+        )
+      : await runHyde();
 
     input.logDebugRag?.("hyde", {
       enabled: input.hydeEnabled,
@@ -276,143 +300,179 @@ export function buildRagRetrievalChain() {
       enrichedDocs: EnrichedRetrievalItem<BaseRetrievalItem>[];
     }
   >(async (input) => {
-    const queryEmbedding = await input.embeddings.embedQuery(
-      input.embeddingTarget,
-    );
-    // Final K: upper bound on context/citations, from guardrails.ragTopK (>= 1).
-    const finalKBase = Math.max(1, input.guardrails.ragTopK);
-    // Retrieval stage K: vector search limit (candidate pool), normalized to >= rerank/final K.
-    const retrieveKBase = Math.max(RAG_TOP_K, input.candidateK);
-    const rerankEnabled = input.rankerMode !== "none";
-    const { retrieveK, finalK } = normalizeRagK({
-      retrieveK: retrieveKBase,
-      rerankK: rerankEnabled ? undefined : null,
-      finalK: finalKBase,
-      rerankEnabled,
+    const emitRetrievalSpan = Boolean(input.trace && input.includeVerboseDetails);
+    const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
+    const retrievalBaseMetadata = buildTelemetryMetadata({
+      kind: "retrieval",
+      requestId: input.requestId,
+      retrievalSource: "supabase",
+      cache: { retrievalHit: input.cacheMeta.retrievalHit },
+      additional: {
+        env: input.env,
+        stage: "retrieval",
+        source: "supabase",
+      },
     });
-    const store = new SupabaseVectorStore(input.embeddings, {
-      client: input.supabase,
-      tableName: input.tableName,
-      queryName: input.queryName,
-    });
-    const matches = await store.similaritySearchVectorWithScore(
-      queryEmbedding,
-      retrieveK,
-    );
-    const canonicalLookup = await loadCanonicalPageLookup();
-    const normalizedMatches = matches.map(([doc, score], index) => {
-      const rewrittenDoc = rewriteLangchainDocument(
-        doc,
-        canonicalLookup,
-        index,
+    const runRetrieval = async () => {
+      const queryEmbedding = await input.embeddings.embedQuery(
+        input.embeddingTarget,
       );
-      return [rewrittenDoc, score] as (typeof matches)[number];
-    });
+      // Final K: upper bound on context/citations, from guardrails.ragTopK (>= 1).
+      const finalKBase = Math.max(1, input.guardrails.ragTopK);
+      // Retrieval stage K: vector search limit (candidate pool), normalized to >= rerank/final K.
+      const retrieveKBase = Math.max(RAG_TOP_K, input.candidateK);
+      const rerankEnabled = input.rankerMode !== "none";
+      const { retrieveK, finalK } = normalizeRagK({
+        retrieveK: retrieveKBase,
+        rerankK: rerankEnabled ? undefined : null,
+        finalK: finalKBase,
+        rerankEnabled,
+      });
+      const store = new SupabaseVectorStore(input.embeddings, {
+        client: input.supabase,
+        tableName: input.tableName,
+        queryName: input.queryName,
+      });
+      const matches = await store.similaritySearchVectorWithScore(
+        queryEmbedding,
+        retrieveK,
+      );
+      const canonicalLookup = await loadCanonicalPageLookup();
+      const normalizedMatches = matches.map(([doc, score], index) => {
+        const rewrittenDoc = rewriteLangchainDocument(
+          doc,
+          canonicalLookup,
+          index,
+        );
+        return [rewrittenDoc, score] as (typeof matches)[number];
+      });
 
-    const baseDocs = normalizedMatches.map(([doc, score]) => {
-      const baseSimilarity =
-        typeof score === "number"
-          ? score
-          : typeof doc?.metadata?.similarity === "number"
-            ? (doc.metadata.similarity as number)
-            : 0;
-      const docId =
-        (doc.metadata?.doc_id as string | undefined) ??
-        (doc.metadata?.docId as string | undefined) ??
-        (doc.metadata?.document_id as string | undefined) ??
-        (doc.metadata?.documentId as string | undefined) ??
-        null;
+      const baseDocs = normalizedMatches.map(([doc, score]) => {
+        const baseSimilarity =
+          typeof score === "number"
+            ? score
+            : typeof doc?.metadata?.similarity === "number"
+              ? (doc.metadata.similarity as number)
+              : 0;
+        const docId =
+          (doc.metadata?.doc_id as string | undefined) ??
+          (doc.metadata?.docId as string | undefined) ??
+          (doc.metadata?.document_id as string | undefined) ??
+          (doc.metadata?.documentId as string | undefined) ??
+          null;
+
+        return {
+          doc,
+          chunk: doc.pageContent,
+          docId,
+          baseSimilarity,
+          metadata: doc.metadata,
+        };
+      });
+
+      ragLogger.debug(
+        "[langchain_chat] baseDocs docId snapshot",
+        baseDocs.map((entry) => ({
+          docId: entry.docId,
+          metadataDocId: entry.doc.metadata?.doc_id ?? null,
+        })),
+      );
+
+      if (input.includeVerboseDetails && input.trace) {
+        logRetrievalStage(
+          input.trace,
+          "raw_results",
+          buildRetrievalTelemetryEntries(
+            baseDocs,
+            MAX_RETRIEVAL_TELEMETRY_ITEMS,
+          ),
+          {
+            engine: "langchain",
+            presetKey: input.chatConfigSnapshot?.presetKey,
+            chatConfig: input.chatConfigSnapshot ?? undefined,
+            requestId: input.requestId,
+          },
+        );
+      }
+
+      const docIds = extractDocIdsFromBaseDocs(baseDocs);
+      const metadataMap = await fetchRefinedMetadata(
+        docIds,
+        input.supabaseAdmin,
+      );
+
+      const enrichedDocs = enrichAndFilterDocs(
+        baseDocs,
+        metadataMap,
+        input.ragRanking,
+      );
+
+      ragLogger.debug("[langchain_chat] retrieved urls", {
+        urls: enrichedDocs.map((d) => d.metadata?.source_url).filter(Boolean),
+      });
+
+      if (input.includeVerboseDetails && input.trace) {
+        logRetrievalStage(
+          input.trace,
+          "after_weighting",
+          buildRetrievalTelemetryEntries(
+            enrichedDocs,
+            MAX_RETRIEVAL_TELEMETRY_ITEMS,
+          ),
+          {
+            engine: "langchain",
+            presetKey: input.chatConfigSnapshot?.presetKey,
+            chatConfig: input.chatConfigSnapshot ?? undefined,
+            requestId: input.requestId,
+          },
+        );
+      }
+
+      const retrievalTelemetry = emitRetrievalSpan
+        ? buildRetrievalTelemetryEntries(
+            enrichedDocs,
+            MAX_RETRIEVAL_TELEMETRY_ITEMS,
+          )
+        : [];
 
       return {
-        doc,
-        chunk: doc.pageContent,
-        docId,
-        baseSimilarity,
-        metadata: doc.metadata,
-      };
-    });
-
-    ragLogger.debug(
-      "[langchain_chat] baseDocs docId snapshot",
-      baseDocs.map((entry) => ({
-        docId: entry.docId,
-        metadataDocId: entry.doc.metadata?.doc_id ?? null,
-      })),
-    );
-
-    if (input.includeVerboseDetails && input.trace) {
-      logRetrievalStage(
-        input.trace,
-        "raw_results",
-        buildRetrievalTelemetryEntries(baseDocs, MAX_RETRIEVAL_TELEMETRY_ITEMS),
-        {
-          engine: "langchain",
-          presetKey: input.chatConfigSnapshot?.presetKey,
-          chatConfig: input.chatConfigSnapshot ?? undefined,
-        },
-      );
-    }
-
-    const docIds = extractDocIdsFromBaseDocs(baseDocs);
-    const metadataMap = await fetchRefinedMetadata(docIds, input.supabaseAdmin);
-
-    const enrichedDocs = enrichAndFilterDocs(
-      baseDocs,
-      metadataMap,
-      input.ragRanking,
-    );
-
-    ragLogger.debug("[langchain_chat] retrieved urls", {
-      urls: enrichedDocs.map((d) => d.metadata?.source_url).filter(Boolean),
-    });
-
-    if (input.includeVerboseDetails && input.trace) {
-      logRetrievalStage(
-        input.trace,
-        "after_weighting",
-        buildRetrievalTelemetryEntries(
-          enrichedDocs,
-          MAX_RETRIEVAL_TELEMETRY_ITEMS,
-        ),
-        {
-          engine: "langchain",
-          presetKey: input.chatConfigSnapshot?.presetKey,
-          chatConfig: input.chatConfigSnapshot ?? undefined,
-        },
-      );
-    }
-
-    if (input.trace && input.includeVerboseDetails) {
-      const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
-      const retrievalTelemetry = buildRetrievalTelemetryEntries(
+        queryEmbedding,
         enrichedDocs,
-        MAX_RETRIEVAL_TELEMETRY_ITEMS,
-      );
-      void input.trace.observation({
-        name: "retrieval",
-        input: allowPii ? input.preRetrieval.embeddingTarget : undefined,
-        output: retrievalTelemetry,
-        metadata: {
-          env: input.env,
-          provider: input.provider,
-          model: input.llmModel,
-          stage: "retrieval",
-          source: "supabase",
-          results: enrichedDocs.length,
-          cache: {
-            retrievalHit: input.cacheMeta.retrievalHit,
+        retrieveK,
+        finalK,
+        candidatesRetrieved: matches.length,
+        retrievalTelemetry,
+      };
+    };
+
+    const retrievalResult = emitRetrievalSpan
+      ? await withSpan(
+          {
+            trace: input.trace,
+            requestId: input.requestId,
+            name: "retrieval",
+            input: allowPii ? input.preRetrieval.embeddingTarget : undefined,
+            metadata: retrievalBaseMetadata,
           },
-        },
-      });
-    }
+          runRetrieval,
+          (result) => ({
+            output: result.retrievalTelemetry,
+            metadata: {
+              ...retrievalBaseMetadata,
+              cache: { retrievalHit: input.cacheMeta.retrievalHit },
+              results: result.enrichedDocs.length,
+            },
+          }),
+        )
+      : await runRetrieval();
 
     return {
       ...input,
-      queryEmbedding,
-      enrichedDocs,
-      retrieveK,
-      finalK,
-      candidatesRetrieved: matches.length,
+      queryEmbedding: retrievalResult.queryEmbedding,
+      enrichedDocs: retrievalResult.enrichedDocs,
+      retrieveK: retrievalResult.retrieveK,
+      finalK: retrievalResult.finalK,
+      candidatesRetrieved: retrievalResult.candidatesRetrieved,
     };
   }).withConfig({
     runName: makeRunName("rag", "retrieve"),
@@ -438,41 +498,67 @@ export function buildRagRetrievalChain() {
       finalK: finalKBase,
       rerankEnabled,
     });
-    const rankedDocs = await applyRanker(input.enrichedDocs, {
-      mode: input.rankerMode,
-      maxResults: rerankEnabled ? (rerankK ?? finalK) : finalK,
-      embeddingSelection: input.embeddingSelection,
-      queryEmbedding: input.queryEmbedding,
+    const emitRerankerSpan = Boolean(input.trace && input.includeVerboseDetails);
+    const rerankerBaseMetadata = buildTelemetryMetadata({
+      kind: "reranker",
+      requestId: input.requestId,
+      cache: { retrievalHit: input.cacheMeta.retrievalHit },
+      additional: {
+        env: input.env,
+        stage: "reranker",
+        mode: input.rankerMode,
+      },
     });
 
-    if (input.trace && input.includeVerboseDetails) {
-      const rerankerInputTelemetry = buildRetrievalTelemetryEntries(
-        input.enrichedDocs,
-        MAX_RETRIEVAL_TELEMETRY_ITEMS,
-      );
-      const rerankerOutputTelemetry = buildRetrievalTelemetryEntries(
-        rankedDocs,
-        MAX_RETRIEVAL_TELEMETRY_ITEMS,
-      );
-      void input.trace.observation({
-        name: "reranker",
-        input: rerankerInputTelemetry,
-        output: rerankerOutputTelemetry,
-        metadata: {
-          env: input.env,
-          provider: input.provider,
-          model: input.llmModel,
-          mode: input.rankerMode,
-          stage: "reranker",
-          results: rankedDocs.length,
-          cache: {
-            retrievalHit: input.cacheMeta.retrievalHit,
-          },
-        },
+    const runReranker = async () => {
+      const rankedDocs = await applyRanker(input.enrichedDocs, {
+        mode: input.rankerMode,
+        maxResults: rerankEnabled ? (rerankK ?? finalK) : finalK,
+        embeddingSelection: input.embeddingSelection,
+        queryEmbedding: input.queryEmbedding,
       });
-    }
+      const rerankerInputTelemetry = emitRerankerSpan
+        ? buildRetrievalTelemetryEntries(
+            input.enrichedDocs,
+            MAX_RETRIEVAL_TELEMETRY_ITEMS,
+          )
+        : [];
+      const rerankerOutputTelemetry = emitRerankerSpan
+        ? buildRetrievalTelemetryEntries(
+            rankedDocs,
+            MAX_RETRIEVAL_TELEMETRY_ITEMS,
+          )
+        : [];
 
-    return { ...input, rankedDocs, finalK };
+      return {
+        rankedDocs,
+        rerankerInputTelemetry,
+        rerankerOutputTelemetry,
+      };
+    };
+
+    const rerankerResult = emitRerankerSpan
+      ? await withSpan(
+          {
+            trace: input.trace,
+            requestId: input.requestId,
+            name: "reranker",
+            metadata: rerankerBaseMetadata,
+          },
+          runReranker,
+          (result) => ({
+            input: result.rerankerInputTelemetry,
+            output: result.rerankerOutputTelemetry,
+            metadata: {
+              ...rerankerBaseMetadata,
+              cache: { retrievalHit: input.cacheMeta.retrievalHit },
+              results: result.rankedDocs.length,
+            },
+          }),
+        )
+      : await runReranker();
+
+    return { ...input, rankedDocs: rerankerResult.rankedDocs, finalK };
   }).withConfig({
     runName: makeRunName("rag", "rank"),
   });
@@ -482,14 +568,49 @@ export function buildRagRetrievalChain() {
     RagChainOutput
   >(async (input) => {
     // Context stage K: upper bound on selected chunks/citations (finalK).
-    const contextResult = buildContextWindow(
-      input.rankedDocs,
-      input.guardrails,
-      {
+    const spanStartMs = Date.now();
+    let contextResult: ContextWindowResult | null = null;
+    try {
+      contextResult = buildContextWindow(input.rankedDocs, input.guardrails, {
         includeVerboseDetails: input.includeVerboseDetails,
         includeSelectionMetadata: input.includeSelectionMetadata,
-      },
-    );
+      });
+    } finally {
+      if (
+        input.trace &&
+        input.includeSelectionMetadata &&
+        contextResult?.selection
+      ) {
+        const { startTime, endTime } = buildSpanTiming({
+          name: "context:selection",
+          startMs: spanStartMs,
+          endMs: Date.now(),
+          requestId: input.requestId,
+        });
+        const metadata = buildTelemetryMetadata({
+          kind: "selection",
+          requestId: input.requestId,
+          additional: {
+            quotaStart: contextResult.selection.quotaStart,
+            uniqueDocs: contextResult.selection.uniqueDocs,
+            droppedByDedupe: contextResult.selection.droppedByDedupe,
+            droppedByQuota: contextResult.selection.droppedByQuota,
+            quotaEndUsed: contextResult.selection.quotaEnd,
+            mmrLite: contextResult.selection.mmrLite,
+            mmrLambda: contextResult.selection.mmrLambda,
+          },
+        });
+        void input.trace.observation({
+          name: "context:selection",
+          metadata,
+          startTime,
+          endTime,
+        });
+      }
+    }
+    if (!contextResult) {
+      throw new Error("contextResult was not created");
+    }
     const retrieveKBase =
       input.retrieveK ?? Math.max(RAG_TOP_K, input.candidateK);
     const finalKBase = input.finalK ?? Math.max(1, input.guardrails.ragTopK);

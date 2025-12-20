@@ -12,6 +12,8 @@ import {
   generateHydeDocument,
   rewriteQuery,
 } from "@/lib/server/rag-enhancements";
+import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
+import { withSpan } from "@/lib/server/telemetry/withSpan";
 
 // --- Types ---
 
@@ -63,6 +65,7 @@ export async function processPreRetrieval(options: {
   model: string;
   trace?: any; // Langfuse trace
   env?: any;
+  requestId?: string | null;
   logDebugRag?: (label: string, payload: any) => void;
 }): Promise<PreRetrievalResult> {
   const {
@@ -75,32 +78,48 @@ export async function processPreRetrieval(options: {
     model,
     trace,
     env,
+    requestId,
     logDebugRag,
   } = options;
 
-  // 1. Reverse RAG
-  const rewrittenQuery = await rewriteQuery(question, {
-    enabled: reverseRagEnabled,
-    mode: reverseRagMode,
-    provider,
-    model,
+  const reverseRagMetadata = buildTelemetryMetadata({
+    kind: "llm",
+    requestId,
+    generationProvider: provider,
+    generationModel: model,
+    additional: {
+      env,
+      mode: reverseRagMode,
+      stage: "reverse-rag",
+      type: "reverse_rag",
+    },
   });
 
-  if (trace && reverseRagEnabled) {
-    void trace.observation({
-      name: "reverse_rag",
-      input: question,
-      output: rewrittenQuery,
-      metadata: {
-        env,
-        provider,
-        model,
-        mode: reverseRagMode,
-        stage: "reverse-rag",
-        type: "reverse_rag",
-      },
-    });
-  }
+  const rewrittenQuery =
+    trace && reverseRagEnabled
+      ? await withSpan(
+          {
+            trace,
+            requestId,
+            name: "reverse_rag",
+            input: question,
+            metadata: reverseRagMetadata,
+          },
+          async () =>
+            rewriteQuery(question, {
+              enabled: reverseRagEnabled,
+              mode: reverseRagMode,
+              provider,
+              model,
+            }),
+          (result) => ({ output: result }),
+        )
+      : await rewriteQuery(question, {
+          enabled: reverseRagEnabled,
+          mode: reverseRagMode,
+          provider,
+          model,
+        });
 
   if (logDebugRag) {
     logDebugRag("reverse-query", {
@@ -112,26 +131,40 @@ export async function processPreRetrieval(options: {
   }
 
   // 2. Hyde
-  const hydeDocument = await generateHydeDocument(rewrittenQuery, {
-    enabled: hydeEnabled,
-    provider,
-    model,
+  const hydeMetadata = buildTelemetryMetadata({
+    kind: "llm",
+    requestId,
+    generationProvider: provider,
+    generationModel: model,
+    additional: {
+      env,
+      enabled: hydeEnabled,
+      stage: "hyde",
+    },
   });
 
-  if (trace) {
-    void trace.observation({
-      name: "hyde",
-      input: rewrittenQuery,
-      output: hydeDocument,
-      metadata: {
-        env,
+  const hydeDocument = trace
+    ? await withSpan(
+        {
+          trace,
+          requestId,
+          name: "hyde",
+          input: rewrittenQuery,
+          metadata: hydeMetadata,
+        },
+        async () =>
+          generateHydeDocument(rewrittenQuery, {
+            enabled: hydeEnabled,
+            provider,
+            model,
+          }),
+        (result) => ({ output: result }),
+      )
+    : await generateHydeDocument(rewrittenQuery, {
+        enabled: hydeEnabled,
         provider,
         model,
-        enabled: hydeEnabled,
-        stage: "hyde",
-      },
-    });
-  }
+      });
   if (logDebugRag) {
     logDebugRag("hyde", {
       enabled: hydeEnabled,

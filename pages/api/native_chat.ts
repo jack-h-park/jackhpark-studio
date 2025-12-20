@@ -63,6 +63,8 @@ import {
 import { applyRanker } from "@/lib/server/rag-enhancements";
 import { logDebugRag } from "@/lib/server/rag-logger";
 import { resolveRagUrl } from "@/lib/server/rag-url-resolver";
+import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
+import { withSpan } from "@/lib/server/telemetry/withSpan";
 import {
   type GuardrailEnhancements,
   type GuardrailMeta,
@@ -370,6 +372,10 @@ export default async function handler(
     const embeddingProvider = embeddingSelection.provider;
     const llmModel = llmSelection.model;
     const embeddingModel = embeddingSelection.model;
+    const requestId =
+      typeof req.headers["x-request-id"] === "string"
+        ? req.headers["x-request-id"]
+        : null;
     if (traceMetadata) {
       traceMetadata.provider = provider;
       traceMetadata.model = llmModel;
@@ -569,6 +575,7 @@ export default async function handler(
           model: llmModel,
           trace,
           env,
+          requestId,
           logDebugRag,
         });
         enhancements = preRetrieval.enhancementSummary;
@@ -583,8 +590,20 @@ export default async function handler(
           embeddingSelection.provider === "gemini" ? "gemini" : "openai";
 
         // --- Retrieval (Specific to Native) ---
-        let typedDocuments: RagDocument[] = [];
-        try {
+        const emitRetrievalSpan = Boolean(trace && includeVerboseDetails);
+        const retrievalBaseMetadata = buildTelemetryMetadata({
+          kind: "retrieval",
+          requestId,
+          retrievalSource: "supabase",
+          cache: { retrievalHit: cacheMeta.retrievalHit },
+          additional: {
+            env,
+            stage: "retrieval",
+            source: "supabase",
+          },
+        });
+
+        const runRetrievalStage = async () => {
           const result = await matchRagChunksForConfig({
             client: supabaseClient,
             embedding,
@@ -594,9 +613,125 @@ export default async function handler(
             mode: "native",
             embeddingProvider,
           });
-          typedDocuments = Array.isArray(result)
+          const typedDocuments = Array.isArray(result)
             ? (result as RagDocument[])
             : [];
+
+          // --- Shared Post-Retrieval ---
+          const baseRetrievalItems = typedDocuments.map((doc) => ({
+            ...doc,
+            docId:
+              doc.doc_id ||
+              doc.docId ||
+              doc.document_id ||
+              doc.documentId ||
+              null,
+            baseSimilarity:
+              typeof doc.similarity === "number"
+                ? doc.similarity
+                : typeof doc.score === "number"
+                  ? doc.score
+                  : typeof doc.similarity_score === "number"
+                    ? doc.similarity_score
+                    : 0,
+            metadata: doc.metadata,
+          }));
+
+          if (includeVerboseDetails && trace) {
+            logRetrievalStage(
+              trace,
+              "raw_results",
+              buildRetrievalTelemetryEntries(
+                baseRetrievalItems,
+                MAX_RETRIEVAL_TELEMETRY_ITEMS,
+              ),
+              {
+                engine: "native",
+                presetKey: chatConfigSnapshot?.presetKey,
+                chatConfig: chatConfigSnapshot,
+                requestId,
+              },
+            );
+          }
+
+          const docIds = extractDocIdsFromBaseDocs(baseRetrievalItems);
+          const metadataMap = await fetchRefinedMetadata(
+            docIds,
+            supabaseClient,
+          );
+
+          // Enrich, Weight, Filter, Sort
+          const enrichedDocuments = enrichAndFilterDocs(
+            baseRetrievalItems,
+            metadataMap,
+            ragRanking,
+          );
+
+          ragLogger.debug("[native_chat] retrieved urls", {
+            urls: enrichedDocuments
+              .map((d) => d.metadata?.source_url)
+              .filter(Boolean),
+          });
+
+          if (includeVerboseDetails && trace) {
+            logRetrievalStage(
+              trace,
+              "after_weighting",
+              buildRetrievalTelemetryEntries(
+                enrichedDocuments,
+                MAX_RETRIEVAL_TELEMETRY_ITEMS,
+              ),
+              {
+                engine: "native",
+                presetKey: chatConfigSnapshot?.presetKey,
+                chatConfig: chatConfigSnapshot,
+                requestId,
+              },
+            );
+          }
+
+          const canonicalLookup = await loadCanonicalPageLookup();
+          const normalizedDocuments = applyPublicPageUrls(
+            enrichedDocuments,
+            canonicalLookup,
+          );
+
+          const retrievalTelemetry = emitRetrievalSpan
+            ? buildRetrievalTelemetryEntries(
+                normalizedDocuments,
+                MAX_RETRIEVAL_TELEMETRY_ITEMS,
+              )
+            : [];
+
+          return {
+            normalizedDocuments,
+            retrievalTelemetry,
+          };
+        };
+
+        let normalizedDocuments: RagDocument[] = [];
+        try {
+          const retrievalResult = emitRetrievalSpan
+            ? await withSpan(
+                {
+                  trace,
+                  requestId,
+                  name: "retrieval",
+                  input: preRetrieval.embeddingTarget,
+                  metadata: retrievalBaseMetadata,
+                },
+                runRetrievalStage,
+                (result) => ({
+                  output: result.retrievalTelemetry,
+                  metadata: {
+                    ...retrievalBaseMetadata,
+                    cache: { retrievalHit: cacheMeta.retrievalHit },
+                    results: result.normalizedDocuments.length,
+                  },
+                }),
+              )
+            : await runRetrievalStage();
+          normalizedDocuments = retrievalResult.normalizedDocuments;
         } catch (matchErr) {
           console.error("Error matching documents:", matchErr);
           return res.status(500).json({
@@ -606,136 +741,67 @@ export default async function handler(
           });
         }
 
-        // --- Shared Post-Retrieval ---
-        const baseRetrievalItems = typedDocuments.map((doc) => ({
-          ...doc,
-          docId:
-            doc.doc_id ||
-            doc.docId ||
-            doc.document_id ||
-            doc.documentId ||
-            null,
-          baseSimilarity:
-            typeof doc.similarity === "number"
-              ? doc.similarity
-              : typeof doc.score === "number"
-                ? doc.score
-                : typeof doc.similarity_score === "number"
-                  ? doc.similarity_score
-                  : 0,
-          metadata: doc.metadata,
-        }));
-
-        if (includeVerboseDetails && trace) {
-          logRetrievalStage(
-            trace,
-            "raw_results",
-            buildRetrievalTelemetryEntries(
-              baseRetrievalItems,
-              MAX_RETRIEVAL_TELEMETRY_ITEMS,
-            ),
-            {
-              engine: "native",
-              presetKey: chatConfigSnapshot?.presetKey,
-              chatConfig: chatConfigSnapshot,
-            },
-          );
-        }
-
-        const docIds = extractDocIdsFromBaseDocs(baseRetrievalItems);
-        const metadataMap = await fetchRefinedMetadata(docIds, supabaseClient);
-
-        // Enrich, Weight, Filter, Sort
-        const enrichedDocuments = enrichAndFilterDocs(
-          baseRetrievalItems,
-          metadataMap,
-          ragRanking,
-        );
-
-        ragLogger.debug("[native_chat] retrieved urls", {
-          urls: enrichedDocuments
-            .map((d) => d.metadata?.source_url)
-            .filter(Boolean),
+        const emitRerankerSpan = Boolean(trace && includeVerboseDetails);
+        const rerankerBaseMetadata = buildTelemetryMetadata({
+          kind: "reranker",
+          requestId,
+          cache: { retrievalHit: cacheMeta.retrievalHit },
+          additional: {
+            env,
+            stage: "reranker",
+            mode: rankerMode,
+          },
         });
 
-        if (includeVerboseDetails && trace) {
-          logRetrievalStage(
-            trace,
-            "after_weighting",
-            buildRetrievalTelemetryEntries(
-              enrichedDocuments,
-              MAX_RETRIEVAL_TELEMETRY_ITEMS,
-            ),
-            {
-              engine: "native",
-              presetKey: chatConfigSnapshot?.presetKey,
-              chatConfig: chatConfigSnapshot,
-            },
-          );
-        }
-
-        const canonicalLookup = await loadCanonicalPageLookup();
-        const normalizedDocuments = applyPublicPageUrls(
-          enrichedDocuments,
-          canonicalLookup,
-        );
-
-        if (trace && includeVerboseDetails) {
-          const retrievalTelemetry = buildRetrievalTelemetryEntries(
-            normalizedDocuments,
-            MAX_RETRIEVAL_TELEMETRY_ITEMS,
-          );
-          void trace.observation({
-            name: "retrieval",
-            input: preRetrieval.embeddingTarget,
-            output: retrievalTelemetry,
-            metadata: {
-              env,
-              provider,
-              model: llmModel,
-              source: "supabase",
-              stage: "retrieval",
-              results: normalizedDocuments.length,
-              cache: {
-                retrievalHit: cacheMeta.retrievalHit,
-              },
-            },
+        const runReranker = async () => {
+          const rankedDocuments = await applyRanker(normalizedDocuments, {
+            mode: rankerMode,
+            maxResults: Math.max(guardrails.ragTopK, 1),
+            embeddingSelection,
+            queryEmbedding: embedding,
           });
-        }
+          const rerankerInputTelemetry = emitRerankerSpan
+            ? buildRetrievalTelemetryEntries(
+                normalizedDocuments,
+                MAX_RETRIEVAL_TELEMETRY_ITEMS,
+              )
+            : [];
+          const rerankerOutputTelemetry = emitRerankerSpan
+            ? buildRetrievalTelemetryEntries(
+                rankedDocuments,
+                MAX_RETRIEVAL_TELEMETRY_ITEMS,
+              )
+            : [];
 
-        const rankedDocuments = await applyRanker(normalizedDocuments, {
-          mode: rankerMode,
-          maxResults: Math.max(guardrails.ragTopK, 1),
-          embeddingSelection,
-          queryEmbedding: embedding,
-        });
-
-        if (trace && includeVerboseDetails) {
-          const rerankerInputTelemetry = buildRetrievalTelemetryEntries(
-            normalizedDocuments,
-            MAX_RETRIEVAL_TELEMETRY_ITEMS,
-          );
-          const rerankerOutputTelemetry = buildRetrievalTelemetryEntries(
+          return {
             rankedDocuments,
-            MAX_RETRIEVAL_TELEMETRY_ITEMS,
-          );
-          void trace.observation({
-            name: "reranker",
-            input: rerankerInputTelemetry,
-            output: rerankerOutputTelemetry,
-            metadata: {
-              env,
-              provider,
-              model: llmModel,
-              mode: rankerMode,
-              stage: "reranker",
-              results: rankedDocuments.length,
-              cache: {
-                retrievalHit: cacheMeta.retrievalHit,
+            rerankerInputTelemetry,
+            rerankerOutputTelemetry,
+          };
+        };
+
+        const rerankerResult = emitRerankerSpan
+          ? await withSpan(
+              {
+                trace,
+                requestId,
+                name: "reranker",
+                metadata: rerankerBaseMetadata,
               },
-            },
-          });
-        }
+              runReranker,
+              (result) => ({
+                input: result.rerankerInputTelemetry,
+                output: result.rerankerOutputTelemetry,
+                metadata: {
+                  ...rerankerBaseMetadata,
+                  cache: { retrievalHit: cacheMeta.retrievalHit },
+                  results: result.rankedDocuments.length,
+                },
+              }),
+            )
+          : await runReranker();
+
+        const rankedDocuments = rerankerResult.rankedDocuments;
 
         contextResult = buildContextWindow(rankedDocuments, guardrails);
         const topKChunks = Math.max(

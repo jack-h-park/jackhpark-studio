@@ -1,6 +1,8 @@
 import type { langfuse } from "@/lib/langfuse";
 import type { ChatConfigSnapshot } from "@/lib/rag/types";
 import { isDomainLogLevelEnabled, ragLogger } from "@/lib/logging/logger";
+import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
+import { buildSpanTiming } from "@/lib/server/telemetry/withSpan";
 
 // ... types ...
 
@@ -67,12 +69,14 @@ export function logRetrievalStage(
     engine?: string;
     presetKey?: string;
     chatConfig?: ChatConfigSnapshot;
+    requestId?: string | null;
   },
 ) {
   if (!trace && !isDomainLogLevelEnabled("rag", "trace")) {
     return;
   }
 
+  const spanStartMs = Date.now();
   const payload = entries.map((entry) => ({
     doc_id: entry.doc_id,
     similarity: entry.similarity,
@@ -88,17 +92,33 @@ export function logRetrievalStage(
     payload,
   );
 
-  void trace?.observation({
-    name: "rag_retrieval_stage",
-    metadata: {
-      stage,
-      engine: meta?.engine ?? "unknown",
-      presetKey: meta?.presetKey ?? meta?.chatConfig?.presetKey ?? "default",
-      chatConfig: meta?.chatConfig,
-      ragConfig: meta?.chatConfig,
-      entries: payload,
-    },
-  });
+  if (trace) {
+    const { startTime, endTime } = buildSpanTiming({
+      name: "rag_retrieval_stage",
+      startMs: spanStartMs,
+      endMs: Date.now(),
+      requestId: meta?.requestId,
+    });
+    const metadata = buildTelemetryMetadata({
+      kind: "retrieval",
+      component: "rag_retrieval_stage",
+      requestId: meta?.requestId ?? null,
+      additional: {
+        stage,
+        engine: meta?.engine ?? "unknown",
+        presetKey: meta?.presetKey ?? meta?.chatConfig?.presetKey ?? "default",
+        chatConfig: meta?.chatConfig,
+        ragConfig: meta?.chatConfig,
+        entries: payload,
+      },
+    });
+    void trace.observation({
+      name: "rag_retrieval_stage",
+      metadata,
+      startTime,
+      endTime,
+    });
+  }
 }
 
 export const MAX_RETRIEVAL_TELEMETRY_ITEMS = 8;
