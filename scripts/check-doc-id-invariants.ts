@@ -82,9 +82,7 @@ async function gatherDocumentStats(): Promise<DocScanResult> {
   };
 }
 
-async function verifyChunkDocIds(
-  docIdSet: Set<string>,
-): Promise<{
+async function verifyChunkDocIds(docIdSet: Set<string>): Promise<{
   missingDocCount: number;
   missingDocSamples: string[];
 }> {

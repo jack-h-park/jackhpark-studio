@@ -83,9 +83,8 @@ function pickDocType(doc: RagDocument): string | null {
 }
 
 function pickPersonaType(doc: RagDocument): string | null {
-  const raw = (
-    doc?.metadata as { persona_type?: string | null } | null
-  )?.persona_type;
+  const raw = (doc?.metadata as { persona_type?: string | null } | null)
+    ?.persona_type;
   return raw ?? null;
 }
 

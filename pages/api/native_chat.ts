@@ -112,16 +112,14 @@ function buildStableLangfuseTags(
   presetKey: string,
   guardrailRoute?: GuardrailRoute,
 ): string[] {
-  const envTag =
-    process.env.NODE_ENV === "production" ? "env:prod" : "env:dev";
+  const envTag = process.env.NODE_ENV === "production" ? "env:prod" : "env:dev";
   const normalizedPreset =
     typeof presetKey === "string" ? presetKey.trim() : "";
   const presetTag =
-    normalizedPreset.length > 0 ? `preset:${normalizedPreset}` : "preset:unknown";
-  if (
-    normalizedPreset.length === 0 &&
-    process.env.NODE_ENV !== "production"
-  ) {
+    normalizedPreset.length > 0
+      ? `preset:${normalizedPreset}`
+      : "preset:unknown";
+  if (normalizedPreset.length === 0 && process.env.NODE_ENV !== "production") {
     console.warn(
       "[Langfuse] preset key missing when building trace tags; using preset:unknown",
     );
@@ -407,10 +405,7 @@ export default async function handler(
       }
       let posthogCaptured = false;
 
-      return (
-        status: "success" | "error",
-        errorType: string | null = null,
-      ) => {
+      return (status: "success" | "error", errorType: string | null = null) => {
         if (posthogCaptured) {
           return;
         }

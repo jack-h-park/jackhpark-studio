@@ -14,7 +14,6 @@ export type SummaryLevel = "off" | "low" | "medium" | "high";
 export type RagAutoMode = "off" | "on" | "auto";
 export type RagMultiQueryMode = "off" | "auto";
 
-
 export interface AdminNumericLimit {
   min: number;
   max: number;
@@ -173,7 +172,7 @@ export function getAdditionalPromptMaxLength(config: AdminChatConfig): number {
   );
 }
 
-export {type TelemetryDetailLevel} from "@/lib/logging/types";
+export { type TelemetryDetailLevel } from "@/lib/logging/types";
 export {
   type ModelResolution,
   type ModelResolutionReason,

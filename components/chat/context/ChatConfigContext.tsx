@@ -10,8 +10,8 @@ import {
   useState,
 } from "react";
 
-import { resolveLlmModelId } from "@/lib/shared/model-resolution";
 import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
+import { resolveLlmModelId } from "@/lib/shared/model-resolution";
 import {
   type AdminChatConfig,
   type AdminChatRuntimeMeta,

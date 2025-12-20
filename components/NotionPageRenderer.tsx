@@ -101,7 +101,7 @@ function CollectionWithDescription(props: any) {
   }
 
   // 2. If description exists, inject it after the header via DOM manipulation
-   
+
   React.useEffect(() => {
     const container = containerRef.current;
     const desc = descRef.current;

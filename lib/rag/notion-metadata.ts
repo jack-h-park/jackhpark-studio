@@ -27,7 +27,9 @@ type PropertyLookup = {
   type?: string | null;
 } | null;
 
-function normalizePropertyName(value: string | null | undefined): string | null {
+function normalizePropertyName(
+  value: string | null | undefined,
+): string | null {
   if (!value) {
     return null;
   }

@@ -36,17 +36,10 @@ export function makeRunName(base: string, stage?: string): string {
   return `${normalizedBase}:${normalizedStage}`;
 }
 
-export function buildChainRunnableConfig(
-  ctx: ChainRunContext,
-): RunnableConfig {
+export function buildChainRunnableConfig(ctx: ChainRunContext): RunnableConfig {
   const intentTag = ctx.intent ?? "intent:unknown";
   const providerTag = ctx.provider;
-  const tagSet = new Set<string>([
-    "langchain",
-    "rag",
-    intentTag,
-    providerTag,
-  ]);
+  const tagSet = new Set<string>(["langchain", "rag", intentTag, providerTag]);
 
   if (ctx.guardrailRoute) {
     tagSet.add(`guardrail:${ctx.guardrailRoute}`);

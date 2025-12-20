@@ -94,7 +94,10 @@ export function classifyChatCompletionError(error: unknown): string {
   if (normalizedMessage.includes("timeout")) {
     return "timeout";
   }
-  if (normalizedMessage.includes("unauthor") || normalizedMessage.includes("401")) {
+  if (
+    normalizedMessage.includes("unauthor") ||
+    normalizedMessage.includes("401")
+  ) {
     return "unauthorized";
   }
   if (

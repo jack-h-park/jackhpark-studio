@@ -6,7 +6,8 @@ import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
 import { type ChatMessage } from "@/components/chat/hooks/useChatSession";
 import {
   getImpactWarningMessage,
-  type ImpactKey} from "@/components/chat/settings/impact";
+  type ImpactKey,
+} from "@/components/chat/settings/impact";
 import { Button } from "@/components/ui/button";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 

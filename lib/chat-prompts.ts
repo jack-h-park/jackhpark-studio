@@ -11,6 +11,7 @@ export const DEFAULT_SYSTEM_PROMPT = [
   "- Do not mention the context or how you retrieved it.",
   "- Match the language of the user's question in your reply.",
   "- Keep responses concise and helpful (no more than five sentences).",
+  "- Only introduce yourself on the very first turn when there is no prior conversation history; if any history exists, do not repeat your self-introduction or greeting boilerplate.",
 ].join("\n");
 
 export function normalizeSystemPrompt(value: string): string {

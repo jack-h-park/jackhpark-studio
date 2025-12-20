@@ -188,7 +188,8 @@ async function ingestPage(
 
   const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
   const providerHasChunks =
-    contentUnchanged && (await hasChunksForProvider(canonicalId, embeddingSpace));
+    contentUnchanged &&
+    (await hasChunksForProvider(canonicalId, embeddingSpace));
   const decision = decideIngestAction({
     contentUnchanged,
     metadataUnchanged,
@@ -394,12 +395,7 @@ async function main() {
   try {
     if (targetPageId) {
       console.log("[ingest-notion] ingesting single page", { targetPageId });
-      await ingestSinglePage(
-        targetPageId,
-        stats,
-        errorLogs,
-        mode.type,
-      );
+      await ingestSinglePage(targetPageId, stats, errorLogs, mode.type);
     } else {
       await ingestWorkspace(rootPageId, stats, errorLogs, mode.type);
     }

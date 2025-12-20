@@ -28,7 +28,7 @@ export default async function handler(
 
     llmLogger.debug("[api/chat] dispatch", { engine, method: req.method });
 
-    if (engine === "langchain") {
+    if (engine === "lc") {
       await langchainChat(req, res);
     } else {
       await nativeChat(req, res);

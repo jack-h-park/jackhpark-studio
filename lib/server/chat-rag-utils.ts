@@ -7,10 +7,7 @@ import {
   type RagDocumentMetadata,
 } from "@/lib/rag/metadata";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
-import {
-  formatNotionPageId,
-  normalizePageId,
-} from "@/lib/server/page-url";
+import { formatNotionPageId, normalizePageId } from "@/lib/server/page-url";
 import {
   generateHydeDocument,
   rewriteQuery,

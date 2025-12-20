@@ -11,9 +11,7 @@ export function buildLangfuseTags(
 ): string[] {
   const normalizedEnv = env === "prod" ? "prod" : "dev";
   const normalizedPreset =
-    presetKey && presetKey.trim().length > 0
-      ? presetKey
-      : PRESET_TAG_FALLBACK;
+    presetKey && presetKey.trim().length > 0 ? presetKey : PRESET_TAG_FALLBACK;
   const normalizedGuardrail = guardrailRoute ?? GUARDRAIL_TAG_FALLBACK;
 
   return [

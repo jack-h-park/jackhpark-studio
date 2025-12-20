@@ -17,6 +17,7 @@ export const DEFAULT_REVERSE_RAG_ENABLED = false;
 export const DEFAULT_REVERSE_RAG_MODE: ReverseRagMode = "precision";
 export const DEFAULT_HYDE_ENABLED = false;
 export const DEFAULT_RANKER_MODE: RankerMode = "none";
+export const DEFAULT_RERANK_K = 20;
 
 export function parseBooleanFlag(value: unknown, fallback: boolean): boolean {
   if (typeof value === "boolean") {

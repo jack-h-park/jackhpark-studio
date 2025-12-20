@@ -114,21 +114,29 @@ if (!telemetryDecision.shouldEmitTrace) {
 - `standard`: include the config snapshot metadata.
 - `verbose`: additionally include retrieval spans (e.g., `logRetrievalStage()` entries).
 
-## Logging vs Telemetry
+## Console Logging vs Telemetry
 
-Telemetry (Langfuse traces / observations) is controlled by `loggingConfig.telemetry`, while console logging is governed by domain loggers:
+It is important to distinguish between **Console Logging** (for local development and server monitoring) and **Telemetry** (for structured tracing and long-term analysis):
 
-- `ragLogger`
-- `ingestionLogger`
-- `notionLogger`
-- `llmLogger`
-- `telemetryLogger` (`telemetryLog` domain, used for telemetry wiring/diagnostics)
+- **Telemetry**: Controlled by `loggingConfig.telemetry`. These are rich traces and observations sent to **Langfuse**. Access is limited by sampling and detail levels.
+- **Console Logging**: Controlled by domain loggers. These are standard text logs printed to the terminal (stdout/stderr).
 
-The domain loggers read their level from `LoggingConfig` and replace ad-hoc `console.log` calls. They enable consistent filtering per subsystem.
+Domain loggers read their level from `LoggingConfig` and replace ad-hoc `console.log` calls. They enable consistent filtering per subsystem:
 
 ```ts
 await ragLogger.debug("resolved retrieval candidates", { urls });
 ```
+
+### Console Logging Domains
+
+Each subsystem has a dedicated domain logger. You can control their verbosity independently via environment variables:
+
+- `LOG_GLOBAL_LEVEL`: The default log level for all domains if a specific override is not provided.
+- `LOG_RAG_LEVEL`: Logs the entire RAG pipeline, including guardrail routing, retrieval results, weighting, and ranking logic.
+- `LOG_INGESTION_LEVEL`: Logs background ingestion tasks, content processing, and database updates.
+- `LOG_NOTION_LEVEL`: Logs Notion-specific logic, such as page fetching and component rendering (available on both client and server).
+- `LOG_LLM_LEVEL`: Logs external API calls to LLM providers. At `trace` level, it includes raw streaming chunks and precise timing metrics.
+- `LOG_TELEMETRY_LEVEL`: Diagnostic logs for the telemetry system itself (e.g., Langfuse connection status, sampling decisions).
 
 Avoid legacy `DEBUG_*` env vars; they are deprecated and are no longer effective (some may trigger warnings). Use the unified config instead.
 
@@ -171,7 +179,8 @@ Set `POSTHOG_API_KEY` (and optionally `POSTHOG_HOST`) to forward a small `chat_c
 ### Recommended production configuration
 
 ```bash
-# ---------- Global log levels ----------
+# ---------- Console Logging Levels ----------
+# Options: off | error | info | debug | trace
 
 LOG_GLOBAL_LEVEL=info
 LOG_RAG_LEVEL=info
@@ -198,7 +207,8 @@ TELEMETRY_DETAIL_MAX=standard
 ### Recommended non-production configuration
 
 ```bash
-# ---------- Global log levels ----------
+# ---------- Console Logging Levels ----------
+# Options: off | error | info | debug | trace
 
 LOG_GLOBAL_LEVEL=debug
 LOG_RAG_LEVEL=debug

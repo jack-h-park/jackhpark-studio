@@ -59,7 +59,9 @@ export function parseDocType(value?: string | null): DocType | undefined {
     : undefined;
 }
 
-export function parsePersonaType(value?: string | null): PersonaType | undefined {
+export function parsePersonaType(
+  value?: string | null,
+): PersonaType | undefined {
   if (!value) {
     return undefined;
   }
@@ -238,22 +240,11 @@ export function mergeRagDocumentMetadata(
     breadcrumb: incomingNormalized.breadcrumb,
     preview_image_url: incomingNormalized.preview_image_url,
     teaser_text: incomingNormalized.teaser_text,
-    doc_type:
-      incomingNormalized.doc_type ??
-      base.doc_type ??
-      undefined,
+    doc_type: incomingNormalized.doc_type ?? base.doc_type ?? undefined,
     persona_type:
-      incomingNormalized.persona_type ??
-      base.persona_type ??
-      undefined,
-    is_public:
-      incomingNormalized.is_public ??
-      base.is_public ??
-      undefined,
-    tags:
-      incomingNormalized.tags ??
-      base.tags ??
-      undefined,
+      incomingNormalized.persona_type ?? base.persona_type ?? undefined,
+    is_public: incomingNormalized.is_public ?? base.is_public ?? undefined,
+    tags: incomingNormalized.tags ?? base.tags ?? undefined,
   };
 
   return normalizeMetadata(merged) ?? {};
@@ -280,12 +271,12 @@ const rawDefaultPersonaType = process.env.RAG_DEFAULT_PERSONA_TYPE;
 const FALLBACK_DOC_TYPE: DocType | null =
   rawDefaultDocType === ""
     ? null
-    : parseDocType(rawDefaultDocType ?? "kb_article") ?? "kb_article";
+    : (parseDocType(rawDefaultDocType ?? "kb_article") ?? "kb_article");
 const FALLBACK_PERSONA_TYPE: PersonaType | null =
   rawDefaultPersonaType === ""
     ? null
-    : parsePersonaType(rawDefaultPersonaType ?? "professional") ??
-      "professional";
+    : (parsePersonaType(rawDefaultPersonaType ?? "professional") ??
+      "professional");
 
 export const DEFAULT_INGEST_DOC_TYPE: DocType | null = FALLBACK_DOC_TYPE;
 export const DEFAULT_INGEST_PERSONA_TYPE: PersonaType | null =

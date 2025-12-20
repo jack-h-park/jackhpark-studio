@@ -531,7 +531,7 @@ export function applyHistoryWindow(
 export function buildContextWindow(
   documents: RagDocument[],
   config: ChatGuardrailConfig,
-  options?: { includeVerboseDetails?: boolean },
+  options?: { includeVerboseDetails?: boolean; includeSelectionMetadata?: boolean },
 ): ContextWindowResult {
   if (!documents || documents.length === 0) {
     return {
@@ -692,7 +692,7 @@ export function buildContextWindow(
     totalTokens: tokensUsed,
     insufficient,
     highestScore,
-    selection: options?.includeVerboseDetails
+    selection: options?.includeVerboseDetails || options?.includeSelectionMetadata
       ? {
           quotaStart,
           quotaEnd,
@@ -806,23 +806,31 @@ function isChitChatIntent(
   history: GuardrailChatMessage[],
   keywords: string[],
 ): boolean {
-  const userEntries = history.filter((msg) => msg.role === "user");
-  const priorEntries = userEntries
-    .slice(0, -1)
-    .slice(-2)
-    .map((msg) => msg.content.toLowerCase());
-
+  // 1. Explicit chitchat match for CURRENT message always wins.
+  // This covers greetings, thanks, etc.
   if (keywords.some((keyword) => matchesChitchatKeyword(canonical, keyword))) {
     return true;
   }
 
-  if (priorEntries.length === 0) {
-    return false;
+  // 2. Only apply stickiness if the current message is "short" (likely ambiguous or conversational filler).
+  // A query like "tell me about jack" (4 words) shouldn't be sticky chitchat.
+  const wordCount = canonical.split(/\s+/).filter(Boolean).length;
+  if (wordCount <= 2) {
+    const userEntries = history.filter((msg) => msg.role === "user");
+    const priorEntries = userEntries
+      .slice(0, -1)
+      .slice(-2)
+      .map((msg) => msg.content.toLowerCase());
+
+    if (priorEntries.length > 0) {
+      return keywords.some((keyword) =>
+        priorEntries.some((entry) => matchesChitchatKeyword(entry, keyword)),
+      );
+    }
   }
 
-  return keywords.some((keyword) =>
-    priorEntries.some((entry) => matchesChitchatKeyword(entry, keyword)),
-  );
+  // Otherwise, default to knowledge route (false) to allow RAG to be attempted.
+  return false;
 }
 
 function isCommandIntent(canonical: string): boolean {

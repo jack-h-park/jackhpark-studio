@@ -2,7 +2,13 @@ import type { LogLevel } from "@/lib/logging/types";
 
 type LoggingDomain = "rag" | "ingestion" | "notion" | "externalLLM";
 
-const LOG_LEVEL_PRIORITY: LogLevel[] = ["off", "error", "info", "debug", "trace"];
+const LOG_LEVEL_PRIORITY: LogLevel[] = [
+  "off",
+  "error",
+  "info",
+  "debug",
+  "trace",
+];
 const DOMAIN_OVERRIDE_KEYS: Record<LoggingDomain, string> = {
   rag: "LOG_RAG_LEVEL",
   ingestion: "LOG_INGESTION_LEVEL",
@@ -23,7 +29,9 @@ function parseLogLevel(value: string | undefined | null): LogLevel | null {
 
 function resolveGlobalLevel(): LogLevel {
   const fallback =
-    process.env.NODE_ENV === "production" ? ("info" as LogLevel) : ("debug" as LogLevel);
+    process.env.NODE_ENV === "production"
+      ? ("info" as LogLevel)
+      : ("debug" as LogLevel);
   return parseLogLevel(process.env.LOG_GLOBAL_LEVEL) ?? fallback;
 }
 

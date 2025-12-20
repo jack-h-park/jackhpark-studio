@@ -289,15 +289,15 @@ export default function AdminDocumentsPage({
                 >
                   {formatSourceUrlForDisplay(doc.source_url)}
                 </a>
-            ) : (
-              <span className="text-[color:var(--ai-text-muted)]">—</span>
-            )}
-          </div>
-        );
+              ) : (
+                <span className="text-[color:var(--ai-text-muted)]">—</span>
+              )}
+            </div>
+          );
+        },
+        size: "xs",
+        className: "text-[color:var(--ai-text-muted)]",
       },
-      size: "xs",
-      className: "text-[color:var(--ai-text-muted)]",
-    },
       {
         header: "Identifiers",
         render: (doc) => (
@@ -309,8 +309,8 @@ export default function AdminDocumentsPage({
         size: "sm",
         className: "max-w-[240px]",
       },
-    {
-      header: "Doc Type",
+      {
+        header: "Doc Type",
         render: (doc) =>
           doc.metadata?.doc_type ? (
             <StatusPill variant="muted">{doc.metadata.doc_type}</StatusPill>

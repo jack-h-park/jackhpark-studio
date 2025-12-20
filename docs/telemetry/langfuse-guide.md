@@ -3,16 +3,39 @@
 This guide describes the telemetry data structure (payloads) sent to Langfuse and provides suggestions for building diagnostic dashboards.
 
 > For the overall architecture, telemetry controls (sampling/detail levels), and environment variables, see [Logging & Telemetry Architecture](./telemetry-logging.md).
+> For operational verification, use the [Operational Telemetry Audit Checklist](./telemetry-audit-checklist.md).
 
-## Langfuse Tags
+## Trace Metadata (Request-Level)
 
-Every trace is automatically tagged with the following to allow easy segmentation:
+Traces emit request-level metadata for filtering. No default tags are attached today; use the trace metadata fields below instead:
 
-- `env:prod` / `env:dev`: Derived from the runtime environment.
-- `preset:<presetKey>`: The chat preset identifier.
-- `guardrail:<route>`: The detected guardrail route (`normal`, `chitchat`, or `command`).
+- `requestId` (server-generated request identifier, not user text)
+- `intent`
+- `presetId`
+- `responseCacheStrategy`
+- `responseCacheHit`
+- `aborted`
+- `provider`
+- `model`
+- `environment`
+- `questionHash`
+- `questionLength`
+- `metadata.cache.responseHit`
+- `metadata.cache.retrievalHit`
+- `metadata.rag.retrieval_attempted` (true when retrieval pipeline runs)
+- `chatConfig` (and `ragConfig` alias when a config snapshot is emitted)
 
-Dashboards should use these tags for high-level filtering (e.g., comparing performance between production and development).
+Raw question text is excluded by default. It is only included when `LANGFUSE_INCLUDE_PII="true"`.
+
+## Trace Input/Output (PII-Safe Summaries)
+
+To avoid Langfuse "missing input/output" warnings without storing raw prompts or responses:
+
+- **Trace input** includes `intent`, `model`, `topK`, `history_window`, `question_length`, `settings_hash` (no raw question text).
+- **Trace output** includes `answer_chars`, `citationsCount`, `cache_hit`, `insufficient`, `finish_reason`, `error_category`.
+  - On cache hits, `insufficient=true` is inferred only when retrieval was attempted/used and `citationsCount` is 0.
+
+Model response text is never stored on the trace.
 
 ## Prompt Versioning
 
@@ -53,39 +76,108 @@ Cache effectiveness is tracked in `metadata.cache` (on the trace) and within ind
 - `metadata.cache.responseHit`: `true` | `false` | `null` (null if disabled)
 - `metadata.cache.retrievalHit`: `true` | `false` | `null`
 
+`responseCacheHit` and `responseCacheStrategy` are also emitted as top-level trace metadata for backwards compatibility.
+
+## Trace vs Observation Telemetry
+
+- **Trace** = request-level quality/cost/latency/decisions and cache outcomes.
+- **Observations**:
+  - `rag:root` → retrieval quality summary (knowledge intent only)
+  - `context:selection` → dedupe/quota/MMR selection stats (knowledge intent only)
+  - `answer:llm` → generation execution
+  - `rag_retrieval_stage` → verbose retrieval diagnostics
+
+## Emission Matrix by Intent and Detail Level
+
+The table below summarizes which observations are emitted based on **chat intent** and **telemetry detailLevel**. This matrix defines the expected telemetry contract and should be used as the source of truth for verification and dashboard design.
+
+| Intent    | Detail Level | rag:root                   | context:selection | rag_retrieval_stage | answer:llm |
+| --------- | ------------ | -------------------------- | ----------------- | ------------------- | ---------- |
+| knowledge | minimal      | (implementation-dependent) | ❌                | ❌                  | ✅         |
+| knowledge | standard     | ✅                         | ✅                | ❌                  | ✅         |
+| knowledge | verbose      | ✅                         | ✅                | ✅                  | ✅         |
+| chitchat  | any          | ❌                         | ❌                | ❌                  | ✅         |
+
+**Notes**
+
+- `rag:root` and `context:selection` are only emitted for `intent="knowledge"` when a Langfuse trace exists.
+- `context:selection` is emitted in **standard** and **verbose** detail levels.
+- `rag_retrieval_stage` is **always verbose-only**, regardless of intent.
+- `answer:llm` is emitted for all intents when a trace exists.
+- `detailLevel="minimal"` is intended for cost-sensitive production traffic and may omit most RAG-related observations.
+
+## Retrieval Summary (Request-Level)
+
+When intent is `"knowledge"`, the following observations are emitted:
+
+- **Observation Name**: `rag:root`
+  - `finalK`, `candidateK`, `topKChunks`, `retrievedCount`, `droppedCount`
+  - `similarityThreshold`, `highestScore`, `includedCount`, `insufficient`
+  - `autoTriggered`, `winner`, `multiQueryRan`
+
+- **Observation Name**: `context:selection` (standard + verbose)
+  - `quotaStart`, `quotaEndUsed`, `uniqueDocs`, `droppedByDedupe`, `droppedByQuota`
+  - `mmrLite`, `mmrLambda`
+
+## Generation Summary
+
+- **Observation Name**: `answer:llm`
+  - `provider`, `model`, `responseCacheHit`, `aborted`
+
+## Response Summary (Request-Level)
+
+- **Observation Name**: `response-summary`
+  - `requestId` (server-generated identifier)
+  - `questionHash`, `questionLength`
+  - `eventCount`
+
 ## Retrieval Telemetry (Verbose Mode)
+
+This observation is **never emitted** in `detailLevel="standard"` or `"minimal"`, even for knowledge intent.
 
 When `detailLevel` is `"verbose"`, detailed retrieval-stage spans are emitted.
 
 - **Observation Name**: `rag_retrieval_stage`
 - **Metadata Fields**:
-  - `stage`: e.g., `raw_results`, `after_weighting`, `after_ranking`
+  - `stage`: e.g., `raw_results`, `after_weighting`
   - `engine`: `native` or `langchain`
+  - `presetKey`, `chatConfig`, `ragConfig` (when config snapshots are enabled)
   - `entries`: An array of up to **8** sanitized document metadata entries.
     - Fields: `doc_id`, `similarity`, `weight`, `finalScore`, `doc_type`, `persona_type`, `is_public`
 
 > [!IMPORTANT]
 > To protect PII and keep trace sizes small, actual chunk text or URLs are **never** included in Langfuse retrieval spans.
 
+## PII Policy (Explicit)
+
+- Raw question text is excluded by default.
+- It is only included when `LANGFUSE_INCLUDE_PII="true"`.
+- No chunk text or URLs are included in retrieval telemetry.
+
+## `rag_retrieval_stage` vs `rag:root`
+
+- Use `rag:root` and `context:selection` for dashboards/ops summaries.
+- Use `rag_retrieval_stage` only for deep debugging of retrieval internals.
+
 ## Suggested Langfuse Dashboards
 
-You can build powerful insights by filtering and grouping by `metadata.chatConfig.*` and retrieval span metadata:
+You can build insights by filtering/grouping on trace metadata and observation fields:
 
 1. **RAG Config Usage Overview**
-   - Group by `chatConfig.presetKey`, `chatConfig.rag.chatEngine`, `chatConfig.rag.ranker`
+   - Group by `metadata.chatConfig.presetKey`, `metadata.chatConfig.rag.chatEngine`, `metadata.chatConfig.rag.ranker`
    - Metrics: count, error rate, average latency.
 
 2. **Doc Type & Persona Impact**
    - Use retrieval entries to see how often each `doc_type` or `persona_type` appears in top-K.
-   - Correlate with `chatConfig.rag.ranking.docTypeWeights` to tune your ranking logic.
+   - Correlate with `metadata.chatConfig.rag.ranking.docTypeWeights` to tune your ranking logic.
 
 3. **Cache Effectiveness**
    - Monitor `metadata.cache.responseHit` and `metadata.cache.retrievalHit` ratios.
-   - Segment by `presetKey` to see which configurations benefit most from caching.
+   - Segment by `metadata.presetId` (or `metadata.chatConfig.presetKey` when present).
 
 4. **Latency Breakdown**
    - Plot latencies for different stages (`raw_results` vs `ranking`).
    - Segment by `chatEngine` and `ranker` to identify bottlenecks.
 
 5. **Guardrail Routing**
-   - Segment by `guardrail:<route>` tag to see the distribution of queries (normal vs. chit-chat).
+   - Segment by `metadata.chatConfig.guardrails.route` when config snapshots are enabled.

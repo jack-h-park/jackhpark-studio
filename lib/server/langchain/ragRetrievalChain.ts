@@ -41,11 +41,42 @@ import {
 } from "@/lib/server/rag-enhancements";
 import { resolveRagUrl } from "@/lib/server/rag-url-resolver";
 import {
+  DEFAULT_RERANK_K,
   type RankerMode,
   type ReverseRagMode,
 } from "@/lib/shared/rag-config";
 
+// Retrieval-stage minimum K (vector search limit). Defaults to 5 via env.
 const RAG_TOP_K = Number(process.env.RAG_TOP_K || 5);
+
+type NormalizedRagK = {
+  retrieveK: number;
+  rerankK: number | null;
+  finalK: number;
+};
+
+export function normalizeRagK(params: {
+  retrieveK: number;
+  rerankK?: number | null;
+  finalK: number;
+  rerankEnabled: boolean;
+}): NormalizedRagK {
+  if (!params.rerankEnabled) {
+    const retrieveK = Math.max(params.retrieveK, params.finalK);
+    const finalK = Math.min(params.finalK, retrieveK);
+    return { retrieveK, rerankK: null, finalK };
+  }
+
+  const retrieveKBase = Math.max(params.retrieveK, params.finalK);
+  const rerankKBase =
+    typeof params.rerankK === "number"
+      ? params.rerankK
+      : Math.min(retrieveKBase, DEFAULT_RERANK_K);
+  const retrieveK = Math.max(retrieveKBase, rerankKBase);
+  const rerankK = Math.min(rerankKBase, retrieveK);
+  const finalK = Math.min(params.finalK, rerankK);
+  return { retrieveK, rerankK, finalK };
+}
 
 type RagChainInput = {
   guardrails: ChatGuardrailConfig;
@@ -65,6 +96,7 @@ type RagChainInput = {
   queryName: string;
   chatConfigSnapshot?: ChatConfigSnapshot | null;
   includeVerboseDetails: boolean;
+  includeSelectionMetadata?: boolean;
   trace: LangfuseTrace | null;
   env: AppEnv;
   logDebugRag?: typeof logDebugRag;
@@ -73,6 +105,7 @@ type RagChainInput = {
     retrievalHit: boolean | null;
   };
   candidateK: number;
+  updateTrace?: (updates: { metadata: Record<string, unknown> }) => void;
 };
 
 type RagChainState = RagChainInput & {
@@ -81,6 +114,9 @@ type RagChainState = RagChainInput & {
   embeddingTarget?: string;
   preRetrieval?: PreRetrievalResult;
   queryEmbedding?: number[];
+  retrieveK?: number;
+  finalK?: number;
+  candidatesRetrieved?: number;
   enrichedDocs?: EnrichedRetrievalItem<BaseRetrievalItem>[];
   rankedDocs?: EnrichedRetrievalItem<BaseRetrievalItem>[];
   contextResult?: ContextWindowResult;
@@ -130,6 +166,7 @@ export function buildRagRetrievalChain() {
     RagChainInput,
     RagChainState & { rewrittenQuery: string }
   >(async (input) => {
+    input.updateTrace?.({ metadata: { rag: { retrieval_attempted: true } } });
     const rewrittenQuery = await rewriteQuery(input.question, {
       enabled: input.reverseRagEnabled,
       mode: input.reverseRagMode,
@@ -138,10 +175,11 @@ export function buildRagRetrievalChain() {
     });
 
     if (input.trace && input.reverseRagEnabled) {
+      const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
       void input.trace.observation({
         name: "reverse_rag",
-        input: input.question,
-        output: rewrittenQuery,
+        input: allowPii ? input.question : undefined,
+        output: allowPii ? rewrittenQuery : undefined,
         metadata: {
           env: input.env,
           provider: input.provider,
@@ -176,10 +214,11 @@ export function buildRagRetrievalChain() {
     });
 
     if (input.trace) {
+      const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
       void input.trace.observation({
         name: "hyde",
-        input: input.rewrittenQuery,
-        output: hydeDocument,
+        input: allowPii ? input.rewrittenQuery : undefined,
+        output: allowPii ? hydeDocument : undefined,
         metadata: {
           env: input.env,
           provider: input.provider,
@@ -228,14 +267,29 @@ export function buildRagRetrievalChain() {
   });
 
   const weightedRetrievalRunnable = RunnableLambda.from<
-    RagChainState & { embeddingTarget: string; preRetrieval: PreRetrievalResult },
+    RagChainState & {
+      embeddingTarget: string;
+      preRetrieval: PreRetrievalResult;
+    },
     RagChainState & {
       queryEmbedding: number[];
       enrichedDocs: EnrichedRetrievalItem<BaseRetrievalItem>[];
     }
   >(async (input) => {
-    const queryEmbedding = await input.embeddings.embedQuery(input.embeddingTarget);
-    const matchCount = Math.max(RAG_TOP_K, input.candidateK);
+    const queryEmbedding = await input.embeddings.embedQuery(
+      input.embeddingTarget,
+    );
+    // Final K: upper bound on context/citations, from guardrails.ragTopK (>= 1).
+    const finalKBase = Math.max(1, input.guardrails.ragTopK);
+    // Retrieval stage K: vector search limit (candidate pool), normalized to >= rerank/final K.
+    const retrieveKBase = Math.max(RAG_TOP_K, input.candidateK);
+    const rerankEnabled = input.rankerMode !== "none";
+    const { retrieveK, finalK } = normalizeRagK({
+      retrieveK: retrieveKBase,
+      rerankK: rerankEnabled ? undefined : null,
+      finalK: finalKBase,
+      rerankEnabled,
+    });
     const store = new SupabaseVectorStore(input.embeddings, {
       client: input.supabase,
       tableName: input.tableName,
@@ -243,7 +297,7 @@ export function buildRagRetrievalChain() {
     });
     const matches = await store.similaritySearchVectorWithScore(
       queryEmbedding,
-      matchCount,
+      retrieveK,
     );
     const canonicalLookup = await loadCanonicalPageLookup();
     const normalizedMatches = matches.map(([doc, score], index) => {
@@ -309,9 +363,7 @@ export function buildRagRetrievalChain() {
     );
 
     ragLogger.debug("[langchain_chat] retrieved urls", {
-      urls: enrichedDocs
-        .map((d) => d.metadata?.source_url)
-        .filter(Boolean),
+      urls: enrichedDocs.map((d) => d.metadata?.source_url).filter(Boolean),
     });
 
     if (input.includeVerboseDetails && input.trace) {
@@ -331,13 +383,14 @@ export function buildRagRetrievalChain() {
     }
 
     if (input.trace && input.includeVerboseDetails) {
+      const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
       const retrievalTelemetry = buildRetrievalTelemetryEntries(
         enrichedDocs,
         MAX_RETRIEVAL_TELEMETRY_ITEMS,
       );
       void input.trace.observation({
         name: "retrieval",
-        input: input.preRetrieval.embeddingTarget,
+        input: allowPii ? input.preRetrieval.embeddingTarget : undefined,
         output: retrievalTelemetry,
         metadata: {
           env: input.env,
@@ -353,7 +406,14 @@ export function buildRagRetrievalChain() {
       });
     }
 
-    return { ...input, queryEmbedding, enrichedDocs };
+    return {
+      ...input,
+      queryEmbedding,
+      enrichedDocs,
+      retrieveK,
+      finalK,
+      candidatesRetrieved: matches.length,
+    };
   }).withConfig({
     runName: makeRunName("rag", "retrieve"),
   });
@@ -367,9 +427,20 @@ export function buildRagRetrievalChain() {
       rankedDocs: EnrichedRetrievalItem<BaseRetrievalItem>[];
     }
   >(async (input) => {
+    // Rerank stage K: maxResults controls how many items the reranker outputs.
+    const finalKBase = input.finalK ?? Math.max(1, input.guardrails.ragTopK);
+    const retrieveKBase =
+      input.retrieveK ?? Math.max(RAG_TOP_K, input.candidateK);
+    const rerankEnabled = input.rankerMode !== "none";
+    const { finalK, rerankK } = normalizeRagK({
+      retrieveK: retrieveKBase,
+      rerankK: rerankEnabled ? undefined : null,
+      finalK: finalKBase,
+      rerankEnabled,
+    });
     const rankedDocs = await applyRanker(input.enrichedDocs, {
       mode: input.rankerMode,
-      maxResults: Math.max(input.guardrails.ragTopK, 1),
+      maxResults: rerankEnabled ? (rerankK ?? finalK) : finalK,
       embeddingSelection: input.embeddingSelection,
       queryEmbedding: input.queryEmbedding,
     });
@@ -401,7 +472,7 @@ export function buildRagRetrievalChain() {
       });
     }
 
-    return { ...input, rankedDocs };
+    return { ...input, rankedDocs, finalK };
   }).withConfig({
     runName: makeRunName("rag", "rank"),
   });
@@ -410,11 +481,38 @@ export function buildRagRetrievalChain() {
     RagChainState & { rankedDocs: EnrichedRetrievalItem<BaseRetrievalItem>[] },
     RagChainOutput
   >(async (input) => {
+    // Context stage K: upper bound on selected chunks/citations (finalK).
     const contextResult = buildContextWindow(
       input.rankedDocs,
       input.guardrails,
-      { includeVerboseDetails: input.includeVerboseDetails },
+      {
+        includeVerboseDetails: input.includeVerboseDetails,
+        includeSelectionMetadata: input.includeSelectionMetadata,
+      },
     );
+    const retrieveKBase =
+      input.retrieveK ?? Math.max(RAG_TOP_K, input.candidateK);
+    const finalKBase = input.finalK ?? Math.max(1, input.guardrails.ragTopK);
+    const rerankEnabled = input.rankerMode !== "none";
+    const { retrieveK, rerankK, finalK } = normalizeRagK({
+      retrieveK: retrieveKBase,
+      rerankK: rerankEnabled ? undefined : null,
+      finalK: finalKBase,
+      rerankEnabled,
+    });
+    const selectedCount = contextResult.included.length;
+    const retrievalMetadata: Record<string, unknown> = {
+      retrieve_k: retrieveK,
+      final_k: finalK,
+      candidates_retrieved:
+        input.candidatesRetrieved ?? input.enrichedDocs?.length ?? 0,
+      candidates_selected: selectedCount,
+    };
+    if (rerankEnabled) {
+      retrievalMetadata.rerank_k = rerankK ?? finalK;
+      retrievalMetadata.candidates_reranked = input.enrichedDocs?.length ?? 0;
+    }
+    input.updateTrace?.({ metadata: { rag: retrievalMetadata } });
     return {
       ...input,
       contextResult,

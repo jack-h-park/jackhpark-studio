@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import type { BaseLanguageModelInterface } from "@langchain/core/language_models/base";
 import type { PromptTemplate } from "@langchain/core/prompts";
@@ -29,11 +31,7 @@ import { getLmStudioRuntimeConfig } from "@/lib/core/lmstudio";
 import { requireProviderApiKey } from "@/lib/core/model-provider";
 import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
-import {
-  type AppEnv,
-  getAppEnv,
-  type LangfuseTrace,
-} from "@/lib/langfuse";
+import { type AppEnv, getAppEnv, type LangfuseTrace } from "@/lib/langfuse";
 import { getLoggingConfig, llmLogger, ragLogger } from "@/lib/logging/logger";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
@@ -88,6 +86,14 @@ import {
   type TelemetryContext,
 } from "@/lib/server/telemetry/telemetry-buffer";
 import { isTelemetryEnabled } from "@/lib/server/telemetry/telemetry-enabled";
+import {
+  buildSafeTraceInputSummary,
+  buildSafeTraceOutputSummary,
+  mergeSafeTraceInputSummary,
+  mergeSafeTraceOutputSummary,
+  type SafeTraceInputSummary,
+  type SafeTraceOutputSummary,
+} from "@/lib/server/telemetry/telemetry-summaries";
 import {
   type GuardrailEnhancements,
   type GuardrailMeta,
@@ -221,6 +227,141 @@ type ResponseCacheMeta = {
   retrievalHit: boolean | null;
 };
 
+type TraceUpdate = {
+  metadata?: Record<string, unknown>;
+  input?: SafeTraceInputSummary;
+  output?: SafeTraceOutputSummary;
+};
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
+
+const mergeBooleanMonotonic = (
+  prev: boolean | null | undefined,
+  next: boolean | null | undefined,
+): boolean | null => {
+  if (prev === true || next === true) {
+    return true;
+  }
+  if (prev === false || next === false) {
+    return false;
+  }
+  return null;
+};
+
+const mergeNumeric = (
+  prev: number | null | undefined,
+  next: number | null | undefined,
+): number | null => {
+  if (typeof prev === "number" && typeof next === "number") {
+    return Math.max(prev, next);
+  }
+  if (typeof next === "number") {
+    return next;
+  }
+  if (typeof prev === "number") {
+    return prev;
+  }
+  return null;
+};
+
+const mergeTraceMetadata = (
+  prev: Record<string, unknown>,
+  next: Record<string, unknown>,
+): Record<string, unknown> => {
+  // ─────────────────────────────────────────────────────────────
+  // Telemetry semantic invariant (do not change casually)
+  // See: docs/telemetry/telemetry-audit-checklist.md
+  // Invariant: metadata merges keep cache/rag flags monotonic and intent first-write-wins.
+  // ─────────────────────────────────────────────────────────────
+  const merged = { ...prev };
+  for (const [key, value] of Object.entries(next)) {
+    if (value === undefined) {
+      continue;
+    }
+    if (key === "cache" && isPlainObject(value)) {
+      // Cache hit flags are monotonic: once true, never revert to false.
+      const prior = isPlainObject(merged.cache) ? merged.cache : {};
+      merged.cache = {
+        ...prior,
+        responseHit: mergeBooleanMonotonic(
+          prior.responseHit as boolean | null | undefined,
+          value.responseHit as boolean | null | undefined,
+        ),
+        retrievalHit: mergeBooleanMonotonic(
+          prior.retrievalHit as boolean | null | undefined,
+          value.retrievalHit as boolean | null | undefined,
+        ),
+      };
+      continue;
+    }
+    if (key === "rag" && isPlainObject(value)) {
+      // Retrieval flags are monotonic so cache-hit inference stays stable.
+      const prior = isPlainObject(merged.rag) ? merged.rag : {};
+      const base = mergeTraceMetadata(prior, value);
+      merged.rag = {
+        ...base,
+        retrieval_attempted: mergeBooleanMonotonic(
+          prior.retrieval_attempted as boolean | null | undefined,
+          value.retrieval_attempted as boolean | null | undefined,
+        ),
+        retrieval_used: mergeBooleanMonotonic(
+          prior.retrieval_used as boolean | null | undefined,
+          value.retrieval_used as boolean | null | undefined,
+        ),
+      };
+      continue;
+    }
+    if (key === "intent" && typeof value === "string") {
+      // Intent is first-write-wins; record any later changes as *_final.
+      const prevIntent = merged.intent;
+      if (typeof prevIntent === "string" && prevIntent !== value) {
+        merged.intent_prev = merged.intent_prev ?? prevIntent;
+        merged.intent_final = value;
+        continue;
+      }
+      merged.intent = value;
+      continue;
+    }
+    if (key === "aborted" && typeof value === "boolean") {
+      // Aborts are terminal: once true, never flip back to false.
+      merged.aborted = mergeBooleanMonotonic(
+        merged.aborted as boolean | null | undefined,
+        value,
+      );
+      continue;
+    }
+    if (typeof value === "number") {
+      // Numeric counters move monotonically for stable dashboards.
+      merged[key] = mergeNumeric(
+        merged[key] as number | null | undefined,
+        value,
+      );
+      continue;
+    }
+    if (isPlainObject(value)) {
+      const prior = isPlainObject(merged[key])
+        ? (merged[key] as Record<string, unknown>)
+        : {};
+      merged[key] = mergeTraceMetadata(prior, value);
+      continue;
+    }
+    merged[key] = value;
+  }
+  return merged;
+};
+
+const applyTraceMetadataMerge = (
+  target: TraceMetadataSnapshot | null | undefined,
+  updates: Record<string, unknown>,
+) => {
+  if (!target) {
+    return;
+  }
+  const merged = mergeTraceMetadata(target, updates);
+  Object.assign(target, merged);
+};
+
 interface ComputeRagContextParams {
   guardrails: ChatGuardrailConfig;
   normalizedQuestion: NormalizedQuestion;
@@ -244,6 +385,7 @@ interface ComputeRagContextParams {
   queryName: string;
   chatConfigSnapshot: ReturnType<typeof buildChatConfigSnapshot> | undefined;
   includeVerboseDetails: boolean;
+  includeSelectionTelemetry: boolean;
   env: AppEnv;
   memoryCacheClient: typeof memoryCacheClient;
   retrievalCacheTtl: number;
@@ -251,6 +393,7 @@ interface ComputeRagContextParams {
   cacheMeta: ResponseCacheMeta;
   traceMetadata: TraceMetadataSnapshot | undefined;
   trace?: LangfuseTrace | null;
+  updateTrace?: (updates: TraceUpdate) => void;
   historyWindow: HistoryWindowResult;
   ragRanking?: RagRankingConfig | null;
   abortSignal?: AbortSignal | null;
@@ -459,6 +602,7 @@ interface StreamAnswerParams {
   logReturn: (label: string) => void;
   initialStreamStarted: boolean;
   trace?: LangfuseTrace | null;
+  updateTrace?: (updates: TraceUpdate) => void;
 }
 
 interface StreamAnswerResult {
@@ -501,6 +645,8 @@ async function computeRagContextAndCitations({
   abortSignal,
   chainRunContext,
   markStage,
+  updateTrace,
+  includeSelectionTelemetry,
 }: ComputeRagContextParams): Promise<ComputeRagContextResult> {
   let contextResult = buildIntentContextFallback(
     routingDecision.intent,
@@ -538,10 +684,7 @@ async function computeRagContextAndCitations({
       CANDIDATE_MIN,
       Math.min(CANDIDATE_MAX, finalK * CANDIDATE_MULTIPLIER),
     );
-    const reverseRagDecision = resolveAutoMode(
-      rewriteMode,
-      reverseRagEnabled,
-    );
+    const reverseRagDecision = resolveAutoMode(rewriteMode, reverseRagEnabled);
     const hydeDecision = resolveAutoMode(hydeMode, hydeEnabled);
     const questionTokens = estimateTokens(normalizedQuestion.normalized);
     if (retrievalCacheTtl > 0) {
@@ -567,9 +710,10 @@ async function computeRagContextAndCitations({
       if (cachedContext) {
         cacheMeta.retrievalHit = true;
         contextResult = cachedContext;
-        if (traceMetadata?.cache) {
-          traceMetadata.cache.retrievalHit = true;
-        }
+        applyTraceMetadataMerge(traceMetadata, {
+          cache: { retrievalHit: true },
+          rag: { retrieval_used: true },
+        });
       }
     }
 
@@ -618,12 +762,14 @@ async function computeRagContextAndCitations({
             queryName,
             chatConfigSnapshot,
             includeVerboseDetails,
+            includeSelectionMetadata: includeSelectionTelemetry,
             trace,
             env,
             logDebugRag,
             ragRanking,
             cacheMeta,
             candidateK,
+            updateTrace: updateTrace ?? undefined,
           },
           {
             ...ragChainRunnableConfig,
@@ -816,6 +962,7 @@ async function computeRagContextAndCitations({
         );
         const mergedContext = buildContextWindow(mergedCandidates, guardrails, {
           includeVerboseDetails,
+          includeSelectionMetadata: includeSelectionTelemetry,
         });
         contextResult = mergedContext;
         if (autoDecisionMetrics?.multiQuery) {
@@ -865,7 +1012,10 @@ async function computeRagContextAndCitations({
         : undefined;
 
       if (autoDecisionMetrics && includeVerboseDetails) {
-        ragLogger.debug("[langchain_chat] rag auto decision", autoDecisionMetrics);
+        ragLogger.debug(
+          "[langchain_chat] rag auto decision",
+          autoDecisionMetrics,
+        );
       }
 
       enhancementSummary = selectedResult.preRetrieval.enhancementSummary;
@@ -883,9 +1033,9 @@ async function computeRagContextAndCitations({
           retrievalCacheTtl,
         );
         cacheMeta.retrievalHit = false;
-        if (traceMetadata?.cache) {
-          traceMetadata.cache.retrievalHit = false;
-        }
+        applyTraceMetadataMerge(traceMetadata, {
+          cache: { retrievalHit: false },
+        });
       }
       if (trace) {
         void trace.observation({
@@ -893,6 +1043,7 @@ async function computeRagContextAndCitations({
           metadata: {
             finalK,
             candidateK,
+            topKChunks,
             similarityThreshold: guardrails.similarityThreshold,
             retrievedCount,
             droppedCount,
@@ -905,10 +1056,11 @@ async function computeRagContextAndCitations({
           },
         });
       }
-      if (trace && contextResult.selection) {
+      if (includeSelectionTelemetry && trace && contextResult.selection) {
         void trace.observation({
           name: "context:selection",
           metadata: {
+            quotaStart: contextResult.selection.quotaStart,
             uniqueDocs: contextResult.selection.uniqueDocs,
             droppedByDedupe: contextResult.selection.droppedByDedupe,
             droppedByQuota: contextResult.selection.droppedByQuota,
@@ -963,9 +1115,9 @@ async function computeRagContextAndCitations({
     cacheMeta.retrievalHit !== null
   ) {
     cacheMeta.retrievalHit = null;
-    if (traceMetadata?.cache) {
-      traceMetadata.cache.retrievalHit = null;
-    }
+    applyTraceMetadataMerge(traceMetadata, {
+      cache: { retrievalHit: null },
+    });
   }
 
   const summaryTokens =
@@ -1039,18 +1191,20 @@ async function computeRagContextAndCitations({
     };
   }
 
-      if (traceMetadata && includeVerboseDetails && autoDecisionMetrics) {
-        traceMetadata.retrievalAutoDecision = autoDecisionMetrics;
-      }
+  if (traceMetadata && includeVerboseDetails && autoDecisionMetrics) {
+    applyTraceMetadataMerge(traceMetadata, {
+      retrievalAutoDecision: autoDecisionMetrics,
+    });
+  }
 
-    return {
-      contextResult,
-      citations: resolvedCitations,
-      latestMeta,
-      enhancementSummary,
-      decisionSignature,
-      decisionTelemetry,
-    };
+  return {
+    contextResult,
+    citations: resolvedCitations,
+    latestMeta,
+    enhancementSummary,
+    decisionSignature,
+    decisionTelemetry,
+  };
 }
 
 async function streamAnswerWithPrompt({
@@ -1082,6 +1236,7 @@ async function streamAnswerWithPrompt({
   provider,
   model,
   trace,
+  updateTrace,
 }: StreamAnswerParams): Promise<StreamAnswerResult> {
   const guardrailMeta = [
     `Intent: ${routingDecision.intent} (${routingDecision.reason})`,
@@ -1093,9 +1248,51 @@ async function streamAnswerWithPrompt({
     contextResult.contextBlock.length > 0
       ? contextResult.contextBlock
       : "(No relevant context was found.)";
+
+  // Build a formatted transcript of the most recent turns (preserved messages)
+  // that are not already part of the summarized summaryMemory.
+  const transcriptLines: string[] = [];
+  const questionNormalized = question?.trim();
+
+  // Robustly exclude the current question from the history transcript.
+  // We identify the last message that matches the current user question to avoid
+  // duplicating it in the {memory} section, as it's already in the {question} section.
+  let excludeIndex = -1;
+  if (questionNormalized) {
+    for (let i = historyWindow.preserved.length - 1; i >= 0; i -= 1) {
+      const m = historyWindow.preserved[i];
+      if (m.role === "user" && m.content?.trim() === questionNormalized) {
+        excludeIndex = i;
+        break;
+      }
+    }
+  }
+
+  for (let i = 0; i < historyWindow.preserved.length; i++) {
+    if (i === excludeIndex) continue;
+    const m = historyWindow.preserved[i];
+    const roleLabel = m.role === "user" ? "User" : "Assistant";
+    transcriptLines.push(`${roleLabel}: ${m.content}`);
+  }
+
+  const preservedTranscript = transcriptLines.join("\n");
+
+  // Combine summarized old history and recent transcript with clear section headers.
+  const memoryParts: string[] = [];
+  const summaryMemory = historyWindow.summaryMemory?.trim();
+  if (summaryMemory) {
+    memoryParts.push(`Summary of earlier conversation:\n${summaryMemory}`);
+  }
+  if (preservedTranscript) {
+    memoryParts.push(
+      `Most recent conversation transcript:\n${preservedTranscript}`,
+    );
+  }
+
   const memoryValue =
-    historyWindow.summaryMemory ??
-    "(No summarized prior turns. Treat this as a standalone exchange.)";
+    memoryParts.length > 0
+      ? memoryParts.join("\n\n")
+      : "(No prior conversation history. Treat this as a standalone exchange.)";
   const answerChain = buildRagAnswerChain();
   const answerChainRunnableConfig = buildChainRunnableConfig({
     ...chainRunContext,
@@ -1127,6 +1324,26 @@ async function streamAnswerWithPrompt({
     );
   }
   res.setHeader("Content-Encoding", "identity");
+
+  const emitTraceOutput = (aborted: boolean) => {
+    if (!updateTrace) {
+      return;
+    }
+    const citationsCount = citationPayload?.citations?.length ?? 0;
+    const canInferInsufficient = routingDecision.intent === "knowledge";
+    updateTrace?.({
+      output: buildSafeTraceOutputSummary({
+        answerChars: finalOutput.length,
+        citationsCount,
+        cacheHit: cacheMeta.responseHit,
+        insufficient: canInferInsufficient ? contextResult.insufficient : null,
+        finishReason: aborted ? "aborted" : "success",
+      }),
+      metadata: {
+        aborted,
+      },
+    });
+  };
 
   try {
     markStage?.("before-llm-call");
@@ -1198,9 +1415,7 @@ async function streamAnswerWithPrompt({
     }
 
     if (abortSignal?.aborted) {
-      if (trace) {
-        void trace.update({ metadata: { aborted: true } });
-      }
+      emitTraceOutput(true);
       return { finalOutput, handledEarlyExit: true };
     }
 
@@ -1219,6 +1434,7 @@ async function streamAnswerWithPrompt({
         },
       });
     }
+    emitTraceOutput(false);
     const citationJson = JSON.stringify(citationPayload);
     if (!abortSignal?.aborted && responseCacheKey) {
       await memoryCacheClient.set(
@@ -1227,9 +1443,9 @@ async function streamAnswerWithPrompt({
         responseCacheTtl,
       );
       cacheMeta.responseHit = false;
-      if (traceMetadata?.cache) {
-        traceMetadata.cache.responseHit = false;
-      }
+      applyTraceMetadataMerge(traceMetadata, {
+        cache: { responseHit: false },
+      });
     }
     if (!res.writableEnded) {
       res.write(`${CITATIONS_SEPARATOR}${citationJson}`);
@@ -1241,9 +1457,7 @@ async function streamAnswerWithPrompt({
     return { finalOutput };
   } catch (streamErr) {
     if (abortSignal?.aborted) {
-      if (trace) {
-        void trace.update({ metadata: { aborted: true } });
-      }
+      emitTraceOutput(true);
       return { finalOutput, handledEarlyExit: true };
     }
     if (!res.headersSent) {
@@ -1448,9 +1662,10 @@ export async function handleLangchainChat(
   }
 
   const requestIdHeader = getHeaderValue("x-request-id");
+  const serverRequestId = requestIdHeader ?? randomUUID();
   const telemetrySessionId = getHeaderValue("x-chat-id");
   const telemetryContext: TelemetryContext = {
-    requestId: requestIdHeader,
+    requestId: serverRequestId,
     sessionId: telemetrySessionId,
   };
   const telemetryBuffer = telemetryEnabled
@@ -1512,6 +1727,12 @@ export async function handleLangchainChat(
   let requestAbortSignal: AbortSignal | null = null;
   let cleanupRequestAbort: (() => void) | null = null;
   let traceRequestId: string | null = null;
+  let traceMetadata: TraceMetadataSnapshot | null = null;
+  let traceInputSummary: SafeTraceInputSummary | null = null;
+  let traceOutputSummary: SafeTraceOutputSummary | null = null;
+  let finalizeReason: SafeTraceOutputSummary["finish_reason"] | null = null;
+  let errorCategory: string | null = null;
+  let updateTrace: ((updates: TraceUpdate) => void) | null = null;
 
   try {
     // Legacy LOG_LLM_LEVEL check removed.
@@ -1588,8 +1809,7 @@ export async function handleLangchainChat(
       runtimeFlags,
     });
     guardrails = sanitizedSettings.guardrails;
-    const sanitizationChanges: SanitizationChange[] =
-      sanitizedSettings.changes;
+    const sanitizationChanges: SanitizationChange[] = sanitizedSettings.changes;
     const reverseRagEnabled = sanitizedSettings.runtimeFlags.reverseRagEnabled;
     const reverseRagMode = sanitizedSettings.runtimeFlags.reverseRagMode;
     const hydeEnabled = sanitizedSettings.runtimeFlags.hydeEnabled;
@@ -1614,6 +1834,7 @@ export async function handleLangchainChat(
     }
 
     const question = lastMessage.content;
+    const questionHash = hashPayload({ q: question });
     const normalizedQuestion = normalizeQuestion(question);
     const routingDecision = routeQuestion(
       normalizedQuestion,
@@ -1626,21 +1847,17 @@ export async function handleLangchainChat(
         : routingDecision.intent === "command"
           ? "command"
           : "normal";
-    const sessionId =
-      telemetrySessionId ??
-      requestIdHeader ??
-      normalizedQuestion.normalized;
+    const sessionId = telemetrySessionId ?? serverRequestId;
     const userId =
       typeof req.headers["x-user-id"] === "string"
         ? req.headers["x-user-id"]
         : undefined;
-  telemetryContext.question = question;
-  traceRequestId =
-    requestIdHeader ?? telemetrySessionId ?? normalizedQuestion.normalized;
-  telemetryBuffer?.updateContext({
-    requestId: traceRequestId,
-    sessionId: telemetrySessionId ?? traceRequestId,
-  });
+    telemetryContext.question = question;
+    traceRequestId = serverRequestId;
+    telemetryBuffer?.updateContext({
+      requestId: traceRequestId,
+      sessionId: telemetrySessionId ?? traceRequestId,
+    });
     pushTelemetryEvent("quadrant-question", {
       questionLength: question.length,
       guardrailRoute,
@@ -1658,8 +1875,9 @@ export async function handleLangchainChat(
     const shouldEmitTrace = telemetryDecision.shouldEmitTrace;
     const includeConfigSnapshot = telemetryDecision.includeConfigSnapshot;
     const includeVerboseDetails = telemetryDecision.includeRetrievalDetails;
+    const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
     telemetryBuffer?.updateContext({
-      includePii: includeVerboseDetails,
+      includePii: allowPii,
       question,
     });
     await telemetryBuffer?.ensureTrace();
@@ -1673,16 +1891,6 @@ export async function handleLangchainChat(
       console.debug("[telemetry] langfuse trace", {
         requestId: traceRequestId,
         hasTrace: Boolean(trace),
-      });
-    }
-    const onTraceAbort = () => {
-      if (trace) {
-        void trace.update({ metadata: { aborted: true } });
-      }
-    };
-    if (requestAbortSignal) {
-      requestAbortSignal.addEventListener("abort", onTraceAbort, {
-        once: true,
       });
     }
     pushTelemetryEvent("telemetry-decision", {
@@ -1709,35 +1917,86 @@ export async function handleLangchainChat(
       responseHit: adminConfig.cache.responseTtlSeconds > 0 ? false : null,
       retrievalHit: adminConfig.cache.retrievalTtlSeconds > 0 ? false : null,
     };
-    const traceMetadata:
-      | {
-          [key: string]: unknown;
-          cache?: typeof cacheMeta;
-        }
-      | undefined = shouldEmitTrace
-      ? {
-          env,
-          config: {
-            reverseRagEnabled,
-            reverseRagMode,
-            hydeEnabled,
-            rankerMode,
-            hydeMode,
-            rewriteMode,
-            guardrailRoute,
-          },
-          llmResolution: {
-            requestedModelId: runtime.requestedLlmModelId,
-            resolvedModelId: runtime.resolvedLlmModelId,
-            wasSubstituted: runtime.llmModelWasSubstituted,
-            substitutionReason: runtime.llmSubstitutionReason,
-          },
-        }
-      : undefined;
-    if (traceMetadata && chatConfigSnapshot) {
-      traceMetadata.chatConfig = chatConfigSnapshot;
-      traceMetadata.ragConfig = chatConfigSnapshot;
-      traceMetadata.cache = cacheMeta;
+    traceMetadata = mergeTraceMetadata(traceMetadata ?? {}, {
+      env,
+      requestId: traceRequestId ?? null,
+      intent: routingDecision.intent,
+      presetId,
+      questionHash,
+      questionLength: question.length,
+      ...(allowPii ? { question } : {}),
+      responseCacheStrategy: null,
+      responseCacheHit: null,
+      aborted: false,
+      environment: process.env.NODE_ENV ?? "unknown",
+      config: {
+        reverseRagEnabled,
+        reverseRagMode,
+        hydeEnabled,
+        rankerMode,
+        hydeMode,
+        rewriteMode,
+        guardrailRoute,
+      },
+      llmResolution: {
+        requestedModelId: runtime.requestedLlmModelId,
+        resolvedModelId: runtime.resolvedLlmModelId,
+        wasSubstituted: runtime.llmModelWasSubstituted,
+        substitutionReason: runtime.llmSubstitutionReason,
+      },
+      cache: cacheMeta,
+    });
+    if (shouldCaptureConfig && chatConfigSnapshot) {
+      applyTraceMetadataMerge(traceMetadata, {
+        chatConfig: chatConfigSnapshot,
+        ragConfig: chatConfigSnapshot,
+      });
+    }
+    updateTrace = (updates: TraceUpdate) => {
+      if (updates.input) {
+        traceInputSummary = mergeSafeTraceInputSummary(
+          traceInputSummary,
+          updates.input,
+        );
+      }
+      if (updates.output) {
+        traceOutputSummary = mergeSafeTraceOutputSummary(
+          traceOutputSummary,
+          updates.output,
+        );
+      }
+      if (updates.metadata) {
+        traceMetadata = mergeTraceMetadata(
+          traceMetadata ?? {},
+          updates.metadata,
+        );
+      }
+      if (!trace) {
+        return;
+      }
+      void trace.update({
+        input: traceInputSummary ?? undefined,
+        output: traceOutputSummary ?? undefined,
+        metadata: traceMetadata ?? undefined,
+      });
+    };
+    const onTraceAbort = () => {
+      finalizeReason = "aborted";
+      updateTrace?.({
+        output: buildSafeTraceOutputSummary({
+          answerChars: 0,
+          citationsCount: null,
+          cacheHit: null,
+          insufficient: null,
+          finishReason: "aborted",
+        }),
+        metadata: { aborted: true },
+      });
+    };
+    if (requestAbortSignal) {
+      requestAbortSignal.addEventListener("abort", onTraceAbort, {
+        once: true,
+      });
     }
     const traceTags = shouldEmitTrace
       ? buildStableLangfuseTags(
@@ -1746,20 +2005,26 @@ export async function handleLangchainChat(
           chatConfigSnapshot?.guardrails?.route,
         )
       : undefined;
-    if (trace) {
-      void trace.update({
-        metadata: {
-          intent: routingDecision.intent,
-          presetId,
-          provider: runtime.llmProvider,
-          model: runtime.llmModel,
-          environment: process.env.NODE_ENV,
-          responseCacheStrategy: null,
-          responseCacheHit: null,
-          aborted: false,
-        },
-      });
-    }
+    updateTrace?.({
+      input: buildSafeTraceInputSummary({
+        intent: routingDecision.intent,
+        model: runtime.llmModel ?? null,
+        topK: guardrails.ragTopK,
+        historyWindowTokens: historyWindow.tokenCount,
+        questionLength: question.length,
+        settingsHash: basePromptVersion ?? null,
+      }),
+      metadata: {
+        intent: routingDecision.intent,
+        presetId,
+        provider: runtime.llmProvider,
+        model: runtime.llmModel,
+        environment: process.env.NODE_ENV ?? "unknown",
+        responseCacheStrategy: null,
+        responseCacheHit: null,
+        aborted: false,
+      },
+    });
 
     const llmModelId = runtime.resolvedLlmModelId ?? runtime.llmModelId;
     const llmSelection = resolveLlmModel({
@@ -1779,12 +2044,22 @@ export async function handleLangchainChat(
     const llmModel = llmSelection.model;
     const embeddingModel = embeddingSelection.model;
     const temperature = parseTemperature(undefined);
-    if (traceMetadata) {
-      traceMetadata.provider = provider;
-      traceMetadata.model = llmModel;
-      traceMetadata.embeddingProvider = embeddingProvider;
-      traceMetadata.embeddingModel = embeddingModel;
-    }
+    updateTrace?.({
+      input: buildSafeTraceInputSummary({
+        intent: routingDecision.intent,
+        model: llmModel,
+        topK: guardrails.ragTopK,
+        historyWindowTokens: historyWindow.tokenCount,
+        questionLength: question.length,
+        settingsHash: basePromptVersion ?? null,
+      }),
+      metadata: {
+        provider,
+        model: llmModel,
+        embeddingProvider,
+        embeddingModel,
+      },
+    });
     if (shouldEmitTrace) {
       pushTelemetryEvent("telemetry-enabled", {
         traceInput,
@@ -1923,13 +2198,26 @@ export async function handleLangchainChat(
     ) => {
       mark("cache-response-hit");
       cacheMeta.responseHit = true;
-      if (traceMetadata?.cache) {
-        traceMetadata.cache.responseHit = true;
-        pushTelemetryEvent("cache-hit", {
-          responseCacheKey: cacheKey,
-          outputLength: snapshot.output.length,
-        });
-      }
+      applyTraceMetadataMerge(traceMetadata, {
+        cache: { responseHit: true },
+      });
+      pushTelemetryEvent("cache-hit", {
+        responseCacheKey: cacheKey,
+        outputLength: snapshot.output.length,
+      });
+      const citationsCount = (() => {
+        if (!snapshot.citations) {
+          return 0;
+        }
+        try {
+          const parsed = JSON.parse(snapshot.citations) as {
+            citations?: unknown;
+          };
+          return Array.isArray(parsed?.citations) ? parsed.citations.length : 0;
+        } catch {
+          return 0;
+        }
+      })();
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       const body =
         snapshot.citations !== undefined
@@ -1937,25 +2225,42 @@ export async function handleLangchainChat(
           : snapshot.output;
       clearWatchdog();
       res.end(body);
-      if (trace) {
-        void trace.update({
-          metadata: {
-            responseCacheStrategy,
-            responseCacheHit: true,
-          },
-        });
-      }
+      // ─────────────────────────────────────────────────────────────
+      // Telemetry semantic invariant (do not change casually)
+      // See: docs/telemetry/telemetry-audit-checklist.md
+      // Invariant: cache-hit "insufficient" only inferred when retrieval was attempted and no citations.
+      // ─────────────────────────────────────────────────────────────
+      const retrievalAttempted = Boolean(
+        (traceMetadata as { rag?: { retrieval_attempted?: boolean } })?.rag
+          ?.retrieval_attempted ||
+        (traceMetadata as { rag?: { retrieval_used?: boolean } })?.rag
+          ?.retrieval_used,
+      );
+      finalizeReason = "success";
+      updateTrace?.({
+        metadata: {
+          responseCacheStrategy,
+          responseCacheHit: true,
+          aborted: false,
+        },
+        output: buildSafeTraceOutputSummary({
+          answerChars: snapshot.output.length,
+          citationsCount,
+          cacheHit: true,
+          insufficient:
+            retrievalAttempted && citationsCount === 0 ? true : null,
+          finishReason: "success",
+        }),
+      });
       capturePosthogEvent?.("success", null);
       logReturn("response-cache-hit");
     };
 
-    if (trace) {
-      void trace.update({
-        metadata: {
-          responseCacheStrategy,
-        },
-      });
-    }
+    updateTrace?.({
+      metadata: {
+        responseCacheStrategy,
+      },
+    });
 
     if (!autoOrMultiEnabled) {
       responseCacheKey = buildResponseCacheKey(null);
@@ -1973,14 +2278,15 @@ export async function handleLangchainChat(
         return;
       }
       mark("cache-miss");
-      if (trace) {
-        void trace.update({
-          metadata: {
-            responseCacheStrategy,
-            responseCacheHit: false,
-          },
-        });
-      }
+      updateTrace?.({
+        metadata: {
+          responseCacheStrategy,
+          responseCacheHit: false,
+        },
+      });
+      applyTraceMetadataMerge(traceMetadata, {
+        cache: { responseHit: cacheMeta.responseHit },
+      });
     }
     if (includeVerboseDetails) {
       ragLogger.debug("[langchain_chat] response cache strategy", {
@@ -2048,6 +2354,11 @@ export async function handleLangchainChat(
       candidateModelId: string,
     ): Promise<boolean> => {
       mark("before-rag-context");
+      const includeSelectionTelemetry = Boolean(
+        trace &&
+          routingDecision.intent === "knowledge" &&
+          (detailLevel === "standard" || detailLevel === "verbose"),
+      );
       const ragResult = await computeRagContextAndCitations({
         guardrails,
         normalizedQuestion,
@@ -2071,24 +2382,26 @@ export async function handleLangchainChat(
         queryName,
         chatConfigSnapshot,
         includeVerboseDetails,
+        includeSelectionTelemetry,
         trace,
         env,
         memoryCacheClient,
         retrievalCacheTtl,
         presetId,
         cacheMeta,
-        traceMetadata,
+        traceMetadata: traceMetadata ?? undefined,
         historyWindow,
         ragRanking,
         abortSignal: requestAbortSignal,
         chainRunContext,
         markStage: mark,
+        updateTrace: updateTrace ?? undefined,
       });
       mark("after-rag-context");
 
       _analyticsTotalTokens = ragResult.contextResult.totalTokens ?? null;
-      if (trace && ragResult.decisionTelemetry) {
-        void trace.update({
+      if (ragResult.decisionTelemetry) {
+        updateTrace?.({
           metadata: {
             autoTriggered: ragResult.decisionTelemetry.autoTriggered,
             winner: ragResult.decisionTelemetry.winner,
@@ -2130,14 +2443,15 @@ export async function handleLangchainChat(
           return false;
         }
         mark("cache-miss");
-        if (trace) {
-          void trace.update({
-            metadata: {
-              responseCacheStrategy,
-              responseCacheHit: false,
-            },
-          });
-        }
+        updateTrace?.({
+          metadata: {
+            responseCacheStrategy,
+            responseCacheHit: false,
+          },
+        });
+        applyTraceMetadataMerge(traceMetadata, {
+          cache: { responseHit: cacheMeta.responseHit },
+        });
       }
 
       mark("before-streaming");
@@ -2159,7 +2473,7 @@ export async function handleLangchainChat(
         responseCacheKey,
         responseCacheTtl,
         cacheMeta,
-        traceMetadata,
+        traceMetadata: traceMetadata ?? undefined,
         res,
         abortSignal: requestAbortSignal,
         capturePosthogEvent,
@@ -2170,6 +2484,7 @@ export async function handleLangchainChat(
         logReturn,
         initialStreamStarted: earlyStreamStarted,
         trace,
+        updateTrace: updateTrace ?? undefined,
       });
       mark("after-streaming");
 
@@ -2239,6 +2554,19 @@ export async function handleLangchainChat(
       err instanceof OllamaUnavailableError
         ? "local_llm_unavailable"
         : classifyChatCompletionError(err);
+    errorCategory = errorType;
+    finalizeReason = "error";
+    updateTrace?.({
+      output: buildSafeTraceOutputSummary({
+        answerChars: 0,
+        citationsCount: null,
+        cacheHit: traceMetadata?.cache?.responseHit ?? null,
+        insufficient: null,
+        finishReason: "error",
+        errorCategory,
+      }),
+      metadata: { aborted: false },
+    });
     capturePosthogEvent?.("error", errorType);
     llmLogger.error("[api/langchain_chat] error:", { error: err });
     if (res.headersSent) {
@@ -2257,7 +2585,65 @@ export async function handleLangchainChat(
     respondJson(500, { error: err?.message || "Internal Server Error" });
     logReturn("error-generic-500");
     return;
+    // ─────────────────────────────────────────────────────────────
+    // Telemetry semantic invariant (do not change casually)
+    // See: docs/telemetry/telemetry-audit-checklist.md
+    // Invariant: finalize ensures trace input/output summaries exist on all exits.
+    // ─────────────────────────────────────────────────────────────
   } finally {
+    if (updateTrace) {
+      const fallbackInput = buildSafeTraceInputSummary({
+        intent:
+          typeof traceMetadata?.intent === "string"
+            ? traceMetadata.intent
+            : null,
+        model:
+          typeof traceMetadata?.model === "string" ? traceMetadata.model : null,
+        topK:
+          typeof (traceMetadata as { chatConfig?: { rag?: { topK?: number } } })
+            ?.chatConfig?.rag?.topK === "number"
+            ? ((traceMetadata as { chatConfig?: { rag?: { topK?: number } } })
+                ?.chatConfig?.rag?.topK ?? null)
+            : null,
+        historyWindowTokens: null,
+        questionLength:
+          typeof (traceMetadata as { questionLength?: number })
+            ?.questionLength === "number"
+            ? (traceMetadata as { questionLength?: number }).questionLength
+            : null,
+        settingsHash:
+          typeof (
+            traceMetadata as {
+              chatConfig?: { prompt?: { baseVersion?: string } };
+            }
+          )?.chatConfig?.prompt?.baseVersion === "string"
+            ? ((
+                traceMetadata as {
+                  chatConfig?: { prompt?: { baseVersion?: string } };
+                }
+              )?.chatConfig?.prompt?.baseVersion ?? null)
+            : null,
+      });
+      updateTrace({ input: fallbackInput });
+      if (!traceOutputSummary) {
+        const finishReason =
+          finalizeReason ?? (requestAbortSignal?.aborted ? "aborted" : "error");
+        updateTrace({
+          output: buildSafeTraceOutputSummary({
+            answerChars: 0,
+            citationsCount: null,
+            cacheHit: traceMetadata?.cache?.responseHit ?? null,
+            insufficient: null,
+            finishReason,
+            errorCategory:
+              finishReason === "error" ? (errorCategory ?? "unknown") : null,
+          }),
+          metadata: {
+            aborted: finishReason === "aborted",
+          },
+        });
+      }
+    }
     cleanupRequestAbort?.();
     clearWatchdog();
     if (traceRequestId) {

@@ -86,10 +86,22 @@ void test("sanitizeChatSettings preserves safe values", () => {
   });
 
   assert.equal(result.guardrails.ragTopK, guardrails.ragTopK);
-  assert.equal(result.guardrails.similarityThreshold, guardrails.similarityThreshold);
-  assert.equal(result.guardrails.ragContextTokenBudget, guardrails.ragContextTokenBudget);
-  assert.equal(result.guardrails.ragContextClipTokens, guardrails.ragContextClipTokens);
-  assert.equal(result.guardrails.historyTokenBudget, guardrails.historyTokenBudget);
+  assert.equal(
+    result.guardrails.similarityThreshold,
+    guardrails.similarityThreshold,
+  );
+  assert.equal(
+    result.guardrails.ragContextTokenBudget,
+    guardrails.ragContextTokenBudget,
+  );
+  assert.equal(
+    result.guardrails.ragContextClipTokens,
+    guardrails.ragContextClipTokens,
+  );
+  assert.equal(
+    result.guardrails.historyTokenBudget,
+    guardrails.historyTokenBudget,
+  );
   assert.equal(result.runtimeFlags.reverseRagEnabled, false);
   assert.equal(result.runtimeFlags.hydeEnabled, true);
   assert.equal(result.changes.length, 0);

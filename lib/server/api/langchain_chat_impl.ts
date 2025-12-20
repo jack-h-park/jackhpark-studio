@@ -4,13 +4,11 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 import type * as HeavyModule from "./langchain_chat_impl_heavy";
 
-const WATCHDOG_MS =
-  process.env.NODE_ENV === "production" ? 10_000 : 60_000;
+const WATCHDOG_MS = process.env.NODE_ENV === "production" ? 10_000 : 60_000;
 
 const heavyImportTarget = "./langchain_chat_impl_heavy";
 const requireHeavy = createRequire(import.meta.url);
-const importHeavy = async () =>
-  requireHeavy("./langchain_chat_impl_heavy");
+const importHeavy = async () => requireHeavy("./langchain_chat_impl_heavy");
 let heavyPromise: Promise<typeof HeavyModule> | null = null;
 const getHeavy = () => {
   if (!heavyPromise) {
@@ -53,7 +51,6 @@ if (shouldPrewarm) {
     startPrewarm();
   }
 }
-
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -153,11 +150,7 @@ export async function handleLangchainChat(
       errMessage.includes("Cannot find module") ||
       errMessage.includes("ERR_MODULE_NOT_FOUND");
 
-    if (
-      isModuleNotFound &&
-      !res.headersSent &&
-      !res.writableEnded
-    ) {
+    if (isModuleNotFound && !res.headersSent && !res.writableEnded) {
       console.warn("[langchain_chat_impl] shim:error", {
         stage: "impl-module-not-found",
         code: errCode,

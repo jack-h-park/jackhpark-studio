@@ -278,7 +278,9 @@ export default function AdminDocumentDetailPage({
               <CardContent>
                 <DocumentIdCell
                   canonicalId={document.doc_id}
-                  rawId={document.raw_doc_id ?? document.metadata?.raw_doc_id ?? null}
+                  rawId={
+                    document.raw_doc_id ?? document.metadata?.raw_doc_id ?? null
+                  }
                   short={false}
                   showRawCopy
                   rawMissingLabel="(not available)"

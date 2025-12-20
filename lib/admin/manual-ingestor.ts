@@ -354,7 +354,8 @@ async function ingestNotionPage({
   const metadataUnchanged = metadataEquals(existingMetadata, nextMetadata);
 
   const providerHasChunks =
-    contentUnchanged && (await hasChunksForProvider(canonicalId, embeddingOptions));
+    contentUnchanged &&
+    (await hasChunksForProvider(canonicalId, embeddingOptions));
 
   const decision = decideIngestAction({
     contentUnchanged,

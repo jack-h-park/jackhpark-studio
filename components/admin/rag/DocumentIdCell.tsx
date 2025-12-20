@@ -55,8 +55,7 @@ export function DocumentIdCell({
   rawMissingLabel,
 }: DocumentIdCellProps) {
   const [copied, setCopied] = useState<"canonical" | "raw" | null>(null);
-  const rawMissingText =
-    rawMissingLabel ?? (short ? "—" : "(not available)");
+  const rawMissingText = rawMissingLabel ?? (short ? "—" : "(not available)");
 
   const rawValue = rawId ?? null;
 

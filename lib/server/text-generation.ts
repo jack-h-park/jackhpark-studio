@@ -13,9 +13,7 @@ export type TextGenRequest = {
   maxTokens: number;
 };
 
-export async function generateText(
-  request: TextGenRequest,
-): Promise<string> {
+export async function generateText(request: TextGenRequest): Promise<string> {
   switch (request.provider) {
     case "openai":
       return generateWithOpenAI(request);

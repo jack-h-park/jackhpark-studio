@@ -1,4 +1,4 @@
-import { getImpactBadgeForControl,type ImpactLevel  } from "./impact";
+import { getImpactBadgeForControl, type ImpactLevel } from "./impact";
 
 type Props = {
   /**

@@ -1,6 +1,7 @@
 import type { LangfuseTrace, LangfuseTraceOptions } from "@/lib/langfuse";
 import { hashPayload } from "@/lib/server/chat-cache";
 import { isTelemetryEnabled } from "@/lib/server/telemetry/telemetry-enabled";
+import { buildSafeTraceInputSummary } from "@/lib/server/telemetry/telemetry-summaries";
 
 type TelemetryEvent = {
   name: string;
@@ -61,16 +62,23 @@ export function createTelemetryBuffer(context: TelemetryContext = {}) {
     }
 
     const question = currentContext.question;
-    const includePii =
-      process.env.LANGFUSE_INCLUDE_PII === "true" ||
-      currentContext.includePii === true;
+    const includePii = process.env.LANGFUSE_INCLUDE_PII === "true";
+    const traceInput = buildSafeTraceInputSummary({
+      questionLength: question?.length ?? 0,
+    });
+    const traceQuestionMeta = {
+      questionHash: question ? hashPayload({ q: question }) : null,
+      questionLength: question?.length ?? 0,
+      ...(includePii && question ? { question } : {}),
+    };
     const traceOptions: LangfuseTraceOptions = {
       name: "langchain-chat",
       sessionId: currentContext.sessionId,
+      input: traceInput,
       metadata: {
         requestId,
-        questionHash: question ? hashPayload({ q: question }) : null,
-        questionLength: question?.length ?? 0,
+        questionHash: traceQuestionMeta.questionHash,
+        questionLength: traceQuestionMeta.questionLength,
         ...(includePii && question ? { question } : {}),
       },
     };
@@ -99,12 +107,24 @@ export function createTelemetryBuffer(context: TelemetryContext = {}) {
         telemetryLogger.debug("[telemetry] flush-skip-no-client");
         return;
       }
+      const question = currentContext.question;
+      const questionLength = question?.length ?? 0;
+      const questionHash = question ? hashPayload({ q: question }) : null;
+      const includePii = currentContext.includePii === true;
+      const responseMetadata: Record<string, unknown> = {
+        eventCount: events.length,
+        requestId: currentContext.requestId ?? null,
+        questionHash,
+        questionLength,
+      };
+      if (includePii && question) {
+        responseMetadata.question = question;
+      }
 
       await trace.observation({
         name: "response-summary",
         metadata: {
-          eventCount: events.length,
-          requestId: currentContext.requestId,
+          ...responseMetadata,
         },
       });
       telemetryLogger.debug("[telemetry] flush-done", {

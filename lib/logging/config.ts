@@ -54,7 +54,10 @@ const DEPRECATED_LOGGING_ENV_KEYS = [
   "DEBUG_NOTION_PAGE_ID",
 ] as const;
 
-function parseBooleanEnv(value: string | undefined, fallback: boolean): boolean {
+function parseBooleanEnv(
+  value: string | undefined,
+  fallback: boolean,
+): boolean {
   if (value == null) {
     return fallback;
   }
@@ -193,20 +196,14 @@ export async function buildLoggingConfig(): Promise<LoggingConfig> {
   warnDeprecatedLoggingEnv(env);
   const domainState = buildDomainLoggingState(env);
 
-  const telemetryEnabled = parseBooleanEnv(
-    process.env.TELEMETRY_ENABLED,
-    true,
-  );
+  const telemetryEnabled = parseBooleanEnv(process.env.TELEMETRY_ENABLED, true);
 
   // Defaults and limits derive from ENV with sensible fallback per environment.
   const sampleDefault = parseSampleRate(
     process.env.TELEMETRY_SAMPLE_RATE_DEFAULT,
     1,
   );
-  const sampleMax = parseSampleRate(
-    process.env.TELEMETRY_SAMPLE_RATE_MAX,
-    1,
-  );
+  const sampleMax = parseSampleRate(process.env.TELEMETRY_SAMPLE_RATE_MAX, 1);
   const detailDefault = parseTelemetryDetailWithFallback(
     process.env.TELEMETRY_DETAIL_DEFAULT,
     env === "local" ? "verbose" : "standard",
@@ -217,10 +214,8 @@ export async function buildLoggingConfig(): Promise<LoggingConfig> {
   );
 
   const adminConfig = await getAdminChatConfig();
-  const baseSample =
-    adminConfig.telemetry.sampleRate ?? sampleDefault;
-  const baseDetail =
-    adminConfig.telemetry.detailLevel ?? detailDefault;
+  const baseSample = adminConfig.telemetry.sampleRate ?? sampleDefault;
+  const baseDetail = adminConfig.telemetry.detailLevel ?? detailDefault;
 
   /**
    * Telemetry merge rules:
@@ -246,10 +241,7 @@ export async function buildLoggingConfig(): Promise<LoggingConfig> {
   const overrideSample =
     env === "production"
       ? Number.NaN
-      : parseSampleRate(
-        process.env.TELEMETRY_SAMPLE_RATE_OVERRIDE,
-        Number.NaN,
-      );
+      : parseSampleRate(process.env.TELEMETRY_SAMPLE_RATE_OVERRIDE, Number.NaN);
 
   const withOverrideDetail = overrideDetail ?? baseDetail;
   const withOverrideSample = Number.isFinite(overrideSample)

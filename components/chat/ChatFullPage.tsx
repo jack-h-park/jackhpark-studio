@@ -3,7 +3,7 @@
 import { FiMessageCircle } from "@react-icons/all-files/fi/FiMessageCircle";
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   AdminChatConfig,
@@ -42,6 +42,7 @@ function ChatShellContent() {
   const { adminConfig, sessionConfig } = useChatConfig();
   const [inputValue, setInputValue] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const {
     messages,
@@ -58,6 +59,18 @@ function ChatShellContent() {
     () => adminConfig.baseSystemPromptSummary ?? "",
     [adminConfig.baseSystemPromptSummary],
   );
+
+  const focusInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isLoading) {
+      focusInput();
+    }
+  }, [focusInput, isLoading]);
 
   const handleSend = () => {
     const trimmed = inputValue.trim();
@@ -128,6 +141,7 @@ function ChatShellContent() {
             )}
           </div>
           <ChatInputBar
+            inputRef={inputRef}
             value={inputValue}
             onChange={setInputValue}
             onSubmit={handleSend}

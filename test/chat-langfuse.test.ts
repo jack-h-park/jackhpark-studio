@@ -50,12 +50,7 @@ void describe("decideTelemetryMode", () => {
   });
 
   void it("forces tracing when requested", () => {
-    const decision = decideTelemetryMode(
-      0,
-      "verbose",
-      always(0.9),
-      true,
-    );
+    const decision = decideTelemetryMode(0, "verbose", always(0.9), true);
     assert.equal(decision.shouldEmitTrace, true);
     assert.equal(decision.includeRetrievalDetails, true);
   });
