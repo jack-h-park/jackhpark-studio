@@ -37,6 +37,8 @@ To avoid Langfuse "missing input/output" warnings without storing raw prompts or
 
 Model response text is never stored on the trace.
 
+Additionally, the `answer:llm` observation spans the full generation lifecycle, including streaming. It always has a non-zero duration and closes correctly on success, abort, or error with appropriate `finishReason` and `aborted` fields to represent the completion semantics accurately.
+
 ## Prompt Versioning
 
 The `prompt.baseVersion` found in the metadata is a unique 12-character SHA256 hash generated from the combination of:
@@ -84,7 +86,7 @@ Cache effectiveness is tracked in `metadata.cache` (on the trace) and within ind
 - **Observations**:
   - `rag:root` → retrieval quality summary (knowledge intent only)
   - `context:selection` → dedupe/quota/MMR selection stats (knowledge intent only)
-  - `answer:llm` → generation execution
+  - `answer:llm` → generation execution with streaming-safe timing and proper abort/error semantics
   - `rag_retrieval_stage` → verbose retrieval diagnostics
 
 ## Emission Matrix by Intent and Detail Level
@@ -118,6 +120,10 @@ When intent is `"knowledge"`, the following observations are emitted:
 - **Observation Name**: `context:selection` (standard + verbose)
   - `quotaStart`, `quotaEndUsed`, `uniqueDocs`, `droppedByDedupe`, `droppedByQuota`
   - `mmrLite`, `mmrLambda`
+  - `selectionUnit`, `inputCount`, `uniqueBeforeDedupe`, `uniqueAfterDedupe`, `finalSelectedCount`
+  - `docInputCount`, `docUniqueBeforeDedupe`, `docUniqueAfterDedupe`, `docDroppedByDedupe`
+
+  Note: `droppedByDedupe` is always measured in the current `selectionUnit`.
 
 ## Generation Summary
 
@@ -141,12 +147,18 @@ When `detailLevel` is `"verbose"`, detailed retrieval-stage spans are emitted.
 - **Metadata Fields**:
   - `stage`: e.g., `raw_results`, `after_weighting`
   - `engine`: `native` or `langchain`
-  - `presetKey`, `chatConfig`, `ragConfig` (when config snapshots are enabled)
+  - `presetKey`, `configHash`, `configSummary`
   - `entries`: An array of up to **8** sanitized document metadata entries.
     - Fields: `doc_id`, `similarity`, `weight`, `finalScore`, `doc_type`, `persona_type`, `is_public`
 
 > [!IMPORTANT]
 > To protect PII and keep trace sizes small, actual chunk text or URLs are **never** included in Langfuse retrieval spans.
+
+Full configs are not emitted in standard or verbose mode to reduce payload size and minimize PII risk.
+
+### Config Hash & Summary
+
+The `configHash` is a stable SHA256 hash representing a minimal, safe summary of the retrieval configuration. Identical effective configs produce identical hashes, while meaningful changes (e.g., updates to `rag.topK`) result in a different hash. Full configuration details are intentionally excluded from telemetry payloads to reduce size and avoid exposing sensitive information.
 
 ## PII Policy (Explicit)
 

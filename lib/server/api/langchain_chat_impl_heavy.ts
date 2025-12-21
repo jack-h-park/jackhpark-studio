@@ -977,10 +977,14 @@ async function computeRagContextAndCitations({
             baseResult.rankedDocs,
             autoResult.rankedDocs,
           );
-          const mergedContext = buildContextWindow(mergedCandidates, guardrails, {
-            includeVerboseDetails,
-            includeSelectionMetadata: includeSelectionTelemetry,
-          });
+          const mergedContext = buildContextWindow(
+            mergedCandidates,
+            guardrails,
+            {
+              includeVerboseDetails,
+              includeSelectionMetadata: includeSelectionTelemetry,
+            },
+          );
           contextResult = mergedContext;
           if (autoDecisionMetrics?.multiQuery) {
             autoDecisionMetrics.multiQuery = {
@@ -1054,20 +1058,20 @@ async function computeRagContextAndCitations({
             cache: { retrievalHit: false },
           });
         }
-      ragRootMetadata = {
-        finalK,
-        candidateK,
-        topKChunks,
-        similarityThreshold: guardrails.similarityThreshold,
-        retrievedCount,
-        droppedCount,
-        highestScore: Number(contextResult.highestScore.toFixed(3)),
-        includedCount: contextResult.included.length,
-        insufficient: contextResult.insufficient,
-        autoTriggered: decisionSignature?.autoTriggered ?? false,
-        winner: decisionSignature?.winner ?? null,
-        multiQueryRan: decisionSignature?.multiQueryRan ?? false,
-      };
+        ragRootMetadata = {
+          finalK,
+          candidateK,
+          topKChunks,
+          similarityThreshold: guardrails.similarityThreshold,
+          retrievedCount,
+          droppedCount,
+          highestScore: Number(contextResult.highestScore.toFixed(3)),
+          includedCount: contextResult.included.length,
+          insufficient: contextResult.insufficient,
+          autoTriggered: decisionSignature?.autoTriggered ?? false,
+          winner: decisionSignature?.winner ?? null,
+          multiQueryRan: decisionSignature?.multiQueryRan ?? false,
+        };
         ragLogger.debug("[langchain_chat] context compression", {
           finalK,
           topKChunks,

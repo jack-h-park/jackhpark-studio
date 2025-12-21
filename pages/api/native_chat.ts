@@ -63,6 +63,7 @@ import {
 import { applyRanker } from "@/lib/server/rag-enhancements";
 import { logDebugRag } from "@/lib/server/rag-logger";
 import { resolveRagUrl } from "@/lib/server/rag-url-resolver";
+import { buildTelemetryConfigSnapshot } from "@/lib/server/telemetry/telemetry-config-snapshot";
 import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
 import { withSpan } from "@/lib/server/telemetry/withSpan";
 import {
@@ -618,6 +619,9 @@ export default async function handler(
             : [];
 
           // --- Shared Post-Retrieval ---
+          const configSnapshot = buildTelemetryConfigSnapshot(
+            chatConfigSnapshot ?? null,
+          );
           const baseRetrievalItems = typedDocuments.map((doc) => ({
             ...doc,
             docId:
@@ -648,7 +652,8 @@ export default async function handler(
               {
                 engine: "native",
                 presetKey: chatConfigSnapshot?.presetKey,
-                chatConfig: chatConfigSnapshot,
+                configSummary: configSnapshot.configSummary,
+                configHash: configSnapshot.configHash,
                 requestId,
               },
             );
@@ -684,7 +689,8 @@ export default async function handler(
               {
                 engine: "native",
                 presetKey: chatConfigSnapshot?.presetKey,
-                chatConfig: chatConfigSnapshot,
+                configSummary: configSnapshot.configSummary,
+                configHash: configSnapshot.configHash,
                 requestId,
               },
             );

@@ -40,6 +40,7 @@ import {
   rewriteQuery,
 } from "@/lib/server/rag-enhancements";
 import { resolveRagUrl } from "@/lib/server/rag-url-resolver";
+import { buildTelemetryConfigSnapshot } from "@/lib/server/telemetry/telemetry-config-snapshot";
 import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
 import { buildSpanTiming, withSpan } from "@/lib/server/telemetry/withSpan";
 import {
@@ -300,8 +301,13 @@ export function buildRagRetrievalChain() {
       enrichedDocs: EnrichedRetrievalItem<BaseRetrievalItem>[];
     }
   >(async (input) => {
-    const emitRetrievalSpan = Boolean(input.trace && input.includeVerboseDetails);
+    const emitRetrievalSpan = Boolean(
+      input.trace && input.includeVerboseDetails,
+    );
     const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
+    const configSnapshot = buildTelemetryConfigSnapshot(
+      input.chatConfigSnapshot ?? null,
+    );
     const retrievalBaseMetadata = buildTelemetryMetadata({
       kind: "retrieval",
       requestId: input.requestId,
@@ -389,7 +395,8 @@ export function buildRagRetrievalChain() {
           {
             engine: "langchain",
             presetKey: input.chatConfigSnapshot?.presetKey,
-            chatConfig: input.chatConfigSnapshot ?? undefined,
+            configSummary: configSnapshot.configSummary,
+            configHash: configSnapshot.configHash,
             requestId: input.requestId,
           },
         );
@@ -422,7 +429,8 @@ export function buildRagRetrievalChain() {
           {
             engine: "langchain",
             presetKey: input.chatConfigSnapshot?.presetKey,
-            chatConfig: input.chatConfigSnapshot ?? undefined,
+            configSummary: configSnapshot.configSummary,
+            configHash: configSnapshot.configHash,
             requestId: input.requestId,
           },
         );
@@ -498,7 +506,9 @@ export function buildRagRetrievalChain() {
       finalK: finalKBase,
       rerankEnabled,
     });
-    const emitRerankerSpan = Boolean(input.trace && input.includeVerboseDetails);
+    const emitRerankerSpan = Boolean(
+      input.trace && input.includeVerboseDetails,
+    );
     const rerankerBaseMetadata = buildTelemetryMetadata({
       kind: "reranker",
       requestId: input.requestId,

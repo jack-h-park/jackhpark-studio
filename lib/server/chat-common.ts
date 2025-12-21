@@ -1,5 +1,5 @@
 import type { langfuse } from "@/lib/langfuse";
-import type { ChatConfigSnapshot } from "@/lib/rag/types";
+import type { TelemetryConfigSummary } from "@/lib/server/telemetry/telemetry-config-snapshot";
 import { isDomainLogLevelEnabled, ragLogger } from "@/lib/logging/logger";
 import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
 import { buildSpanTiming } from "@/lib/server/telemetry/withSpan";
@@ -68,8 +68,9 @@ export function logRetrievalStage(
   meta?: {
     engine?: string;
     presetKey?: string;
-    chatConfig?: ChatConfigSnapshot;
     requestId?: string | null;
+    configSummary?: TelemetryConfigSummary | null;
+    configHash?: string | null;
   },
 ) {
   if (!trace && !isDomainLogLevelEnabled("rag", "trace")) {
@@ -106,9 +107,10 @@ export function logRetrievalStage(
       additional: {
         stage,
         engine: meta?.engine ?? "unknown",
-        presetKey: meta?.presetKey ?? meta?.chatConfig?.presetKey ?? "default",
-        chatConfig: meta?.chatConfig,
-        ragConfig: meta?.chatConfig,
+        presetKey:
+          meta?.configSummary?.presetKey ?? meta?.presetKey ?? "default",
+        configSummary: meta?.configSummary ?? undefined,
+        configHash: meta?.configHash ?? undefined,
         entries: payload,
       },
     });

@@ -1,7 +1,4 @@
-import type {
-  LangfuseObservationOptions,
-  LangfuseTrace,
-} from "@/lib/langfuse";
+import type { LangfuseObservationOptions, LangfuseTrace } from "@/lib/langfuse";
 
 type SpanTimingArgs = {
   name: string;

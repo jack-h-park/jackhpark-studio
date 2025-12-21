@@ -189,19 +189,19 @@ export function dedupeSelectionDocuments(
   const uniqueKeys = new Set<string>();
   const deduped: RagDocument[] = [];
 
-  docs.forEach((doc, index) => {
+  for (const [index, doc] of docs.entries()) {
     const key = keyFn(doc, index);
     const uniqueKey = key ?? `__no-key:${selectionUnit}:${index}`;
     uniqueKeys.add(uniqueKey);
     if (!key) {
       deduped.push(doc);
-      return;
+      continue;
     }
     if (!seen.has(key)) {
       seen.add(key);
       deduped.push(doc);
     }
-  });
+  }
 
   const uniqueAfterDedupe = deduped.length;
   return {
@@ -590,7 +590,10 @@ export function applyHistoryWindow(
 export function buildContextWindow(
   documents: RagDocument[],
   config: ChatGuardrailConfig,
-  options?: { includeVerboseDetails?: boolean; includeSelectionMetadata?: boolean },
+  options?: {
+    includeVerboseDetails?: boolean;
+    includeSelectionMetadata?: boolean;
+  },
 ): ContextWindowResult {
   if (!documents || documents.length === 0) {
     return {
@@ -617,7 +620,8 @@ export function buildContextWindow(
 
   const chunkDedupe = dedupeSelectionDocuments(
     normalizedDocs,
-    (doc) => (typeof doc.chunk === "string" ? fingerprintChunk(doc.chunk) : null),
+    (doc) =>
+      typeof doc.chunk === "string" ? fingerprintChunk(doc.chunk) : null,
     "chunk",
   );
   const docDedupe = dedupeSelectionDocuments(
@@ -761,29 +765,30 @@ export function buildContextWindow(
     totalTokens: tokensUsed,
     insufficient,
     highestScore,
-    selection: options?.includeVerboseDetails || options?.includeSelectionMetadata
-      ? {
-          quotaStart,
-          quotaEnd,
-          quotaEndUsed: quotaEnd,
-          droppedByDedupe: chunkDedupe.droppedByDedupe,
-          droppedByQuota: selectionMeta.droppedByQuota,
-          uniqueDocs: selectionMeta.uniqueDocs,
-          selectionUnit: chunkDedupe.selectionUnit,
-          inputCount: chunkDedupe.inputCount,
-          uniqueBeforeDedupe: chunkDedupe.uniqueBeforeDedupe,
-          uniqueAfterDedupe: chunkDedupe.uniqueAfterDedupe,
-          finalSelectedCount: included.length,
-          docSelection: {
-            inputCount: docDedupe.inputCount,
-            uniqueBeforeDedupe: docDedupe.uniqueBeforeDedupe,
-            uniqueAfterDedupe: docDedupe.uniqueAfterDedupe,
-            droppedByDedupe: docDedupe.droppedByDedupe,
-          },
-          mmrLite: true,
-          mmrLambda: MMR_LITE_LAMBDA,
-        }
-      : undefined,
+    selection:
+      options?.includeVerboseDetails || options?.includeSelectionMetadata
+        ? {
+            quotaStart,
+            quotaEnd,
+            quotaEndUsed: quotaEnd,
+            droppedByDedupe: chunkDedupe.droppedByDedupe,
+            droppedByQuota: selectionMeta.droppedByQuota,
+            uniqueDocs: selectionMeta.uniqueDocs,
+            selectionUnit: chunkDedupe.selectionUnit,
+            inputCount: chunkDedupe.inputCount,
+            uniqueBeforeDedupe: chunkDedupe.uniqueBeforeDedupe,
+            uniqueAfterDedupe: chunkDedupe.uniqueAfterDedupe,
+            finalSelectedCount: included.length,
+            docSelection: {
+              inputCount: docDedupe.inputCount,
+              uniqueBeforeDedupe: docDedupe.uniqueBeforeDedupe,
+              uniqueAfterDedupe: docDedupe.uniqueAfterDedupe,
+              droppedByDedupe: docDedupe.droppedByDedupe,
+            },
+            mmrLite: true,
+            mmrLambda: MMR_LITE_LAMBDA,
+          }
+        : undefined,
   };
 }
 

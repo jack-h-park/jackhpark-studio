@@ -1,12 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import {
-  dedupeSelectionDocuments,
-  SelectionUnit,
-} from "@/lib/server/chat-guardrails";
+import { dedupeSelectionDocuments } from "@/lib/server/chat-guardrails";
 
-describe("dedupeSelectionDocuments", () => {
+void describe("dedupeSelectionDocuments", () => {
   const docs = [
     {
       chunk: "chunk-alpha",
@@ -26,8 +23,12 @@ describe("dedupeSelectionDocuments", () => {
     },
   ];
 
-  it("dedupes chunk-level duplicates and keeps order", () => {
-    const result = dedupeSelectionDocuments(docs, (doc) => doc.chunk ?? null, "chunk");
+  void it("dedupes chunk-level duplicates and keeps order", () => {
+    const result = dedupeSelectionDocuments(
+      docs,
+      (doc) => doc.chunk ?? null,
+      "chunk",
+    );
     assert.strictEqual(result.selectionUnit, "chunk");
     assert.strictEqual(result.inputCount, 4);
     assert.strictEqual(result.uniqueBeforeDedupe, 3);
@@ -36,7 +37,7 @@ describe("dedupeSelectionDocuments", () => {
     assert.deepStrictEqual(result.dedupedDocs, [docs[0], docs[2], docs[3]]);
   });
 
-  it("dedupes doc-level duplicates correctly", () => {
+  void it("dedupes doc-level duplicates correctly", () => {
     const result = dedupeSelectionDocuments(
       docs,
       (doc, index) => doc.metadata?.doc_id ?? `doc:${index}`,

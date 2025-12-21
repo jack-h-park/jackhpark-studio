@@ -30,7 +30,8 @@ const baseUrl = normalizeBaseUrl(args.baseUrl ?? DEFAULT_BASE_URL);
 const engine = (args.engine ?? "langchain") as Engine;
 const timeoutMs = args.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-const endpoint = engine === "native" ? "/api/native_chat" : "/api/langchain_chat";
+const endpoint =
+  engine === "native" ? "/api/native_chat" : "/api/langchain_chat";
 
 const baseHeaders = {
   "Content-Type": "application/json",
@@ -97,10 +98,7 @@ try {
 async function runCase(
   name: string,
   runner: () => Promise<SmokeResult>,
-): Promise<
-  | { ok: true; result: SmokeResult }
-  | { ok: false; error: string }
-> {
+): Promise<{ ok: true; result: SmokeResult } | { ok: false; error: string }> {
   try {
     const result = await runner();
     validateResult(name, result);
@@ -177,8 +175,10 @@ async function readResponseBody(response: Response): Promise<SmokeResult> {
   const isEventStream = contentType.includes("text/event-stream");
   const isJson = contentType.includes("application/json");
   const isChunked =
-    response.headers.get("transfer-encoding")?.toLowerCase().includes("chunked") ??
-    false;
+    response.headers
+      .get("transfer-encoding")
+      ?.toLowerCase()
+      .includes("chunked") ?? false;
   const cacheHitHeader = response.headers.get("x-cache-hit");
   const traceIdHeader = response.headers.get("x-trace-id");
 
@@ -306,7 +306,9 @@ function extractChunkText(dataContent: string): string {
           if (delta && typeof delta.content === "string") {
             return delta.content;
           }
-          const message = choiceObj.message as Record<string, unknown> | undefined;
+          const message = choiceObj.message as
+            | Record<string, unknown>
+            | undefined;
           if (message && typeof message.content === "string") {
             return message.content;
           }
@@ -332,7 +334,9 @@ function extractAnswerFromJson(payload: JsonValue): string {
     return typeof payload === "string" ? payload : "";
   }
   if (Array.isArray(payload)) {
-    return (payload as JsonValue[]).map((item) => extractAnswerFromJson(item)).join(" ");
+    return (payload as JsonValue[])
+      .map((item) => extractAnswerFromJson(item))
+      .join(" ");
   }
   const obj = payload as Record<string, unknown>;
   const candidates = [

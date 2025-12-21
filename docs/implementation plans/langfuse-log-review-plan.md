@@ -186,6 +186,14 @@ Improve Langfuse readability and reduce log volume.
   - `presetKey`
   - `configHash`
   - `promptBaseVersion`
+  - `configSummary` (small digest of preset + engine + guardrail knobs)
+
+### Latest Fixes (Phase 5)
+
+- Added a canonical `TelemetryConfigSummary` that copies only safe fields (preset, engine/model IDs, rag knobs, caches, telemetry detail level, prompt version, guardrail route).
+- Each `rag_retrieval_stage` span now ships just `presetKey`, `configSummary`, and a stable `configHash`; the full chat/rag configs were removed from the payload.
+- Hashing is based on the sorted summary, so ordering or environment values never change the hash; failures emit the `hash:error` sentinel instead of throwing.
+- We still keep a single `configSummary` on the span (no verbose full config), satisfying the “safe mode” requirement while reducing payload.
 
 ### Exit Criteria
 
@@ -223,4 +231,4 @@ Improve Langfuse readability and reduce log volume.
 - Phase 2: ✅ Completed (metadata semantics cleanup)
 - Phase 3: ✅ Completed (selection metrics + dedupe truths)
 - Phase 4: ⏸ Pending
-- Phase 5: ⏸ Pending
+- Phase 5: ✅ Completed (config summary + stable hash)
