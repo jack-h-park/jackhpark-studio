@@ -1,16 +1,56 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-if (!process.env.SUPABASE_URL) {
-  throw new Error('Missing required environment variable "SUPABASE_URL"');
+/**
+ * Supabase client bootstrap (lazy).
+ *
+ * IMPORTANT:
+ * - This module must be safe to import in unit tests.
+ * - Do NOT read or validate environment variables at module load time.
+ * - Environment variables are validated only when the client is actually used.
+ */
+
+let _client: SupabaseClient | null = null;
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable "${name}"`);
+  }
+  return value;
 }
 
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error(
-    'Missing required environment variable "SUPABASE_SERVICE_ROLE_KEY"',
-  );
+/**
+ * Lazily creates and returns the Supabase client.
+ *
+ * Uses SUPABASE_SERVICE_ROLE_KEY (server-only usage).
+ */
+export function getSupabaseClient(): SupabaseClient {
+  if (_client) return _client;
+
+  const url = requireEnv("SUPABASE_URL");
+  const key = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+
+  _client = createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+
+  return _client;
 }
 
-export const supabaseClient: SupabaseClient = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-);
+/**
+ * Backward-compatible export.
+ *
+ * Existing call sites can continue using:
+ *   supabaseClient.from(...)
+ *
+ * The actual client is instantiated on first property access.
+ */
+export const supabaseClient: SupabaseClient = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    return (getSupabaseClient() as any)[prop as any];
+  },
+});
