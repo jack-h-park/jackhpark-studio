@@ -1568,7 +1568,8 @@ export async function handleLangchainChat(
   const startTime = Date.now();
   let lastStage = "handler-start";
   let watchdogTimer: NodeJS.Timeout | null = null;
-  const WATCHDOG_TIMEOUT_MS = 10_000;
+  const WATCHDOG_TIMEOUT_MS =
+    process.env.NODE_ENV === "production" ? 15_000 : 30_000;
   let abortController: AbortController | null = null;
 
   const clearWatchdog = () => {
