@@ -79,6 +79,7 @@ import {
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 import { logDebugRag } from "@/lib/server/rag-logger";
+import { emitRagScores } from "@/lib/server/telemetry/langfuse-scores";
 import {
   clearRequestTrace,
   createTelemetryBuffer,
@@ -1140,6 +1141,14 @@ async function computeRagContextAndCitations({
             metadata,
             startTime,
             endTime,
+          });
+          emitRagScores({
+            trace,
+            intent: routingDecision.intent,
+            requestId: chainRunContext.requestId ?? null,
+            highestScore: contextResult.highestScore,
+            insufficient: contextResult.insufficient,
+            uniqueDocs: contextResult.selection?.uniqueDocs,
           });
         }
       }

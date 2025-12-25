@@ -228,12 +228,19 @@ Primary RAG quality signal.
 - Metrics:
   - Average `finalK`
   - Average `candidateK`
-  - Average `highestScore`
+  - Scores:
+    - View: Scores
+    - Score Name: `retrieval_highest_score`
+    - Metric: Average / p50 / p95
   - Count `insufficient=true`
 
 **Interpretation**
 - Frequent `insufficient=true` = retrieval weakness
 - CandidateK >> retrievedCount = threshold/index issue
+
+### Why Scores Are Used
+
+Langfuse cannot average arbitrary observation metadata, so we emit dedicated Score events (primary `retrieval_highest_score` plus optional `retrieval_insufficient` and `context_unique_docs`) to expose chartable quality metrics without storing raw questions or other PII.
 
 ---
 

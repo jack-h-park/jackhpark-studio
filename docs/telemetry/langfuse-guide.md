@@ -125,6 +125,18 @@ When intent is `"knowledge"`, the following observations are emitted:
 
   Note: `droppedByDedupe` is always measured in the current `selectionUnit`.
 
+## Langfuse Scores for Retrieval Quality
+
+Langfuse cannot average arbitrary observation metadata, so we emit dedicated Score events that can be aggregated safely via the Scores view:
+
+- `retrieval_highest_score` (value = `highestScore`, emitted when a Langfuse trace exists and the value is finite)
+- `retrieval_insufficient` (binary 1/0 that mirrors the `insufficient` flag)
+- `context_unique_docs` (optional count of unique documents when selection metadata is available)
+
+These scores reuse the existing trace (no new trace creation) and never include raw question text or other PII.
+
+Scores emitted: `retrieval_highest_score` (+ optional `retrieval_insufficient`, `context_unique_docs`).
+
 ## Generation Summary
 
 - **Observation Name**: `answer:llm`
