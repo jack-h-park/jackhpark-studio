@@ -1552,7 +1552,21 @@ async function streamAnswerWithPrompt({
           error: {
             code: "LOCAL_LLM_UNAVAILABLE",
             message:
-              "LM Studio에 로드된 모델이 없습니다. LM Studio 앱에서 모델을 Load 해주세요.",
+              "No model loaded in LM Studio. Please load a model in the LM Studio app.",
+          },
+        });
+        updateTrace?.({
+          output: buildSafeTraceOutputSummary({
+            answerChars: 0,
+            citationsCount: 0,
+            cacheHit: cacheMeta.responseHit,
+            insufficient: null,
+            finishReason: "error",
+            errorCategory: "local_llm_unavailable",
+          }),
+          metadata: {
+            aborted: false,
+            error_category: "local_llm_unavailable",
           },
         });
         logReturn("stream-local-llm-unavailable");

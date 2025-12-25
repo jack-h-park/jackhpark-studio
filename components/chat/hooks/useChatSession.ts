@@ -97,11 +97,13 @@ type ChatResponse = {
 
 class ChatRequestError extends Error {
   status?: number;
+  code?: string;
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, code?: string) {
     super(message);
     this.name = "ChatRequestError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -118,30 +120,62 @@ const isLikelyNetworkError = (message: string) =>
     "Load failed",
   ].some((fragment) => message.toLowerCase().includes(fragment.toLowerCase()));
 
-const parseErrorPayload = (raw?: string | null) => {
+const parseErrorPayload = (
+  raw?: string | null,
+): { message: string; code?: string } | null => {
   if (!raw) return null;
   const trimmed = raw.trim();
   if (!trimmed) return null;
   try {
     const parsed: unknown = JSON.parse(trimmed);
     if (parsed && typeof parsed === "object") {
-      const candidate = parsed as { error?: unknown; message?: unknown };
-      if (typeof candidate.error === "string") return candidate.error;
-      if (typeof candidate.message === "string") return candidate.message;
+      const candidate = parsed as {
+        error?: unknown;
+        message?: unknown;
+        code?: unknown;
+      };
+
+      // Handle nested error object: { error: { code, message } }
+      if (
+        candidate.error &&
+        typeof candidate.error === "object" &&
+        !Array.isArray(candidate.error)
+      ) {
+        const nestedError = candidate.error as {
+          message?: unknown;
+          code?: unknown;
+        };
+        if (typeof nestedError.message === "string") {
+          return {
+            message: nestedError.message,
+            code:
+              typeof nestedError.code === "string"
+                ? nestedError.code
+                : undefined,
+          };
+        }
+      }
+
+      if (typeof candidate.error === "string")
+        return { message: candidate.error };
+      if (typeof candidate.message === "string")
+        return { message: candidate.message };
     }
   } catch {
     // Swallow JSON parse errors and fall back to the raw text.
   }
-  return trimmed;
+  return { message: trimmed };
 };
 
 const buildResponseError = async (response: Response) => {
   const fallback = `Request failed with status ${response.status}`;
   try {
     const raw = await response.text();
+    const parsed = parseErrorPayload(raw);
     return new ChatRequestError(
-      parseErrorPayload(raw) ?? fallback,
+      parsed?.message ?? fallback,
       response.status,
+      parsed?.code,
     );
   } catch {
     return new ChatRequestError(fallback, response.status);
