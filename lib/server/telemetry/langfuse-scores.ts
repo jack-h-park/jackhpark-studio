@@ -1,4 +1,4 @@
-import { langfuse,type LangfuseTrace  } from "@/lib/langfuse";
+import { langfuse, type LangfuseTrace } from "@/lib/langfuse";
 import { telemetryLogger } from "@/lib/logging/logger";
 
 type ScoreEmitter = {

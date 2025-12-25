@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import type { LangfuseClient } from "@langfuse/client";
 
+import { pushIngestionBatch } from "@/lib/server/telemetry/telemetry-test-sink";
+
 export type AppEnv = "dev" | "preview" | "prod";
 
 const TRACE_IMPORT = process.env.LANGFUSE_IMPORT_TRACE === "1";
@@ -340,10 +342,14 @@ async function sendIngestionEvents(
     return;
   }
 
+  const batchRequest = { batch: events };
+  if (process.env.TELEMETRY_TEST_SINK === "1") {
+    pushIngestionBatch(batchRequest);
+    return;
+  }
+
   try {
-    await langfuseClient.api.ingestion.batch({
-      batch: events,
-    });
+    await langfuseClient.api.ingestion.batch(batchRequest);
   } catch (err) {
     const { telemetryLogger } = await import("@/lib/logging/logger");
     const statusCode = (err as { statusCode?: number }).statusCode;

@@ -1,0 +1,225 @@
+{
+  "traces": [
+    {
+      "name": "langchain-chat",
+      "metadata": {
+        "detailLevel": "standard",
+        "intent": "knowledge",
+        "questionHash": "<question-hash>",
+        "questionLength": 42,
+        "requestId": "<requestId>"
+      },
+      "input": {
+        "intent": "knowledge"
+      }
+    }
+  ],
+  "observations": [
+    {
+      "name": "answer:llm",
+      "metadata": {
+        "citationsCount": 2,
+        "finishReason": "success",
+        "generationModel": "gpt-4o-mini",
+        "generationProvider": "openai",
+        "requestId": "<requestId>"
+      },
+      "input": {
+        "tokens": 64
+      },
+      "output": {
+        "citations": 2,
+        "finish_reason": "success"
+      }
+    },
+    {
+      "name": "context:selection",
+      "metadata": {
+        "component": "selection",
+        "docSelection": {
+          "droppedByDedupe": 1,
+          "inputCount": 3,
+          "uniqueAfterDedupe": 2,
+          "uniqueBeforeDedupe": 3
+        },
+        "droppedByDedupe": 1,
+        "droppedByQuota": 0,
+        "finalSelectedCount": 2,
+        "inputCount": 3,
+        "mmrLambda": 0.47,
+        "mmrLite": 0.18,
+        "quotaEnd": 4,
+        "quotaEndUsed": 2,
+        "quotaStart": 0,
+        "requestId": "<requestId>",
+        "selectionUnit": "chunk",
+        "uniqueAfterDedupe": 2,
+        "uniqueBeforeDedupe": 3,
+        "uniqueDocs": 2
+      }
+    },
+    {
+      "name": "rag_retrieval_stage",
+      "metadata": {
+        "component": "rag_retrieval_stage",
+        "configHash": "8edc4111731b0188d23c2fffc92ca3bac21694aafdaf2041d485927007631b48",
+        "configSummary": {
+          "cache": {
+            "responseEnabled": true,
+            "responseTtlSeconds": 60,
+            "retrievalEnabled": true,
+            "retrievalTtlSeconds": 30
+          },
+          "context": {
+            "clipTokens": 512,
+            "historyBudget": 2048,
+            "tokenBudget": 600
+          },
+          "engine": {
+            "chatEngine": "langchain",
+            "embeddingModel": "text-embedding-ada-002",
+            "llmModel": "gpt-4o-mini"
+          },
+          "guardrails": {
+            "route": "normal"
+          },
+          "presetKey": "golden",
+          "prompt": {
+            "baseVersion": "v1"
+          },
+          "rag": {
+            "enabled": true,
+            "hyde": false,
+            "ranker": "mmr",
+            "reverseRAG": false,
+            "similarityThreshold": 0.75,
+            "summaryLevel": "standard",
+            "topK": 4
+          },
+          "ranking": {
+            "hasDocTypeWeights": false,
+            "hasPersonaTypeWeights": false
+          },
+          "telemetry": {
+            "detailLevel": "standard",
+            "sampleRate": 1
+          }
+        },
+        "engine": "langchain",
+        "entries": [
+          {
+            "doc_id": "golden-doc-1",
+            "doc_type": "article",
+            "finalScore": 0.9123,
+            "is_public": true,
+            "persona_type": "assistant",
+            "similarity": 0.9123,
+            "weight": 0.33
+          },
+          {
+            "doc_id": "golden-doc-2",
+            "doc_type": "note",
+            "finalScore": 0.8012,
+            "is_public": false,
+            "persona_type": "user",
+            "similarity": 0.8012,
+            "weight": 0.22
+          }
+        ],
+        "presetKey": "golden",
+        "requestId": "<requestId>",
+        "stage": "after_weighting"
+      }
+    },
+    {
+      "name": "rag_retrieval_stage",
+      "metadata": {
+        "component": "rag_retrieval_stage",
+        "configHash": "8edc4111731b0188d23c2fffc92ca3bac21694aafdaf2041d485927007631b48",
+        "configSummary": {
+          "cache": {
+            "responseEnabled": true,
+            "responseTtlSeconds": 60,
+            "retrievalEnabled": true,
+            "retrievalTtlSeconds": 30
+          },
+          "context": {
+            "clipTokens": 512,
+            "historyBudget": 2048,
+            "tokenBudget": 600
+          },
+          "engine": {
+            "chatEngine": "langchain",
+            "embeddingModel": "text-embedding-ada-002",
+            "llmModel": "gpt-4o-mini"
+          },
+          "guardrails": {
+            "route": "normal"
+          },
+          "presetKey": "golden",
+          "prompt": {
+            "baseVersion": "v1"
+          },
+          "rag": {
+            "enabled": true,
+            "hyde": false,
+            "ranker": "mmr",
+            "reverseRAG": false,
+            "similarityThreshold": 0.75,
+            "summaryLevel": "standard",
+            "topK": 4
+          },
+          "ranking": {
+            "hasDocTypeWeights": false,
+            "hasPersonaTypeWeights": false
+          },
+          "telemetry": {
+            "detailLevel": "standard",
+            "sampleRate": 1
+          }
+        },
+        "engine": "langchain",
+        "entries": [
+          {
+            "doc_id": "golden-doc-1",
+            "doc_type": "article",
+            "finalScore": 0.9123,
+            "is_public": true,
+            "persona_type": "assistant",
+            "similarity": 0.9123,
+            "weight": 0.33
+          },
+          {
+            "doc_id": "golden-doc-2",
+            "doc_type": "note",
+            "finalScore": 0.8012,
+            "is_public": false,
+            "persona_type": "user",
+            "similarity": 0.8012,
+            "weight": 0.22
+          }
+        ],
+        "presetKey": "golden",
+        "requestId": "<requestId>",
+        "stage": "raw_results"
+      }
+    },
+    {
+      "name": "rag:root",
+      "metadata": {
+        "component": "rag_root",
+        "dropped": 1,
+        "highestScore": 0.9123,
+        "included": 2,
+        "insufficient": false,
+        "ranked": 2,
+        "rankerMode": "mmr",
+        "requestId": "<requestId>",
+        "retrieved": 2,
+        "similarityThreshold": 0.75,
+        "stage": "final",
+        "totalTokens": 512
+      }
+    }
+  ]
+}
