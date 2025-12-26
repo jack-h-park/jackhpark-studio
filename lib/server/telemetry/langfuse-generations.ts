@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 
-import { langfuse,type LangfuseTrace  } from "@/lib/langfuse";
+import { langfuse, type LangfuseTrace } from "@/lib/langfuse";
 import { telemetryLogger } from "@/lib/logging/logger";
+import { type ChatGuardrailConfig } from "@/lib/server/chat-guardrails";
+import { buildGenerationInput as buildLangfuseGenerationInput } from "@/lib/server/telemetry/langfuse-metadata";
+import { type TelemetryConfigSummary } from "@/lib/server/telemetry/telemetry-config-snapshot";
 
 type RagConfigSummary = {
   ragTopK: number;
@@ -18,6 +21,8 @@ export type EmitAnswerGenerationOptions = {
   presetId: string;
   provider: string;
   model: string;
+  guardrails?: ChatGuardrailConfig | null;
+  configSummary?: TelemetryConfigSummary | null;
   questionHash: string | null;
   questionLength: number;
   question?: string;
@@ -36,18 +41,29 @@ export type EmitAnswerGenerationOptions = {
   endTimeMs: number;
 };
 
-const buildGenerationInput = (
+const buildAnswerGenerationInput = (
   options: EmitAnswerGenerationOptions,
 ): Record<string, unknown> => {
-  const input: Record<string, unknown> = {
-    requestId: options.requestId ?? null,
+  const sanitizedInput = buildLangfuseGenerationInput({
     intent: options.intent,
-    presetId: options.presetId,
+    resolvedModel: options.model,
     provider: options.provider,
-    model: options.model,
+    presetId: options.presetId,
+    detailLevel: options.detailLevel,
+    guardrails: options.guardrails ?? null,
+    configHash: options.configHash ?? null,
+    configSummary: options.configSummary ?? null,
+  });
+  const { detailLevel: _sanitizedDetailLevel, ...sanitizedFields } =
+    sanitizedInput;
+  const input: Record<string, unknown> = {
+    ...sanitizedFields,
+    requestId: options.requestId ?? null,
     questionHash: options.questionHash,
     questionLength: options.questionLength,
-    detailLevel: options.detailLevel,
+    telemetry: {
+      detailLevel: options.detailLevel ?? null,
+    },
   };
 
   if (options.configHash) {
@@ -118,7 +134,7 @@ export async function emitAnswerGeneration(
       metadata: {
         requestId: options.requestId ?? null,
       },
-      input: buildGenerationInput(options),
+      input: buildAnswerGenerationInput(options),
       output: buildGenerationOutput(options),
     },
   };

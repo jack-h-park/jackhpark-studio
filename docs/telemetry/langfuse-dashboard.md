@@ -1,310 +1,316 @@
+---
 
-# Langfuse Dashboard Guide (RAG / Auto / Cache Observability)
-
-This document describes the **canonical Langfuse dashboard design** for the current LangChain-based RAG implementation.
-It is aligned with the actual telemetry emitted by the codebase and the guarantees documented in `langfuse-guide.md`.
-
-The goal of this dashboard is to answer, with minimal noise:
-
-- Are we paying unnecessary LLM cost?
-- Is retrieval quality healthy?
-- Are Auto / Multi-query mechanisms actually improving results?
-- Where are latency or stability bottlenecks?
+> ⚠️ Langfuse UI Constraints (Read First)  
+>  
+> The current Langfuse UI has the following hard limitations:  
+> - Metrics are single‑select (no multi‑select p50/p95/p99 in one widget)  
+> - Breakdown Dimension cannot reference arbitrary metadata paths  
+> - Breakdown supports only built‑in fields (Environment, Tags, Id, Version, etc.)  
+> - Boolean metadata (e.g. aborted, cache.responseHit) CANNOT be used directly as breakdowns  
+>  
+> As a result:  
+> - Percentiles require separate widgets  
+> - Boolean comparisons require filters or paired widgets  
+> - Some concepts are expressed as *comparisons*, not literal breakdowns  
 
 ---
 
-## Dashboard Structure (Recommended)
+### Dashboard C — Latency, Cost & Observability Integrity (Infra / Platform)
 
-Do **not** put all widgets into a single dashboard.
-
-### Dashboard A — Traffic, Cache & Stability (Executive / Ops)
-Widgets: **1–4, 13**
-
-Purpose:
-- Cost control
-- Cache effectiveness
-- Abort / stability monitoring
-
----
-
-### Dashboard B — Retrieval & Quality (RAG Tuning)
-Widgets: **5–11**
-
-Purpose:
-- RAG quality diagnosis
-- Auto / Multi-query effectiveness
-- Context selection bias detection
-
----
-
-### Dashboard C — LLM Performance (Optional / Deep Debug)
-Widgets: **12 (+ verbose-only views)**
-
-Purpose:
-- Model latency comparison
-- Abort during generation
-- Provider fallback issues
-
----
-
-## Widget Configuration Conventions
-
-Unless otherwise stated:
-
-- **View**: Traces
-- **Trace Name Filter**: `any of → langchain-chat`
-- **Time Aggregation**: count / p50 / p95 / p99 as appropriate
-- **Filters**:
-  - `metadata.intent = "knowledge"` where RAG is involved
-- **Grouping**:
-  - Prefer grouping by a single dimension only (strategy, winner, etc.)
-
----
-
-## Group 1 — Traffic & Cache (Widgets 1–4)
-
-### 1. Request Volume by Intent
+Widgets: **C‑1a through C‑6b**
 
 **Purpose**
-Understand overall traffic mix and how much enters the RAG path.
 
-**Widget Setup**
+Dashboard C answers:
+
+> “Is the system fast, predictable, and observable — and are we paying more than expected?”
+
+This dashboard is used by infra / platform owners, not product teams.
+
+---
+
+### C‑1a. End‑to‑End Latency — p50
+
+**Widget Configuration (Langfuse UI)**
+
 - View: Traces
-- Metric: Count
-- Group by: `metadata.intent`
+- Metric: Latency
+- Aggregation: P50
+- Filters:
+  - metadata.intent = `knowledge`
+- Breakdown Dimension: None
+- Chart Type: Line Chart
 
-**Interpretation**
-- Only `knowledge` requests trigger RAG / auto / multi-query
-- This is the baseline denominator for all other metrics
+**Widget Description**  
+Median end‑to‑end latency experienced by users for knowledge requests. Represents baseline system responsiveness excluding tail outliers.
 
 ---
 
-### 2. Response Cache Strategy Distribution
+### C‑1b. End‑to‑End Latency — p95
 
-**Purpose**
-Verify early vs late cache behavior after auto/multi introduction.
+**Widget Configuration (Langfuse UI)**
 
-**Widget Setup**
 - View: Traces
-- Metric: Count
-- Group by: `metadata.responseCacheStrategy`
+- Metric: Latency
+- Aggregation: P95
+- Filters:
+  - metadata.intent = `knowledge`
+- Breakdown Dimension: None
+- Chart Type: Line Chart
 
-**Interpretation**
-- Early cache → deterministic path
-- Late cache → auto/multi decision-dependent path
+**Widget Description**  
+95th percentile end‑to‑end latency capturing slow but acceptable tail user experiences.
 
 ---
 
-### 3. Response Cache Hit Rate
+### C‑1c. End‑to‑End Latency — p99
 
-**Purpose**
-Measure LLM cost reduction.
+**Widget Configuration (Langfuse UI)**
 
-**Widget Setup**
 - View: Traces
-- Metric: Count
-- Group by: `metadata.cache.responseHit`
+- Metric: Latency
+- Aggregation: P99
+- Filters:
+  - metadata.intent = `knowledge`
+- Breakdown Dimension: None
+- Chart Type: Line Chart
 
-**Interpretation**
-- `true` = LLM avoided
-- Expect lower hit rate initially after late-cache rollout
-
----
-
-### 4. Abort Rate & Context
-
-**Purpose**
-Detect UX, streaming, or timeout issues.
-
-**Widget Setup**
-- View: Traces
-- Metric: Count
-- Group by: `metadata.aborted`
-
-**Interpretation**
-- Rising abort rate usually correlates with latency spikes
-- Investigate whether abort happens before or during `answer:llm`
+**Widget Description**  
+99th percentile latency indicating critical user experience risks and tail latency issues.
 
 ---
 
-## Group 2 — Auto / Multi-Query Effectiveness (Widgets 5–9)
+**How to read**
 
-### 5. Auto Trigger Rate
-
-**Purpose**
-See how often Auto HyDE / Rewrite activates.
-
-**Widget Setup**
-- View: Observations
-- Observation Name: `rag:root`
-- Metric: Count
-- Group by: `metadata.autoTriggered`
-
-**Interpretation**
-- Too high → predicate too aggressive
-- Too low → missed quality improvement opportunities
+- p50 = baseline user experience
+- p95 = slow but acceptable tail
+- p99 = critical UX risk
+- p99 rising alone → retrieval or LLM bottlenecks
+- All three rising → systemic platform regression
 
 ---
 
-### 6. Auto Winner Distribution
+### C‑2. LLM Generation Latency
 
-**Purpose**
-Check whether Auto actually improves results.
+**Widget Configuration**
 
-**Widget Setup**
-- View: Observations
-- Observation Name: `rag:root`
-- Metric: Count
-- Group by: `metadata.winner`
-
-**Interpretation**
-- `winner=auto` should justify added cost
-- If mostly `base`, reconsider Auto thresholds
-
----
-
-### 7. Auto Quality Uplift
-
-**Purpose**
-Quantify improvement from Auto.
-
-**Widget Setup**
-- View: Traces
-- Metric: Average
-- Fields:
-  - `metadata.auto.highestScoreDelta`
-  - or compare insufficient before/after
-
-**Interpretation**
-- Higher score & lower insufficient = success
-- No change → Auto adds cost without benefit
-
----
-
-### 8. Multi-Query Execution Rate
-
-**Purpose**
-Understand real usage of multi-query.
-
-**Widget Setup**
-- View: Observations
-- Observation Name: `rag:root`
-- Metric: Count
-- Group by: `metadata.multiQueryRan`
-
-**Interpretation**
-- Rare execution is normal (guarded feature)
-- Frequent execution → review suppression rules
-
----
-
-### 9. Multi-Query Effectiveness
-
-**Purpose**
-Validate candidate diversity gains.
-
-**Widget Setup**
-- View: Traces
-- Metric: Average
-- Fields:
-  - `metadata.auto.mergedCandidates`
-  - `metadata.auto.highestScoreDelta`
-
-**Interpretation**
-- No uplift despite merge → query quality or merge logic issue
-
----
-
-## Group 3 — RAG Internals (Widgets 10–12)
-
-### 10. Retrieval Quality Health
-
-**Purpose**
-Primary RAG quality signal delivered through Scores.
-
-**Widget Setup**
-- View: Scores
-- Score Name: `retrieval_highest_score`
-- Metric: Average / p50 / p95 (Langfuse Score view)
-- Filter: `metadata.intent = "knowledge"`
-- Breakdowns: `None` (Langfuse Score breakdowns require Tags, and we currently do not emit any)
-- Optional follow-up: use the `rag:root` observation for counts (e.g., `finalK`, `candidateK`, `insufficient=true`) if you need richer diagnostic context.
-
-**Interpretation**
-- `retrieval_highest_score` trends capture actual retrieval quality in a way that Langfuse can aggregate reliably.
-- If required, add supporting `rag:root` counts to understand why scores change.
-
-### Why Scores Are Used
-
-Langfuse cannot average arbitrary observation metadata, so we emit dedicated Score events (primary `retrieval_highest_score` plus optional `retrieval_insufficient` and `context_unique_docs`) and surface them in the Score view. These events only carry numeric values, so no raw prompts or retrieved chunks are ever emitted. Because Score breakdowns require Tags and we currently do not emit any, keep the breakdown set to `None` or build additional widgets that filter on metadata instead.
-
----
-
-### 11. Context Selection Bias & Diversity
-
-**Purpose**
-Detect document dominance or chunk duplication.
-
-**Widget Setup**
-- View: Observations
-- Observation Name: `context:selection`
-- Metrics:
-  - Average `uniqueDocs`
-  - Sum `droppedByDedupe`
-  - Sum `droppedByQuota`
-  - Average `quotaEndUsed`
-
-**Interpretation**
-- Low uniqueDocs + high quotaEndUsed → single-doc dominance
-- High droppedByDedupe → ingestion or chunking problem
-
----
-
-### 12. LLM Latency & Stability
-
-**Purpose**
-Monitor generation performance.
-
-**Widget Setup**
 - View: Observations
 - Observation Name: `answer:llm`
-- Metrics:
-  - Duration p50 / p95 / p99
-- Group by:
-  - `metadata.model`
-  - `metadata.provider`
+- Metric: Latency
+- Aggregation: P50
+- Breakdown Dimension: None
+- Chart Type: Line Chart
 
-**Interpretation**
-- Latency regression = provider or prompt change
-- Abort during generation indicates streaming pressure
+**Description**
+
+Median latency of the LLM generation step, isolated from retrieval and orchestration overhead.
+
+**How to read**
+
+- Should remain stable per model/provider
+- Sudden jumps indicate provider throttling, model swap, or prompt growth
 
 ---
 
-## Group 4 — Quality Guardrail (Widget 13)
+### C‑3. Retrieval Latency
 
-### 13. Insufficient Spike Alert
+**Widget Configuration**
 
-**Purpose**
-Fastest indicator of system degradation.
-
-**Widget Setup**
 - View: Observations
-- Observation Name: `rag:root`
-- Metric: Count
-- Filter: `metadata.insufficient = true`
+- Observation Name: `retrieval`
+- Metric: Latency
+- Aggregation: P50
+- Breakdown Dimension: None
+- Chart Type: Line Chart
 
-**Interpretation**
-- Sudden spike usually indicates:
-  - Index corruption
-  - Ingestion failure
-  - Embedding mismatch
+**Description**
+
+Median latency of vector retrieval and ranking operations.
+
+**How to read**
+
+- Gradual increase → index growth
+- Sudden spikes → cache cold starts or database contention
 
 ---
 
-## Final Notes
+### C‑4. Abort Rate (Knowledge Requests)
 
-- All widgets above are **aligned with emitted telemetry**
-- No widget relies on undocumented fields
-- Verbose-only spans (`rag_retrieval_stage`, raw inputs) are intentionally excluded
+**Widget Configuration**
 
-Once Dashboard A (Traffic & Cache) is stable, proceed to Dashboard B for tuning.
+- View: Traces
+- Metric: Count
+- Filters:
+  - metadata.intent = `knowledge`
+  - metadata.aborted = `true`
+- Breakdown Dimension: None
+- Chart Type: Line Chart
+
+**Description**
+
+Count of knowledge requests that were aborted by the client before completion.
+
+**How to read**
+
+- Abort spikes usually lag latency spikes
+- Sustained aborts indicate UX or streaming issues
+
+---
+
+### C‑5a. Cache Hit Latency
+
+**Widget Configuration**
+
+- View: Traces
+- Metric: Latency
+- Aggregation: P50
+- Filters:
+  - metadata.intent = `knowledge`
+  - metadata.cache.responseHit = `true`
+- Breakdown Dimension: None
+- Chart Type: Line Chart
+
+---
+
+### C‑5b. Cache Miss Latency
+
+**Widget Configuration**
+
+- View: Traces
+- Metric: Latency
+- Aggregation: P50
+- Filters:
+  - metadata.intent = `knowledge`
+  - metadata.cache.responseHit = `false`
+- Breakdown Dimension: None
+- Chart Type: Line Chart
+
+---
+
+**Description (shared)**
+
+Compares response latency for cached versus non‑cached knowledge requests.
+
+**How to read**
+
+- Cache hits must be materially faster
+- If not, cache is too late or retrieval still runs
+
+---
+
+### C‑6a. Knowledge Traces Count
+
+**Widget Configuration**
+
+- View: Traces
+- Metric: Count
+- Filters:
+  - metadata.intent = `knowledge`
+- Breakdown Dimension: None
+- Chart Type: Line Chart
+
+---
+
+### C‑6b. LLM Generation Observations Count
+
+**Widget Configuration**
+
+- View: Observations
+- Observation Name: `answer:llm`
+- Metric: Count
+- Breakdown Dimension: None
+- Chart Type: Line Chart
+
+---
+
+**Description (shared)**
+
+Ensures that expected telemetry components are being emitted consistently.
+
+**How to read**
+
+- C‑6b should closely track C‑6a
+- Divergence indicates telemetry wiring regressions
+
+---
+
+### Reading Dashboard C as a System
+
+- p99 latency (C‑1c) is the earliest signal of user pain
+- Abort spikes (C‑4) should correlate with p95/p99
+- Cache hit latency (C‑5a) must always undercut cache miss latency (C‑5b)
+- Any mismatch between C‑6a and C‑6b invalidates latency analysis
+
+---
+
+### Escalation Rules
+
+Escalate immediately when:
+
+- p99 latency increases >2× without deployment
+- Abort rate >5% for sustained periods
+- Cache hits are not faster than misses
+- Required observations disappear from traces
+
+Dashboard C validates **platform health and observability correctness**.  
+If Dashboard C is wrong, do not tune RAG or prompts — fix telemetry, caching, or infra first.
+
+---
+
+### Dashboard B — Retrieval & Ranking (Product / Data Science)
+
+Widgets: **B‑1 through B‑7**
+
+### Reading Dashboard B as a System
+
+Dashboard B answers: “Is retrieval doing the right thing, and is it worth the cost?”
+
+Use these rules to read widgets together, not in isolation:
+
+- Retrieval Attempt Rate ≈ Knowledge Requests  
+  If attempts drop while knowledge traffic stays flat, routing or guardrails are skipping retrieval.
+
+- Auto Trigger Rate ⊆ Retrieval Attempt Rate  
+  Auto can only trigger if retrieval ran. Auto spikes without retrieval indicate telemetry or logic bugs.
+
+- Retrieval Insufficient Rate ↑ + Retrieval Highest Score ↓  
+  This combination almost always indicates:
+  - Embedding mismatch
+  - Index drift
+  - Over‑strict similarity thresholds
+
+- Retrieval Highest Score (Average) should be stable over time  
+  Gradual decline usually indicates corpus growth without re‑tuning ranking weights.
+
+- Retrieval Highest Score (Trend) sudden drops without Insufficient spikes  
+  Often signal:
+  - Ranking weight regressions
+  - Persona / docType weight changes
+  - Re‑ranking disabled unintentionally
+
+- Context Selection Diversity ↓ while Highest Score stays flat  
+  Indicates single‑document dominance or quota pressure rather than true relevance loss.
+
+- Auto Trigger Rate ↑ with no score uplift  
+  Means Auto/Multi logic is adding cost without quality gain — thresholds should be tightened.
+
+> Dashboard B is NOT a traffic dashboard.
+>
+> Absolute counts are secondary. Always normalize against Dashboard A (knowledge volume).
+> If Dashboard B looks wrong, verify Dashboard A first.
+
+### When to Escalate
+
+Escalate investigation when:
+
+- Insufficient Rate > 10% for sustained periods
+- Highest Score drops >20% without deployment
+- Auto Trigger Rate changes suddenly without config changes
+
+Always correlate with:
+
+- Recent ingestion runs
+- Embedding model changes
+- Ranking weight updates
+
+---

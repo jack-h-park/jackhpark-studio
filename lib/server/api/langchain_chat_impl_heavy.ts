@@ -80,7 +80,12 @@ import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 import { logDebugRag } from "@/lib/server/rag-logger";
 import { emitAnswerGeneration } from "@/lib/server/telemetry/langfuse-generations";
+import {
+  buildCacheMetadata,
+  computeRetrievalUsed,
+} from "@/lib/server/telemetry/langfuse-metadata";
 import { emitRagScores } from "@/lib/server/telemetry/langfuse-scores";
+import { attachLangfuseTraceTags } from "@/lib/server/telemetry/langfuse-tags";
 import {
   clearRequestTrace,
   createTelemetryBuffer,
@@ -410,6 +415,8 @@ interface ComputeRagContextParams {
   traceMetadata: TraceMetadataSnapshot | undefined;
   trace?: LangfuseTrace | null;
   updateTrace?: (updates: TraceUpdate) => void;
+  updateTraceCacheMetadata?: () => void;
+  updateRetrievalMetadata?: (attempted: boolean, used: boolean) => void;
   historyWindow: HistoryWindowResult;
   ragRanking?: RagRankingConfig | null;
   abortSignal?: AbortSignal | null;
@@ -655,13 +662,15 @@ async function computeRagContextAndCitations({
   retrievalCacheTtl,
   presetId,
   cacheMeta,
-  traceMetadata,
+  traceMetadata: _traceMetadata,
   historyWindow,
   ragRanking,
   abortSignal,
   chainRunContext,
   markStage,
   updateTrace,
+  updateTraceCacheMetadata,
+  updateRetrievalMetadata,
   includeSelectionTelemetry,
 }: ComputeRagContextParams): Promise<ComputeRagContextResult> {
   let contextResult = buildIntentContextFallback(
@@ -726,10 +735,16 @@ async function computeRagContextAndCitations({
       if (cachedContext) {
         cacheMeta.retrievalHit = true;
         contextResult = cachedContext;
-        applyTraceMetadataMerge(traceMetadata, {
-          cache: { retrievalHit: true },
-          rag: { retrieval_used: true },
-        });
+        updateTraceCacheMetadata?.();
+        const cachedRetrievalUsed =
+          computeRetrievalUsed({
+            intent: routingDecision.intent,
+            retrievedCount:
+              cachedContext.included.length + cachedContext.dropped,
+            finalSelectedCount:
+              cachedContext.selection?.finalSelectedCount ?? null,
+          }) ?? false;
+        updateRetrievalMetadata?.(false, cachedRetrievalUsed);
       }
     }
 
@@ -1045,6 +1060,14 @@ async function computeRagContextAndCitations({
         enhancementSummary = selectedResult.preRetrieval.enhancementSummary;
         const droppedCount = contextResult.dropped ?? 0;
         const retrievedCount = contextResult.included.length + droppedCount;
+        const retrievalUsed =
+          computeRetrievalUsed({
+            intent: routingDecision.intent,
+            retrievedCount,
+            finalSelectedCount:
+              contextResult.selection?.finalSelectedCount ?? null,
+          }) ?? false;
+        updateRetrievalMetadata?.(true, retrievalUsed);
         topKChunks = Math.max(finalK, retrievedCount);
         citationPayload = buildCitationPayload(contextResult.included, {
           topKChunks,
@@ -1057,9 +1080,7 @@ async function computeRagContextAndCitations({
             retrievalCacheTtl,
           );
           cacheMeta.retrievalHit = false;
-          applyTraceMetadataMerge(traceMetadata, {
-            cache: { retrievalHit: false },
-          });
+          updateTraceCacheMetadata?.();
         }
         ragRootMetadata = {
           finalK,
@@ -1162,9 +1183,7 @@ async function computeRagContextAndCitations({
     cacheMeta.retrievalHit !== null
   ) {
     cacheMeta.retrievalHit = null;
-    applyTraceMetadataMerge(traceMetadata, {
-      cache: { retrievalHit: null },
-    });
+    updateTraceCacheMetadata?.();
   }
 
   const summaryTokens =
@@ -1238,8 +1257,8 @@ async function computeRagContextAndCitations({
     };
   }
 
-  if (traceMetadata && includeVerboseDetails && autoDecisionMetrics) {
-    applyTraceMetadataMerge(traceMetadata, {
+  if (_traceMetadata && includeVerboseDetails && autoDecisionMetrics) {
+    applyTraceMetadataMerge(_traceMetadata, {
       retrievalAutoDecision: autoDecisionMetrics,
     });
   }
@@ -1270,7 +1289,7 @@ async function streamAnswerWithPrompt({
   responseCacheKey,
   responseCacheTtl,
   cacheMeta,
-  traceMetadata,
+  traceMetadata: _traceMetadata,
   res,
   respondJson,
   clearWatchdog,
@@ -1517,9 +1536,6 @@ async function streamAnswerWithPrompt({
         responseCacheTtl,
       );
       cacheMeta.responseHit = false;
-      applyTraceMetadataMerge(traceMetadata, {
-        cache: { responseHit: false },
-      });
     }
     if (!res.writableEnded) {
       res.write(`${CITATIONS_SEPARATOR}${citationJson}`);
@@ -2037,10 +2053,56 @@ export async function handleLangchainChat(
       : undefined;
     finalTelemetryConfigSnapshot = telemetryConfigSnapshot;
     const env = await runStage("env-detect", async () => getAppEnv());
+    const tracePresetForTag =
+      chatConfigSnapshot?.presetKey ?? presetId ?? "unknown";
+    attachLangfuseTraceTags({
+      trace,
+      intent: routingDecision.intent,
+      presetKey: tracePresetForTag,
+      environment: env,
+    });
+    const responseCacheTtl = adminConfig.cache.responseTtlSeconds;
+    const retrievalCacheTtl = adminConfig.cache.retrievalTtlSeconds;
+    const responseCacheEnabled = responseCacheTtl > 0;
+    const retrievalCacheEnabled = retrievalCacheTtl > 0;
     const cacheMeta: ResponseCacheMeta = {
-      responseHit: adminConfig.cache.responseTtlSeconds > 0 ? false : null,
-      retrievalHit: adminConfig.cache.retrievalTtlSeconds > 0 ? false : null,
+      responseHit: responseCacheEnabled ? false : null,
+      retrievalHit: retrievalCacheEnabled ? false : null,
     };
+    function updateTraceCacheMetadata(): void {
+      if (!traceMetadata) {
+        return;
+      }
+      const cachePayload = buildCacheMetadata({
+        intent: routingDecision.intent,
+        responseCacheEnabled,
+        retrievalCacheEnabled,
+        responseCacheHit: cacheMeta.responseHit,
+        retrievalCacheHit: cacheMeta.retrievalHit,
+      });
+      applyTraceMetadataMerge(traceMetadata, {
+        cache: cachePayload.cache,
+        responseCacheHit: cachePayload.responseCacheHit,
+      });
+    }
+    function updateRetrievalMetadata(attempted: boolean, used: boolean): void {
+      if (!traceMetadata) {
+        return;
+      }
+      applyTraceMetadataMerge(traceMetadata, {
+        rag: {
+          retrieval_attempted: attempted,
+          retrieval_used: used,
+        },
+      });
+    }
+    const initialCacheMetadata = buildCacheMetadata({
+      intent: routingDecision.intent,
+      responseCacheEnabled,
+      retrievalCacheEnabled,
+      responseCacheHit: cacheMeta.responseHit,
+      retrievalCacheHit: cacheMeta.retrievalHit,
+    });
     traceMetadata = mergeTraceMetadata(traceMetadata ?? {}, {
       env,
       requestId: traceRequestId ?? null,
@@ -2050,7 +2112,6 @@ export async function handleLangchainChat(
       questionLength: question.length,
       ...(allowPii ? { question } : {}),
       responseCacheStrategy: null,
-      responseCacheHit: null,
       aborted: false,
       environment: process.env.NODE_ENV ?? "unknown",
       config: {
@@ -2068,7 +2129,8 @@ export async function handleLangchainChat(
         wasSubstituted: runtime.llmModelWasSubstituted,
         substitutionReason: runtime.llmSubstitutionReason,
       },
-      cache: cacheMeta,
+      cache: initialCacheMetadata.cache,
+      responseCacheHit: initialCacheMetadata.responseCacheHit,
     });
     if (shouldCaptureConfig && chatConfigSnapshot) {
       applyTraceMetadataMerge(traceMetadata, {
@@ -2278,8 +2340,6 @@ export async function handleLangchainChat(
       };
     };
     capturePosthogEvent = initializePosthogCapture();
-    const responseCacheTtl = adminConfig.cache.responseTtlSeconds;
-    const retrievalCacheTtl = adminConfig.cache.retrievalTtlSeconds;
     const autoOrMultiEnabled =
       hydeMode === "auto" ||
       rewriteMode === "auto" ||
@@ -2325,9 +2385,7 @@ export async function handleLangchainChat(
     ) => {
       mark("cache-response-hit");
       cacheMeta.responseHit = true;
-      applyTraceMetadataMerge(traceMetadata, {
-        cache: { responseHit: true },
-      });
+      updateTraceCacheMetadata();
       pushTelemetryEvent("cache-hit", {
         responseCacheKey: cacheKey,
         outputLength: snapshot.output.length,
@@ -2412,9 +2470,8 @@ export async function handleLangchainChat(
           responseCacheHit: false,
         },
       });
-      applyTraceMetadataMerge(traceMetadata, {
-        cache: { responseHit: cacheMeta.responseHit },
-      });
+      cacheMeta.responseHit = false;
+      updateTraceCacheMetadata();
     }
     if (includeVerboseDetails) {
       ragLogger.debug("[langchain_chat] response cache strategy", {
@@ -2524,6 +2581,8 @@ export async function handleLangchainChat(
         chainRunContext,
         markStage: mark,
         updateTrace: updateTrace ?? undefined,
+        updateTraceCacheMetadata,
+        updateRetrievalMetadata,
       });
       mark("after-rag-context");
 
@@ -2577,9 +2636,8 @@ export async function handleLangchainChat(
             responseCacheHit: false,
           },
         });
-        applyTraceMetadataMerge(traceMetadata, {
-          cache: { responseHit: cacheMeta.responseHit },
-        });
+        cacheMeta.responseHit = false;
+        updateTraceCacheMetadata();
       }
 
       mark("before-streaming");
@@ -2813,6 +2871,8 @@ export async function handleLangchainChat(
         presetId: finalPresetId ?? "unknown",
         provider: finalProvider ?? "unknown",
         model: finalLlmModel ?? "unknown",
+        guardrails: finalGuardrails ?? null,
+        configSummary: finalTelemetryConfigSnapshot?.configSummary ?? null,
         questionHash: finalQuestionHash ?? null,
         questionLength: finalQuestion?.length ?? 0,
         question: finalQuestion ?? undefined,

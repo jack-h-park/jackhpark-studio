@@ -22,10 +22,13 @@ Traces emit request-level metadata for filtering. No default tags are attached t
 - `questionLength`
 - `metadata.cache.responseHit`
 - `metadata.cache.retrievalHit`
-- `metadata.rag.retrieval_attempted` (true when retrieval pipeline runs)
+- `metadata.rag.retrieval_attempted` (true when the retrieval pipeline runs, knowledge intent only)
+- `metadata.rag.retrieval_used` (true when retrieval results actually feed the response, knowledge intent only)
 - `chatConfig` (and `ragConfig` alias when a config snapshot is emitted)
 
 Raw question text is excluded by default. It is only included when `LANGFUSE_INCLUDE_PII="true"`.
+
+`metadata.cache.responseHit` and `metadata.cache.retrievalHit` are the canonical cache flags; the legacy top-level `responseCacheHit` mirrors the same value for backwards compatibility. Runtime facts (retrieval attempts/usage) belong under `metadata.rag.*`, keeping `chatConfig`/`ragConfig` configuration-only. For non-knowledge intents this runtime block is omitted so dashboards don’t misinterpret RAG state.
 
 ## Trace Input/Output (PII-Safe Summaries)
 
@@ -56,6 +59,8 @@ Every request emits a Langfuse **Generation** event named `answer:llm` so that t
 - When `intent="knowledge"` and the RAG pipeline runs: `ragTopK`, `similarityThreshold`, `rankerMode`, `reverseRagEnabled`, `hydeEnabled`
 - Raw question text is included **only** when `LANGFUSE_INCLUDE_PII="true"`
 
+The generation helper guarantees that `intent`, `model`, `topK`, and `settings_hash` are populated (falling back to `unknown`/stitched values) so Langfuse’s Input/Output panels never see `null`. `topK` is only emitted for knowledge traces, while `settings_hash` uses the config snapshot hash or a stable hash of the sanitized summary when no snapshot is available.
+
 ### Generation output (PII safe)
 - `finish_reason` (`success`, `error`, `aborted`, etc.)
 - `aborted` (`true` when the request was canceled)
@@ -66,6 +71,24 @@ Every request emits a Langfuse **Generation** event named `answer:llm` so that t
 - `insufficient` (boolean or `null` for chitchat)
 
 Latency is measured from the actual LLM generation window (`startTime` / `endTime`) when available, so dashboards can chart generation duration even during streaming.
+
+## Tags (UI-only, Derived)
+
+### Tags (UI-only)
+
+Every Langfuse trace receives a small, derived tag set so dashboards can safely break down traffic without depending on bespoke metadata queries.
+
+Emitted tags:
+
+- `intent:<intent>` — the request routing intent (`knowledge` / `chitchat` / `command`).
+- `preset:<presetKey>` — the active chat preset used for the request.
+- `env:<environment>` — the runtime environment (`dev` / `preview` / `prod`).
+
+Notes:
+
+- Tags are low-cardinality, human-readable mirrors of canonical metadata; they are not the source of truth.
+- All rich telemetry (response summaries, cache results, scores) still lives in trace metadata and Scores.
+- Tags exist purely to stabilize Langfuse UI breakdowns, so dashboards should query metadata for filters and rely on tags for category/grouping.
 
 ## Prompt Versioning
 
@@ -107,6 +130,13 @@ Cache effectiveness is tracked in `metadata.cache` (on the trace) and within ind
 - `metadata.cache.retrievalHit`: `true` | `false` | `null`
 
 `responseCacheHit` and `responseCacheStrategy` are also emitted as top-level trace metadata for backwards compatibility.
+
+## Runtime Facts vs Config Snapshots
+
+Configuration snapshots stay under `chatConfig`/`ragConfig`; runtime facts live under `metadata.rag.*`. This keeps dashboards from confusing stable config with per-request behavior.
+
+- `metadata.rag.retrieval_attempted` is true whenever the retrieval pipeline actually runs (knowledge intent only).
+- `metadata.rag.retrieval_used` is always boolean for knowledge traces (true when retrieval results contribute to the context, false when the pipeline runs but nothing is used). It is absent for chitchat to avoid signaling RAG metrics when they don’t apply.
 
 ## Trace vs Observation Telemetry
 
