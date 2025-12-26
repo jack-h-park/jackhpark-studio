@@ -34,6 +34,17 @@ function makeScoreClient(): StubScoreClient {
 }
 
 void describe("emitRagScores", () => {
+  void it("does not emit when trace is missing", () => {
+    const client = makeScoreClient();
+    emitRagScores({
+      trace: null,
+      intent: "knowledge",
+      highestScore: 0.6,
+      scoreClient: client,
+    });
+    assert.equal(client.calls.length, 0);
+  });
+
   void it("does not emit when intent is not knowledge", () => {
     const trace = makeTrace();
     const client = makeScoreClient();

@@ -220,27 +220,23 @@ Validate candidate diversity gains.
 ### 10. Retrieval Quality Health
 
 **Purpose**
-Primary RAG quality signal.
+Primary RAG quality signal delivered through Scores.
 
 **Widget Setup**
-- View: Observations
-- Observation Name: `rag:root`
-- Metrics:
-  - Average `finalK`
-  - Average `candidateK`
-  - Scores:
-    - View: Scores
-    - Score Name: `retrieval_highest_score`
-    - Metric: Average / p50 / p95
-  - Count `insufficient=true`
+- View: Scores
+- Score Name: `retrieval_highest_score`
+- Metric: Average / p50 / p95 (Langfuse Score view)
+- Filter: `metadata.intent = "knowledge"`
+- Breakdowns: `None` (Langfuse Score breakdowns require Tags, and we currently do not emit any)
+- Optional follow-up: use the `rag:root` observation for counts (e.g., `finalK`, `candidateK`, `insufficient=true`) if you need richer diagnostic context.
 
 **Interpretation**
-- Frequent `insufficient=true` = retrieval weakness
-- CandidateK >> retrievedCount = threshold/index issue
+- `retrieval_highest_score` trends capture actual retrieval quality in a way that Langfuse can aggregate reliably.
+- If required, add supporting `rag:root` counts to understand why scores change.
 
 ### Why Scores Are Used
 
-Langfuse cannot average arbitrary observation metadata, so we emit dedicated Score events (primary `retrieval_highest_score` plus optional `retrieval_insufficient` and `context_unique_docs`) to expose chartable quality metrics without storing raw questions or other PII.
+Langfuse cannot average arbitrary observation metadata, so we emit dedicated Score events (primary `retrieval_highest_score` plus optional `retrieval_insufficient` and `context_unique_docs`) and surface them in the Score view. These events only carry numeric values, so no raw prompts or retrieved chunks are ever emitted. Because Score breakdowns require Tags and we currently do not emit any, keep the breakdown set to `None` or build additional widgets that filter on metadata instead.
 
 ---
 

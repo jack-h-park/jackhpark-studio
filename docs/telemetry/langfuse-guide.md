@@ -39,6 +39,34 @@ Model response text is never stored on the trace.
 
 Additionally, the `answer:llm` observation spans the full generation lifecycle, including streaming. It always has a non-zero duration and closes correctly on success, abort, or error with appropriate `finishReason` and `aborted` fields to represent the completion semantics accurately.
 
+## Generation Events
+
+Every request emits a Langfuse **Generation** event named `answer:llm` so that the Input/Output panels show a meaningful summary without storing raw prompts or retrieved content.
+
+### Generation input (PII safe)
+- `requestId`
+- `intent` (e.g., `knowledge` / `chitchat`)
+- `questionHash`
+- `questionLength`
+- `presetId`
+- `provider`
+- `model`
+- `configHash` (when a config snapshot is available)
+- `telemetry.detailLevel`
+- When `intent="knowledge"` and the RAG pipeline runs: `ragTopK`, `similarityThreshold`, `rankerMode`, `reverseRagEnabled`, `hydeEnabled`
+- Raw question text is included **only** when `LANGFUSE_INCLUDE_PII="true"`
+
+### Generation output (PII safe)
+- `finish_reason` (`success`, `error`, `aborted`, etc.)
+- `aborted` (`true` when the request was canceled)
+- `error_category` (if any)
+- `cache_hit`
+- `answer_chars`
+- `citationsCount`
+- `insufficient` (boolean or `null` for chitchat)
+
+Latency is measured from the actual LLM generation window (`startTime` / `endTime`) when available, so dashboards can chart generation duration even during streaming.
+
 ## Prompt Versioning
 
 The `prompt.baseVersion` found in the metadata is a unique 12-character SHA256 hash generated from the combination of:
@@ -127,20 +155,14 @@ When intent is `"knowledge"`, the following observations are emitted:
 
 ## Langfuse Scores for Retrieval Quality
 
-Langfuse cannot average arbitrary observation metadata, so we emit dedicated Score events that can be aggregated safely via the Scores view:
+Langfuse cannot average arbitrary observation metadata, so we emit dedicated Score events that can be aggregated safely via the Scores view without storing sensitive data.
 
+### Scores emitted
 - `retrieval_highest_score` (value = `highestScore`, emitted when a Langfuse trace exists and the value is finite)
 - `retrieval_insufficient` (binary 1/0 that mirrors the `insufficient` flag)
 - `context_unique_docs` (optional count of unique documents when selection metadata is available)
 
-These scores reuse the existing trace (no new trace creation) and never include raw question text or other PII.
-
-Scores emitted: `retrieval_highest_score` (+ optional `retrieval_insufficient`, `context_unique_docs`).
-
-## Generation Summary
-
-- **Observation Name**: `answer:llm`
-  - `provider`, `model`, `responseCacheHit`, `aborted`
+Each score reuses the existing trace and carries only numeric data; no raw questions, prompts, or retrieved chunks are emitted.
 
 ## Response Summary (Request-Level)
 

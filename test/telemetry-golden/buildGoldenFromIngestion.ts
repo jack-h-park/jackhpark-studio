@@ -82,6 +82,19 @@ export function buildGoldenFromIngestion(batches: unknown[]): GoldenTelemetry {
           input: event.body.input,
           output: event.body.output,
         });
+        continue;
+      }
+      if (
+        event.type === "generation-create" &&
+        event.body &&
+        typeof event.body.name === "string"
+      ) {
+        observations.push({
+          name: event.body.name,
+          metadata: event.body.metadata ?? null,
+          input: event.body.input,
+          output: event.body.output,
+        });
       }
     }
   }

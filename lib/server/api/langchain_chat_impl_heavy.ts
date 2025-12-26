@@ -79,6 +79,7 @@ import {
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 import { logDebugRag } from "@/lib/server/rag-logger";
+import { emitAnswerGeneration } from "@/lib/server/telemetry/langfuse-generations";
 import { emitRagScores } from "@/lib/server/telemetry/langfuse-scores";
 import {
   clearRequestTrace,
@@ -86,6 +87,7 @@ import {
   getRequestTrace,
   type TelemetryContext,
 } from "@/lib/server/telemetry/telemetry-buffer";
+import { buildTelemetryConfigSnapshot } from "@/lib/server/telemetry/telemetry-config-snapshot";
 import { isTelemetryEnabled } from "@/lib/server/telemetry/telemetry-enabled";
 import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
 import {
@@ -1820,6 +1822,26 @@ export async function handleLangchainChat(
   let finalizeReason: SafeTraceOutputSummary["finish_reason"] | null = null;
   let errorCategory: string | null = null;
   let updateTrace: ((updates: TraceUpdate) => void) | null = null;
+  let llmGenerationStartMs: number | null = null;
+  let llmGenerationEndMs: number | null = null;
+  let generationEmitted = false;
+  let finalTrace: LangfuseTrace | null = null;
+  let finalChainRunContext: ChainRunContext | null = null;
+  let finalDetailLevel: string | null = null;
+  let finalProvider: string | null = null;
+  let finalLlmModel: string | null = null;
+  let finalAllowPii: boolean | null = null;
+  let finalTelemetryConfigSnapshot:
+    | ReturnType<typeof buildTelemetryConfigSnapshot>
+    | undefined;
+  let finalRankerMode: string | null = null;
+  let finalReverseRagEnabled: boolean | null = null;
+  let finalHydeEnabled: boolean | null = null;
+  let finalRoutingDecision: RoutedQuestion | null = null;
+  let finalGuardrails: ChatGuardrailConfig | null = null;
+  let finalPresetId: string | null = null;
+  let finalQuestion: string | null = null;
+  let finalQuestionHash: string | null = null;
 
   try {
     // Legacy LOG_LLM_LEVEL check removed.
@@ -1870,6 +1892,7 @@ export async function handleLangchainChat(
       (typeof sessionConfig?.appliedPreset === "string"
         ? sessionConfig.appliedPreset
         : "default");
+    finalPresetId = presetId;
     pushTelemetryEvent("admin-config", {
       presetId,
       ragRanking: Boolean(adminConfig.ragRanking),
@@ -1896,11 +1919,15 @@ export async function handleLangchainChat(
       runtimeFlags,
     });
     guardrails = sanitizedSettings.guardrails;
+    finalGuardrails = guardrails;
     const sanitizationChanges: SanitizationChange[] = sanitizedSettings.changes;
     const reverseRagEnabled = sanitizedSettings.runtimeFlags.reverseRagEnabled;
     const reverseRagMode = sanitizedSettings.runtimeFlags.reverseRagMode;
     const hydeEnabled = sanitizedSettings.runtimeFlags.hydeEnabled;
     const rankerMode = sanitizedSettings.runtimeFlags.rankerMode;
+    finalReverseRagEnabled = reverseRagEnabled;
+    finalHydeEnabled = hydeEnabled;
+    finalRankerMode = rankerMode;
 
     const fallbackQuestion =
       typeof body.question === "string" ? body.question : undefined;
@@ -1922,12 +1949,15 @@ export async function handleLangchainChat(
 
     const question = lastMessage.content;
     const questionHash = hashPayload({ q: question });
+    finalQuestion = question;
+    finalQuestionHash = questionHash;
     const normalizedQuestion = normalizeQuestion(question);
     const routingDecision = routeQuestion(
       normalizedQuestion,
       messages,
       guardrails,
     );
+    finalRoutingDecision = routingDecision;
     const guardrailRoute: GuardrailRoute =
       routingDecision.intent === "chitchat"
         ? "chitchat"
@@ -1953,6 +1983,7 @@ export async function handleLangchainChat(
       getLoggingConfig(),
     );
     const { enabled, sampleRate, detailLevel } = loggingConfig.telemetry;
+    finalDetailLevel = detailLevel;
     mark("telemetry-start");
     const telemetryDecision = decideTelemetryMode(
       enabled ? sampleRate : 0,
@@ -1963,6 +1994,7 @@ export async function handleLangchainChat(
     const includeConfigSnapshot = telemetryDecision.includeConfigSnapshot;
     const includeVerboseDetails = telemetryDecision.includeRetrievalDetails;
     const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
+    finalAllowPii = allowPii;
     telemetryBuffer?.updateContext({
       includePii: allowPii,
       question,
@@ -1974,6 +2006,7 @@ export async function handleLangchainChat(
       sessionId ??
       normalizedQuestion.normalized;
     const trace = traceRequestId ? getRequestTrace(traceRequestId) : null;
+    finalTrace = trace;
     if (process.env.NODE_ENV !== "production") {
       console.debug("[telemetry] langfuse trace", {
         requestId: traceRequestId,
@@ -1999,6 +2032,10 @@ export async function handleLangchainChat(
           basePromptVersion,
         })
       : undefined;
+    const telemetryConfigSnapshot = chatConfigSnapshot
+      ? buildTelemetryConfigSnapshot(chatConfigSnapshot)
+      : undefined;
+    finalTelemetryConfigSnapshot = telemetryConfigSnapshot;
     const env = await runStage("env-detect", async () => getAppEnv());
     const cacheMeta: ResponseCacheMeta = {
       responseHit: adminConfig.cache.responseTtlSeconds > 0 ? false : null,
@@ -2130,6 +2167,8 @@ export async function handleLangchainChat(
     const embeddingProvider = embeddingSelection.provider;
     const llmModel = llmSelection.model;
     const embeddingModel = embeddingSelection.model;
+    finalProvider = provider;
+    finalLlmModel = llmModel;
     const temperature = parseTemperature(undefined);
     updateTrace?.({
       input: buildSafeTraceInputSummary({
@@ -2182,6 +2221,7 @@ export async function handleLangchainChat(
       traceId: null,
       langfuseTraceId: null,
     };
+    finalChainRunContext = chainRunContext;
     const resolvePosthogDistinctId = () => {
       const anonymousId =
         typeof req.headers["x-anonymous-id"] === "string"
@@ -2543,37 +2583,45 @@ export async function handleLangchainChat(
       }
 
       mark("before-streaming");
-      const streamResult = await streamAnswerWithPrompt({
-        llmInstance,
-        prompt,
-        question,
-        historyWindow,
-        contextResult: ragResult.contextResult,
-        citationPayload: ragResult.citations,
-        latestMeta: ragResult.latestMeta,
-        routingDecision,
-        env,
-        temperature,
-        provider,
-        model: llmModel,
-        requestedModelId: llmModel,
-        candidateModelId,
-        responseCacheKey,
-        responseCacheTtl,
-        cacheMeta,
-        traceMetadata: traceMetadata ?? undefined,
-        res,
-        abortSignal: requestAbortSignal,
-        capturePosthogEvent,
-        respondJson,
-        clearWatchdog,
-        markStage: (stage, extra) => mark(stage, extra),
-        chainRunContext,
-        logReturn,
-        initialStreamStarted: earlyStreamStarted,
-        trace,
-        updateTrace: updateTrace ?? undefined,
-      });
+      llmGenerationStartMs = Date.now();
+      let streamResult: StreamAnswerResult;
+      try {
+        streamResult = await streamAnswerWithPrompt({
+          llmInstance,
+          prompt,
+          question,
+          historyWindow,
+          contextResult: ragResult.contextResult,
+          citationPayload: ragResult.citations,
+          latestMeta: ragResult.latestMeta,
+          routingDecision,
+          env,
+          temperature,
+          provider,
+          model: llmModel,
+          requestedModelId: llmModel,
+          candidateModelId,
+          responseCacheKey,
+          responseCacheTtl,
+          cacheMeta,
+          traceMetadata: traceMetadata ?? undefined,
+          res,
+          abortSignal: requestAbortSignal,
+          capturePosthogEvent,
+          respondJson,
+          clearWatchdog,
+          markStage: (stage, extra) => mark(stage, extra),
+          chainRunContext,
+          logReturn,
+          initialStreamStarted: earlyStreamStarted,
+          trace,
+          updateTrace: updateTrace ?? undefined,
+        });
+        llmGenerationEndMs = Date.now();
+      } catch (streamErr) {
+        llmGenerationEndMs = Date.now();
+        throw streamErr;
+      }
       mark("after-streaming");
 
       return !streamResult.handledEarlyExit;
@@ -2736,6 +2784,51 @@ export async function handleLangchainChat(
           },
         });
       }
+    }
+    if (
+      finalTrace &&
+      !generationEmitted &&
+      llmGenerationStartMs !== null &&
+      traceOutputSummary &&
+      finalRoutingDecision &&
+      finalGuardrails
+    ) {
+      generationEmitted = true;
+      const outputSummary = traceOutputSummary as SafeTraceOutputSummary;
+      const ragConfig =
+        finalRoutingDecision.intent === "knowledge"
+          ? {
+              ragTopK: finalGuardrails.ragTopK,
+              similarityThreshold: finalGuardrails.similarityThreshold,
+              rankerMode: finalRankerMode ?? "none",
+              reverseRagEnabled: finalReverseRagEnabled ?? false,
+              hydeEnabled: finalHydeEnabled ?? false,
+            }
+          : null;
+      void emitAnswerGeneration({
+        trace: finalTrace,
+        requestId: traceRequestId ?? finalChainRunContext?.requestId ?? null,
+        intent: finalRoutingDecision.intent,
+        detailLevel: finalDetailLevel ?? "standard",
+        presetId: finalPresetId ?? "unknown",
+        provider: finalProvider ?? "unknown",
+        model: finalLlmModel ?? "unknown",
+        questionHash: finalQuestionHash ?? null,
+        questionLength: finalQuestion?.length ?? 0,
+        question: finalQuestion ?? undefined,
+        allowPii: finalAllowPii ?? false,
+        configHash: finalTelemetryConfigSnapshot?.configHash ?? null,
+        ragConfig,
+        finishReason: outputSummary.finish_reason,
+        aborted: Boolean(traceMetadata?.aborted),
+        errorCategory: outputSummary.error_category ?? null,
+        cacheHit: outputSummary.cache_hit,
+        answerChars: outputSummary.answer_chars,
+        citationsCount: outputSummary.citationsCount,
+        insufficient: outputSummary.insufficient,
+        startTimeMs: llmGenerationStartMs,
+        endTimeMs: llmGenerationEndMs ?? llmGenerationStartMs,
+      });
     }
     cleanupRequestAbort?.();
     clearWatchdog();
