@@ -31,16 +31,6 @@ This dashboard is used by infra / platform owners, not product teams.
 
 ### C‑1a. End‑to‑End Latency — p50
 
-**Widget Configuration (Langfuse UI)**
-
-- View: Traces
-- Metric: Latency
-- Aggregation: P50
-- Filters:
-  - metadata.intent = `knowledge`
-- Breakdown Dimension: None
-- Chart Type: Line Chart
-
 **Widget Description**  
 Median end‑to‑end latency experienced by users for knowledge requests. Represents baseline system responsiveness excluding tail outliers.
 
@@ -48,32 +38,12 @@ Median end‑to‑end latency experienced by users for knowledge requests. Repre
 
 ### C‑1b. End‑to‑End Latency — p95
 
-**Widget Configuration (Langfuse UI)**
-
-- View: Traces
-- Metric: Latency
-- Aggregation: P95
-- Filters:
-  - metadata.intent = `knowledge`
-- Breakdown Dimension: None
-- Chart Type: Line Chart
-
 **Widget Description**  
 95th percentile end‑to‑end latency capturing slow but acceptable tail user experiences.
 
 ---
 
 ### C‑1c. End‑to‑End Latency — p99
-
-**Widget Configuration (Langfuse UI)**
-
-- View: Traces
-- Metric: Latency
-- Aggregation: P99
-- Filters:
-  - metadata.intent = `knowledge`
-- Breakdown Dimension: None
-- Chart Type: Line Chart
 
 **Widget Description**  
 99th percentile latency indicating critical user experience risks and tail latency issues.
@@ -92,15 +62,6 @@ Median end‑to‑end latency experienced by users for knowledge requests. Repre
 
 ### C‑2. LLM Generation Latency
 
-**Widget Configuration**
-
-- View: Observations
-- Observation Name: `answer:llm`
-- Metric: Latency
-- Aggregation: P50
-- Breakdown Dimension: None
-- Chart Type: Line Chart
-
 **Description**
 
 Median latency of the LLM generation step, isolated from retrieval and orchestration overhead.
@@ -113,15 +74,6 @@ Median latency of the LLM generation step, isolated from retrieval and orchestra
 ---
 
 ### C‑3. Retrieval Latency
-
-**Widget Configuration**
-
-- View: Observations
-- Observation Name: `retrieval`
-- Metric: Latency
-- Aggregation: P50
-- Breakdown Dimension: None
-- Chart Type: Line Chart
 
 **Description**
 
@@ -136,16 +88,6 @@ Median latency of vector retrieval and ranking operations.
 
 ### C‑4. Abort Rate (Knowledge Requests)
 
-**Widget Configuration**
-
-- View: Traces
-- Metric: Count
-- Filters:
-  - metadata.intent = `knowledge`
-  - metadata.aborted = `true`
-- Breakdown Dimension: None
-- Chart Type: Line Chart
-
 **Description**
 
 Count of knowledge requests that were aborted by the client before completion.
@@ -159,31 +101,9 @@ Count of knowledge requests that were aborted by the client before completion.
 
 ### C‑5a. Cache Hit Latency
 
-**Widget Configuration**
-
-- View: Traces
-- Metric: Latency
-- Aggregation: P50
-- Filters:
-  - metadata.intent = `knowledge`
-  - metadata.cache.responseHit = `true`
-- Breakdown Dimension: None
-- Chart Type: Line Chart
-
 ---
 
 ### C‑5b. Cache Miss Latency
-
-**Widget Configuration**
-
-- View: Traces
-- Metric: Latency
-- Aggregation: P50
-- Filters:
-  - metadata.intent = `knowledge`
-  - metadata.cache.responseHit = `false`
-- Breakdown Dimension: None
-- Chart Type: Line Chart
 
 ---
 
@@ -200,26 +120,9 @@ Compares response latency for cached versus non‑cached knowledge requests.
 
 ### C‑6a. Knowledge Traces Count
 
-**Widget Configuration**
-
-- View: Traces
-- Metric: Count
-- Filters:
-  - metadata.intent = `knowledge`
-- Breakdown Dimension: None
-- Chart Type: Line Chart
-
 ---
 
 ### C‑6b. LLM Generation Observations Count
-
-**Widget Configuration**
-
-- View: Observations
-- Observation Name: `answer:llm`
-- Metric: Count
-- Breakdown Dimension: None
-- Chart Type: Line Chart
 
 ---
 
@@ -254,6 +157,51 @@ Escalate immediately when:
 
 Dashboard C validates **platform health and observability correctness**.  
 If Dashboard C is wrong, do not tune RAG or prompts — fix telemetry, caching, or infra first.
+
+---
+
+### Widget-Level Interpretation (Dashboard C)
+
+### C‑1a / C‑1b / C‑1c. End‑to‑End Latency (p50 / p95 / p99)
+
+- **What it shows**: User‑perceived latency distribution.
+- **How to read**:
+  - p50 = baseline
+  - p95 = slow tail
+  - p99 = critical UX risk
+- **Act when**:
+  - p99 alone rises → retrieval or LLM bottleneck
+  - All rise → infra regression
+
+### C‑2. LLM Generation Latency
+
+- **What it shows**: Pure LLM execution time.
+- **How to read**: Should be stable per model.
+- **Act when**: Jumps → provider throttling or prompt growth.
+
+### C‑3. Retrieval Latency
+
+- **What it shows**: Vector search + ranking cost.
+- **How to read**: Correlates with index size.
+- **Act when**: Spikes → DB/cache contention.
+
+### C‑4. Abort Rate
+
+- **What it shows**: Client‑aborted requests.
+- **How to read**: UX distress indicator.
+- **Act when**: Rising → check p95/p99 immediately.
+
+### C‑5a / C‑5b. Cache Hit vs Miss Latency
+
+- **What it shows**: Performance value of caching.
+- **How to read**: Hits must be materially faster.
+- **Act when**: No gap → cache too late or retrieval still runs.
+
+### C‑6a / C‑6b. Observability Coverage
+
+- **What it shows**: Telemetry completeness.
+- **How to read**: Counts should track closely.
+- **Act when**: Divergence → telemetry regression; stop tuning.
 
 ---
 
@@ -312,5 +260,123 @@ Always correlate with:
 - Recent ingestion runs
 - Embedding model changes
 - Ranking weight updates
+
+---
+
+### Widget-Level Interpretation (Dashboard B)
+
+### B‑1. Retrieval Attempt Rate
+
+- **What it shows**: Whether retrieval actually runs.
+- **How to read**: Should closely track A‑2.
+- **Act when**: Drops → guardrails or routing bypassing retrieval.
+
+### B‑2. Auto Trigger Rate
+
+- **What it shows**: How often Auto/Multi logic activates.
+- **How to read**: Subset of retrieval attempts.
+- **Act when**: High without score uplift → wasted cost.
+
+### B‑3. Retrieval Insufficient Rate
+
+- **What it shows**: Fraction of retrievals judged insufficient.
+- **How to read**: Quality failure signal.
+- **Act when**: Sustained >10% → inspect embeddings or thresholds.
+
+### B‑4. Retrieval Highest Score (Average)
+
+- **What it shows**: Overall retrieval quality level.
+- **How to read**: Should be stable over time.
+- **Act when**: Gradual decline → corpus growth or ranking drift.
+
+### B‑5. Retrieval Highest Score (Trend)
+
+- **What it shows**: Short‑term quality changes.
+- **How to read**: Sensitive to regressions.
+- **Act when**: Sudden drop → recent ranking/config change.
+
+### B‑6. Context Selection Diversity
+
+- **What it shows**: Variety of documents selected.
+- **How to read**: Prevents single‑doc dominance.
+- **Act when**: Drops → quota pressure or weighting skew.
+
+### B‑7. Auto Trigger Effectiveness
+
+- **What it shows**: Whether Auto improves outcomes.
+- **How to read**: Compare against score uplift.
+- **Act when**: No uplift → tighten Auto criteria.
+
+---
+
+### Dashboard A — Traffic, Cache & Stability (Usage Guide)
+
+### Widget-Level Interpretation (Dashboard A)
+
+### A‑1. Total Request Volume
+
+- **What it shows**: Overall system load.
+- **How to read**: Acts as the denominator for all downstream rates.
+- **Act when**: Sudden spikes without cache hits → investigate traffic sources or bots.
+
+### A‑2. Knowledge Requests
+
+- **What it shows**: Requests that engage retrieval, Auto, Multi, and caching.
+- **How to read**: Direct proxy for retrieval + LLM cost.
+- **Act when**: Growth outpaces cache hits → expect rising cost.
+
+### A‑3. Non‑Knowledge Traffic (Chitchat / Command)
+
+- **What it shows**: Baseline LLM usage without retrieval.
+- **How to read**: Should stay relatively stable vs A‑2.
+- **Act when**: Sudden growth → intent routing regression.
+
+### A‑4. Early Cache Requests
+
+- **What it shows**: Deterministic cache hits before Auto/Multi logic.
+- **How to read**: Indicates prompt repeatability.
+- **Act when**: Drops → cache key instability or prompt drift.
+
+### A‑5. Late Cache Requests
+
+- **What it shows**: Cache hits after retrieval decisions.
+- **How to read**: Expected to be low but stable.
+- **Act when**: Sudden spikes → over‑broad cache keys (risk).
+
+### A‑6. Response Cache Hits
+
+- **What it shows**: Successful reuse of cached responses.
+- **How to read**: Primary cost‑savings signal.
+- **Act when**: Flat zero → cache disabled or TTL mismatch.
+
+### A‑7. Response Cache Miss Count
+
+- **What it shows**: Fresh LLM generations.
+- **How to read**: Should scale with A‑2.
+- **Act when**: Misses rise faster than A‑2 → prompt variance.
+
+### A‑8. Aborted Requests
+
+- **What it shows**: Client‑aborted knowledge requests.
+- **How to read**: UX distress signal.
+- **Act when**: Rising → immediately check Dashboard C latency.
+
+---
+
+### Operating Model Across Dashboards
+
+- Dashboard A sets the baseline traffic and caching context.
+- Dashboard B diagnoses retrieval and ranking quality.
+- Dashboard C monitors latency, aborts, and telemetry health.
+- Always correlate across dashboards for root cause analysis.
+- Avoid tuning retrieval or prompts until telemetry and infra are validated.
+
+---
+
+### Why There Is No Dashboard D
+
+- Dashboards A, B, and C cover traffic, retrieval, and latency comprehensively.
+- Additional dashboards risk fragmentation and confusion.
+- Focus on improving signal quality and actionable alerts within these three.
 
 ---
