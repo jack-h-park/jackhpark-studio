@@ -95,6 +95,7 @@ import {
 import { buildTelemetryConfigSnapshot } from "@/lib/server/telemetry/telemetry-config-snapshot";
 import { isTelemetryEnabled } from "@/lib/server/telemetry/telemetry-enabled";
 import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
+import { stableHash } from "@/lib/server/telemetry/stable-hash";
 import {
   buildSafeTraceInputSummary,
   buildSafeTraceOutputSummary,
@@ -154,7 +155,7 @@ const AUTO_SUPPRESS_SIMILARITY = 0.1;
 
 const MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 1024);
 
-function buildResponseCacheKeyPayload(args: {
+export type ResponseCacheKeyArgs = {
   presetId: string;
   intent: string;
   messages: ChatMessage[];
@@ -175,13 +176,23 @@ function buildResponseCacheKeyPayload(args: {
     ragMultiQueryMaxQueries: number;
   };
   decision?: RagDecisionSignature | null;
-}) {
+  resolvedProvider: string;
+  resolvedModelId: string;
+  requestedModelId: string | null;
+  summaryHash: string;
+};
+
+export function buildResponseCacheKeyPayload(args: ResponseCacheKeyArgs) {
   const payload = {
     presetId: args.presetId,
     intent: args.intent,
     messages: args.messages,
     guardrails: args.guardrails,
     runtime: args.runtimeFlags,
+    provider: args.resolvedProvider,
+    resolvedModelId: args.resolvedModelId,
+    requestedModelId: args.requestedModelId,
+    summaryHash: args.summaryHash,
   } as Record<string, unknown>;
 
   if (args.decision) {
@@ -189,6 +200,54 @@ function buildResponseCacheKeyPayload(args: {
   }
 
   return payload;
+}
+
+export function computeHistorySummaryHash(
+  summaryMemory: string | null | undefined,
+): string {
+  return stableHash(summaryMemory ?? "");
+}
+
+export type RetrievalCacheKeyArgs = {
+  presetId: string;
+  question: string;
+  ragTopK: number;
+  similarityThreshold: number;
+  candidateK: number;
+  reverseRagEnabled: boolean;
+  reverseRagMode: ReverseRagMode;
+  hydeEnabled: boolean;
+  rankerMode: RankerMode;
+  hydeMode: RagAutoMode;
+  rewriteMode: RagAutoMode;
+  ragMultiQueryMode: RagMultiQueryMode;
+  ragMultiQueryMaxQueries: number;
+};
+
+export function buildRetrievalCacheKeyPayload(
+  args: RetrievalCacheKeyArgs,
+): Record<string, unknown> {
+  return {
+    question: args.question,
+    presetId: args.presetId,
+    ragTopK: args.ragTopK,
+    similarityThreshold: args.similarityThreshold,
+    candidateK: args.candidateK,
+    reverseRagEnabled: args.reverseRagEnabled,
+    reverseRagMode: args.reverseRagMode,
+    hydeEnabled: args.hydeEnabled,
+    rankerMode: args.rankerMode,
+    hydeMode: args.hydeMode,
+    rewriteMode: args.rewriteMode,
+    ragMultiQueryMode: args.ragMultiQueryMode,
+    ragMultiQueryMaxQueries: args.ragMultiQueryMaxQueries,
+  };
+}
+
+export function buildRetrievalCacheKey(args: RetrievalCacheKeyArgs): string {
+  return `chat:retrieval:${args.presetId}:${hashPayload(
+    buildRetrievalCacheKeyPayload(args),
+  )}`;
 }
 
 const SUPABASE_URL = process.env.SUPABASE_URL as string;
@@ -715,7 +774,7 @@ async function computeRagContextAndCitations({
     const hydeDecision = resolveAutoMode(hydeMode, hydeEnabled);
     const questionTokens = estimateTokens(normalizedQuestion.normalized);
     if (retrievalCacheTtl > 0) {
-      retrievalCacheKey = `chat:retrieval:${presetId}:${hashPayload({
+      const retrievalCacheArgs: RetrievalCacheKeyArgs = {
         question: normalizedQuestion.normalized,
         presetId,
         ragTopK: guardrails.ragTopK,
@@ -729,8 +788,8 @@ async function computeRagContextAndCitations({
         rewriteMode,
         ragMultiQueryMode,
         ragMultiQueryMaxQueries,
-        altQueryType: "none",
-      })}`;
+      };
+      retrievalCacheKey = buildRetrievalCacheKey(retrievalCacheArgs);
       retrievalCacheWriteKey = retrievalCacheKey;
       const cachedContext =
         await memoryCacheClient.get<ContextWindowResult>(retrievalCacheKey);
@@ -974,25 +1033,6 @@ async function computeRagContextAndCitations({
             altType: altQueryType,
             query: autoResult.preRetrieval.embeddingTarget,
           });
-          if (retrievalCacheTtl > 0) {
-            retrievalCacheWriteKey = `chat:retrieval:${presetId}:${hashPayload({
-              question: normalizedQuestion.normalized,
-              presetId,
-              ragTopK: guardrails.ragTopK,
-              similarityThreshold: guardrails.similarityThreshold,
-              candidateK,
-              reverseRagEnabled: reverseRagDecision.baseEnabled,
-              reverseRagMode,
-              hydeEnabled: hydeDecision.baseEnabled,
-              rankerMode,
-              hydeMode,
-              rewriteMode,
-              ragMultiQueryMode,
-              ragMultiQueryMaxQueries,
-              altQueryType,
-              altQueryHash,
-            })}`;
-          }
           const mergedCandidates = mergeCandidates(
             baseResult.rankedDocs,
             autoResult.rankedDocs,
@@ -1969,6 +2009,10 @@ export async function handleLangchainChat(
       return;
     }
 
+    const historySummaryHash = computeHistorySummaryHash(
+      historyWindow.summaryMemory,
+    );
+
     const question = lastMessage.content;
     const questionHash = hashPayload({ q: question });
     finalQuestion = question;
@@ -2374,33 +2418,43 @@ export async function handleLangchainChat(
       output: string;
       citations?: string;
     } | null = null;
-    const buildResponseCacheKey = (decision?: RagDecisionSignature | null) =>
-      responseCacheTtl > 0
-        ? `chat:response:${presetId}:${hashPayload(
-            buildResponseCacheKeyPayload({
-              presetId,
-              intent: routingDecision.intent,
-              messages,
-              guardrails: {
-                ragTopK: guardrails.ragTopK,
-                similarityThreshold: guardrails.similarityThreshold,
-                ragContextTokenBudget: guardrails.ragContextTokenBudget,
-                ragContextClipTokens: guardrails.ragContextClipTokens,
-              },
-              runtimeFlags: {
-                reverseRagEnabled,
-                reverseRagMode,
-                hydeEnabled,
-                rankerMode,
-                hydeMode,
-                rewriteMode,
-                ragMultiQueryMode,
-                ragMultiQueryMaxQueries,
-              },
-              decision,
-            }),
-          )}`
-        : null;
+    const buildResponseCacheKey = (decision?: RagDecisionSignature | null) => {
+      if (responseCacheTtl <= 0) {
+        return null;
+      }
+      const resolvedModelId =
+        runtime.resolvedLlmModelId ?? runtime.llmModelId ?? llmModel;
+      const requestedModelId =
+        runtime.requestedLlmModelId ?? runtime.llmModelId ?? null;
+      return `chat:response:${presetId}:${hashPayload(
+        buildResponseCacheKeyPayload({
+          presetId,
+          intent: routingDecision.intent,
+          messages,
+          guardrails: {
+            ragTopK: guardrails.ragTopK,
+            similarityThreshold: guardrails.similarityThreshold,
+            ragContextTokenBudget: guardrails.ragContextTokenBudget,
+            ragContextClipTokens: guardrails.ragContextClipTokens,
+          },
+          runtimeFlags: {
+            reverseRagEnabled,
+            reverseRagMode,
+            hydeEnabled,
+            rankerMode,
+            hydeMode,
+            rewriteMode,
+            ragMultiQueryMode,
+            ragMultiQueryMaxQueries,
+          },
+          decision,
+          resolvedProvider: provider,
+          resolvedModelId,
+          requestedModelId,
+          summaryHash: historySummaryHash,
+        }),
+      )}`;
+    };
     const handleResponseCacheHit = (
       cacheKey: string,
       snapshot: { output: string; citations?: string },
