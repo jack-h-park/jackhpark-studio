@@ -181,6 +181,8 @@ When intent is `"knowledge"`, the following observations are emitted:
   - `selectionUnit`, `inputCount`, `uniqueBeforeDedupe`, `uniqueAfterDedupe`, `finalSelectedCount`
   - `docInputCount`, `docUniqueBeforeDedupe`, `docUniqueAfterDedupe`, `docDroppedByDedupe`
 
+  See [RAG Telemetry Observations: rag:root & context:selection](./rag-observations.md) for field meanings, debugging examples, and implementation references.
+
   Note: `droppedByDedupe` is always measured in the current `selectionUnit`.
 
 ## Langfuse Scores for Retrieval Quality
