@@ -2,10 +2,10 @@
 
 These insights are **diagnostic and operator-driven**, scoped to the current PostHog free plan (2 alerts) and meant to backstop Alert A (p99 latency) and Alert B (abort spikes). They do **not** duplicate alert implementation details; instead they describe what each trend shows and how to interpret it alongside the alerting signals.
 
-## How this doc fits the Step 1–3 telemetry chain
-- **Step 1 (`docs/telemetry/langfuse-alert.md`)** defines the tool-agnostic alert contract and severity expectations.
-- **Step 2 (`docs/telemetry/langfuse-posthog-mapping.md`)** maps those signals into normalized Langfuse → PostHog event/property names.
-- **Step 3 (this doc + `docs/telemetry/posthog-alerts.md`)** applies the Step 2 contract inside PostHog: this file explains how to interpret the resulting insights, while `posthog-alerts.md` describes the PostHog-specific alert mechanics and constraints.
+-## How this doc fits the Step 1–3 telemetry chain
+- **Step 1 (intent + mapping in `docs/telemetry/alerting-contract.md`)** defines the alert contract and canonical PostHog signals that every downstream insight relies on.
+- **Step 2 (same `docs/telemetry/alerting-contract.md`)** serves as the single source of truth for event/property names referenced in this file.
+- **Step 3 (this doc + `docs/telemetry/posthog-ops.md`)** shows how those signals render as dashboards and how PostHog realizes the alerts; `posthog-ops.md` covers the PostHog-specific mechanics referred to below.
 - These insights remain human-in-the-loop diagnostics, not direct paging rules.
 
 ## Prerequisites / Data contract
