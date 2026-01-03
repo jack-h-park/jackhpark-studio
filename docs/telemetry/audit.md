@@ -7,6 +7,7 @@ This file replaces `step1-3-audit-report.md` and documents what changed in the d
 - Replaced the old PostHog implementation notes with `posthog-ops.md`, covering dashboard tiles, alert cadence, plan constraints, dedup/cooldown, and the cache hit/miss fallback strategy.
 - Added `README.md` as a telemetry index so authors know which doc to consult for spec, implementation, diagnostics, and audit history.
 - Kept the operator-facing dashboards, runbook, RAG observation reference, and logging architecture documents intact but updated their cross-links to the new contract/ops docs.
+- Latency and cache semantics are now locked: `latency_ms` reports handler entry → completion, `response_cache_hit`/`retrieval_cache_hit` are stable booleans, and the `*_cache_enabled` flags describe capability for PostHog insights.
 
 ## Remaining gaps
 ### Code-level (Platform)

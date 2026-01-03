@@ -14,6 +14,12 @@
 3. Volume gates are required before paging: latency alerts need ≥ 30 requests per 5m, aborts ≥ 100 requests per 10m, and cache diagnostics ≥ 100 cache decisions per 30m.
 4. Langfuse sampling/drop filters keep chitchat out of these signals, so the alerts only fire on knowledge traffic.
 
+## Canonical metric semantics
+- `latency_ms` measures handler entry → request completion (the same `startTime` tracked in the LangChain handler).
+- `response_cache_hit` / `retrieval_cache_hit` are **always booleans** inside PostHog; missing or disabled caches appear as `false`.
+- `response_cache_enabled` / `retrieval_cache_enabled` indicate whether the respective cache was configured and are also booleans, independent of hit flags.
+- Legacy/trace-only cache flags (e.g., Langfuse `metadata.cache` detail) are not consulted by PostHog alerts; rely on the canonical boolean properties above.
+
 ---
 
 ## Step 1 — Alert specifications (Intent → Signal → Action Chain)

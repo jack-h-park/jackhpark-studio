@@ -1827,7 +1827,6 @@ export async function handleLangchainChat(
     bodyKeys:
       req.body && typeof req.body === "object" ? Object.keys(req.body) : null,
   });
-  const requestStart = Date.now();
   const shouldTrackPosthog = isPostHogEnabled();
   let capturePosthogEvent:
     | ((status: "success" | "error", errorType?: string | null) => void)
@@ -2322,12 +2321,14 @@ export async function handleLangchainChat(
           return;
         }
         posthogCaptured = true;
-        const latencyMs = Date.now() - requestStart;
+        const latencyMs = Date.now() - startTime;
         const llmLatencyMs =
           llmGenerationStartMs !== null && llmGenerationEndMs !== null
             ? llmGenerationEndMs - llmGenerationStartMs
             : null;
         const aborted = Boolean(requestAbortSignal?.aborted);
+        const responseCacheHit = Boolean(cacheMeta.responseHit);
+        const retrievalCacheHit = Boolean(cacheMeta.retrievalHit);
         captureChatCompletion({
           distinctId,
           properties: {
@@ -2348,8 +2349,10 @@ export async function handleLangchainChat(
             latency_retrieval_ms: retrievalLatencyMs,
             aborted,
             total_tokens: _analyticsTotalTokens,
-            response_cache_hit: cacheMeta.responseHit,
-            retrieval_cache_hit: cacheMeta.retrievalHit,
+            response_cache_hit: responseCacheHit,
+            retrieval_cache_hit: retrievalCacheHit,
+            response_cache_enabled: responseCacheEnabled,
+            retrieval_cache_enabled: retrievalCacheEnabled,
             status,
             error_type: errorType,
             retrieval_attempted: retrievalAttempted ?? null,
