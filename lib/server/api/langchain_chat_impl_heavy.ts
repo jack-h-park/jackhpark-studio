@@ -431,6 +431,7 @@ interface ComputeRagContextResult {
   enhancementSummary: GuardrailEnhancements;
   decisionSignature?: RagDecisionSignature;
   decisionTelemetry?: RagDecisionTelemetry;
+  retrievalLatencyMs: number | null;
 }
 
 type AutoBaseDecision = {
@@ -699,6 +700,7 @@ async function computeRagContextAndCitations({
   let autoDecisionMetrics: AutoDecisionMetrics | undefined;
   let decisionSignature: RagDecisionSignature | undefined;
   let decisionTelemetry: RagDecisionTelemetry | undefined;
+  let retrievalLatencyMs: number | null = null;
 
   if (routingDecision.intent === "knowledge") {
     const finalK = guardrails.ragTopK;
@@ -1174,6 +1176,7 @@ async function computeRagContextAndCitations({
             uniqueDocs: contextResult.selection?.uniqueDocs,
           });
         }
+        retrievalLatencyMs = Date.now() - ragRootStartMs;
       }
     }
   }
@@ -1270,6 +1273,7 @@ async function computeRagContextAndCitations({
     enhancementSummary,
     decisionSignature,
     decisionTelemetry,
+    retrievalLatencyMs,
   };
 }
 
@@ -1830,6 +1834,9 @@ export async function handleLangchainChat(
     | null = null;
   let _analyticsTotalTokens: number | null = null;
   let requestAbortSignal: AbortSignal | null = null;
+  let retrievalAttempted: boolean | null = null;
+  let retrievalUsed: boolean | null = null;
+  let retrievalLatencyMs: number | null = null;
   let cleanupRequestAbort: (() => void) | null = null;
   let traceRequestId: string | null = null;
   let traceMetadata: TraceMetadataSnapshot | null = null;
@@ -2086,6 +2093,8 @@ export async function handleLangchainChat(
       });
     }
     function updateRetrievalMetadata(attempted: boolean, used: boolean): void {
+      retrievalAttempted = attempted;
+      retrievalUsed = used;
       if (!traceMetadata) {
         return;
       }
@@ -2314,6 +2323,11 @@ export async function handleLangchainChat(
         }
         posthogCaptured = true;
         const latencyMs = Date.now() - requestStart;
+        const llmLatencyMs =
+          llmGenerationStartMs !== null && llmGenerationEndMs !== null
+            ? llmGenerationEndMs - llmGenerationStartMs
+            : null;
+        const aborted = Boolean(requestAbortSignal?.aborted);
         captureChatCompletion({
           distinctId,
           properties: {
@@ -2330,11 +2344,16 @@ export async function handleLangchainChat(
             model: analyticsModelState.model ?? null,
             embedding_model: analyticsModelState.embeddingModel ?? null,
             latency_ms: latencyMs,
+            latency_llm_ms: llmLatencyMs,
+            latency_retrieval_ms: retrievalLatencyMs,
+            aborted,
             total_tokens: _analyticsTotalTokens,
             response_cache_hit: cacheMeta.responseHit,
             retrieval_cache_hit: cacheMeta.retrievalHit,
             status,
             error_type: errorType,
+            retrieval_attempted: retrievalAttempted ?? null,
+            retrieval_used: retrievalUsed ?? null,
           },
         });
       };
@@ -2390,6 +2409,11 @@ export async function handleLangchainChat(
         responseCacheKey: cacheKey,
         outputLength: snapshot.output.length,
       });
+      if (retrievalAttempted === null) {
+        retrievalAttempted = false;
+        retrievalUsed = false;
+        retrievalLatencyMs = null;
+      }
       const citationsCount = (() => {
         if (!snapshot.citations) {
           return 0;
@@ -2416,7 +2440,7 @@ export async function handleLangchainChat(
       // See: docs/telemetry/telemetry-audit-checklist.md
       // Invariant: cache-hit "insufficient" only inferred when retrieval was attempted and no citations.
       // ─────────────────────────────────────────────────────────────
-      const retrievalAttempted = Boolean(
+      const retrievalAttemptedForTrace = Boolean(
         (traceMetadata as { rag?: { retrieval_attempted?: boolean } })?.rag
           ?.retrieval_attempted ||
         (traceMetadata as { rag?: { retrieval_used?: boolean } })?.rag
@@ -2434,7 +2458,7 @@ export async function handleLangchainChat(
           citationsCount,
           cacheHit: true,
           insufficient:
-            retrievalAttempted && citationsCount === 0 ? true : null,
+            retrievalAttemptedForTrace && citationsCount === 0 ? true : null,
           finishReason: "success",
         }),
       });
@@ -2585,6 +2609,8 @@ export async function handleLangchainChat(
         updateRetrievalMetadata,
       });
       mark("after-rag-context");
+
+      retrievalLatencyMs = ragResult.retrievalLatencyMs;
 
       _analyticsTotalTokens = ragResult.contextResult.totalTokens ?? null;
       if (ragResult.decisionTelemetry) {

@@ -168,9 +168,12 @@ Set `POSTHOG_API_KEY` (and optionally `POSTHOG_HOST`) to forward a small `chat_c
 - Captured properties:
   - `env`, `trace_id`, `chat_session_id`, `preset_key`, `chat_engine`, `rag_enabled`, `prompt_version`, `guardrail_route`
   - `provider`, `model`, `embedding_model`
-  - `latency_ms`, `total_tokens`, `response_cache_hit`, `retrieval_cache_hit`
+  - `latency_ms`, `latency_llm_ms`, `latency_retrieval_ms`
+  - `retrieval_attempted`, `retrieval_used`, `aborted`
+  - `total_tokens`, `response_cache_hit`, `retrieval_cache_hit`
   - `status` (`"success"` / `"error"`), `error_type` (short classifier)
-  - Distinct IDs prefer user ID, then anonymous/session IDs, trace ID, then `x-request-id`
+- Missing values are emitted explicitly as `null` to keep dashboards and alerts stable.
+- Distinct IDs prefer user ID, then anonymous/session IDs, trace ID, then `x-request-id`
 - Privacy: no prompts, messages, chunk text, URLs, headers, cookies, IPs, or emails are transmitted.
 - The events are fire-and-forget, nonblocking, and include `trace_id` so you can join them with Langfuse traces for richer dashboards.
 

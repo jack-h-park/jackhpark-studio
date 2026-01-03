@@ -233,13 +233,14 @@ export function mergeRagDocumentMetadata(
 
   const merged: RagDocumentMetadata = {
     ...base,
-    title: incomingNormalized.title,
-    subtitle: incomingNormalized.subtitle,
-    source_kind: incomingNormalized.source_kind,
-    origin_id: incomingNormalized.origin_id,
-    breadcrumb: incomingNormalized.breadcrumb,
-    preview_image_url: incomingNormalized.preview_image_url,
-    teaser_text: incomingNormalized.teaser_text,
+    title: incomingNormalized.title ?? base.title,
+    subtitle: incomingNormalized.subtitle ?? base.subtitle,
+    source_kind: incomingNormalized.source_kind ?? base.source_kind,
+    origin_id: incomingNormalized.origin_id ?? base.origin_id,
+    breadcrumb: incomingNormalized.breadcrumb ?? base.breadcrumb,
+    preview_image_url:
+      incomingNormalized.preview_image_url ?? base.preview_image_url,
+    teaser_text: incomingNormalized.teaser_text ?? base.teaser_text,
     doc_type: incomingNormalized.doc_type ?? base.doc_type ?? undefined,
     persona_type:
       incomingNormalized.persona_type ?? base.persona_type ?? undefined,
