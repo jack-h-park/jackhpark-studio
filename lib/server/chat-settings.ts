@@ -75,6 +75,16 @@ export type ChatRuntimeFallbackFrom = {
   modelId: string;
 };
 
+export type ChatModelPolicy = {
+  requireLocal: boolean;
+};
+
+export type ChatRuntimeEnforcement =
+  | "local_ok"
+  | "fallback_to_cloud"
+  | "blocked_require_local"
+  | "cloud_ok";
+
 export type ChatModelSettings = {
   engine: ChatEngine;
   llmModelId: string;
@@ -105,7 +115,9 @@ export type ChatModelSettings = {
     embeddingSpaceId: boolean;
   };
   llmEngine: ChatEngineType;
-  requireLocal: boolean;
+  policy: ChatModelPolicy;
+  wantsLocalEngine: boolean;
+  enforcement: ChatRuntimeEnforcement;
   localBackendAvailable: boolean;
   localLlmBackendEnv: string | null;
   isLocal: boolean;
@@ -278,7 +290,9 @@ export function getChatModelDefaults(): ChatModelSettings {
       embeddingSpaceId: true,
     },
     llmEngine: "unknown",
-    requireLocal: false,
+    policy: { requireLocal: false },
+    wantsLocalEngine: false,
+    enforcement: "cloud_ok",
     localBackendAvailable: false,
     localLlmBackendEnv: null,
     isLocal: false,
@@ -437,7 +451,7 @@ export async function loadChatModelSettings(options?: {
   const presetKey = resolvePresetKey(config, options?.sessionConfig);
   const preset = config.presets?.[presetKey] ?? config.presets?.default ?? null;
   const ollamaConfigured = isOllamaConfigured();
-  const requireLocal =
+  const policyRequireLocal =
     options?.sessionConfig?.requireLocal ?? preset?.requireLocal ?? false;
 
   ragLogger.debug("[chat-settings preset]", {
@@ -517,6 +531,12 @@ export async function loadChatModelSettings(options?: {
     localBackendAvailable = Boolean(localClient) && matchesSelectedBackend;
   }
 
+  const wantsLocalEngine = requiresLocalModel;
+  const { enforcement, shouldFallbackToCloud } = resolveRequireLocalEnforcement(
+    policyRequireLocal,
+    wantsLocalEngine,
+    localBackendAvailable,
+  );
   let fallbackFrom: ChatRuntimeFallbackFrom | undefined;
   let llmEngine: ChatEngineType;
   const initialLocalSelection = requiresLocalModel ? llmSelection : null;
@@ -527,9 +547,9 @@ export async function loadChatModelSettings(options?: {
     llmEngine = intendedLocalEngine;
     if (!localBackendAvailable) {
       console.warn(
-        `[chat-settings] Local backend unavailable for ${llmSelection.id}. Falling back.`,
+        `[chat-settings] Local backend unavailable for ${llmSelection.id}.`,
       );
-      if (!requireLocal) {
+      if (shouldFallbackToCloud) {
         if (initialLocalSelection) {
           fallbackFrom = {
             type: "local",
@@ -562,9 +582,9 @@ export async function loadChatModelSettings(options?: {
         : llmSelection.provider === "openai"
           ? "openai"
           : "unknown";
-    if (requireLocal) {
-      throw new Error(
-        `Preset requires a local backend but selected model ${llmSelection.id} is cloud-only.`,
+    if (policyRequireLocal) {
+      console.warn(
+        `[chat-settings] Preset requires local backend but resolved model ${llmSelection.id} is cloud-only.`,
       );
     }
   }
@@ -625,7 +645,9 @@ export async function loadChatModelSettings(options?: {
         embeddingSelection.embeddingSpaceId === defaults.embeddingSpaceId,
     },
     llmEngine,
-    requireLocal,
+    policy: { requireLocal: policyRequireLocal },
+    wantsLocalEngine,
+    enforcement,
     localBackendAvailable,
     localLlmBackendEnv: localBackend ?? null,
     isLocal: llmSelection.isLocal,
@@ -635,6 +657,84 @@ export async function loadChatModelSettings(options?: {
   cachedChatModelSettings = result;
   cachedChatModelSettingsAt = Date.now();
   return result;
+}
+
+export function resolveRequireLocalEnforcement(
+  policyRequireLocal: boolean,
+  wantsLocalEngine: boolean,
+  localBackendAvailable: boolean,
+): {
+  enforcement: ChatRuntimeEnforcement;
+  shouldFallbackToCloud: boolean;
+} {
+  if (wantsLocalEngine) {
+    if (localBackendAvailable) {
+      return { enforcement: "local_ok", shouldFallbackToCloud: false };
+    }
+    return policyRequireLocal
+      ? { enforcement: "blocked_require_local", shouldFallbackToCloud: false }
+      : { enforcement: "fallback_to_cloud", shouldFallbackToCloud: true };
+  }
+
+  return policyRequireLocal
+    ? {
+        enforcement: "blocked_require_local",
+        shouldFallbackToCloud: false,
+      }
+    : { enforcement: "cloud_ok", shouldFallbackToCloud: false };
+}
+
+export function formatRuntimeFallbackFrom(
+  fallbackFrom?: ChatRuntimeFallbackFrom,
+): "local-ollama" | "local-lmstudio" | undefined {
+  if (!fallbackFrom || fallbackFrom.type !== "local") {
+    return undefined;
+  }
+  if (fallbackFrom.provider === "ollama") {
+    return "local-ollama";
+  }
+  if (fallbackFrom.provider === "lmstudio") {
+    return "local-lmstudio";
+  }
+  return undefined;
+}
+
+export type RuntimeTelemetryProps = {
+  require_local: boolean;
+  local_backend_available: boolean;
+  enforcement: ChatRuntimeEnforcement;
+  fallback_from?: ReturnType<typeof formatRuntimeFallbackFrom>;
+  wants_local_engine: boolean;
+  resolved_provider: ModelProvider;
+  resolved_model_id: string;
+  requested_model_id: string | null;
+};
+
+export function buildRuntimeTelemetryProps(
+  runtime: ChatModelSettings,
+): RuntimeTelemetryProps {
+  return {
+    require_local: runtime.policy.requireLocal,
+    local_backend_available: runtime.localBackendAvailable,
+    enforcement: runtime.enforcement,
+    fallback_from: formatRuntimeFallbackFrom(runtime.fallbackFrom),
+    wants_local_engine: runtime.wantsLocalEngine,
+    resolved_provider: runtime.llmProvider,
+    resolved_model_id: runtime.resolvedLlmModelId,
+    requested_model_id: runtime.requestedLlmModelId ?? null,
+  };
+}
+
+export function buildRequireLocalBlockedPayload(runtime: ChatModelSettings) {
+  return {
+    error_category: "local_required_unavailable",
+    require_local: runtime.policy.requireLocal,
+    local_backend_available: runtime.localBackendAvailable,
+    enforcement: runtime.enforcement,
+    fallback_from: formatRuntimeFallbackFrom(runtime.fallbackFrom),
+    message:
+      "Local LLM backend is required but unavailable. Please start the configured service.",
+  };
 }
 
 export async function loadGuardrailSettings(options?: {

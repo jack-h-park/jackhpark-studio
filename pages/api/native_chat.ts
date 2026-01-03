@@ -52,6 +52,8 @@ import {
 } from "@/lib/server/chat-rag-utils";
 import {
   buildFinalSystemPrompt,
+  buildRequireLocalBlockedPayload,
+  buildRuntimeTelemetryProps,
   loadChatModelSettings,
 } from "@/lib/server/chat-settings";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
@@ -212,33 +214,12 @@ export default async function handler(
       llmLogger.debug("[native_chat runtime]", {
         presetKey: presetId,
         llmEngine: runtime.llmEngine,
-        requireLocal: runtime.requireLocal,
+        requireLocal: runtime.policy.requireLocal,
         localBackendAvailable: runtime.localBackendAvailable,
         fallbackFrom: runtime.fallbackFrom,
         localLlmBackendEnv: runtime.localLlmBackendEnv,
         localBackendOverride: localBackendOverride ?? null,
-      });
-    }
-    const localEngineTypes = ["local-ollama", "local-lmstudio"];
-    const effectiveRequireLocal = runtime.requireLocal;
-    const localBackendAvailable = runtime.localBackendAvailable;
-    const isLocalEngine = localEngineTypes.includes(runtime.llmEngine);
-
-    if (isLocalEngine && effectiveRequireLocal && !localBackendAvailable) {
-      llmLogger.error(
-        "[api/native_chat] local backend required but not available",
-        {
-          engine: runtime.llmEngine,
-          requireLocal: effectiveRequireLocal,
-        },
-      );
-      return res.status(500).json({
-        error:
-          "Local LLM backend is required for this preset but not available.",
-        engine: runtime.llmEngine,
-        requireLocal: effectiveRequireLocal,
-        presetKey: presetId,
-        localBackendEnv: runtime.localLlmBackendEnv,
+        enforcement: runtime.enforcement,
       });
     }
 
@@ -308,6 +289,7 @@ export default async function handler(
     const supabaseClient = getSupabaseAdminClient();
     const supabaseMatchFilter = null;
 
+    const runtimeTelemetryProps = buildRuntimeTelemetryProps(runtime);
     const cacheMeta: {
       responseHit: boolean | null;
       retrievalHit: boolean | null;
@@ -336,6 +318,7 @@ export default async function handler(
             wasSubstituted: runtime.llmModelWasSubstituted,
             substitutionReason: runtime.llmSubstitutionReason,
           },
+          runtime: runtimeTelemetryProps,
         }
       : undefined;
     if (traceMetadata && chatConfigSnapshot) {
@@ -398,6 +381,30 @@ export default async function handler(
       model: llmModel,
       embeddingModel,
     };
+    const buildPosthogProperties = (
+      status: "success" | "error",
+      errorType: string | null = null,
+    ) => ({
+      env,
+      trace_id: trace?.traceId ?? null,
+      chat_session_id: sessionId ?? null,
+      preset_key: chatConfigSnapshot?.presetKey ?? presetId ?? "unknown",
+      chat_engine: "native",
+      rag_enabled: guardrails.ragTopK > 0,
+      prompt_version: chatConfigSnapshot?.prompt?.baseVersion ?? "unknown",
+      guardrail_route: guardrailRoute ?? "normal",
+      provider: analyticsModelState.provider ?? null,
+      model: analyticsModelState.model ?? null,
+      embedding_model: analyticsModelState.embeddingModel ?? null,
+      latency_ms: Date.now() - requestStart,
+      total_tokens: _analyticsTotalTokens,
+      response_cache_hit: cacheMeta.responseHit,
+      retrieval_cache_hit: cacheMeta.retrievalHit,
+      status,
+      error_type: errorType,
+      error_category: errorType ?? undefined,
+      ...runtimeTelemetryProps,
+    });
     const resolvePosthogDistinctId = () => {
       const requestId =
         typeof req.headers["x-request-id"] === "string"
@@ -440,30 +447,39 @@ export default async function handler(
         posthogCaptured = true;
         captureChatCompletion({
           distinctId,
-          properties: {
-            env,
-            trace_id: trace?.traceId ?? null,
-            chat_session_id: sessionId ?? null,
-            preset_key: chatConfigSnapshot?.presetKey ?? presetId ?? "unknown",
-            chat_engine: "native",
-            rag_enabled: guardrails.ragTopK > 0,
-            prompt_version:
-              chatConfigSnapshot?.prompt?.baseVersion ?? "unknown",
-            guardrail_route: guardrailRoute ?? "normal",
-            provider: analyticsModelState.provider ?? null,
-            model: analyticsModelState.model ?? null,
-            embedding_model: analyticsModelState.embeddingModel ?? null,
-            latency_ms: Date.now() - requestStart,
-            total_tokens: _analyticsTotalTokens,
-            response_cache_hit: cacheMeta.responseHit,
-            retrieval_cache_hit: cacheMeta.retrievalHit,
-            status,
-            error_type: errorType,
-          },
+          properties: buildPosthogProperties(status, errorType),
         });
       };
     };
     capturePosthogEvent = initializePosthogCapture();
+    const finalizeBlockedTrace = () => {
+      if (traceMetadata) {
+        traceMetadata.enforcement = runtime.enforcement;
+        traceMetadata.error_category = "local_required_unavailable";
+      }
+      if (trace) {
+        trace.update({
+          metadata: traceMetadata,
+          output: buildSafeTraceOutputSummary({
+            answerChars: 0,
+            citationsCount: 0,
+            cacheHit: null,
+            insufficient: null,
+            finishReason: "error",
+          }),
+        });
+      }
+    };
+    const respondBlockedRequireLocal = () => {
+      const payload = buildRequireLocalBlockedPayload(runtime);
+      setSmokeHeaders(res, null, trace?.traceId ?? null);
+      res.status(503).json(payload);
+      finalizeBlockedTrace();
+      capturePosthogEvent?.("error", "local_required_unavailable");
+    };
+    if (runtime.enforcement === "blocked_require_local") {
+      return respondBlockedRequireLocal();
+    }
     const responseCacheTtl = adminConfig.cache.responseTtlSeconds;
     const retrievalCacheTtl = adminConfig.cache.retrievalTtlSeconds;
     const responseCacheKey =

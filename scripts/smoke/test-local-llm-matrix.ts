@@ -38,6 +38,7 @@ interface NativeChatResult {
   streaming: boolean;
   chunk?: string;
   error?: string;
+  payload?: { [key: string]: unknown };
 }
 
 async function callNativeChat(
@@ -58,28 +59,31 @@ async function callNativeChat(
     }),
   });
 
-  if (response.status >= 400) {
-    const errorBody = await response.text().catch(() => "");
-    let parsedError = errorBody || response.statusText;
-    if (errorBody) {
-      try {
-        const decoded = JSON.parse(errorBody);
-        if (decoded && typeof decoded === "object") {
-          const candidate = decoded as { error?: unknown };
-          if (typeof candidate.error === "string") {
-            parsedError = candidate.error;
+    if (response.status >= 400) {
+      const errorBody = await response.text().catch(() => "");
+      let parsedError = errorBody || response.statusText;
+      let parsedPayload;
+      if (errorBody) {
+        try {
+          const decoded = JSON.parse(errorBody);
+          parsedPayload = decoded;
+          if (decoded && typeof decoded === "object") {
+            const candidate = decoded as { error?: unknown };
+            if (typeof candidate.error === "string") {
+              parsedError = candidate.error;
+            }
           }
+        } catch {
+          // ignore JSON parse errors
         }
-      } catch {
-        // ignore JSON parse errors
       }
+      return {
+        status: response.status,
+        streaming: false,
+        error: parsedError,
+        payload: parsedPayload,
+      };
     }
-    return {
-      status: response.status,
-      streaming: false,
-      error: parsedError,
-    };
-  }
 
   if (!response.body) {
     return { status: response.status, streaming: false };
@@ -121,6 +125,18 @@ function printResult(
   }
   if (result.error) {
     summaryParts.push(`error="${result.error.replaceAll(/\s+/g, " ").trim()}"`);
+  }
+  if (result.payload && typeof result.payload === "object") {
+    const enforced = result.payload.enforcement ?? result.payload.error_category;
+    if (typeof enforced === "string") {
+      summaryParts.push(`enforcement=${enforced}`);
+    }
+    if (typeof result.payload.require_local === "boolean") {
+      summaryParts.push(`requireLocal=${result.payload.require_local}`);
+    }
+    if (typeof result.payload.fallback_from === "string") {
+      summaryParts.push(`fallback_from=${result.payload.fallback_from}`);
+    }
   }
   console.log(`[${label}] backend=${backendLabel} ${summaryParts.join(", ")}`);
 }

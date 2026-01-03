@@ -60,6 +60,8 @@ import {
 import { type ChatMessage, sanitizeMessages } from "@/lib/server/chat-messages";
 import {
   buildFinalSystemPrompt,
+  buildRequireLocalBlockedPayload,
+  buildRuntimeTelemetryProps,
   loadChatModelSettings,
 } from "@/lib/server/chat-settings";
 import { isDebugSurfacesEnabled } from "@/lib/server/debug/debug-surfaces";
@@ -1976,6 +1978,7 @@ export async function handleLangchainChat(
           sessionConfig,
         }),
       ));
+    const runtimeTelemetryProps = buildRuntimeTelemetryProps(runtime);
 
     const runtimeFlags = {
       reverseRagEnabled: runtime.reverseRagEnabled,
@@ -2189,6 +2192,7 @@ export async function handleLangchainChat(
         wasSubstituted: runtime.llmModelWasSubstituted,
         substitutionReason: runtime.llmSubstitutionReason,
       },
+      runtime: runtimeTelemetryProps,
       cache: initialCacheMetadata.cache,
       responseCacheHit: initialCacheMetadata.responseCacheHit,
     });
@@ -2225,6 +2229,27 @@ export async function handleLangchainChat(
         output: traceOutputSummary ?? undefined,
         metadata: traceMetadata ?? undefined,
       });
+    };
+    const respondBlockedRequireLocal = () => {
+      const payload = buildRequireLocalBlockedPayload(runtime);
+      applyTraceMetadataMerge(traceMetadata, {
+        enforcement: runtime.enforcement,
+        error_category: payload.error_category,
+      });
+      updateTrace?.({
+        metadata: traceMetadata ?? undefined,
+        output: buildSafeTraceOutputSummary({
+          answerChars: 0,
+          citationsCount: 0,
+          cacheHit: null,
+          insufficient: null,
+          finishReason: "error",
+        }),
+      });
+      setSmokeHeaders(res, null);
+      res.status(503).json(payload);
+      capturePosthogEvent?.("error", "local_required_unavailable");
+      return;
     };
     const onTraceAbort = () => {
       finalizeReason = "aborted";
@@ -2407,6 +2432,8 @@ export async function handleLangchainChat(
             retrieval_cache_enabled: retrievalCacheEnabled,
             status,
             error_type: errorType,
+            error_category: errorType ?? undefined,
+            ...runtimeTelemetryProps,
             retrieval_attempted: retrievalAttempted ?? null,
             retrieval_used: retrievalUsed ?? null,
           },
@@ -2414,6 +2441,9 @@ export async function handleLangchainChat(
       };
     };
     capturePosthogEvent = initializePosthogCapture();
+    if (runtime.enforcement === "blocked_require_local") {
+      return respondBlockedRequireLocal();
+    }
     const autoOrMultiEnabled =
       hydeMode === "auto" ||
       rewriteMode === "auto" ||
