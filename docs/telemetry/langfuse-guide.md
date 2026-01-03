@@ -3,7 +3,7 @@
 This guide describes the telemetry data structure (payloads) sent to Langfuse and provides suggestions for building diagnostic dashboards.
 
 > For the overall architecture, telemetry controls (sampling/detail levels), and environment variables, see [Logging & Telemetry Architecture](./telemetry-logging.md).
-> For operational verification, use the [Operational Telemetry Audit Checklist](./telemetry-audit-checklist.md).
+> For operational verification, use the [Operational Telemetry Audit Checklist](../operations/telemetry-audit-checklist.md).
 
 ## Trace Metadata (Request-Level)
 

@@ -10,6 +10,16 @@ The docs are organized around a deliberate separation of concerns:
 
 This structure avoids coupling operational intent to any single observability tool.
 
+## Alert lifecycle (A/B/C)
+
+This space treats alerts as first-class contracts:
+
+- **A — p99 End-to-End Latency Regression (P1)**: tail latency guardrail for user experience.
+- **B — Knowledge Abort Spike (P1)**: confirms user-visible failures correlated with latency.
+- **C — Cache Inefficiency (P2, documented-only)**: detects silent regressions where cache provides no benefit.
+
+Canonical semantics (e.g., `latency_ms` as handler E2E duration; deterministic booleans for `response_cache_hit` / `retrieval_cache_hit` and their `*_enabled` flags) are defined in `alerting-contract.md` and must be kept in sync with code.
+
 ## How to use this space
 
 1. Start with `alerting-contract.md` to understand _why_ each alert exists, which signals it depends on, and how operators are expected to react.
@@ -32,6 +42,7 @@ This structure avoids coupling operational intent to any single observability to
 - **Langfuse dashboards** visualize raw and derived signals at trace and observation level.
 - **PostHog dashboards** aggregate a normalized subset of those signals for operational trends and alerts.
 - **This documentation layer** explains the _meaning_, _dependencies_, and _expected behavior_ behind those dashboards.
+- **Alerts consume dashboards**: Alerts A/B/C are evaluated against specific dashboard tiles; dashboards should change only after the corresponding contract/ops docs are updated.
 
 If a dashboard changes, the corresponding contract or ops doc should be updated first.
 
