@@ -15,7 +15,29 @@
 
 ---
 
+### Why Dashboard C Comes First
+
+This document intentionally starts with **Dashboard C (Latency, Cost & Observability Integrity)** rather than following alphabetical order.
+
+Dashboard C validates **platform health and telemetry correctness**, which are prerequisites for interpreting any downstream signals.
+If latency metrics, abort signals, or observation coverage are wrong or incomplete, conclusions drawn from retrieval quality (Dashboard B) or traffic patterns (Dashboard A) are unreliable.
+
+> **If observability is broken, do not tune retrieval or traffic — fix the platform first.**
+
+For this reason, dashboards are presented in **C → B → A** order to reflect diagnostic priority, not naming sequence.
+
+---
+
 ### Dashboard C — Latency, Cost & Observability Integrity (Infra / Platform)
+
+**Purpose**
+
+Dashboard C answers the most fundamental operational question:
+
+> “Is the platform healthy, predictable, and observable enough to trust any other analysis?”
+
+This dashboard is owned by **infra / platform teams** and acts as a **gatekeeper** for all other dashboards.
+If Dashboard C shows anomalies, downstream dashboards must not be used for tuning or decision‑making.
 
 Widgets: **C‑1a through C‑6b**
 
@@ -207,6 +229,20 @@ If Dashboard C is wrong, do not tune RAG or prompts — fix telemetry, caching, 
 
 ### Dashboard B — Retrieval & Ranking (Product / Data Science)
 
+**Purpose**
+
+Dashboard B evaluates whether **retrieval and ranking are producing relevant, diverse, and cost‑effective context**.
+
+It is used by **product, data science, and search relevance owners** to diagnose quality regressions,
+ranking drift, embedding mismatches, and wasted Auto/Multi cost.
+
+Dashboard B assumes that:
+
+- Traffic signals (Dashboard A) are stable
+- Telemetry and latency (Dashboard C) are trustworthy
+
+If those assumptions do not hold, conclusions from Dashboard B may be misleading.
+
 Widgets: **B‑1 through B‑7**
 
 ### Reading Dashboard B as a System
@@ -310,6 +346,19 @@ Always correlate with:
 ---
 
 ### Dashboard A — Traffic, Cache & Stability (Usage Guide)
+
+**Purpose**
+
+Dashboard A provides the **traffic and caching baseline** for the entire system.
+
+It answers:
+
+- How much load the system is handling
+- How much of that load engages retrieval and LLM generation
+- How effectively caching is reducing cost and latency
+
+Dashboard A is primarily descriptive, not diagnostic.
+Its metrics serve as **denominators and context** for Dashboards B and C rather than optimization targets by themselves.
 
 ### Widget-Level Interpretation (Dashboard A)
 

@@ -43,3 +43,6 @@ yarn-error.log*
 
 # auto-generated
 instrumentation.js
+
+# Obsidian vault
+/docs/.obsidian/
