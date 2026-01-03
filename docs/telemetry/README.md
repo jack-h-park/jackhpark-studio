@@ -25,6 +25,7 @@ Canonical semantics (e.g., `latency_ms` as handler E2E duration; deterministic b
 1. Start with `alerting-contract.md` to understand _why_ each alert exists, which signals it depends on, and how operators are expected to react.
 2. Continue to `posthog-ops.md` to see _how_ those signals are implemented in PostHog dashboards and alerts, including plan limitations and fallbacks.
 3. Use the remaining documents for deeper diagnostics, operational playbooks, Langfuse-specific dashboards, and audit history.
+4. Read `../product/telemetry-to-product.md` when you need the product interpretation layer: telemetry defines the signals, the product docs explain how to reason about them and take action.
 
 ## Canonical documents
 

@@ -15,6 +15,7 @@ The `docs/` tree is organized as a lifecycle portal rather than a flat list of m
 | `database/`       | Schema and data-layer documentation                                 | Data platform & backend engineers         |
 | `design-system/`  | UI/token standards and component guidance                           | Front-end and design partners             |
 | `telemetry/`      | Observability contracts, alert semantics, dashboards, and audits    | Telemetry/observability engineers         |
+| `product/`        | Product interpretation of telemetry and operational signals         | PMs, product-aware engineers              |
 
 ## How to Start
 

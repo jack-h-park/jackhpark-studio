@@ -20,7 +20,14 @@ This runbook is the **Step 4 output**. It defines first-response playbooks for:
    - A only, B only, A+B, or C
 4. Use the triage table below to jump to the right playbook
 
----
+## Product Context (When Judgment Is Needed)
+
+For product-level interpretation and decision-making context (e.g., how alerts map to user experience, product risk, or roadmap tradeoffs), refer to:
+
+→ **Product Telemetry Guide**  
+`docs/product/telemetry-to-product.md`
+
+## This runbook focuses on _operational response_. Product judgment, prioritization, and follow-up decisions should be grounded in the product telemetry guide.
 
 ## Triage Table
 
