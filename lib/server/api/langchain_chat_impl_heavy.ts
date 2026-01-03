@@ -1429,6 +1429,14 @@ async function streamAnswerWithPrompt({
   };
 
   if (latestMeta) {
+    latestMeta.telemetry = {
+      cache: {
+        responseHit:
+          cacheMeta.responseHit === null ? undefined : cacheMeta.responseHit,
+        retrievalHit:
+          cacheMeta.retrievalHit === null ? undefined : cacheMeta.retrievalHit,
+      },
+    };
     res.setHeader(
       "X-Guardrail-Meta",
       encodeURIComponent(serializeGuardrailMeta(latestMeta)),

@@ -35,6 +35,13 @@ export type GuardrailEnhancements = {
   };
 };
 
+export type GuardrailMetaTelemetry = {
+  cache?: {
+    responseHit?: boolean;
+    retrievalHit?: boolean;
+  };
+};
+
 export type GuardrailMeta = {
   intent: string;
   reason: string;
@@ -45,6 +52,7 @@ export type GuardrailMeta = {
   llmModel?: string;
   provider?: string;
   embeddingModel?: string;
+  telemetry?: GuardrailMetaTelemetry;
   enhancements?: GuardrailEnhancements;
   summaryConfig?: {
     enabled: boolean;

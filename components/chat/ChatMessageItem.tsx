@@ -265,6 +265,50 @@ export function ChatMessageItem({
           )}
           {showRuntimeCard && (
             <MetaCard
+              title="Performance"
+              variant="default"
+              items={
+                [
+                  m.metrics?.totalMs && {
+                    label: "LATENCY",
+                    value: `${(m.metrics.totalMs / 1000).toFixed(2)}s`,
+                  },
+                  m.metrics?.ttftMs && {
+                    label: "TTFT",
+                    value: `${Math.round(m.metrics.ttftMs)}ms`,
+                  },
+                  (m.meta?.telemetry?.cache?.responseHit !== undefined ||
+                    m.meta?.telemetry?.cache?.retrievalHit !== undefined) && {
+                    label: "CACHE",
+                    value: (
+                      <div className="flex flex-col gap-0.5">
+                        {m.meta?.telemetry?.cache?.responseHit !==
+                          undefined && (
+                          <div>
+                            Resp:{" "}
+                            {m.meta.telemetry.cache.responseHit
+                              ? "HIT"
+                              : "MISS"}
+                          </div>
+                        )}
+                        {m.meta?.telemetry?.cache?.retrievalHit !==
+                          undefined && (
+                          <div>
+                            Retr:{" "}
+                            {m.meta.telemetry.cache.retrievalHit
+                              ? "HIT"
+                              : "MISS"}
+                          </div>
+                        )}
+                      </div>
+                    ),
+                  },
+                ].filter(Boolean) as any
+              }
+            />
+          )}
+          {showRuntimeCard && (
+            <MetaCard
               title="Engine & Model"
               variant="runtime"
               items={

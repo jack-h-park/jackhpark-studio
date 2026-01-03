@@ -79,6 +79,12 @@ export type ChatRuntimeConfig = {
   fallbackFrom?: ChatRuntimeFallbackFrom | null;
 };
 
+export type ChatMessageMetrics = {
+  totalMs?: number;
+  ttftMs?: number;
+  aborted?: boolean;
+};
+
 export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -87,6 +93,7 @@ export type ChatMessage = {
   citations?: CitationDocScore[];
   citationMeta?: CitationMeta | null;
   runtime?: ChatRuntimeConfig | null;
+  metrics?: ChatMessageMetrics;
   isComplete?: boolean;
 };
 
@@ -331,6 +338,7 @@ export function useChatSession(
         citations?: ChatResponse["citations"],
         runtime?: ChatRuntimeConfig | null,
         isComplete?: boolean,
+        metrics?: ChatMessageMetrics,
       ) => {
         setMessages((prev) =>
           prev.map((message) =>
@@ -348,6 +356,17 @@ export function useChatSession(
                     : {}),
                   ...(runtime !== undefined ? { runtime } : {}),
                   ...(isComplete !== undefined ? { isComplete } : {}),
+                  ...(metrics || isComplete
+                    ? {
+                        metrics: {
+                          ...message.metrics,
+                          ...(metrics ?? {}),
+                          ...(isComplete
+                            ? { totalMs: Date.now() - timestamp }
+                            : {}),
+                        },
+                      }
+                    : {}),
                 }
               : message,
           ),
@@ -398,6 +417,7 @@ export function useChatSession(
             let clientChunkIndex = 0;
 
             let done = false;
+            let ttftRecorded = false;
             while (!done) {
               const result = await reader.read();
               done = result.done ?? false;
@@ -426,6 +446,20 @@ export function useChatSession(
 
               const [answer] = fullContent.split(CITATIONS_SEPARATOR);
               updateAssistant(answer);
+
+              if (!ttftRecorded && answer.trim().length > 0) {
+                ttftRecorded = true;
+                updateAssistant(
+                  undefined,
+                  undefined,
+                  undefined,
+                  undefined,
+                  undefined,
+                  {
+                    ttftMs: Date.now() - timestamp,
+                  },
+                );
+              }
             }
 
             const [answer, citationsJson] =
@@ -469,6 +503,7 @@ export function useChatSession(
             let fullContent = "";
 
             let done = false;
+            let ttftRecorded = false;
             while (!done) {
               const result = await reader.read();
               done = result.done ?? false;
@@ -487,6 +522,20 @@ export function useChatSession(
 
               const [answer] = fullContent.split(CITATIONS_SEPARATOR);
               updateAssistant(answer, guardrailMeta);
+
+              if (!ttftRecorded && answer.trim().length > 0) {
+                ttftRecorded = true;
+                updateAssistant(
+                  undefined,
+                  undefined,
+                  undefined,
+                  undefined,
+                  undefined,
+                  {
+                    ttftMs: Date.now() - timestamp,
+                  },
+                );
+              }
             }
 
             const [answer, citationsJson] =
@@ -516,6 +565,11 @@ export function useChatSession(
                       ...item,
                       content: item.content.trim() + " [Stopped]",
                       isComplete: true,
+                      metrics: {
+                        ...item.metrics,
+                        totalMs: Date.now() - timestamp,
+                        aborted: true,
+                      },
                     }
                   : item,
               ),
