@@ -189,12 +189,14 @@
 **Key properties**
 | Property | Source |
 | --- | --- |
-| `latency_ms` | Request duration |
+| `latency_ms` | Handler entry → response completion latency (canonical p99 signal for Alert A). |
 | `latency_llm_ms` | `answer:llm` observation |
 | `latency_retrieval_ms` | Retrieval portion of `latency_breakdown` |
 | `aborted` | Completion flag |
 | `response_cache_hit` | Cache metadata |
 | `retrieval_cache_hit` | Cache metadata |
+| `response_cache_enabled` | Whether response-level caching was enabled for this request (true/false). |
+| `retrieval_cache_enabled` | Whether retrieval-level caching was enabled for this request (true/false). |
 | `status` | success / error / aborted |
 | `error_type` | Short classifier for failures |
 | `total_tokens` | Token count for billing/cost |
