@@ -1,5 +1,8 @@
 # Engine parity report
 
+> [!WARNING]
+> **Historical Document**: This report describes the transition from the legacy "Native" engine to the unified LangChain runtime. The migration is complete, and the Native engine has been removed. Use this for reference only.
+
 ## Current state (LangChain only)
 
 - `/api/chat` resolves every request via `loadChatModelSettings` (`lib/server/chat-settings.ts`), picks the preset/session/running model, and dispatches directly to `pages/api/langchain_chat.ts`, so there is only one execution engine in production. The runtime still respects `requireLocal`, `safeMode`, and `features` flags for guardrails and telemetry.
@@ -8,13 +11,13 @@
 
 ## Safe Mode fallback coverage
 
-| Capability | Behavior when `safeMode=true` |
-| --- | --- |
-| Retrieval | The `ComputeRagContext` short-circuits before any vector search (`routingDecision.intent === "knowledge" && !safeMode`). No citations are emitted, and `retrieval_cache_hit` remains `false`.
-| Enhancements | Reverse RAG, HyDE, multi-query, and the reranker are forced off (`lib/server/api/langchain_chat_impl_heavy.ts:1983-2006`), preventing extra API calls.
-| Budgets | Context/history budgets are capped at `SAFE_MODE_CONTEXT_TOKEN_BUDGET = 600` / `SAFE_MODE_HISTORY_TOKEN_BUDGET = 300` (`lib/server/chat-guardrails.ts`). This keeps tokens low even if safe mode is triggered frequently.
-| RequireLocal | Enforcement is unchanged—`loadChatModelSettings` still returns the proper `enforcement` payload (`error_category=local_required_unavailable`) when a local backend is missing and `requireLocal=true`.
-| Telemetry | `safe_mode=true` flows through `buildRuntimeTelemetryProps` and `telemetryBuffer`, alongside the existing `latency_ms`, cache flags, `rag_enabled`, and `status` fields, keeping dashboards stable.
+| Capability   | Behavior when `safeMode=true`                                                                                                                                                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Retrieval    | The `ComputeRagContext` short-circuits before any vector search (`routingDecision.intent === "knowledge" && !safeMode`). No citations are emitted, and `retrieval_cache_hit` remains `false`.                             |
+| Enhancements | Reverse RAG, HyDE, multi-query, and the reranker are forced off (`lib/server/api/langchain_chat_impl_heavy.ts:1983-2006`), preventing extra API calls.                                                                    |
+| Budgets      | Context/history budgets are capped at `SAFE_MODE_CONTEXT_TOKEN_BUDGET = 600` / `SAFE_MODE_HISTORY_TOKEN_BUDGET = 300` (`lib/server/chat-guardrails.ts`). This keeps tokens low even if safe mode is triggered frequently. |
+| RequireLocal | Enforcement is unchanged—`loadChatModelSettings` still returns the proper `enforcement` payload (`error_category=local_required_unavailable`) when a local backend is missing and `requireLocal=true`.                    |
+| Telemetry    | `safe_mode=true` flows through `buildRuntimeTelemetryProps` and `telemetryBuffer`, alongside the existing `latency_ms`, cache flags, `rag_enabled`, and `status` fields, keeping dashboards stable.                       |
 
 ## Telemetry & observability notes
 
