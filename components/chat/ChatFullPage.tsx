@@ -2,13 +2,13 @@
 
 import { FiMessageCircle } from "@react-icons/all-files/fi/FiMessageCircle";
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
-import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   AdminChatConfig,
   AdminChatRuntimeMeta,
 } from "@/types/chat-config";
+import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { ChatMessagesPanel } from "@/components/chat/ChatMessagesPanel";
 import {
@@ -82,9 +82,7 @@ function ChatShellContent() {
 
   const handleSuggestedPromptClick = (prompt: string) => {
     setInputValue(prompt);
-    requestAnimationFrame(() => {
-      inputRef.current?.focus();
-    });
+    focusInput();
   };
 
   const { scrollRef, onScroll } = useChatScroll({
@@ -121,44 +119,9 @@ function ChatShellContent() {
           <div className={styles.messages} ref={scrollRef} onScroll={onScroll}>
             {!hasMessages && (
               <div className={styles.hero}>
-                <Image
-                  src="/images/7FAD09AA-76ED-4C18-A8E9-34D81940A59E.png"
-                  alt="Jack's AI Assistant"
-                  width={220}
-                  height={220}
-                />
-              <div className="mt-4 max-w-md text-center mx-auto">
-                <p className="text-base font-medium text-foreground leading-relaxed">
-                  Ask about Jack’s work, projects, or experience.
-                </p>
-                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                  Or explore how this AI assistant works: retrieval (RAG),
-                  citations, and telemetry.
-                </p>
+                <ChatEmptyState onSelectPrompt={handleSuggestedPromptClick} />
               </div>
-              <div className="mt-6 text-center max-w-xl mx-auto">
-                <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
-                  Try one of these
-                </p>
-                <div className="mt-3 flex flex-wrap justify-center gap-2">
-                  {[
-                    "What are Jack’s 2–3 most impactful projects, and why?",
-                    "Show me how citations work on this site (give an example answer).",
-                    "Summarize Jack’s background in 5 bullet points.",
-                  ].map((prompt) => (
-                    <button
-                      key={prompt}
-                      type="button"
-                      className="rounded-full border border-ai-border px-3 py-1 text-sm text-muted-foreground transition hover:border-ai-accent hover:text-ai hover:bg-[color-mix(in_srgb,var(--ai-accent),var(--ai-bg))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ai-accent"
-                      onClick={() => handleSuggestedPromptClick(prompt)}
-                    >
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+            )}
             {hasMessages && (
               <ChatMessagesPanel
                 messages={messages}

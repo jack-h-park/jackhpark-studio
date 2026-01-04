@@ -1,9 +1,8 @@
 "use client";
 
-import Image from "next/image";
-
 import type { ChatMessage } from "@/components/chat/hooks/useChatSession";
 import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
+import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
 
 import styles from "./ChatMessagesPanel.module.css";
 
@@ -15,6 +14,7 @@ export type ChatMessagesPanelProps = {
   showCitations?: boolean;
   showPlaceholder?: boolean;
   citationLinkLength?: number;
+  onSelectPrompt?: (prompt: string) => void;
   onRetryDeepSearch?: (messageId: string) => void;
 };
 
@@ -26,6 +26,7 @@ export function ChatMessagesPanel({
   showCitations = false,
   showPlaceholder = true,
   citationLinkLength = 24,
+  onSelectPrompt,
   onRetryDeepSearch,
 }: ChatMessagesPanelProps) {
   if (messages.length === 0) {
@@ -33,21 +34,7 @@ export function ChatMessagesPanel({
       return (
         <div className={styles.messagesPanel}>
           <div className="flex flex-1 flex-col justify-center items-center p-4">
-            <Image
-              src="/images/7FAD09AA-76ED-4C18-A8E9-34D81940A59E.png"
-              alt="AI Assistant"
-              width={200}
-              height={200}
-            />
-            <div className="mt-6 max-w-md text-center mx-auto">
-              <p className="text-base font-medium text-[hsl(var(--ai-fg))]">
-                Ask about Jack’s work, projects, or experience.
-              </p>
-              <p className="text-sm text-[hsl(var(--ai-fg-muted))] mt-2">
-                Or explore how this AI assistant works: retrieval (RAG),
-                citations, and telemetry.
-              </p>
-            </div>
+            <ChatEmptyState onSelectPrompt={onSelectPrompt} />
           </div>
         </div>
       );
