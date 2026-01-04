@@ -52,6 +52,10 @@ If `ragMultiQueryMode` is enabled and base results are still weak:
 - Executes parallel searches.
 - **Fusion:** Merges results using Reciprocal Rank Fusion (RRF) or simple deduplication (`mergeCandidates`).
 
+### ⚠️ Note: Manual Overrides
+
+If a user enables **Reverse RAG** or **HyDE** explicitly in their Session Settings (checking the box), this **bypasses the Quality Check**. The system will execute the selected strategy immediately, regardless of whether the base retrieval was strong or weak. This allows expert users to force "Deep Search" behaviors.
+
 ---
 
 ## 3. Ranking & Scoring

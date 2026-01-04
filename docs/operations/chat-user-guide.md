@@ -60,7 +60,25 @@ The **Temperature** slider controls how "random" or "creative" the AI's response
 
 ---
 
-## 5. Troubleshooting & Debugging
+## 5. Expert Settings (Manual RAG)
+
+By default, the system is on **"Auto-Pilot"** (Auto-RAG), automatically deciding when to use advanced techniques like HyDE or Query Rewriting based on retrieval quality.
+
+However, advanced users can force these strategies via the **Capabilities** menu in Settings:
+
+- **Reverse RAG:**
+  - **Auto (Unchecked):** System re-writes your query only if it detects ambiguity.
+  - **Always On (Checked):** Forces a query re-write for _every_ request. Use this if you find the bot is too literal or misses synonyms.
+- **HyDE (Hypothetical Document Embeddings):**
+  - **Auto (Unchecked):** System hallucinates a draft answer only if initial search fails.
+  - **Always On (Checked):** Forces HyDE for every request. Use this for abstract or thematic questions where keywords might fail.
+- **Multi-Query:**
+  - **Auto:** Runs parallel searches if the query is complex.
+  - **Always On:** Forces broad search coverage at the cost of higher latency.
+
+---
+
+## 6. Troubleshooting & Debugging
 
 For advanced users, the **Debug Dashboard** (visible if you have admin permissions) provides deep insights:
 
