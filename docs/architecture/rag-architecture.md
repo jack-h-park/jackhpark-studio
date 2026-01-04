@@ -4,7 +4,7 @@
 **Owner:** Engineering
 **Implementation:** `pages/api/chat.ts`, `lib/server/api/langchain_chat_impl_heavy.ts`
 
-This document outlines the high-level architecture of the RAG (Retrieval-Augmented Generation) system. For detailed implementation guides, see the sub-documents below.
+This document outlines the high-level architecture of the RAG (Retrieval-Augmented Generation) system. For a comprehensive narrative on the system design, see the **[System Design Deep Dive](./rag-system.md)**. For detailed implementation guides, see the sub-documents below.
 
 ---
 

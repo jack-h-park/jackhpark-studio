@@ -1,4 +1,4 @@
-# Project 2: Retrieval-Augmented Generation (RAG) System
+# RAG System (System Design)
 
 This document outlines the architecture of the RAG system designed to ground the AI Chat Assistant in authoritative portfolio content.
 
