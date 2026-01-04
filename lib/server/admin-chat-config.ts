@@ -79,6 +79,7 @@ export type RagPreset = {
 };
 
 export type ContextPreset = {
+  enabled: boolean;
   tokenBudget: number;
   historyBudget: number;
   clipTokens: number;
@@ -132,6 +133,7 @@ export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
       similarity: 0.4,
     },
     context: {
+      enabled: true,
       tokenBudget: 2048,
       historyBudget: 1024,
       clipTokens: 128,
@@ -155,6 +157,7 @@ export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
       similarity: 0.35,
     },
     context: {
+      enabled: true,
       tokenBudget: 1536,
       historyBudget: 512,
       clipTokens: 64,
@@ -178,6 +181,7 @@ export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
       similarity: 0.3,
     },
     context: {
+      enabled: true,
       tokenBudget: 3072,
       historyBudget: 1536,
       clipTokens: 256,
@@ -201,6 +205,7 @@ export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
       similarity: 0.55,
     },
     context: {
+      enabled: true,
       tokenBudget: 2048,
       historyBudget: 768,
       clipTokens: 128,

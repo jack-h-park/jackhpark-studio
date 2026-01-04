@@ -8,6 +8,7 @@ void test("default preset matches the approved Balanced settings", () => {
   assert.strictEqual(balanced.llmModel, "gpt-4o");
   assert.strictEqual(balanced.rag.topK, 6);
   assert.strictEqual(balanced.rag.similarity, 0.4);
+  assert.strictEqual(balanced.context.enabled, true);
   assert.strictEqual(balanced.features.reverseRAG, false);
   assert.strictEqual(balanced.summaryLevel, "low");
 });
@@ -25,6 +26,7 @@ void test("Fast and Precision presets respect their token budgets", () => {
   const fast = DEFAULT_ADMIN_CHAT_PRESETS.fast;
   const precision = DEFAULT_ADMIN_CHAT_PRESETS.precision;
   assert.strictEqual(fast.llmModel, "gpt-4o-mini");
+  assert.strictEqual(fast.context.enabled, true);
   assert.strictEqual(fast.context.tokenBudget, 1536);
   assert.strictEqual(fast.context.historyBudget, 512);
   assert.strictEqual(fast.context.clipTokens, 64);

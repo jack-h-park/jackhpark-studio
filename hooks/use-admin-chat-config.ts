@@ -100,17 +100,6 @@ export function useAdminChatConfig({
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(lastUpdatedAt);
   const [isRawModalOpen, setIsRawModalOpen] = useState(false);
   const [isWordWrapEnabled, setIsWordWrapEnabled] = useState(false);
-  const [contextHistoryEnabled, setContextHistoryEnabled] = useState<
-    Record<PresetKey, boolean>
-  >(() =>
-    presetDisplayOrder.reduce<Record<PresetKey, boolean>>(
-      (acc, presetKey) => {
-        acc[presetKey] = true;
-        return acc;
-      },
-      {} as Record<PresetKey, boolean>,
-    ),
-  );
 
   useEffect(() => {
     setConfig(adminConfig);
@@ -369,8 +358,6 @@ export function useAdminChatConfig({
     setIsRawModalOpen,
     isWordWrapEnabled,
     setIsWordWrapEnabled,
-    contextHistoryEnabled,
-    setContextHistoryEnabled,
     additionalPromptMaxLength,
     numericLimitErrors,
     hasNumericErrors,

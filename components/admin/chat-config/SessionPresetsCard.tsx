@@ -197,10 +197,6 @@ export type SessionPresetsCardProps = {
   config: AdminChatConfig;
   numericLimits: AdminChatConfig["numericLimits"];
   presets: AdminChatConfig["presets"];
-  contextHistoryEnabled: Record<PresetKey, boolean>;
-  setContextHistoryEnabled: Dispatch<
-    SetStateAction<Record<PresetKey, boolean>>
-  >;
   updatePreset: (
     presetName: PresetKey,
     updater: (
@@ -220,8 +216,6 @@ export function SessionPresetsCard({
   config,
   numericLimits,
   presets,
-  contextHistoryEnabled,
-  setContextHistoryEnabled,
   updatePreset,
   llmModelOptions,
   additionalPromptMaxLength,
@@ -340,9 +334,12 @@ export function SessionPresetsCard({
     presetKey: PresetKey,
     checked: boolean,
   ) => {
-    setContextHistoryEnabled((prev) => ({
+    updatePreset(presetKey, (prev) => ({
       ...prev,
-      [presetKey]: checked,
+      context: {
+        ...prev.context,
+        enabled: checked,
+      },
     }));
   };
 
@@ -424,7 +421,7 @@ export function SessionPresetsCard({
   };
 
   const renderContextSection = (presetKey: PresetKey) => {
-    const isEnabled = contextHistoryEnabled[presetKey] ?? true;
+    const isEnabled = presets[presetKey].context.enabled;
     const isDisabled = !isEnabled;
     return (
       <Section

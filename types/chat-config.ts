@@ -34,6 +34,7 @@ export interface SessionChatConfig {
     similarity: number;
   };
   context: {
+    enabled: boolean;
     tokenBudget: number;
     historyBudget: number;
     clipTokens: number;
