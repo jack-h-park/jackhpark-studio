@@ -2,369 +2,96 @@
 
 **Status:** authoritative  
 **Owner:** Engineering  
-**Implementation:** `pages/api/chat.ts`, `pages/api/native_chat.ts`, `pages/api/langchain_chat.ts`
+**Implementation:** `pages/api/chat.ts`, `pages/api/langchain_chat.ts`, `lib/server/api/langchain_chat_impl_heavy.ts`
 
-This document serves as the authoritative guide to the Retrieval-Augmented Generation (RAG) system. It describes the decision paths, invariants, and configuration knobs that determine how a user's chat request becomes an answer.
-
----
-
-## 1. System Overview & Design Principles
-
-The RAG system is designed to provide high-fidelity, grounded answers from a knowledge base while maintaining strict correctness and PII safety.
-
-### Core Principles
-
-1.  **Deterministic Behavior over Heuristics:** Where possible, decisions (like engine selection or ranking) are driven by explicit configuration (presets, admin config) rather than opaque runtime guesses.
-2.  **Clear Separation of Concerns:**
-    - **Decision Layer:** Determines _what_ to do (e.g., `chat-guardrails.ts`, `chat-settings.ts`).
-    - **Execution Layer:** Performs the action (e.g., `native_chat.ts`, `ragRetrievalChain.ts`).
-    - **Telemetry Layer:** Observes the result without affecting execution (`telemetry-buffer.ts`).
-3.  **PII-Safe Observability:** Telemetry and logging are designed to be safe by default. Detailed traces (inputs/outputs) are gated by `LANGFUSE_INCLUDE_PII` and `isPlainObject` checks to prevent accidental leakage.
-4.  **Progressive Enhancement:** The system functions without RAG. Features like "Reverse RAG" or "HyDE" are additive layers that enhance quality but can be disabled or fail gracefully without breaking the core chat experience.
-5.  **Cache Correctness:** Caching keys are aggressive and include configuration state (e.g., specific top-K, similarity thresholds) to ensure that a configuration change immediately invalidates stale, incompatible cached entries.
-
-### Invariants
-
-- **Context Budget is Hard:** The system will never exceed the configured `ragContextTokenBudget`. If retrieved documents exceed this, they are dropped or clipped starting from the lowest-ranked items.
-- **Guarded Retrieval:** Retrieval is only attempted if the intent classifier (`routeQuestion`) determines the query needs knowledge, or if forced by configuration.
-- **Traceability:** Every answer produced by the system generates a structured telemetry event (PostHog and/or Langfuse) describing _why_ it was produced.
+This document captures how chat requests flow through the unified LangChain runtime, how guardrails are enforced, and how the Safe Mode preset keeps the experience reliable even when downstream dependencies misbehave.
 
 ---
 
-## 2. End-to-End Request Lifecycle
+## 1. System overview & design principles
 
-The lifecycle of a request flows from the Next.js API handler through configuration resolution, engine dispatch, and finally into an execution pipeline.
+- **Single execution engine.** Every chat request now routes through `pages/api/chat.ts`, which calls `loadChatModelSettings` (`lib/server/chat-settings.ts`) and always dispatches to `langchainChat` (no native fallback). Feature flags (`safeMode`, `requireLocal`, retrieval toggles) live in `SessionChatConfig`/admin presets and are respected throughout the LangChain stack.
+- **Deterministic guardrails.** Guardrail settings are resolved via `loadGuardrailSettings` + `sanitizeChatSettings` (`lib/server/chat-guardrails.ts`), capturing budgets, retrieval thresholds, and summary behavior so telemetry can compare apples-to-apples across requests.
+- **Safe Mode fallback.** A preset-level `safeMode` flag toggles conservative defaults: retrieval/enhancements are skipped, context budgets shrink (see Section 5), and telemetry still emits `safe_mode=true` so operators can monitor when the fallback is active.
+- **Telemetry invariants.** The `chat_completion` event name remains stable, and PostHog metadata still reports `latency_ms`, `aborted`, cache booleans, and `status` while `safe_mode` is added as a new property. Langfuse traces mirror the same metadata plus guardrail snapshots.
 
-### High-Level Flow (Conceptual)
+---
+
+## 2. Request lifecycle
 
 ```mermaid
 flowchart TD
-    Request[User Request] --> Config{Load Configuration}
-    Config --> Engine{Select Engine}
+  Request[User request]
+  Config[Load chat settings (`pages/api/chat.ts`)]
+  LangChain[LangChain execution (`pages/api/langchain_chat.ts` + `lib/server/api/langchain_chat_impl_heavy.ts`)]
+  SafeMode[Safe Mode guardrail tweaks]
+  Retrieval[Retrieval + RAG pipeline]
+  Response[Stream response]
+  Telemetry[PostHog + Langfuse]
 
-    Engine -->|Native| Native[Native Engine]
-    Engine -->|LangChain| LC[LangChain Engine]
-
-    Native & LC --> Execution[Execution Pipeline]
-    Execution --> Response[Stream Response]
-    Response --> Telemetry[Finalize Telemetry]
+  Request --> Config --> LangChain
+  LangChain --> Retrieval
+  Retrieval --> Response --> Telemetry
+  LangChain --> SafeMode --> Retrieval
 ```
 
-### Detailed Execution Flow (Native Engine)
-
-```mermaid
-flowchart TD
-    Start[Intake] --> Settings[Load Chat Settings]
-    Settings --> CacheResponse{Response Cache?}
-
-    CacheResponse -->|Hit| EmitCached[Emit Cached Output]
-    EmitCached --> End
-
-    CacheResponse -->|Miss| History[Truncate History]
-    History --> Intent{Intent Router}
-
-    Intent -->|Chitchat/Command| ContextBase[Base Context Only]
-
-    Intent -->|Knowledge| CheckCacheRetrieval{Retrieval Cache?}
-
-    CheckCacheRetrieval -->|Hit| UseCachedCtx[Use Cached Chunks]
-
-    CheckCacheRetrieval -->|Miss| PreRetrieval[Pre-Retrieval: ReverseRAG/HyDE]
-    PreRetrieval --> Embed[Embed Query]
-    Embed --> VectorSearch["Vector Search (Retrieve K)"]
-    VectorSearch --> Filter[Enrich & Filter]
-    Filter --> Rerank["Rerank (Rerank K)"]
-    Rerank --> Reduce["Context Assembly (Final K)"]
-    Reduce --> CacheSetRetrieval[Set Retrieval Cache]
-    CacheSetRetrieval --> UseCtx[Result Context]
-
-    UseCachedCtx --> UseCtx
-
-    UseCtx --> ContextBase
-    ContextBase --> Prompt[Assemble System Prompt]
-    Prompt --> Gen[LLM Generation]
-    Gen --> Stream[Stream to Client]
-
-    Stream --> SetCacheResponse[Set Response Cache]
-    SetCacheResponse --> Telemetry[Log Telemetry]
-    Telemetry --> End[End]
-```
-
-### Detailed Execution Steps
-
-1.  **Request Intake:**
-    - The request hits `pages/api/chat.ts`.
-    - **`loadChatModelSettings`** is called immediately to resolve the effective configuration based on the user's session and admin defaults.
-
-2.  **Engine Dispatch:**
-    - Based on `runtime.engine`, the request is routed to either `nativeChat` (`pages/api/native_chat.ts`) or `langchainChat` (`pages/api/langchain_chat.ts`).
-    - _Note:_ The "Native" engine is the default and preferred path for performance and control.
-
-3.  **Guardrails & Routing (Native Path):**
-    - **`minimizeHistory`**: The conversation history is truncated to fit `historyTokenBudget`.
-    - **`routeQuestion`**: The user's latest message is analyzed to determine intent (`knowledge`, `chitchat`, `command`).
-      - _Knowledge:_ Triggers retrieval.
-      - _Chitchat/Command:_ Bypasses retrieval to save cost and latency.
-
-4.  **Retrieval & Ranking (If Knowledge):**
-    - If a cache hit occurs (`retrievalCacheTtl > 0`), this step is skipped.
-    - Otherwise, the system executes **Pre-Retrieval** (Rewriting/HyDE), **Vector Search**, and **Reranking**.
-
-5.  **Generation:**
-    - A final system prompt is assembled using `buildFinalSystemPrompt`.
-    - The context (preserved history + retrieved chunks) is injected.
-    - The LLM streams the response to the client.
-
-6.  **Telemetry Finalization:**
-    - On stream completion, metrics (latency, token usage, retrieval metadata) are flushed to PostHog and Langfuse.
+1. **Request intake.** `pages/api/chat.ts` merges preset, session overrides, and environment defaults inside `loadChatModelSettings`, producing a `ChatModelSettings` snapshot that includes `safeMode`, `requireLocal`, `features`, and runtime metadata for telemetry.
+2. **LangChain dispatch.** The handler always calls `langchainChat` (`pages/api/langchain_chat.ts` → `lib/server/api/langchain_chat_entry.ts` → `lib/server/api/langchain_chat_impl_heavy.ts`). Guardrail metadata (history budgets, retrieval thresholds, summary levels) and telemetry hooks flow into Langfuse via `telemetryBuffer`.
+3. **Guardrail decision.** `routeQuestion`, `applyHistoryWindow`, and `buildRagConfig` decide whether retrieval runs. When Safe Mode is on, retrieval is disabled entirely (see Section 5) and the runtime still streams a response with an empty citation set.
+4. **Response streaming.** The LangChain stack streams tokens to the client while writing cache entries (`buildResponseCacheKey`) and emitting `chat_completion` events. Latency/tokens are recorded, and `safe_mode` is tagged whenever `runtime.safeMode` is true.
 
 ---
 
-## 3. Engine Selection & Execution Models
+## 3. LangChain execution & guardrails
 
-The system supports two distinct execution engines. This is a fundamental architectural fork.
-
-### 1. Native Engine (`pages/api/native_chat.ts`)
-
-- **Philosophy:** "Metal" implementation. Direct calls to database, vector store, and LLM APIs.
-- **Pros:** Maximum control, easier debugging, lower overhead, finer-grained telemetry.
-- **Cons:** More boilerplate code.
-- **When to use:** Default for all standard RAG, local LLM, and high-performance use cases.
-
-### 2. LangChain Engine (`pages/api/langchain_chat.ts`)
-
-- **Philosophy:** Structured chain composition. Uses `RunnableSequence`.
-- **Pros:** Access to LangChain ecosystem features (though many are reimplemented in Native for control).
-- **Cons:** Heavy abstraction/stack traces, "lazy loading" complexity (see `langchain_chat_entry.ts`).
-- **When to use:** Legacy support, or when prototyping complex multi-step agents that rely heavily on LangChain primitives.
-
-### Decision Logic
-
-Engine selection is determined by `lib/server/chat-settings.ts`:
-
-1.  **Session Config:** Did the user explicitly request `engine: "lc"` in the UI?
-2.  **Preset Config:** Does the active preset specify `chatEngine`?
-3.  **Defaults:** defined in `getChatModelDefaults()` (currently defaults to "native" logic via `getChatModelDefaults` or specific env vars).
-
-**Fallback Semantics:**
-If a Local LLM is required but unavailable (e.g., LM Studio is not running), the system logic in `loadChatModelSettings` can optionally modify the resolution to fall back to a cloud provider, but the _Engine_ choice generally remains sticking unless the fallback requires a switch (rare).
+- **Guardrail resolution.** `sanitizeChatSettings` enforces numeric bounds and summary behavior, while `buildGuardrailSettings` uses admin defaults plus any session overrides. Safe Mode short-circuits budgets (`SAFE_MODE_CONTEXT_TOKEN_BUDGET = 600`, `SAFE_MODE_HISTORY_TOKEN_BUDGET = 300`) so context/history windows stay small under load.
+- **Summary handling.** Guardrails trim history to `historyTokenBudget`, optionally generate a summary chunk, and expose metadata (`summaryMemory`, `historyWindow`) to both the prompt builder and telemetry layer.
+- **Intent routing.** `routeQuestion` classifies the latest prompt as `knowledge`, `chitchat`, or `command`. The LangChain runtime honors `requireLocal` enforcement regardless of Safe Mode: the policy is resolved inside `loadChatModelSettings`, and if a local backend is missing while `requireLocal=true`, the handler immediately returns a 503 with the `error_category=local_required_unavailable` payload.
+- **Telemetry snapshots.** `telemetryBuffer` grabs a snapshot of guardrail settings, guardrail meta, and `runtimeTelemetryProps` (`lib/server/chat-settings.ts`). Langfuse traces and PostHog `chat_completion` events both include these snapshots plus cache flags.
 
 ---
 
-## 4. Retrieval Strategy & Modes
+## 4. Retrieval & context pipeline
 
-The retrieval pipeline determines _what_ knowledge is fetched. This logic is shared (`lib/server/chat-rag-utils.ts`) but orchestrated differently by each engine.
-
-### Decision Decisions
-
-- **Intent-Based Retrieval:** Controlled by `routeQuestion` in `chat-guardrails.ts`.
-  - Classes: `knowledge` (fetch), `chitchat` (skip), `command` (skip).
-  - _Override:_ Admin config can force retrieval for all queries, but this is generally discouraged.
-
-### Retrieval Components (The Pipeline)
-
-1.  **Reverse RAG (Query Rewriting):**
-    - **Goal:** De-ambiguate the user's query using conversation history.
-    - **Config:** `reverseRagEnabled` / `reverseRagMode`.
-    - **Input:** User Query + History.
-    - **Output:** Standalone search query.
-
-2.  **HyDE (Hypothetical Document Embeddings):**
-    - **Goal:** Generate a hallucinated "ideal answer" to embed, capturing semantic meaning better than a raw question.
-    - **Config:** `hydeEnabled`.
-    - **Input:** Rewritten Query.
-    - **Output:** A hypothetical passage.
-    - **Embedding Target:** We embed the _HyDE document_ if generated, otherwise the _Rewritten Query_.
-
-3.  **Multi-Query (LangChain experimental):**
-    - **Goal:** Generate multiple variations of a query to increase recall.
-    - **Status:** Currently experimental and primarily visible in the LangChain heavy implementation (`ragRetrievalChain.ts`).
+- **Retrieval cache.** When a knowledge intent is detected and Safe Mode is off, `ComputeRagContext` (`lib/server/api/langchain_chat_impl_heavy.ts`) uses a retrieval cache keyed by preset, context, and runtime flags (reverse RAG, HyDE, reranker, etc.). A cache hit skips vector search and still updates telemetry.
+- **Reverse RAG / HyDE / reranker.** These enhancements are orchestrated via `buildRagRetrievalChain`. Signals like `reverseRagMode`, `hydeMode`, and `rankerMode` are derived from admin settings, but every decision is captured in telemetry (`decisionSignature`, `decisionTelemetry`) to aid debugging.
+- **Vector search.** The handler embeds the (possibly rewritten/HyDE-augmented) query and calls `matchRagChunksForConfig` or the LangChain vector store. Resulting chunks are enriched, filtered, reranked, and trimmed by `buildContextWindow` to respect `ragContextTokenBudget` and `ragTopK`.
+- **Context assembly.** `buildIntentContextFallback` guarantees a safe prompt even when retrieval fails. The final context includes system prompt, history window, retrieved chunks, and optional guardrail summaries.
 
 ---
 
-## 5. Candidate Selection, Ranking, and Reduction
+## 5. Safe Mode preset (operational fallback)
 
-Once a query vector exists, the system must turn it into a compact context window.
+When `safeMode=true` in the session or preset:
+Session overrides are the per-request `sessionConfig` payload that accompanies the `/api/chat` call, and they take precedence over preset defaults and global/admin guardrail values when producing the runtime snapshot.
 
-### 1. Vector Search (Supabase)
+1.  **No retrieval.** ComputeRagContext short-circuits before vector search (`routingDecision.intent === "knowledge" && !safeMode` guard). Safe Mode guarantees zero outbound vector database calls or reranker requests—only the final LLM generation runs (still respecting `requireLocal`). The runtime still returns a response with the fallbacks assembled by `buildIntentContextFallback`.
+2.  **Citations suppressed.** `citationsCount` is forced to `0` in telemetry (`lib/server/api/langchain_chat_impl_heavy.ts:1459`, `2259`, `3026`) so downstream dashboards know no retrieval occurred.
+   This deterministic zero communicates that no retrieved context reached the prompt even though metadata like `metadata.rag.retrieval_attempted` / `metadata.rag.retrieval_used` remain the canonical ground truth; `citationsCount=0` is simply the UI-friendly proxy operators can scan for quickly.
+3.  **Enhancements disabled.** Reverse RAG, HyDE, multi-query, and reranker toggles are set to their safe defaults (`false`) so no auxiliary network calls happen (see `lib/server/api/langchain_chat_impl_heavy.ts:1983-2006`).
+4.  **Budgets reduced.** Context budgets clamp at `SAFE_MODE_CONTEXT_TOKEN_BUDGET = 600` and history budgets at `SAFE_MODE_HISTORY_TOKEN_BUDGET = 300` (`lib/server/chat-guardrails.ts:152-274`).
+5.  **RequireLocal still honored.** Safe Mode only affects retrieval/features; `requireLocal` enforcement remains centralized in `loadChatModelSettings`, so local-only presets continue to block when the backend is unavailable.
+6.  **Telemetry flag.** `safe_mode=true` appears in every PostHog `chat_completion` event/property set and Langfuse metadata (`buildRuntimeTelemetryProps`, `lib/server/telemetry/telemetry-buffer.ts:122`) so you can measure how often the fallback is active.
 
-- **Function:** `matchRagChunksForConfig` (Native) or `SupabaseVectorStore` (LangChain).
-- **Mechanism:** `rpc` call to Postgres `pgvector` store.
-- **Function:** `matchRagChunksForConfig` (Native) or `SupabaseVectorStore` (LangChain).
-- **Mechanism:** `rpc` call to Postgres `pgvector` store.
-- **Candidate K (Sizing Logic):** The system fetches a larger pool of candidates than the final Top K to allow for effective reranking and filtering.
-  - `finalK` = `guardrails.ragTopK` (The user/preset desired count).
-  - `retrieveK` = `max(finalK * 4, RAG_TOP_K)`. We intentionally over-fetch (typically 4x) to ensure quality after potential metadata filtering.
-  - `rerankK` = `min(retrieveK, available_candidates)`. The reranker operates on the full valid retrieved set.
-  - `outputK` = `min(finalK, rerankK)`. The final context window receives only the best survivors.
-
-### 2. Enrichment & Filtering
-
-- **Shared Logic:** `enrichAndFilterDocs` in `chat-rag-utils.ts`.
-- **Metadata Fetch:** Secondary query to `rag_documents` to get fresh metadata (like `is_public` or updated titles) that might be stale in the vector store.
-- **Filtering:** Documents with `is_public: false` (if enforced) are dropped here.
-- **Weighting:** Metadata weights (configured in admin settings) are applied to boost/penalize scores.
-
-### 3. Reranking (Optional)
-
-- **Logic:** `applyRanker` in `rag-enhancements.ts`.
-- **Modes:**
-  - `none`: Pass-through vector scores.
-  - `cohere`: Uses `CohereClient.rerank`.
-  - `similarity`: (No-op, relies on base vector similarity).
-
-### 4. Context Window Assembly
-
-- **Logic:** `buildContextWindow` in `chat-guardrails.ts`.
-- **Algorithm:** Greedy packing.
-  1.  Sort candidates by final score (descending).
-  2.  Add candidates until `ragContextTokenBudget` is reached.
-  3.  If a candidate partially fits, it is clipped (if `ragContextClipTokens` allows).
-- **Output:** `ContextWindowResult` containing the final string block and citation metadata.
+Safe Mode is the recommended guardrail for keeping the runtime responsive when vector stores, guardrail services, or hybrid enhancements misbehave.
+Operators should prefer enabling Safe Mode when facing:
+- vector database latency issues or regional outages,
+- reranker failures or high error rates,
+- p99 regressions traced back to retrieval-heavy workloads,
+- or when debugging with the fewest moving parts possible.
 
 ---
 
-## 6. Prompt Assembly & Answer Generation
+## 6. Telemetry & observability
 
-The final prompt sent to the LLM is a composition of system instructions, retrieved context, and conversation history.
-
-### System Prompt Construction
-
-Source: `buildFinalSystemPrompt` in `chat-settings.ts`.
-
-- **Order:**
-  1.  `baseSystemPrompt` (Global Admin Config)
-  2.  `preset.additionalSystemPrompt` (Preset Specific)
-  3.  `sessionConfig.additionalSystemPrompt` (User/Session Specific)
-- **Behavior:** These are concatenated with newline separators.
-
-### Context Injection
-
-- The retrieved knowledge is injected into the user's message or a specific system slot, depending on the engine.
-- **Format:** Typically a structured block:
-  ```text
-  <context>
-  [Source 1]: Content...
-  [Source 2]: Content...
-  </context>
-  ```
-
-### Streaming Response
-
-- Both engines utilize streaming to reduce Time-To-First-Byte (TTFB).
-- **Native:** Manually pumps chunks from the provider (OpenAI/Gemini/Ollama) to `res.write`.
-- **LangChain:** Uses `Runnable.stream` pipe.
+- **PostHog `chat_completion`.** The event name stays unchanged. Payload always includes `latency_ms`, `aborted`, `response_cache_hit`, `retrieval_cache_hit`, `response_cache_enabled`, `retrieval_cache_enabled`, `rag_enabled`, `status`, and now `safe_mode` (never dropped).
+- **Langfuse metadata.** Traces mirror guardrail snapshots, decision telemetry, cache state, and `safe_mode`. Cache hits also emit `cacheMeta` updates via `updateTraceCacheMetadata` so Langfuse dashboards can break down response vs. retrieval hits.
+- **Monitoring.** The `scripts/smoke/chat-api-smoke.ts` script exercises the unified `/api/chat` endpoint and can toggle Safe Mode to validate the fallback. `scripts/smoke/smoke-langchain-chat.mjs`/`prewarm-langchain-chat.mjs` remain available for deeper LangChain readiness checks.
 
 ---
 
-## 7. Caching Semantics & Correctness
+## 7. Operational notes
 
-The system employs granular caching to minimize latency and cost. It is critical to understand _what_ makes a cache key.
-
-### Two-Stage Caching
-
-1.  **Retrieval Cache (`chat:retrieval:...`)**
-    - **Stores:** `ContextWindowResult` (the final list of retrieved and filtered chunks).
-    - **Key Components:** Query text, `ragTopK`, `similarityThreshold`, `candidateK`, `ragRanking` (indirectly), and `presetId`.
-    - **TTL:** Configurable via `adminConfig.cache.retrievalTtlSeconds`.
-    - **Invariant:** Changing even a minor retrieval knob (e.g., Top K from 5 to 6) invalidates this cache automatically because the hash changes.
-
-2.  **Response Cache (`chat:response:...`)**
-    - **Stores:** The final LLM text output.
-    - **Key Components:** `presetId`, `intent`, Full History (`messages`), `ragTopK` (if knowledge).
-    - **TTL:** Configurable via `adminConfig.cache.responseTtlSeconds`.
-    - **Behavior:** If hit, the system replays the cached text immediately and emits telemetry marking it as a `cache_hit`.
-
-### Insufficient Context caching
-
-- If the system performs retrieval but finds "insufficient" context (score < threshold), this result _is_ cached.
-- Subsequent queries will quickly see "insufficient context" and fallback to general knowledge (if allowed) without hitting the vector DB again.
-
----
-
-## 8. Telemetry & Observability Contract (PII-Safe)
-
-The system treats telemetry as a first-class citizen with a stable contract.
-
-### Dual Backend
-
-- **PostHog:** High-level metrics (latency, token counts, error rates).
-- **Langfuse:** Detailed traces (LLM calls, retrieval inputs/outputs).
-
-### Contracts
-
-1.  **PII Gating:**
-    - By default, `input` and `output` fields in traces are _undefined_ or simplified summaries.
-    - Only if `LANGFUSE_INCLUDE_PII=true` (env) do we log the actual user query and full retrieved chunks.
-2.  **Stable Metadata:**
-    - Keys like `chat_session_id`, `trace_id`, `preset_key` are always present.
-    - `retrieval_attempted`: boolean indicating if the vector store was queried.
-    - `retrieval_used`: boolean indicating if any chunks were actually included in the context (score > threshold).
-3.  **Observation Merging:**
-    - The `telemetry-buffer` allows multiple stages (e.g., retrieval, reranking, generation) to append to the same trace object in a thread-safe manner (via `async_hooks` or explicit passing).
-
----
-
-## 9. Failure Modes & Fallbacks
-
-| Failure Mode               | Behavior                                                            | User Impact                                                      |
-| :------------------------- | :------------------------------------------------------------------ | :--------------------------------------------------------------- |
-| **Vector DB Down**         | `matchRagChunks` throws error. Caught in `matchRagChunksForConfig`. | Request fails with 500 (Native) or specific error JSON.          |
-| **Local LLM Offline**      | `loadChatModelSettings` detects unavailability.                     | If `fallbackChitchat` allowed, falls back. Otherwise error.      |
-| **Context Limit Exceeded** | `buildContextWindow` clips chunks.                                  | Answers may be less detailed; user sees truncated citation list. |
-| **Streaming Abort**        | Client disconnects or `AbortController` fires.                      | Stream ends early. Telemetry acts as "partial" or "aborted".     |
-
----
-
-## 10. Configuration & Tuning Map
-
-### Configuration Hierarchy (Precedence)
-
-The system resolves configuration in the following strict order (highest priority first), defined in `loadChatModelSettings`:
-
-1.  **Session Config (User Override)**
-    - _Source:_ `req.body.config` (from UI "Advanced Settings" drawer).
-    - _Scope:_ Applies only to the current request.
-    - _Example:_ User manually selecting `gpt-4` or `engine: "lc"`.
-2.  **Preset Config (Admin DB)**
-    - _Source:_ `admin_chat_config` table (Supabase).
-    - _Scope:_ Applied via `presetId` (e.g., "fast", "highRecall").
-    - _Example:_ A "Creative" preset might force `temperature: 0.9` and `ragTopK: 0`.
-3.  **System Defaults (Env/Hardcoded)**
-    - _Source:_ `getChatModelDefaults()` and environment variables (`RAG_TOP_K`, `DEFAULT_SYSTEM_PROMPT`).
-    - _Scope:_ Fallback for any missing value.
-
-### Tuning Knobs
-
-Use `admin_chat_config` (Supabase) to tune these values.
-
-| Goal                     | Knob to Change                                                   | Trade-off                                       |
-| :----------------------- | :--------------------------------------------------------------- | :---------------------------------------------- |
-| **Increase Recall**      | `numeric.ragTopK` (increase)                                     | Higher latency, more input tokens (cost/speed). |
-| **Reduce Hallucination** | `numeric.similarityThreshold` (increase)                         | More "I don't know" answers (false negatives).  |
-| **Improve Latency**      | `numeric.ragTopK` (decrease) or `retrievalTtlSeconds` (increase) | Less comprehensive answers.                     |
-| **Force Retrieval**      | Disallow `chitchat`/`command` intents (via prompts)              | Wasted resources on "Hello".                    |
-
----
-
-## 11. Mental Model Summary
-
-**"The Funnel"**
-Think of the RAG system as a funnel that starts wide and aggressively filters down:
-
-1.  **Intent Filter:** "Do we even need to search?" (Route Question)
-2.  **Vector Filter:** "What looks vaguely similar?" (Top-K \* M candidates)
-3.  **Metadata Filter:** "Is this legally/logically allowed?" (is_public)
-4.  **Ranker Filter:** "What is actually relevant?" (Reranker)
-5.  **Budget Filter:** "What fits in the prompt?" (Token Budget)
-
-**If you change X, Y happens:**
-
-- If you change the **System Prompt**, the entire "personality" changes, but retrieval logic remains identical.
-- If you change **RAG Top K**, the cache invalidates, and we fetch more data.
-- If you switch **Engines**, the _logic_ (steps) remains similar, but the _code path_ changes entirely.
-
-**Common Misconception:**
-
-- _Myth:_ "LangChain engine is better because it's LangChain."
-- _Reality:_ The Native engine is often faster and more observable because it avoids abstraction overhead. Use Native unless you need a specific LangChain-only agent feature.
+- Update admin presets (`SessionPresetsCard`) whenever you need new safe mode defaults; the checkbox propagates `safeMode=true` to the runtime snapshot.
+- Keep reviewing PostHog dashboards keyed by `llmEngine` to track cloud/local separation and watch for `safe_mode=true` spikes—they signal degraded retrieval but a still-responsive runtime.
+- For deep debugging, examine `lib/server/api/langchain_chat_impl_heavy.ts` traces alongside Langfuse spans (`telemetryBuffer`) to understand how guardrail metadata evolves through the request.

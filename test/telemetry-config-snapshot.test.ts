@@ -6,7 +6,7 @@ import { buildTelemetryConfigSnapshot } from "@/lib/server/telemetry/telemetry-c
 
 const baseConfig: ChatConfigSnapshot = {
   presetKey: "default",
-  chatEngine: "lc",
+  safeMode: false,
   llmModel: "mistral-ollama",
   embeddingModel: "text-embedding-3-small",
   rag: {
@@ -83,7 +83,7 @@ void describe("buildTelemetryConfigSnapshot", () => {
     const { configSummary } = buildTelemetryConfigSnapshot(baseConfig);
     assert.strictEqual(configSummary.presetKey, "default");
     assert.deepStrictEqual(configSummary.engine, {
-      chatEngine: "lc",
+      safeMode: false,
       llmModel: "mistral-ollama",
       embeddingModel: "text-embedding-3-small",
     });

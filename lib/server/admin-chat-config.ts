@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { DocType, PersonaType } from "@/lib/rag/metadata";
-import type { ChatEngine } from "@/lib/shared/model-provider";
 import type {
   EmbeddingModelId,
   LlmModelId,
@@ -49,7 +48,6 @@ export type NumericLimitsConfig = {
 };
 
 export type AllowlistConfig = {
-  chatEngines: ChatEngine[];
   llmModels: LlmModelId[];
   embeddingModels: EmbeddingModelId[];
   rankers: RankerId[];
@@ -97,7 +95,6 @@ export type AdminChatPreset = {
   additionalSystemPrompt?: string;
   llmModel: LlmModelId;
   embeddingModel: EmbeddingModelId;
-  chatEngine: ChatEngine;
   rag: RagPreset;
   context: ContextPreset;
   features: FeatureFlagsPreset;
@@ -241,7 +238,6 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
   ] ?? {
     ...mergedConfig.presets.default,
     llmModel: "mistral-ollama",
-    chatEngine: "native",
     requireLocal: true,
   };
 

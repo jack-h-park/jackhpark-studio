@@ -72,7 +72,7 @@ function stableStringify(value: unknown): string {
       seen.add(obj);
 
       const out: Record<string, unknown> = {};
-      for (const key of Object.keys(obj).sort()) {
+      for (const key of Object.keys(obj).toSorted()) {
         const mapped = stringifyInner(obj[key]);
         // JSON.stringify omits `undefined` object properties
         if (mapped !== undefined) {

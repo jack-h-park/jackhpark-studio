@@ -149,6 +149,8 @@ const SANITIZE_SUMMARY_MAX_TURNS_MIN = 1;
 const SANITIZE_SUMMARY_MAX_TURNS_MAX = 50;
 const SANITIZE_SUMMARY_MAX_CHARS_MIN = 200;
 const SANITIZE_SUMMARY_MAX_CHARS_MAX = 4000;
+const SAFE_MODE_CONTEXT_TOKEN_BUDGET = 600;
+const SAFE_MODE_HISTORY_TOKEN_BUDGET = 300;
 
 const normalizeChunkText = (text: string): string => {
   if (DEDUP_NORMALIZE_MODE === "simple") {
@@ -264,6 +266,14 @@ export async function getChatGuardrailConfig(options?: {
       ? session.context.historyBudget
       : numeric.historyTokenBudget;
 
+  const safeModeEnabled = Boolean(session?.safeMode);
+  const effectiveRagContextTokenBudget = safeModeEnabled
+    ? Math.min(ragContextTokenBudget, SAFE_MODE_CONTEXT_TOKEN_BUDGET)
+    : ragContextTokenBudget;
+  const effectiveHistoryTokenBudget = safeModeEnabled
+    ? Math.min(historyTokenBudget, SAFE_MODE_HISTORY_TOKEN_BUDGET)
+    : historyTokenBudget;
+
   const summaryEnabled =
     session?.summaryLevel && session.summaryLevel !== "off"
       ? true
@@ -272,9 +282,9 @@ export async function getChatGuardrailConfig(options?: {
   return {
     similarityThreshold: clamp(similarityThreshold, 0, 1),
     ragTopK: Math.max(1, ragTopK),
-    ragContextTokenBudget: Math.max(200, ragContextTokenBudget),
+    ragContextTokenBudget: Math.max(200, effectiveRagContextTokenBudget),
     ragContextClipTokens: Math.max(64, ragContextClipTokens),
-    historyTokenBudget: Math.max(200, historyTokenBudget),
+    historyTokenBudget: Math.max(200, effectiveHistoryTokenBudget),
     summary: {
       enabled: summaryEnabled,
       triggerTokens: Math.max(200, numeric.summaryTriggerTokens),

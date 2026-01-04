@@ -211,8 +211,8 @@ When `detailLevel` is `"verbose"`, detailed retrieval-stage spans are emitted.
 
 - **Observation Name**: `rag_retrieval_stage`
 - **Metadata Fields**:
-  - `stage`: e.g., `raw_results`, `after_weighting`
-  - `engine`: `native` or `langchain`
+-  - `stage`: e.g., `raw_results`, `after_weighting`
+-  - `engine`: currently always `langchain` (kept for backwards compatibility)
   - `presetKey`, `configHash`, `configSummary`
   - `entries`: An array of up to **8** sanitized document metadata entries.
     - Fields: `doc_id`, `similarity`, `weight`, `finalScore`, `doc_type`, `persona_type`, `is_public`

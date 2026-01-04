@@ -62,7 +62,7 @@
       "name": "rag_retrieval_stage",
       "metadata": {
         "component": "rag_retrieval_stage",
-        "configHash": "8edc4111731b0188d23c2fffc92ca3bac21694aafdaf2041d485927007631b48",
+        "configHash": "ea7637c42c1e9aa8bec095e03613b1eeddc894c9c42737fbc00e7cac6f1023ce",
         "configSummary": {
           "cache": {
             "responseEnabled": true,
@@ -76,7 +76,7 @@
             "tokenBudget": 600
           },
           "engine": {
-            "chatEngine": "langchain",
+            "safeMode": false,
             "embeddingModel": "text-embedding-ada-002",
             "llmModel": "gpt-4o-mini"
           },
@@ -135,7 +135,7 @@
       "name": "rag_retrieval_stage",
       "metadata": {
         "component": "rag_retrieval_stage",
-        "configHash": "8edc4111731b0188d23c2fffc92ca3bac21694aafdaf2041d485927007631b48",
+        "configHash": "ea7637c42c1e9aa8bec095e03613b1eeddc894c9c42737fbc00e7cac6f1023ce",
         "configSummary": {
           "cache": {
             "responseEnabled": true,
@@ -149,7 +149,7 @@
             "tokenBudget": 600
           },
           "engine": {
-            "chatEngine": "langchain",
+            "safeMode": false,
             "embeddingModel": "text-embedding-ada-002",
             "llmModel": "gpt-4o-mini"
           },

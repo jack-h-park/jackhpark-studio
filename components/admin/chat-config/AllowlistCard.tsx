@@ -17,11 +17,6 @@ import { type AdminLlmModelOption } from "@/hooks/use-admin-chat-config";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { normalizeLlmModelId } from "@/lib/core/llm-registry";
 import {
-  CHAT_ENGINE_LABELS,
-  CHAT_ENGINE_OPTIONS,
-  type ChatEngine,
-} from "@/lib/shared/model-provider";
-import {
   type EmbeddingModelId,
   type LlmModelId,
   RANKER_DESCRIPTIONS,
@@ -31,16 +26,8 @@ import {
 
 const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
 
-type AllowedAllowlistKey =
-  | "llmModels"
-  | "embeddingModels"
-  | "rankers"
-  | "chatEngines";
-type AllowedAllowlistValue =
-  | LlmModelId
-  | EmbeddingModelId
-  | RankerId
-  | ChatEngine;
+type AllowedAllowlistKey = "llmModels" | "embeddingModels" | "rankers";
+type AllowedAllowlistValue = LlmModelId | EmbeddingModelId | RankerId;
 
 type AllowlistCardProps = {
   allowlist: AdminChatConfig["allowlist"];
@@ -169,7 +156,7 @@ export function AllowlistCard({
       <CardHeader>
         <CardTitle icon={<FiShield aria-hidden="true" />}>Allowlist</CardTitle>
         <CardDescription>
-          Control which models, engines, and rankers visitors can pick.
+          Control which models and rankers visitors can pick.
         </CardDescription>
         <div className="mt-2 flex flex-wrap gap-4">
           {renderBackendStatus("Ollama", "ollama")}
@@ -177,31 +164,6 @@ export function AllowlistCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label>Chat Engines</Label>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {CHAT_ENGINE_OPTIONS.map((engine) => {
-              const isSelected = allowlist.chatEngines.includes(engine);
-              const label = CHAT_ENGINE_LABELS[engine] ?? engine;
-              return (
-                <AllowlistTile
-                  key={engine}
-                  id={engine}
-                  label={label}
-                  subtitle={engine}
-                  selected={isSelected}
-                  onClick={() =>
-                    toggleAllowlistValue("chatEngines", engine, !isSelected)
-                  }
-                />
-              );
-            })}
-          </div>
-          <p className="ai-helper-text">
-            Choose which chat engines visitors can use.
-          </p>
-        </div>
-
         <div className="space-y-3">
           <div className="space-y-1">
             <Label>Cloud models</Label>

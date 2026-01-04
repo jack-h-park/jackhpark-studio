@@ -70,7 +70,7 @@
 }
 
 /* Dark mode override for error banner manually for now as it's specific */
-:global(.dark) .chatEngineErrorBanner {
+:global(.dark) .requireLocalErrorBanner {
   background: #7f1d1d;
   color: #fecaca;
 }
@@ -187,8 +187,7 @@
   color: hsl(var(--ai-fg));
 }
 
-/* Reusing chatEngineErrorBanner for error state only */
-.chatEngineErrorBanner {
+.requireLocalErrorBanner {
   display: flex;
   align-items: center;
   gap: 6px;

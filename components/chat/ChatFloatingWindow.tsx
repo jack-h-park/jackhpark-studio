@@ -112,7 +112,9 @@ export function ChatFloatingWindow({
     !runtimeConfig.localBackendAvailable;
 
   // Condensed Summary construction
-  const engineStr = runtimeConfig?.engine === "lc" ? "LangChain" : "Native";
+  const engineLabel = runtimeConfig?.safeMode
+    ? "LangChain (Safe Mode)"
+    : "LangChain";
   const llmStr = runtimeConfig
     ? `${runtimeConfig.llmProvider === "openai" ? "OpenAI" : MODEL_PROVIDER_LABELS[runtimeConfig.llmProvider]} ${runtimeConfig.llmModel ?? "custom"}`
     : "Loading...";
@@ -121,7 +123,7 @@ export function ChatFloatingWindow({
     runtimeConfig?.embeddingModel ??
     "custom embedding";
 
-  const summaryLine = `${engineStr} · ${llmStr} · ${embedStr}`;
+  const summaryLine = `${engineLabel} · ${llmStr} · ${embedStr}`;
 
   const focusInput = useCallback(() => {
     if (!isOpen) {
@@ -227,7 +229,7 @@ export function ChatFloatingWindow({
           onScroll={onScroll}
         >
           {showRequireLocalError && (
-            <div className={styles.chatEngineErrorBanner}>
+            <div className={styles.requireLocalErrorBanner}>
               <FiAlertCircle aria-hidden="true" />
               <span>
                 Local LLM backend is required for this preset but is not
@@ -287,7 +289,7 @@ export function ChatFloatingWindow({
                 <div className={styles.detailsSection}>
                   <div className={styles.detailsRow}>
                     <span className={styles.detailsLabel}>Engine:</span>
-                    <span className={styles.detailsValue}>{engineStr}</span>
+                    <span className={styles.detailsValue}>{engineLabel}</span>
                   </div>
                   <div className={styles.detailsRow}>
                     <span className={styles.detailsLabel}>LLM:</span>

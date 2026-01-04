@@ -5,7 +5,7 @@ export type ChatConfigSnapshot = {
   presetKey: string;
 
   // Engine & models
-  chatEngine: string;
+  safeMode: boolean;
   llmModel: string;
   embeddingModel: string;
 

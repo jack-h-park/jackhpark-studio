@@ -64,7 +64,7 @@ async function captureGoldenTelemetryPayload() {
 
   const { configSummary, configHash } = buildTelemetryConfigSnapshot({
     presetKey: "golden",
-    chatEngine: "langchain",
+    safeMode: false,
     llmModel: "gpt-4o-mini",
     embeddingModel: "text-embedding-ada-002",
     rag: {

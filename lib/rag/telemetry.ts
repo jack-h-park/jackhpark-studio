@@ -20,7 +20,7 @@ export function buildChatConfigSnapshot(
   return {
     presetKey: String(presetKey),
 
-    chatEngine: preset.chatEngine,
+    safeMode: Boolean(preset.safeMode),
     llmModel: preset.llmModel,
     embeddingModel: preset.embeddingModel,
 

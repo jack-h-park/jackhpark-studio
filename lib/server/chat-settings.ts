@@ -23,10 +23,12 @@ import {
   type SummaryLevel,
 } from "@/lib/server/admin-chat-config";
 import {
-  type ChatEngine,
-  type ModelProvider,
-  normalizeChatEngine,
-} from "@/lib/shared/model-provider";
+  enforceEmbeddingProviderAvailability,
+  getEmbeddingProviderAvailability,
+  type EmbeddingResolutionSnapshot,
+  type EmbeddingSessionOverrideTrace,
+} from "@/lib/server/telemetry/embedding-trace";
+import { type ModelProvider } from "@/lib/shared/model-provider";
 import {
   type ModelResolutionReason,
   resolveLlmModelId,
@@ -86,7 +88,7 @@ export type ChatRuntimeEnforcement =
   | "cloud_ok";
 
 export type ChatModelSettings = {
-  engine: ChatEngine;
+  engine: "lc";
   llmModelId: string;
   requestedLlmModelId: string;
   resolvedLlmModelId: string;
@@ -94,6 +96,7 @@ export type ChatModelSettings = {
   llmSubstitutionReason?: ModelResolutionReason;
   embeddingModelId: string;
   embeddingSpaceId: string;
+  embeddingResolutionSnapshot: EmbeddingResolutionSnapshot;
   llmProvider: ModelProvider;
   embeddingProvider: ModelProvider;
   llmModel: string;
@@ -122,6 +125,7 @@ export type ChatModelSettings = {
   localLlmBackendEnv: string | null;
   isLocal: boolean;
   fallbackFrom?: ChatRuntimeFallbackFrom;
+  safeMode: boolean;
 };
 
 export type LangfuseSettings = {
@@ -241,10 +245,6 @@ let cachedChatModelSettingsAt = 0;
 let cachedLangfuseSettings: LangfuseSettings | null = null;
 let cachedLangfuseSettingsAt = 0;
 
-function getDefaultEngine(): ChatEngine {
-  return normalizeChatEngine(process.env.CHAT_ENGINE, "lc");
-}
-
 const normalizeAdditionalPrompt = (
   value: unknown,
   maxLength: number,
@@ -256,19 +256,25 @@ const normalizeAdditionalPrompt = (
 };
 
 export function getChatModelDefaults(): ChatModelSettings {
-  const engine = getDefaultEngine();
   const defaultLlm = resolveLlmModel();
   const defaultEmbedding = resolveEmbeddingSpace();
 
   return {
-    engine,
+    engine: "lc",
     llmModelId: defaultLlm.id,
     requestedLlmModelId: defaultLlm.id,
     resolvedLlmModelId: defaultLlm.id,
     llmModelWasSubstituted: false,
     llmSubstitutionReason: undefined,
-    embeddingModelId: defaultEmbedding.embeddingModelId,
-    embeddingSpaceId: defaultEmbedding.embeddingSpaceId,
+  embeddingModelId: defaultEmbedding.embeddingModelId,
+  embeddingSpaceId: defaultEmbedding.embeddingSpaceId,
+  embeddingResolutionSnapshot: {
+    resolvedProvider: defaultEmbedding.provider,
+    resolvedModel: defaultEmbedding.model,
+    resolvedSpaceId: defaultEmbedding.embeddingSpaceId,
+    reason: "global_default",
+    source: "defaults",
+  },
     llmProvider: defaultLlm.provider,
     embeddingProvider: defaultEmbedding.provider,
     llmModel: defaultLlm.model,
@@ -297,6 +303,7 @@ export function getChatModelDefaults(): ChatModelSettings {
     localLlmBackendEnv: null,
     isLocal: false,
     fallbackFrom: undefined,
+    safeMode: false,
   };
 }
 
@@ -460,9 +467,9 @@ export async function loadChatModelSettings(options?: {
     sessionPreset: options?.sessionConfig?.appliedPreset ?? null,
   });
 
-  const engine = normalizeChatEngine(
-    options?.sessionConfig?.chatEngine ?? preset?.chatEngine ?? defaults.engine,
-    defaults.engine,
+  const engine = "lc";
+  const safeMode = Boolean(
+    options?.sessionConfig?.safeMode ?? preset?.safeMode ?? defaults.safeMode,
   );
 
   const modelResolutionContext = {
@@ -589,17 +596,116 @@ export async function loadChatModelSettings(options?: {
     }
   }
 
-  const embeddingSelection = resolveEmbeddingSpace({
+  const requestedEmbeddingModel =
+    options?.sessionConfig?.embeddingModel ??
+    preset?.embeddingModel ??
+    defaults.embeddingModel;
+  const requestedEmbeddingSpaceId =
+    options?.sessionConfig?.embeddingSpaceId ??
+    options?.sessionConfig?.embeddingModelId ??
+    options?.sessionConfig?.embeddingModel ??
+    preset?.embeddingModel ??
+    defaults.embeddingModelId;
+  const initialSelection = resolveEmbeddingSpace({
     embeddingModelId:
       options?.sessionConfig?.embeddingModel ??
       preset?.embeddingModel ??
       defaults.embeddingModelId,
     embeddingSpaceId: defaults.embeddingSpaceId,
-    model:
-      options?.sessionConfig?.embeddingModel ??
-      preset?.embeddingModel ??
-      defaults.embeddingModel,
+    model: requestedEmbeddingModel,
   });
+  const availability = getEmbeddingProviderAvailability();
+  const fallbackResult = enforceEmbeddingProviderAvailability(
+    initialSelection,
+    availability,
+    (provider) =>
+      resolveEmbeddingSpace({
+        provider,
+      }),
+  );
+  const embeddingSelection = fallbackResult.selection;
+  let embeddingReason: EmbeddingResolutionReason = options?.sessionConfig
+    ?.embeddingModel
+    ? "session_override"
+    : preset?.embeddingModel
+      ? "preset_default"
+      : "global_default";
+  let embeddingSource =
+    options?.sessionConfig?.embeddingModel
+      ? "sessionConfig"
+      : preset?.embeddingModel
+        ? `preset:${presetKey}`
+        : "defaults";
+  if (fallbackResult.reason === "provider_disabled") {
+    embeddingReason = "provider_disabled";
+    embeddingSource = "provider-gating";
+  }
+  const sessionEmbeddingProvider =
+    options?.sessionConfig?.embeddingProvider ?? undefined;
+  const sessionEmbeddingModel =
+    options?.sessionConfig?.embeddingModel ?? undefined;
+  const sessionEmbeddingSpaceId =
+    options?.sessionConfig?.embeddingSpaceId ??
+    options?.sessionConfig?.embeddingModelId ??
+    undefined;
+  const sessionPresetKey =
+    options?.sessionConfig?.presetId ?? undefined;
+  const sessionAppliedPreset =
+    options?.sessionConfig?.appliedPreset ?? undefined;
+  const sessionOverrideRaw: EmbeddingSessionOverrideTrace["raw"] = {};
+  const sessionOverrideKeys: string[] = [];
+  if (sessionEmbeddingProvider) {
+    sessionOverrideRaw.provider = sessionEmbeddingProvider;
+    sessionOverrideKeys.push("sessionConfig.embeddingProvider");
+  }
+  if (sessionEmbeddingModel) {
+    sessionOverrideRaw.model = sessionEmbeddingModel;
+    sessionOverrideKeys.push("sessionConfig.embeddingModel");
+  }
+  if (sessionEmbeddingSpaceId) {
+    sessionOverrideRaw.spaceId = sessionEmbeddingSpaceId;
+    sessionOverrideKeys.push("sessionConfig.embeddingSpaceId");
+  }
+  if (sessionPresetKey) {
+    sessionOverrideRaw.presetKey = sessionPresetKey;
+    sessionOverrideKeys.push("sessionConfig.presetId");
+  }
+  if (sessionAppliedPreset) {
+    sessionOverrideRaw.appliedPreset = sessionAppliedPreset;
+    sessionOverrideKeys.push("sessionConfig.appliedPreset");
+  }
+  const sessionOverrideNote =
+    sessionOverrideKeys.length > 0
+      ? `sessionConfig priority (${sessionOverrideKeys.join(", ")}) overrode ${embeddingSource}`
+      : undefined;
+  const sessionOverride =
+    Object.keys(sessionOverrideRaw).length > 0
+      ? {
+        raw: sessionOverrideRaw,
+        applied: {
+          provider: embeddingSelection.provider,
+          model: embeddingSelection.model,
+          spaceId: embeddingSelection.embeddingSpaceId,
+        },
+        note:
+          sessionOverrideNote ??
+          "sessionConfig override priority: sessionConfig > preset > defaults",
+      }
+      : undefined;
+  const embeddingResolutionSnapshot: EmbeddingResolutionSnapshot = {
+    requestedModel: requestedEmbeddingModel ?? undefined,
+    requestedSpaceId: requestedEmbeddingSpaceId ?? undefined,
+    requestedEmbeddingModel: requestedEmbeddingModel ?? undefined,
+    requestedEmbeddingSpaceId: requestedEmbeddingSpaceId ?? undefined,
+    resolvedProvider: embeddingSelection.provider,
+    resolvedModel: embeddingSelection.model,
+    resolvedSpaceId: embeddingSelection.embeddingSpaceId,
+    reason: embeddingReason,
+    source: embeddingSource,
+    allowlist: config.allowlist?.embeddingModels,
+    fallbackFrom: fallbackResult.fallbackFrom,
+    sessionOverride,
+  };
 
   const reverseRagEnabled =
     preset?.features.reverseRAG ?? DEFAULT_REVERSE_RAG_ENABLED;
@@ -617,6 +723,7 @@ export async function loadChatModelSettings(options?: {
       llmResolution.reason !== "NONE" ? llmResolution.reason : undefined,
     embeddingModelId: embeddingSelection.embeddingModelId,
     embeddingSpaceId: embeddingSelection.embeddingSpaceId,
+    embeddingResolutionSnapshot,
     llmProvider: llmSelection.provider,
     embeddingProvider: embeddingSelection.provider,
     llmModel: llmSelection.model,
@@ -646,6 +753,7 @@ export async function loadChatModelSettings(options?: {
     },
     llmEngine,
     policy: { requireLocal: policyRequireLocal },
+    safeMode,
     wantsLocalEngine,
     enforcement,
     localBackendAvailable,
@@ -708,6 +816,7 @@ export type RuntimeTelemetryProps = {
   resolved_provider: ModelProvider;
   resolved_model_id: string;
   requested_model_id: string | null;
+  safe_mode: boolean;
 };
 
 export function buildRuntimeTelemetryProps(
@@ -722,6 +831,7 @@ export function buildRuntimeTelemetryProps(
     resolved_provider: runtime.llmProvider,
     resolved_model_id: runtime.resolvedLlmModelId,
     requested_model_id: runtime.requestedLlmModelId ?? null,
+    safe_mode: runtime.safeMode,
   };
 }
 

@@ -52,6 +52,50 @@ import {
 // Retrieval-stage minimum K (vector search limit). Defaults to 5 via env.
 const RAG_TOP_K = Number(process.env.RAG_TOP_K || 5);
 
+const EMBEDDING_ERROR_MESSAGE_LIMIT = 320;
+
+function summarizeErrorMessage(error: unknown): string {
+  const message =
+    typeof error === "string"
+      ? error
+      : error instanceof Error
+        ? error.message
+        : String(error ?? "unknown");
+  return message.length > EMBEDDING_ERROR_MESSAGE_LIMIT
+    ? `${message.slice(0, EMBEDDING_ERROR_MESSAGE_LIMIT)}…`
+    : message;
+}
+
+function extractStatusCode(error: unknown): number | null {
+  if (typeof error !== "object" || error === null) {
+    return null;
+  }
+  if ("statusCode" in error && typeof (error as { statusCode?: unknown }).statusCode === "number") {
+    return (error as { statusCode: number }).statusCode;
+  }
+  if ("status" in error && typeof (error as { status?: unknown }).status === "number") {
+    return (error as { status: number }).status;
+  }
+  if ("code" in error && typeof (error as { code?: unknown }).code === "number") {
+    return (error as { code: number }).code;
+  }
+  return null;
+}
+
+function extractErrorCode(error: unknown): string | null {
+  if (typeof error !== "object" || error === null) {
+    return null;
+  }
+  const code = (error as { code?: unknown }).code;
+  if (typeof code === "string") {
+    return code;
+  }
+  if (typeof code === "number") {
+    return String(code);
+  }
+  return null;
+}
+
 type NormalizedRagK = {
   retrieveK: number;
   rerankK: number | null;
@@ -320,9 +364,44 @@ export function buildRagRetrievalChain() {
       },
     });
     const runRetrieval = async () => {
-      const queryEmbedding = await input.embeddings.embedQuery(
-        input.embeddingTarget,
-      );
+      const embedQueryWithLogging = async (): Promise<number[]> => {
+        const provider = input.embeddingSelection.provider;
+        const model = input.embeddingSelection.model;
+        const embeddingSpaceId = input.embeddingSelection.embeddingSpaceId;
+        const requestId = input.requestId ?? null;
+        const attempt = 1;
+        const basePayload = {
+          provider,
+          model,
+          embeddingSpaceId,
+          requestId,
+          attempt,
+        };
+        ragLogger.debug("[embedding] start", basePayload);
+        const startMs = Date.now();
+        try {
+          const embedding = await input.embeddings.embedQuery(
+            input.embeddingTarget,
+          );
+          const tookMs = Date.now() - startMs;
+          ragLogger.debug("[embedding] done", {
+            ...basePayload,
+            tookMs,
+          });
+          return embedding;
+        } catch (error) {
+          const tookMs = Date.now() - startMs;
+          ragLogger.error("[embedding] error", {
+            ...basePayload,
+            tookMs,
+            statusCode: extractStatusCode(error),
+            code: extractErrorCode(error),
+            messageSummary: summarizeErrorMessage(error),
+          });
+          throw error;
+        }
+      };
+      const queryEmbedding = await embedQueryWithLogging();
       // Final K: upper bound on context/citations, from guardrails.ragTopK (>= 1).
       const finalKBase = Math.max(1, input.guardrails.ragTopK);
       // Retrieval stage K: vector search limit (candidate pool), normalized to >= rerank/final K.

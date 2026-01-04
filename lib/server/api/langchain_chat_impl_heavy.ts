@@ -88,6 +88,7 @@ import {
 } from "@/lib/server/telemetry/langfuse-metadata";
 import { emitRagScores } from "@/lib/server/telemetry/langfuse-scores";
 import { attachLangfuseTraceTags } from "@/lib/server/telemetry/langfuse-tags";
+import { stableHash } from "@/lib/server/telemetry/stable-hash";
 import {
   clearRequestTrace,
   createTelemetryBuffer,
@@ -97,7 +98,6 @@ import {
 import { buildTelemetryConfigSnapshot } from "@/lib/server/telemetry/telemetry-config-snapshot";
 import { isTelemetryEnabled } from "@/lib/server/telemetry/telemetry-enabled";
 import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
-import { stableHash } from "@/lib/server/telemetry/stable-hash";
 import {
   buildSafeTraceInputSummary,
   buildSafeTraceOutputSummary,
@@ -125,6 +125,10 @@ import {
   buildCitationPayload,
   type CitationPayload,
 } from "@/lib/types/citation";
+import {
+  buildEmbeddingResolutionTrace,
+  logEmbeddingResolutionTrace,
+} from "@/lib/server/telemetry/embedding-trace";
 
 function formatChunkPreview(value: string) {
   // eslint-disable-next-line unicorn/prefer-string-replace-all
@@ -483,6 +487,7 @@ interface ComputeRagContextParams {
   abortSignal?: AbortSignal | null;
   chainRunContext: ChainRunContext;
   markStage?: (stage: string, extra?: Record<string, unknown>) => void;
+  safeMode: boolean;
 }
 
 interface ComputeRagContextResult {
@@ -526,6 +531,7 @@ type AutoDecisionMetrics = {
     mergedCandidates: number;
     baseCandidates: number;
     altCandidates: number;
+    altQueryHash?: string | null;
     tookMsAlt?: number;
     skippedReason?:
       | "not_enabled"
@@ -734,6 +740,7 @@ async function computeRagContextAndCitations({
   updateTraceCacheMetadata,
   updateRetrievalMetadata,
   includeSelectionTelemetry,
+  safeMode,
 }: ComputeRagContextParams): Promise<ComputeRagContextResult> {
   let contextResult = buildIntentContextFallback(
     routingDecision.intent,
@@ -763,7 +770,7 @@ async function computeRagContextAndCitations({
   let decisionTelemetry: RagDecisionTelemetry | undefined;
   let retrievalLatencyMs: number | null = null;
 
-  if (routingDecision.intent === "knowledge") {
+  if (routingDecision.intent === "knowledge" && !safeMode) {
     const finalK = guardrails.ragTopK;
     const CANDIDATE_MULTIPLIER = 5;
     const CANDIDATE_MIN = 20;
@@ -1010,6 +1017,7 @@ async function computeRagContextAndCitations({
         } else if (!autoResult) {
           skippedReason = autoFailureReason ?? "error";
         }
+        let altQueryHash: string | null = null;
         const shouldRunMultiQuery =
           multiQueryEnabled &&
           baseWeak &&
@@ -1022,6 +1030,7 @@ async function computeRagContextAndCitations({
             enabled: multiQueryEnabled,
             ran: false,
             altType: altQueryType,
+            altQueryHash,
             mergedCandidates: baseResult.rankedDocs.length,
             baseCandidates: baseResult.rankedDocs.length,
             altCandidates: autoResult?.rankedDocs?.length ?? 0,
@@ -1031,7 +1040,7 @@ async function computeRagContextAndCitations({
         }
 
         if (shouldRunMultiQuery && autoResult) {
-          const altQueryHash = hashPayload({
+          altQueryHash = hashPayload({
             altType: altQueryType,
             query: autoResult.preRetrieval.embeddingTarget,
           });
@@ -1055,6 +1064,7 @@ async function computeRagContextAndCitations({
               mergedCandidates: mergedCandidates.length,
               baseCandidates: baseResult.rankedDocs.length,
               altCandidates: autoResult.rankedDocs.length,
+              altQueryHash,
             };
           }
         } else {
@@ -1221,6 +1231,10 @@ async function computeRagContextAndCitations({
         retrievalLatencyMs = Date.now() - ragRootStartMs;
       }
     }
+  }
+
+  if (safeMode && routingDecision.intent === "knowledge") {
+    updateRetrievalMetadata?.(false, false);
   }
 
   if (
@@ -1951,10 +1965,6 @@ export async function handleLangchainChat(
     const adminConfig = await runStage("admin-config", () =>
       getAdminChatConfig(),
     );
-    const hydeMode: RagAutoMode = adminConfig.hydeMode ?? "off";
-    const rewriteMode: RagAutoMode = adminConfig.rewriteMode ?? "off";
-    const ragMultiQueryMode: RagMultiQueryMode =
-      adminConfig.ragMultiQueryMode ?? "off";
     const ragMultiQueryMaxQueries =
       typeof adminConfig.ragMultiQueryMaxQueries === "number"
         ? adminConfig.ragMultiQueryMaxQueries
@@ -1978,14 +1988,24 @@ export async function handleLangchainChat(
           sessionConfig,
         }),
       ));
+    const safeModeActive = runtime.safeMode;
+    const hydeMode: RagAutoMode = safeModeActive
+      ? "off"
+      : (adminConfig.hydeMode ?? "off");
+    const rewriteMode: RagAutoMode = safeModeActive
+      ? "off"
+      : (adminConfig.rewriteMode ?? "off");
+    const ragMultiQueryMode: RagMultiQueryMode = safeModeActive
+      ? "off"
+      : (adminConfig.ragMultiQueryMode ?? "off");
     const runtimeTelemetryProps = buildRuntimeTelemetryProps(runtime);
 
     const runtimeFlags = {
-      reverseRagEnabled: runtime.reverseRagEnabled,
+      reverseRagEnabled: safeModeActive ? false : runtime.reverseRagEnabled,
       reverseRagMode: (runtime.reverseRagMode ??
         DEFAULT_REVERSE_RAG_MODE) as ReverseRagMode,
-      hydeEnabled: runtime.hydeEnabled,
-      rankerMode: runtime.rankerMode as RankerMode,
+      hydeEnabled: safeModeActive ? false : runtime.hydeEnabled,
+      rankerMode: safeModeActive ? "none" : (runtime.rankerMode as RankerMode),
     };
     const sanitizedSettings = sanitizeChatSettings({
       guardrails,
@@ -2075,6 +2095,7 @@ export async function handleLangchainChat(
     telemetryBuffer?.updateContext({
       includePii: allowPii,
       question,
+      safeMode: safeModeActive,
     });
     await telemetryBuffer?.ensureTrace();
     traceRequestId =
@@ -2177,6 +2198,7 @@ export async function handleLangchainChat(
       responseCacheStrategy: null,
       aborted: false,
       environment: process.env.NODE_ENV ?? "unknown",
+      safe_mode: safeModeActive,
       config: {
         reverseRagEnabled,
         reverseRagMode,
@@ -2622,6 +2644,39 @@ export async function handleLangchainChat(
       hydeEnabled,
       rankerMode,
     });
+    const embeddingRequestId =
+      requestIdHeader ?? sessionId ?? normalizedQuestion.normalized;
+    const embeddingTrace = runtime.embeddingResolutionSnapshot
+      ? buildEmbeddingResolutionTrace(runtime.embeddingResolutionSnapshot, {
+        requestId: embeddingRequestId,
+        presetKey: presetId,
+      })
+      : null;
+    if (embeddingTrace) {
+      logEmbeddingResolutionTrace(embeddingTrace);
+    }
+    const fallbackFrom = runtime.embeddingResolutionSnapshot.fallbackFrom;
+    if (fallbackFrom) {
+      ragLogger.info("[embedding] fallback", {
+        from: {
+          provider: fallbackFrom.provider,
+          model: fallbackFrom.model,
+          embeddingSpaceId: fallbackFrom.embeddingSpaceId,
+        },
+        to: {
+          provider: embeddingSelection.provider,
+          model: embeddingSelection.model,
+          embeddingSpaceId: embeddingSelection.embeddingSpaceId,
+        },
+        reason:
+          runtime.embeddingResolutionSnapshot.reason === "provider_disabled"
+            ? "disabled"
+            : "unknown",
+        attemptFrom: 1,
+        attemptTo: 2,
+        requestId: embeddingRequestId,
+      });
+    }
 
     mark("supabase-client-start");
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -2702,6 +2757,7 @@ export async function handleLangchainChat(
         updateTrace: updateTrace ?? undefined,
         updateTraceCacheMetadata,
         updateRetrievalMetadata,
+        safeMode: safeModeActive,
       });
       mark("after-rag-context");
 

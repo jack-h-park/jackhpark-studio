@@ -4,7 +4,6 @@ import { llmLogger } from "@/lib/logging/logger";
 import { loadChatModelSettings } from "@/lib/server/chat-settings";
 
 import langchainChat from "./langchain_chat";
-import nativeChat from "./native_chat";
 
 export default async function handler(
   req: NextApiRequest,
@@ -26,13 +25,12 @@ export default async function handler(
     (req as any).chatRuntime = runtime;
     engine = runtime.engine;
 
-    llmLogger.debug("[api/chat] dispatch", { engine, method: req.method });
-
-    if (engine === "lc") {
-      await langchainChat(req, res);
-    } else {
-      await nativeChat(req, res);
-    }
+    llmLogger.debug("[api/chat] dispatch", {
+      engine,
+      method: req.method,
+      safeMode: runtime.safeMode,
+    });
+    await langchainChat(req, res);
   } catch (err) {
     llmLogger.error("[api/chat] handler error", { error: err });
     if (!res.writableEnded) {

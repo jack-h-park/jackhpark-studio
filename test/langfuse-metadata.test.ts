@@ -32,7 +32,7 @@ const guardrails: ChatGuardrailConfig = {
 const configSummary: TelemetryConfigSummary = {
   presetKey: "default",
   engine: {
-    chatEngine: "chat-engine",
+    safeMode: false,
     llmModel: "gpt-4",
     embeddingModel: "embedder",
   },

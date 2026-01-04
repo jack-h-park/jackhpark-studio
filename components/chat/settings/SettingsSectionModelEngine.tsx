@@ -22,10 +22,6 @@ import {
 } from "@/components/ui/select";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { listAllLlmModelOptions } from "@/lib/core/llm-registry";
-import {
-  CHAT_ENGINE_LABELS,
-  type ChatEngine,
-} from "@/lib/shared/model-provider";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -165,34 +161,6 @@ export function SettingsSectionModelEngine({
                   value={space.embeddingSpaceId}
                 >
                   {space.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="ai-field">
-          <Label htmlFor="settings-chat-engine" className="ai-field__label">
-            Chat Engine
-          </Label>
-          <Select
-            value={sessionConfig.chatEngine}
-            onValueChange={(value) =>
-              handleFieldChange((prev) => ({
-                ...prev,
-                chatEngine: value as ChatEngine,
-              }))
-            }
-          >
-            <SelectTrigger
-              id="settings-chat-engine"
-              aria-label="Chat engine selection"
-              className="ai-field-sm w-full"
-            />
-            <SelectContent>
-              {adminConfig.allowlist.chatEngines.map((engine) => (
-                <SelectItem key={engine} value={engine}>
-                  {CHAT_ENGINE_LABELS[engine] ?? engine}
                 </SelectItem>
               ))}
             </SelectContent>

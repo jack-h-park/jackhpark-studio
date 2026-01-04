@@ -16,6 +16,7 @@ export type TelemetryContext = {
   requestId?: string;
   question?: string;
   includePii?: boolean;
+  safeMode?: boolean;
 };
 
 const requestTraceMap = new Map<string, LangfuseTrace>();
@@ -118,6 +119,7 @@ export function createTelemetryBuffer(context: TelemetryContext = {}) {
         requestId: currentContext.requestId ?? null,
         questionHash,
         questionLength,
+        safe_mode: Boolean(currentContext.safeMode),
       };
       if (includePii && question) {
         metadataAdditional.question = question;

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This smoke test validates API-level chat behavior without a browser. It targets the LangChain and Native chat endpoints and verifies basic health, streaming behavior, and cache-hit signaling.
+This smoke test validates API-level chat behavior without a browser. It targets the unified `/api/chat` endpoint (LangChain) and verifies streaming health, cache hits, and Safe Mode fallbacks.
 
 ## What It Validates
 
@@ -23,19 +23,16 @@ pnpm smoke:chat
 Optional flags:
 
 ```bash
-pnpm smoke:chat -- --baseUrl=http://localhost:3000 --engine=langchain --timeoutMs=30000
+pnpm smoke:chat -- --baseUrl=http://localhost:3000 --timeoutMs=30000
 ```
-
-Available engines:
-
-- `langchain` (default): `/api/langchain_chat`
-- `native`: `/api/native_chat`
 
 Optional preset override:
 
 ```bash
 SMOKE_CHAT_PRESET=local-required pnpm smoke:chat
 ```
+
+For Safe Mode coverage, enable a preset with `safeMode=true` and rerun the script; it should still stream a response while emitting `safe_mode=true` in the telemetry metadata.
 
 ## Cache-Hit Headers
 
@@ -44,7 +41,7 @@ The script checks for `x-cache-hit` on the second request. Headers are emitted o
 - Enabled when `NODE_ENV` is not `production`, or
 - Explicitly by setting `SMOKE_HEADERS=1`
 
-Optional header (Native engine only when a trace is available):
+Optional header:
 
 - `x-trace-id`
 

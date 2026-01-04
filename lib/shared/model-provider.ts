@@ -2,7 +2,6 @@ import { isLmStudioConfigured } from "@/lib/core/lmstudio";
 import { isOllamaConfigured } from "@/lib/core/ollama";
 
 export type ModelProvider = "openai" | "gemini" | "ollama" | "lmstudio";
-export type ChatEngine = "native" | "lc";
 
 const BASE_MODEL_PROVIDERS: ModelProvider[] = ["openai", "gemini"];
 const LOCAL_MODEL_PROVIDERS: ModelProvider[] = [
@@ -60,17 +59,6 @@ export function normalizeModelProvider(
   return toModelProviderId(value) ?? fallback;
 }
 
-export function normalizeChatEngine(
-  value: string | null | undefined,
-  fallback: ChatEngine = "lc",
-): ChatEngine {
-  if (!value) return fallback;
-  const normalized = value.toLowerCase().trim();
-  return normalized === "native" || normalized === "lc"
-    ? (normalized as ChatEngine)
-    : fallback;
-}
-
 export function isModelProvider(value: unknown): value is ModelProvider {
   if (typeof value !== "string") {
     return false;
@@ -78,14 +66,3 @@ export function isModelProvider(value: unknown): value is ModelProvider {
 
   return MODEL_PROVIDERS.includes(value as ModelProvider);
 }
-
-export function isChatEngine(value: unknown): value is ChatEngine {
-  if (typeof value !== "string") return false;
-  return value === "native" || value === "lc";
-}
-
-export const CHAT_ENGINE_OPTIONS: ChatEngine[] = ["lc", "native"];
-export const CHAT_ENGINE_LABELS: Record<ChatEngine, string> = {
-  lc: "LangChain",
-  native: "Native",
-};

@@ -46,8 +46,6 @@
     "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check",
     "build:instrumentation": "esbuild instrumentation.ts --platform=node --format=esm --outfile=instrumentation.js",
     "check:katex": "node --import=tsx scripts/check-katex-usage.ts",
-    "test:llm:matrix": "tsx scripts/smoke/test-local-llm-matrix.ts",
-    "test:llm:deep": "tsx scripts/smoke/test-local-llm-deep.ts",
     "dev:trace": "REQUIRE_TRACE=1 NODE_OPTIONS=\"--require ./scripts/require-trace.cjs\" pnpm next dev",
     "dev:trace:turbo": "REQUIRE_TRACE=1 NODE_OPTIONS=\"--require ./scripts/require-trace.cjs\" pnpm next dev --turbo",
     "dev:prewarm": "DEBUG_SURFACES_ENABLED=1 pnpm next dev",

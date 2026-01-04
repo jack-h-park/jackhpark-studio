@@ -6,7 +6,7 @@ type RankingWeights = Record<string, number>;
 export type TelemetryConfigSummary = {
   presetKey: string;
   engine: {
-    chatEngine: string;
+    safeMode: boolean;
     llmModel: string;
     embeddingModel: string;
   };
@@ -69,7 +69,7 @@ const buildRankingHash = (
 
 const DEFAULT_SNAPSHOT: ChatConfigSnapshot = {
   presetKey: "default",
-  chatEngine: "unknown",
+  safeMode: false,
   llmModel: "unknown",
   embeddingModel: "unknown",
   rag: {
@@ -126,7 +126,7 @@ export function buildTelemetryConfigSnapshot(
   const summary: TelemetryConfigSummary = {
     presetKey: cfg.presetKey ?? "unknown",
     engine: {
-      chatEngine: cfg.chatEngine ?? "unknown",
+      safeMode: Boolean(cfg.safeMode),
       llmModel: cfg.llmModel ?? "unknown",
       embeddingModel: cfg.embeddingModel ?? "unknown",
     },

@@ -12,11 +12,7 @@ import {
   deserializeGuardrailMeta,
   type GuardrailMeta,
 } from "@/lib/shared/guardrail-meta";
-import {
-  type ChatEngine,
-  type ModelProvider,
-  normalizeChatEngine,
-} from "@/lib/shared/model-provider";
+import { type ModelProvider } from "@/lib/shared/model-provider";
 import { type ModelResolutionReason } from "@/lib/shared/model-resolution";
 import { type RankerMode, type ReverseRagMode } from "@/lib/shared/rag-config";
 import {
@@ -56,7 +52,7 @@ export type ChatRuntimeFallbackFrom = {
 };
 
 export type ChatRuntimeConfig = {
-  engine: ChatEngine;
+  engine: string;
   llmProvider: ModelProvider;
   embeddingProvider: ModelProvider;
   llmModelId: string | null;
@@ -77,6 +73,7 @@ export type ChatRuntimeConfig = {
   requireLocal: boolean;
   localBackendAvailable: boolean;
   fallbackFrom?: ChatRuntimeFallbackFrom | null;
+  safeMode?: boolean;
 };
 
 export type ChatMessageMetrics = {
@@ -360,7 +357,7 @@ export function useChatSession(
                     ? {
                         metrics: {
                           ...message.metrics,
-                          ...(metrics ?? {}),
+                          ...metrics,
                           ...(isComplete
                             ? { totalMs: Date.now() - timestamp }
                             : {}),
@@ -382,176 +379,93 @@ export function useChatSession(
 
       const run = async () => {
         try {
-          const activeRuntime = runtimeConfig;
-          const runtimeEngine = normalizeChatEngine(
-            activeRuntime?.engine ?? "lc",
-          );
           const endpoint = `/api/chat`;
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              question: trimmed,
+              messages: sanitizedMessagesPayload,
+              config,
+            }),
+            signal: controller.signal,
+          });
 
-          if (runtimeEngine === "lc") {
-            const response = await fetch(endpoint, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                question: trimmed,
-                messages: sanitizedMessagesPayload,
-                config,
-              }),
-              signal: controller.signal,
-            });
+          if (!response.ok || !response.body) {
+            throw await buildResponseError(response);
+          }
 
-            if (!response.ok || !response.body) {
-              throw await buildResponseError(response);
+          const guardrailMeta = deserializeGuardrailMeta(
+            response.headers.get("x-guardrail-meta"),
+          );
+          if (guardrailMeta) {
+            updateAssistant(undefined, guardrailMeta);
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let fullContent = "";
+          let clientChunkIndex = 0;
+
+          let done = false;
+          let ttftRecorded = false;
+          while (!done) {
+            const result = await reader.read();
+            done = result.done ?? false;
+            const chunk = result.value;
+            if (!chunk) continue;
+
+            const chunkText = decoder.decode(chunk, { stream: !done });
+            if (
+              loadingAssistantRef.current === assistantMessageId &&
+              chunkText.trim().length > 0
+            ) {
+              setLoadingAssistantId(null);
             }
-
-            const guardrailMeta = deserializeGuardrailMeta(
-              response.headers.get("x-guardrail-meta"),
-            );
-            if (guardrailMeta) {
-              updateAssistant(undefined, guardrailMeta);
-            }
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let fullContent = "";
-            let clientChunkIndex = 0;
-
-            let done = false;
-            let ttftRecorded = false;
-            while (!done) {
-              const result = await reader.read();
-              done = result.done ?? false;
-              const chunk = result.value;
-              if (!chunk) continue;
-
-              const chunkText = decoder.decode(chunk, { stream: !done });
-              if (
-                loadingAssistantRef.current === assistantMessageId &&
-                chunkText.trim().length > 0
-              ) {
-                setLoadingAssistantId(null);
-              }
-              fullContent += chunkText;
-              clientChunkIndex += 1;
-              if (STREAM_TRACE_LOGGING_ENABLED) {
-                // eslint-disable-next-line unicorn/prefer-string-replace-all
-                const preview = chunkText.replace(/\s+/g, " ").trim();
-                console.debug(
-                  `[langchain_chat:client] chunk ${clientChunkIndex} (${chunkText.length} chars): ${
-                    preview.length > 0 ? preview.slice(0, 40) : "<empty>"
-                  }`,
-                );
-              }
-              if (!isMountedRef.current) return;
-
-              const [answer] = fullContent.split(CITATIONS_SEPARATOR);
-              updateAssistant(answer);
-
-              if (!ttftRecorded && answer.trim().length > 0) {
-                ttftRecorded = true;
-                updateAssistant(
-                  undefined,
-                  undefined,
-                  undefined,
-                  undefined,
-                  undefined,
-                  {
-                    ttftMs: Date.now() - timestamp,
-                  },
-                );
-              }
-            }
-
-            const [answer, citationsJson] =
-              fullContent.split(CITATIONS_SEPARATOR);
-            const finalContent = (answer ?? "").trim();
-            const parsedPayload = parseCitationPayload(citationsJson);
-
-            if (isMountedRef.current) {
-              updateAssistant(
-                finalContent,
-                guardrailMeta,
-                parsedPayload,
-                activeRuntime ?? null,
-                true,
+            fullContent += chunkText;
+            clientChunkIndex += 1;
+            if (STREAM_TRACE_LOGGING_ENABLED) {
+              // eslint-disable-next-line unicorn/prefer-string-replace-all
+              const preview = chunkText.replace(/\s+/g, " ").trim();
+              console.debug(
+                `[langchain_chat:client] chunk ${clientChunkIndex} (${chunkText.length} chars): ${
+                  preview.length > 0 ? preview.slice(0, 40) : "<empty>"
+                }`,
               );
             }
-          } else {
-            const response = await fetch(endpoint, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                messages: sanitizedMessagesPayload,
-                config,
-              }),
-              signal: controller.signal,
-            });
+            if (!isMountedRef.current) return;
 
-            if (!response.ok || !response.body) {
-              throw await buildResponseError(response);
-            }
+            const [answer] = fullContent.split(CITATIONS_SEPARATOR);
+            updateAssistant(answer);
 
-            const guardrailMeta = deserializeGuardrailMeta(
-              response.headers.get("x-guardrail-meta"),
-            );
-            if (guardrailMeta) {
-              updateAssistant(undefined, guardrailMeta);
-            }
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let fullContent = "";
-
-            let done = false;
-            let ttftRecorded = false;
-            while (!done) {
-              const result = await reader.read();
-              done = result.done ?? false;
-              const chunk = result.value;
-              if (!chunk) continue;
-
-              const chunkText = decoder.decode(chunk, { stream: !done });
-              if (
-                loadingAssistantRef.current === assistantMessageId &&
-                chunkText.trim().length > 0
-              ) {
-                setLoadingAssistantId(null);
-              }
-              fullContent += chunkText;
-              if (!isMountedRef.current) return;
-
-              const [answer] = fullContent.split(CITATIONS_SEPARATOR);
-              updateAssistant(answer, guardrailMeta);
-
-              if (!ttftRecorded && answer.trim().length > 0) {
-                ttftRecorded = true;
-                updateAssistant(
-                  undefined,
-                  undefined,
-                  undefined,
-                  undefined,
-                  undefined,
-                  {
-                    ttftMs: Date.now() - timestamp,
-                  },
-                );
-              }
-            }
-
-            const [answer, citationsJson] =
-              fullContent.split(CITATIONS_SEPARATOR);
-            const finalContent = (answer ?? "").trim();
-            const parsedPayload = parseCitationPayload(citationsJson);
-
-            if (isMountedRef.current) {
+            if (!ttftRecorded && answer.trim().length > 0) {
+              ttftRecorded = true;
               updateAssistant(
-                finalContent,
-                guardrailMeta,
-                parsedPayload,
-                activeRuntime ?? null,
-                true,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                {
+                  ttftMs: Date.now() - timestamp,
+                },
               );
             }
+          }
+
+          const [answer, citationsJson] =
+            fullContent.split(CITATIONS_SEPARATOR);
+          const finalContent = (answer ?? "").trim();
+          const parsedPayload = parseCitationPayload(citationsJson);
+
+          if (isMountedRef.current) {
+            updateAssistant(
+              finalContent,
+              guardrailMeta,
+              parsedPayload,
+              runtimeConfig ?? null,
+              true,
+            );
           }
         } catch (err) {
           if (!isMountedRef.current) {

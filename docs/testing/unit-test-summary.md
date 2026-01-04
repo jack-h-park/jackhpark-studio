@@ -49,14 +49,10 @@
 
 ## Unit Test 범위 밖의 테스트 스크립트
 
-단위 테스트와 별도로, 로컬 LLM 통합/스모크 테스트 스크립트가 존재합니다.
+단위 테스트와 별도로, `/api/chat`의 LangChain 경로와 Safe Mode fallback을 검증하는 수동 스모크 스크립트가 존재합니다.
 
-- `scripts/smoke/test-local-llm-matrix.ts`
-  - `/api/native_chat` 호출을 백엔드 조합별로 매트릭스 테스트
-  - 스트리밍 응답 여부 및 상태 코드/에러 요약
-- `scripts/smoke/test-local-llm-deep.ts`
-  - 멀티턴/롱프롬프트/RAG 관련 프롬프트 등 다양한 케이스를 순회
-  - 스트리밍 청크 수, TTFB, 총 응답 시간, 에러 요약 출력
+- `pnpm smoke:chat` (`scripts/smoke/chat-api-smoke.ts`): `/api/chat`을 호출해 SSE 배포, `x-cache-hit`, 스트리밍 청크, 타임아웃, 그리고 `safe_mode` 텔레메트리까지 확인합니다. `SMOKE_CHAT_PRESET=local-required` 또는 `safeMode=true` 옵션을 주면 안전 모드 경로도 커버할 수 있습니다.
+- `scripts/smoke/smoke-langchain-chat.mjs` / `prewarm-langchain-chat.mjs`: LangChain 디버그 surfaces (405/OPTIONS, readiness)와 prewarm 경로를 점검하며 전체 런타임 준비 상태를 체크합니다.
 
 ## 현재 테스트 성격 요약
 

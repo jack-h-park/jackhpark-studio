@@ -1,7 +1,6 @@
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import type { TelemetryDetailLevel } from "@/lib/logging/types";
 import type { DocType, PersonaType } from "@/lib/rag/metadata";
-import type { ChatEngine } from "@/lib/shared/model-provider";
 import type { ModelResolution } from "@/lib/shared/model-resolution";
 import type {
   EmbeddingModelId,
@@ -25,7 +24,6 @@ export interface SessionChatConfig {
   additionalSystemPrompt?: string;
   llmModel: LlmModelId;
   embeddingModel: EmbeddingModelId;
-  chatEngine: ChatEngine;
   rag: {
     enabled: boolean;
     topK: number;
@@ -44,6 +42,7 @@ export interface SessionChatConfig {
   };
   summaryLevel: SummaryLevel;
   appliedPreset?: "default" | "fast" | "highRecall";
+  safeMode?: boolean;
   requireLocal?: boolean;
 }
 
@@ -117,7 +116,6 @@ export interface AdminChatConfig {
     clipTokens: AdminNumericLimit;
   };
   allowlist: {
-    chatEngines: ChatEngine[];
     llmModels: LlmModelId[];
     embeddingModels: EmbeddingModelId[];
     rankers: RankerId[];

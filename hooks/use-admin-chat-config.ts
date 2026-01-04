@@ -6,11 +6,7 @@ import type {
   PERSONA_TYPE_OPTIONS,
 } from "@/lib/rag/metadata";
 import { normalizeLlmModelId } from "@/lib/core/llm-registry";
-import {
-  CHAT_ENGINE_OPTIONS,
-  type ChatEngine,
-  type ModelProvider,
-} from "@/lib/shared/model-provider";
+import { type ModelProvider } from "@/lib/shared/model-provider";
 import {
   type EmbeddingModelId,
   LLM_MODEL_DEFINITIONS,
@@ -247,16 +243,11 @@ export function useAdminChatConfig({
     }));
   };
 
-  type AllowlistKey =
-    | "llmModels"
-    | "embeddingModels"
-    | "rankers"
-    | "chatEngines";
+  type AllowlistKey = "llmModels" | "embeddingModels" | "rankers";
   type AllowlistValueMap = {
     llmModels: LlmModelId;
     embeddingModels: EmbeddingModelId;
     rankers: RankerId;
-    chatEngines: ChatEngine;
   };
 
   const toggleAllowlistValue = <K extends AllowlistKey>(
@@ -311,12 +302,9 @@ export function useAdminChatConfig({
       const next = enable
         ? [...current, value]
         : current.filter((item) => item !== value);
-      const sortedNext =
-        key === "chatEngines"
-          ? (CHAT_ENGINE_OPTIONS.filter((engine) =>
-              (next as ChatEngine[]).includes(engine),
-            ) as AllowlistValueMap[K][])
-          : next.toSorted((a, b) => String(a).localeCompare(String(b)));
+      const sortedNext = next.toSorted((a, b) =>
+        String(a).localeCompare(String(b)),
+      );
       return {
         ...prev,
         allowlist: {

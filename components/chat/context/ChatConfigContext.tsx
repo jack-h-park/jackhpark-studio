@@ -128,11 +128,6 @@ const sanitizeNumericConfig = (
     additionalSystemPrompt: additionalPrompt,
     llmModel: llmResolution.resolvedModelId as SessionChatConfig["llmModel"],
     embeddingModel: sanitizedEmbeddingModel as any,
-    chatEngine: sanitizeModel(
-      candidate.chatEngine,
-      allowlist.chatEngines,
-      adminConfig.presets.default.chatEngine,
-    ),
     rag: {
       enabled: Boolean(candidate.rag.enabled),
       topK,
@@ -151,6 +146,7 @@ const sanitizeNumericConfig = (
     llmModelResolution: llmResolution,
     summaryLevel,
     appliedPreset: candidate.appliedPreset,
+    safeMode: Boolean(candidate.safeMode),
     requireLocal: Boolean(candidate.requireLocal),
   };
 

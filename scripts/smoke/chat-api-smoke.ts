@@ -1,8 +1,6 @@
 import process from "node:process";
 import { setTimeout as wait } from "node:timers/promises";
 
-type Engine = "langchain" | "native";
-
 type SmokeResult = {
   answerText: string;
   chunkCount: number;
@@ -17,7 +15,6 @@ type JsonValue = Record<string, unknown> | unknown[] | string | number | null;
 
 type ArgOptions = {
   baseUrl: string;
-  engine: Engine;
   timeoutMs: number;
 };
 
@@ -27,18 +24,16 @@ const CITATIONS_SEPARATOR = "\n\n--- begin citations ---\n";
 
 const args = parseArgs(process.argv.slice(2));
 const baseUrl = normalizeBaseUrl(args.baseUrl ?? DEFAULT_BASE_URL);
-const engine = (args.engine ?? "langchain") as Engine;
 const timeoutMs = args.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-const endpoint =
-  engine === "native" ? "/api/native_chat" : "/api/langchain_chat";
+const endpoint = "/api/chat";
 
 const baseHeaders = {
   "Content-Type": "application/json",
 };
 
 async function run() {
-  console.log(`[smoke:chat] baseUrl=${baseUrl} engine=${engine}`);
+  console.log(`[smoke:chat] baseUrl=${baseUrl} endpoint=${endpoint}`);
 
   const shortPrompt =
     "In 3-4 sentences, explain what this assistant does and how it helps users. End with a short bullet list.";
@@ -390,11 +385,6 @@ function parseArgs(argv: string[]): Partial<ArgOptions> {
       case "--baseUrl":
         if (value) {
           result.baseUrl = value;
-        }
-        break;
-      case "--engine":
-        if (value === "native" || value === "langchain") {
-          result.engine = value;
         }
         break;
       case "--timeoutMs":

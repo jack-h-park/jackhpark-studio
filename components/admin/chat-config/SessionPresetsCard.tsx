@@ -38,10 +38,6 @@ import {
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { normalizeLlmModelId } from "@/lib/core/llm-registry";
 import {
-  CHAT_ENGINE_LABELS,
-  type ChatEngine,
-} from "@/lib/shared/model-provider";
-import {
   type EmbeddingModelId,
   type LlmModelId,
   type RankerId,
@@ -649,28 +645,6 @@ export function SessionPresetsCard({
                 </SelectContent>
               </Select>
             ))}
-            {renderPresetRow("Chat Engine", (presetKey) => (
-              <Select
-                value={presets[presetKey].chatEngine}
-                onValueChange={(value) =>
-                  updatePreset(presetKey, (prev) => ({
-                    ...prev,
-                    chatEngine: value as ChatEngine,
-                  }))
-                }
-              >
-                <SelectTrigger
-                  aria-label={`Chat Engine for ${presetDisplayNames[presetKey]}`}
-                />
-                <SelectContent>
-                  {config.allowlist.chatEngines.map((engine) => (
-                    <SelectItem key={engine} value={engine}>
-                      {CHAT_ENGINE_LABELS[engine] ?? engine}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ))}
             {renderPresetRow("Require local backend", (presetKey) => {
               const preset = presets[presetKey];
               const modelOption = llmModelOptions.find(
@@ -718,6 +692,23 @@ export function SessionPresetsCard({
                     handleRequireLocalChange(presetKey, Boolean(checked))
                   }
                   disabled={!isLocalModel}
+                />
+              );
+            })}
+            {renderPresetRow("Safe Mode", (presetKey) => {
+              const preset = presets[presetKey];
+              return (
+                <CheckboxChoice
+                  label="Safe Mode"
+                  description="Turn on conservative LangChain defaults (no retrieval or enhancements) to keep the runtime responsive when dependencies are unstable."
+                  layout="stacked"
+                  checked={Boolean(preset.safeMode)}
+                  onCheckedChange={(checked) =>
+                    updatePreset(presetKey, (prev) => ({
+                      ...prev,
+                      safeMode: Boolean(checked),
+                    }))
+                  }
                 />
               );
             })}
