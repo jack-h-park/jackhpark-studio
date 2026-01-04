@@ -1,14 +1,16 @@
 import { type ReactNode } from "react";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { StatusPill } from "@/components/ui/status-pill";
 import { cn } from "@/components/ui/utils";
+import styles from "./PresetEffectsSummary.module.css";
+import {
+  Section,
+  SectionContent,
+  SectionDescription,
+  SectionHeader,
+  SectionTitle,
+} from "@/components/ui/section";
+import { FiZap } from "@react-icons/all-files/fi/FiZap";
 
 export type PresetEffectItem = {
   label: string;
@@ -39,37 +41,37 @@ export function PresetEffectsSummary({
   if (items.length === 0) return null;
 
   return (
-    <div className={cn("ai-card flex flex-col p-4 gap-4", className)}>
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-[var(--ai-text)]">
-              Preset Effects
-            </h3>
-            <StatusPill variant="muted">Managed by Preset</StatusPill>
-          </div>
-          {actions && <div>{actions}</div>}
-        </div>
-        <p className="text-xs text-[var(--ai-text-muted)]">
-          These values are enforced by the selected preset.
-        </p>
-      </div>
+    <Section className={cn("gap-2", className)}>
+      <SectionHeader>
+        <SectionTitle
+          as="div"
+          icon={<FiZap aria-hidden="true" />}
+          className="flex-wrap gap-2"
+        >
+          <span>Preset Effects</span>
+          <StatusPill variant="muted">Managed by Preset</StatusPill>
+        </SectionTitle>
+        {actions && <div className={styles.actionsSlot}>{actions}</div>}
+      </SectionHeader>
 
-      <ul className="flex flex-col gap-2 pt-2 border-t border-[var(--ai-border-soft)]">
-        {items.map((item) => (
-          <li
-            key={item.label}
-            className="flex justify-between items-start text-sm"
-          >
-            <span className="font-medium text-[var(--ai-text)] mr-4 shrink-0">
-              {item.label}
-            </span>
-            <span className="text-[var(--ai-text-muted)] text-right">
-              {item.value}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
+      <SectionContent className="flex flex-col gap-2">
+        <SectionDescription>
+          These values are enforced by the selected preset.
+        </SectionDescription>
+        <dl
+          className={cn(
+            "pt-2 border-t border-[var(--ai-border-soft)]",
+            styles.effectsList,
+          )}
+        >
+          {items.map((item) => (
+            <div key={item.label} className={styles.effectRow}>
+              <dt className={styles.effectLabel}>{item.label}</dt>
+              <dd className={styles.effectValue}>{item.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </SectionContent>
+    </Section>
   );
 }

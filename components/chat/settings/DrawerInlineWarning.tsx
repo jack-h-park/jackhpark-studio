@@ -14,7 +14,7 @@ export function DrawerInlineWarning({ message, onDismiss }: Props) {
   return (
     <div
       role="alert"
-      className="flex items-start gap-2 p-3 text-sm rounded bg-[var(--ai-bg-surface-elevated)] border border-[var(--ai-border-warning)] text-[var(--ai-text-default)] mb-4 animate-in fade-in slide-in-from-top-2"
+      className="flex items-start gap-2 p-3 text-sm rounded bg-[var(--ai-bg-surface-elevated)] border border-[var(--ai-border-warning)] text-[var(--ai-text-default)] mb-1 animate-in fade-in slide-in-from-top-2"
     >
       <FiAlertTriangle
         className="flex-shrink-0 mt-0.5 text-[var(--ai-text-warning)]"

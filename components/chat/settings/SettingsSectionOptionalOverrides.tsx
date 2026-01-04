@@ -34,6 +34,7 @@ import {
 
 import { ImpactBadge } from "./ImpactBadge";
 import { computeOverridesActive } from "./preset-overrides";
+import styles from "./SettingsSectionOptionalOverrides.module.css";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -161,10 +162,10 @@ export function SettingsSectionOptionalOverrides({
         </SectionTitle>
       </SectionHeader>
       <SectionContent className="flex flex-col gap-3">
-        <span className="text-[11px] leading-tight text-[color:var(--ai-text-muted)]">
+        <p className="ai-setting-section-description">
           Session-only preferences. Core retrieval, memory, and safety behavior
           is controlled by the selected preset.
-        </span>
+        </p>
 
         {showOverridesWarning && (
           <div
@@ -206,16 +207,16 @@ export function SettingsSectionOptionalOverrides({
           </Button>
         )}
 
-        <div className="flex flex-col gap-4">
-          <div className="space-y-2">
-            <div className="flex items-start justify-between gap-3">
-              <Label htmlFor="optional-llm-model" className="ai-field__label">
+        <div className={styles.overrideBlocks}>
+          <div className={cn(styles.overrideBlock, "space-y-2")}>
+            <div className="flex items-center gap-2">
+              <Label
+                htmlFor="optional-llm-model"
+                className={cn("ai-field__label", styles.overlineLabel)}
+              >
                 LLM Model
               </Label>
-              <ImpactBadge
-                label="May change cost/speed"
-                className="!px-2 !py-0.5 !text-[10px]"
-              />
+              <ImpactBadge label="May change cost/speed" />
             </div>
             <Select
               value={sessionConfig.llmModel}
@@ -236,13 +237,12 @@ export function SettingsSectionOptionalOverrides({
             </Select>
           </div>
 
-          <div className="space-y-2 border-t border-[color:var(--ai-border-muted)] pt-4">
-            <div className="flex items-start justify-between gap-3">
-              <Label className="ai-field__label">Summaries</Label>
-              <ImpactBadge
-                label="May increase cost"
-                className="!px-2 !py-0.5 !text-[10px]"
-              />
+          <div className={cn(styles.overrideBlock, "space-y-2")}>
+            <div className="flex items-center gap-2">
+              <Label className={cn("ai-field__label", styles.overlineLabel)}>
+                Summaries
+              </Label>
+              <ImpactBadge label="May increase cost" />
             </div>
             <GridPanel className="grid-cols-2 gap-1">
               {summaryOptions.map((option) => {
@@ -256,15 +256,20 @@ export function SettingsSectionOptionalOverrides({
                     className={
                       isActive
                         ? ""
-                        : "bg-[color:var(--ai-bg-surface-muted)] text-[color:var(--ai-text-muted)] shadow-none"
+                        : cn(
+                            "bg-[color:var(--ai-bg-surface-muted)] text-[color:var(--ai-text-muted)] shadow-none opacity-75",
+                            styles.summaryTileInactive,
+                          )
                     }
                   >
                     <div
                       className={cn(
                         "ai-choice !gap-1",
+                        styles.summaryChoiceContent,
                         isActive
                           ? "px-[0.6rem] py-[0.6rem]"
-                          : "px-[0.45rem] py-[0.45rem]",
+                          : "px-[0.45rem] py-[0.45rem] text-[color:var(--ai-text-muted)]",
+                        !isActive && styles.summaryChoiceContentInactive,
                       )}
                     >
                       <span className="ai-choice__label">{option.label}</span>
@@ -278,7 +283,7 @@ export function SettingsSectionOptionalOverrides({
             </GridPanel>
           </div>
 
-          <div className="space-y-2 border-t border-[color:var(--ai-border-muted)] pt-4">
+          <div className={cn(styles.overrideBlock, "space-y-2")}>
             <UserPromptEditor
               value={sessionConfig.additionalSystemPrompt ?? ""}
               maxLength={maxLength}
@@ -319,12 +324,20 @@ function UserPromptEditor({
   if (!isEditing) {
     return (
       <div className="space-y-1">
-        <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--ai-text-muted)]">
-          <Label className="ai-field__label">User system prompt</Label>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Label className={cn("ai-field__label", styles.overlineLabel)}>
+              User system prompt
+            </Label>
+            <ImpactBadge label="May change output" />
+          </div>
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="text-[11px] font-semibold tracking-wide text-[color:var(--ai-text-muted)] underline-offset-2 hover:text-[color:var(--ai-text-default)] hover:underline"
+            className={cn(
+              styles.inlineUtilityAction,
+              "underline-offset-2 hover:underline",
+            )}
           >
             Edit prompt
           </button>
@@ -360,16 +373,14 @@ function UserPromptEditor({
       label={
         <span className="inline-flex items-center gap-2">
           <span>User system prompt</span>
-          <ImpactBadge
-            label="May change output"
-            className="!px-1.5 !py-0.5 !text-[9px]"
-          />
+          <ImpactBadge label="May change output" />
         </span>
       }
       helperText={helperText}
       helperClassName={helperClassName}
       value={value}
       maxLength={maxLength}
+      labelClassName={styles.overlineLabel}
       onChange={onChange}
       textareaClassName="min-h-[110px]"
     />

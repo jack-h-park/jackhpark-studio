@@ -1,7 +1,6 @@
-"use client";
-
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { SwitchField } from "@/components/ui/field";
+import { cn } from "@/components/ui/utils";
 import { Switch } from "@/components/ui/switch";
 
 type DiagnosticsDisplayControlsProps = {
@@ -49,7 +48,10 @@ export function DiagnosticsDisplayControls({
   }
 
   return (
-    <div className={className}>
+    <div
+      className={cn("ai-diagnostics-display-card", className)}
+      title="Controls for telemetry and citation diagnostics"
+    >
       <SwitchField
         id="telemetry-badges"
         label="Telemetry badges"
@@ -57,6 +59,7 @@ export function DiagnosticsDisplayControls({
         checked={showTelemetry}
         onCheckedChange={setShowTelemetry}
         variant="plain"
+        className="ai-diagnostics-display-field"
       />
       <SwitchField
         id="citations"
@@ -65,6 +68,7 @@ export function DiagnosticsDisplayControls({
         checked={showCitations}
         onCheckedChange={setShowCitations}
         variant="plain"
+        className="ai-diagnostics-display-field"
       />
     </div>
   );

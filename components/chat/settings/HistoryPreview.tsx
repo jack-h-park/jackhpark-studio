@@ -9,6 +9,8 @@ import { isDevOnly } from "@/lib/dev/devFlags";
 
 import { HistoryPreviewDiffPanel } from "./HistoryPreviewDiffPanel";
 
+const CLIENT_ESTIMATE_LABEL = "Estimate (client)";
+
 type Props = {
   preview: HistoryPreviewResult;
   messages?: ChatMessage[];
@@ -16,6 +18,7 @@ type Props = {
   className?: string;
   serverPreview?: HistoryPreviewResult | null;
   showServerPreview?: boolean;
+  showTitle?: boolean;
 };
 
 export function HistoryPreview({
@@ -25,6 +28,7 @@ export function HistoryPreview({
   className = "",
   serverPreview,
   showServerPreview = false,
+  showTitle = true,
 }: Props) {
   // Check for discrepancies if server preview is active
   const hasDiff =
@@ -52,16 +56,30 @@ export function HistoryPreview({
       className={`mt-3 p-3 rounded text-sm space-y-4 ${containerClasses} ${className}`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <span className="font-semibold text-[var(--ai-text-default)]">
-          History Preview
-        </span>
-        {hasDiff && (
-          <span className="flex items-center gap-1 text-[var(--ai-text-warning)] text-xs font-medium">
-            <FiAlertTriangle /> Diff detected
+      {showTitle && (
+        <div className="flex items-center justify-between">
+          <span className="font-semibold text-[var(--ai-text-default)]">
+            History Preview
           </span>
-        )}
-      </div>
+          {hasDiff && (
+            <span className="flex items-center gap-1 text-[var(--ai-text-warning)] text-xs font-medium">
+              <FiAlertTriangle /> Diff detected
+            </span>
+          )}
+        </div>
+      )}
+      {!showTitle && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-[var(--ai-text-muted)] uppercase tracking-wider">
+            {CLIENT_ESTIMATE_LABEL}
+          </span>
+          {hasDiff && (
+            <span className="flex items-center gap-1 text-[var(--ai-text-warning)] text-xs font-medium">
+              <FiAlertTriangle /> Diff detected
+            </span>
+          )}
+        </div>
+      )}
       {isEmptyPreview && (
         <p className="text-[11px] text-[color:var(--ai-text-muted)] italic">
           No history yet. Start chatting to see what’s included.
@@ -73,7 +91,7 @@ export function HistoryPreview({
       >
         {/* Client Estimate Pane */}
         <PreviewPane
-          label="Estimate (client)"
+          label={CLIENT_ESTIMATE_LABEL}
           preview={preview}
           messages={messages}
           isSummaryEnabled={isSummaryEnabled}

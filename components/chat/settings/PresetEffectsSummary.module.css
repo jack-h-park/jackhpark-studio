@@ -1,0 +1,153 @@
+.effectsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.effectRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 220px) minmax(0, 1fr);
+  column-gap: 1rem;
+  row-gap: 0.25rem;
+  align-items: start;
+}
+
+.effectLabel {
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ai-text-muted);
+  word-break: break-word;
+}
+
+.effectValue {
+  color: var(--ai-text);
+  font-weight: 500;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  text-align: left;
+  word-break: break-word;
+}
+
+.actionsSlot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.actionGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
+}
+
+.copyTrigger {
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 0.2rem 0.8rem;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    text-decoration-color 0.2s ease;
+}
+
+.copyTrigger:hover {
+  border-color: var(--ai-border-muted);
+  color: var(--ai-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.copyTrigger:focus-visible {
+  outline: none;
+  border-color: var(--ai-border-default);
+  box-shadow: 0 0 0 1px var(--ai-border-default);
+  color: var(--ai-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.copyMenu {
+  position: absolute;
+  right: 0;
+  z-index: 20;
+  margin-top: 0.35rem;
+  min-width: 150px;
+  background: hsl(var(--ai-bg-muted));
+  border: 1px solid hsl(var(--ai-border-muted));
+  border-radius: var(--ai-radius-md);
+  padding: 0.25rem;
+  box-shadow: var(--ai-shadow-soft);
+}
+
+.copyMenuItem {
+  width: 100%;
+  border-radius: var(--ai-radius-sm);
+  padding: 0.2rem 0.75rem;
+  font-size: 0.65rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--ai-text-muted);
+  background: transparent;
+  border: none;
+  transition: color 0.2s ease;
+}
+
+.copyMenuItem:hover {
+  color: var(--ai-text-default);
+}
+
+.copyMessage {
+  font-size: 0.65rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.copyMessageSuccess {
+  color: var(--ai-text-success);
+}
+
+.copyMessageError {
+  color: var(--ai-text-warning);
+}
+
+.embeddingValue {
+  max-width: 16rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .effectRow {
+    grid-template-columns: 1fr;
+  }
+
+  .effectLabel {
+    font-size: 0.65rem;
+  }
+
+  .effectValue {
+    font-size: 0.825rem;
+  }
+}

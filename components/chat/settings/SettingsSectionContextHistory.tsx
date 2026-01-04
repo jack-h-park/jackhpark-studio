@@ -13,6 +13,7 @@ import {
   SectionTitle,
 } from "@/components/ui/section";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/components/ui/utils";
 import {
   getLastDiffReason,
   recordDiffEvent,
@@ -27,6 +28,7 @@ import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 import type { ImpactKey } from "./impact";
 import { HistoryPreview } from "./HistoryPreview";
 import { ImpactBadge } from "./ImpactBadge";
+import styles from "./SettingsSectionContextHistory.module.css";
 
 type ContextBudgetKey = "tokenBudget" | "historyBudget" | "clipTokens";
 
@@ -263,7 +265,7 @@ export function SettingsSectionContextHistory({
         )}
       </SectionHeader>
       <SectionContent className="flex flex-col gap-3">
-        <p className="text-[11px] text-[color:var(--ai-text-muted)]">
+        <p className="ai-setting-section-description">
           Budgets are managed by the preset; this preview shows what will be
           included.
         </p>
@@ -293,11 +295,15 @@ export function SettingsSectionContextHistory({
         )}
 
         {isDev && (
-          <div className="flex items-center justify-between gap-2 border-t border-[var(--ai-border-default)] py-1 mt-1">
-            <span className="text-[11px] text-[color:var(--ai-text-muted)] font-medium">
-              Exact preview (server)
-            </span>
+          <div
+            className={cn(
+              "flex items-center justify-between gap-2 border-t border-[var(--ai-border-muted)] py-1.5 mt-1.5 text-[10px] tracking-normal text-[color:var(--ai-text-muted)]",
+              styles.devToggleRow,
+            )}
+          >
+            <span>Exact preview (server)</span>
             <Switch
+              className="flex-shrink-0"
               checked={isExactPreviewEnabled}
               onCheckedChange={setIsExactPreviewEnabled}
               disabled={!isContextEnabled}
@@ -305,7 +311,7 @@ export function SettingsSectionContextHistory({
           </div>
         )}
 
-        <p className="text-[11px] text-[color:var(--ai-text-muted)]">
+        <p className="ai-setting-section-description">
           Updates as the conversation grows.
         </p>
         <HistoryPreview
@@ -314,6 +320,7 @@ export function SettingsSectionContextHistory({
           isSummaryEnabled={sessionConfig.summaryLevel !== "off"}
           serverPreview={serverPreview}
           showServerPreview={isExactPreviewEnabled}
+          showTitle={false}
         />
       </SectionContent>
     </Section>

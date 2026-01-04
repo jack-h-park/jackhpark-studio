@@ -25,6 +25,8 @@ export function computeHistoryPreview(args: {
     return {
       includedCount: 0,
       excludedCount: 0,
+      includedIndices: [],
+      excludedIndices: [],
       isEstimate: false,
     };
   }

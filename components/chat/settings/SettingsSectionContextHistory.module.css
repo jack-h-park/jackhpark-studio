@@ -1,0 +1,28 @@
+.devToggleRow {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ai-text-muted);
+}
+
+.devToggleRow :global(.ai-switch) {
+  border-color: var(--ai-border-muted);
+  background-color: var(--ai-bg-muted);
+}
+
+.devToggleRow :global(.ai-switch[data-state="checked"]) {
+  border-color: var(--ai-border-muted);
+  background-color: color-mix(
+    in srgb,
+    var(--ai-border-muted) 35%,
+    var(--ai-bg-muted)
+  );
+}
+
+.devToggleRow :global(.ai-switch-thumb[data-state="checked"]) {
+  background-color: var(--ai-border-muted);
+}
+
+.devToggleRow :global(.ai-switch-thumb[data-state="unchecked"]) {
+  background-color: var(--ai-bg);
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { RankerId } from "@/lib/shared/models";
 import type {
@@ -16,12 +16,14 @@ import {
   buildEffectiveSettingsSupportLine,
 } from "./effective-settings";
 import { computeOverridesActive } from "./preset-overrides";
+import { cn } from "@/components/ui/utils";
 import {
   formatPresetDecimal,
   formatPresetNumber,
   type PresetEffectItem,
   PresetEffectsSummary,
 } from "./PresetEffectsSummary";
+import styles from "./PresetEffectsSummary.module.css";
 
 const SUMMARY_LEVEL_LABELS: Record<SummaryLevel, string> = {
   off: "Off",
@@ -95,6 +97,8 @@ export function AdvancedSettingsPresetEffects({
     sessionConfig,
   });
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
+  const [copyMenuOpen, setCopyMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   if (!isPresetActive) return null;
 
@@ -104,14 +108,18 @@ export function AdvancedSettingsPresetEffects({
     items.push({
       label: "Embeddings (effective)",
       value: (
-        <span className="inline-flex max-w-[16rem] items-center gap-1 text-[color:var(--ai-text-muted)]">
-          <span className="truncate" title={activeEmbeddingLabel}>
-            {activeEmbeddingLabel}
-          </span>
+        <span
+          className={cn(
+            "inline-flex items-center gap-1 text-[color:var(--ai-text-muted)]",
+            styles.embeddingValue,
+          )}
+          title={activeEmbeddingLabel}
+          aria-label={`Embedding ${activeEmbeddingLabel}`}
+        >
+          <span className="truncate">{activeEmbeddingLabel}</span>
           <span
             className="text-[11px] text-[color:var(--ai-text-muted)]"
-            title={activeEmbeddingLabel}
-            aria-label={`Embedding ${activeEmbeddingLabel}`}
+            aria-hidden="true"
           >
             ⓘ
           </span>
@@ -202,34 +210,70 @@ export function AdvancedSettingsPresetEffects({
     return () => clearTimeout(timer);
   }, [copyMessage]);
 
-  function CopyActionButton({
-    mode,
-    label,
-  }: {
-    mode: "json" | "summary";
-    label: string;
-  }) {
-  return <button
-      type="button"
-      onClick={() => handleCopy(mode)}
-      className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ai-text-muted)] hover:text-[color:var(--ai-text-default)]"
-    >
-      {label}
-    </button>
-}
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setCopyMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setCopyMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  const handleMenuAction = (mode: "json" | "summary") => {
+    setCopyMenuOpen(false);
+    void handleCopy(mode);
+  };
 
   const actions = (
-    <div className="flex items-center gap-2 text-xs">
-      <CopyActionButton mode="json" label="Copy JSON" />
-      <span className="text-[color:var(--ai-text-muted)]">·</span>
-      <CopyActionButton mode="summary" label="Copy summary" />
+    <div className={styles.actionGroup}>
+      <div ref={menuRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setCopyMenuOpen((prev) => !prev)}
+          className={styles.copyTrigger}
+          aria-haspopup="true"
+          aria-expanded={copyMenuOpen}
+        >
+          Copy
+          <span aria-hidden="true">▾</span>
+        </button>
+        {copyMenuOpen && (
+          <div className={styles.copyMenu}>
+            <button
+              type="button"
+              onClick={() => handleMenuAction("json")}
+              className={styles.copyMenuItem}
+            >
+              Copy JSON
+            </button>
+            <button
+              type="button"
+              onClick={() => handleMenuAction("summary")}
+              className={styles.copyMenuItem}
+            >
+              Copy summary
+            </button>
+          </div>
+        )}
+      </div>
       {copyMessage && (
         <span
-          className={`text-[10px] font-semibold ${
+          className={cn(
+            styles.copyMessage,
             copyMessage === "Copy failed"
-              ? "text-[color:var(--ai-text-warning)]"
-              : "text-[color:var(--ai-text-success)]"
-          }`}
+              ? styles.copyMessageError
+              : styles.copyMessageSuccess,
+          )}
         >
           {copyMessage}
         </span>

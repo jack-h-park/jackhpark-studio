@@ -10,6 +10,7 @@ import {
 } from "@/components/chat/settings/impact";
 import { Button } from "@/components/ui/button";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import { StatusPill } from "@/components/ui/status-pill";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
 import { AdvancedSettingsPresetEffects } from "./AdvancedSettingsPresetEffects";
@@ -20,8 +21,11 @@ import { SettingsSectionCoreSummary } from "./SettingsSectionCoreSummary";
 import { SettingsSectionDisplay } from "./SettingsSectionDisplay";
 import { SettingsSectionModelEngine } from "./SettingsSectionModelEngine";
 import { SettingsSectionOptionalOverrides } from "./SettingsSectionOptionalOverrides";
-import { SettingsSectionPresets } from "./SettingsSectionPresets";
+import { PresetSelectorTabs } from "./SettingsSectionPresets";
 import { SettingsSectionRagRetrieval } from "./SettingsSectionRagRetrieval";
+import { SectionTitle } from "@/components/ui/section";
+import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
+import { ImpactBadge } from "./ImpactBadge";
 
 type DrawerProps = {
   open: boolean;
@@ -142,19 +146,59 @@ export function ChatAdvancedSettingsDrawer({
 
               <SettingsSectionDisplay />
 
-              <SettingsSectionPresets
-                adminConfig={adminConfig}
-                sessionConfig={sessionConfig}
-                helperText="The chosen preset cascades into the following engine, retrieval, and prompt controls."
-                setSessionConfig={setSessionConfig}
-                onDisruptiveChange={(key) => triggerImpactWarning(key)}
-              />
+              <div className={styles.presetScope}>
+                <div className={styles.presetScopeHeader}>
+                  <div className={styles.presetScopeTop}>
+                    <SectionTitle as="p" icon={<FiLayers aria-hidden="true" />}>
+                      <span className="flex items-center gap-2">
+                        AI Orchestration Preset
+                        <StatusPill variant="muted">SESSION-WIDE</StatusPill>
+                      </span>
+                      <ImpactBadge controlId="preset" />
+                    </SectionTitle>
+                  </div>
+                  <p className="ai-setting-section-description">
+                    Preset controls retrieval, memory, and prompt behavior for
+                    this session.
+                  </p>
+                  <div className={styles.presetSelector}>
+                    <PresetSelectorTabs
+                      adminConfig={adminConfig}
+                      sessionConfig={sessionConfig}
+                      setSessionConfig={setSessionConfig}
+                      onDisruptiveChange={(key) => triggerImpactWarning(key)}
+                    />
+                  </div>
+                </div>
+                <div className={styles.presetScopeChildren}>
+                  <div
+                    className={`${styles.presetScopeSection} ${styles.presetEffectsWrapper}`}
+                  >
+                    <AdvancedSettingsPresetEffects
+                      adminConfig={adminConfig}
+                      sessionConfig={sessionConfig}
+                    />
+                  </div>
 
-              <div className={styles.presetEffectsWrapper}>
-                <AdvancedSettingsPresetEffects
-                  adminConfig={adminConfig}
-                  sessionConfig={sessionConfig}
-                />
+                  <div className={styles.presetScopeSection}>
+                    <SettingsSectionContextHistory
+                      adminConfig={adminConfig}
+                      sessionConfig={sessionConfig}
+                      setSessionConfig={setSessionConfig}
+                      messages={messages}
+                      onDisruptiveChange={(key) => triggerImpactWarning(key)}
+                    />
+                  </div>
+
+                  <div className={styles.presetScopeSection}>
+                    <SettingsSectionOptionalOverrides
+                      adminConfig={adminConfig}
+                      sessionConfig={sessionConfig}
+                      setSessionConfig={setSessionConfig}
+                      onResetToPresetDefaults={resetToDefault}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className={`${styles.cascade}`}>
@@ -173,21 +217,6 @@ export function ChatAdvancedSettingsDrawer({
                     setSessionConfig={setSessionConfig}
                   />
                 )}
-
-                <SettingsSectionContextHistory
-                  adminConfig={adminConfig}
-                  sessionConfig={sessionConfig}
-                  setSessionConfig={setSessionConfig}
-                  messages={messages}
-                  onDisruptiveChange={(key) => triggerImpactWarning(key)}
-                />
-
-                <SettingsSectionOptionalOverrides
-                  adminConfig={adminConfig}
-                  sessionConfig={sessionConfig}
-                  setSessionConfig={setSessionConfig}
-                  onResetToPresetDefaults={resetToDefault}
-                />
               </div>
 
               <div className="border-t border-[color:var(--ai-border-muted)] pt-4">
