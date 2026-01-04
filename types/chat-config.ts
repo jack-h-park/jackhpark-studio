@@ -1,6 +1,7 @@
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import type { TelemetryDetailLevel } from "@/lib/logging/types";
 import type { DocType, PersonaType } from "@/lib/rag/metadata";
+import type { ModelProvider } from "@/lib/shared/model-provider";
 import type { ModelResolution } from "@/lib/shared/model-resolution";
 import type {
   EmbeddingModelId,
@@ -24,6 +25,9 @@ export interface SessionChatConfig {
   additionalSystemPrompt?: string;
   llmModel: LlmModelId;
   embeddingModel: EmbeddingModelId;
+  embeddingModelId?: EmbeddingModelId;
+  embeddingSpaceId?: string;
+  embeddingProvider?: ModelProvider;
   rag: {
     enabled: boolean;
     topK: number;
@@ -45,6 +49,12 @@ export interface SessionChatConfig {
   safeMode?: boolean;
   requireLocal?: boolean;
 }
+
+export type EmbeddingSpaceWarning = {
+  spaceId: string;
+  provider: ModelProvider;
+  message: string;
+};
 
 export type SessionChatConfigPreset = Omit<
   SessionChatConfig,

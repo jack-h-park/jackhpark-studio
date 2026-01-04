@@ -1,7 +1,14 @@
 import type { EmbeddingSpace } from "@/lib/core/embedding-spaces";
+import type { ModelProvider } from "@/lib/shared/model-provider";
 import { getProviderApiKey } from "@/lib/core/model-provider";
 import { ragLogger } from "@/lib/logging/logger";
-import type { ModelProvider } from "@/lib/shared/model-provider";
+
+export type EmbeddingLegacyMapping = {
+  from: "embeddingModel";
+  to: "embeddingSpaceId";
+  value: string;
+  provider?: ModelProvider;
+};
 
 export type EmbeddingResolutionReason =
   | "explicit_request"
@@ -12,6 +19,7 @@ export type EmbeddingResolutionReason =
   | "space_mapping"
   | "provider_disabled"
   | "unsupported_model"
+  | "legacy_spaceid_in_embeddingModel"
   | "unknown";
 
 export type EmbeddingProviderAvailability = {
@@ -31,6 +39,7 @@ export type EmbeddingSessionOverrideTrace = {
   raw: {
     provider?: string;
     model?: string;
+    modelId?: string;
     spaceId?: string;
     presetKey?: string;
     appliedPreset?: string;
@@ -44,7 +53,7 @@ export type EmbeddingSessionOverrideTrace = {
 };
 
 export type EmbeddingResolutionSnapshot = {
-  requestedProvider?: string;
+  requestedProvider?: ModelProvider;
   requestedModel?: string;
   requestedSpaceId?: string;
   requestedEmbeddingModel?: string;
@@ -56,13 +65,14 @@ export type EmbeddingResolutionSnapshot = {
   source?: string;
   allowlist?: string[];
   fallbackFrom?: EmbeddingFallbackInfo;
+  legacyMapping?: EmbeddingLegacyMapping;
   sessionOverride?: EmbeddingSessionOverrideTrace;
 };
 
 export type EmbeddingResolutionTrace = {
   requestId?: string | null;
   presetKey?: string;
-  requestedProvider?: string;
+  requestedProvider?: ModelProvider;
   requestedModel?: string;
   requestedSpaceId?: string;
   requestedEmbeddingModel?: string;
@@ -78,6 +88,7 @@ export type EmbeddingResolutionTrace = {
   missingOpenaiKey: boolean;
   allowlist?: string[];
   sessionOverride?: EmbeddingSessionOverrideTrace;
+  legacyMapping?: EmbeddingLegacyMapping;
 };
 
 export type EnforceEmbeddingProviderAvailabilityResult = {
@@ -167,6 +178,7 @@ export function buildEmbeddingResolutionTrace(
     missingOpenaiKey: availability.missingOpenaiKey,
     allowlist: snapshot.allowlist,
     sessionOverride: snapshot.sessionOverride,
+    legacyMapping: snapshot.legacyMapping,
   };
 }
 

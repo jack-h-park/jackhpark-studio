@@ -33,6 +33,11 @@ type ChatConfigSetter = (
   value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
 ) => void;
 
+const EMBEDDING_SPACE_WARNINGS: Record<string, string> = {
+  gemini_te4_v1:
+    "Selected embedding space has no indexed chunks; retrieval will return empty context.",
+};
+
 export function SettingsSectionModelEngine({
   adminConfig,
   sessionConfig,
@@ -142,12 +147,20 @@ export function SettingsSectionModelEngine({
           </Label>
           <Select
             value={sessionConfig.embeddingModel}
-            onValueChange={(value) =>
+            onValueChange={(value) => {
+              const selectedSpace = embeddingOptions.find(
+                (space) => space.embeddingSpaceId === value,
+              );
               handleFieldChange((prev) => ({
                 ...prev,
                 embeddingModel: value as EmbeddingModelId,
-              }))
-            }
+                embeddingSpaceId: value,
+                embeddingProvider:
+                  selectedSpace?.provider ?? prev.embeddingProvider,
+                embeddingModelId:
+                  selectedSpace?.embeddingModelId ?? prev.embeddingModelId,
+              }));
+            }}
           >
             <SelectTrigger
               id="settings-embedding-model"
@@ -165,6 +178,22 @@ export function SettingsSectionModelEngine({
               ))}
             </SelectContent>
           </Select>
+          {sessionConfig.embeddingSpaceId &&
+            EMBEDDING_SPACE_WARNINGS[sessionConfig.embeddingSpaceId] && (
+              <div className="ai-warning-callout mt-2">
+                <FiAlertCircle aria-hidden="true" className="ai-icon" size={16} />
+                <div className="flex flex-col gap-1">
+                  <span className="font-medium">Embedding space warning</span>
+                  <span className="opacity-90">
+                    {
+                      EMBEDDING_SPACE_WARNINGS[
+                        sessionConfig.embeddingSpaceId
+                      ]
+                    }
+                  </span>
+                </div>
+              </div>
+            )}
         </div>
       </SectionContent>
     </Section>

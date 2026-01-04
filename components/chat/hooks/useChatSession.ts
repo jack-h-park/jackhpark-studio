@@ -17,6 +17,7 @@ import { type ModelResolutionReason } from "@/lib/shared/model-resolution";
 import { type RankerMode, type ReverseRagMode } from "@/lib/shared/rag-config";
 import {
   type ChatEngineType,
+  type EmbeddingSpaceWarning,
   type SessionChatConfig,
 } from "@/types/chat-config";
 
@@ -74,6 +75,7 @@ export type ChatRuntimeConfig = {
   localBackendAvailable: boolean;
   fallbackFrom?: ChatRuntimeFallbackFrom | null;
   safeMode?: boolean;
+  embeddingSpaceWarnings?: EmbeddingSpaceWarning[];
 };
 
 export type ChatMessageMetrics = {

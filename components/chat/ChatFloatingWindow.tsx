@@ -124,6 +124,7 @@ export function ChatFloatingWindow({
     "custom embedding";
 
   const summaryLine = `${engineLabel} · ${llmStr} · ${embedStr}`;
+  const embeddingSpaceWarning = runtimeConfig?.embeddingSpaceWarnings?.[0];
 
   const focusInput = useCallback(() => {
     if (!isOpen) {
@@ -257,6 +258,17 @@ export function ChatFloatingWindow({
                   className={`${styles.chevron} ${detailsExpanded ? styles.chevronRotated : ""}`}
                 />
               </div>
+              {embeddingSpaceWarning && (
+                <div className="ai-warning-callout mt-2">
+                  <FiAlertCircle aria-hidden="true" className="ai-icon" size={16} />
+                  <div className="flex flex-col gap-1">
+                    <span className="font-medium">Embedding space warning</span>
+                    <span className="opacity-90">
+                      {embeddingSpaceWarning.message}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               {/* 2. Compact Switches */}
               <div className={styles.compactSwitches}>

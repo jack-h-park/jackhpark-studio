@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import type { EmbeddingModelId } from "@/lib/shared/models";
 import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
 import { resolveLlmModelId } from "@/lib/shared/model-resolution";
 import {
@@ -112,22 +113,35 @@ const sanitizeNumericConfig = (
     : false;
   const hyde = allowlist.allowHyde ? Boolean(candidate.features.hyde) : false;
 
-  const candidateSpace = resolveEmbeddingSpace(candidate.embeddingModel);
+  const candidateSpace = resolveEmbeddingSpace({
+    embeddingSpaceId: candidate.embeddingSpaceId ?? candidate.embeddingModel,
+    provider: candidate.embeddingProvider,
+    embeddingModelId: candidate.embeddingModelId,
+    model: candidate.embeddingModel,
+  });
   const fallbackSpace = resolveEmbeddingSpace(
     adminConfig.presets.default.embeddingModel,
   );
 
-  const sanitizedEmbeddingModel = sanitizeModel(
+  const sanitizedEmbeddingSpaceId = sanitizeModel(
     candidateSpace.embeddingSpaceId,
     allowlist.embeddingModels,
-    fallbackSpace.embeddingSpaceId as any,
+    fallbackSpace.embeddingSpaceId as EmbeddingModelId,
   );
+  const finalEmbeddingSpace = resolveEmbeddingSpace(
+    sanitizedEmbeddingSpaceId,
+  );
+  const resolvedEmbeddingModelId =
+    candidate.embeddingModelId ?? finalEmbeddingSpace.embeddingModelId;
 
   const result: SessionChatConfig = {
     presetId: candidate.presetId ?? candidate.appliedPreset ?? "default",
     additionalSystemPrompt: additionalPrompt,
     llmModel: llmResolution.resolvedModelId as SessionChatConfig["llmModel"],
-    embeddingModel: sanitizedEmbeddingModel as any,
+    embeddingModel: sanitizedEmbeddingSpaceId as any,
+    embeddingSpaceId: sanitizedEmbeddingSpaceId,
+    embeddingProvider: finalEmbeddingSpace.provider,
+    embeddingModelId: resolvedEmbeddingModelId,
     rag: {
       enabled: Boolean(candidate.rag.enabled),
       topK,
@@ -237,11 +251,15 @@ export function ChatConfigProvider({
     }
     try {
       const parsed = JSON.parse(stored) as SessionChatConfig;
-      setSessionConfigState(
-        sanitizeNumericConfig({ ...defaultConfig, ...parsed }, adminConfig, {
-          resolveModel: resolveLlmModelForSession,
-        }),
+      const sanitized = sanitizeNumericConfig(
+        { ...defaultConfig, ...parsed },
+        adminConfig,
+        { resolveModel: resolveLlmModelForSession },
       );
+      if (process.env.NODE_ENV !== "production") {
+        console.debug("[chat-settings] loaded sessionConfig", sanitized);
+      }
+      setSessionConfigState(sanitized);
     } catch {
       setSessionConfigState(defaultConfig);
     }
@@ -250,6 +268,9 @@ export function ChatConfigProvider({
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
+    }
+    if (process.env.NODE_ENV !== "production") {
+      console.debug("[chat-settings] save payload", sessionConfig);
     }
     window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(sessionConfig));
   }, [sessionConfig]);

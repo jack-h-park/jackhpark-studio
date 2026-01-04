@@ -389,16 +389,16 @@ export function buildRagRetrievalChain() {
             tookMs,
           });
           return embedding;
-        } catch (error) {
+        } catch (err) {
           const tookMs = Date.now() - startMs;
           ragLogger.error("[embedding] error", {
             ...basePayload,
             tookMs,
-            statusCode: extractStatusCode(error),
-            code: extractErrorCode(error),
-            messageSummary: summarizeErrorMessage(error),
+            statusCode: extractStatusCode(err),
+            code: extractErrorCode(err),
+            messageSummary: summarizeErrorMessage(err),
           });
-          throw error;
+          throw err;
         }
       };
       const queryEmbedding = await embedQueryWithLogging();

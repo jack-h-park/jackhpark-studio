@@ -23,10 +23,12 @@ import {
   type SummaryLevel,
 } from "@/lib/server/admin-chat-config";
 import {
-  enforceEmbeddingProviderAvailability,
-  getEmbeddingProviderAvailability,
+  type EmbeddingLegacyMapping,
+  type EmbeddingResolutionReason,
   type EmbeddingResolutionSnapshot,
   type EmbeddingSessionOverrideTrace,
+  enforceEmbeddingProviderAvailability,
+  getEmbeddingProviderAvailability,
 } from "@/lib/server/telemetry/embedding-trace";
 import { type ModelProvider } from "@/lib/shared/model-provider";
 import {
@@ -43,7 +45,9 @@ import {
 } from "@/lib/shared/rag-config";
 import {
   type AdminChatConfig,
+  type AdminPresetConfig,
   type ChatEngineType,
+  type EmbeddingSpaceWarning,
   getAdditionalPromptMaxLength,
   type SessionChatConfig,
 } from "@/types/chat-config";
@@ -101,6 +105,7 @@ export type ChatModelSettings = {
   embeddingProvider: ModelProvider;
   llmModel: string;
   embeddingModel: string;
+  embeddingSpaceWarnings?: EmbeddingSpaceWarning[];
   reverseRagEnabled: boolean;
   reverseRagMode: ReverseRagMode;
   hydeEnabled: boolean;
@@ -234,6 +239,19 @@ const DEFAULT_LANGFUSE_SETTINGS = {
   attachProviderMetadata: DEFAULT_LANGFUSE_ATTACH_PROVIDER_METADATA,
 } as const;
 
+const LEGACY_EMBEDDING_SPACE_PATTERN = /^(openai|gemini)_[a-z0-9]+_v\d+$/i;
+
+const EMPTY_EMBEDDING_SPACES: Record<
+  string,
+  { provider: ModelProvider; message: string }
+> = {
+  gemini_te4_v1: {
+    provider: "gemini",
+    message:
+      "Selected embedding space gemini_te4_v1 has no indexed chunks; retrieval will return empty context.",
+  },
+};
+
 const DEFAULT_PROMPT_FALLBACK = normalizeSystemPrompt(DEFAULT_SYSTEM_PROMPT);
 
 let cachedPrompt: SystemPromptResult | null = null;
@@ -266,19 +284,20 @@ export function getChatModelDefaults(): ChatModelSettings {
     resolvedLlmModelId: defaultLlm.id,
     llmModelWasSubstituted: false,
     llmSubstitutionReason: undefined,
-  embeddingModelId: defaultEmbedding.embeddingModelId,
-  embeddingSpaceId: defaultEmbedding.embeddingSpaceId,
-  embeddingResolutionSnapshot: {
-    resolvedProvider: defaultEmbedding.provider,
-    resolvedModel: defaultEmbedding.model,
-    resolvedSpaceId: defaultEmbedding.embeddingSpaceId,
-    reason: "global_default",
-    source: "defaults",
-  },
+    embeddingModelId: defaultEmbedding.embeddingModelId,
+    embeddingSpaceId: defaultEmbedding.embeddingSpaceId,
+    embeddingResolutionSnapshot: {
+      resolvedProvider: defaultEmbedding.provider,
+      resolvedModel: defaultEmbedding.model,
+      resolvedSpaceId: defaultEmbedding.embeddingSpaceId,
+      reason: "global_default",
+      source: "defaults",
+    },
     llmProvider: defaultLlm.provider,
     embeddingProvider: defaultEmbedding.provider,
     llmModel: defaultLlm.model,
     embeddingModel: defaultEmbedding.model,
+    embeddingSpaceWarnings: undefined,
     reverseRagEnabled: DEFAULT_REVERSE_RAG_ENABLED,
     reverseRagMode: DEFAULT_REVERSE_RAG_MODE,
     hydeEnabled: DEFAULT_HYDE_ENABLED,
@@ -324,6 +343,95 @@ export function getLangfuseDefaults(): LangfuseSettings {
       envTag: true,
       attachProviderMetadata: true,
     },
+  };
+}
+
+const normalizeLegacySpaceId = (value: string): string =>
+  value.trim().toLowerCase();
+
+function deriveLegacyEmbeddingMapping(
+  sessionConfig?: SessionChatConfig,
+): EmbeddingLegacyMapping | undefined {
+  const embeddingModel = sessionConfig?.embeddingModel;
+  if (
+    typeof embeddingModel !== "string" ||
+    sessionConfig?.embeddingSpaceId ||
+    sessionConfig?.embeddingProvider ||
+    sessionConfig?.embeddingModelId
+  ) {
+    return undefined;
+  }
+  const normalized = normalizeLegacySpaceId(embeddingModel);
+  if (!normalized || !LEGACY_EMBEDDING_SPACE_PATTERN.test(normalized)) {
+    return undefined;
+  }
+  const provider: ModelProvider | undefined =
+    normalized.startsWith("gemini_")
+      ? "gemini"
+      : normalized.startsWith("openai_")
+        ? "openai"
+        : undefined;
+  return {
+    from: "embeddingModel",
+    to: "embeddingSpaceId",
+    value: normalized,
+    provider,
+  };
+}
+
+export type EmbeddingSessionRequestSource =
+  | "sessionConfig"
+  | "sessionConfig_legacy"
+  | "preset"
+  | "defaults";
+
+export type EmbeddingSessionRequest = {
+  requestedEmbeddingSpaceId: string;
+  requestedEmbeddingModelId?: string;
+  requestedProvider?: ModelProvider;
+  source: EmbeddingSessionRequestSource;
+  legacyMapping?: EmbeddingLegacyMapping;
+};
+
+export function resolveSessionEmbeddingRequest({
+  sessionConfig,
+  preset,
+  defaults,
+}: {
+  sessionConfig?: SessionChatConfig;
+  preset?: AdminPresetConfig | null;
+  defaults: ChatModelSettings;
+}): EmbeddingSessionRequest {
+  const legacyMapping = deriveLegacyEmbeddingMapping(sessionConfig);
+  const hasSessionOverride =
+    Boolean(
+      sessionConfig?.embeddingSpaceId ||
+        sessionConfig?.embeddingProvider ||
+        sessionConfig?.embeddingModelId ||
+        (sessionConfig?.embeddingModel && !legacyMapping),
+    );
+  const requestedEmbeddingSpaceId =
+    sessionConfig?.embeddingSpaceId ??
+    legacyMapping?.value ??
+    sessionConfig?.embeddingModel ??
+    preset?.embeddingModel ??
+    defaults.embeddingSpaceId;
+  const requestedProvider =
+    sessionConfig?.embeddingProvider ?? legacyMapping?.provider;
+  const source: EmbeddingSessionRequest["source"] =
+    legacyMapping
+      ? "sessionConfig_legacy"
+      : hasSessionOverride
+        ? "sessionConfig"
+        : preset?.embeddingModel
+          ? "preset"
+          : "defaults";
+  return {
+    requestedEmbeddingSpaceId,
+    requestedProvider,
+    requestedEmbeddingModelId: sessionConfig?.embeddingModelId,
+    source,
+    legacyMapping,
   };
 }
 
@@ -596,24 +704,18 @@ export async function loadChatModelSettings(options?: {
     }
   }
 
-  const requestedEmbeddingModel =
-    options?.sessionConfig?.embeddingModel ??
-    preset?.embeddingModel ??
-    defaults.embeddingModel;
-  const requestedEmbeddingSpaceId =
-    options?.sessionConfig?.embeddingSpaceId ??
-    options?.sessionConfig?.embeddingModelId ??
-    options?.sessionConfig?.embeddingModel ??
-    preset?.embeddingModel ??
-    defaults.embeddingModelId;
-  const initialSelection = resolveEmbeddingSpace({
-    embeddingModelId:
-      options?.sessionConfig?.embeddingModel ??
-      preset?.embeddingModel ??
-      defaults.embeddingModelId,
-    embeddingSpaceId: defaults.embeddingSpaceId,
-    model: requestedEmbeddingModel,
+  const embeddingRequest = resolveSessionEmbeddingRequest({
+    sessionConfig: options?.sessionConfig,
+    preset,
+    defaults,
   });
+  const initialSelection = resolveEmbeddingSpace({
+    embeddingSpaceId: embeddingRequest.requestedEmbeddingSpaceId,
+    provider: embeddingRequest.requestedProvider,
+    embeddingModelId: embeddingRequest.requestedEmbeddingModelId,
+  });
+  const requestedEmbeddingModel = initialSelection.model;
+  const requestedEmbeddingSpaceId = embeddingRequest.requestedEmbeddingSpaceId;
   const availability = getEmbeddingProviderAvailability();
   const fallbackResult = enforceEmbeddingProviderAvailability(
     initialSelection,
@@ -624,18 +726,38 @@ export async function loadChatModelSettings(options?: {
       }),
   );
   const embeddingSelection = fallbackResult.selection;
-  let embeddingReason: EmbeddingResolutionReason = options?.sessionConfig
-    ?.embeddingModel
-    ? "session_override"
-    : preset?.embeddingModel
-      ? "preset_default"
-      : "global_default";
+  const embeddingSpaceWarningsList: EmbeddingSpaceWarning[] = [];
+  const emptySpaceInfo =
+    EMPTY_EMBEDDING_SPACES[embeddingSelection.embeddingSpaceId];
+  if (emptySpaceInfo) {
+    ragLogger.info("[rag][embedding] space_empty", {
+      spaceId: embeddingSelection.embeddingSpaceId,
+      provider: embeddingSelection.provider,
+      action: "warn",
+    });
+    embeddingSpaceWarningsList.push({
+      spaceId: embeddingSelection.embeddingSpaceId,
+      provider: embeddingSelection.provider,
+      message: emptySpaceInfo.message,
+    });
+  }
+  const embeddingSourceKey = embeddingRequest.source;
+  let embeddingReason: EmbeddingResolutionReason =
+    embeddingSourceKey === "sessionConfig_legacy"
+      ? "legacy_spaceid_in_embeddingModel"
+      : embeddingSourceKey === "sessionConfig"
+        ? "session_override"
+        : embeddingSourceKey === "preset"
+          ? "preset_default"
+          : "global_default";
   let embeddingSource =
-    options?.sessionConfig?.embeddingModel
-      ? "sessionConfig"
-      : preset?.embeddingModel
-        ? `preset:${presetKey}`
-        : "defaults";
+    embeddingSourceKey === "sessionConfig_legacy"
+      ? "sessionConfig_legacy"
+      : embeddingSourceKey === "sessionConfig"
+        ? "sessionConfig"
+        : embeddingSourceKey === "preset"
+          ? `preset:${presetKey}`
+          : "defaults";
   if (fallbackResult.reason === "provider_disabled") {
     embeddingReason = "provider_disabled";
     embeddingSource = "provider-gating";
@@ -648,6 +770,8 @@ export async function loadChatModelSettings(options?: {
     options?.sessionConfig?.embeddingSpaceId ??
     options?.sessionConfig?.embeddingModelId ??
     undefined;
+  const sessionEmbeddingModelId =
+    options?.sessionConfig?.embeddingModelId ?? undefined;
   const sessionPresetKey =
     options?.sessionConfig?.presetId ?? undefined;
   const sessionAppliedPreset =
@@ -662,6 +786,10 @@ export async function loadChatModelSettings(options?: {
     sessionOverrideRaw.model = sessionEmbeddingModel;
     sessionOverrideKeys.push("sessionConfig.embeddingModel");
   }
+  if (sessionEmbeddingModelId) {
+    sessionOverrideRaw.modelId = sessionEmbeddingModelId;
+    sessionOverrideKeys.push("sessionConfig.embeddingModelId");
+  }
   if (sessionEmbeddingSpaceId) {
     sessionOverrideRaw.spaceId = sessionEmbeddingSpaceId;
     sessionOverrideKeys.push("sessionConfig.embeddingSpaceId");
@@ -674,10 +802,18 @@ export async function loadChatModelSettings(options?: {
     sessionOverrideRaw.appliedPreset = sessionAppliedPreset;
     sessionOverrideKeys.push("sessionConfig.appliedPreset");
   }
-  const sessionOverrideNote =
+  const legacyMappingNote = embeddingRequest.legacyMapping
+    ? `legacy mapping applied (${embeddingRequest.legacyMapping.value})`
+    : undefined;
+  const baseOverrideNote =
     sessionOverrideKeys.length > 0
       ? `sessionConfig priority (${sessionOverrideKeys.join(", ")}) overrode ${embeddingSource}`
       : undefined;
+  const sessionOverrideNote = legacyMappingNote
+    ? baseOverrideNote
+      ? `${baseOverrideNote}; ${legacyMappingNote}`
+      : legacyMappingNote
+    : baseOverrideNote;
   const sessionOverride =
     Object.keys(sessionOverrideRaw).length > 0
       ? {
@@ -697,6 +833,8 @@ export async function loadChatModelSettings(options?: {
     requestedSpaceId: requestedEmbeddingSpaceId ?? undefined,
     requestedEmbeddingModel: requestedEmbeddingModel ?? undefined,
     requestedEmbeddingSpaceId: requestedEmbeddingSpaceId ?? undefined,
+    requestedProvider: embeddingRequest.requestedProvider,
+    legacyMapping: embeddingRequest.legacyMapping,
     resolvedProvider: embeddingSelection.provider,
     resolvedModel: embeddingSelection.model,
     resolvedSpaceId: embeddingSelection.embeddingSpaceId,
@@ -728,6 +866,10 @@ export async function loadChatModelSettings(options?: {
     embeddingProvider: embeddingSelection.provider,
     llmModel: llmSelection.model,
     embeddingModel: embeddingSelection.model,
+    embeddingSpaceWarnings:
+      embeddingSpaceWarningsList.length > 0
+        ? embeddingSpaceWarningsList
+        : undefined,
     reverseRagEnabled,
     reverseRagMode,
     hydeEnabled,

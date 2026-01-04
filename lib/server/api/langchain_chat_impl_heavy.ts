@@ -81,6 +81,10 @@ import {
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 import { logDebugRag } from "@/lib/server/rag-logger";
+import {
+  buildEmbeddingResolutionTrace,
+  logEmbeddingResolutionTrace,
+} from "@/lib/server/telemetry/embedding-trace";
 import { emitAnswerGeneration } from "@/lib/server/telemetry/langfuse-generations";
 import {
   buildCacheMetadata,
@@ -125,10 +129,6 @@ import {
   buildCitationPayload,
   type CitationPayload,
 } from "@/lib/types/citation";
-import {
-  buildEmbeddingResolutionTrace,
-  logEmbeddingResolutionTrace,
-} from "@/lib/server/telemetry/embedding-trace";
 
 function formatChunkPreview(value: string) {
   // eslint-disable-next-line unicorn/prefer-string-replace-all
