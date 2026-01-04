@@ -15,6 +15,7 @@ import {
   ChatConfigProvider,
   useChatConfig,
 } from "@/components/chat/context/ChatConfigContext";
+import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { useChatScroll } from "@/components/chat/hooks/useChatScroll";
 import { useChatSession } from "@/components/chat/hooks/useChatSession";
 import { ChatAdvancedSettingsDrawer } from "@/components/chat/settings/ChatAdvancedSettingsDrawer";
@@ -53,8 +54,7 @@ function ChatShellContent() {
   } = useChatSession({ source: "full-page", config: sessionConfig });
 
   const hasMessages = messages.length > 0;
-  const showTelemetry = true;
-  const showCitations = true;
+  const { showTelemetry, showCitations } = useChatDisplaySettings();
   const renderPromptSummary = useMemo(
     () => adminConfig.baseSystemPromptSummary ?? "",
     [adminConfig.baseSystemPromptSummary],

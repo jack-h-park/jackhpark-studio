@@ -19,7 +19,7 @@ import { ChatMessagesPanel } from "@/components/chat/ChatMessagesPanel";
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { useChatScroll } from "@/components/chat/hooks/useChatScroll";
 import { useChatSession } from "@/components/chat/hooks/useChatSession";
-import { Switch } from "@/components/ui/switch";
+import { DiagnosticsDisplayControls } from "@/components/chat/settings/DiagnosticsDisplayControls";
 import {
   MODEL_PROVIDER_LABELS,
   type ModelProvider,
@@ -62,35 +62,11 @@ export function ChatFloatingWindow({
     showTelemetry,
     showCitations,
     detailsExpanded,
-    setShowTelemetry: setDisplayShowTelemetry,
-    setShowCitations: setDisplayShowCitations,
     setDetailsExpanded,
   } = useChatDisplaySettings();
 
-  const toggleTelemetry = () => {
-    const next = !showTelemetry;
-    setDisplayShowTelemetry(next);
-  };
-
-  const toggleCitations = () => {
-    const next = !showCitations;
-    setDisplayShowCitations(next);
-  };
-
   const toggleDetails = () => {
     setDetailsExpanded(!detailsExpanded);
-  };
-
-  const handleTelemetrySwitchChange = (checked: boolean) => {
-    if (checked !== showTelemetry) {
-      toggleTelemetry();
-    }
-  };
-
-  const handleCitationsSwitchChange = (checked: boolean) => {
-    if (checked !== showCitations) {
-      toggleCitations();
-    }
   };
 
   const toggleOptions = () => {
@@ -276,30 +252,11 @@ export function ChatFloatingWindow({
               )}
 
               {/* 2. Compact Switches */}
-              <div className={styles.compactSwitches}>
-                <div
-                  className={styles.compactSwitchRow}
-                  title="Show debug telemetry like performance metrics and model info."
-                >
-                  <span>Telemetry</span>
-                  <Switch
-                    checked={showTelemetry}
-                    onCheckedChange={handleTelemetrySwitchChange}
-                    aria-label="Toggle telemetry"
-                  />
-                </div>
-                <div
-                  className={styles.compactSwitchRow}
-                  title="Show source citations in chat responses."
-                >
-                  <span>Citations</span>
-                  <Switch
-                    checked={showCitations}
-                    onCheckedChange={handleCitationsSwitchChange}
-                    aria-label="Toggle citations"
-                  />
-                </div>
-              </div>
+              <DiagnosticsDisplayControls
+                compact
+                className={styles.compactSwitches}
+                rowClassName={styles.compactSwitchRow}
+              />
 
               {/* 3. Details Section */}
               {detailsExpanded && (
