@@ -1,8 +1,8 @@
 "use client";
 
 import type { ChatMessage } from "@/components/chat/hooks/useChatSession";
-import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
+import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 
 import styles from "./ChatMessagesPanel.module.css";
 

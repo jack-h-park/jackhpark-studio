@@ -247,44 +247,50 @@ export function SettingsSectionContextHistory({
           icon={<FiClock aria-hidden="true" />}
         >
           <span>Context &amp; History</span>
-          {isContextLocked && (
-            <span className="ml-2 inline-flex items-center rounded-sm border border-muted-foreground/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-              Managed by Preset
-            </span>
-          )}
         </SectionTitle>
-        <div className="flex items-center gap-2">
-          <span className="sr-only" id="settings-context-history-toggle">
-            Toggle Context &amp; History editing
-          </span>
-          <Switch
-            className="flex-shrink-0"
-            checked={isContextEnabled}
-            aria-labelledby="settings-context-history-title settings-context-history-toggle"
-            onCheckedChange={setIsContextEnabled}
-            disabled={isContextLocked}
-          />
-        </div>
+        {!isContextLocked && (
+          <div className="flex items-center gap-2">
+            <span className="sr-only" id="settings-context-history-toggle">
+              Toggle Context &amp; History editing
+            </span>
+            <Switch
+              className="flex-shrink-0"
+              checked={isContextEnabled}
+              aria-labelledby="settings-context-history-title settings-context-history-toggle"
+              onCheckedChange={setIsContextEnabled}
+            />
+          </div>
+        )}
       </SectionHeader>
       <SectionContent className="flex flex-col gap-3">
-        {inputs.map(({ key, label, limit, impactId }) => (
-          <SliderField
-            key={key}
-            id={`settings-${key}`}
-            label={
-              <span className="inline-flex items-center">
-                {label}
-                {impactId && <ImpactBadge controlId={impactId} />}
-              </span>
-            }
-            value={sessionConfig.context[key]}
-            min={limit.min}
-            max={limit.max}
-            step={1}
-            onChange={(value) => handleContextSliderChange(key, limit, value)}
-            disabled={!isContextEnabled || isContextLocked}
-          />
-        ))}
+        <p className="text-xs text-[color:var(--ai-text-muted)]">
+          Budgets are managed by the preset. This preview helps you understand
+          what will be included.
+        </p>
+        {!isContextLocked && (
+          <>
+            {inputs.map(({ key, label, limit, impactId }) => (
+              <SliderField
+                key={key}
+                id={`settings-${key}`}
+                label={
+                  <span className="inline-flex items-center">
+                    {label}
+                    {impactId && <ImpactBadge controlId={impactId} />}
+                  </span>
+                }
+                value={sessionConfig.context[key]}
+                min={limit.min}
+                max={limit.max}
+                step={1}
+                onChange={(value) =>
+                  handleContextSliderChange(key, limit, value)
+                }
+                disabled={!isContextEnabled}
+              />
+            ))}
+          </>
+        )}
 
         {isDev && (
           <div className="flex items-center justify-between py-2 border-t border-[var(--ai-border-default)] mt-1">
@@ -299,6 +305,9 @@ export function SettingsSectionContextHistory({
           </div>
         )}
 
+        <p className="text-xs text-[color:var(--ai-text-muted)]">
+          Updates as the conversation grows.
+        </p>
         <HistoryPreview
           preview={preview}
           messages={messages}

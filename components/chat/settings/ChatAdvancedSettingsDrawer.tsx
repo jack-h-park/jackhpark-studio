@@ -10,16 +10,18 @@ import {
 } from "@/components/chat/settings/impact";
 import { Button } from "@/components/ui/button";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
+import { AdvancedSettingsPresetEffects } from "./AdvancedSettingsPresetEffects";
 import styles from "./ChatAdvancedSettingsDrawer.module.css";
 import { DrawerInlineWarning } from "./DrawerInlineWarning";
 import { SettingsSectionContextHistory } from "./SettingsSectionContextHistory";
 import { SettingsSectionCoreSummary } from "./SettingsSectionCoreSummary";
 import { SettingsSectionDisplay } from "./SettingsSectionDisplay";
 import { SettingsSectionModelEngine } from "./SettingsSectionModelEngine";
+import { SettingsSectionOptionalOverrides } from "./SettingsSectionOptionalOverrides";
 import { SettingsSectionPresets } from "./SettingsSectionPresets";
 import { SettingsSectionRagRetrieval } from "./SettingsSectionRagRetrieval";
-import { SettingsSectionSessionAdditionalPrompt } from "./SettingsSectionSessionAdditionalPrompt";
 
 type DrawerProps = {
   open: boolean;
@@ -148,18 +150,27 @@ export function ChatAdvancedSettingsDrawer({
                 onDisruptiveChange={(key) => triggerImpactWarning(key)}
               />
 
-              <div className={`${styles.cascade} space-y-4`}>
-                <SettingsSectionModelEngine
-                  adminConfig={adminConfig}
-                  sessionConfig={sessionConfig}
-                  setSessionConfig={setSessionConfig}
-                />
+              <AdvancedSettingsPresetEffects
+                adminConfig={adminConfig}
+                sessionConfig={sessionConfig}
+              />
 
-                <SettingsSectionRagRetrieval
-                  adminConfig={adminConfig}
-                  sessionConfig={sessionConfig}
-                  setSessionConfig={setSessionConfig}
-                />
+              <div className={`${styles.cascade} space-y-4`}>
+                {!isSettingLocked("embeddingModel") && (
+                  <SettingsSectionModelEngine
+                    adminConfig={adminConfig}
+                    sessionConfig={sessionConfig}
+                    setSessionConfig={setSessionConfig}
+                  />
+                )}
+
+                {!isSettingLocked("rag") && (
+                  <SettingsSectionRagRetrieval
+                    adminConfig={adminConfig}
+                    sessionConfig={sessionConfig}
+                    setSessionConfig={setSessionConfig}
+                  />
+                )}
 
                 <SettingsSectionContextHistory
                   adminConfig={adminConfig}
@@ -169,10 +180,11 @@ export function ChatAdvancedSettingsDrawer({
                   onDisruptiveChange={(key) => triggerImpactWarning(key)}
                 />
 
-                <SettingsSectionSessionAdditionalPrompt
+                <SettingsSectionOptionalOverrides
                   adminConfig={adminConfig}
                   sessionConfig={sessionConfig}
                   setSessionConfig={setSessionConfig}
+                  onResetToPresetDefaults={resetToDefault}
                 />
               </div>
 

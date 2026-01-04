@@ -35,7 +35,9 @@ type ChatConfigContextValue = {
 
 const STORAGE_KEY = "chat-session-config";
 
-const ChatConfigContext = createContext<ChatConfigContextValue | null>(null);
+export const ChatConfigContext = createContext<ChatConfigContextValue | null>(
+  null,
+);
 
 const summaryLevels = new Set<SummaryLevel>(["off", "low", "medium", "high"]);
 

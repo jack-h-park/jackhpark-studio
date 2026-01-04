@@ -17,8 +17,11 @@ import {
 
 import type { ImpactKey } from "./impact";
 import { ImpactBadge } from "./ImpactBadge";
-
-type PresetKey = "precision" | "default" | "fast" | "highRecall";
+import {
+  computeOverridesActive,
+  PRESET_LABELS,
+  type PresetKey,
+} from "./preset-overrides";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -30,13 +33,6 @@ type Props = {
   onDisruptiveChange?: (key: ImpactKey) => void;
 };
 
-const PRESET_LABELS: Record<PresetKey, string> = {
-  precision: "Precision",
-  default: "Balanced (Default)",
-  fast: "Fast",
-  highRecall: "High Recall",
-};
-
 export function SettingsSectionPresets({
   adminConfig,
   sessionConfig,
@@ -44,6 +40,16 @@ export function SettingsSectionPresets({
   setSessionConfig,
   onDisruptiveChange,
 }: Props) {
+  const activePresetKey = ((sessionConfig.presetId as PresetKey | undefined) ??
+    (sessionConfig.appliedPreset as PresetKey | undefined) ??
+    "default") as PresetKey;
+  const activePresetLabel =
+    PRESET_LABELS[activePresetKey] ?? PRESET_LABELS.default;
+  const overridesActive = computeOverridesActive({
+    adminConfig,
+    sessionConfig,
+  });
+
   const applyPreset = (presetKey: PresetKey) => {
     setSessionConfig(() => ({
       ...adminConfig.presets[presetKey],
@@ -66,6 +72,14 @@ export function SettingsSectionPresets({
       </SectionHeader>
       <SectionContent className="flex flex-col gap-3">
         {helperText && <p className="ai-meta-text">{helperText}</p>}
+        <div className="flex items-center gap-2 text-xs text-[color:var(--ai-text-muted)]">
+          <span>Active preset: {activePresetLabel}</span>
+          {overridesActive && (
+            <span className="inline-flex items-center rounded-full border border-[color:var(--ai-border-muted)] bg-[color:var(--ai-surface-muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ai-text-default)]">
+              Custom
+            </span>
+          )}
+        </div>
         <GridPanel className="grid-cols-4 gap-[0.3rem]">
           {(["precision", "default", "highRecall", "fast"] as PresetKey[]).map(
             (key) => {

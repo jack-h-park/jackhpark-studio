@@ -15,12 +15,8 @@ export function DiagnosticsDisplayControls({
   className,
   rowClassName,
 }: DiagnosticsDisplayControlsProps) {
-  const {
-    showTelemetry,
-    showCitations,
-    setShowTelemetry,
-    setShowCitations,
-  } = useChatDisplaySettings();
+  const { showTelemetry, showCitations, setShowTelemetry, setShowCitations } =
+    useChatDisplaySettings();
 
   if (compact) {
     const rowClass = rowClassName ?? "flex items-center justify-between gap-3";

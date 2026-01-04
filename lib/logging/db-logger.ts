@@ -50,18 +50,22 @@ export function logDbQueryStart(meta: DbQueryMeta) {
   dbLogger.debug("query:start", meta);
 }
 
-export function logDbQueryDone(payload: DbQueryMeta & {
-  elapsedMs?: number;
-  rowCount?: number;
-}) {
+export function logDbQueryDone(
+  payload: DbQueryMeta & {
+    elapsedMs?: number;
+    rowCount?: number;
+  },
+) {
   dbLogger.debug("query:done", payload);
 }
 
-export function logDbQueryError(payload: DbQueryMeta & {
-  elapsedMs?: number;
-  errorCode?: string;
-  message?: string;
-}) {
+export function logDbQueryError(
+  payload: DbQueryMeta & {
+    elapsedMs?: number;
+    errorCode?: string;
+    message?: string;
+  },
+) {
   dbLogger.error("query:error", payload);
 }
 

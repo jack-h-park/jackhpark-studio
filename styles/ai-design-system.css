@@ -970,3 +970,61 @@
   padding: 0.65rem 1rem;
   vertical-align: top;
 }
+
+/* ------------------------------------------------ */
+/* Chat Message Content                             */
+/* ------------------------------------------------ */
+.ai-message__p {
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+}
+.ai-message__p:last-child {
+  margin-bottom: 0;
+}
+
+.ai-message__ul,
+.ai-message__ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.ai-message__ul {
+  list-style-type: disc;
+}
+
+.ai-message__ol {
+  list-style-type: decimal;
+}
+
+.ai-message__li {
+  margin-bottom: 0.25rem;
+  line-height: 1.5;
+}
+
+.ai-inline-code {
+  font-family: monospace;
+  background-color: var(--ai-bg-muted);
+  border: 1px solid var(--ai-border-muted);
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.85em;
+  color: var(--ai-accent);
+}
+
+.ai-codeblock {
+  margin: 0.75rem 0;
+  border-radius: var(--ai-radius-md);
+  border: 1px solid var(--ai-border);
+  background-color: var(--ai-bg-muted);
+  overflow: hidden;
+}
+
+.ai-codeblock pre {
+  margin: 0;
+  padding: 1rem;
+  overflow-x: auto;
+  font-family: monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--ai-fg);
+}

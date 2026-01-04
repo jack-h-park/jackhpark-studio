@@ -1,7 +1,7 @@
 "use client";
 
 import { AiOutlineInfoCircle } from "@react-icons/all-files/ai/AiOutlineInfoCircle";
-import { type JSX, useState } from "react";
+import { useState } from "react";
 
 import type { ChatMessage } from "@/components/chat/hooks/useChatSession";
 import { MetaCard, MetaChip } from "@/components/ui/meta-card";
@@ -16,8 +16,7 @@ import {
 } from "@/lib/shared/model-provider";
 
 import styles from "./ChatMessagesPanel.module.css";
-
-const URL_REGEX = /(https?:\/\/[^\s<>()"'`]+[^\s.,)<>"'`])/gi;
+import { ChatMessageRenderer } from "./rendering/ChatMessageRenderer";
 
 function formatLinkLabel(rawUrl: string, maxLength = 24): string {
   try {
@@ -32,63 +31,6 @@ function formatLinkLabel(rawUrl: string, maxLength = 24): string {
   } catch {
     return "Open link";
   }
-}
-
-function withLineBreaks(text: string, keyPrefix: string): JSX.Element[] {
-  return text.split("\n").flatMap((line, index, array) => {
-    const nodes: JSX.Element[] = [
-      <span key={`${keyPrefix}-line-${index}`}>{line}</span>,
-    ];
-    if (index < array.length - 1) {
-      nodes.push(<br key={`${keyPrefix}-br-${index}`} />);
-    }
-    return nodes;
-  });
-}
-
-function renderMessageContent(
-  content: string,
-  keyPrefix: string,
-  linkLength = 24,
-): JSX.Element[] {
-  const nodes: JSX.Element[] = [];
-  const regex = new RegExp(URL_REGEX);
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(content)) !== null) {
-    if (match.index > lastIndex) {
-      nodes.push(
-        ...withLineBreaks(
-          content.slice(lastIndex, match.index),
-          `${keyPrefix}-text-${lastIndex}`,
-        ),
-      );
-    }
-
-    const url = match[0];
-    nodes.push(
-      <a
-        key={`${keyPrefix}-link-${match.index}`}
-        href={url}
-        target="_blank"
-        rel="noreferrer noopener"
-        title={url}
-      >
-        {formatLinkLabel(url, linkLength)}
-      </a>,
-    );
-
-    lastIndex = match.index + url.length;
-  }
-
-  if (lastIndex < content.length) {
-    nodes.push(
-      ...withLineBreaks(content.slice(lastIndex), `${keyPrefix}-text-tail`),
-    );
-  }
-
-  return nodes;
 }
 
 const truncateText = (value: string | null | undefined, max = 60) => {
@@ -240,9 +182,14 @@ export function ChatMessageItem({
           isStreamingAssistant ? styles.isLoading : ""
         }`}
       >
-        {typeof m.content === "string"
-          ? renderMessageContent(m.content, m.id, citationLinkLength)
-          : m.content}
+        {typeof m.content === "string" ? (
+          <ChatMessageRenderer
+            content={m.content}
+            policy={isExpanded ? "diagnostics" : "lite"}
+          />
+        ) : (
+          m.content
+        )}
         {isStreamingAssistant && (
           <div className={styles.assistantLoadingIndicator}>
             <span />

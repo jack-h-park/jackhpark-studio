@@ -37,8 +37,8 @@ export function ChatEmptyState({
           Ask about Jack’s work, projects, or experience.
         </p>
         <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-          Or explore how this AI assistant works: retrieval (RAG), citations, and
-          telemetry.
+          Or explore how this AI assistant works: retrieval (RAG), citations,
+          and telemetry.
         </p>
       </div>
       <div className="max-w-xl">

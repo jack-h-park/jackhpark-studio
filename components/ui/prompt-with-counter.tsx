@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { type ReactNode, useId } from "react";
 
 import { Label } from "@/components/ui/label";
 import { Textarea, type TextareaProps } from "@/components/ui/textarea";
@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 type PromptWithCounterProps = {
   id?: string;
-  label: string;
+  label: ReactNode;
   helperText?: string;
   value: string;
   maxLength: number;
