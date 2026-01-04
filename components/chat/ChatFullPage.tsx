@@ -20,8 +20,7 @@ import { useChatScroll } from "@/components/chat/hooks/useChatScroll";
 import { useChatSession } from "@/components/chat/hooks/useChatSession";
 import { ChatAdvancedSettingsDrawer } from "@/components/chat/settings/ChatAdvancedSettingsDrawer";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 
 import styles from "./ChatFullPage.module.css";
 
@@ -81,6 +80,13 @@ function ChatShellContent() {
     setInputValue("");
   };
 
+  const handleSuggestedPromptClick = (prompt: string) => {
+    setInputValue(prompt);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  };
+
   const { scrollRef, onScroll } = useChatScroll({
     messages,
     isLoading,
@@ -90,16 +96,15 @@ function ChatShellContent() {
     <div className={styles.shell}>
       <Card className={styles.panel}>
         <header className={styles.header}>
-          <div>
-            <HeadingWithIcon
-              as="p"
-              icon={<FiMessageCircle aria-hidden="true" />}
-            >
+          <div className="space-y-1">
+            <CardTitle icon={<FiMessageCircle aria-hidden="true" size={18} />}>
               Jack’s AI Assistant
-            </HeadingWithIcon>
-            <p className="ai-settings-section__description">
-              {renderPromptSummary}
-            </p>
+            </CardTitle>
+            {renderPromptSummary && (
+              <CardDescription className="text-sm leading-relaxed ai-text-muted">
+                {renderPromptSummary}
+              </CardDescription>
+            )}
           </div>
           <Button
             variant="outline"
@@ -122,12 +127,38 @@ function ChatShellContent() {
                   width={220}
                   height={220}
                 />
-                <p>
-                  Ask anything about Jack’s work. Once you send a message, the
-                  assistant will stream a response with citations and telemetry.
+              <div className="mt-4 max-w-md text-center mx-auto">
+                <p className="text-base font-medium text-foreground leading-relaxed">
+                  Ask about Jack’s work, projects, or experience.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+                  Or explore how this AI assistant works: retrieval (RAG),
+                  citations, and telemetry.
                 </p>
               </div>
-            )}
+              <div className="mt-6 text-center max-w-xl mx-auto">
+                <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">
+                  Try one of these
+                </p>
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  {[
+                    "What are Jack’s 2–3 most impactful projects, and why?",
+                    "Show me how citations work on this site (give an example answer).",
+                    "Summarize Jack’s background in 5 bullet points.",
+                  ].map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      className="rounded-full border border-ai-border px-3 py-1 text-sm text-muted-foreground transition hover:border-ai-accent hover:text-ai hover:bg-[color-mix(in_srgb,var(--ai-accent),var(--ai-bg))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ai-accent"
+                      onClick={() => handleSuggestedPromptClick(prompt)}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
             {hasMessages && (
               <ChatMessagesPanel
                 messages={messages}
@@ -148,7 +179,7 @@ function ChatShellContent() {
             onStop={abortActiveRequest}
             isLoading={isLoading}
             disabled={isLoading}
-            placeholder="Ask me anything about Jack..."
+            placeholder="Ask about Jack’s projects, AI architecture, or experience…"
           />
         </div>
       </Card>

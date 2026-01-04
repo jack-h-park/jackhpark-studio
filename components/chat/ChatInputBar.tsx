@@ -25,7 +25,7 @@ export function ChatInputBar({
   isLoading,
   disabled = false,
   inputRef,
-  placeholder = "Ask me anything about Jack...",
+  placeholder = "Ask about Jack’s projects, AI architecture, or experience…",
 }: ChatInputBarProps) {
   const isInputDisabled = isLoading || disabled;
   const isSubmitDisabled = isInputDisabled || value.trim().length === 0;

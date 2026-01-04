@@ -58,12 +58,8 @@ export function ChatFloatingWindow({
     abortActiveRequest,
   } = useChatSession({ source: "floating-widget" });
 
-  const {
-    showTelemetry,
-    showCitations,
-    detailsExpanded,
-    setDetailsExpanded,
-  } = useChatDisplaySettings();
+  const { showTelemetry, showCitations, detailsExpanded, setDetailsExpanded } =
+    useChatDisplaySettings();
 
   const toggleDetails = () => {
     setDetailsExpanded(!detailsExpanded);
@@ -168,8 +164,9 @@ export function ChatFloatingWindow({
                 type="button"
                 className={styles.chatConfigToggle}
                 onClick={toggleOptions}
+                title="Inspect active model, retrieval (RAG), and system configuration"
               >
-                {showOptions ? "Hide Settings" : "Show Settings"}
+                {showOptions ? "Hide System View" : "System View"}
               </button>
               {headerAction}
               {showExpandButton && (
@@ -332,7 +329,7 @@ export function ChatFloatingWindow({
           onStop={abortActiveRequest}
           isLoading={isLoading}
           inputRef={inputRef}
-          placeholder="Ask me anything about Jack..."
+          placeholder="Ask about Jack’s projects, AI architecture, or experience…"
         />
       </div>
     </>
