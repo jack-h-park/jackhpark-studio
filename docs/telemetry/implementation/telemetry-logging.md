@@ -137,6 +137,7 @@ Each subsystem has a dedicated domain logger. You can control their verbosity in
 - `LOG_NOTION_LEVEL`: Logs Notion-specific logic, such as page fetching and component rendering (available on both client and server).
 - `LOG_LLM_LEVEL`: Logs external API calls to LLM providers. At `trace` level, it includes raw streaming chunks and precise timing metrics.
 - `LOG_TELEMETRY_LEVEL`: Diagnostic logs for the telemetry system itself (e.g., Langfuse connection status, sampling decisions).
+- `LOG_DB_LEVEL`: Logs database-adjacent operations (Supabase queries, ingestion runners, admin snapshots) without including full row payloads.
 
 Avoid legacy `DEBUG_*` env vars; they are deprecated and are no longer effective (some may trigger warnings). Use the unified config instead.
 
@@ -191,6 +192,7 @@ LOG_INGESTION_LEVEL=info
 LOG_NOTION_LEVEL=info
 LOG_LLM_LEVEL=info
 LOG_TELEMETRY_LEVEL=info
+LOG_DB_LEVEL=info
 
 # ---------- Telemetry / Langfuse ----------
 
@@ -219,6 +221,7 @@ LOG_INGESTION_LEVEL=debug
 LOG_NOTION_LEVEL=debug
 LOG_LLM_LEVEL=debug
 LOG_TELEMETRY_LEVEL=debug
+LOG_DB_LEVEL=debug
 
 # ---------- Telemetry / Langfuse ----------
 

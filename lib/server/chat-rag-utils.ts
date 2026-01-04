@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { RankerMode, ReverseRagMode } from "@/lib/shared/rag-config";
+import { startDbQuery } from "@/lib/logging/db-logger";
 import { ragLogger } from "@/lib/logging/logger";
 import {
   normalizeMetadata,
@@ -216,6 +217,12 @@ export async function fetchRefinedMetadata(
   }[] = [];
 
   if (docIds.length > 0) {
+    const tracker = startDbQuery({
+      action: "fetchRefinedMetadata",
+      table: "rag_documents",
+      operation: "select",
+      correlationId: docIds[0],
+    });
     const { data } = await supabase
       .from("rag_documents")
       .select("doc_id, metadata")
@@ -223,6 +230,7 @@ export async function fetchRefinedMetadata(
     if (data) {
       metadataRows = data as any;
     }
+    tracker.done({ rowCount: data?.length ?? 0 });
   }
 
   const metadataMap = new Map<string, RagDocumentMetadata | null>();

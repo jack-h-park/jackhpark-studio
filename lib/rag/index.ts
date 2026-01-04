@@ -6,6 +6,8 @@ import { JSDOM } from "jsdom";
 import { type Decoration, type ExtendedRecordMap } from "notion-types";
 import { getPageContentBlockIds, getTextContent } from "notion-utils";
 
+import { startDbQuery } from "@/lib/logging/db-logger";
+
 import {
   type EmbeddingModelSelectionInput,
   resolveEmbeddingSpace,
@@ -103,6 +105,13 @@ export async function getDocumentState(
     return null;
   }
 
+  const tracker = startDbQuery({
+    action: "getDocumentState",
+    table: DOCUMENTS_TABLE,
+    operation: "select",
+    correlationId: docId,
+  });
+
   const { data, error } = await supabaseClient
     .from(DOCUMENTS_TABLE)
     .select(
@@ -112,11 +121,14 @@ export async function getDocumentState(
     .maybeSingle();
 
   if (error) {
+    tracker.error(error);
     if (handleDocumentStateError(error)) {
       return null;
     }
     throw error;
   }
+
+  tracker.done({ rowCount: data ? 1 : 0 });
 
   documentStateTableStatus = "available";
   return data ?? null;
@@ -174,6 +186,12 @@ export async function upsertDocumentState(
     payload.metadata = normalizeMetadata(toUpsert.metadata ?? null);
   }
 
+  const tracker = startDbQuery({
+    action: "upsertDocumentState",
+    table: DOCUMENTS_TABLE,
+    operation: "upsert",
+    correlationId: toUpsert.doc_id,
+  });
   const { error } = await retry(
     () =>
       supabaseClient
@@ -183,11 +201,14 @@ export async function upsertDocumentState(
   );
 
   if (error) {
+    tracker.error(error);
     if (handleDocumentStateError(error)) {
       return;
     }
     throw error;
   }
+
+  tracker.done();
 
   documentStateTableStatus = "available";
 }
@@ -281,6 +302,13 @@ export async function startIngestRun(
     metadata: input.metadata ?? null,
   };
 
+  const tracker = startDbQuery({
+    action: "startIngestRun",
+    table: INGEST_RUNS_TABLE,
+    operation: "insert",
+    correlationId: payload.source,
+  });
+
   const { data, error } = await supabaseClient
     .from(INGEST_RUNS_TABLE)
     .insert(payload)
@@ -288,11 +316,14 @@ export async function startIngestRun(
     .single();
 
   if (error) {
+    tracker.error(error);
     if (handleIngestRunsError(error)) {
       return null;
     }
     throw error;
   }
+
+  tracker.done({ rowCount: data ? 1 : 0 });
 
   ingestRunsTableStatus = "available";
   return { id: data.id as string };
@@ -322,14 +353,25 @@ export async function finishIngestRun(
     error_logs: (input.errorLogs ?? []).slice(0, 50),
   };
 
+  const tracker = startDbQuery({
+    action: "finishIngestRun",
+    table: INGEST_RUNS_TABLE,
+    operation: "update",
+    correlationId: handle.id,
+  });
+
   const { error } = await supabaseClient
     .from(INGEST_RUNS_TABLE)
     .update(payload)
     .eq("id", handle.id);
 
   if (error) {
+    tracker.error(error);
     handleIngestRunsError(error);
+    return;
   }
+
+  tracker.done();
 }
 
 export function chunkByTokens(
@@ -445,6 +487,12 @@ export async function replaceChunks(
   const resolved = resolveEmbeddingSelection(options);
   const tableName = getRagChunksTable(resolved);
   // 1. Get existing chunk hashes for the document
+  const selectTracker = startDbQuery({
+    action: "replaceChunks:selectExistingHashes",
+    table: tableName,
+    operation: "select",
+    correlationId: docId,
+  });
   const { data: existingChunks, error: selectError } = await retry<
     { chunk_hash: string }[]
   >(
@@ -459,8 +507,11 @@ export async function replaceChunks(
   );
 
   if (selectError) {
+    selectTracker.error(selectError);
     throw selectError;
   }
+
+  selectTracker.done({ rowCount: existingChunks?.length ?? 0 });
 
   const existingHashes = new Set(
     (existingChunks ?? []).map((c) => c.chunk_hash),
@@ -473,6 +524,12 @@ export async function replaceChunks(
   );
 
   if (hashesToDelete.length > 0) {
+    const deleteTracker = startDbQuery({
+      action: "replaceChunks:deleteStaleChunks",
+      table: tableName,
+      operation: "delete",
+      correlationId: docId,
+    });
     const { error: deleteError } = await retry(
       () =>
         supabaseClient
@@ -482,11 +539,22 @@ export async function replaceChunks(
           .eq("doc_id", docId),
       `delete stale chunks for doc ${docId} (${tableName})`,
     );
-    if (deleteError) throw deleteError;
+    if (deleteError) {
+      deleteTracker.error(deleteError);
+      throw deleteError;
+    }
+
+    deleteTracker.done();
   }
 
   // 3. Upsert new/changed chunks
   if (rows.length > 0) {
+    const upsertTracker = startDbQuery({
+      action: "replaceChunks:upsertChunks",
+      table: tableName,
+      operation: "upsert",
+      correlationId: docId,
+    });
     const { error: upsertError } = await retry(
       () =>
         supabaseClient
@@ -495,7 +563,12 @@ export async function replaceChunks(
       `upsert chunks for doc ${docId} (${tableName})`,
     );
 
-    if (upsertError) throw upsertError;
+    if (upsertError) {
+      upsertTracker.error(upsertError);
+      throw upsertError;
+    }
+
+    upsertTracker.done({ rowCount: rows.length });
   }
 }
 
@@ -505,14 +578,23 @@ export async function hasChunksForProvider(
 ): Promise<boolean> {
   const resolved = resolveEmbeddingSelection(selection);
   const tableName = getRagChunksTable(resolved);
+  const tracker = startDbQuery({
+    action: "hasChunksForProvider",
+    table: tableName,
+    operation: "select",
+    correlationId: docId,
+  });
   const { count, error } = await supabaseClient
     .from(tableName)
     .select("doc_id", { count: "exact", head: true })
     .eq("doc_id", docId);
 
   if (error) {
+    tracker.error(error);
     throw error;
   }
+
+  tracker.done({ rowCount: count ?? 0 });
 
   return (count ?? 0) > 0;
 }

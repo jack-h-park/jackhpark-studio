@@ -146,6 +146,7 @@ const sanitizeNumericConfig = (
       similarity,
     },
     context: {
+      enabled: Boolean(candidate.context.enabled),
       tokenBudget: contextBudget,
       historyBudget,
       clipTokens,

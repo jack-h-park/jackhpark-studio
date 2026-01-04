@@ -40,8 +40,6 @@ export function ChatConfigPage({
     setIsRawModalOpen,
     isWordWrapEnabled,
     setIsWordWrapEnabled,
-    contextHistoryEnabled,
-    setContextHistoryEnabled,
     additionalPromptMaxLength,
     numericLimitErrors,
     hasNumericErrors,
@@ -163,8 +161,6 @@ export function ChatConfigPage({
         config={config}
         numericLimits={config.numericLimits}
         presets={config.presets}
-        contextHistoryEnabled={contextHistoryEnabled}
-        setContextHistoryEnabled={setContextHistoryEnabled}
         updatePreset={updatePreset}
         llmModelOptions={llmModelOptions}
         additionalPromptMaxLength={additionalPromptMaxLength}

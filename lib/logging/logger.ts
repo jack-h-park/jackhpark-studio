@@ -9,6 +9,7 @@ export type LoggingDomain =
   | "ingestion"
   | "notion"
   | "externalLLM"
+  | "db"
   | "telemetryLog";
 
 const LOG_LEVEL_PRIORITY: LogLevel[] = [
@@ -125,4 +126,5 @@ export const ragLogger = createDomainLogger("rag");
 export const ingestionLogger = createDomainLogger("ingestion");
 export const notionLogger = createDomainLogger("notion");
 export const llmLogger = createDomainLogger("externalLLM");
+export const dbLogger = createDomainLogger("db");
 export const telemetryLogger = createDomainLogger("telemetryLog");

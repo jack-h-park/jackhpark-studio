@@ -1,6 +1,6 @@
 import type { LogLevel } from "@/lib/logging/types";
 
-type LoggingDomain = "rag" | "ingestion" | "notion" | "externalLLM";
+type LoggingDomain = "rag" | "ingestion" | "notion" | "externalLLM" | "db";
 
 const LOG_LEVEL_PRIORITY: LogLevel[] = [
   "off",
@@ -14,6 +14,7 @@ const DOMAIN_OVERRIDE_KEYS: Record<LoggingDomain, string> = {
   ingestion: "LOG_INGESTION_LEVEL",
   notion: "LOG_NOTION_LEVEL",
   externalLLM: "LOG_LLM_LEVEL",
+  db: "LOG_DB_LEVEL",
 };
 
 function parseLogLevel(value: string | undefined | null): LogLevel | null {

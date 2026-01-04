@@ -9,6 +9,7 @@ import type {
 import { SYSTEM_SETTINGS_TABLE } from "@/lib/chat-prompts";
 import { DEFAULT_EMBEDDING_MODEL_ID } from "@/lib/core/embedding-spaces";
 import { supabaseClient } from "@/lib/core/supabase";
+import { startDbQuery } from "@/lib/logging/db-logger";
 import {
   type AdminChatConfig,
   DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH,
@@ -276,6 +277,12 @@ let cachedUpdatedAt: string | null = null;
 async function fetchAdminChatConfigRow(
   client: SupabaseClient,
 ): Promise<AdminChatConfigRow | null> {
+  const tracker = startDbQuery({
+    action: "fetchAdminChatConfigRow",
+    table: SYSTEM_SETTINGS_TABLE,
+    operation: "select",
+    correlationId: ADMIN_CHAT_CONFIG_KEY,
+  });
   const { data, error } = await client
     .from(SYSTEM_SETTINGS_TABLE)
     .select("value, updated_at")
@@ -283,10 +290,13 @@ async function fetchAdminChatConfigRow(
     .maybeSingle();
 
   if (error) {
+    tracker.error(error);
     throw new Error(
       `[admin-chat-config] failed to load admin_chat_config: ${error.message}`,
     );
   }
+
+  tracker.done({ rowCount: data ? 1 : 0 });
 
   return data ?? null;
 }
@@ -451,6 +461,12 @@ export async function saveAdminChatConfig(
 ): Promise<{ updatedAt: string | null }> {
   const client = options?.client ?? supabaseClient;
   const sanitized = parseAdminChatConfig(config);
+  const tracker = startDbQuery({
+    action: "saveAdminChatConfig",
+    table: SYSTEM_SETTINGS_TABLE,
+    operation: "upsert",
+    correlationId: ADMIN_CHAT_CONFIG_KEY,
+  });
   const { data, error } = await client
     .from(SYSTEM_SETTINGS_TABLE)
     .upsert(
@@ -465,10 +481,13 @@ export async function saveAdminChatConfig(
     .single();
 
   if (error) {
+    tracker.error(error);
     throw new Error(
       `[admin-chat-config] failed to save admin_chat_config: ${error.message}`,
     );
   }
+
+  tracker.done({ rowCount: data ? 1 : 0 });
 
   cachedAdminChatConfig = sanitized;
   cachedUpdatedAt = data?.updated_at ?? null;

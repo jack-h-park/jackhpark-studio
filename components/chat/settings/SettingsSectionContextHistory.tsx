@@ -28,6 +28,8 @@ import type { ImpactKey } from "./impact";
 import { HistoryPreview } from "./HistoryPreview";
 import { ImpactBadge } from "./ImpactBadge";
 
+type ContextBudgetKey = "tokenBudget" | "historyBudget" | "clipTokens";
+
 type Props = {
   adminConfig: AdminChatConfig;
   sessionConfig: SessionChatConfig;
@@ -182,7 +184,7 @@ export function SettingsSectionContextHistory({
   ]);
 
   const inputs: Array<{
-    key: keyof SessionChatConfig["context"];
+    key: ContextBudgetKey;
     label: string;
     limit: AdminChatConfig["numericLimits"][keyof AdminChatConfig["numericLimits"]];
     impactId?: string; // Optional ID for impact badge lookup
@@ -205,7 +207,7 @@ export function SettingsSectionContextHistory({
     },
   ];
   const handleContextSliderChange = (
-    key: keyof SessionChatConfig["context"],
+    key: ContextBudgetKey,
     limit: {
       min: number;
       max: number;

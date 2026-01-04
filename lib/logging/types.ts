@@ -21,6 +21,7 @@ export interface LoggingConfig {
   notion: DomainLoggingConfig;
   externalLLM: DomainLoggingConfig;
   telemetryLog: DomainLoggingConfig;
+  db: DomainLoggingConfig;
 
   telemetry: TelemetryConfig;
 }

@@ -3,6 +3,8 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+import { startDbQuery } from "@/lib/logging/db-logger";
+
 type RagSnapshot = {
   id: string;
   captured_at: string;
@@ -56,16 +58,23 @@ export async function GET(request: Request) {
     auth: { persistSession: false },
   });
 
+  const queryTracker = startDbQuery({
+    action: "takeRagSnapshot",
+    table: "rpc:take_rag_snapshot",
+    operation: "rpc",
+  });
   const { data, error } = await supabase.rpc("take_rag_snapshot");
   const snapshot = data as RagSnapshot | null;
 
   if (error || !snapshot) {
-    console.error("Failed to take RAG snapshot", error);
+    queryTracker.error(error ?? new Error("RPC returned no snapshot"));
     return NextResponse.json(
       { ok: false, error: "Failed to take snapshot" },
       { status: 500 },
     );
   }
+
+  queryTracker.done({ rowCount: snapshot ? 1 : 0 });
 
   return NextResponse.json(
     {

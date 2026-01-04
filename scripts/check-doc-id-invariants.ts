@@ -1,3 +1,5 @@
+import { startDbQuery } from "@/lib/logging/db-logger";
+
 import { supabaseClient } from "../lib/core/supabase";
 
 const DOC_BATCH_SIZE = 250;
@@ -27,6 +29,11 @@ async function gatherDocumentStats(): Promise<DocScanResult> {
   let pageOffset = 0;
 
   while (true) {
+    const tracker = startDbQuery({
+      action: "checkDocIdInvariants:gatherDocumentStats",
+      table: "rag_documents",
+      operation: "select",
+    });
     const { data, error } = await supabaseClient
       .from("rag_documents")
       .select(
@@ -35,8 +42,11 @@ async function gatherDocumentStats(): Promise<DocScanResult> {
       .range(pageOffset, pageOffset + DOC_BATCH_SIZE - 1);
 
     if (error) {
+      tracker.error(error);
       throw error;
     }
+
+    tracker.done({ rowCount: data?.length ?? 0 });
 
     if (!data || data.length === 0) {
       break;
@@ -91,14 +101,22 @@ async function verifyChunkDocIds(docIdSet: Set<string>): Promise<{
   const missingDocSamples: string[] = [];
 
   while (true) {
+    const tracker = startDbQuery({
+      action: "checkDocIdInvariants:verifyChunkDocIds",
+      table: "rag_chunks_openai_te3s_v1",
+      operation: "select",
+    });
     const { data, error } = await supabaseClient
       .from("rag_chunks_openai_te3s_v1")
       .select("doc_id")
       .range(chunkOffset, chunkOffset + CHUNK_BATCH_SIZE - 1);
 
     if (error) {
+      tracker.error(error);
       throw error;
     }
+
+    tracker.done({ rowCount: data?.length ?? 0 });
 
     if (!data || data.length === 0) {
       break;
