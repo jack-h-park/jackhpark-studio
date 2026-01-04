@@ -34,9 +34,22 @@ export function HistoryPreview({
       preview.includedIndices?.length !==
         serverPreview.includedIndices?.length);
 
+  const isEmptyPreview =
+    preview &&
+    preview.includedCount === 0 &&
+    preview.excludedCount === 0 &&
+    (!showServerPreview ||
+      !serverPreview ||
+      (serverPreview.includedCount === 0 &&
+        serverPreview.excludedCount === 0));
+
+  const containerClasses = isEmptyPreview
+    ? "bg-[color:var(--ai-bg-surface-muted)] border border-[color:var(--ai-border-muted)]"
+    : "bg-[var(--ai-bg-surface-sunken)] border border-[var(--ai-border-default)]";
+
   return (
     <div
-      className={`mt-3 p-3 rounded bg-[var(--ai-bg-surface-sunken)] border border-[var(--ai-border-default)] text-sm space-y-4 ${className}`}
+      className={`mt-3 p-3 rounded text-sm space-y-4 ${containerClasses} ${className}`}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -49,6 +62,11 @@ export function HistoryPreview({
           </span>
         )}
       </div>
+      {isEmptyPreview && (
+        <p className="text-[11px] text-[color:var(--ai-text-muted)] italic">
+          No history yet. Start chatting to see what’s included.
+        </p>
+      )}
 
       <div
         className={`grid ${showServerPreview ? "grid-cols-2 gap-4" : "grid-cols-1"}`}
@@ -59,6 +77,7 @@ export function HistoryPreview({
           preview={preview}
           messages={messages}
           isSummaryEnabled={isSummaryEnabled}
+          isPreviewEmpty={isEmptyPreview}
         />
 
         {/* Server Exact Pane (Dev Only) */}
@@ -86,12 +105,14 @@ function PreviewPane({
   messages,
   isSummaryEnabled,
   isLoading,
+  isPreviewEmpty,
 }: {
   label: string;
   preview: HistoryPreviewResult | null | undefined;
   messages: ChatMessage[];
   isSummaryEnabled: boolean;
   isLoading?: boolean;
+  isPreviewEmpty?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -112,6 +133,17 @@ function PreviewPane({
 
   const { includedCount, excludedCount, includedIndices } = preview;
 
+  const includedClass = isPreviewEmpty
+    ? "text-[11px] text-[color:var(--ai-text-muted)]"
+    : "font-medium text-[var(--ai-text-default)]";
+  const excludedClass = [
+    "text-xs",
+    excludedCount > 0 ? "text-[var(--ai-text-warning)]" : "",
+    isPreviewEmpty ? "text-[color:var(--ai-text-muted)]" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between mb-1">
@@ -123,13 +155,11 @@ function PreviewPane({
       <div className="space-y-1">
         <div className="flex justify-between text-[var(--ai-text-default)]">
           <span className="text-xs">Included:</span>
-          <span className="font-medium">{includedCount}</span>
+          <span className={includedClass}>{includedCount}</span>
         </div>
         <div className="flex justify-between text-[var(--ai-text-muted)]">
           <span className="text-xs">Excluded:</span>
-          <span
-            className={`text-xs ${excludedCount > 0 ? "text-[var(--ai-text-warning)]" : ""}`}
-          >
+          <span className={excludedClass}>
             {excludedCount}
           </span>
         </div>

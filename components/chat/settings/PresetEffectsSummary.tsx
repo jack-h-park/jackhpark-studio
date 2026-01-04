@@ -1,7 +1,13 @@
-"use client";
-
 import { type ReactNode } from "react";
 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { StatusPill } from "@/components/ui/status-pill";
 import { cn } from "@/components/ui/utils";
 
 export type PresetEffectItem = {
@@ -33,30 +39,32 @@ export function PresetEffectsSummary({
   if (items.length === 0) return null;
 
   return (
-    <div
-      className={cn(
-        "rounded-lg border border-[color:var(--ai-border-muted)] bg-[color:var(--ai-surface-muted)] p-3 text-sm",
-        className,
-      )}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Preset Effects (Managed by Preset)
-          </p>
-          <p className="mt-1 text-[10px] text-[color:var(--ai-text-muted)]">
-            These values are enforced by the selected preset.
-          </p>
+    <div className={cn("ai-card flex flex-col p-4 gap-4", className)}>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-[var(--ai-text)]">
+              Preset Effects
+            </h3>
+            <StatusPill variant="muted">Managed by Preset</StatusPill>
+          </div>
+          {actions && <div>{actions}</div>}
         </div>
-        {actions && <div className="flex-shrink-0">{actions}</div>}
+        <p className="text-xs text-[var(--ai-text-muted)]">
+          These values are enforced by the selected preset.
+        </p>
       </div>
-      <ul className="mt-2 list-disc space-y-1 pl-4 text-[color:var(--ai-text-default)]">
+
+      <ul className="flex flex-col gap-2 pt-2 border-t border-[var(--ai-border-soft)]">
         {items.map((item) => (
-          <li key={item.label}>
-            <span className="font-semibold text-[color:var(--ai-text-default)]">
-              {item.label}:
-            </span>{" "}
-            <span className="text-[color:var(--ai-text-muted)]">
+          <li
+            key={item.label}
+            className="flex justify-between items-start text-sm"
+          >
+            <span className="font-medium text-[var(--ai-text)] mr-4 shrink-0">
+              {item.label}
+            </span>
+            <span className="text-[var(--ai-text-muted)] text-right">
               {item.value}
             </span>
           </li>

@@ -126,7 +126,7 @@ export function ChatAdvancedSettingsDrawer({
                 ✕
               </Button>
             </div>
-            <div className={`${styles.content} space-y-4`}>
+            <div className={`${styles.content} gap-4`}>
               {warningState.visible && (
                 <DrawerInlineWarning
                   message={warningState.message}
@@ -150,12 +150,14 @@ export function ChatAdvancedSettingsDrawer({
                 onDisruptiveChange={(key) => triggerImpactWarning(key)}
               />
 
-              <AdvancedSettingsPresetEffects
-                adminConfig={adminConfig}
-                sessionConfig={sessionConfig}
-              />
+              <div className={styles.presetEffectsWrapper}>
+                <AdvancedSettingsPresetEffects
+                  adminConfig={adminConfig}
+                  sessionConfig={sessionConfig}
+                />
+              </div>
 
-              <div className={`${styles.cascade} space-y-4`}>
+              <div className={`${styles.cascade}`}>
                 {!isSettingLocked("embeddingModel") && (
                   <SettingsSectionModelEngine
                     adminConfig={adminConfig}
@@ -188,13 +190,15 @@ export function ChatAdvancedSettingsDrawer({
                 />
               </div>
 
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={resetToDefault}
-              >
-                Reset to Default
-              </Button>
+              <div className="border-t border-[color:var(--ai-border-muted)] pt-4">
+                <Button
+                  variant="ghost"
+                  className="w-full text-[color:var(--ai-text-muted)] hover:text-[color:var(--ai-text-default)]"
+                  onClick={resetToDefault}
+                >
+                  Reset to Preset Defaults
+                </Button>
+              </div>
             </div>
           </div>
         </div>

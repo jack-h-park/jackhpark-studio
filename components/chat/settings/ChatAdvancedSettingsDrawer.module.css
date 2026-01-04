@@ -36,7 +36,7 @@
 .panel {
   height: 100%;
   background: hsl(var(--ai-bg));
-  box-shadow: -12px 0 40px rgba(15, 15, 15, 0.2);
+  box-shadow: var(--ai-shadow-soft);
   border-left: 1px solid hsl(var(--ai-border));
 }
 
@@ -64,22 +64,33 @@
 
 .cascade {
   position: relative;
-  margin-top: -12px;
   margin-bottom: 6px;
   padding-left: 26px;
   display: flex;
   flex-direction: column;
   gap: 18px;
+  z-index: 0;
+  padding-top: 1rem;
 }
 
 .cascade::before {
   content: "";
   position: absolute;
-  top: -4px;
+  top: 0;
   bottom: 0;
   left: 12px;
   width: 1px;
   background: hsl(var(--ai-border));
+  z-index: 0;
+  pointer-events: none;
+}
+
+.presetEffectsWrapper {
+  position: relative;
+  z-index: 10;
+  margin-top: 0;
+  margin-bottom: 0.25rem;
+  pointer-events: auto;
 }
 
 .cascadeStart {

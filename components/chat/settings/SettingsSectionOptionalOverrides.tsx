@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { LlmModelId } from "@/lib/shared/models";
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/components/ui/utils";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
 import { Label } from "@/components/ui/label";
 import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
@@ -159,8 +160,8 @@ export function SettingsSectionOptionalOverrides({
           <span>Optional Overrides</span>
         </SectionTitle>
       </SectionHeader>
-      <SectionContent className="flex flex-col gap-4">
-        <span className="text-xs text-[color:var(--ai-text-muted)]">
+      <SectionContent className="flex flex-col gap-3">
+        <span className="text-[11px] leading-tight text-[color:var(--ai-text-muted)]">
           Session-only preferences. Core retrieval, memory, and safety behavior
           is controlled by the selected preset.
         </span>
@@ -198,83 +199,179 @@ export function SettingsSectionOptionalOverrides({
         {overridesActive && (
           <Button
             variant="ghost"
-            className="self-start px-0 text-xs text-[color:var(--ai-text-muted)] hover:text-[color:var(--ai-text-default)]"
+            className="self-start px-0 text-[11px] text-[color:var(--ai-text-muted)] hover:text-[color:var(--ai-text-default)]"
             onClick={handleResetToPresetDefaults}
           >
             Reset to Preset Defaults
           </Button>
         )}
 
-        <div className="ai-field">
-          <Label htmlFor="optional-llm-model" className="ai-field__label">
-            <span className="inline-flex items-center gap-2">
-              <span>LLM Model</span>
-              <ImpactBadge label="May change cost/speed" />
-            </span>
-          </Label>
-          <Select
-            value={sessionConfig.llmModel}
-            onValueChange={handleLlModelChange}
-          >
-            <SelectTrigger
-              id="optional-llm-model"
-              aria-label="LLM model selection"
-              className="ai-field-sm w-full"
+        <div className="flex flex-col gap-4">
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <Label htmlFor="optional-llm-model" className="ai-field__label">
+                LLM Model
+              </Label>
+              <ImpactBadge
+                label="May change cost/speed"
+                className="!px-2 !py-0.5 !text-[10px]"
+              />
+            </div>
+            <Select
+              value={sessionConfig.llmModel}
+              onValueChange={handleLlModelChange}
+            >
+              <SelectTrigger
+                id="optional-llm-model"
+                aria-label="LLM model selection"
+                className="ai-field-sm w-full"
+              />
+              <SelectContent>
+                {llmOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2 border-t border-[color:var(--ai-border-muted)] pt-4">
+            <div className="flex items-start justify-between gap-3">
+              <Label className="ai-field__label">Summaries</Label>
+              <ImpactBadge
+                label="May increase cost"
+                className="!px-2 !py-0.5 !text-[10px]"
+              />
+            </div>
+            <GridPanel className="grid-cols-2 gap-1">
+              {summaryOptions.map((option) => {
+                const isActive = sessionConfig.summaryLevel === option.value;
+                return (
+                  <SelectableTile
+                    key={option.value}
+                    active={isActive}
+                    disabled={!sessionConfig.rag.enabled}
+                    onClick={() => handleSummaryLevelChange(option.value)}
+                    className={
+                      isActive
+                        ? ""
+                        : "bg-[color:var(--ai-bg-surface-muted)] text-[color:var(--ai-text-muted)] shadow-none"
+                    }
+                  >
+                    <div
+                      className={cn(
+                        "ai-choice !gap-1",
+                        isActive
+                          ? "px-[0.6rem] py-[0.6rem]"
+                          : "px-[0.45rem] py-[0.45rem]",
+                      )}
+                    >
+                      <span className="ai-choice__label">{option.label}</span>
+                      <p className="ai-choice__description text-[10px] text-[color:var(--ai-text-muted)]">
+                        {option.description}
+                      </p>
+                    </div>
+                  </SelectableTile>
+                );
+              })}
+            </GridPanel>
+          </div>
+
+          <div className="space-y-2 border-t border-[color:var(--ai-border-muted)] pt-4">
+            <UserPromptEditor
+              value={sessionConfig.additionalSystemPrompt ?? ""}
+              maxLength={maxLength}
+              helperText={helperText}
+              helperClassName="ai-setting-section-description"
+              onChange={(value) =>
+                updateSession((prev) => ({
+                  ...prev,
+                  additionalSystemPrompt: value,
+                }))
+              }
             />
-            <SelectContent>
-              {llmOptions.map((option) => (
-                <SelectItem key={option.id} value={option.id}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          </div>
         </div>
-
-        <div className="ai-field border-t border-[color:var(--ai-border-muted)] pt-4">
-          <Label className="ai-field__label">
-            <span className="inline-flex items-center gap-2">
-              <span>Summaries</span>
-              <ImpactBadge label="May increase cost" />
-            </span>
-          </Label>
-          <GridPanel className="grid-cols-2 gap-2">
-            {summaryOptions.map((option) => (
-              <SelectableTile
-                key={option.value}
-                active={sessionConfig.summaryLevel === option.value}
-                disabled={!sessionConfig.rag.enabled}
-                onClick={() => handleSummaryLevelChange(option.value)}
-              >
-                <div className="ai-choice">
-                  <span className="ai-choice__label">{option.label}</span>
-                  <p className="ai-choice__description">{option.description}</p>
-                </div>
-              </SelectableTile>
-            ))}
-          </GridPanel>
-        </div>
-
-        <PromptWithCounter
-          label={
-            <span className="inline-flex items-center gap-2">
-              <span>User system prompt</span>
-              <ImpactBadge label="May change output" />
-            </span>
-          }
-          value={sessionConfig.additionalSystemPrompt ?? ""}
-          maxLength={maxLength}
-          helperText={helperText}
-          helperClassName="ai-setting-section-description"
-          onChange={(value) =>
-            updateSession((prev) => ({
-              ...prev,
-              additionalSystemPrompt: value,
-            }))
-          }
-          textareaClassName="min-h-[110px]"
-        />
       </SectionContent>
     </Section>
+  );
+}
+
+type UserPromptEditorProps = {
+  value: string;
+  maxLength: number;
+  helperText: string;
+  helperClassName?: string;
+  onChange: (value: string) => void;
+};
+
+function UserPromptEditor({
+  value,
+  maxLength,
+  helperText,
+  helperClassName,
+  onChange,
+}: UserPromptEditorProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const trimmed = value.trim();
+
+  if (!isEditing) {
+    return (
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-3 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--ai-text-muted)]">
+          <Label className="ai-field__label">User system prompt</Label>
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className="text-[11px] font-semibold tracking-wide text-[color:var(--ai-text-muted)] underline-offset-2 hover:text-[color:var(--ai-text-default)] hover:underline"
+          >
+            Edit prompt
+          </button>
+        </div>
+        <div
+          className="rounded border border-[color:var(--ai-border-muted)] bg-[color:var(--ai-surface-muted)] px-3 py-2 text-sm text-[color:var(--ai-text-muted)] transition hover:border-[color:var(--ai-border-default)]"
+          tabIndex={0}
+          role="button"
+          onClick={() => setIsEditing(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setIsEditing(true);
+            }
+          }}
+        >
+          <p
+            className="text-sm leading-relaxed"
+            aria-label={trimmed || "No prompt configured"}
+          >
+            {trimmed || "No custom prompt yet."}
+          </p>
+        </div>
+        <p className={helperClassName ?? "ai-setting-section-description"}>
+          {helperText}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <PromptWithCounter
+      label={
+        <span className="inline-flex items-center gap-2">
+          <span>User system prompt</span>
+          <ImpactBadge
+            label="May change output"
+            className="!px-1.5 !py-0.5 !text-[9px]"
+          />
+        </span>
+      }
+      helperText={helperText}
+      helperClassName={helperClassName}
+      value={value}
+      maxLength={maxLength}
+      onChange={onChange}
+      textareaClassName="min-h-[110px]"
+    />
   );
 }

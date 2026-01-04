@@ -51,7 +51,8 @@
 }
 
 .notion-text {
-  padding: 0.5em 2px;
+  /* keep text blocks compact so dividers stay close to surrounding copy */
+  padding: 0.25em 2px;
 }
 
 .notion-asset-caption {
@@ -634,8 +635,19 @@ svg[data-processed-mermaid] .section-root tspan {
 
 .notion-h1,
 .notion-h2,
-.notion-h3 {
+.notion-h3,
+.notion-h4,
+.notion-h5,
+.notion-h6 {
   margin-bottom: 0.25em;
+}
+
+.notion-h2,
+.notion-h3,
+.notion-h4,
+.notion-h5,
+.notion-h6 {
+  margin-top: 0.4em;
 }
 
 .notion-callout {
@@ -643,7 +655,7 @@ svg[data-processed-mermaid] .section-root tspan {
 }
 
 .notion-hr {
-  margin: 4px 0;
+  margin: 7px 0;
 }
 
 @media only screen and (max-width: 920px) {

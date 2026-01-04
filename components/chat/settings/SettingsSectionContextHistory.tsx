@@ -241,12 +241,12 @@ export function SettingsSectionContextHistory({
     <Section>
       <SectionHeader>
         <SectionTitle
-          id="settings-context-history-title"
+          id="settings-history-preview-title"
           as="div"
           className="flex items-center gap-2"
           icon={<FiClock aria-hidden="true" />}
         >
-          <span>Context &amp; History</span>
+          <span>History Preview</span>
         </SectionTitle>
         {!isContextLocked && (
           <div className="flex items-center gap-2">
@@ -263,9 +263,9 @@ export function SettingsSectionContextHistory({
         )}
       </SectionHeader>
       <SectionContent className="flex flex-col gap-3">
-        <p className="text-xs text-[color:var(--ai-text-muted)]">
-          Budgets are managed by the preset. This preview helps you understand
-          what will be included.
+        <p className="text-[11px] text-[color:var(--ai-text-muted)]">
+          Budgets are managed by the preset; this preview shows what will be
+          included.
         </p>
         {!isContextLocked && (
           <>
@@ -293,8 +293,8 @@ export function SettingsSectionContextHistory({
         )}
 
         {isDev && (
-          <div className="flex items-center justify-between py-2 border-t border-[var(--ai-border-default)] mt-1">
-            <span className="text-xs font-medium text-[var(--ai-text-muted)]">
+          <div className="flex items-center justify-between gap-2 border-t border-[var(--ai-border-default)] py-1 mt-1">
+            <span className="text-[11px] text-[color:var(--ai-text-muted)] font-medium">
               Exact preview (server)
             </span>
             <Switch
@@ -305,7 +305,7 @@ export function SettingsSectionContextHistory({
           </div>
         )}
 
-        <p className="text-xs text-[color:var(--ai-text-muted)]">
+        <p className="text-[11px] text-[color:var(--ai-text-muted)]">
           Updates as the conversation grows.
         </p>
         <HistoryPreview

@@ -8,7 +8,6 @@ import type {
   SessionChatConfig,
   SummaryLevel,
 } from "@/types/chat-config";
-import { Button } from "@/components/ui/button";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
@@ -69,7 +68,9 @@ export function AdvancedSettingsPresetEffects({
   adminConfig,
   sessionConfig,
 }: Props) {
-  const isPresetActive = Boolean(sessionConfig.appliedPreset);
+  const isPresetActive = Boolean(
+    sessionConfig.appliedPreset ?? sessionConfig.presetId,
+  );
   const isEmbeddingLocked = isSettingLocked("embeddingModel");
   const isRagLocked = isSettingLocked("rag");
   const isContextLocked = isSettingLocked("context");
@@ -102,7 +103,20 @@ export function AdvancedSettingsPresetEffects({
   if (isEmbeddingLocked) {
     items.push({
       label: "Embeddings (effective)",
-      value: activeEmbeddingLabel,
+      value: (
+        <span className="inline-flex max-w-[16rem] items-center gap-1 text-[color:var(--ai-text-muted)]">
+          <span className="truncate" title={activeEmbeddingLabel}>
+            {activeEmbeddingLabel}
+          </span>
+          <span
+            className="text-[11px] text-[color:var(--ai-text-muted)]"
+            title={activeEmbeddingLabel}
+            aria-label={`Embedding ${activeEmbeddingLabel}`}
+          >
+            ⓘ
+          </span>
+        </span>
+      ),
     });
   }
 
@@ -113,7 +127,7 @@ export function AdvancedSettingsPresetEffects({
       value: (
         <>
           {enabled ? "enabled" : "disabled"} (Top-K{" "}
-          {formatPresetNumber(sessionConfig.rag.topK)}, similarity ≥{" "}
+          {formatPresetNumber(sessionConfig.rag.topK)} · similarity ≥{" "}
           {formatPresetDecimal(sessionConfig.rag.similarity)})
         </>
       ),
@@ -122,17 +136,16 @@ export function AdvancedSettingsPresetEffects({
 
   if (isRagLocked && isFeaturesLocked) {
     items.push({
-      label: "Capabilities",
+      label: "Capabilities / Ranker",
       value: (
         <>
-          Reverse RAG {renderCapabilityState(sessionConfig.features.reverseRAG)}
-          , HyDE {renderCapabilityState(sessionConfig.features.hyde)}
+          Reverse RAG {renderCapabilityState(sessionConfig.features.reverseRAG)} ·{" "}
+          HyDE {renderCapabilityState(sessionConfig.features.hyde)} · Ranker{" "}
+          <span className="text-[color:var(--ai-text-muted)]">
+            {formatRankerLabel(sessionConfig.features.ranker)}
+          </span>
         </>
       ),
-    });
-    items.push({
-      label: "Ranker",
-      value: formatRankerLabel(sessionConfig.features.ranker),
     });
   }
 
@@ -189,24 +202,27 @@ export function AdvancedSettingsPresetEffects({
     return () => clearTimeout(timer);
   }, [copyMessage]);
 
+  function CopyActionButton({
+    mode,
+    label,
+  }: {
+    mode: "json" | "summary";
+    label: string;
+  }) {
+  return <button
+      type="button"
+      onClick={() => handleCopy(mode)}
+      className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ai-text-muted)] hover:text-[color:var(--ai-text-default)]"
+    >
+      {label}
+    </button>
+}
+
   const actions = (
-    <div className="flex items-center gap-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => handleCopy("json")}
-        className="py-0 px-2"
-      >
-        Copy JSON
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => handleCopy("summary")}
-        className="py-0 px-2"
-      >
-        Copy summary
-      </Button>
+    <div className="flex items-center gap-2 text-xs">
+      <CopyActionButton mode="json" label="Copy JSON" />
+      <span className="text-[color:var(--ai-text-muted)]">·</span>
+      <CopyActionButton mode="summary" label="Copy summary" />
       {copyMessage && (
         <span
           className={`text-[10px] font-semibold ${
@@ -221,5 +237,7 @@ export function AdvancedSettingsPresetEffects({
     </div>
   );
 
-  return <PresetEffectsSummary items={items} actions={actions} />;
+  return (
+    <PresetEffectsSummary className="relative z-10 mt-0" items={items} actions={actions} />
+  );
 }

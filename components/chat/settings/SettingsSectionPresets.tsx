@@ -43,8 +43,6 @@ export function SettingsSectionPresets({
   const activePresetKey = ((sessionConfig.presetId as PresetKey | undefined) ??
     (sessionConfig.appliedPreset as PresetKey | undefined) ??
     "default") as PresetKey;
-  const activePresetLabel =
-    PRESET_LABELS[activePresetKey] ?? PRESET_LABELS.default;
   const overridesActive = computeOverridesActive({
     adminConfig,
     sessionConfig,
@@ -71,9 +69,10 @@ export function SettingsSectionPresets({
         </SectionTitle>
       </SectionHeader>
       <SectionContent className="flex flex-col gap-3">
-        {helperText && <p className="ai-meta-text">{helperText}</p>}
-        <div className="flex items-center gap-2 text-xs text-[color:var(--ai-text-muted)]">
-          <span>Active preset: {activePresetLabel}</span>
+        <div className="flex items-start justify-between gap-3 text-xs leading-tight text-[color:var(--ai-text-muted)]">
+          {helperText && (
+            <p className="m-0">{helperText}</p>
+          )}
           {overridesActive && (
             <span className="inline-flex items-center rounded-full border border-[color:var(--ai-border-muted)] bg-[color:var(--ai-surface-muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ai-text-default)]">
               Custom
