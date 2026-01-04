@@ -54,6 +54,7 @@ export function ChatFloatingWindow({
     runtimeConfig,
     loadingAssistantId,
     sendMessage,
+    retryWithDeepSearch,
     abortActiveRequest,
   } = useChatSession({ source: "floating-widget" });
 
@@ -260,7 +261,11 @@ export function ChatFloatingWindow({
               </div>
               {embeddingSpaceWarning && (
                 <div className="ai-warning-callout mt-2">
-                  <FiAlertCircle aria-hidden="true" className="ai-icon" size={16} />
+                  <FiAlertCircle
+                    aria-hidden="true"
+                    className="ai-icon"
+                    size={16}
+                  />
                   <div className="flex flex-col gap-1">
                     <span className="font-medium">Embedding space warning</span>
                     <span className="opacity-90">
@@ -358,6 +363,7 @@ export function ChatFloatingWindow({
               showCitations={showCitations}
               showPlaceholder={false}
               citationLinkLength={24}
+              onRetryDeepSearch={retryWithDeepSearch}
             />
           </div>
         </div>

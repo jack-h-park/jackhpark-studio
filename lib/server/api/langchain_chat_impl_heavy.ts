@@ -153,7 +153,6 @@ function setSmokeHeaders(res: NextApiResponse, cacheHit: boolean | null) {
 
 const AUTO_SCORE_MARGIN = 0.05;
 const AUTO_MIN_INCLUDED = 3;
-const AUTO_REWRITE_TOKEN_LIMIT = 10;
 const AUTO_PASS_TIMEOUT_MS = 2000;
 const MULTI_QUERY_TIMEOUT_MS = 1200;
 const AUTO_SUPPRESS_TOPK = 18;
@@ -486,8 +485,12 @@ interface ComputeRagContextParams {
   ragRanking?: RagRankingConfig | null;
   abortSignal?: AbortSignal | null;
   chainRunContext: ChainRunContext;
-  markStage?: (stage: string, extra?: Record<string, unknown>) => void;
+  markStage: (stage: string, extra?: Record<string, unknown>) => void;
   safeMode: boolean;
+  forcedFlags?: {
+    reverseRag?: boolean;
+    hyde?: boolean;
+  };
 }
 
 interface ComputeRagContextResult {
@@ -499,11 +502,6 @@ interface ComputeRagContextResult {
   decisionTelemetry?: RagDecisionTelemetry;
   retrievalLatencyMs: number | null;
 }
-
-type AutoBaseDecision = {
-  baseEnabled: boolean;
-  autoAllowed: boolean;
-};
 
 type RetrievalPassMetrics = {
   pass: "base" | "auto";
@@ -565,19 +563,22 @@ type RagDecisionTelemetry = {
   altType: MultiQueryAltType;
   multiQueryRan: boolean;
   skippedReason?: MultiQuerySkipReason;
+  reason?: "forced" | "auto" | "weak_signal";
 };
 
-function resolveAutoMode(
+function resolveAutoCapability(
   mode: RagAutoMode,
-  baseEnabled: boolean,
-): AutoBaseDecision {
+  settingsEnabled: boolean,
+): { capabilityEnabled: boolean; autoAllowed: boolean } {
   if (mode === "on") {
-    return { baseEnabled: true, autoAllowed: false };
+    // Legacy "on" from admin config might mean "Force", but applied to session settings it's just "Enabled"
+    return { capabilityEnabled: true, autoAllowed: false }; // Reserved for system-forced
   }
   if (mode === "auto") {
-    return { baseEnabled, autoAllowed: !baseEnabled };
+    // If settings enabled it, it's available for Auto.
+    return { capabilityEnabled: settingsEnabled, autoAllowed: true };
   }
-  return { baseEnabled, autoAllowed: false };
+  return { capabilityEnabled: false, autoAllowed: false };
 }
 
 function isWeakRetrieval(
@@ -608,6 +609,38 @@ function selectBetterRetrieval(
     return autoResult.insufficient ? "base" : "auto";
   }
   return "base";
+}
+
+export function evaluateAutoTrigger(args: {
+  forcedFlags?: { reverseRag?: boolean; hyde?: boolean };
+  reverseRagDecision: { autoAllowed: boolean; capabilityEnabled: boolean };
+  hydeDecision: { autoAllowed: boolean; capabilityEnabled: boolean };
+  baseWeak: boolean;
+  suppressAuto: boolean;
+}) {
+  const {
+    forcedFlags,
+    reverseRagDecision,
+    hydeDecision,
+    baseWeak,
+    suppressAuto,
+  } = args;
+
+  const shouldAutoRewrite =
+    (forcedFlags?.reverseRag ?? false) ||
+    (reverseRagDecision.autoAllowed &&
+      reverseRagDecision.capabilityEnabled && // Only run if allowed AND enabled
+      baseWeak &&
+      !suppressAuto);
+
+  const shouldAutoHyde =
+    (forcedFlags?.hyde ?? false) ||
+    (hydeDecision.autoAllowed &&
+      hydeDecision.capabilityEnabled && // Only run if allowed AND enabled
+      baseWeak &&
+      !suppressAuto);
+
+  return { shouldAutoRewrite, shouldAutoHyde };
 }
 
 class AutoPassTimeoutError extends Error {
@@ -703,7 +736,7 @@ interface StreamAnswerResult {
 
 async function computeRagContextAndCitations({
   guardrails,
-  normalizedQuestion,
+  normalizedQuestion: initialNormalizedQuestion,
   routingDecision,
   reverseRagEnabled,
   reverseRagMode,
@@ -740,8 +773,14 @@ async function computeRagContextAndCitations({
   updateTraceCacheMetadata,
   updateRetrievalMetadata,
   includeSelectionTelemetry,
-  safeMode,
+  safeMode = false,
+  forcedFlags,
 }: ComputeRagContextParams): Promise<ComputeRagContextResult> {
+  const normalizedQuestion = normalizeQuestion(
+    typeof routingDecision.question === "string"
+      ? routingDecision.question
+      : initialNormalizedQuestion.normalized,
+  );
   let contextResult = buildIntentContextFallback(
     routingDecision.intent,
     guardrails,
@@ -779,9 +818,11 @@ async function computeRagContextAndCitations({
       CANDIDATE_MIN,
       Math.min(CANDIDATE_MAX, finalK * CANDIDATE_MULTIPLIER),
     );
-    const reverseRagDecision = resolveAutoMode(rewriteMode, reverseRagEnabled);
-    const hydeDecision = resolveAutoMode(hydeMode, hydeEnabled);
-    const questionTokens = estimateTokens(normalizedQuestion.normalized);
+    const reverseRagDecision = resolveAutoCapability(
+      rewriteMode,
+      reverseRagEnabled,
+    );
+    const hydeDecision = resolveAutoCapability(hydeMode, hydeEnabled);
     if (retrievalCacheTtl > 0) {
       const retrievalCacheArgs: RetrievalCacheKeyArgs = {
         question: normalizedQuestion.normalized,
@@ -789,9 +830,9 @@ async function computeRagContextAndCitations({
         ragTopK: guardrails.ragTopK,
         similarityThreshold: guardrails.similarityThreshold,
         candidateK,
-        reverseRagEnabled: reverseRagDecision.baseEnabled,
+        reverseRagEnabled: reverseRagDecision.capabilityEnabled,
         reverseRagMode,
-        hydeEnabled: hydeDecision.baseEnabled,
+        hydeEnabled: hydeDecision.capabilityEnabled,
         rankerMode,
         hydeMode,
         rewriteMode,
@@ -885,8 +926,8 @@ async function computeRagContextAndCitations({
         };
 
         const baseFlags = {
-          reverseRagEnabled: reverseRagDecision.baseEnabled,
-          hydeEnabled: hydeDecision.baseEnabled,
+          reverseRagEnabled: forcedFlags?.reverseRag ?? false,
+          hydeEnabled: forcedFlags?.hyde ?? false,
         };
         const baseStart = Date.now();
         const baseResult = await runRetrieval(baseFlags, "before-rag-retrieve");
@@ -920,12 +961,14 @@ async function computeRagContextAndCitations({
           finalK,
         );
         const suppressAuto = shouldSuppressAuto(guardrails);
-        const shouldAutoRewrite =
-          reverseRagDecision.autoAllowed &&
-          (baseWeak || questionTokens < AUTO_REWRITE_TOKEN_LIMIT) &&
-          !suppressAuto;
-        const shouldAutoHyde =
-          hydeDecision.autoAllowed && baseWeak && !suppressAuto;
+        // Auto Trigger Logic
+        const { shouldAutoRewrite, shouldAutoHyde } = evaluateAutoTrigger({
+          forcedFlags,
+          reverseRagDecision,
+          hydeDecision,
+          baseWeak,
+          suppressAuto,
+        });
 
         if ((shouldAutoRewrite || shouldAutoHyde) && !abortSignal?.aborted) {
           const autoFlags = {
@@ -1101,6 +1144,10 @@ async function computeRagContextAndCitations({
               altType: autoDecisionMetrics.multiQuery?.altType ?? "none",
               multiQueryRan: autoDecisionMetrics.multiQuery?.ran ?? false,
               skippedReason: autoDecisionMetrics.multiQuery?.skippedReason,
+              reason:
+                forcedFlags?.reverseRag || forcedFlags?.hyde
+                  ? "forced"
+                  : "weak_signal",
             }
           : undefined;
 
@@ -2648,9 +2695,9 @@ export async function handleLangchainChat(
       requestIdHeader ?? sessionId ?? normalizedQuestion.normalized;
     const embeddingTrace = runtime.embeddingResolutionSnapshot
       ? buildEmbeddingResolutionTrace(runtime.embeddingResolutionSnapshot, {
-        requestId: embeddingRequestId,
-        presetKey: presetId,
-      })
+          requestId: embeddingRequestId,
+          presetKey: presetId,
+        })
       : null;
     if (embeddingTrace) {
       logEmbeddingResolutionTrace(embeddingTrace);
@@ -2758,6 +2805,7 @@ export async function handleLangchainChat(
         updateTraceCacheMetadata,
         updateRetrievalMetadata,
         safeMode: safeModeActive,
+        forcedFlags: body?.ragOverride?.forceStrategies,
       });
       mark("after-rag-context");
 

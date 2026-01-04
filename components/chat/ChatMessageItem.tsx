@@ -112,7 +112,8 @@ export function ChatMessageItem({
   showTelemetry = false,
   showCitations = false,
   citationLinkLength = 24,
-}: ChatMessageItemProps) {
+  onRetryDeepSearch,
+}: ChatMessageItemProps & { onRetryDeepSearch?: (messageId: string) => void }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const citations = m.citations && m.citations.length > 0 ? m.citations : null;
@@ -261,6 +262,16 @@ export function ChatMessageItem({
               >
                 {isExpanded ? "Hide diagnostics" : "Show diagnostics"}
               </button>
+              {onRetryDeepSearch && (
+                <button
+                  type="button"
+                  className="ai-meta-collapse-btn ml-2 hover:text-blue-500"
+                  onClick={() => onRetryDeepSearch(m.id)}
+                  title="Force a deep search retry for this query"
+                >
+                  Retry with Deep Search
+                </button>
+              )}
             </div>
           )}
           {showRuntimeCard && (

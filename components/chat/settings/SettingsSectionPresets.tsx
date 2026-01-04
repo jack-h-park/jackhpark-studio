@@ -18,7 +18,7 @@ import {
 import type { ImpactKey } from "./impact";
 import { ImpactBadge } from "./ImpactBadge";
 
-type PresetKey = "default" | "fast" | "highRecall";
+type PresetKey = "precision" | "default" | "fast" | "highRecall";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -31,7 +31,8 @@ type Props = {
 };
 
 const PRESET_LABELS: Record<PresetKey, string> = {
-  default: "Default",
+  precision: "Precision",
+  default: "Balanced (Default)",
   fast: "Fast",
   highRecall: "High Recall",
 };
@@ -65,19 +66,22 @@ export function SettingsSectionPresets({
       </SectionHeader>
       <SectionContent className="flex flex-col gap-3">
         {helperText && <p className="ai-meta-text">{helperText}</p>}
-        <GridPanel className="grid-cols-3 gap-[0.3rem]">
-          {(["default", "fast", "highRecall"] as PresetKey[]).map((key) => {
-            const isActive = sessionConfig.appliedPreset === key;
-            return (
-              <SelectableTile
-                key={key}
-                active={isActive}
-                onClick={() => applyPreset(key)}
-              >
-                <span className="ai-choice__label">{PRESET_LABELS[key]}</span>
-              </SelectableTile>
-            );
-          })}
+        <GridPanel className="grid-cols-4 gap-[0.3rem]">
+          {(["precision", "default", "highRecall", "fast"] as PresetKey[]).map(
+            (key) => {
+              const isActive = sessionConfig.appliedPreset === key;
+              return (
+                <SelectableTile
+                  key={key}
+                  active={isActive}
+                  onClick={() => applyPreset(key)}
+                  className="flex flex-col items-center justify-center !text-center h-full w-full"
+                >
+                  <span className="ai-choice__label">{PRESET_LABELS[key]}</span>
+                </SelectableTile>
+              );
+            },
+          )}
         </GridPanel>
       </SectionContent>
     </Section>

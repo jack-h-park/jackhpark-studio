@@ -30,6 +30,7 @@ import {
   enforceEmbeddingProviderAvailability,
   getEmbeddingProviderAvailability,
 } from "@/lib/server/telemetry/embedding-trace";
+import { USER_TUNABLE_KEYS } from "@/lib/shared/chat-settings-policy";
 import { type ModelProvider } from "@/lib/shared/model-provider";
 import {
   type ModelResolutionReason,
@@ -365,12 +366,11 @@ function deriveLegacyEmbeddingMapping(
   if (!normalized || !LEGACY_EMBEDDING_SPACE_PATTERN.test(normalized)) {
     return undefined;
   }
-  const provider: ModelProvider | undefined =
-    normalized.startsWith("gemini_")
-      ? "gemini"
-      : normalized.startsWith("openai_")
-        ? "openai"
-        : undefined;
+  const provider: ModelProvider | undefined = normalized.startsWith("gemini_")
+    ? "gemini"
+    : normalized.startsWith("openai_")
+      ? "openai"
+      : undefined;
   return {
     from: "embeddingModel",
     to: "embeddingSpaceId",
@@ -403,13 +403,12 @@ export function resolveSessionEmbeddingRequest({
   defaults: ChatModelSettings;
 }): EmbeddingSessionRequest {
   const legacyMapping = deriveLegacyEmbeddingMapping(sessionConfig);
-  const hasSessionOverride =
-    Boolean(
-      sessionConfig?.embeddingSpaceId ||
-        sessionConfig?.embeddingProvider ||
-        sessionConfig?.embeddingModelId ||
-        (sessionConfig?.embeddingModel && !legacyMapping),
-    );
+  const hasSessionOverride = Boolean(
+    sessionConfig?.embeddingSpaceId ||
+    sessionConfig?.embeddingProvider ||
+    sessionConfig?.embeddingModelId ||
+    (sessionConfig?.embeddingModel && !legacyMapping),
+  );
   const requestedEmbeddingSpaceId =
     sessionConfig?.embeddingSpaceId ??
     legacyMapping?.value ??
@@ -418,14 +417,13 @@ export function resolveSessionEmbeddingRequest({
     defaults.embeddingSpaceId;
   const requestedProvider =
     sessionConfig?.embeddingProvider ?? legacyMapping?.provider;
-  const source: EmbeddingSessionRequest["source"] =
-    legacyMapping
-      ? "sessionConfig_legacy"
-      : hasSessionOverride
-        ? "sessionConfig"
-        : preset?.embeddingModel
-          ? "preset"
-          : "defaults";
+  const source: EmbeddingSessionRequest["source"] = legacyMapping
+    ? "sessionConfig_legacy"
+    : hasSessionOverride
+      ? "sessionConfig"
+      : preset?.embeddingModel
+        ? "preset"
+        : "defaults";
   return {
     requestedEmbeddingSpaceId,
     requestedProvider,
@@ -543,6 +541,23 @@ export async function loadSystemPrompt(options?: {
   return result;
 }
 
+export function enforceSessionPolicy(sessionConfig?: SessionChatConfig) {
+  const enforced: Partial<SessionChatConfig> = {};
+  const droppedKeys: string[] = [];
+  if (sessionConfig) {
+    for (const key of Object.keys(sessionConfig)) {
+      if (USER_TUNABLE_KEYS.includes(key as keyof SessionChatConfig)) {
+        // Safe to copy
+        // @ts-expect-error - dynamic assignment of filtered keys to Partial<SessionChatConfig>
+        enforced[key] = sessionConfig[key];
+      } else {
+        droppedKeys.push(key);
+      }
+    }
+  }
+  return { enforced, droppedKeys };
+}
+
 export async function loadChatModelSettings(options?: {
   forceRefresh?: boolean;
   client?: SupabaseClient;
@@ -594,8 +609,33 @@ export async function loadChatModelSettings(options?: {
       options.sessionConfig.llmModel,
     );
   }
+
+  // Phase 3: Weak Lockdown Enforcement
+  // We explicitly filter the sessionConfig to only allow tunable keys.
+  // Any other key found in sessionConfig is ignored (effectively falling back to Preset/Default).
+  const { enforced: enforcedSessionConfig, droppedKeys } = enforceSessionPolicy(
+    options?.sessionConfig,
+  );
+
+  if (droppedKeys.length > 0) {
+    ragLogger.info(
+      "[chat-settings] Weak Lockdown: Dropped forbidden keys from sessionConfig",
+      {
+        action: "lockdown_warn",
+        droppedKeys,
+        allowedKeys: USER_TUNABLE_KEYS,
+      },
+    );
+  }
+
+  // Use enforcedSessionConfig instead of options.sessionConfig for resolution
+  const effectiveSessionConfig =
+    Object.keys(enforcedSessionConfig).length > 0
+      ? (enforcedSessionConfig as SessionChatConfig)
+      : undefined;
+
   const rawLlmModelId =
-    options?.sessionConfig?.llmModel ?? preset?.llmModel ?? defaults.llmModelId;
+    effectiveSessionConfig?.llmModel ?? preset?.llmModel ?? defaults.llmModelId;
 
   const normalizedLlmModelId =
     normalizeLlmModelId(rawLlmModelId) ?? rawLlmModelId ?? defaults.llmModelId;
@@ -604,7 +644,7 @@ export async function loadChatModelSettings(options?: {
     raw: rawLlmModelId,
     normalized: normalizedLlmModelId,
     defaults: defaults.llmModelId,
-    session: options?.sessionConfig?.llmModel,
+    session: effectiveSessionConfig?.llmModel,
   });
 
   if (
@@ -772,8 +812,7 @@ export async function loadChatModelSettings(options?: {
     undefined;
   const sessionEmbeddingModelId =
     options?.sessionConfig?.embeddingModelId ?? undefined;
-  const sessionPresetKey =
-    options?.sessionConfig?.presetId ?? undefined;
+  const sessionPresetKey = options?.sessionConfig?.presetId ?? undefined;
   const sessionAppliedPreset =
     options?.sessionConfig?.appliedPreset ?? undefined;
   const sessionOverrideRaw: EmbeddingSessionOverrideTrace["raw"] = {};
@@ -817,16 +856,16 @@ export async function loadChatModelSettings(options?: {
   const sessionOverride =
     Object.keys(sessionOverrideRaw).length > 0
       ? {
-        raw: sessionOverrideRaw,
-        applied: {
-          provider: embeddingSelection.provider,
-          model: embeddingSelection.model,
-          spaceId: embeddingSelection.embeddingSpaceId,
-        },
-        note:
-          sessionOverrideNote ??
-          "sessionConfig override priority: sessionConfig > preset > defaults",
-      }
+          raw: sessionOverrideRaw,
+          applied: {
+            provider: embeddingSelection.provider,
+            model: embeddingSelection.model,
+            spaceId: embeddingSelection.embeddingSpaceId,
+          },
+          note:
+            sessionOverrideNote ??
+            "sessionConfig override priority: sessionConfig > preset > defaults",
+        }
       : undefined;
   const embeddingResolutionSnapshot: EmbeddingResolutionSnapshot = {
     requestedModel: requestedEmbeddingModel ?? undefined,

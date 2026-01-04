@@ -158,7 +158,8 @@ export function buildEmbeddingResolutionTrace(
     availability?: EmbeddingProviderAvailability;
   },
 ): EmbeddingResolutionTrace {
-  const availability = options?.availability ?? getEmbeddingProviderAvailability();
+  const availability =
+    options?.availability ?? getEmbeddingProviderAvailability();
   return {
     requestId: options?.requestId ?? null,
     presetKey: options?.presetKey,
@@ -182,6 +183,8 @@ export function buildEmbeddingResolutionTrace(
   };
 }
 
-export function logEmbeddingResolutionTrace(trace: EmbeddingResolutionTrace): void {
+export function logEmbeddingResolutionTrace(
+  trace: EmbeddingResolutionTrace,
+): void {
   ragLogger.debug("[embedding] resolution", trace);
 }

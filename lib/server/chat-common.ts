@@ -36,6 +36,13 @@ export type ChatRequestBody = {
   rankerMode?: unknown;
   sessionConfig?: unknown;
   config?: unknown;
+  ragOverride?: {
+    mode: "deep_search";
+    forceStrategies?: {
+      hyde?: boolean;
+      reverseRag?: boolean;
+    };
+  };
 };
 
 export type RetrievalLogEntry = {

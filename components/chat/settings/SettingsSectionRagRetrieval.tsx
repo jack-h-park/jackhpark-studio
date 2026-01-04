@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { SliderNumberField } from "@/components/ui/slider-number-field";
 import { Switch } from "@/components/ui/switch";
+import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
 const SUMMARY_LEVELS: Record<SummaryLevel, string> = {
   off: "Off",
@@ -46,6 +47,9 @@ export function SettingsSectionRagRetrieval({
   sessionConfig,
   setSessionConfig,
 }: Props) {
+  const isRagLocked = isSettingLocked("rag");
+  const isFeaturesLocked = isSettingLocked("features");
+
   const updateSession = (
     updater: (next: SessionChatConfig) => SessionChatConfig,
   ) => {
@@ -147,16 +151,23 @@ export function SettingsSectionRagRetrieval({
       <SectionHeader>
         <SectionTitle
           id="settings-rag-title"
-          as="p"
+          as="div"
+          className="flex items-center gap-2"
           icon={<FiTarget aria-hidden="true" />}
         >
-          Retrieval (RAG)
+          <span>Retrieval (RAG)</span>
+          {isRagLocked && (
+            <span className="ml-2 inline-flex items-center rounded-sm border border-muted-foreground/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              Managed by Preset
+            </span>
+          )}
         </SectionTitle>
         <Switch
           className="flex-shrink-0"
           aria-labelledby="settings-rag-title"
           checked={isRagEnabled}
           onCheckedChange={handleRagEnabledChange}
+          disabled={isRagLocked}
         />
       </SectionHeader>
 
@@ -169,7 +180,7 @@ export function SettingsSectionRagRetrieval({
             min={ragTopK.min}
             max={ragTopK.max}
             step={1}
-            disabled={!isRagEnabled}
+            disabled={!isRagEnabled || isRagLocked}
             onChange={handleTopKChange}
           />
         </div>
@@ -182,19 +193,21 @@ export function SettingsSectionRagRetrieval({
             min={similarityThreshold.min}
             max={similarityThreshold.max}
             step={0.01}
-            disabled={!isRagEnabled}
+            disabled={!isRagEnabled || isRagLocked}
             onChange={handleSimilarityChange}
           />
         </div>
 
         <div className="ai-field pt-2">
-          <Label className="ai-field__label">Capabilities</Label>
+          <Label className="ai-field__label">
+            Capabilities {isFeaturesLocked && "(Locked by Preset)"}
+          </Label>
           <div className="flex flex-col gap-3 pl-1">
             {adminConfig.allowlist.allowReverseRAG && (
               <CheckboxChoice
                 label="Reverse RAG"
                 checked={sessionConfig.features.reverseRAG}
-                disabled={!isRagEnabled}
+                disabled={!isRagEnabled || isFeaturesLocked}
                 onCheckedChange={(checked) =>
                   handleFeatureToggle("reverseRAG", checked)
                 }
@@ -205,7 +218,7 @@ export function SettingsSectionRagRetrieval({
               <CheckboxChoice
                 label="HyDE"
                 checked={sessionConfig.features.hyde}
-                disabled={!isRagEnabled}
+                disabled={!isRagEnabled || isFeaturesLocked}
                 onCheckedChange={(checked) =>
                   handleFeatureToggle("hyde", checked)
                 }
@@ -221,7 +234,7 @@ export function SettingsSectionRagRetrieval({
           <Select
             value={sessionConfig.features.ranker}
             onValueChange={handleRankerChange}
-            disabled={!isRagEnabled}
+            disabled={!isRagEnabled || isFeaturesLocked}
           >
             <SelectTrigger
               id="settings-ranker"

@@ -507,7 +507,7 @@ export function SessionPresetsCard({
       </CardHeader>
       <CardContent className="space-y-6">
         <GridPanel className="gap-4 px-4 py-5 shadow-sm">
-          <div className="grid grid-cols-[minmax(190px,1fr)_repeat(3,minmax(0,1fr))] gap-y-3 gap-x-4 items-start">
+          <div className="grid grid-cols-[minmax(190px,1fr)_repeat(4,minmax(0,1fr))] gap-y-3 gap-x-4 items-start">
             <div
               className={`${sessionGridLabelClass} ${sessionGridHeaderClass}`}
             >

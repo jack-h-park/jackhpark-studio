@@ -70,13 +70,22 @@ function extractStatusCode(error: unknown): number | null {
   if (typeof error !== "object" || error === null) {
     return null;
   }
-  if ("statusCode" in error && typeof (error as { statusCode?: unknown }).statusCode === "number") {
+  if (
+    "statusCode" in error &&
+    typeof (error as { statusCode?: unknown }).statusCode === "number"
+  ) {
     return (error as { statusCode: number }).statusCode;
   }
-  if ("status" in error && typeof (error as { status?: unknown }).status === "number") {
+  if (
+    "status" in error &&
+    typeof (error as { status?: unknown }).status === "number"
+  ) {
     return (error as { status: number }).status;
   }
-  if ("code" in error && typeof (error as { code?: unknown }).code === "number") {
+  if (
+    "code" in error &&
+    typeof (error as { code?: unknown }).code === "number"
+  ) {
     return (error as { code: number }).code;
   }
   return null;

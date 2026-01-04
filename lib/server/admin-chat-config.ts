@@ -7,6 +7,7 @@ import type {
   RankerId,
 } from "@/lib/shared/models";
 import { SYSTEM_SETTINGS_TABLE } from "@/lib/chat-prompts";
+import { DEFAULT_EMBEDDING_MODEL_ID } from "@/lib/core/embedding-spaces";
 import { supabaseClient } from "@/lib/core/supabase";
 import {
   type AdminChatConfig,
@@ -99,12 +100,120 @@ export type AdminChatPreset = {
   context: ContextPreset;
   features: FeatureFlagsPreset;
   summaryLevel: SummaryLevel;
+  safeMode?: boolean;
+  requireLocal?: boolean;
 };
 
-export type AdminChatPresetsConfig = {
+export type AdminChatPresetsConfig = Record<string, AdminChatPreset> & {
   default: AdminChatPreset;
   fast: AdminChatPreset;
   highRecall: AdminChatPreset;
+  precision: AdminChatPreset;
+};
+
+const FALLBACK_MINIMAL_EMBEDDING_MODEL =
+  DEFAULT_EMBEDDING_MODEL_ID || "text-embedding-3-small";
+
+const CONCISE_PROMPT =
+  "Answer concisely and accurately. Avoid speculation. Use retrieved context only when it clearly improves correctness.";
+const COMPLETE_PROMPT =
+  "Prioritize completeness and coverage. It is acceptable to include multiple perspectives or partially relevant context if it improves recall.";
+const SPEED_PROMPT =
+  "Focus on speed and brevity. Prefer short, direct answers. Avoid unnecessary explanations or deep reasoning.";
+
+export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
+  default: {
+    additionalSystemPrompt: CONCISE_PROMPT,
+    llmModel: "gpt-4o",
+    embeddingModel: FALLBACK_MINIMAL_EMBEDDING_MODEL,
+    rag: {
+      enabled: true,
+      topK: 6,
+      similarity: 0.4,
+    },
+    context: {
+      tokenBudget: 2048,
+      historyBudget: 1024,
+      clipTokens: 128,
+    },
+    features: {
+      reverseRAG: false,
+      hyde: false,
+      ranker: "none",
+    },
+    summaryLevel: "low",
+    safeMode: false,
+    requireLocal: false,
+  },
+  fast: {
+    additionalSystemPrompt: SPEED_PROMPT,
+    llmModel: "gpt-4o-mini",
+    embeddingModel: FALLBACK_MINIMAL_EMBEDDING_MODEL,
+    rag: {
+      enabled: true,
+      topK: 3,
+      similarity: 0.35,
+    },
+    context: {
+      tokenBudget: 1536,
+      historyBudget: 512,
+      clipTokens: 64,
+    },
+    features: {
+      reverseRAG: false,
+      hyde: false,
+      ranker: "none",
+    },
+    summaryLevel: "low",
+    safeMode: false,
+    requireLocal: false,
+  },
+  highRecall: {
+    additionalSystemPrompt: COMPLETE_PROMPT,
+    llmModel: "gpt-4o",
+    embeddingModel: FALLBACK_MINIMAL_EMBEDDING_MODEL,
+    rag: {
+      enabled: true,
+      topK: 12,
+      similarity: 0.3,
+    },
+    context: {
+      tokenBudget: 3072,
+      historyBudget: 1536,
+      clipTokens: 256,
+    },
+    features: {
+      reverseRAG: true,
+      hyde: false,
+      ranker: "mmr",
+    },
+    summaryLevel: "medium",
+    safeMode: false,
+    requireLocal: false,
+  },
+  precision: {
+    additionalSystemPrompt: CONCISE_PROMPT,
+    llmModel: "gpt-4o",
+    embeddingModel: FALLBACK_MINIMAL_EMBEDDING_MODEL,
+    rag: {
+      enabled: true,
+      topK: 4,
+      similarity: 0.55,
+    },
+    context: {
+      tokenBudget: 2048,
+      historyBudget: 768,
+      clipTokens: 128,
+    },
+    features: {
+      reverseRAG: false,
+      hyde: false,
+      ranker: "none",
+    },
+    summaryLevel: "off",
+    safeMode: false,
+    requireLocal: false,
+  },
 };
 
 export type RagRankingConfig = {
@@ -215,30 +324,41 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     !mergedConfig.numericLimits ||
     !mergedConfig.allowlist ||
     !mergedConfig.guardrails ||
-    !mergedConfig.summaryPresets ||
-    !mergedConfig.presets
+    !mergedConfig.summaryPresets
   ) {
     throw new Error(
       "[admin-chat-config] admin_chat_config is missing required fields.",
     );
   }
 
+  const configPresets: Partial<AdminChatPresetsConfig> =
+    mergedConfig.presets ?? {};
+  const mergedPresets: AdminChatPresetsConfig = {
+    ...DEFAULT_ADMIN_CHAT_PRESETS,
+    ...configPresets,
+  } as AdminChatPresetsConfig;
+
   if (
-    !mergedConfig.presets.default ||
-    !mergedConfig.presets.fast ||
-    !mergedConfig.presets.highRecall
+    !mergedPresets.default ||
+    !mergedPresets.fast ||
+    !mergedPresets.highRecall
   ) {
     throw new Error(
       "[admin-chat-config] admin_chat_config.presets is missing required presets.",
     );
   }
 
-  const localRequiredPreset: AdminChatPreset = mergedConfig.presets[
+  const localRequiredPreset: AdminChatPreset = mergedPresets[
     "local-required"
   ] ?? {
-    ...mergedConfig.presets.default,
+    ...mergedPresets.default,
     llmModel: "mistral-ollama",
     requireLocal: true,
+  };
+
+  const finalPresets: AdminChatPresetsConfig = {
+    ...mergedPresets,
+    "local-required": localRequiredPreset,
   };
 
   const additionalPromptMaxLength =
@@ -270,10 +390,7 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     rewriteMode,
     ragMultiQueryMode,
     ragMultiQueryMaxQueries,
-    presets: {
-      ...mergedConfig.presets,
-      "local-required": localRequiredPreset,
-    },
+    presets: finalPresets,
   };
 }
 

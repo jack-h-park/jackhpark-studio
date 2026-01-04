@@ -26,12 +26,11 @@ const buildSessionConfig = (
   embeddingProvider: overrides.embeddingProvider,
   embeddingModelId: overrides.embeddingModelId,
   rag: overrides.rag ?? { enabled: true, topK: 5, similarity: 0.78 },
-  context:
-    overrides.context ?? {
-      tokenBudget: 1200,
-      historyBudget: 600,
-      clipTokens: 64,
-    },
+  context: overrides.context ?? {
+    tokenBudget: 1200,
+    historyBudget: 600,
+    clipTokens: 64,
+  },
   features: {
     reverseRAG: overrides.features?.reverseRAG ?? false,
     hyde: overrides.features?.hyde ?? false,

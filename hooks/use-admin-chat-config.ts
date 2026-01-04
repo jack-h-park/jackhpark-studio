@@ -64,15 +64,17 @@ export const numericLimitLabels: Record<
 };
 
 export const presetDisplayNames: Record<PresetKey, string> = {
-  default: "Default",
+  default: "Balanced (Default)",
   fast: "Fast",
   highRecall: "High Recall",
+  precision: "Precision",
 };
 
 export const presetDisplayOrder: PresetKey[] = [
+  "precision",
   "default",
-  "fast",
   "highRecall",
+  "fast",
 ];
 
 export type AdminLlmModelOption = {

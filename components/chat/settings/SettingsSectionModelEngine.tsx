@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/select";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { listAllLlmModelOptions } from "@/lib/core/llm-registry";
+import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -44,6 +45,8 @@ export function SettingsSectionModelEngine({
   setSessionConfig,
 }: Props) {
   const { runtimeMeta } = useChatConfig();
+  const isEmbeddingLocked = isSettingLocked("embeddingModel");
+
   const llmOptions = useMemo(() => {
     const allowlist = new Set(adminConfig.allowlist.llmModels);
     // Use listAllLlmModelOptions to get all definitions, then filter by client-side runtimeMeta
@@ -142,11 +145,20 @@ export function SettingsSectionModelEngine({
         </div>
 
         <div className="ai-field">
-          <Label htmlFor="settings-embedding-model" className="ai-field__label">
+          <Label
+            htmlFor="settings-embedding-model"
+            className="ai-field__label flex items-center gap-2"
+          >
             Embedding Model
+            {isEmbeddingLocked && (
+              <span className="inline-flex items-center rounded-sm border border-muted-foreground/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                Managed by Preset
+              </span>
+            )}
           </Label>
           <Select
             value={sessionConfig.embeddingModel}
+            disabled={isEmbeddingLocked}
             onValueChange={(value) => {
               const selectedSpace = embeddingOptions.find(
                 (space) => space.embeddingSpaceId === value,
@@ -181,15 +193,15 @@ export function SettingsSectionModelEngine({
           {sessionConfig.embeddingSpaceId &&
             EMBEDDING_SPACE_WARNINGS[sessionConfig.embeddingSpaceId] && (
               <div className="ai-warning-callout mt-2">
-                <FiAlertCircle aria-hidden="true" className="ai-icon" size={16} />
+                <FiAlertCircle
+                  aria-hidden="true"
+                  className="ai-icon"
+                  size={16}
+                />
                 <div className="flex flex-col gap-1">
                   <span className="font-medium">Embedding space warning</span>
                   <span className="opacity-90">
-                    {
-                      EMBEDDING_SPACE_WARNINGS[
-                        sessionConfig.embeddingSpaceId
-                      ]
-                    }
+                    {EMBEDDING_SPACE_WARNINGS[sessionConfig.embeddingSpaceId]}
                   </span>
                 </div>
               </div>

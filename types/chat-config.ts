@@ -45,7 +45,7 @@ export interface SessionChatConfig {
     ranker: RankerId;
   };
   summaryLevel: SummaryLevel;
-  appliedPreset?: "default" | "fast" | "highRecall";
+  appliedPreset?: "precision" | "default" | "fast" | "highRecall";
   safeMode?: boolean;
   requireLocal?: boolean;
 }
@@ -163,6 +163,7 @@ export type AdminChatPresetsConfig = Record<string, AdminPresetConfig> & {
   default: AdminPresetConfig;
   fast: AdminPresetConfig;
   highRecall: AdminPresetConfig;
+  precision: AdminPresetConfig;
 };
 
 export type ChatEngineType =

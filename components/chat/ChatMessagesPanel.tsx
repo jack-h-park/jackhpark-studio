@@ -15,6 +15,7 @@ export type ChatMessagesPanelProps = {
   showCitations?: boolean;
   showPlaceholder?: boolean;
   citationLinkLength?: number;
+  onRetryDeepSearch?: (messageId: string) => void;
 };
 
 export function ChatMessagesPanel({
@@ -25,6 +26,7 @@ export function ChatMessagesPanel({
   showCitations = false,
   showPlaceholder = true,
   citationLinkLength = 24,
+  onRetryDeepSearch,
 }: ChatMessagesPanelProps) {
   if (messages.length === 0) {
     if (showPlaceholder) {
@@ -46,7 +48,7 @@ export function ChatMessagesPanel({
 
   return (
     <>
-      {messages.map((m) => (
+      {messages.map((m, i) => (
         <ChatMessageItem
           key={m.id}
           message={m}
@@ -55,6 +57,9 @@ export function ChatMessagesPanel({
           showTelemetry={showTelemetry}
           showCitations={showCitations}
           citationLinkLength={citationLinkLength}
+          onRetryDeepSearch={
+            i === messages.length - 1 ? onRetryDeepSearch : undefined
+          }
         />
       ))}
     </>

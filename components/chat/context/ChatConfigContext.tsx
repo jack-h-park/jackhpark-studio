@@ -128,9 +128,7 @@ const sanitizeNumericConfig = (
     allowlist.embeddingModels,
     fallbackSpace.embeddingSpaceId as EmbeddingModelId,
   );
-  const finalEmbeddingSpace = resolveEmbeddingSpace(
-    sanitizedEmbeddingSpaceId,
-  );
+  const finalEmbeddingSpace = resolveEmbeddingSpace(sanitizedEmbeddingSpaceId);
   const resolvedEmbeddingModelId =
     candidate.embeddingModelId ?? finalEmbeddingSpace.embeddingModelId;
 

@@ -22,6 +22,7 @@ import {
   computeHistoryPreview,
   type HistoryPreviewResult,
 } from "@/lib/chat/historyWindowPreview";
+import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
 import type { ImpactKey } from "./impact";
 import { HistoryPreview } from "./HistoryPreview";
@@ -44,6 +45,8 @@ export function SettingsSectionContextHistory({
   onDisruptiveChange,
   messages,
 }: Props) {
+  const isContextLocked = isSettingLocked("context");
+
   const updateSession = (
     updater: (next: SessionChatConfig) => SessionChatConfig,
   ) => {
@@ -237,10 +240,16 @@ export function SettingsSectionContextHistory({
       <SectionHeader>
         <SectionTitle
           id="settings-context-history-title"
-          as="p"
+          as="div"
+          className="flex items-center gap-2"
           icon={<FiClock aria-hidden="true" />}
         >
-          Context &amp; History
+          <span>Context &amp; History</span>
+          {isContextLocked && (
+            <span className="ml-2 inline-flex items-center rounded-sm border border-muted-foreground/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              Managed by Preset
+            </span>
+          )}
         </SectionTitle>
         <div className="flex items-center gap-2">
           <span className="sr-only" id="settings-context-history-toggle">
@@ -251,6 +260,7 @@ export function SettingsSectionContextHistory({
             checked={isContextEnabled}
             aria-labelledby="settings-context-history-title settings-context-history-toggle"
             onCheckedChange={setIsContextEnabled}
+            disabled={isContextLocked}
           />
         </div>
       </SectionHeader>
@@ -270,7 +280,7 @@ export function SettingsSectionContextHistory({
             max={limit.max}
             step={1}
             onChange={(value) => handleContextSliderChange(key, limit, value)}
-            disabled={!isContextEnabled}
+            disabled={!isContextEnabled || isContextLocked}
           />
         ))}
 

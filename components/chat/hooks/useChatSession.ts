@@ -226,6 +226,7 @@ export type UseChatSessionResult = {
   runtimeConfig: ChatRuntimeConfig | null;
   loadingAssistantId: string | null;
   sendMessage: (value: string) => Promise<void>;
+  retryWithDeepSearch: () => Promise<void>;
   abortActiveRequest: () => void;
 };
 
@@ -407,7 +408,6 @@ export function useChatSession(
           const reader = response.body.getReader();
           const decoder = new TextDecoder();
           let fullContent = "";
-          let clientChunkIndex = 0;
 
           let done = false;
           let ttftRecorded = false;
@@ -425,12 +425,11 @@ export function useChatSession(
               setLoadingAssistantId(null);
             }
             fullContent += chunkText;
-            clientChunkIndex += 1;
             if (STREAM_TRACE_LOGGING_ENABLED) {
               // eslint-disable-next-line unicorn/prefer-string-replace-all
               const preview = chunkText.replace(/\s+/g, " ").trim();
               console.debug(
-                `[langchain_chat:client] chunk ${clientChunkIndex} (${chunkText.length} chars): ${
+                `[langchain_chat:client] chunk (${chunkText.length} chars): ${
                   preview.length > 0 ? preview.slice(0, 40) : "<empty>"
                 }`,
               );
@@ -519,12 +518,233 @@ export function useChatSession(
     [isLoading, messages, runtimeConfig, config],
   );
 
+  const retryWithDeepSearch = useCallback(async () => {
+    if (isLoading || messages.length === 0) return;
+
+    // 1. Find last user message
+    const lastMessage = messages.at(-1);
+    if (!lastMessage) return;
+
+    let userMessage: ChatMessage | null = null;
+    let newHistory = messages;
+
+    if (lastMessage.role === "user") {
+      userMessage = lastMessage;
+    } else if (lastMessage.role === "assistant") {
+      const prev = messages.at(-2);
+      if (prev?.role === "user") {
+        userMessage = prev;
+        newHistory = messages.slice(0, -1); // Remove the assistant failure
+      }
+    }
+
+    if (!userMessage) return;
+
+    // 2. Prepare UI state
+    const timestamp = Date.now();
+    const assistantMessageId = `assistant-${timestamp}`;
+    const assistantMessage: ChatMessage = {
+      id: assistantMessageId,
+      role: "assistant",
+      content: "",
+      isComplete: false,
+    };
+
+    setLoadingAssistantId(assistantMessageId);
+    setMessages([...newHistory, assistantMessage]);
+    setIsLoading(true);
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    // 3. Duplicate logic (TODO: Refactor shareable core)
+    // For now, implementing the core fetch logic again to avoid massive refactor of 'run' which captures many closure vars.
+    // Ideally we'd extract 'fetchAndStream' but 'updateAssistant' depends on setMessages which depends on the specific IDs.
+
+    // We can reuse the exact same logic structure.
+
+    const updateAssistant = (
+      content?: string,
+      meta?: GuardrailMeta | null,
+      citations?: ChatResponse["citations"],
+      runtime?: ChatRuntimeConfig | null,
+      isComplete?: boolean,
+      metrics?: ChatMessageMetrics,
+    ) => {
+      setMessages((prev) =>
+        prev.map((message) =>
+          message.id === assistantMessageId
+            ? {
+                ...message,
+                content:
+                  typeof content === "string" ? content : message.content,
+                ...(meta !== undefined ? { meta } : {}),
+                ...(citations !== undefined
+                  ? {
+                      citations: citations.citations ?? [],
+                      citationMeta: citations.citationMeta ?? null,
+                    }
+                  : {}),
+                ...(runtime !== undefined ? { runtime } : {}),
+                ...(isComplete !== undefined ? { isComplete } : {}),
+                ...(metrics || isComplete
+                  ? {
+                      metrics: {
+                        ...message.metrics,
+                        ...metrics,
+                        ...(isComplete
+                          ? { totalMs: Date.now() - timestamp }
+                          : {}),
+                      },
+                    }
+                  : {}),
+              }
+            : message,
+        ),
+      );
+    };
+
+    try {
+      const endpoint = `/api/chat`;
+      const sanitizedHistory = newHistory.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: userMessage.content,
+          messages: sanitizedHistory,
+          config,
+          ragOverride: {
+            mode: "deep_search",
+            forceStrategies: {
+              hyde: true,
+              reverseRag: true,
+            },
+          },
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok || !response.body) {
+        throw await buildResponseError(response);
+      }
+
+      const guardrailMeta = deserializeGuardrailMeta(
+        response.headers.get("x-guardrail-meta"),
+      );
+      if (guardrailMeta) {
+        updateAssistant(undefined, guardrailMeta);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+
+      let done = false;
+      let ttftRecorded = false;
+      while (!done) {
+        const result = await reader.read();
+        done = result.done ?? false;
+        const chunk = result.value;
+        if (!chunk) continue;
+
+        const chunkText = decoder.decode(chunk, { stream: !done });
+        if (
+          loadingAssistantRef.current === assistantMessageId &&
+          chunkText.trim().length > 0
+        ) {
+          setLoadingAssistantId(null);
+        }
+        fullContent += chunkText;
+        // trace logging omitted for brevity in retry
+        if (!isMountedRef.current) return;
+
+        const [answer] = fullContent.split(CITATIONS_SEPARATOR);
+        updateAssistant(answer);
+
+        if (!ttftRecorded && answer.trim().length > 0) {
+          ttftRecorded = true;
+          updateAssistant(
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            {
+              ttftMs: Date.now() - timestamp,
+            },
+          );
+        }
+      }
+
+      const [answer, citationsJson] = fullContent.split(CITATIONS_SEPARATOR);
+      const finalContent = (answer ?? "").trim();
+      const parsedPayload = parseCitationPayload(citationsJson);
+
+      if (isMountedRef.current) {
+        updateAssistant(
+          finalContent,
+          guardrailMeta,
+          parsedPayload,
+          runtimeConfig ?? null,
+          true,
+        );
+      }
+    } catch (err) {
+      if (!isMountedRef.current) return;
+      if (controller.signal.aborted) {
+        setMessages((prev) =>
+          prev.map((item) =>
+            item.id === assistantMessageId
+              ? {
+                  ...item,
+                  content: item.content.trim() + " [Stopped]",
+                  isComplete: true,
+                  metrics: {
+                    ...item.metrics,
+                    totalMs: Date.now() - timestamp,
+                    aborted: true,
+                  },
+                }
+              : item,
+          ),
+        );
+        return;
+      }
+      console.error("[useChatSession] retry failed", err);
+      const message = getUserFacingErrorMessage(err);
+      setMessages((prev) =>
+        prev.map((item) =>
+          item.id === assistantMessageId
+            ? {
+                ...item,
+                content: `Warning: ${message}`,
+                isComplete: true,
+                metrics: { ...item.metrics, totalMs: Date.now() - timestamp }, // ensure metrics close
+              }
+            : item,
+        ),
+      );
+    } finally {
+      abortControllerRef.current = null;
+      setLoadingAssistantId(null);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
+    }
+  }, [isLoading, messages, config, runtimeConfig]);
+
   return {
     messages,
     isLoading,
     runtimeConfig,
     loadingAssistantId,
     sendMessage,
+    retryWithDeepSearch,
     abortActiveRequest,
   };
 }
