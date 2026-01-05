@@ -54,6 +54,10 @@
   border-bottom: 1px solid hsl(var(--ai-border));
 }
 
+.drawerTitle {
+  color: var(--ai-text-strong);
+}
+
 .content {
   padding: 20px;
   flex: 1;

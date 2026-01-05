@@ -67,7 +67,7 @@ export function Select({
         {children}
       </select>
       <FiChevronDown
-        className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50 pointer-events-none"
+        className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-75 pointer-events-none text-[color:var(--ai-text-strong)]"
         aria-hidden="true"
       />
     </div>

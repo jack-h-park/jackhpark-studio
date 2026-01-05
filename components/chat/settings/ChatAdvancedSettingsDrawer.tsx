@@ -118,7 +118,11 @@ export function ChatAdvancedSettingsDrawer({
         <div className={styles.panel}>
           <div className={styles.inner}>
             <div className={styles.header}>
-              <HeadingWithIcon as="h2" icon={<FiSettings aria-hidden="true" />}>
+              <HeadingWithIcon
+                as="h2"
+                icon={<FiSettings aria-hidden="true" />}
+                className={styles.drawerTitle}
+              >
                 Advanced Settings
               </HeadingWithIcon>
               <Button

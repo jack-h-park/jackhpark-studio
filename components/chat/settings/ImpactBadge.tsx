@@ -13,7 +13,7 @@ type Props = {
 };
 
 const BASE_CLASSES =
-  "inline-flex select-none items-center gap-1 rounded-full border border-[color:var(--ai-border-muted)] bg-[color:var(--ai-bg-surface-muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--ai-text-muted)]";
+  "inline-flex select-none items-center gap-1 rounded-full border border-[color:var(--ai-border-strong)] bg-[color:var(--ai-bg-surface-muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-[color:var(--ai-text-strong)]";
 
 export function ImpactBadge({ label, controlId, className }: Props) {
   const controlImpact = controlId
