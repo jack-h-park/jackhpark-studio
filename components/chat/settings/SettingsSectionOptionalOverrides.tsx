@@ -277,61 +277,6 @@ function UserPromptEditor({
   helperClassName,
   onChange,
 }: UserPromptEditorProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const trimmed = value.trim();
-
-  if (!isEditing) {
-    return (
-      <div className="space-y-1">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Label className={cn("ai-field__label", styles.overlineLabel)}>
-              User system prompt
-            </Label>
-            <ImpactBadge label="May change output" />
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsEditing(true)}
-            className={cn(
-              styles.inlineUtilityAction,
-              "underline-offset-2 hover:underline",
-            )}
-          >
-            Edit prompt
-          </button>
-        </div>
-        <div
-          className={styles.promptPreviewSurface}
-          tabIndex={0}
-          role="button"
-          onClick={() => setIsEditing(true)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              setIsEditing(true);
-            }
-          }}
-        >
-          <p
-            className={cn("text-sm leading-relaxed", styles.promptPreviewText)}
-            aria-label={trimmed || "No prompt configured"}
-          >
-            {trimmed || "No custom prompt yet."}
-          </p>
-        </div>
-        <p
-          className={cn(
-            helperClassName ?? "ai-setting-section-description",
-            styles.promptHelper,
-          )}
-        >
-          {helperText}
-        </p>
-      </div>
-    );
-  }
-
   return (
     <PromptWithCounter
       label={

@@ -45,12 +45,17 @@ export function PromptWithCounter({
       : descriptionId
     : textareaAriaDescribedBy;
   return (
-    <div className={cn("space-y-2", className)}>
-      <div className="flex items-end justify-between gap-2">
+    <div className={cn("space-y-2 w-full", className)}>
+      <div className="flex items-end gap-2 w-full">
         <Label htmlFor={id} className={cn("ai-field__label", labelClassName)}>
           {label}
         </Label>
-        <span className={cn("ai-meta-text text-xs ml-auto", counterClassName)}>
+        <span
+          className={cn(
+            "ai-meta-text text-xs ml-auto text-right pr-1",
+            counterClassName,
+          )}
+        >
           {value.length} / {maxLength} characters
         </span>
       </div>
