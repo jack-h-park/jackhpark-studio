@@ -15,7 +15,7 @@
 }
 
 .message a {
-  color: #1d4ed8;
+  color: var(--ai-role-interaction-base);
   text-decoration: underline;
   word-break: break-word;
 }
@@ -27,7 +27,7 @@
 
 .user {
   background: var(--ai-accent);
-  color: white;
+  color: var(--ai-role-surface-default);
   align-self: flex-end;
   border-bottom-right-radius: 4px;
 }

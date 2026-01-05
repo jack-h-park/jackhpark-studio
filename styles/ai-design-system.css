@@ -47,6 +47,22 @@
   --ai-error: #ef4444;
   --ai-error-muted: color-mix(in srgb, var(--ai-error) 20%, transparent);
   --ai-ring: var(--select-color-0);
+
+  /* Role aliases */
+  --ai-role-surface-default: var(--ai-surface);
+  --ai-role-surface-muted: var(--ai-surface-muted);
+  --ai-role-surface-overlay: var(--ai-surface-tint);
+  --ai-role-surface-highlight: var(--ai-accent-bg);
+  --ai-role-border-base: var(--ai-border-subtle);
+  --ai-role-border-muted: var(--ai-border-muted);
+  --ai-role-border-strong: var(--ai-border-strong);
+  --ai-role-divider-base: var(--ai-divider);
+  --ai-role-divider-muted: color-mix(in srgb, var(--ai-divider) 70%, transparent);
+  --ai-role-interaction-base: var(--ai-accent);
+  --ai-role-interaction-hover: var(--ai-accent-strong);
+  --ai-role-interaction-active: var(--ai-accent-soft);
+  --ai-role-interaction-focus: var(--ai-ring);
+  --ai-role-interaction-muted: var(--ai-text-muted);
 }
 
 .dark {
