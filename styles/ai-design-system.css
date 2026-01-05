@@ -53,11 +53,44 @@
   --ai-role-surface-muted: var(--ai-surface-muted);
   --ai-role-surface-overlay: var(--ai-surface-tint);
   --ai-role-surface-highlight: var(--ai-accent-bg);
+  --ai-role-surface-0: var(--ai-role-surface-muted);
+  --ai-role-surface-1: var(--ai-role-surface-default);
+  --ai-role-surface-1-overlay: color-mix(
+    in srgb,
+    var(--ai-role-surface-1) 92%,
+    var(--ai-role-border-muted) 8%
+  );
+  --ai-role-surface-2: var(--ai-role-surface-1-overlay);
+  --ai-role-surface-hover: color-mix(
+    in srgb,
+    var(--ai-role-surface-highlight) 28%,
+    var(--ai-role-surface-1) 72%
+  );
+  --ai-role-surface-selected: color-mix(
+    in srgb,
+    var(--ai-role-interaction-active) 40%,
+    var(--ai-role-surface-1) 60%
+  );
+  --ai-role-surface-active: color-mix(
+    in srgb,
+    var(--ai-role-interaction-active) 46%,
+    var(--ai-role-surface-1) 54%
+  );
   --ai-role-border-base: var(--ai-border-subtle);
+  --ai-role-border-subtle: var(--ai-border-subtle);
   --ai-role-border-muted: var(--ai-border-muted);
   --ai-role-border-strong: var(--ai-border-strong);
+  --ai-role-border-selected: color-mix(
+    in srgb,
+    var(--ai-role-interaction-active) 70%,
+    transparent
+  );
   --ai-role-divider-base: var(--ai-divider);
-  --ai-role-divider-muted: color-mix(in srgb, var(--ai-divider) 70%, transparent);
+  --ai-role-divider-muted: color-mix(
+    in srgb,
+    var(--ai-divider) 70%,
+    transparent
+  );
   --ai-role-interaction-base: var(--ai-accent);
   --ai-role-interaction-hover: var(--ai-accent-strong);
   --ai-role-interaction-active: var(--ai-accent-soft);
@@ -65,7 +98,14 @@
   --ai-role-interaction-muted: var(--ai-text-muted);
 }
 
-.dark {
+:root:has(body.dark),
+:root:has(body.dark-mode),
+.dark,
+.dark-mode,
+html.dark,
+html.dark-mode,
+body.dark,
+body.dark-mode {
   --ai-bg: 203 8% 20%;
   --ai-bg-muted: 203 6% 26%;
   --ai-fg: 60 4% 90%;
@@ -85,13 +125,58 @@
   --ai-text-faint: color-mix(in srgb, var(--ai-text) 50%, transparent);
   --ai-text-muted: var(--ai-text);
   --ai-ring: var(--notion-blue);
-  --ai-pill-bg: color-mix(in srgb, #fff 10%, var(--ai-surface));
-  --ai-pill-border: color-mix(in srgb, #fff 15%, transparent);
-  --ai-divider: color-mix(in srgb, hsl(var(--ai-border)) 70%, hsl(var(--ai-text)) 30%);
-  --ai-border-subtle: color-mix(in srgb, hsl(var(--ai-border)) 80%, hsl(var(--ai-text)) 20%);
-  --ai-border-strong: color-mix(in srgb, hsl(var(--ai-border)) 90%, hsl(var(--ai-text)) 10%);
+  --ai-pill-bg: color-mix(in srgb, var(--ai-text) 14%, var(--ai-surface));
+  --ai-pill-border: color-mix(in srgb, var(--ai-text) 20%, transparent);
+  --ai-divider: color-mix(
+    in srgb,
+    hsl(var(--ai-border)) 70%,
+    hsl(var(--ai-text)) 30%
+  );
+  --ai-border-subtle: color-mix(
+    in srgb,
+    hsl(var(--ai-border)) 80%,
+    hsl(var(--ai-text)) 20%
+  );
+  --ai-border-strong: color-mix(
+    in srgb,
+    hsl(var(--ai-border)) 90%,
+    hsl(var(--ai-text)) 10%
+  );
+  --ai-role-surface-1-overlay: color-mix(
+    in srgb,
+    var(--ai-role-surface-1) 96%,
+    var(--ai-role-border-muted) 4%
+  );
+  --ai-role-surface-2: var(--ai-role-surface-1-overlay);
+  --ai-role-surface-hover: color-mix(
+    in srgb,
+    var(--ai-role-surface-highlight) 22%,
+    var(--ai-role-surface-1) 78%
+  );
+  --ai-role-surface-selected: color-mix(
+    in srgb,
+    var(--ai-role-interaction-active) 34%,
+    var(--ai-role-surface-1) 66%
+  );
+  --ai-role-surface-active: color-mix(
+    in srgb,
+    var(--ai-role-interaction-active) 38%,
+    var(--ai-role-surface-1) 62%
+  );
+  --ai-role-border-selected: color-mix(
+    in srgb,
+    var(--ai-role-interaction-active) 63%,
+    transparent
+  );
   --ai-tooltip-bg: rgba(14, 19, 25, 0.95);
 }
+
+/* 
+  ai-role-surface mapping references:
+  - Base values defined lines 52-59 (above) in :root.
+  - Dark-mode overrides appear only in the dark scope lines 72-104 (same file order ensures they win).
+  No other sections reassign these tokens.
+*/
 
 /* ------------------------------------------------ */
 /* Text & Color Utilities                           */
@@ -133,24 +218,24 @@
 }
 
 .bg-ai {
-  background-color: hsl(var(--ai-bg));
+  background-color: var(--ai-role-surface-1);
 }
 
 .bg-ai-muted {
-  background-color: hsl(var(--ai-bg-muted));
+  background-color: var(--ai-role-surface-muted);
 }
 
 .text-ai {
-  color: hsl(var(--ai-fg));
+  color: var(--ai-text);
 }
 
 .text-ai-muted {
-  color: hsl(var(--ai-fg-muted));
+  color: var(--ai-text-muted);
 }
 
 .border-ai,
 .ai-border {
-  border-color: hsl(var(--ai-border));
+  border-color: var(--ai-role-border-base);
 }
 
 .rounded-ai {
@@ -175,26 +260,26 @@
 /* Meta Cards                                       */
 /* ------------------------------------------------ */
 .ai-meta-card {
-  border: 1px solid hsl(var(--ai-border));
+  border: 1px solid var(--ai-role-border-base);
   border-radius: var(--ai-radius-sm);
   padding: 0.5rem 0.625rem;
-  background: hsl(var(--ai-bg));
+  background-color: var(--ai-role-surface-1);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
 }
 
 .ai-meta-card--runtime {
   border-color: color-mix(in srgb, var(--ai-accent) 20%, transparent);
-  background: color-mix(in srgb, var(--ai-accent) 5%, hsl(var(--ai-bg)));
+  background-color: var(--ai-role-surface-highlight);
 }
 
 .ai-meta-card--guardrail {
-  border-color: hsl(var(--ai-border));
-  background: hsl(var(--ai-bg-muted));
+  border-color: var(--ai-role-border-muted);
+  background-color: var(--ai-role-surface-muted);
 }
 
 .ai-meta-card--enhancements {
   border-color: color-mix(in srgb, var(--ai-warning) 30%, transparent);
-  background: color-mix(in srgb, var(--ai-warning) 5%, hsl(var(--ai-bg)));
+  background-color: var(--ai-warning-muted);
 }
 
 .ai-meta-card-heading {
@@ -244,13 +329,13 @@
   font-size: 0.6rem;
   padding: 2px 6px;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--ai-accent) 10%, transparent);
+  background-color: var(--ai-role-surface-highlight);
   color: var(--ai-accent);
   font-weight: 500;
 }
 
 .ai-meta-chip--warning {
-  background: color-mix(in srgb, var(--ai-warning) 15%, transparent);
+  background-color: var(--ai-warning-muted);
   color: var(--ai-warning);
 }
 
@@ -271,7 +356,7 @@
 .ai-page-header-card {
   padding: 0;
   border-width: 1.5px;
-  border-color: color-mix(in srgb, hsl(var(--ai-border)) 70%, transparent);
+  border-color: var(--ai-role-border-muted);
   background: linear-gradient(
     180deg,
     color-mix(in srgb, hsl(var(--ai-bg)) 94%, hsl(var(--ai-bg-muted)) 6%),
@@ -283,8 +368,8 @@
 }
 
 .ai-card {
-  background-color: hsl(var(--ai-bg));
-  border: 1px solid var(--ai-border-subtle);
+  background-color: var(--ai-card-surface, var(--ai-role-surface-1));
+  border: 1px solid var(--ai-role-border-subtle);
   border-radius: var(--ai-radius-lg);
   box-shadow: var(--ai-shadow-soft);
   overflow: hidden;
@@ -296,8 +381,8 @@
   flex-direction: column;
   gap: 12px;
   padding: 1rem;
-  background-color: hsl(var(--ai-bg));
-  border: 1px solid var(--ai-border-subtle);
+  background-color: var(--ai-section-surface, var(--ai-role-surface-1));
+  border: 1px solid var(--ai-role-border-subtle);
   border-radius: var(--ai-radius-md);
 }
 
@@ -361,7 +446,7 @@
   left: 12px;
   width: 1px;
   height: 30px;
-  background: hsl(var(--ai-border));
+  background-color: var(--ai-role-divider-muted);
 }
 
 .ai-card-description {
@@ -384,7 +469,7 @@
 }
 
 .dark .ai-page-header-card {
-  border-color: color-mix(in srgb, hsl(var(--ai-border)) 40%, transparent);
+  border-color: var(--ai-role-border-muted);
   background: linear-gradient(
     180deg,
     color-mix(in srgb, hsl(var(--ai-bg)) 100%, hsl(var(--ai-bg-muted)) 0%),
@@ -402,7 +487,7 @@
 /* ------------------------------------------------ */
 .ai-tip-callout {
   border-color: color-mix(in srgb, var(--ai-accent) 70%, transparent);
-  background: var(--ai-accent-bg);
+  background-color: var(--ai-role-surface-highlight);
   color: var(--ai-text-muted);
   box-shadow: none;
   padding: 0.6rem;
@@ -443,7 +528,7 @@
 
 .ai-warning-callout {
   border: 1px solid color-mix(in srgb, var(--ai-warning) 50%, transparent);
-  background: var(--ai-warning-muted);
+  background-color: var(--ai-warning-muted);
   color: var(--ai-text-warning);
   box-shadow: none;
   padding: 0.75rem;
@@ -462,7 +547,7 @@
 }
 
 .dark .ai-warning-callout {
-  background: color-mix(in srgb, var(--ai-warning) 15%, transparent);
+  background-color: var(--ai-warning-muted);
   border-color: color-mix(in srgb, var(--ai-warning) 40%, transparent);
   color: var(--ai-text-strong);
 }
@@ -546,11 +631,11 @@
 .ai-diagnostics-display-card {
   background: color-mix(
     in srgb,
-    hsl(var(--ai-bg)) 95%,
-    color-mix(in srgb, hsl(var(--ai-bg-muted)) 40%, white 60%)
+    var(--ai-role-surface-1) 94%,
+    var(--ai-role-surface-muted) 6%
   );
   border-radius: var(--ai-radius-lg);
-  border: 1px solid color-mix(in srgb, hsl(var(--ai-border)) 70%, transparent);
+  border: 1px solid var(--ai-role-border-muted);
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -625,11 +710,29 @@
   box-shadow: none;
 }
 
+.ai-button-outline:hover:not(:disabled) {
+  background-color: var(--ai-role-surface-hover);
+  border-color: var(--ai-role-border-strong);
+}
+
+.ai-button-outline:active:not(:disabled) {
+  background-color: var(--ai-role-surface-active);
+  border-color: var(--ai-role-border-selected);
+}
+
 .ai-button-ghost {
   background-color: transparent;
   color: var(--ai-text);
   border-color: transparent;
   box-shadow: none;
+}
+
+.ai-button-ghost:hover:not(:disabled) {
+  background-color: var(--ai-role-surface-hover);
+}
+
+.ai-button-ghost:active:not(:disabled) {
+  background-color: var(--ai-role-surface-active);
 }
 
 .ai-button-pill {
@@ -677,8 +780,8 @@
   width: 44px;
   padding: 2px;
   border-radius: 9999px;
-  border: 1px solid hsl(var(--ai-border));
-  background-color: hsl(var(--ai-bg-muted));
+  border: 1px solid var(--ai-role-border-base);
+  background-color: var(--ai-role-surface-muted);
   cursor: pointer;
   transition:
     background-color 0.2s ease,
@@ -691,12 +794,21 @@
 }
 
 .ai-switch[data-state="unchecked"] {
-  border-color: hsl(var(--ai-border));
-  background-color: hsl(var(--ai-bg-muted));
+  border-color: var(--ai-role-border-base);
+  background-color: var(--ai-role-surface-muted);
+}
+
+.ai-switch:not([data-disabled="true"]):hover:not([data-state="checked"]) {
+  background-color: var(--ai-role-surface-hover);
+}
+
+.ai-switch:focus-visible {
+  border-color: var(--ai-role-border-selected);
+  box-shadow: 0 0 0 1px var(--ai-role-border-selected);
 }
 
 .ai-switch[data-disabled="true"] {
-  border-color: hsl(var(--ai-border));
+  border-color: var(--ai-role-border-base);
   opacity: 0.6;
   cursor: not-allowed;
 }
@@ -707,7 +819,7 @@
   height: 20px;
   width: 20px;
   border-radius: 9999px;
-  background-color: hsl(var(--ai-bg));
+  background-color: var(--ai-role-surface-1);
   box-shadow: 0 0 0 1px hsl(var(--ai-border-soft));
   transition: transform 0.2s ease;
 }
@@ -728,8 +840,8 @@
   width: 1.25rem;
   height: 1.25rem;
   border-radius: 0.25rem;
-  border: 1px solid hsl(var(--ai-border));
-  background-color: hsl(var(--ai-bg-muted));
+  border: 1px solid var(--ai-role-border-base);
+  background-color: var(--ai-role-surface-muted);
   color: var(--ai-accent-contrast);
   transition-property:
     color, background-color, border-color, text-decoration-color, fill, stroke;
@@ -754,6 +866,15 @@
   border-color: var(--ai-accent);
 }
 
+.ai-checkbox:not([data-disabled="true"]):hover:not([data-state="checked"]) {
+  background-color: var(--ai-role-surface-hover);
+}
+
+.ai-checkbox:focus-visible {
+  border-color: var(--ai-role-border-selected);
+  box-shadow: 0 0 0 1px var(--ai-role-border-selected);
+}
+
 /* ------------------------------------------------ */
 /* Inputs & Selects                                 */
 /* ------------------------------------------------ */
@@ -763,8 +884,8 @@
   display: flex;
   width: 100%;
   border-radius: var(--ai-radius-lg);
-  border: 1px solid hsl(var(--ai-border));
-  background-color: hsl(var(--ai-bg-muted));
+  border: 1px solid var(--ai-role-border-base);
+  background-color: var(--ai-role-surface-muted);
   box-shadow: var(--ai-shadow-soft);
   transition-property:
     color, background-color, border-color, text-decoration-color, fill, stroke;
@@ -828,7 +949,16 @@
 
 .ai-select option {
   color: var(--ai-text-strong);
-  background-color: var(--ai-bg);
+  background-color: var(--ai-role-surface-1);
+}
+
+.ai-input:focus-visible,
+.ai-textarea:focus-visible,
+.ai-select:focus-visible {
+  border-color: var(--ai-role-border-selected);
+  box-shadow:
+    0 0 0 1px var(--ai-role-border-selected),
+    var(--ai-shadow-soft);
 }
 
 .ai-range {
@@ -847,8 +977,8 @@
 /* ------------------------------------------------ */
 .ai-selectable {
   border-radius: var(--ai-radius-md);
-  border: 1px solid var(--ai-border-soft);
-  background-color: hsl(var(--ai-bg-muted));
+  border: 1px solid var(--ai-role-border-subtle);
+  background-color: var(--ai-role-surface-muted);
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease,
@@ -859,19 +989,19 @@
 .ai-selectable--hoverable:hover:not(:disabled):not(
     .ai-selectable--disabled
   ):not(.ai-selectable--active) {
-  border-color: var(--ai-border-strong);
-  background-color: hsl(var(--ai-bg-muted));
+  border-color: var(--ai-role-border-strong);
+  background-color: var(--ai-role-surface-hover);
 }
 
 .ai-selectable--active {
-  border-color: var(--ai-accent-strong);
-  background-color: var(--ai-accent-soft);
+  border-color: var(--ai-role-border-selected);
+  background-color: var(--ai-role-surface-active);
   box-shadow: var(--ai-shadow-soft);
 }
 
 .ai-selectable--disabled {
-  border-color: var(--ai-border-muted);
-  background-color: hsl(var(--ai-bg-muted));
+  border-color: var(--ai-role-border-muted);
+  background-color: var(--ai-role-surface-muted);
   color: var(--ai-text-muted);
   cursor: not-allowed;
   opacity: 0.7;
@@ -902,9 +1032,9 @@
 
 .focus-ring:focus-visible {
   box-shadow:
-    0 0 0 2px hsl(var(--ai-bg)),
-    0 0 0 4px var(--ai-ring),
-    0 0 8px 1px var(--ai-ring);
+    0 0 0 2px var(--ai-role-surface-1),
+    0 0 0 4px var(--ai-role-interaction-focus),
+    0 0 8px 1px var(--ai-role-interaction-focus);
 }
 
 /* ------------------------------------------------ */
@@ -922,8 +1052,8 @@
 }
 
 .ai-panel {
-  background-color: hsl(var(--ai-bg));
-  border: 1px solid hsl(var(--ai-border));
+  background-color: var(--ai-panel-surface, var(--ai-role-surface-1));
+  border: 1px solid var(--ai-role-border-subtle);
   border-radius: var(--ai-radius-md);
 }
 
@@ -986,11 +1116,11 @@
 }
 
 .ai-table {
-  background-color: hsl(var(--ai-bg));
-  border: 1px solid hsl(var(--ai-border));
+  background-color: var(--ai-role-surface-1);
+  border: 1px solid var(--ai-role-border-base);
   border-radius: var(--ai-radius-lg);
   box-shadow: var(--ai-shadow-soft);
-  color: hsl(var(--ai-fg));
+  color: var(--ai-text);
   width: 100%;
   position: relative;
   overflow: visible;
@@ -1008,19 +1138,19 @@
 }
 
 .ai-table__row:hover {
-  background-color: color-mix(in srgb, #000 6%, transparent);
+  background-color: var(--ai-role-surface-hover);
 }
 
 .dark .ai-table__row:hover {
-  background-color: color-mix(in srgb, #fff 6%, transparent);
+  background-color: var(--ai-role-surface-hover);
 }
 
 .ai-table__row:nth-child(even) {
-  background-color: hsl(var(--ai-bg-muted));
+  background-color: var(--ai-role-surface-muted);
 }
 
 .ai-table__row:nth-child(odd) {
-  background-color: hsl(var(--ai-surface));
+  background-color: var(--ai-role-surface-1);
 }
 
 .ai-table__cell {

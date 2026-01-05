@@ -35,9 +35,10 @@
 
 .panel {
   height: 100%;
-  background: hsl(var(--ai-bg));
+  background-color: var(--ai-role-surface-2);
   box-shadow: var(--ai-shadow-soft);
-  border-left: 1px solid var(--ai-border-subtle);
+  border-left: 1px solid var(--ai-role-border-base);
+  border-left-color: var(--ai-role-border-base);
 }
 
 .inner {
@@ -51,7 +52,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 20px;
-  border-bottom: 1px solid var(--ai-divider);
+  border-bottom: 1px solid var(--ai-role-divider-base);
 }
 
 .drawerTitle {
@@ -84,7 +85,7 @@
   bottom: 0;
   left: 12px;
   width: 1px;
-  background: var(--ai-divider);
+  background-color: var(--ai-role-divider-muted);
   z-index: 0;
   pointer-events: none;
 }
@@ -99,7 +100,7 @@
 
 .presetScope {
   /* background: var(--ai-surface-muted); */
-  border: 1px solid var(--ai-border-subtle);
+  border: 1px solid var(--ai-role-border-base);
   border-radius: var(--ai-radius-md);
   padding: 1.25rem;
   display: flex;
@@ -174,7 +175,7 @@
   left: 12px;
   width: 1px;
   height: 30px;
-  background: var(--ai-divider);
+  background-color: var(--ai-role-divider-muted);
 }
 
 @media (max-width: 640px) {

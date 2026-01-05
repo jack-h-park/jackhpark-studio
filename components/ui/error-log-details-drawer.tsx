@@ -68,7 +68,7 @@ export function ErrorLogDetailsDrawer({
         aria-label="Error log details"
       >
         <div className={styles.panel}>
-          <Card className={styles.inner}>
+          <Card surface="surface-2" className={styles.inner}>
             <div className={styles.header}>
               <div>
                 <h2 className="text-sm font-semibold text-[color:var(--ai-text-strong)]">

@@ -52,7 +52,7 @@ export function HistoryPreviewDiffPanel() {
       </div>
 
       {isOpen && (
-        <div className="mt-2 text-[10px] space-y-2 bg-[var(--ai-bg-surface-sunken)] p-2 rounded border border-[var(--ai-border-subtle)]">
+        <div className="mt-2 text-[10px] space-y-2 bg-[color:var(--ai-role-surface-1)] p-2 rounded border border-[color:var(--ai-role-border-subtle)]">
           <div className="flex items-center justify-between pb-2 border-b border-[var(--ai-divider)]/50 mb-2">
             <div>
               <div className="text-[var(--ai-text-muted)]">Last diff:</div>
@@ -65,14 +65,14 @@ export function HistoryPreviewDiffPanel() {
             <div className="flex gap-2">
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--ai-bg-surface-default)] border border-[var(--ai-border-subtle)] hover:bg-[var(--ai-bg-surface-hove)] transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded bg-[color:var(--ai-role-surface-1)] border border-[color:var(--ai-role-border-subtle)] hover:bg-[color:var(--ai-role-interaction-hover)] transition-colors"
                 title="Copy JSON snapshot"
               >
                 <FiClipboard /> Copy
               </button>
               <button
                 onClick={handleClear}
-                className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--ai-bg-surface-default)] border border-[var(--ai-border-subtle)] hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded bg-[color:var(--ai-role-surface-1)] border border-[color:var(--ai-role-border-subtle)] hover:bg-[color:var(--ai-role-interaction-hover)] hover:text-[var(--ai-text-warning)] transition-colors"
                 title="Clear logs"
               >
                 <FiTrash2 /> Clear
@@ -101,7 +101,7 @@ function LogItem({ event }: { event: HistoryPreviewDiffEvent }) {
     event.diff.type === "indices" || event.diff.type === "both";
 
   return (
-    <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 p-1 hover:bg-[var(--ai-bg-surface-default)] rounded">
+    <div className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 p-1 hover:bg-[color:var(--ai-role-surface-1-overlay)] rounded">
       <div className="font-mono text-[var(--ai-text-muted)] w-12 text-right">
         {new Date(event.ts).toLocaleTimeString([], {
           hour12: false,
@@ -112,7 +112,7 @@ function LogItem({ event }: { event: HistoryPreviewDiffEvent }) {
 
       <div className="space-y-0.5">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-[var(--ai-text-default)] uppercase tracking-wider text-[9px] bg-[var(--ai-bg-surface-default)] px-1 rounded border border-[var(--ai-border-subtle)]">
+          <span className="font-semibold text-[var(--ai-text-default)] uppercase tracking-wider text-[9px] bg-[color:var(--ai-role-surface-1)] px-1 rounded border border-[color:var(--ai-role-border-subtle)]">
             {event.reason}
           </span>
           {event.context.syntheticCount && event.context.syntheticCount > 0 && (

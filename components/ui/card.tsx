@@ -1,12 +1,25 @@
 import * as React from "react";
 
 import { cn } from "./utils";
+import { buildSurfaceStyle, type SurfaceVariant } from "./surface";
 
-export type CardProps = React.HTMLAttributes<HTMLDivElement>;
+export type CardProps = React.HTMLAttributes<HTMLDivElement> & {
+  surface?: SurfaceVariant;
+};
 
-export function Card({ className, children, ...props }: CardProps) {
+export function Card({
+  className,
+  children,
+  surface = "surface-1",
+  style,
+  ...props
+}: CardProps) {
   return (
-    <div className={cn("ai-card", className)} {...props}>
+    <div
+      className={cn("ai-card", className)}
+      style={buildSurfaceStyle(surface, "--ai-card-surface", style)}
+      {...props}
+    >
       {children}
     </div>
   );

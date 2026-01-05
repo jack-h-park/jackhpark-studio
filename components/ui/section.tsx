@@ -1,12 +1,25 @@
 import * as React from "react";
 
 import { cn } from "./utils";
+import { buildSurfaceStyle, type SurfaceVariant } from "./surface";
 
-export type SectionProps = React.HTMLAttributes<HTMLElement>;
+export type SectionProps = React.HTMLAttributes<HTMLElement> & {
+  surface?: SurfaceVariant;
+};
 
-export function Section({ className, children, ...props }: SectionProps) {
+export function Section({
+  className,
+  children,
+  surface = "surface-1",
+  style,
+  ...props
+}: SectionProps) {
   return (
-    <section className={cn("ai-setting-section", className)} {...props}>
+    <section
+      className={cn("ai-setting-section", className)}
+      style={buildSurfaceStyle(surface, "--ai-section-surface", style)}
+      {...props}
+    >
       {children}
     </section>
   );

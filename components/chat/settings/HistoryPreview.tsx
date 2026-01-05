@@ -50,8 +50,8 @@ export function HistoryPreview({
     (!showServerPreview || !serverPreview || isServerPreviewEmpty);
 
   const containerClasses = isEmptyPreview
-    ? "bg-[color:var(--ai-bg-surface-muted)] border border-[color:var(--ai-border-subtle)]"
-    : "bg-[var(--ai-bg-surface-sunken)] border border-[var(--ai-border-subtle)]";
+    ? "bg-[color:var(--ai-role-surface-muted)] border border-[color:var(--ai-role-border-subtle)]"
+    : "bg-[color:var(--ai-role-surface-1)] border border-[color:var(--ai-role-border-subtle)]";
 
   const diffLabel = (
     <span className="flex items-center gap-1 text-[var(--ai-text-warning)] text-xs font-medium">
