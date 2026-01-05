@@ -8,7 +8,6 @@ import {
   SectionHeader,
   SectionTitle,
 } from "@/components/ui/section";
-import { StatusPill } from "@/components/ui/status-pill";
 import { cn } from "@/components/ui/utils";
 
 import styles from "./PresetEffectsSummary.module.css";

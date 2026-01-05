@@ -1,7 +1,7 @@
 import * as React from "react";
 
-import { cn } from "./utils";
 import { buildSurfaceStyle, type SurfaceVariant } from "./surface";
+import { cn } from "./utils";
 
 export type SectionProps = React.HTMLAttributes<HTMLElement> & {
   surface?: SurfaceVariant;

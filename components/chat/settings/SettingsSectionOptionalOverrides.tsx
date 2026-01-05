@@ -257,10 +257,19 @@ export function SettingsSectionOptionalOverrides({
             title="Overrides active"
             className="mt-4"
             onDismiss={() => setWarningDismissed(true)}
-            bodyClassName="ai-helper-text pt-1"
+            bodyClassName="ai-helper-text pt-1 space-y-1"
           >
-            These changes may affect cost, speed, or memory. Reset to preset
-            defaults to revert.
+            <p>
+              These changes may affect cost, speed, or memory. Use the reset
+              action to revert.
+            </p>
+            <button
+              type="button"
+              className="text-xs font-semibold text-[color:var(--ai-accent-strong)] underline underline-offset-2"
+              onClick={handleResetToPresetDefaults}
+            >
+              Reset to preset defaults
+            </button>
           </InlineAlert>
         )}
       </SectionContent>

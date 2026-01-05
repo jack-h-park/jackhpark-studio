@@ -1,3 +1,5 @@
+import "@/styles/admin-doc-preview.css";
+
 import type { GetServerSideProps } from "next";
 import { FiFileText } from "@react-icons/all-files/fi/FiFileText";
 import Head from "next/head";

@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Split Plan: tokens.css, utilities.css, surfaces.css, forms.css, interactions.css, content.css */
+
 /* ------------------------------------------------ */
 /* Design Tokens                                    */
 /* ------------------------------------------------ */
@@ -40,6 +42,7 @@
   --ai-accent-strong: color-mix(in srgb, var(--ai-accent) 90%, transparent);
   --ai-accent-soft: color-mix(in srgb, var(--ai-accent) 25%, transparent);
   --ai-accent-bg: color-mix(in srgb, var(--ai-accent) 15%, transparent);
+  --ai-accent-contrast: var(--ai-role-surface-1);
   --ai-success: #16a34a;
   --ai-success-muted: color-mix(in srgb, var(--ai-success) 20%, transparent);
   --ai-warning: #f97316;
@@ -63,18 +66,18 @@
   --ai-role-surface-2: var(--ai-role-surface-1-overlay);
   --ai-role-surface-hover: color-mix(
     in srgb,
-    var(--ai-role-surface-highlight) 28%,
-    var(--ai-role-surface-1) 72%
+    var(--ai-role-surface-highlight) 40%,
+    var(--ai-role-surface-1) 60%
   );
   --ai-role-surface-selected: color-mix(
     in srgb,
-    var(--ai-role-interaction-active) 40%,
-    var(--ai-role-surface-1) 60%
+    var(--ai-role-interaction-active) 52%,
+    var(--ai-role-surface-1) 48%
   );
   --ai-role-surface-active: color-mix(
     in srgb,
-    var(--ai-role-interaction-active) 46%,
-    var(--ai-role-surface-1) 54%
+    var(--ai-role-interaction-active) 64%,
+    var(--ai-role-surface-1) 36%
   );
   --ai-role-border-base: var(--ai-border-subtle);
   --ai-role-border-subtle: var(--ai-border-subtle);
@@ -82,7 +85,7 @@
   --ai-role-border-strong: var(--ai-border-strong);
   --ai-role-border-selected: color-mix(
     in srgb,
-    var(--ai-role-interaction-active) 70%,
+    var(--ai-role-interaction-active) 80%,
     transparent
   );
   --ai-role-divider-base: var(--ai-divider);
@@ -125,6 +128,7 @@ body.dark-mode {
   --ai-text-faint: color-mix(in srgb, var(--ai-text) 50%, transparent);
   --ai-text-muted: var(--ai-text);
   --ai-ring: var(--notion-blue);
+  --ai-accent-contrast: var(--ai-text);
   --ai-pill-bg: color-mix(in srgb, var(--ai-text) 14%, var(--ai-surface));
   --ai-pill-border: color-mix(in srgb, var(--ai-text) 20%, transparent);
   --ai-divider: color-mix(
@@ -150,22 +154,22 @@ body.dark-mode {
   --ai-role-surface-2: var(--ai-role-surface-1-overlay);
   --ai-role-surface-hover: color-mix(
     in srgb,
-    var(--ai-role-surface-highlight) 22%,
-    var(--ai-role-surface-1) 78%
+    var(--ai-role-surface-highlight) 32%,
+    var(--ai-role-surface-1) 68%
   );
   --ai-role-surface-selected: color-mix(
     in srgb,
-    var(--ai-role-interaction-active) 34%,
-    var(--ai-role-surface-1) 66%
+    var(--ai-role-interaction-active) 48%,
+    var(--ai-role-surface-1) 52%
   );
   --ai-role-surface-active: color-mix(
     in srgb,
-    var(--ai-role-interaction-active) 38%,
-    var(--ai-role-surface-1) 62%
+    var(--ai-role-interaction-active) 55%,
+    var(--ai-role-surface-1) 45%
   );
   --ai-role-border-selected: color-mix(
     in srgb,
-    var(--ai-role-interaction-active) 63%,
+    var(--ai-role-interaction-active) 76%,
     transparent
   );
   --ai-tooltip-bg: rgba(14, 19, 25, 0.95);
@@ -179,7 +183,7 @@ body.dark-mode {
 */
 
 /* ------------------------------------------------ */
-/* Text & Color Utilities                           */
+/* Utilities (text/border helpers)                  */
 /* ------------------------------------------------ */
 .ai-text {
   color: var(--ai-text);
@@ -254,7 +258,37 @@ body.dark-mode {
   @apply ai-helper-text;
 }
 
+/* ------------------------------------------------ */
+/* Label Utilities                                  */
+/* ------------------------------------------------ */
+.ai-label-overline {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-family: var(--notion-font, system-ui);
+  color: var(--ai-text-strong);
+}
+
+.ai-label-overline--muted {
+  color: var(--ai-text-muted);
+}
+
+.ai-label-overline--small {
+  font-size: 0.65rem;
+}
+
+.ai-label-emphasis {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ai-text-strong);
+}
+
 /* Removed class overrides; managed via tokens above */
+
+/* ------------------------------------------------ */
+/* Surfaces (cards/sections/panels)                */
+/* ------------------------------------------------ */
 
 /* ------------------------------------------------ */
 /* Meta Cards                                       */
@@ -359,8 +393,8 @@ body.dark-mode {
   border-color: var(--ai-role-border-muted);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, hsl(var(--ai-bg)) 94%, hsl(var(--ai-bg-muted)) 6%),
-    color-mix(in srgb, hsl(var(--ai-bg)) 88%, hsl(var(--ai-bg-muted)) 12%)
+    color-mix(in srgb, var(--ai-role-surface-1) 94%, var(--ai-role-surface-muted) 6%),
+    color-mix(in srgb, var(--ai-role-surface-1) 88%, var(--ai-role-surface-muted) 12%)
   );
   box-shadow:
     0 32px 65px rgba(15, 15, 15, 0.07),
@@ -394,38 +428,41 @@ body.dark-mode {
   margin: 0;
   font-size: 0.85rem;
   line-height: 1.4;
-  color: hsl(var(--ai-fg-muted));
+  color: var(--ai-text-muted);
 }
 
-.admin-doc-preview-teaser {
-  height: 100%;
-  box-sizing: border-box;
-  padding: 12px;
-
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ai-text-muted);
-  background: transparent;
-
-  overflow: hidden;
-  white-space: pre-wrap;
-  word-break: break-word;
-
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 8;
+.ai-diagnostics-display-card {
+  background: color-mix(
+    in srgb,
+    var(--ai-role-surface-1) 94%,
+    var(--ai-role-surface-muted) 6%
+  );
+  border-radius: var(--ai-radius-lg);
+  border: 1px solid var(--ai-role-border-muted);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.admin-doc-preview-overlay-body {
-  font-size: 0.8rem;
-  line-height: 1.4;
+.ai-diagnostics-display-card .ai-diagnostics-display-field {
+  margin-bottom: 0;
+  border-radius: var(--ai-radius-md);
+  padding: 0.15rem 0.35rem 0.25rem;
+}
+
+.ai-diagnostics-display-card .ai-diagnostics-display-field .ai-field__label {
+  max-width: 220px;
+}
+
+.ai-diagnostics-display-card .ai-field__description {
   color: var(--ai-text-muted);
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
+}
+
+.ai-panel {
+  background-color: var(--ai-panel-surface, var(--ai-role-surface-1));
+  border: 1px solid var(--ai-role-border-subtle);
+  border-radius: var(--ai-radius-md);
 }
 
 .ai-setting-section-header {
@@ -472,8 +509,8 @@ body.dark-mode {
   border-color: var(--ai-role-border-muted);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, hsl(var(--ai-bg)) 100%, hsl(var(--ai-bg-muted)) 0%),
-    color-mix(in srgb, hsl(var(--ai-bg)) 95%, hsl(var(--ai-bg-muted)) 5%)
+    color-mix(in srgb, var(--ai-role-surface-1) 100%, var(--ai-role-surface-muted) 0%),
+    color-mix(in srgb, var(--ai-role-surface-1) 95%, var(--ai-role-surface-muted) 5%)
   );
   box-shadow:
     0 20px 45px rgba(0, 0, 0, 0.35),
@@ -553,6 +590,10 @@ body.dark-mode {
 }
 
 /* ------------------------------------------------ */
+/* Forms (fields, inputs, switches/checkboxes)      */
+/* ------------------------------------------------ */
+
+/* ------------------------------------------------ */
 /* Fields & Form Layout                             */
 /* ------------------------------------------------ */
 .ai-choice {
@@ -628,33 +669,7 @@ body.dark-mode {
   color: var(--ai-text-faint);
   opacity: 0.9;
 }
-.ai-diagnostics-display-card {
-  background: color-mix(
-    in srgb,
-    var(--ai-role-surface-1) 94%,
-    var(--ai-role-surface-muted) 6%
-  );
-  border-radius: var(--ai-radius-lg);
-  border: 1px solid var(--ai-role-border-muted);
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.ai-diagnostics-display-card .ai-diagnostics-display-field {
-  margin-bottom: 0;
-  border-radius: var(--ai-radius-md);
-  padding: 0.15rem 0.35rem 0.25rem;
-}
-
-.ai-diagnostics-display-card .ai-diagnostics-display-field .ai-field__label {
-  max-width: 220px;
-}
-
-.ai-diagnostics-display-card .ai-field__description {
-  color: var(--ai-text-muted);
-}
+/* Diagnostics display card styles moved to surfaces section. */
 .ai-field__label {
   @apply ai-label-overline;
   padding-bottom: 0.2rem;
@@ -671,9 +686,7 @@ body.dark-mode {
   color: var(--ai-text-muted);
 }
 
-.ai-meta-text {
-  @apply ai-helper-text;
-}
+/* Duplicate ai-meta-text removed (defined under utilities). */
 
 /* Managed via tokens */
 
@@ -694,7 +707,7 @@ body.dark-mode {
     border-color 0.2s ease,
     box-shadow 0.2s ease;
   background-color: var(--ai-accent);
-  color: #fff;
+  color: var(--ai-accent-contrast);
   box-shadow: var(--ai-shadow-soft);
   border-color: color-mix(in srgb, var(--ai-accent) 65%, transparent);
 }
@@ -820,7 +833,7 @@ body.dark-mode {
   width: 20px;
   border-radius: 9999px;
   background-color: var(--ai-role-surface-1);
-  box-shadow: 0 0 0 1px hsl(var(--ai-border-soft));
+  box-shadow: 0 0 0 1px var(--ai-border-soft);
   transition: transform 0.2s ease;
 }
 
@@ -973,30 +986,43 @@ body.dark-mode {
 }
 
 /* ------------------------------------------------ */
+/* Interactions (selectable, tables, focus-ring)    */
+/* ------------------------------------------------ */
+
+/* ------------------------------------------------ */
 /* Selectable Tiles & Indicators                    */
 /* ------------------------------------------------ */
 .ai-selectable {
   border-radius: var(--ai-radius-md);
   border: 1px solid var(--ai-role-border-subtle);
-  background-color: var(--ai-role-surface-muted);
+  background-color: var(--ai-role-surface-1);
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease,
     box-shadow 0.15s ease,
     color 0.15s ease;
+  box-shadow: inset 0 0 0 1px transparent;
 }
 
 .ai-selectable--hoverable:hover:not(:disabled):not(
     .ai-selectable--disabled
   ):not(.ai-selectable--active) {
-  border-color: var(--ai-role-border-strong);
+  border-color: var(--ai-role-border-selected);
   background-color: var(--ai-role-surface-hover);
+  box-shadow: inset 0 0 0 1px var(--ai-role-border-selected);
 }
 
 .ai-selectable--active {
   border-color: var(--ai-role-border-selected);
-  background-color: var(--ai-role-surface-active);
-  box-shadow: var(--ai-shadow-soft);
+  background-color: var(--ai-role-surface-selected);
+  box-shadow:
+    var(--ai-shadow-soft),
+    inset 0 0 0 1px var(--ai-role-border-selected),
+    inset 0 0 0 2px color-mix(
+      in srgb,
+      var(--ai-role-border-selected) 60%,
+      transparent
+    );
 }
 
 .ai-selectable--disabled {
@@ -1017,9 +1043,9 @@ body.dark-mode {
     justify-content: center;
     font-size: 0.8rem;
     background: var(--ai-accent);
-    color: #fff;
-    border: 1px solid color-mix(in srgb, var(--ai-accent), black 25%);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ai-accent), white 40%);
+    color: var(--ai-accent-contrast);
+    border: 1px solid color-mix(in srgb, var(--ai-accent) 70%, var(--ai-role-border-muted) 30%);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ai-accent) 80%, var(--ai-role-surface-1) 20%);
   }
 }
 
@@ -1051,37 +1077,7 @@ body.dark-mode {
   color: var(--ai-text-strong);
 }
 
-.ai-panel {
-  background-color: var(--ai-panel-surface, var(--ai-role-surface-1));
-  border: 1px solid var(--ai-role-border-subtle);
-  border-radius: var(--ai-radius-md);
-}
-
-/* ------------------------------------------------ */
-/* Label Utilities                                  */
-/* ------------------------------------------------ */
-.ai-label-overline {
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-family: var(--notion-font, system-ui);
-  color: var(--ai-text-strong);
-}
-
-.ai-label-overline--muted {
-  color: var(--ai-text-muted);
-}
-
-.ai-label-overline--small {
-  font-size: 0.65rem;
-}
-
-.ai-label-emphasis {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--ai-text-strong);
-}
+/* Duplicate label utilities removed (available under utilities). */
 
 /* ------------------------------------------------ */
 /* Data Display Primitives                          */
@@ -1137,11 +1133,8 @@ body.dark-mode {
   transition: background-color 0.2s ease;
 }
 
+/* Duplicate dark hover removed; base rule already token-driven. */
 .ai-table__row:hover {
-  background-color: var(--ai-role-surface-hover);
-}
-
-.dark .ai-table__row:hover {
   background-color: var(--ai-role-surface-hover);
 }
 
@@ -1159,7 +1152,7 @@ body.dark-mode {
 }
 
 /* ------------------------------------------------ */
-/* Chat Message Content                             */
+/* Content styling (chat markdown/code)             */
 /* ------------------------------------------------ */
 .ai-message__p {
   margin-bottom: 0.75rem;
@@ -1190,8 +1183,8 @@ body.dark-mode {
 
 .ai-inline-code {
   font-family: monospace;
-  background-color: var(--ai-bg-muted);
-  border: 1px solid var(--ai-border-muted);
+  background-color: var(--ai-role-surface-muted);
+  border: 1px solid var(--ai-role-border-muted);
   border-radius: 4px;
   padding: 0.1rem 0.3rem;
   font-size: 0.85em;
@@ -1201,8 +1194,8 @@ body.dark-mode {
 .ai-codeblock {
   margin: 0.75rem 0;
   border-radius: var(--ai-radius-md);
-  border: 1px solid var(--ai-border);
-  background-color: var(--ai-bg-muted);
+  border: 1px solid var(--ai-role-border-subtle);
+  background-color: var(--ai-role-surface-muted);
   overflow: hidden;
 }
 
@@ -1213,5 +1206,5 @@ body.dark-mode {
   font-family: monospace;
   font-size: 0.85rem;
   line-height: 1.5;
-  color: var(--ai-fg);
+  color: var(--ai-text);
 }
