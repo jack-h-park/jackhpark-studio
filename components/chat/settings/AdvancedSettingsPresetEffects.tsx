@@ -107,9 +107,7 @@ export function AdvancedSettingsPresetEffects({
   if (isEmbeddingLocked) {
     items.push({
       label: "Embeddings",
-      value: (
-        <EmbeddingValueWithPopover label={activeEmbeddingLabel} />
-      ),
+      value: <EmbeddingValueWithPopover label={activeEmbeddingLabel} />,
     });
   }
 
@@ -132,8 +130,8 @@ export function AdvancedSettingsPresetEffects({
       label: "Capabilities / Ranker",
       value: (
         <>
-          Reverse RAG {renderCapabilityState(sessionConfig.features.reverseRAG)} ·{" "}
-          HyDE {renderCapabilityState(sessionConfig.features.hyde)} · Ranker{" "}
+          Reverse RAG {renderCapabilityState(sessionConfig.features.reverseRAG)}{" "}
+          · HyDE {renderCapabilityState(sessionConfig.features.hyde)} · Ranker{" "}
           <span className="text-[color:var(--ai-text-muted)]">
             {formatRankerLabel(sessionConfig.features.ranker)}
           </span>
@@ -267,7 +265,11 @@ export function AdvancedSettingsPresetEffects({
   );
 
   return (
-    <PresetEffectsSummary className="relative z-10 mt-0" items={items} actions={actions} />
+    <PresetEffectsSummary
+      className="relative z-10 mt-0"
+      items={items}
+      actions={actions}
+    />
   );
 }
 

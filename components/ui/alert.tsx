@@ -60,10 +60,7 @@ export function InlineAlert({
         aria-hidden="true"
       />
     ) : (
-      <FiInfo
-        className={cn("h-4 w-4", styles.iconColor)}
-        aria-hidden="true"
-      />
+      <FiInfo className={cn("h-4 w-4", styles.iconColor)} aria-hidden="true" />
     ));
 
   return (

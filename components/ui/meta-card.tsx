@@ -1,3 +1,5 @@
+import "@/styles/meta-card.css";
+
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 import { cn } from "./utils";
 

@@ -75,9 +75,7 @@ export function HistoryPreview({
         </div>
       ) : (
         hasDiff && (
-          <div className="flex items-center justify-end">
-            {diffLabel}
-          </div>
+          <div className="flex items-center justify-end">{diffLabel}</div>
         )
       )}
       {isEmptyPreview && (
@@ -162,7 +160,9 @@ function PreviewPane({
   }
 
   const { includedCount, excludedCount, includedIndices } = preview;
-  const listToggleLabel = isOpen ? "Hide included messages" : "Show included messages";
+  const listToggleLabel = isOpen
+    ? "Hide included messages"
+    : "Show included messages";
 
   const includedClass = cn(
     "font-mono",

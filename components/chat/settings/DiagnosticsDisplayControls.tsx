@@ -1,3 +1,5 @@
+import "@/styles/diagnostics-display-card.css";
+
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { SwitchField } from "@/components/ui/field";
 import { Switch } from "@/components/ui/switch";

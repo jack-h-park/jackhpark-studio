@@ -160,9 +160,7 @@ export function SettingsSectionOptionalOverrides({
           >
             <span>Optional Overrides</span>
           </SectionTitle>
-          <ImpactTooltip
-            text="Overrides can change cost/speed and output behavior compared to the preset."
-          >
+          <ImpactTooltip text="Overrides can change cost/speed and output behavior compared to the preset.">
             <FiInfo aria-hidden="true" />
           </ImpactTooltip>
         </div>
@@ -203,12 +201,7 @@ export function SettingsSectionOptionalOverrides({
           </div>
 
           <div className={cn(styles.overrideBlock, "space-y-2")}>
-            <div
-              className={cn(
-                "flex items-baseline",
-                styles.summaryLabelRow,
-              )}
-            >
+            <div className={cn("flex items-baseline", styles.summaryLabelRow)}>
               <Label className={cn("ai-field__label", styles.overlineLabel)}>
                 Summaries
               </Label>

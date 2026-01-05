@@ -154,19 +154,17 @@ export function ChatAdvancedSettingsDrawer({
               <div className={styles.presetScope}>
                 <div className={styles.presetScopeHeader}>
                   <div className={styles.presetScopeTop}>
-                  <SectionTitle as="p" icon={<FiLayers aria-hidden="true" />}>
-                    <span className="flex items-center gap-2">
+                    <SectionTitle as="p" icon={<FiLayers aria-hidden="true" />}>
                       <span className="flex items-center gap-2">
-                        AI Orchestration Preset
-                        <StatusPill variant="muted">SESSION-WIDE</StatusPill>
+                        <span className="flex items-center gap-2">
+                          AI Orchestration Preset
+                          <StatusPill variant="muted">SESSION-WIDE</StatusPill>
+                        </span>
+                        <ImpactTooltip text="Changing presets can affect retrieval, memory budgets, and response behavior for this session.">
+                          <FiInfo aria-hidden="true" />
+                        </ImpactTooltip>
                       </span>
-                      <ImpactTooltip
-                        text="Changing presets can affect retrieval, memory budgets, and response behavior for this session."
-                      >
-                        <FiInfo aria-hidden="true" />
-                      </ImpactTooltip>
-                    </span>
-                  </SectionTitle>
+                    </SectionTitle>
                   </div>
                   <p className="ai-setting-section-description">
                     Preset controls retrieval, memory, and prompt behavior for
