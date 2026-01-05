@@ -59,7 +59,7 @@ export function PresetEffectsSummary({
         </SectionDescription>
         <dl
           className={cn(
-            "pt-2 border-t border-[var(--ai-border-soft)]",
+            "pt-2 border-t border-[var(--ai-divider)]",
             styles.effectsList,
           )}
         >

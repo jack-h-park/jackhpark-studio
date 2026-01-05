@@ -50,8 +50,8 @@ export function HistoryPreview({
     (!showServerPreview || !serverPreview || isServerPreviewEmpty);
 
   const containerClasses = isEmptyPreview
-    ? "bg-[color:var(--ai-bg-surface-muted)] border border-[color:var(--ai-border-muted)]"
-    : "bg-[var(--ai-bg-surface-sunken)] border border-[var(--ai-border-default)]";
+    ? "bg-[color:var(--ai-bg-surface-muted)] border border-[color:var(--ai-border-subtle)]"
+    : "bg-[var(--ai-bg-surface-sunken)] border border-[var(--ai-border-subtle)]";
 
   const diffLabel = (
     <span className="flex items-center gap-1 text-[var(--ai-text-warning)] text-xs font-medium">
@@ -89,7 +89,7 @@ export function HistoryPreview({
       <div
         className={`grid items-stretch ${
           showServerPreview
-            ? "grid-cols-2 gap-0 divide-x divide-[var(--ai-border-default)]"
+            ? "grid-cols-2 gap-0 divide-x divide-[var(--ai-border-strong)]"
             : "grid-cols-1 gap-0"
         }`}
       >
@@ -201,7 +201,7 @@ function PreviewPane({
       </dl>
 
       {includedIndices && includedIndices.length > 0 && messages.length > 0 && (
-        <div className="mt-2 pt-2 border-t border-[var(--ai-border-default)]/50">
+        <div className="mt-2 pt-2 border-t border-[var(--ai-divider)]/50">
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}

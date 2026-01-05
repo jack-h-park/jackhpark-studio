@@ -33,6 +33,8 @@
   --ai-border-soft: color-mix(in srgb, var(--ai-text) 6%, transparent);
   --ai-tab-border-color: color-mix(in srgb, var(--ai-border) 80%, transparent);
   --ai-border-accent: color-mix(in srgb, var(--ai-text) 25%, transparent);
+  --ai-divider: color-mix(in srgb, hsl(var(--ai-border)) 90%, transparent 10%);
+  --ai-border-subtle: hsl(var(--ai-border));
   --ai-accent: var(--notion-blue);
   --ai-accent-strong: color-mix(in srgb, var(--ai-accent) 90%, transparent);
   --ai-accent-soft: color-mix(in srgb, var(--ai-accent) 25%, transparent);
@@ -68,6 +70,9 @@
   --ai-ring: var(--notion-blue);
   --ai-pill-bg: color-mix(in srgb, #fff 10%, var(--ai-surface));
   --ai-pill-border: color-mix(in srgb, #fff 15%, transparent);
+  --ai-divider: color-mix(in srgb, hsl(var(--ai-border)) 70%, hsl(var(--ai-text)) 30%);
+  --ai-border-subtle: color-mix(in srgb, hsl(var(--ai-border)) 80%, hsl(var(--ai-text)) 20%);
+  --ai-border-strong: color-mix(in srgb, hsl(var(--ai-border)) 90%, hsl(var(--ai-text)) 10%);
 }
 
 /* ------------------------------------------------ */
@@ -261,7 +266,7 @@
 
 .ai-card {
   background-color: hsl(var(--ai-bg));
-  border: 1px solid hsl(var(--ai-border));
+  border: 1px solid var(--ai-border-subtle);
   border-radius: var(--ai-radius-lg);
   box-shadow: var(--ai-shadow-soft);
   overflow: hidden;
@@ -274,7 +279,7 @@
   gap: 12px;
   padding: 1rem;
   background-color: hsl(var(--ai-bg));
-  border: 1px solid hsl(var(--ai-border));
+  border: 1px solid var(--ai-border-subtle);
   border-radius: var(--ai-radius-md);
 }
 

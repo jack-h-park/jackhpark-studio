@@ -13,7 +13,7 @@
 .overrideBlock + .overrideBlock {
   margin-top: 0.9rem;
   padding-top: 0.9rem;
-  border-top: 1px solid hsl(var(--ai-border-muted));
+  border-top: 1px solid var(--ai-divider);
 }
 
 .overlineLabel {
@@ -45,7 +45,7 @@
 
 .inlineUtilityAction:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 1px var(--ai-border-muted);
+  box-shadow: 0 0 0 1px var(--ai-border-subtle);
 }
 
 .summaryGrid {
@@ -54,7 +54,7 @@
 
 .promptPreviewSurface {
   border-radius: var(--ai-radius-lg);
-  border: 1px solid hsl(var(--ai-border));
+  border: 1px solid var(--ai-border-subtle);
   background: hsl(var(--ai-bg-muted));
   color: var(--ai-text-default);
   min-height: 110px;
@@ -68,7 +68,7 @@
 }
 
 .promptPreviewSurface:hover {
-  border-color: var(--ai-border-default);
+  border-color: var(--ai-border-strong);
 }
 
 .promptPreviewSurface:focus-visible {

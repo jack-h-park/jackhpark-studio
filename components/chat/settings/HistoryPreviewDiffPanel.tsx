@@ -37,7 +37,7 @@ export function HistoryPreviewDiffPanel() {
   };
 
   return (
-    <div className="mt-4 border-t border-[var(--ai-border-default)] pt-2">
+    <div className="mt-4 border-t border-[var(--ai-divider)] pt-2">
       <div
         className="flex items-center justify-between cursor-pointer"
         onClick={() => setIsOpen(!isOpen)}
@@ -52,8 +52,8 @@ export function HistoryPreviewDiffPanel() {
       </div>
 
       {isOpen && (
-        <div className="mt-2 text-[10px] space-y-2 bg-[var(--ai-bg-surface-sunken)] p-2 rounded border border-[var(--ai-border-default)]">
-          <div className="flex items-center justify-between pb-2 border-b border-[var(--ai-border-default)]/50 mb-2">
+        <div className="mt-2 text-[10px] space-y-2 bg-[var(--ai-bg-surface-sunken)] p-2 rounded border border-[var(--ai-border-subtle)]">
+          <div className="flex items-center justify-between pb-2 border-b border-[var(--ai-divider)]/50 mb-2">
             <div>
               <div className="text-[var(--ai-text-muted)]">Last diff:</div>
               <div className="font-mono text-[var(--ai-text-default)]">
@@ -65,14 +65,14 @@ export function HistoryPreviewDiffPanel() {
             <div className="flex gap-2">
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--ai-bg-surface-default)] border border-[var(--ai-border-default)] hover:bg-[var(--ai-bg-surface-hove)] transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--ai-bg-surface-default)] border border-[var(--ai-border-subtle)] hover:bg-[var(--ai-bg-surface-hove)] transition-colors"
                 title="Copy JSON snapshot"
               >
                 <FiClipboard /> Copy
               </button>
               <button
                 onClick={handleClear}
-                className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--ai-bg-surface-default)] border border-[var(--ai-border-default)] hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded bg-[var(--ai-bg-surface-default)] border border-[var(--ai-border-subtle)] hover:bg-red-500/10 hover:text-red-500 transition-colors"
                 title="Clear logs"
               >
                 <FiTrash2 /> Clear
@@ -112,7 +112,7 @@ function LogItem({ event }: { event: HistoryPreviewDiffEvent }) {
 
       <div className="space-y-0.5">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-[var(--ai-text-default)] uppercase tracking-wider text-[9px] bg-[var(--ai-bg-surface-default)] px-1 rounded border border-[var(--ai-border-default)]">
+          <span className="font-semibold text-[var(--ai-text-default)] uppercase tracking-wider text-[9px] bg-[var(--ai-bg-surface-default)] px-1 rounded border border-[var(--ai-border-subtle)]">
             {event.reason}
           </span>
           {event.context.syntheticCount && event.context.syntheticCount > 0 && (

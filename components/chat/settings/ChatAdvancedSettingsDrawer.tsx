@@ -223,7 +223,7 @@ export function ChatAdvancedSettingsDrawer({
                 )}
               </div>
 
-              <div className="border-t border-[color:var(--ai-border-muted)] pt-4">
+              <div className="border-t border-[color:var(--ai-divider)] pt-4">
                 <Button
                   variant="ghost"
                   className="w-full text-[color:var(--ai-text-muted)] hover:text-[color:var(--ai-text-default)]"

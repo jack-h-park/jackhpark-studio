@@ -293,7 +293,7 @@ export function SettingsSectionContextHistory({
         )}
 
         {isDev && (
-          <div className="flex items-center justify-between gap-2 border-t border-[var(--ai-border-muted)] py-2 mt-1.5 text-sm text-[var(--ai-text-muted)]">
+          <div className="flex items-center justify-between gap-2 border-t border-[var(--ai-divider)] py-2 mt-1.5 text-sm text-[var(--ai-text-muted)]">
             <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ai-text-muted)]">
               Exact preview (server)
             </span>
