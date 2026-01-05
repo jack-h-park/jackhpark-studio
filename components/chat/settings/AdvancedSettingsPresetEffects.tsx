@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { RankerId } from "@/lib/shared/models";
 import type {
@@ -106,24 +106,9 @@ export function AdvancedSettingsPresetEffects({
 
   if (isEmbeddingLocked) {
     items.push({
-      label: "Embeddings (effective)",
+      label: "Embeddings",
       value: (
-        <span
-          className={cn(
-            "inline-flex items-center gap-1 text-[color:var(--ai-text-muted)]",
-            styles.embeddingValue,
-          )}
-          title={activeEmbeddingLabel}
-          aria-label={`Embedding ${activeEmbeddingLabel}`}
-        >
-          <span className="truncate">{activeEmbeddingLabel}</span>
-          <span
-            className="text-[11px] text-[color:var(--ai-text-muted)]"
-            aria-hidden="true"
-          >
-            ⓘ
-          </span>
-        </span>
+        <EmbeddingValueWithPopover label={activeEmbeddingLabel} />
       ),
     });
   }
@@ -134,7 +119,7 @@ export function AdvancedSettingsPresetEffects({
       label: "Retrieval",
       value: (
         <>
-          {enabled ? "enabled" : "disabled"} (Top-K{" "}
+          {enabled ? "Enabled" : "Disabled"} (Top-K{" "}
           {formatPresetNumber(sessionConfig.rag.topK)} · similarity ≥{" "}
           {formatPresetDecimal(sessionConfig.rag.similarity)})
         </>
@@ -171,7 +156,7 @@ export function AdvancedSettingsPresetEffects({
   const summaryLabel = SUMMARY_LEVEL_LABELS[sessionConfig.summaryLevel];
   if (summaryLabel) {
     items.push({
-      label: "Summaries (preset default)",
+      label: "Summaries",
       value: summaryLabel,
     });
   }
@@ -283,5 +268,73 @@ export function AdvancedSettingsPresetEffects({
 
   return (
     <PresetEffectsSummary className="relative z-10 mt-0" items={items} actions={actions} />
+  );
+}
+
+type EmbeddingValueWithPopoverProps = {
+  label: string;
+};
+
+function EmbeddingValueWithPopover({ label }: EmbeddingValueWithPopoverProps) {
+  const [isPopoverOpen, setPopoverOpen] = useState(false);
+  const containerRef = useRef<HTMLSpanElement | null>(null);
+  const popoverId = useId();
+
+  useEffect(() => {
+    if (!isPopoverOpen) return undefined;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setPopoverOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPopoverOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isPopoverOpen]);
+
+  return (
+    <span
+      ref={containerRef}
+      className={styles.embeddingValue}
+      title={label}
+      aria-label={`Embedding ${label}`}
+    >
+      <span className={styles.embeddingValueText}>{label}</span>
+      <button
+        type="button"
+        aria-label="Show full embeddings model name"
+        aria-expanded={isPopoverOpen}
+        aria-controls={popoverId}
+        className={styles.embeddingInfoButton}
+        onClick={() => setPopoverOpen((prev) => !prev)}
+      >
+        <span aria-hidden="true">ⓘ</span>
+        <span className="sr-only">Show full embeddings model name</span>
+      </button>
+      {isPopoverOpen && (
+        <div
+          id={popoverId}
+          role="dialog"
+          aria-label="Full embeddings model name"
+          className={styles.embeddingPopover}
+        >
+          {label}
+        </div>
+      )}
+    </span>
   );
 }

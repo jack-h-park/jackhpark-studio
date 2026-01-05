@@ -203,7 +203,7 @@ void test("preset effects card surfaces managed values once", () => {
   assert.ok(markup.includes("Retrieval: enabled"));
   assert.ok(markup.includes("Ranker: None"));
   assert.ok(markup.includes("Memory: context"));
-  assert.ok(markup.includes("Summaries (preset default): Low"));
+  assert.ok(markup.includes("Summaries: Low"));
 });
 
 void test("effective settings payload includes key fields", () => {

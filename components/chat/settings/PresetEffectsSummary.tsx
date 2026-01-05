@@ -49,7 +49,6 @@ export function PresetEffectsSummary({
           className="flex-wrap gap-2"
         >
           <span>Preset Effects</span>
-          <StatusPill variant="muted">Managed by Preset</StatusPill>
         </SectionTitle>
         {actions && <div className={styles.actionsSlot}>{actions}</div>}
       </SectionHeader>

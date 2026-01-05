@@ -13,7 +13,6 @@ import {
   SectionTitle,
 } from "@/components/ui/section";
 import { Switch } from "@/components/ui/switch";
-import { cn } from "@/components/ui/utils";
 import {
   getLastDiffReason,
   recordDiffEvent,
@@ -28,7 +27,6 @@ import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 import type { ImpactKey } from "./impact";
 import { HistoryPreview } from "./HistoryPreview";
 import { ImpactBadge } from "./ImpactBadge";
-import styles from "./SettingsSectionContextHistory.module.css";
 
 type ContextBudgetKey = "tokenBudget" | "historyBudget" | "clipTokens";
 
@@ -295,13 +293,10 @@ export function SettingsSectionContextHistory({
         )}
 
         {isDev && (
-          <div
-            className={cn(
-              "flex items-center justify-between gap-2 border-t border-[var(--ai-border-muted)] py-1.5 mt-1.5 text-[10px] tracking-normal text-[color:var(--ai-text-muted)]",
-              styles.devToggleRow,
-            )}
-          >
-            <span>Exact preview (server)</span>
+          <div className="flex items-center justify-between gap-2 border-t border-[var(--ai-border-muted)] py-2 mt-1.5 text-sm text-[var(--ai-text-muted)]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ai-text-muted)]">
+              Exact preview (server)
+            </span>
             <Switch
               className="flex-shrink-0"
               checked={isExactPreviewEnabled}

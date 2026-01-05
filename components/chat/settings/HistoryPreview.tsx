@@ -4,6 +4,7 @@ import { FiChevronRight } from "@react-icons/all-files/fi/FiChevronRight";
 import { useState } from "react";
 
 import type { HistoryPreviewResult } from "@/lib/chat/historyWindowPreview";
+import { cn } from "@/lib/utils";
 import { type ChatMessage } from "@/components/chat/hooks/useChatSession";
 import { isDevOnly } from "@/lib/dev/devFlags";
 
@@ -38,47 +39,46 @@ export function HistoryPreview({
       preview.includedIndices?.length !==
         serverPreview.includedIndices?.length);
 
+  const isClientPreviewEmpty =
+    preview.includedCount === 0 && preview.excludedCount === 0;
+  const isServerPreviewEmpty =
+    !!serverPreview &&
+    serverPreview.includedCount === 0 &&
+    serverPreview.excludedCount === 0;
   const isEmptyPreview =
-    preview &&
-    preview.includedCount === 0 &&
-    preview.excludedCount === 0 &&
-    (!showServerPreview ||
-      !serverPreview ||
-      (serverPreview.includedCount === 0 &&
-        serverPreview.excludedCount === 0));
+    isClientPreviewEmpty &&
+    (!showServerPreview || !serverPreview || isServerPreviewEmpty);
 
   const containerClasses = isEmptyPreview
     ? "bg-[color:var(--ai-bg-surface-muted)] border border-[color:var(--ai-border-muted)]"
     : "bg-[var(--ai-bg-surface-sunken)] border border-[var(--ai-border-default)]";
+
+  const diffLabel = (
+    <span className="flex items-center gap-1 text-[var(--ai-text-warning)] text-xs font-medium">
+      <FiAlertTriangle /> Diff detected
+    </span>
+  );
+  const previewLegend =
+    "Client estimate uses a lightweight heuristic; flip on the dev-only server preview toggle to compare against the backend counts.";
 
   return (
     <div
       className={`mt-3 p-3 rounded text-sm space-y-4 ${containerClasses} ${className}`}
     >
       {/* Header */}
-      {showTitle && (
+      {showTitle ? (
         <div className="flex items-center justify-between">
           <span className="font-semibold text-[var(--ai-text-default)]">
             History Preview
           </span>
-          {hasDiff && (
-            <span className="flex items-center gap-1 text-[var(--ai-text-warning)] text-xs font-medium">
-              <FiAlertTriangle /> Diff detected
-            </span>
-          )}
+          {hasDiff && diffLabel}
         </div>
-      )}
-      {!showTitle && (
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-[var(--ai-text-muted)] uppercase tracking-wider">
-            {CLIENT_ESTIMATE_LABEL}
-          </span>
-          {hasDiff && (
-            <span className="flex items-center gap-1 text-[var(--ai-text-warning)] text-xs font-medium">
-              <FiAlertTriangle /> Diff detected
-            </span>
-          )}
-        </div>
+      ) : (
+        hasDiff && (
+          <div className="flex items-center justify-end">
+            {diffLabel}
+          </div>
+        )
       )}
       {isEmptyPreview && (
         <p className="text-[11px] text-[color:var(--ai-text-muted)] italic">
@@ -87,31 +87,41 @@ export function HistoryPreview({
       )}
 
       <div
-        className={`grid ${showServerPreview ? "grid-cols-2 gap-4" : "grid-cols-1"}`}
+        className={`grid items-stretch ${
+          showServerPreview
+            ? "grid-cols-2 gap-0 divide-x divide-[var(--ai-border-default)]"
+            : "grid-cols-1 gap-0"
+        }`}
       >
-        {/* Client Estimate Pane */}
-        <PreviewPane
-          label={CLIENT_ESTIMATE_LABEL}
-          preview={preview}
-          messages={messages}
-          isSummaryEnabled={isSummaryEnabled}
-          isPreviewEmpty={isEmptyPreview}
-        />
+        <div className="px-3 py-2">
+          {/* Client Estimate Pane */}
+          <PreviewPane
+            label={CLIENT_ESTIMATE_LABEL}
+            preview={preview}
+            messages={messages}
+            isSummaryEnabled={isSummaryEnabled}
+            isPreviewEmpty={isClientPreviewEmpty}
+          />
+        </div>
 
         {/* Server Exact Pane (Dev Only) */}
         {showServerPreview && (
-          <div className="border-l border-[var(--ai-border-default)] pl-4">
+          <div className="px-3 py-2">
             <PreviewPane
               label="Exact (server) [DEV]"
               preview={serverPreview}
               messages={messages}
               isSummaryEnabled={isSummaryEnabled}
               isLoading={!serverPreview}
+              isPreviewEmpty={isServerPreviewEmpty}
             />
           </div>
         )}
       </div>
 
+      <p className="text-[10px] text-[var(--ai-text-muted)] italic leading-tight">
+        {previewLegend}
+      </p>
       {showServerPreview && isDevOnly() && <HistoryPreviewDiffPanel />}
     </div>
   );
@@ -124,6 +134,7 @@ function PreviewPane({
   isSummaryEnabled,
   isLoading,
   isPreviewEmpty,
+  className,
 }: {
   label: string;
   preview: HistoryPreviewResult | null | undefined;
@@ -131,12 +142,13 @@ function PreviewPane({
   isSummaryEnabled: boolean;
   isLoading?: boolean;
   isPreviewEmpty?: boolean;
+  className?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
   if (isLoading || !preview) {
     return (
-      <div className="space-y-2 opacity-50">
+      <div className={cn("space-y-2 opacity-50", className)}>
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-medium text-[var(--ai-text-muted)] uppercase tracking-wider">
             {label}
@@ -150,38 +162,43 @@ function PreviewPane({
   }
 
   const { includedCount, excludedCount, includedIndices } = preview;
+  const listToggleLabel = isOpen ? "Hide included messages" : "Show included messages";
 
-  const includedClass = isPreviewEmpty
-    ? "text-[11px] text-[color:var(--ai-text-muted)]"
-    : "font-medium text-[var(--ai-text-default)]";
-  const excludedClass = [
-    "text-xs",
-    excludedCount > 0 ? "text-[var(--ai-text-warning)]" : "",
-    isPreviewEmpty ? "text-[color:var(--ai-text-muted)]" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const includedClass = cn(
+    "font-mono",
+    isPreviewEmpty
+      ? "text-[11px] text-[color:var(--ai-text-muted)]"
+      : includedCount === 0
+        ? "text-[var(--ai-text-muted)]"
+        : "font-semibold text-sm text-[var(--ai-text-default)]",
+  );
+  const excludedClass = cn(
+    "font-mono text-xs",
+    isPreviewEmpty
+      ? "text-[color:var(--ai-text-muted)]"
+      : excludedCount > 0
+        ? "text-[var(--ai-text-warning)]"
+        : "text-[var(--ai-text-muted)]",
+  );
 
   return (
-    <div className="space-y-2">
+    <div className={cn("space-y-2", className)}>
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs font-medium text-[var(--ai-text-muted)] uppercase tracking-wider">
           {label}
         </span>
       </div>
 
-      <div className="space-y-1">
-        <div className="flex justify-between text-[var(--ai-text-default)]">
-          <span className="text-xs">Included:</span>
-          <span className={includedClass}>{includedCount}</span>
+      <dl className="space-y-1 text-sm">
+        <div className="flex items-center justify-between gap-4 text-[var(--ai-text-default)]">
+          <dt className="text-xs text-[var(--ai-text-muted)]">Included</dt>
+          <dd className={includedClass}>{includedCount}</dd>
         </div>
-        <div className="flex justify-between text-[var(--ai-text-muted)]">
-          <span className="text-xs">Excluded:</span>
-          <span className={excludedClass}>
-            {excludedCount}
-          </span>
+        <div className="flex items-center justify-between gap-4 text-[var(--ai-text-muted)]">
+          <dt className="text-xs text-[var(--ai-text-muted)]">Excluded</dt>
+          <dd className={excludedClass}>{excludedCount}</dd>
         </div>
-      </div>
+      </dl>
 
       {includedIndices && includedIndices.length > 0 && messages.length > 0 && (
         <div className="mt-2 pt-2 border-t border-[var(--ai-border-default)]/50">
@@ -189,9 +206,11 @@ function PreviewPane({
             type="button"
             onClick={() => setIsOpen(!isOpen)}
             className="flex items-center gap-1 text-[11px] font-medium text-[var(--ai-text-muted)] hover:text-[var(--ai-text-default)] w-full text-left"
+            aria-pressed={isOpen}
+            aria-label={listToggleLabel}
           >
             {isOpen ? <FiChevronDown /> : <FiChevronRight />}
-            Show list
+            {listToggleLabel}
           </button>
 
           {isOpen && (

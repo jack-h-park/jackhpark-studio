@@ -11,8 +11,8 @@
 }
 
 .overrideBlock + .overrideBlock {
-  margin-top: 1.1rem;
-  padding-top: 1.1rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
   border-top: 1px solid hsl(var(--ai-border-muted));
 }
 
@@ -48,30 +48,48 @@
   box-shadow: 0 0 0 1px var(--ai-border-muted);
 }
 
-.summaryChoiceContent {
-  gap: 0.25rem;
+.summaryGrid {
+  gap: 0.75rem;
 }
 
-.summaryChoiceContentInactive {
-  opacity: 0.75;
-}
-
-.summaryTileInactive {
+.promptPreviewSurface {
+  border-radius: var(--ai-radius-lg);
+  border: 1px solid hsl(var(--ai-border));
+  background: hsl(var(--ai-bg-muted));
+  color: var(--ai-text-default);
+  min-height: 110px;
+  padding: 0.75rem;
+  box-shadow: var(--ai-shadow-soft);
   transition:
     border-color 0.2s ease,
     background-color 0.2s ease,
-    color 0.2s ease,
     box-shadow 0.2s ease;
+  cursor: text;
 }
 
-.summaryTileInactive:hover,
-.summaryTileInactive:focus-visible {
+.promptPreviewSurface:hover {
   border-color: var(--ai-border-default);
-  background-color: hsl(var(--ai-bg-surface-hover));
-  color: var(--ai-text-default);
 }
 
-.summaryTileInactive:focus-visible {
+.promptPreviewSurface:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 1px var(--ai-border-muted);
+  border-color: var(--ai-accent);
+  box-shadow:
+    0 0 0 2px hsl(var(--ai-bg)),
+    0 0 0 4px var(--ai-ring),
+    0 0 8px 1px var(--ai-ring);
+}
+
+.promptPreviewText {
+  margin: 0;
+  color: inherit;
+}
+
+.promptHelper {
+  margin-top: 0.35rem;
+}
+
+.summaryLabelRow {
+  margin-bottom: 0.35rem;
+  align-items: baseline;
 }

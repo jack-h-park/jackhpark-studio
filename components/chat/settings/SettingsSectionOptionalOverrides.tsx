@@ -1,14 +1,12 @@
 "use client";
 
-import { FiAlertTriangle } from "@react-icons/all-files/fi/FiAlertTriangle";
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
-import { FiX } from "@react-icons/all-files/fi/FiX";
 import { useEffect, useMemo, useState } from "react";
 
 import type { LlmModelId } from "@/lib/shared/models";
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/components/ui/utils";
+import { InlineAlert } from "@/components/ui/alert";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
 import { Label } from "@/components/ui/label";
 import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
@@ -167,46 +165,6 @@ export function SettingsSectionOptionalOverrides({
           is controlled by the selected preset.
         </p>
 
-        {showOverridesWarning && (
-          <div
-            role="alert"
-            className="flex items-start gap-2 rounded-lg border border-[color:var(--ai-border-warning)] bg-[color:var(--ai-bg-surface-elevated)] p-3 text-sm text-[color:var(--ai-text-default)]"
-          >
-            <FiAlertTriangle
-              className="mt-0.5 text-[color:var(--ai-text-warning)]"
-              aria-hidden="true"
-            />
-            <div className="flex-1 space-y-0.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider">
-                Overrides active
-              </p>
-              <p className="text-[color:var(--ai-text-muted)]">
-                These changes may affect cost, speed, or memory. Reset to preset
-                defaults to revert.
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="-mt-0.5 h-5 w-5 hover:bg-[color:var(--ai-bg-surface-hover)]"
-              onClick={() => setWarningDismissed(true)}
-              aria-label="Dismiss overrides warning"
-            >
-              <FiX className="h-3.5 w-3.5 text-[color:var(--ai-text-muted)]" />
-            </Button>
-          </div>
-        )}
-
-        {overridesActive && (
-          <Button
-            variant="ghost"
-            className="self-start px-0 text-[11px] text-[color:var(--ai-text-muted)] hover:text-[color:var(--ai-text-default)]"
-            onClick={handleResetToPresetDefaults}
-          >
-            Reset to Preset Defaults
-          </Button>
-        )}
-
         <div className={styles.overrideBlocks}>
           <div className={cn(styles.overrideBlock, "space-y-2")}>
             <div className="flex items-center gap-2">
@@ -238,13 +196,18 @@ export function SettingsSectionOptionalOverrides({
           </div>
 
           <div className={cn(styles.overrideBlock, "space-y-2")}>
-            <div className="flex items-center gap-2">
+            <div
+              className={cn(
+                "flex gap-2 items-baseline",
+                styles.summaryLabelRow,
+              )}
+            >
               <Label className={cn("ai-field__label", styles.overlineLabel)}>
                 Summaries
               </Label>
               <ImpactBadge label="May increase cost" />
             </div>
-            <GridPanel className="grid-cols-2 gap-1">
+            <GridPanel className={cn("grid-cols-2", styles.summaryGrid)}>
               {summaryOptions.map((option) => {
                 const isActive = sessionConfig.summaryLevel === option.value;
                 return (
@@ -253,31 +216,15 @@ export function SettingsSectionOptionalOverrides({
                     active={isActive}
                     disabled={!sessionConfig.rag.enabled}
                     onClick={() => handleSummaryLevelChange(option.value)}
-                    className={
-                      isActive
-                        ? ""
-                        : cn(
-                            "bg-[color:var(--ai-bg-surface-muted)] text-[color:var(--ai-text-muted)] shadow-none opacity-75",
-                            styles.summaryTileInactive,
-                          )
-                    }
-                  >
-                    <div
-                      className={cn(
-                        "ai-choice !gap-1",
-                        styles.summaryChoiceContent,
-                        isActive
-                          ? "px-[0.6rem] py-[0.6rem]"
-                          : "px-[0.45rem] py-[0.45rem] text-[color:var(--ai-text-muted)]",
-                        !isActive && styles.summaryChoiceContentInactive,
-                      )}
-                    >
-                      <span className="ai-choice__label">{option.label}</span>
-                      <p className="ai-choice__description text-[10px] text-[color:var(--ai-text-muted)]">
-                        {option.description}
-                      </p>
-                    </div>
-                  </SelectableTile>
+                    label={option.label}
+                    description={option.description}
+                    className={cn(
+                      "flex flex-col items-center justify-center text-center h-full w-full max-w-full",
+                    )}
+                    contentClassName="ai-choice !gap-1 w-full"
+                    labelClassName="ai-choice__label"
+                    descriptionClassName="ai-choice__description tracking-normal"
+                  />
                 );
               })}
             </GridPanel>
@@ -298,6 +245,18 @@ export function SettingsSectionOptionalOverrides({
             />
           </div>
         </div>
+        {showOverridesWarning && (
+          <InlineAlert
+            severity="warning"
+            title="Overrides active"
+            className="mt-4"
+            onDismiss={() => setWarningDismissed(true)}
+            bodyClassName="ai-helper-text pt-1"
+          >
+            These changes may affect cost, speed, or memory. Reset to preset
+            defaults to revert.
+          </InlineAlert>
+        )}
       </SectionContent>
     </Section>
   );
@@ -343,7 +302,7 @@ function UserPromptEditor({
           </button>
         </div>
         <div
-          className="rounded border border-[color:var(--ai-border-muted)] bg-[color:var(--ai-surface-muted)] px-3 py-2 text-sm text-[color:var(--ai-text-muted)] transition hover:border-[color:var(--ai-border-default)]"
+          className={styles.promptPreviewSurface}
           tabIndex={0}
           role="button"
           onClick={() => setIsEditing(true)}
@@ -355,13 +314,18 @@ function UserPromptEditor({
           }}
         >
           <p
-            className="text-sm leading-relaxed"
+            className={cn("text-sm leading-relaxed", styles.promptPreviewText)}
             aria-label={trimmed || "No prompt configured"}
           >
             {trimmed || "No custom prompt yet."}
           </p>
         </div>
-        <p className={helperClassName ?? "ai-setting-section-description"}>
+        <p
+          className={cn(
+            helperClassName ?? "ai-setting-section-description",
+            styles.promptHelper,
+          )}
+        >
           {helperText}
         </p>
       </div>

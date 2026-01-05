@@ -53,7 +53,7 @@ export function PresetSelectorTabs({
       <div className="flex items-start justify-between gap-2 text-xs leading-tight text-[color:var(--ai-text-muted)]">
         {helperText && <p className="m-0">{helperText}</p>}
         {overridesActive && (
-          <span className="inline-flex items-center rounded-full border border-[color:var(--ai-border-muted)] bg-[color:var(--ai-surface-muted)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ai-text-default)]">
+          <span className="ml-auto inline-flex rounded-full border border-[color:var(--ai-border-muted)] bg-[color:var(--ai-accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ai-text)]">
             Custom
           </span>
         )}
@@ -67,10 +67,11 @@ export function PresetSelectorTabs({
                 key={key}
                 active={isActive}
                 onClick={() => applyPreset(key)}
+                label={PRESET_LABELS[key]}
                 className="flex flex-col items-center justify-center !text-center h-full w-full"
-              >
-                <span className="ai-choice__label">{PRESET_LABELS[key]}</span>
-              </SelectableTile>
+                contentClassName="ai-choice !gap-1 w-full"
+                labelClassName="ai-choice__label"
+              />
             );
           },
         )}

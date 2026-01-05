@@ -132,15 +132,20 @@
 .presetScopeChildren {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0;
 }
 
 .presetScopeSection {
   padding: 0;
+  padding-top: 1.25rem;
   margin: 0;
   background: transparent;
   border: none;
   border-radius: 0;
+}
+
+.presetScopeSection:first-child {
+  padding-top: 0;
 }
 
 .presetScopeSection :global(.ai-setting-section),
