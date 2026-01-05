@@ -710,7 +710,7 @@ body.dark-mode {
   width: 20px;
   border-radius: 9999px;
   background-color: var(--ai-role-surface-1);
-  box-shadow: 0 0 0 1px var(--ai-border-soft);
+  box-shadow: 0 0 0 1px var(--ai-role-border-subtle);
   transition: transform 0.2s ease;
 }
 
