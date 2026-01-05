@@ -1,13 +1,14 @@
 "use client";
 
+import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import { useEffect, useMemo, useState } from "react";
 
 import type { LlmModelId } from "@/lib/shared/models";
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
-import { cn } from "@/components/ui/utils";
 import { InlineAlert } from "@/components/ui/alert";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
+import { ImpactTooltip } from "@/components/ui/ImpactTooltip";
 import { Label } from "@/components/ui/label";
 import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
 import {
@@ -22,6 +23,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import { cn } from "@/components/ui/utils";
 import { listAllLlmModelOptions } from "@/lib/core/llm-registry";
 import {
   type AdminChatConfig,
@@ -30,7 +32,6 @@ import {
   type SummaryLevel,
 } from "@/types/chat-config";
 
-import { ImpactBadge } from "./ImpactBadge";
 import { computeOverridesActive } from "./preset-overrides";
 import styles from "./SettingsSectionOptionalOverrides.module.css";
 
@@ -151,13 +152,20 @@ export function SettingsSectionOptionalOverrides({
   return (
     <Section>
       <SectionHeader>
-        <SectionTitle
-          as="div"
-          className="flex items-center gap-2"
-          icon={<FiSliders aria-hidden="true" />}
-        >
-          <span>Optional Overrides</span>
-        </SectionTitle>
+        <div className="flex items-center gap-2">
+          <SectionTitle
+            as="div"
+            className="flex items-center gap-2"
+            icon={<FiSliders aria-hidden="true" />}
+          >
+            <span>Optional Overrides</span>
+          </SectionTitle>
+          <ImpactTooltip
+            text="Overrides can change cost/speed and output behavior compared to the preset."
+          >
+            <FiInfo aria-hidden="true" />
+          </ImpactTooltip>
+        </div>
       </SectionHeader>
       <SectionContent className="flex flex-col gap-3">
         <p className="ai-setting-section-description">
@@ -167,14 +175,13 @@ export function SettingsSectionOptionalOverrides({
 
         <div className={styles.overrideBlocks}>
           <div className={cn(styles.overrideBlock, "space-y-2")}>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center">
               <Label
                 htmlFor="optional-llm-model"
                 className={cn("ai-field__label", styles.overlineLabel)}
               >
                 LLM Model
               </Label>
-              <ImpactBadge label="May change cost/speed" />
             </div>
             <Select
               value={sessionConfig.llmModel}
@@ -198,14 +205,13 @@ export function SettingsSectionOptionalOverrides({
           <div className={cn(styles.overrideBlock, "space-y-2")}>
             <div
               className={cn(
-                "flex gap-2 items-baseline",
+                "flex items-baseline",
                 styles.summaryLabelRow,
               )}
             >
               <Label className={cn("ai-field__label", styles.overlineLabel)}>
                 Summaries
               </Label>
-              <ImpactBadge label="May increase cost" />
             </div>
             <GridPanel className={cn("grid-cols-2", styles.summaryGrid)}>
               {summaryOptions.map((option) => {
@@ -279,12 +285,7 @@ function UserPromptEditor({
 }: UserPromptEditorProps) {
   return (
     <PromptWithCounter
-      label={
-        <span className="inline-flex items-center gap-2">
-          <span>User system prompt</span>
-          <ImpactBadge label="May change output" />
-        </span>
-      }
+      label="User system prompt"
       helperText={helperText}
       helperClassName={helperClassName}
       value={value}

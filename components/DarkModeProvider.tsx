@@ -14,11 +14,7 @@ export function DarkModeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (darkMode.value) {
-      document.body.classList.add("dark");
-    } else {
-      document.body.classList.remove("dark");
-    }
+    document.body.classList.toggle("dark", darkMode.value);
   }, [darkMode.value]);
 
   return (

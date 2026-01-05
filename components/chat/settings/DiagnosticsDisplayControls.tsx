@@ -1,7 +1,7 @@
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { SwitchField } from "@/components/ui/field";
-import { cn } from "@/components/ui/utils";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/components/ui/utils";
 
 type DiagnosticsDisplayControlsProps = {
   compact?: boolean;

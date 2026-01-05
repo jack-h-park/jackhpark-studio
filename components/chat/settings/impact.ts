@@ -1,27 +1,5 @@
-export type ImpactLevel = "none" | "mayReduceMemory";
-
 export type ImpactKey = "preset" | "reset" | "historyBudget" | "summary";
 
-/**
- * Returns the impact level for a specific control.
- * In Phase 1, we mainly flag controls that might reduce context memory.
- */
-export function getImpactBadgeForControl(controlId: string): ImpactLevel {
-  switch (controlId) {
-    case "preset":
-    case "reset":
-    case "historyBudget":
-    case "summary":
-      return "mayReduceMemory";
-    default:
-      return "none";
-  }
-}
-
-/**
- * Returns the warning message to display in the inline banner
- * when a disruptive change occurs.
- */
 export function getImpactWarningMessage(key: ImpactKey): string {
   switch (key) {
     case "preset":

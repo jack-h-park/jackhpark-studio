@@ -8,6 +8,7 @@ import type {
   SessionChatConfig,
   SummaryLevel,
 } from "@/types/chat-config";
+import { cn } from "@/components/ui/utils";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
@@ -16,7 +17,6 @@ import {
   buildEffectiveSettingsSupportLine,
 } from "./effective-settings";
 import { computeOverridesActive } from "./preset-overrides";
-import { cn } from "@/components/ui/utils";
 import {
   formatPresetDecimal,
   formatPresetNumber,

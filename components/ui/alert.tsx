@@ -1,8 +1,7 @@
-import * as React from "react";
-
 import { FiAlertTriangle } from "@react-icons/all-files/fi/FiAlertTriangle";
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import { FiX } from "@react-icons/all-files/fi/FiX";
+import * as React from "react";
 
 import { Button } from "./button";
 import { cn } from "./utils";

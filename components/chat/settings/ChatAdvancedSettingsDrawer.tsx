@@ -1,3 +1,5 @@
+import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
+import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 import { FiSettings } from "@react-icons/all-files/fi/FiSettings";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -10,6 +12,8 @@ import {
 } from "@/components/chat/settings/impact";
 import { Button } from "@/components/ui/button";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
+import { ImpactTooltip } from "@/components/ui/ImpactTooltip";
+import { SectionTitle } from "@/components/ui/section";
 import { StatusPill } from "@/components/ui/status-pill";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
@@ -23,9 +27,6 @@ import { SettingsSectionModelEngine } from "./SettingsSectionModelEngine";
 import { SettingsSectionOptionalOverrides } from "./SettingsSectionOptionalOverrides";
 import { PresetSelectorTabs } from "./SettingsSectionPresets";
 import { SettingsSectionRagRetrieval } from "./SettingsSectionRagRetrieval";
-import { SectionTitle } from "@/components/ui/section";
-import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
-import { ImpactBadge } from "./ImpactBadge";
 
 type DrawerProps = {
   open: boolean;
@@ -153,13 +154,19 @@ export function ChatAdvancedSettingsDrawer({
               <div className={styles.presetScope}>
                 <div className={styles.presetScopeHeader}>
                   <div className={styles.presetScopeTop}>
-                    <SectionTitle as="p" icon={<FiLayers aria-hidden="true" />}>
+                  <SectionTitle as="p" icon={<FiLayers aria-hidden="true" />}>
+                    <span className="flex items-center gap-2">
                       <span className="flex items-center gap-2">
                         AI Orchestration Preset
                         <StatusPill variant="muted">SESSION-WIDE</StatusPill>
                       </span>
-                      <ImpactBadge controlId="preset" />
-                    </SectionTitle>
+                      <ImpactTooltip
+                        text="Changing presets can affect retrieval, memory budgets, and response behavior for this session."
+                      >
+                        <FiInfo aria-hidden="true" />
+                      </ImpactTooltip>
+                    </span>
+                  </SectionTitle>
                   </div>
                   <p className="ai-setting-section-description">
                     Preset controls retrieval, memory, and prompt behavior for

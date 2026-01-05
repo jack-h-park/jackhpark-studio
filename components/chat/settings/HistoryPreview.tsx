@@ -4,9 +4,9 @@ import { FiChevronRight } from "@react-icons/all-files/fi/FiChevronRight";
 import { useState } from "react";
 
 import type { HistoryPreviewResult } from "@/lib/chat/historyWindowPreview";
-import { cn } from "@/lib/utils";
 import { type ChatMessage } from "@/components/chat/hooks/useChatSession";
 import { isDevOnly } from "@/lib/dev/devFlags";
+import { cn } from "@/lib/utils";
 
 import { HistoryPreviewDiffPanel } from "./HistoryPreviewDiffPanel";
 

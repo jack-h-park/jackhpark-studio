@@ -26,7 +26,6 @@ import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
 import type { ImpactKey } from "./impact";
 import { HistoryPreview } from "./HistoryPreview";
-import { ImpactBadge } from "./ImpactBadge";
 
 type ContextBudgetKey = "tokenBudget" | "historyBudget" | "clipTokens";
 
@@ -187,7 +186,6 @@ export function SettingsSectionContextHistory({
     key: ContextBudgetKey;
     label: string;
     limit: AdminChatConfig["numericLimits"][keyof AdminChatConfig["numericLimits"]];
-    impactId?: string; // Optional ID for impact badge lookup
   }> = [
     {
       key: "tokenBudget",
@@ -198,7 +196,6 @@ export function SettingsSectionContextHistory({
       key: "historyBudget",
       label: "History Token Budget",
       limit: historyBudget,
-      impactId: "historyBudget",
     },
     {
       key: "clipTokens",
@@ -269,16 +266,11 @@ export function SettingsSectionContextHistory({
         </p>
         {!isContextLocked && (
           <>
-            {inputs.map(({ key, label, limit, impactId }) => (
+            {inputs.map(({ key, label, limit }) => (
               <SliderField
                 key={key}
                 id={`settings-${key}`}
-                label={
-                  <span className="inline-flex items-center">
-                    {label}
-                    {impactId && <ImpactBadge controlId={impactId} />}
-                  </span>
-                }
+                label={label}
                 value={sessionConfig.context[key]}
                 min={limit.min}
                 max={limit.max}

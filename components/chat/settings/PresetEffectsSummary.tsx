@@ -1,8 +1,6 @@
+import { FiZap } from "@react-icons/all-files/fi/FiZap";
 import { type ReactNode } from "react";
 
-import { StatusPill } from "@/components/ui/status-pill";
-import { cn } from "@/components/ui/utils";
-import styles from "./PresetEffectsSummary.module.css";
 import {
   Section,
   SectionContent,
@@ -10,7 +8,10 @@ import {
   SectionHeader,
   SectionTitle,
 } from "@/components/ui/section";
-import { FiZap } from "@react-icons/all-files/fi/FiZap";
+import { StatusPill } from "@/components/ui/status-pill";
+import { cn } from "@/components/ui/utils";
+
+import styles from "./PresetEffectsSummary.module.css";
 
 export type PresetEffectItem = {
   label: string;

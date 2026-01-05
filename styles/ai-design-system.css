@@ -24,6 +24,7 @@
   --ai-text-muted: hsl(var(--ai-fg-muted));
   --ai-text-strong: color-mix(in srgb, var(--ai-text) 96%, transparent);
   --ai-text-soft: color-mix(in srgb, var(--ai-text) 72%, transparent);
+  --ai-tooltip-bg: rgba(255, 255, 255, 0.9);
   --ai-text-faint: color-mix(in srgb, var(--ai-text) 50%, transparent);
   --ai-pill-bg: color-mix(in srgb, var(--ai-text) 6%, var(--ai-surface));
   --ai-pill-border: color-mix(in srgb, var(--ai-text) 12%, transparent);
@@ -73,6 +74,7 @@
   --ai-divider: color-mix(in srgb, hsl(var(--ai-border)) 70%, hsl(var(--ai-text)) 30%);
   --ai-border-subtle: color-mix(in srgb, hsl(var(--ai-border)) 80%, hsl(var(--ai-text)) 20%);
   --ai-border-strong: color-mix(in srgb, hsl(var(--ai-border)) 90%, hsl(var(--ai-text)) 10%);
+  --ai-tooltip-bg: rgba(14, 19, 25, 0.95);
 }
 
 /* ------------------------------------------------ */
