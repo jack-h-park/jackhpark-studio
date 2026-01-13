@@ -1,10 +1,10 @@
 # LangChain Memory Implementation Analysis
 
-> **Derives from canonical:** [RAG System](../../canonical/rag/rag-system.md)
+> **Derives from canonical:** [RAG System](../canonical/rag/rag-system.md)
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
-This analysis assumes the canonical guardrail contracts for context budgeting described in `../../canonical/rag/rag-system.md`; the focus here is the decision to stay with a stateless, functional memory implementation.
+This analysis assumes the canonical guardrail contracts for context budgeting described in `../canonical/rag/rag-system.md`; the focus here is the decision to stay with a stateless, functional memory implementation.
 
 ## 1. Current Implementation Analysis ("Lightweight Custom Approach")
 
