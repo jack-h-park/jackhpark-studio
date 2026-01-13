@@ -1,6 +1,6 @@
 # Advanced Settings UX Model
 
-> **Derives from canonical:** [Chat Guardrail System](../../canonical/guardrails/guardrail-system.md)
+> **Derives from canonical:** [Chat Guardrail System](../canonical/guardrails/guardrail-system.md)
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
@@ -11,7 +11,7 @@
 
 ## Ownership Model
 
-- The canonical guardrail contract (`../../canonical/guardrails/guardrail-system.md`) defines which settings are preset-managed versus user-controlled; this section translates those policies into UX groupings.
+- The canonical guardrail contract (`../canonical/guardrails/guardrail-system.md`) defines which settings are preset-managed versus user-controlled; this section translates those policies into UX groupings.
 
 ### Preset-owned (enforced)
 - **Embeddings** – the effective model is derived from the preset and surfaced in the “Preset Effects” summary.

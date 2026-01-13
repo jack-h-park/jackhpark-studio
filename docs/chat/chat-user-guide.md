@@ -1,10 +1,10 @@
 # Chat Assistant User Guide
 
-> **Derives from canonical:** [Chat Guardrail System](../../canonical/guardrails/guardrail-system.md)
+> **Derives from canonical:** [Chat Guardrail System](../canonical/guardrails/guardrail-system.md)
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
-This guide presumes the guardrail contract defined in `../../canonical/guardrails/guardrail-system.md`; the focus here is how user settings surface those enforced policies.
+This guide presumes the guardrail contract defined in `../canonical/guardrails/guardrail-system.md`; the focus here is how user settings surface those enforced policies.
 
 This guide explains how to configure the AI Chat Assistant for your specific needs. While the system comes with optimized defaults, you can customize the behavior for each session using the **App Settings**.
 
