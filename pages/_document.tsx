@@ -1,5 +1,6 @@
 import { IconContext } from "@react-icons/all-files";
 import Document, { Head, Html, Main, NextScript } from "next/document";
+import { name } from "@/lib/config";
 
 export default class MyDocument extends Document {
   override render() {
@@ -7,12 +8,27 @@ export default class MyDocument extends Document {
       <IconContext.Provider value={{ style: { verticalAlign: "middle" } }}>
         <Html lang="en">
           <Head>
+            <meta name="application-name" content={name} />
+            <meta name="apple-mobile-web-app-title" content={name} />
+            <meta name="msapplication-TileColor" content="#000000" />
+            <meta name="theme-color" content="#000000" />
             <link rel="shortcut icon" href="/favicon.ico" />
             <link
               rel="icon"
               type="image/png"
               sizes="32x32"
               href="/favicon-32x32.png"
+            />
+            <link
+              rel="icon"
+              type="image/png"
+              sizes="16x16"
+              href="/favicon-16x16.png"
+            />
+            <link
+              rel="apple-touch-icon"
+              sizes="180x180"
+              href="/apple-touch-icon.png"
             />
 
             <link rel="manifest" href="/manifest.json" />
