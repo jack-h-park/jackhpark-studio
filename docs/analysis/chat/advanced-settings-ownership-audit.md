@@ -1,10 +1,10 @@
 # Advanced Settings Ownership Audit
 
-> **Derives from canonical:** [Chat Guardrail System](../architecture/guardrail-system.md)
+> **Derives from canonical:** [Chat Guardrail System](../../canonical/guardrails/guardrail-system.md)
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
-This audit assumes the guardrail contract described in `guardrail-system.md`; it evaluates how the Advanced Settings UX implements those policies without restating them.
+This audit assumes the guardrail contract described in `../../canonical/guardrails/guardrail-system.md`; it evaluates how the Advanced Settings UX implements those policies without restating them.
 
 **Status:** Draft Analysis
 **Date:** 2026-01-03

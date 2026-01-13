@@ -1,6 +1,6 @@
 # RAG Retrieval Engine
 
-> **Derives from canonical:** [RAG System](./rag-system.md)
+> **Derives from canonical:** [RAG System](../../canonical/rag/rag-system.md)
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
@@ -8,7 +8,7 @@
 **Implementations:** `lib/server/api/langchain_chat_impl_heavy.ts`, `lib/rag/retrieval.ts`, `lib/rag/ranking.ts`
 
 This document details the **Read Path** of the RAG system: how the Chat Assistant retrieves, ranks, and assembles context from the vector store.  
-Refer to [RAG System](./rag-system.md) for the canonical [Auto-RAG](../00-start-here/terminology.md#auto-rag) policy and context invariants; this page covers implementation specifics.
+Refer to [RAG System](../../canonical/rag/rag-system.md) for the canonical [Auto-RAG](../00-start-here/terminology.md#auto-rag) policy and context invariants; this page covers implementation specifics.
 
 ---
 

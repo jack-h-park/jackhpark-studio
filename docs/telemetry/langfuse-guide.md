@@ -1,11 +1,11 @@
 # Langfuse Guide: Payloads & Dashboards
 
-> **Derives from canonical:** [Telemetry alerting contract](../alerting-contract.md)
+> **Derives from canonical:** [Telemetry alerting contract](../canonical/telemetry/alerting-contract.md)
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
 This guide describes the telemetry data structure (payloads) sent to Langfuse and provides suggestions for building diagnostic dashboards.  
-The canonical alerting contract (`alerting-contract.md`) defines the signal names and invariants; the sections below cover how Langfuse realizes those signals.
+The canonical alerting contract (`../canonical/telemetry/alerting-contract.md`) defines the signal names and invariants; the sections below cover how Langfuse realizes those signals.
 
 > For the overall architecture, telemetry controls (sampling/detail levels), and environment variables, see [Logging & Telemetry Architecture](./telemetry-logging.md).
 > For operational verification, use the [Operational Telemetry Audit Checklist](../operations/telemetry-audit-checklist.md).

@@ -1,6 +1,6 @@
 # RAG System Architecture
 
-> **Derives from canonical:** [RAG System](./rag-system.md)
+> **Derives from canonical:** [RAG System](../../canonical/rag/rag-system.md)
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
@@ -8,7 +8,7 @@
 **Owner:** Engineering  
 **Implementation:** `pages/api/chat.ts`, `lib/server/api/langchain_chat_impl_heavy.ts`
 
-This page connects the canonical architecture to the runtime artifacts (Supabase tables, telemetry hooks, request flows) you deal with when extending or debugging the chat endpoint. The high-level contracts live in [RAG System](./rag-system.md); this doc assumes those invariants.
+This page connects the canonical architecture to the runtime artifacts (Supabase tables, telemetry hooks, request flows) you deal with when extending or debugging the chat endpoint. The high-level contracts live in [RAG System](../../canonical/rag/rag-system.md); this doc assumes those invariants.
 
 ---
 

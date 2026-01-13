@@ -1,6 +1,6 @@
 # Session Presets
 
-> **Derives from canonical:** [Chat Guardrail System](../architecture/guardrail-system.md)
+> **Derives from canonical:** [Chat Guardrail System](../../canonical/guardrails/guardrail-system.md)
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
@@ -86,4 +86,4 @@ Fast is for latency-sensitive use cases. It leans on the smaller `gpt-4o-mini` f
 - **History budget:** 512
 - **Clip tokens:** 64
 
-Refer to [Guardrail System](../architecture/guardrail-system.md) for the policy that enforces which presets can enable HyDE, Reverse RAG, and budget controls, and to [RAG System](./rag-system.md) for the broader Auto-RAG guarantees those presets must respect.
+Refer to [Guardrail System](../../canonical/guardrails/guardrail-system.md) for the policy that enforces which presets can enable [HyDE](../00-start-here/terminology.md#hyde), [Reverse RAG](../00-start-here/terminology.md#reverse-rag), and budget controls, and to [RAG System](../../canonical/rag/rag-system.md) for the broader Auto-RAG guarantees those presets must respect.

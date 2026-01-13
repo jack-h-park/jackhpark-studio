@@ -1,6 +1,6 @@
 # RAG Ingestion Pipeline
 
-> **Derives from canonical:** [RAG System](./rag-system.md)
+> **Derives from canonical:** [RAG System](../../canonical/rag/rag-system.md)
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
@@ -8,7 +8,7 @@
 **Implementations:** `lib/admin/manual-ingestor.ts`, `lib/rag/index.ts`
 
 This document details the **Write Path** of the RAG system: how data is fetched, processed, chunked, and stored in the vector database.  
-Canonical invariants on chunking/token budgets, change detection, and ingestion hygiene live in [RAG System](./rag-system.md); this page focuses on the implementation hooks that satisfy those invariants.
+Canonical invariants on chunking/token budgets, change detection, and ingestion hygiene live in [RAG System](../../canonical/rag/rag-system.md); this page focuses on the implementation hooks that satisfy those invariants.
 
 ---
 
