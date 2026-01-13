@@ -1,6 +1,11 @@
 # Logging & Telemetry Architecture
 
-This document explains how we configure **logging** and **Langfuse telemetry** across both the **Native** and **LangChain** chat engines.
+> **Derives from canonical:** [Telemetry alerting contract](../alerting-contract.md)
+> This document is role-specific; it must not redefine the canonical invariants.
+> If behavior changes, update the canonical doc first, then reflect here.
+
+This document explains how we configure **logging** and **Langfuse telemetry** across both the **Native** and **LangChain** chat engines.  
+It assumes the signal definitions and alert contracts documented in `alerting-contract.md` so it can focus on implementation plumbing.
 
 ## Overview
 

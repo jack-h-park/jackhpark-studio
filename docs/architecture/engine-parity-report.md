@@ -1,5 +1,9 @@
 # Engine parity report
 
+> **Derives from canonical:** [RAG System](./rag-system.md)
+> This document is role-specific; it must not redefine the canonical invariants.
+> If behavior changes, update the canonical doc first, then reflect here.
+
 > [!WARNING]
 > **Historical Document**: This report describes the transition from the legacy "Native" engine to the unified LangChain runtime. The migration is complete, and the Native engine has been removed. Use this for reference only.
 

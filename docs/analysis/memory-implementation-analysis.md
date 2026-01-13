@@ -1,5 +1,11 @@
 # LangChain Memory Implementation Analysis
 
+> **Derives from canonical:** [RAG System](../architecture/rag-system.md)
+> This document is role-specific; it must not redefine the canonical invariants.
+> If behavior changes, update the canonical doc first, then reflect here.
+
+This analysis assumes the canonical guardrail contracts for context budgeting described in `rag-system.md`; the focus here is the decision to stay with a stateless, functional memory implementation.
+
 ## 1. Current Implementation Analysis ("Lightweight Custom Approach")
 
 Currently, the codebase **does not use** LangChain's built-in Memory modules (e.g., `BufferMemory`, `ConversationSummaryMemory`). Instead, it implements a **stateless, functional approach** optimized for Next.js serverless API routes.

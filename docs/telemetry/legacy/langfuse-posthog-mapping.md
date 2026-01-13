@@ -1,3 +1,7 @@
+> ⚠️ **Archived / Superseded**
+> This document is kept for historical context and MUST NOT be updated.
+> Canonical reference: [Telemetry alerting contract](../alerting-contract.md)
+
 # Langfuse → PostHog event mapping (archived)
 
 Signal mapping now lives inside `docs/telemetry/alerting-contract.md`, which covers both the alert contract and the canonical PostHog events/properties that Step 3 consumes. The key `chat_completion` properties that PostHog relies on are:

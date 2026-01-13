@@ -4,6 +4,25 @@ This document outlines the architecture of the RAG system designed to ground the
 
 Unlike simple "vector lookup" implementations, this system treats retrieval as a fallible process that must be actively managed, audited, and self-corrected before context reaches the LLM.
 
+## Canonical Contract
+
+**Status:** Canonical  
+**Defines:**
+- the end-to-end RAG architecture covering ingestion, retrieval, and context assembly.
+- the Auto-RAG decision policy, including quality checks, HyDE, query rewriting, and multi-query fusion.
+- the context assembly and citation guarantees, with dedupe/quota rules that determine what reaches the LLM.
+- ingestion hygiene (change detection, chunking, embedding versioning) that feeds authoritative signals.
+**Invariants:**
+- Auto-RAG remains a managed capability (not a forced override) that only triggers when the base retrieval is weak.
+- Retrieved context must obey the sliding-window chunk quotas, deduplication, and citation guarantees before prompt assembly.
+- Embedding storage stays partitioned by provider/model and ingestion keeps change detection, dedupe, and atomic replacement intact.
+**Derived documents:**
+- [rag-architecture.md](./rag-architecture.md)
+- [rag-retrieval-engine.md](./rag-retrieval-engine.md)
+- [rag-ingestion-pipeline.md](./rag-ingestion-pipeline.md)
+- [analysis/memory-implementation-analysis.md](../analysis/memory-implementation-analysis.md)
+**Change rule:** If this contract changes, update derived docs in the same PR.
+
 ---
 
 ## 1. High-Level Architecture

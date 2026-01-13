@@ -1,5 +1,26 @@
 # Telemetry alerting contract
 
+## Canonical Contract
+
+**Status:** Canonical  
+**Defines:**
+- the alert signal contract (intent → signal → action) for latency, abort, and cache efficiency alerts.
+- the canonical PostHog/Langfuse event/property semantics (names, payload shapes, required fields).
+- the escalation philosophy and operational guidance that keep dashboards aligned with the contract.
+**Invariants:**
+- Metric and alert names must remain stable so dashboards, alerts, and runbooks continue to work.
+- This document stays the single source of truth for signal semantics before any downstream guide changes.
+- Required fields (`latency_ms`, `aborted`, `response_cache_hit`, `rag_enabled`, etc.) must keep their documented boolean/number semantics.
+**Derived documents:**
+- [posthog-ops.md](./posthog-ops.md)
+- [dashboards/posthog-dashboard.md](./dashboards/posthog-dashboard.md)
+- [dashboards/langfuse-dashboard.md](./dashboards/langfuse-dashboard.md)
+- [langfuse-guide.md](./langfuse-guide.md)
+- [implementation/telemetry-logging.md](./implementation/telemetry-logging.md)
+- [runbooks/oncall-runbook.md](./runbooks/oncall-runbook.md)
+- [../operations/telemetry-audit-checklist.md](../operations/telemetry-audit-checklist.md)
+**Change rule:** If this contract changes, update derived docs in the same PR.
+
 ## How these docs relate
 - **Spec** → `alerting-contract.md` houses the intent, trigger conditions, severity matrices, dependency rules, and immediate actions for every canonical alert (Steps 1 & 2 rolled into a single contract).
 - **Mapping** → The same doc also spells out the canonical PostHog events/properties you are allowed to reference (Step 2). Changes to the spec or event names must stay in sync here.

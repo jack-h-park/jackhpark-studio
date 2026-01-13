@@ -46,6 +46,7 @@ Always align with the existing stack unless explicitly instructed otherwise.
 - No inline styles (Tailwind only)
 - No speculative features
 - No new libraries unless clearly justified
+- No feature-specific selectors inside `ai-design-system.css`
 
 ---
 
@@ -74,8 +75,25 @@ Always align with the existing stack unless explicitly instructed otherwise.
 
 7. **Design system compliance**  
    All UI changes must follow:
-   - `docs/design-system/ai-design-system.md`  
-     Reuse existing primitives and tokens.
+   - `docs/design-system/ai-design-system.md`
+   - `docs/css-guardrails.md`
+
+   Requirements:
+   - `styles/ai-design-system.css` is **primitive-only** (tokens, utilities, reusable UI primitives).
+   - Feature- or screen-specific styling must live in feature-scoped stylesheets.
+   - No color literals or legacy tokens in component rules; consume role tokens only.
+
+---
+
+## CSS & Design System Rules
+
+- Treat the design system as a contract, not a UI kit.
+- Do not add feature-specific selectors to `styles/ai-design-system.css`.
+- All colors, borders, and interaction states must resolve through tokens:
+  - Prefer `--ai-role-*` tokens in primitives.
+  - Text may use `--ai-text*` and `--ai-accent*` families.
+- Hover/selected/active behavior must be implemented via shared primitives (e.g., `.ai-selectable`), never per-feature overrides.
+- Dark mode correctness is mandatory; literal colors in component rules are considered regressions.
 
 ---
 
@@ -85,6 +103,7 @@ Always align with the existing stack unless explicitly instructed otherwise.
 - Provide directly usable code
 - Explain _why_ when trade-offs exist
 - Ask for clarification if requirements are ambiguous
+- Assume CSS guardrails are enforced in CI; changes that violate them are invalid by definition
 
 ---
 

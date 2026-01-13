@@ -1,5 +1,8 @@
 # Operational Telemetry Audit Checklist
 
+
+This checklist verifies the signal semantics defined in `alerting-contract.md`; it does not redefine them.
+
 ## Purpose & When to Use
 
 - Ensure telemetry semantics remain correct during refactors or incident response.

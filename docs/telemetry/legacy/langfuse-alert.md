@@ -1,6 +1,6 @@
-> ⚠️ **Legacy Notice**  
-> This document is superseded by `docs/telemetry/alerting-contract.md`, which is the canonical, tool-agnostic alert contract.  
-> This file is retained for historical reference only.
+> ⚠️ **Archived / Superseded**
+> This document is kept for historical context and MUST NOT be updated.
+> Canonical reference: [Telemetry alerting contract](../alerting-contract.md)
 
 # Langfuse Alert Specification
 

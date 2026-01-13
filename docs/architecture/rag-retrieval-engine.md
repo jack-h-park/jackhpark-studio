@@ -1,9 +1,14 @@
 # RAG Retrieval Engine
 
+> **Derives from canonical:** [RAG System](./rag-system.md)
+> This document is role-specific; it must not redefine the canonical invariants.
+> If behavior changes, update the canonical doc first, then reflect here.
+
 **Status:** authoritative
 **Implementations:** `lib/server/api/langchain_chat_impl_heavy.ts`, `lib/rag/retrieval.ts`, `lib/rag/ranking.ts`
 
-This document details the **Read Path** of the RAG system: how the Chat Assistant retrieves, ranks, and assembles context from the vector store.
+This document details the **Read Path** of the RAG system: how the Chat Assistant retrieves, ranks, and assembles context from the vector store.  
+Refer to [RAG System](./rag-system.md) for the canonical [Auto-RAG](../00-start-here/terminology.md#auto-rag) policy and context invariants; this page covers implementation specifics.
 
 ---
 
@@ -24,37 +29,14 @@ Retrieval is executed via Postgres RPC functions that wrap `pgvector` operators.
 
 ## 2. Auto-RAG (Self-Correcting Retrieval)
 
-The system is not a simple "top-k" lookup. It implements a multi-pass decision tree to handle complex or ambiguous queries.
+The canonical [Auto-RAG](../00-start-here/terminology.md#auto-rag) decision tree is described in `rag-system.md`. Here we document the implementation surfaces lit by `computeRagContextAndCitations`:
 
-**Logic:** `computeRagContextAndCitations` in `langchain_chat_impl_heavy.ts`
+- **Base pass:** `match_*` RPCs execute a similarity search and `isWeakRetrieval` validates `similarityThreshold`, match count, and density. The resulting candidates flow into `buildContextWindow`.
+- **Auto correction:** When `isWeakRetrieval` is true, the handler invokes `generateHydeDocument` and `rewriteQuery` before re-running the retrieval pass; `scoreDecision` compares base vs auto sets and decides which list to keep.
+- **Multi-query fusion:** When `ragMultiQueryMode` is enabled, `mergeCandidates` runs parallel queries with alternative rewrites and performs Reciprocal Rank Fusion before selection.
+- **Telemetry hooks:** `rag:root`, `context:selection`, and Langfuse `rag_retrieval_stage` spans annotate every pass (`autoTriggered`, `winner`, `multiQueryRan`, `insufficient`) and expose `decisionSignature`/score metrics for dashboards.
 
-### Phase 1: Base Pass
-
-- Executes a standard vector search using the user's raw query.
-- **Evaluation:** Checks `isWeakRetrieval(result)`:
-  - **Insufficient:** Zero matches found.
-  - **Low Score:** Top match is below `similarityThreshold`.
-  - **Low Count:** Fewer than `AUTO_MIN_INCLUDED` (3) chunks found.
-
-### Phase 2: Auto-Correction (If Weak)
-
-If the base pass is weak, the system triggers **Auto Mode**:
-
-1.  **HyDE (Hypothetical Document Embeddings):** Generates a hypothetical answer to the user's question and embeds _that_ to find semantically similar chunks.
-2.  **Query Rewriting:** Uses the LLM to rewrite the query for better search terms.
-3.  **Comparision:** The system runs a second retrieval pass with the new embedding and picks the winner (`base` vs `auto`) based on score and density.
-
-### Phase 3: Multi-Query (Optional)
-
-If `ragMultiQueryMode` is enabled and base results are still weak:
-
-- Generates multiple variations of the query.
-- Executes parallel searches.
-- **Fusion:** Merges results using Reciprocal Rank Fusion (RRF) or simple deduplication (`mergeCandidates`).
-
-### ⚠️ Note: Manual Overrides
-
-If a user enables **Reverse RAG** or **HyDE** explicitly in their Session Settings (checking the box), this **bypasses the Quality Check**. The system will execute the selected strategy immediately, regardless of whether the base retrieval was strong or weak. This allows expert users to force "Deep Search" behaviors.
+Implementation respects guardrail flags: when guardrails or presets set `reverseRAG` or `hyde`, `resolveAutoMode` forcibly routes requests down the requested path before `isWeakRetrieval` runs. See `guardrail-system.md` for the policy semantics that govern those overrides.
 
 ---
 

@@ -2,6 +2,24 @@
 
 This document outlines the architecture and principles of the AI Design System, maintaining a clean separation between the **Style Layer** (CSS) and the **Component Layer** (React), while leveraging **Tailwind CSS** for layout and utility-first styling.
 
+## Canonical Contract
+
+**Status:** Canonical  
+**Defines:**
+- the token system (BG/text/role tokens) that powers every color, border, and interaction state.
+- the primitives- vs. feature-layer separation, ensuring `styles/ai-design-system.css` remains primitive-only.
+- the interaction contract (Selectable primitives, tokens, InteractionScope) that unifies hover/active states.
+- the engineering conventions (Tailwind + `cn`, file naming) that keep the system consistent.
+**Invariants:**
+- No raw color literals appear in primitive CSS or component styles; only role/text/accent tokens may surface.
+- Interaction states are driven by shared primitives (e.g., `.ai-selectable`) and their tokens, not per-feature overrides.
+- Dark mode and border/contrast expectations remain tied to the defined tokens so theme changes flow automatically.
+**Derived documents:**
+- [../css-guardrails.md](../css-guardrails.md)
+- [../ui/color-contract.md](../ui/color-contract.md)
+- [../ui/color-audit.md](../ui/color-audit.md)
+**Change rule:** If this contract changes, update derived docs in the same PR.
+
 ---
 
 ## 1. Guiding Principles (The "Why")
@@ -60,6 +78,78 @@ Always use tokens instead of hardcoded values.
   - `disabled`: Prevents all interaction and applies "greyed out" styling.
   - `loading`: Primarily for buttons; shows a spinner and prevents clicks. Also disables nested inputs.
   - `readOnly`: For inputs; prevents modification but maintains higher visibility/contrast than `disabled`.
+
+---
+
+### D. Selectable & Interaction Contract (Unified Model)
+
+The design system defines a **single, shared interaction contract** for all selectable surfaces (tiles, allowlist rows, preset cards, clickable wrappers around checkboxes/toggles). This prevents per-feature hover/selected styling and guarantees consistent behavior across light and dark modes.
+
+#### Core Concept
+
+- **Interaction strength is owned by tokens**, not by components.
+- **State behavior is owned by primitives**, not by features.
+- Components opt into the contract by applying shared primitives and modifiers.
+
+#### Contract Diagram
+
+```mermaid
+flowchart TB
+  UserInput[User Interaction]
+
+  UserInput --> Hover[Hover]
+  UserInput --> Active[Selected / Active]
+  UserInput --> Disabled[Disabled]
+
+  Hover -->|token| SurfaceHover[--ai-role-surface-hover]
+  Hover -->|token| BorderHover[--ai-role-border-selected]
+
+  Active -->|token| SurfaceSelected[--ai-role-surface-selected]
+  Active -->|token| BorderSelected[--ai-role-border-selected]
+  Active -->|primitive| InsetRing[inset ring via box-shadow]
+
+  Disabled -->|token| SurfaceMuted[--ai-role-surface-muted]
+  Disabled -->|token| BorderMuted[--ai-role-border-muted]
+
+  SurfaceHover --> Selectable[.ai-selectable]
+  BorderHover --> Selectable
+
+  SurfaceSelected --> SelectableActive[.ai-selectable--active]
+  BorderSelected --> SelectableActive
+  InsetRing --> SelectableActive
+
+  SurfaceMuted --> SelectableDisabled[.ai-selectable--disabled]
+  BorderMuted --> SelectableDisabled
+```
+
+#### Required CSS Primitives
+
+- `.ai-selectable`
+  - Baseline surface (uses `--ai-role-surface-1`)
+  - Neutral border and subtle ambient shadow
+
+- `.ai-selectable--hoverable`
+  - Applies hover surface + accent border ring
+
+- `.ai-selectable--active`
+  - Applies selected surface
+  - Applies accent border
+  - Applies **one or more inset rings** for toggle-level clarity
+
+- `.ai-selectable--disabled`
+  - Uses muted surface and border
+  - Suppresses hover and active affordances
+
+#### Design Rules
+
+- **Never implement hover/selected styles per feature.**
+- **Never hardcode colors for interaction states.**
+- All interaction contrast is adjusted by tuning:
+  - `--ai-role-surface-hover`
+  - `--ai-role-surface-selected`
+  - `--ai-role-border-selected`
+
+This ensures that improving or fixing interaction clarity happens in one place and automatically propagates to all selectable UI.
 
 ---
 

@@ -15,6 +15,12 @@
 
 ---
 
+> **Derives from canonical:** [Telemetry alerting contract](../alerting-contract.md)
+> This document is role-specific; it must not redefine the canonical invariants.
+> If behavior changes, update the canonical doc first, then reflect here.
+
+All widgets below assume the signal names, semantics, and alert thresholds defined in `alerting-contract.md`; this page only documents their dashboard manifestations.
+
 ### Why Dashboard C Comes First
 
 This document intentionally starts with **Dashboard C (Latency, Cost & Observability Integrity)** rather than following alphabetical order.

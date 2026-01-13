@@ -1,5 +1,11 @@
 # Chat Assistant User Guide
 
+> **Derives from canonical:** [Chat Guardrail System](../architecture/guardrail-system.md)
+> This document is role-specific; it must not redefine the canonical invariants.
+> If behavior changes, update the canonical doc first, then reflect here.
+
+This guide presumes the guardrail contract defined in `guardrail-system.md`; the focus here is how user settings surface those enforced policies.
+
 This guide explains how to configure the AI Chat Assistant for your specific needs. While the system comes with optimized defaults, you can customize the behavior for each session using the **App Settings**.
 
 ---
@@ -43,9 +49,9 @@ The **Temperature** slider controls how "random" or "creative" the AI's response
 
 ---
 
-## 4. Safe Mode
+## 4. [Safe Mode](../00-start-here/terminology.md#safe-mode)
 
-**Safe Mode** is a reliability switch accessible in the settings drawer.
+**[Safe Mode](../00-start-here/terminology.md#safe-mode)** is a reliability switch accessible in the settings drawer.
 
 ### What it does
 
@@ -62,19 +68,7 @@ The **Temperature** slider controls how "random" or "creative" the AI's response
 
 ## 5. Expert Settings (Manual RAG)
 
-By default, the system is on **"Auto-Pilot"** (Auto-RAG), automatically deciding when to use advanced techniques like HyDE or Query Rewriting based on retrieval quality.
-
-However, advanced users can force these strategies via the **Capabilities** menu in Settings:
-
-- **Reverse RAG:**
-  - **Auto (Unchecked):** System re-writes your query only if it detects ambiguity.
-  - **Always On (Checked):** Forces a query re-write for _every_ request. Use this if you find the bot is too literal or misses synonyms.
-- **HyDE (Hypothetical Document Embeddings):**
-  - **Auto (Unchecked):** System hallucinates a draft answer only if initial search fails.
-  - **Always On (Checked):** Forces HyDE for every request. Use this for abstract or thematic questions where keywords might fail.
-- **Multi-Query:**
-  - **Auto:** Runs parallel searches if the query is complex.
-  - **Always On:** Forces broad search coverage at the cost of higher latency.
+This section surfaces the advanced toggles available to expert users. The guardrail semantics for [Auto-RAG](../00-start-here/terminology.md#auto-rag), [HyDE](../00-start-here/terminology.md#hyde), [Reverse RAG](../00-start-here/terminology.md#reverse-rag), and Multi-Query are defined in `guardrail-system.md`; this page simply notes which capabilities are exposed in the settings menu. Use them only when you understand the trade-offs recorded in the canonical contract.
 
 ---
 

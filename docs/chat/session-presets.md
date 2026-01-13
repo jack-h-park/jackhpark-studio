@@ -1,6 +1,10 @@
 # Session Presets
 
-These presets are the pre-packaged `sessionConfig` values the chat runtime falls back to when the database lacks admin-configured overrides. Each preset encodes a different balance of accuracy, coverage, and latency while keeping retrieval, HyDE, and Reverse RAG under server control.
+> **Derives from canonical:** [Chat Guardrail System](../architecture/guardrail-system.md)
+> This document is role-specific; it must not redefine the canonical invariants.
+> If behavior changes, update the canonical doc first, then reflect here.
+
+The guardrail contract defines which presets are allowed and what invariants they must honor. This document enumerates the `sessionConfig` values that satisfy those constraints.
 
 ## Precision
 Precision is for high-accuracy answers when you care about correctness more than recall. The system prioritizes tight similarity windows and short context windows so the model leans on the most relevant chunks.
@@ -13,8 +17,8 @@ Precision is for high-accuracy answers when you care about correctness more than
 - **Retrieval enabled:** true
 - **RAG top K:** 4
 - **Similarity threshold:** 0.55
-- **Reverse RAG:** false
-- **HyDE:** false
+- **[Reverse RAG](../00-start-here/terminology.md#reverse-rag):** false
+- **[HyDE](../00-start-here/terminology.md#hyde):** false
 - **Reranker:** none
 - **Summary level:** off
 - **Context history enabled:** true
@@ -33,8 +37,8 @@ Balanced (Default) stays accurate without severely limiting recall. It matches P
 - **Retrieval enabled:** true
 - **RAG top K:** 6
 - **Similarity threshold:** 0.40
-- **Reverse RAG:** false
-- **HyDE:** false
+- **[Reverse RAG](../00-start-here/terminology.md#reverse-rag):** false
+- **[HyDE](../00-start-here/terminology.md#hyde):** false
 - **Reranker:** none
 - **Summary level:** low
 - **Context history enabled:** true
@@ -43,7 +47,7 @@ Balanced (Default) stays accurate without severely limiting recall. It matches P
 - **Clip tokens:** 128
 
 ## High Recall
-High Recall is tuned for large, exploratory inquiries. Reverse RAG is enabled so retrieval can search broadly, and a lightweight reranker (MMR) protects precision as the retriever climbs to `topK=12`.
+- High Recall is tuned for large, exploratory inquiries. [Reverse RAG](../00-start-here/terminology.md#reverse-rag) is enabled so retrieval can search broadly, and a lightweight reranker (MMR) protects precision as the retriever climbs to `topK=12`.
 
 - **Additional system prompt:** "Prioritize completeness and coverage. It is acceptable to include multiple perspectives or partially relevant context if it improves recall."
 - **LLM model:** OpenAI `gpt-4o`
@@ -53,8 +57,8 @@ High Recall is tuned for large, exploratory inquiries. Reverse RAG is enabled so
 - **Retrieval enabled:** true
 - **RAG top K:** 12
 - **Similarity threshold:** 0.30
-- **Reverse RAG:** true
-- **HyDE:** false
+- **[Reverse RAG](../00-start-here/terminology.md#reverse-rag):** true
+- **[HyDE](../00-start-here/terminology.md#hyde):** false
 - **Reranker:** mmr
 - **Summary level:** medium
 - **Context history enabled:** true
@@ -73,8 +77,8 @@ Fast is for latency-sensitive use cases. It leans on the smaller `gpt-4o-mini` f
 - **Retrieval enabled:** true
 - **RAG top K:** 3
 - **Similarity threshold:** 0.35
-- **Reverse RAG:** false
-- **HyDE:** false
+- **[Reverse RAG](../00-start-here/terminology.md#reverse-rag):** false
+- **[HyDE](../00-start-here/terminology.md#hyde):** false
 - **Reranker:** none
 - **Summary level:** low
 - **Context history enabled:** true
@@ -82,8 +86,4 @@ Fast is for latency-sensitive use cases. It leans on the smaller `gpt-4o-mini` f
 - **History budget:** 512
 - **Clip tokens:** 64
 
-## Notes on HyDE and Reverse RAG
-HyDE is off by default because turning it on effectively forces the system to inject synthetic context via the model; keeping it disabled ensures we never preempt Auto-RAG heuristics with a reconstructed prompt. Reverse RAG stays disabled outside High Recall so the retriever normally obeys the Auto-RAG safety checks and doesn’t always rewrite the query into a costly deep search.
-
-## Auto-RAG & retrieval behavior
-Each preset controls the values that feed into `loadChatModelSettings`, so the runtime always knows which retrieval strength, budgets, and reranking strategy to enforce, even if the database is empty. Auto-RAG still evaluates the same signals (e.g., query intent, guardrails, and retriever confidence) but works within the preset’s guardrails: reverse RAG is enabled only in High Recall, HyDE is opt-in via admin config, and budgets are capped so Auto-RAG cannot inflate context beyond the preset’s ceilings.
+Refer to [Guardrail System](../architecture/guardrail-system.md) for the policy that enforces which presets can enable HyDE, Reverse RAG, and budget controls, and to [RAG System](./rag-system.md) for the broader Auto-RAG guarantees those presets must respect.

@@ -1,40 +1,55 @@
 # Documentation Portal
 
-The `docs/` tree is organized as a lifecycle portal rather than a flat list of markdown files. Each top-level folder represents how knowledge matures in this product: principles capture the guiding mindset, architecture describes the system design, implementation houses plans and migrations, testing verifies behaviors, operations codifies runbooks, incidents narrate postmortems, database describes persistence, and the design system defines the UI/UX primitives. Telemetry lives alongside these stages as a contract that ties observability to every other discipline, so treat that folder as an authoritative reference before making guardrail changes. See the Telemetry portal → [docs/telemetry/README.md](./telemetry/README.md).
+This documentation portal centers on a canonical approach to knowledge management. The `terminology.md` file serves as the single authoritative source for definitions and meanings. Canonical system and policy documents establish the invariants and contracts that govern the product. All supporting documents derive from and reference these canonical contracts to ensure consistency and clarity.
+
+## Canonical Reading Order (Start Here)
+
+1. `00-start-here/terminology.md`
+2. Canonical system contracts:
+   - `architecture/rag-system.md`
+   - `architecture/guardrail-system.md`
+   - `architecture/alerting-contract.md`
+   - `design-system/ai-design-system.md`
+3. Supporting documentation by role and function:
+   - Architecture
+   - Chat
+   - Telemetry
+   - Operations
 
 ## Directory Overview
 
-| Folder            | Purpose                                                             | Primary Audience                          |
-| ----------------- | ------------------------------------------------------------------- | ----------------------------------------- |
-| `principles/`     | Conceptual guardrails and high-level expectations for every change  | Engineers across disciplines              |
-| `architecture/`   | System-wide designs, lifecycles, and invariants                     | Platform & backend architects             |
-| `implementation/` | Executable plans (`plans/`) and historic migrations (`migrations/`) | Teams executing longer initiatives        |
-| `testing/`        | Manual and automated test plans                                     | QA and SRE partners                       |
-| `operations/`     | Operational checklists and runbooks                                 | SRE, support, incident responders         |
-| `incidents/`      | Postmortems and corrective actions                                  | Incident responders, leadership learnings |
-| `database/`       | Schema and data-layer documentation                                 | Data platform & backend engineers         |
-| `design-system/`  | UI/token standards and component guidance                           | Front-end and design partners             |
-| `telemetry/`      | Observability contracts, alert semantics, dashboards, and audits    | Telemetry/observability engineers         |
-| `product/`        | Product interpretation of telemetry and operational signals         | PMs, product-aware engineers              |
+| Folder            | Purpose                                                                                                         | Primary Audience                          |
+| ----------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `00-start-here/`  | Canonical terminology: single source of truth for all product definitions                                       | All contributors                          |
+| `architecture/`   | Canonical system contracts defining invariants and policies                                                     | Platform & backend architects             |
+| `implementation/` | Supporting executable plans (`plans/`) and historic migrations (`migrations/`) derived from canonical contracts | Teams executing initiatives               |
+| `testing/`        | Supporting test plans that validate contract adherence and behaviors                                            | QA and SRE partners                       |
+| `operations/`     | Supporting operational checklists and runbooks aligned with canonical contracts                                 | SRE, support, incident responders         |
+| `incidents/`      | Postmortems and corrective actions referencing canonical contracts                                              | Incident responders, leadership learnings |
+| `database/`       | Supporting schema and data-layer documentation consistent with canonical definitions                            | Data platform & backend engineers         |
+| `design-system/`  | Canonical UI/token standards and component guidance                                                             | Front-end and design partners             |
+| `telemetry/`      | Contract-driven and cross-cutting observability contracts, alert semantics, dashboards, and audits              | Telemetry/observability engineers         |
+| `product/`        | Supporting product interpretations of telemetry and operational signals                                         | PMs, product-aware engineers              |
 
 ## How to Start
 
-- **New contributors:** Begin in `principles/` to absorb the expectations for clarity, safety, and consistency, then read the architecture primer most relevant to the area you touch. Use the directory overview above to choose the lifecycle stage of your work.
-- **Feature authors:** After aligning on principles, move into the relevant `architecture/` doc to understand invariants, then consult `implementation/plans/` for ongoing efforts you can align with. Update `testing/` and `operations/` docs in parallel so QA and runbooks stay coherent.
-- **Operators and SREs:** Start with `operations/` checklists to understand runbook requirements, then read through `telemetry/` to reconcile observability expectations with the systems you operate. Refer to `incidents/` when hunting regressions and use `database/` for schema context.
+- **New contributors:** Begin with `00-start-here/terminology.md` to understand the foundational meanings and definitions. This ensures clarity and alignment across all documentation and development efforts.
+- **Feature authors:** Start with terminology, then study the relevant canonical system contracts to understand invariants and policies. Finally, consult supporting documentation such as architecture, telemetry, and operations to align your work with established contracts.
+- **Operators and SREs:** Begin with the telemetry contract to understand observability expectations, then move to operations documentation for runbook requirements, and refer to incidents for historical context and learning.
 
-## Telemetry Deep-Dive Reading Order
+## Telemetry: Contract-First Navigation
 
-1. `telemetry/README.md` – overview of telemetry goals and the contract between services and observability.
-2. `telemetry/langfuse-guide.md` – step-by-step guidance on Langfuse hooks, spans, and telemetry hygiene.
-3. `telemetry/audit.md` – audit checklist that keeps telemetry semantics stable during refactors.
-4. Additional telemetry docs (e.g., guardrail adjustments) as referenced within those files; treat them as extensions of the contract rather than independent guidance.
+- The primary source of truth for telemetry semantics and alerting is `architecture/alerting-contract.md`.
+- Follow this contract before consulting supporting telemetry docs such as `telemetry/langfuse-guide.md` and `telemetry/audit.md`.
+- Treat all telemetry documentation as extensions of the canonical contract rather than standalone guidance.
 
 ## Contribution Guidance
 
-- Keep documents lifecycle-oriented: prefer moving or adding new files under the stage they impact instead of appending unrelated notes to an existing doc.
-- When a change spans multiple stages (e.g., a migration that also affects telemetry), link between folders rather than duplicating content.
-- Before editing telemetry docs, confirm the contract in `telemetry/README.md` so guardrails remain consistent.
-- Add new entries to this portal when you add folders, and update the overview table accordingly so readers always know where to look.
+- Keep documents aligned with the canonical model: terminology and contracts first, supporting docs second.
+- No document may redefine terminology outside of `00-start-here/terminology.md`.
+- Supporting documents must explicitly link to their governing canonical contract to maintain traceability and clarity.
+- When changes span multiple areas, link between folders rather than duplicating content.
+- Before editing telemetry or other contract-driven docs, confirm the contract in the canonical files to ensure consistency.
+- Add new entries to this portal when adding folders, and update the overview table accordingly so readers always know where to look.
 
 Stay concise, keep cross-links explicit, and avoid mixing implementation details into principle or operations-level narratives.

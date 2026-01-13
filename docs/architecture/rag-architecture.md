@@ -1,32 +1,20 @@
 # RAG System Architecture
 
-**Status:** authoritative
-**Owner:** Engineering
+> **Derives from canonical:** [RAG System](./rag-system.md)
+> This document is role-specific; it must not redefine the canonical invariants.
+> If behavior changes, update the canonical doc first, then reflect here.
+
+**Status:** derived reference  
+**Owner:** Engineering  
 **Implementation:** `pages/api/chat.ts`, `lib/server/api/langchain_chat_impl_heavy.ts`
 
-This document outlines the high-level architecture of the RAG (Retrieval-Augmented Generation) system. For a comprehensive narrative on the system design, see the **[System Design Deep Dive](./rag-system.md)**. For detailed implementation guides, see the sub-documents below.
+This page connects the canonical architecture to the runtime artifacts (Supabase tables, telemetry hooks, request flows) you deal with when extending or debugging the chat endpoint. The high-level contracts live in [RAG System](./rag-system.md); this doc assumes those invariants.
 
 ---
 
-## 1. Core Components
+## 1. Runtime Observability & Instrumentation
 
-The RAG system is split into two distinct pipelines:
-
-- **[Ingestion Pipeline](./rag-ingestion-pipeline.md)** (Write Path)
-  - Handles fetching data from **Notion** and **URLs**.
-  - Performs change detection, chunking (`450` tokens), and embedding updates.
-  - Manages vector persistence in Supabase.
-
-- **[Retrieval Engine](./rag-retrieval-engine.md)** (Read Path)
-  - Handles **Auto-RAG** decision logic (HyDE, Query Rewriting).
-  - Executes vector search via Postgres RPCs.
-  - Performs ranking (`DocType` weighting) and context assembly.
-
----
-
-## 2. Request Lifecycle
-
-The RAG system is integrated into the Chat Assistant's request flow:
+The lifecycle mirrors the canonical request flow, but this section highlights the signals and components surfaced to engineers.
 
 ```mermaid
 flowchart TD
@@ -39,16 +27,16 @@ flowchart TD
   Context --> Generation
 ```
 
-### Key interactions
+### Key operational notes
 
-- **Guardrails:** If `Safe Mode` is enabled, the Retrieval Engine is bypassed entirely.
-- **Context:** Retrieved chunks are deduplicated and fitted into the `ragContextTokenBudget`.
+- Guardrail routing (`Safe Mode`, intent filtering) complies with the guardrail contract and emits `X-Guardrail-Meta` for downstream diagnostics.
+- Context assembly obeys the canonical dedupe/quota/token invariants before prompt construction, so instrumentation can assume `finalK` and `includedCount` semantics described in `rag-system`.
 
 ---
 
-## 3. Data Model (Supabase)
+## 2. Data Model (Supabase)
 
-The system uses `pgvector` on Supabase. Storage is normalized to separate document metadata from vector data.
+The tables below back the ingestion and retrieval subsystems referenced in the canonical architecture.
 
 ### Tables
 
@@ -61,10 +49,10 @@ The system uses `pgvector` on Supabase. Storage is normalized to separate docume
 
 ---
 
-## 4. Telemetry
+## 3. Telemetry
 
-Observability is enforced across both pipelines:
+Observability follows the canonical guardrails and alerts; these notes describe where the signals land.
 
-- **Ingestion:** Each run is logged to `rag_ingest_runs`.
-- **Retrieval:** Decisions (Base vs Auto) are captured in Langfuse traces (`decisionSignature`) and PostHog (`rag_enabled`, `response_cache_hit`).
-- **Snapshots:** The `rag_snapshot` table captures daily volume metrics (total docs, chunks).
+- **Ingestion:** Each run writes a record to `rag_ingest_runs` for freshness and error auditing.
+- **Retrieval:** `decisionSignature`, `rag:root`, and Langfuse/PostHog events tag [Auto-RAG](../00-start-here/terminology.md#auto-rag) decisions with `rag_enabled`, `response_cache_hit`, and selection metadata.
+- **Snapshots:** The `rag_snapshot` table captures daily volume metrics (total docs, chunks) referenced by the canonical dashboards.

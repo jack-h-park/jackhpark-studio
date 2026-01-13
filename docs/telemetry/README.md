@@ -1,5 +1,9 @@
 # Telemetry docs
 
+> **Derives from canonical:** [Telemetry alerting contract](./alerting-contract.md)
+> This document is role-specific; it must not redefine the canonical invariants.
+> If behavior changes, update the canonical doc first, then reflect here.
+
 This directory documents the **end-to-end telemetry and alerting model** for the system.
 
 The docs are organized around a deliberate separation of concerns:

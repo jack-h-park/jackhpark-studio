@@ -1,6 +1,11 @@
 # PostHog operations
 
-This is the Step 3 realization of the telemetry chain: it enforces the alert contract from `alerting-contract.md` using PostHog dashboards, trends, and the two alerts allowed on the free plan. Treat this doc as the source of truth for dashboard tiles, alert schedules, and the cache hit/miss fallback strategy.
+> **Derives from canonical:** [Telemetry alerting contract](../alerting-contract.md)
+> This document is role-specific; it must not redefine the canonical invariants.
+> If behavior changes, update the canonical doc first, then reflect here.
+
+This is the Step 3 realization of the telemetry chain: it enforces the alert contract from `alerting-contract.md` using PostHog dashboards, trends, and the two alerts allowed on the free plan. Treat this doc as the source of truth for dashboard tiles, alert schedules, and the cache hit/miss fallback strategy.  
+All thresholds and field names below must remain consistent with the canonical contract, so adjust them only after updating `alerting-contract.md`.
 
 ## Current state & plan constraints
 - **Alert cap:** PostHog free tier permits exactly two alerts. We allocate them to Alert A (p99 latency) and Alert B (abort spikes); Alert C is documented but not paged until we upgrade the plan or derive the ratio outside PostHog.

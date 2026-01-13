@@ -1,15 +1,21 @@
 # Advanced Settings UX Model
 
+> **Derives from canonical:** [Chat Guardrail System](../architecture/guardrail-system.md)
+> This document is role-specific; it must not redefine the canonical invariants.
+> If behavior changes, update the canonical doc first, then reflect here.
+
 ## Purpose
-- Avoid the Auto-RAG conflict space by limiting the knobs that surface to end users.
+- Avoid the [Auto-RAG](../00-start-here/terminology.md#auto-rag) conflict space by limiting the knobs that surface to end users.
 - Reduce user confusion by emphasizing a preset-first workflow and preventing unstable combinations.
 - Keep behavior predictable for support/ops by enforcing a single source of truth for retrieval, memory, and embedding choices.
 
 ## Ownership Model
 
+The canonical guardrail contract (`guardrail-system.md`) defines which settings are preset-managed versus user-controlled; this section translates those policies into UX groupings.
+
 ### Preset-owned (enforced)
 - **Embeddings** – the effective model is derived from the preset and surfaced in the “Preset Effects” summary.
-- **Retrieval** – Top-K, similarity thresholds, Reverse RAG, HyDE, and ranker behavior can only change via presets.
+- **Retrieval** – Top-K, similarity thresholds, [Reverse RAG](../00-start-here/terminology.md#reverse-rag), [HyDE](../00-start-here/terminology.md#hyde), and ranker behavior can only change via presets.
 - **Memory budgets** – context, history, and clip token caps follow the preset definition.
 - **Summaries preset defaults** – treated as read-only metadata unless we explicitly expose a safe override.
 

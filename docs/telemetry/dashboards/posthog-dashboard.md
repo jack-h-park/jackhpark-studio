@@ -1,6 +1,12 @@
 # PostHog Dashboard — Core Operational Insights
 
+> **Derives from canonical:** [Telemetry alerting contract](../alerting-contract.md)
+> This document is role-specific; it must not redefine the canonical invariants.
+> If behavior changes, update the canonical doc first, then reflect here.
+
 These insights are **diagnostic and operator-driven**, scoped to the current PostHog free plan (2 alerts) and meant to backstop Alert A (p99 latency) and Alert B (abort spikes). They do **not** duplicate alert implementation details; instead they describe what each trend shows and how to interpret it alongside the alerting signals.
+
+All insights below assume the alert thresholds and property names defined in `alerting-contract.md`; adjust dashboards only when the canonical contract is updated accordingly.
 
 -## How this doc fits the Step 1–3 telemetry chain
 - **Step 1 (intent + mapping in `docs/telemetry/alerting-contract.md`)** defines the alert contract and canonical PostHog signals that every downstream insight relies on.
