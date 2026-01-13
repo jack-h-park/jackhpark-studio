@@ -6,41 +6,45 @@ This documentation portal centers on a canonical approach to knowledge managemen
 
 1. `00-start-here/terminology.md`
 2. Canonical system contracts:
-   - `architecture/rag-system.md`
-   - `architecture/guardrail-system.md`
-   - `architecture/alerting-contract.md`
-   - `design-system/ai-design-system.md`
+   - `canonical/rag/rag-system.md`
+   - `canonical/guardrails/guardrail-system.md`
+   - `canonical/telemetry/alerting-contract.md`
+   - `canonical/design-system/ai-design-system.md`
 3. Supporting documentation by role and function:
-   - Architecture
-   - Chat
-   - Telemetry
-   - Operations
+   - Architecture briefs and system summaries
+   - Chat experience documentation (`chat/`)
+   - Analysis audits (`analysis/`)
+   - Telemetry and operations guidance
 
 ## Directory Overview
 
 | Folder            | Purpose                                                                                                         | Primary Audience                          |
 | ----------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
 | `00-start-here/`  | Canonical terminology: single source of truth for all product definitions                                       | All contributors                          |
-| `architecture/`   | Canonical system contracts defining invariants and policies                                                     | Platform & backend architects             |
+| `canonical/`      | Canonical contracts that define invariants and governing policies for every layer of the product                | Platform, backend, and policy architects  |
+| `architecture/`   | Architecture summaries and implementation patterns that explain how canonical contracts are realized in the stack | Technical leads and systems architects    |
+| `chat/`           | User experience, preset, and advanced settings guidance grounded in canonical guardrails                        | Product, UX and platform engineers        |
+| `analysis/`       | Audits and assessments of how implementation (e.g., advanced settings, memory) obeys canonical constraints       | Architects and risk/ops reviewers         |
 | `implementation/` | Supporting executable plans (`plans/`) and historic migrations (`migrations/`) derived from canonical contracts | Teams executing initiatives               |
-| `testing/`        | Supporting test plans that validate contract adherence and behaviors                                            | QA and SRE partners                       |
-| `operations/`     | Supporting operational checklists and runbooks aligned with canonical contracts                                 | SRE, support, incident responders         |
-| `incidents/`      | Postmortems and corrective actions referencing canonical contracts                                              | Incident responders, leadership learnings |
-| `database/`       | Supporting schema and data-layer documentation consistent with canonical definitions                            | Data platform & backend engineers         |
+| `operations/`     | Operational playbooks, runbooks, and checklists aligned with canonical contracts                                 | SREs, operators, and incident responders  |
+| `telemetry/`      | Contract-driven observability semantics, dashboards, and implementation guidance                                | Telemetry and observability engineers     |
+| `database/`       | Data model and schema documentation consistent with canonical definitions                                       | Data platform & backend engineers         |
+| `incidents/`      | Postmortems and corrective actions that refer back to canonical contracts                                        | Incident responders, leadership learnings |
+| `principles/`     | Guiding principles that frame interpretation of canonical contracts and trade-offs                              | Leadership and cross-functional partners  |
 | `design-system/`  | Canonical UI/token standards and component guidance                                                             | Front-end and design partners             |
-| `telemetry/`      | Contract-driven and cross-cutting observability contracts, alert semantics, dashboards, and audits              | Telemetry/observability engineers         |
-| `product/`        | Supporting product interpretations of telemetry and operational signals                                         | PMs, product-aware engineers              |
 
 ## How to Start
 
-- **New contributors:** Begin with `00-start-here/terminology.md` to understand the foundational meanings and definitions. This ensures clarity and alignment across all documentation and development efforts.
-- **Feature authors:** Start with terminology, then study the relevant canonical system contracts to understand invariants and policies. Finally, consult supporting documentation such as architecture, telemetry, and operations to align your work with established contracts.
+- **New contributors:** Begin with `00-start-here/terminology.md` to understand foundational meanings and definitions. This ensures clarity and alignment across all documentation and development efforts.
+- **Feature authors:** Start with terminology, then read the canonical contracts before exploring supporting guides. Key content includes:
+  - Chat navigation: `chat/chat-user-guide.md`, `chat/advanced-settings-ux.md`, `chat/session-presets.md`.
+  - Analysis audits: `analysis/advanced-settings-ownership-audit.md` and `analysis/memory-implementation-analysis.md`.
 - **Operators and SREs:** Begin with the telemetry contract to understand observability expectations, then move to operations documentation for runbook requirements, and refer to incidents for historical context and learning.
 
 ## Telemetry: Contract-First Navigation
 
-- The primary source of truth for telemetry semantics and alerting is `architecture/alerting-contract.md`.
-- Follow this contract before consulting supporting telemetry docs such as `telemetry/langfuse-guide.md` and `telemetry/audit.md`.
+- The primary source of truth for telemetry semantics and alerting is `canonical/telemetry/alerting-contract.md`.
+- Consult the telemetry contract before reading supporting telemetry docs in `telemetry/`, such as dashboards, operations, runbooks, and implementation guidance (`telemetry/dashboards/`, `telemetry/operations/`, `telemetry/runbooks/`, `telemetry/implementation/`).
 - Treat all telemetry documentation as extensions of the canonical contract rather than standalone guidance.
 
 ## Contribution Guidance
