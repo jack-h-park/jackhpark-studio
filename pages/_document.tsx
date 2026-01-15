@@ -1,5 +1,6 @@
 import { IconContext } from "@react-icons/all-files";
 import Document, { Head, Html, Main, NextScript } from "next/document";
+
 import { name } from "@/lib/config";
 
 export default class MyDocument extends Document {
