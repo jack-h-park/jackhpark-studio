@@ -39,9 +39,19 @@ export function AllowlistTile({
     >
       <div className="ai-choice">
         <span className="ai-choice__label-row w-full">
-          <span className="ai-choice__label">{label}</span>
+          <span
+            className={cn(
+              "ai-choice__label",
+              selected ? "font-semibold" : "font-normal",
+            )}
+          >
+            {label}
+          </span>
           {selected && (
-            <span className="ai-check-circle align-middle" aria-hidden="true">
+            <span
+              className="ai-check-circle align-middle scale-100 opacity-100"
+              aria-hidden="true"
+            >
               ✓
             </span>
           )}

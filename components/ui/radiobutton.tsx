@@ -51,7 +51,14 @@ export function Radiobutton<Value extends string = string>({
         onChange={() => onChange(value)}
       />
       <div className="ai-choice">
-        <span className="ai-choice__label">{label}</span>
+        <span
+          className={cn(
+            "ai-choice__label",
+            checked ? "font-semibold" : "font-normal",
+          )}
+        >
+          {label}
+        </span>
         {description && <p className="ai-choice__description">{description}</p>}
       </div>
     </label>

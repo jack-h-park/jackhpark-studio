@@ -89,7 +89,13 @@ export function SelectableTile<T extends React.ElementType = "button">(
       )}
     >
       {label && (
-        <span className={cn("text-sm font-semibold", labelClassName)}>
+        <span
+          className={cn(
+            "text-sm",
+            active ? "font-semibold" : "font-medium",
+            labelClassName,
+          )}
+        >
           {label}
         </span>
       )}

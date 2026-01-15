@@ -87,3 +87,19 @@
 :global(.dark-mode) .dragHandle {
   background: rgba(255, 255, 255, 0.25);
 }
+
+/* Make Notion content reflow inside the side peek panel. */
+.panel :global(.notion-frame) {
+  padding-inline: 0.75rem;
+}
+
+.panel :global(.notion-page) {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding-inline: 0.75rem !important;
+}
+
+.panel :global(.notion-page-title) {
+  line-height: 1.35;
+}
