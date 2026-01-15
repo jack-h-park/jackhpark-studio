@@ -41,7 +41,7 @@ export function PresetEffectsSummary({
   if (items.length === 0) return null;
 
   return (
-    <Section className={cn("gap-2", className)}>
+    <Section surface="surface-0" className={cn("gap-2", className)}>
       <SectionHeader>
         <SectionTitle
           as="div"

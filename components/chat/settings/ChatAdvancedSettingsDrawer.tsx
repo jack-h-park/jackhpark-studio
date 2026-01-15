@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { ImpactTooltip } from "@/components/ui/ImpactTooltip";
-import { SectionTitle } from "@/components/ui/section";
+import { Section, SectionTitle } from "@/components/ui/section";
 import { StatusPill } from "@/components/ui/status-pill";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
@@ -151,7 +151,7 @@ export function ChatAdvancedSettingsDrawer({
 
               <SettingsSectionDisplay />
 
-              <div className={styles.presetScope}>
+              <Section className={styles.presetScope}>
                 <div className={styles.presetScopeHeader}>
                   <div className={styles.presetScopeTop}>
                     <SectionTitle as="p" icon={<FiLayers aria-hidden="true" />}>
@@ -208,7 +208,7 @@ export function ChatAdvancedSettingsDrawer({
                     />
                   </div>
                 </div>
-              </div>
+              </Section>
 
               <div className={`${styles.cascade}`}>
                 {!isSettingLocked("embeddingModel") && (

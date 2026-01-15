@@ -1,0 +1,5 @@
+.insetPanel {
+  border: 1px solid var(--ai-role-border-subtle);
+  border-radius: var(--ai-radius-md);
+  background: transparent;
+}

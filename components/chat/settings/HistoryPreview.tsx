@@ -9,6 +9,7 @@ import { isDevOnly } from "@/lib/dev/devFlags";
 import { cn } from "@/lib/utils";
 
 import { HistoryPreviewDiffPanel } from "./HistoryPreviewDiffPanel";
+import insetPanelStyles from "./inset-panel.module.css";
 
 const CLIENT_ESTIMATE_LABEL = "Estimate (client)";
 
@@ -49,10 +50,6 @@ export function HistoryPreview({
     isClientPreviewEmpty &&
     (!showServerPreview || !serverPreview || isServerPreviewEmpty);
 
-  const containerClasses = isEmptyPreview
-    ? "bg-[color:var(--ai-role-surface-muted)] border border-[color:var(--ai-role-border-subtle)]"
-    : "bg-[color:var(--ai-role-surface-1)] border border-[color:var(--ai-role-border-subtle)]";
-
   const diffLabel = (
     <span className="flex items-center gap-1 text-[var(--ai-text-warning)] text-xs font-medium">
       <FiAlertTriangle /> Diff detected
@@ -63,7 +60,7 @@ export function HistoryPreview({
 
   return (
     <div
-      className={`mt-3 p-3 rounded text-sm space-y-4 ${containerClasses} ${className}`}
+      className={`mt-3 p-3 text-sm space-y-4 ${insetPanelStyles.insetPanel} ${className}`}
     >
       {/* Header */}
       {showTitle ? (

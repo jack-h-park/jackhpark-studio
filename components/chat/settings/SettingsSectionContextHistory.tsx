@@ -235,7 +235,7 @@ export function SettingsSectionContextHistory({
   };
 
   return (
-    <Section>
+    <Section surface="surface-0">
       <SectionHeader>
         <SectionTitle
           id="settings-history-preview-title"

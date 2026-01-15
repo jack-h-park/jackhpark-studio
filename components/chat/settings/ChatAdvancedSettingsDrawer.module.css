@@ -99,8 +99,6 @@
 }
 
 .presetScope {
-  /* background: var(--ai-surface-muted); */
-  border: 1px solid var(--ai-role-border-base);
   border-radius: var(--ai-radius-md);
   padding: 1.25rem;
   display: flex;
@@ -144,6 +142,12 @@
   padding: 0;
   padding-top: 1.25rem;
   margin: 0;
+}
+
+.presetScopeSectionTransparent {
+  padding: 0;
+  padding-top: 1.25rem;
+  margin: 0;
   background: transparent;
   border: none;
   border-radius: 0;
@@ -153,8 +157,8 @@
   padding-top: 0;
 }
 
-.presetScopeSection :global(.ai-setting-section),
-.presetScopeSection :global(.ai-card) {
+.presetScopeSectionTransparent :global(.ai-setting-section),
+.presetScopeSectionTransparent :global(.ai-card) {
   padding: 0;
   margin: 0;
   background-color: transparent;

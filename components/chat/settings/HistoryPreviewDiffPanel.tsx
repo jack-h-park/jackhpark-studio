@@ -11,6 +11,8 @@ import {
 } from "@/lib/chat/historyPreviewDiffTelemetry";
 import { isDevOnly } from "@/lib/dev/devFlags";
 
+import insetPanelStyles from "./inset-panel.module.css";
+
 export function HistoryPreviewDiffPanel() {
   const [snapshot, setSnapshot] = useState<DiffTelemetrySnapshot | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -52,7 +54,9 @@ export function HistoryPreviewDiffPanel() {
       </div>
 
       {isOpen && (
-        <div className="mt-2 text-[10px] space-y-2 bg-[color:var(--ai-role-surface-1)] p-2 rounded border border-[color:var(--ai-role-border-subtle)]">
+        <div
+          className={`mt-2 text-[10px] space-y-2 p-2 ${insetPanelStyles.insetPanel}`}
+        >
           <div className="flex items-center justify-between pb-2 border-b border-[var(--ai-divider)]/50 mb-2">
             <div>
               <div className="text-[var(--ai-text-muted)]">Last diff:</div>

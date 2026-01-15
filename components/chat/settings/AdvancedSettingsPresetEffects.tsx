@@ -16,6 +16,7 @@ import {
   buildEffectiveSettingsPayload,
   buildEffectiveSettingsSupportLine,
 } from "./effective-settings";
+import insetPanelStyles from "./inset-panel.module.css";
 import { computeOverridesActive } from "./preset-overrides";
 import {
   formatPresetDecimal,
@@ -231,7 +232,9 @@ export function AdvancedSettingsPresetEffects({
           <span aria-hidden="true">▾</span>
         </button>
         {copyMenuOpen && (
-          <div className={styles.copyMenu}>
+          <div
+            className={cn(styles.copyMenu, insetPanelStyles.insetPanel)}
+          >
             <button
               type="button"
               onClick={() => handleMenuAction("json")}
@@ -332,7 +335,10 @@ function EmbeddingValueWithPopover({ label }: EmbeddingValueWithPopoverProps) {
           id={popoverId}
           role="dialog"
           aria-label="Full embeddings model name"
-          className={styles.embeddingPopover}
+          className={cn(
+            styles.embeddingPopover,
+            insetPanelStyles.insetPanel,
+          )}
         >
           {label}
         </div>
