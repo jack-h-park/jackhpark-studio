@@ -18,6 +18,7 @@ import {
 import { CheckboxChoice } from "@/components/ui/checkbox";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
+import insetPanelStyles from "@/components/ui/inset-panel.module.css";
 import { Label } from "@/components/ui/label";
 import { ManualLogEntry } from "@/components/ui/manual-log-entry";
 import { ProgressGroup } from "@/components/ui/progress-group";
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/status-pill";
 import { TabPill } from "@/components/ui/tab-pill";
 import { TabPanel } from "@/components/ui/tabs";
+import { cn } from "@/components/ui/utils";
 import { useManualIngestion } from "@/hooks/useManualIngestion";
 import {
   logTimeFormatter,
@@ -71,6 +73,60 @@ const manualStatusLabels: Record<
   completed_with_errors: "Completed with Errors",
   failed: "Failed",
 };
+
+const runSummaryToneClasses: Record<
+  "success" | "warning" | "error" | "info" | "muted",
+  string
+> = {
+  success: "text-[var(--ai-success)]",
+  warning: "text-[var(--ai-warning)]",
+  error: "text-[var(--ai-error)]",
+  info: "text-[var(--ai-accent)]",
+  muted: "text-[var(--ai-text-soft)]",
+};
+
+type RunSummaryStatTileProps = {
+  label: React.ReactNode;
+  value: React.ReactNode;
+  delta?: {
+    text: string;
+    tone?: "success" | "warning" | "error" | "info" | "muted";
+  };
+};
+
+function RunSummaryStatTile({
+  label,
+  value,
+  delta,
+}: RunSummaryStatTileProps): JSX.Element {
+  return (
+    <div
+      className={cn(
+        insetPanelStyles.insetPanel,
+        "h-full p-3 flex flex-col justify-between",
+      )}
+    >
+      <div className="ai-stat">
+        <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
+          {label}
+        </dt>
+        <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
+          {value}
+        </dd>
+        {delta ? (
+          <p
+            className={cn(
+              "ai-stat__delta",
+              runSummaryToneClasses[delta.tone ?? "muted"],
+            )}
+          >
+            {delta.text}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export function ManualIngestionPanel(): JSX.Element {
   const router = useRouter();
@@ -158,7 +214,7 @@ export function ManualIngestionPanel(): JSX.Element {
           >
             <div className="space-y-0">
               <div
-                className="flex items-stretch gap-0 px-4 pt-0 border-b border-[hsl(var(--ai-border))] bg-[hsl(var(--ai-bg))]"
+                className="ai-panel flex items-stretch gap-0 px-4 pt-0"
                 role="tablist"
                 aria-label="Manual ingestion source"
               >
@@ -474,100 +530,48 @@ export function ManualIngestionPanel(): JSX.Element {
             </CardHeader>
             <CardContent>
               <dl className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4 m-0 p-0">
-                <Card className="px-4 py-3">
-                  <CardContent className="space-y-1">
-                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
-                      Documents Processed
-                    </dt>
-                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-                      {numberFormatter.format(
-                        ingestion.stats.documentsProcessed,
-                      )}
-                    </dd>
-                  </CardContent>
-                </Card>
-                <Card className="px-4 py-3">
-                  <CardContent className="space-y-1">
-                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
-                      Documents Added
-                    </dt>
-                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-                      {numberFormatter.format(ingestion.stats.documentsAdded)}
-                    </dd>
-                  </CardContent>
-                </Card>
-                <Card className="px-4 py-3">
-                  <CardContent className="space-y-1">
-                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
-                      Documents Updated
-                    </dt>
-                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-                      {numberFormatter.format(ingestion.stats.documentsUpdated)}
-                    </dd>
-                  </CardContent>
-                </Card>
-                <Card className="px-4 py-3">
-                  <CardContent className="space-y-1">
-                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
-                      Documents Skipped
-                    </dt>
-                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-                      {numberFormatter.format(ingestion.stats.documentsSkipped)}
-                    </dd>
-                  </CardContent>
-                </Card>
-                <Card className="px-4 py-3">
-                  <CardContent className="space-y-1">
-                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
-                      Chunks Added
-                    </dt>
-                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-                      {numberFormatter.format(ingestion.stats.chunksAdded)}
-                    </dd>
-                  </CardContent>
-                </Card>
-                <Card className="px-4 py-3">
-                  <CardContent className="space-y-1">
-                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
-                      Chunks Updated
-                    </dt>
-                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-                      {numberFormatter.format(ingestion.stats.chunksUpdated)}
-                    </dd>
-                  </CardContent>
-                </Card>
-                <Card className="px-4 py-3">
-                  <CardContent className="space-y-1">
-                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
-                      Characters Added
-                    </dt>
-                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-                      {numberFormatter.format(ingestion.stats.charactersAdded)}
-                    </dd>
-                  </CardContent>
-                </Card>
-                <Card className="px-4 py-3">
-                  <CardContent className="space-y-1">
-                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
-                      Characters Updated
-                    </dt>
-                    <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-                      {numberFormatter.format(
-                        ingestion.stats.charactersUpdated,
-                      )}
-                    </dd>
-                  </CardContent>
-                </Card>
-                <Card className="px-4 py-3">
-                  <CardContent className="space-y-1">
-                    <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
-                      Errors
-                    </dt>
-                    <dd className="text-lg font-semibold text-[color:var(--ai-text-strong)]">
-                      {numberFormatter.format(ingestion.stats.errorCount)}
-                    </dd>
-                  </CardContent>
-                </Card>
+                <RunSummaryStatTile
+                  label="Documents Processed"
+                  value={numberFormatter.format(
+                    ingestion.stats.documentsProcessed,
+                  )}
+                />
+                <RunSummaryStatTile
+                  label="Documents Added"
+                  value={numberFormatter.format(ingestion.stats.documentsAdded)}
+                />
+                <RunSummaryStatTile
+                  label="Documents Updated"
+                  value={numberFormatter.format(ingestion.stats.documentsUpdated)}
+                />
+                <RunSummaryStatTile
+                  label="Documents Skipped"
+                  value={numberFormatter.format(ingestion.stats.documentsSkipped)}
+                />
+                <RunSummaryStatTile
+                  label="Chunks Added"
+                  value={numberFormatter.format(ingestion.stats.chunksAdded)}
+                />
+                <RunSummaryStatTile
+                  label="Chunks Updated"
+                  value={numberFormatter.format(ingestion.stats.chunksUpdated)}
+                />
+                <RunSummaryStatTile
+                  label="Characters Added"
+                  value={numberFormatter.format(
+                    ingestion.stats.charactersAdded,
+                  )}
+                />
+                <RunSummaryStatTile
+                  label="Characters Updated"
+                  value={numberFormatter.format(
+                    ingestion.stats.charactersUpdated,
+                  )}
+                />
+                <RunSummaryStatTile
+                  label="Errors"
+                  value={numberFormatter.format(ingestion.stats.errorCount)}
+                />
               </dl>
             </CardContent>
           </Card>

@@ -31,10 +31,10 @@ export function IngestionSubNav() {
               href={page.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "group relative inline-flex items-center justify-center py-3 text-sm font-medium transition-colors focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ai-ring)] focus-visible:ring-offset-2",
-                active
-                  ? "text-[color:var(--ai-text-strong)]"
-                  : "text-[color:var(--ai-text-muted)] hover:text-[color:var(--ai-text)] hover:bg-[color:var(--ai-bg-subtle)] rounded-md px-2 -mx-2",
+                "group relative inline-flex items-center justify-center py-3 text-sm font-medium focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ai-ring)] focus-visible:ring-offset-2",
+                "ai-selectable ai-selectable--hoverable",
+                active && "ai-selectable--active text-[color:var(--ai-text-strong)]",
+                !active && "text-[color:var(--ai-text-muted)]",
               )}
             >
               {page.label}

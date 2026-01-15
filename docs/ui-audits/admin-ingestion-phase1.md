@@ -1,0 +1,82 @@
+# Admin Ingestion Dashboard — Phase 1 Audit
+
+## 1. Inventory (what files render the page)
+- `pages/admin/ingestion.tsx:60` renders the `IngestionDashboard` route, wraps `AiPageChrome` and `AdminPageShell`, and assembles the data-driven sections listed below.
+  - `components/AiPageChrome.tsx:25` provides the page chrome, sticky header slot, and body container; `components/AiPageChrome.module.css:1` keeps the shell on `hsl(var(--ai-bg))` with a flush Notion header slot.
+  - `components/admin/layout/AdminPageShell.tsx:10` renders the admin nav (`AdminTopNav`), hero (`PageHeaderCard`), and the main column that holds the ingestion subsections.
+    - `components/admin/navigation/AdminTopNav.tsx:1` supplies the pill nav between `chat`/`ingestion`, so the hero stays anchored while the rest of the page scrolls.
+    - `components/ui/page-header-card.tsx:12` lasers in the hero copy and buttons inside the gradient `ai-page-header-card`.
+    - `components/admin/navigation/IngestionSubNav.tsx:14` renders the Overview/RAG Documents sibling links (Overview is the active tab for this route).
+    - `components/admin/ingestion/ManualIngestionPanel.tsx:133` hosts the manual ingestion hero, tabs, controls, run log, and run summary cards.
+    - `components/admin/ingestion/DatasetSnapshotSection.tsx:87` renders the dataset snapshot metrics, metadata chips, and recent snapshot history.
+    - `components/admin/ingestion/RagDocumentsOverview.tsx:26` surfaces high-level document stats plus per-type chips.
+    - `components/admin/ingestion/SystemHealthSection.tsx:27` shows tiled health/status stat cards.
+    - `components/admin/ingestion/RecentRunsSection.tsx:997` ties together the filter row (`RecentRunsFilters` from `components/ui/recent-runs-filters.tsx:71`) and the `DataTable` (`components/ui/data-table.tsx:1`).
+
+## 2. Surface Tier Map (T0/T1/T2/T3)
+Cards default to `surface-1` via `buildSurfaceStyle`/`SURFACE_ROLE_MAP` (`components/ui/surface.tsx:1` plus `components/ui/card.tsx:11`), which sources `var(--ai-role-surface-1)` in `styles/ai-design-system.css:310`. The table below documents every major area referenced in the target screenshot.
+
+| Section | Tier | Wrapper component | Background source | Border source | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| Page header hero (`AdminPageShell` header) | T0 | `PageHeaderCard` (`AdminPageShell` header slot) | `.ai-page-header-card` gradient (variable-driven page hero) | same class uses `var(--ai-role-border-muted)` | `components/ui/page-header-card.tsx:12`<br>`styles/ai-design-system.css:296` |
+| Ingestion sub-nav (Overview / RAG Documents) | T3 | `<div>/<nav>` in `IngestionSubNav` | `bg-[color:var(--ai-bg)]` (inherits page background) | `border-[color:var(--ai-border-soft)]` tailwind line | `components/admin/navigation/IngestionSubNav.tsx:18`<br>`components/admin/navigation/IngestionSubNav.tsx:22` |
+| Manual ingestion card | T1 | `<section className="ai-card">` in `ManualIngestionPanel` | `.ai-card` (maps to `var(--ai-card-surface)` via `components/ui/card.tsx:11`) | `.ai-card` default border | `components/admin/ingestion/ManualIngestionPanel.tsx:133`<br>`styles/ai-design-system.css:310` |
+| Tab panel card inside manual ingestion | T1 | `<Card className="ai-card--tab-panel">` wrapping tabs | `.ai-card` + `ai-card--tab-panel` removes top radius while keeping `surface-1` (same tokens) | `.ai-card` (except top border reset) | `components/admin/ingestion/ManualIngestionPanel.tsx:185`<br>`styles/ai-design-system.css:310`<br>`styles/ai-design-system.css:380` |
+| Manual ingestion controls card (update strategy, embedding select, Run manually + progress) | T1 | `<Card className="space-y-4">` below tabs | `.ai-card` surface | `.ai-card` border | `components/admin/ingestion/ManualIngestionPanel.tsx:295`<br>`styles/ai-design-system.css:310` |
+| Run log section card | T1 | `<Card className="pt-0">` | `.ai-card` | `.ai-card` | `components/admin/ingestion/ManualIngestionPanel.tsx:420`<br>`styles/ai-design-system.css:310` |
+| Run summary stat grid | T1 | Outer `Card` (“Run Summary”) wrapping inner `Card`s (`StatCard`) | Outer `.ai-card`, inner `StatCard` renders another `.ai-card` via `components/ui/stat-card.tsx:12` | Same `.ai-card` border tokens | `components/admin/ingestion/ManualIngestionPanel.tsx:468`<br>`components/ui/stat-card.tsx:12`<br>`styles/ai-design-system.css:310` |
+| Dataset Snapshot card | T1 | `<section className="ai-card">` | `.ai-card` surface | `.ai-card` border | `components/admin/ingestion/DatasetSnapshotSection.tsx:87`<br>`styles/ai-design-system.css:310` |
+| Dataset metadata chips section | T2 | `div`s with `ai-panel` + `bg-[color:var(--ai-surface-tint)]` | `.ai-panel` (`var(--ai-panel-surface)` from `styles/ai-design-system.css:340`) plus a tint override | `.ai-panel` border via `var(--ai-role-border-subtle)`/tailwind | `components/admin/ingestion/DatasetSnapshotSection.tsx:159`<br>`styles/ai-design-system.css:340` |
+| Dataset “Recent Snapshots” list | T2 | `section.ai-panel` with `bg-[color:var(--ai-surface)]` | `.ai-panel` surface + explicit `var(--ai-surface)` background | `.ai-panel` border | `components/admin/ingestion/DatasetSnapshotSection.tsx:211`<br>`styles/ai-design-system.css:340` |
+| RAG Documents Overview card | T1 | `<section className="ai-card">` | `.ai-card` surface | `.ai-card` border | `components/admin/ingestion/RagDocumentsOverview.tsx:26`<br>`styles/ai-design-system.css:310` |
+| RAG document-type chips grid | T2 | `div` tiles with `bg-[hsl(var(--ai-surface))]` inside above card | page background + token mix | `border-[color:var(--ai-border-soft)]` (token) | `components/admin/ingestion/RagDocumentsOverview.tsx:58` |
+| System Health card | T1 | `<section className="ai-card">` | `.ai-card` | `.ai-card` | `components/admin/ingestion/SystemHealthSection.tsx:27`<br>`styles/ai-design-system.css:310` |
+| System Health stat tiles | T1 | Each `StatCard` renders another `.ai-card` | `StatCard` wraps `Card` (`components/ui/stat-card.tsx:12`) | `.ai-card` | `components/admin/ingestion/SystemHealthSection.tsx:38`<br>`components/ui/stat-card.tsx:12` |
+| Recent Runs card | T1 | `<section className="ai-card">` containing filters + table | `.ai-card` | `.ai-card` | `components/admin/ingestion/RecentRunsSection.tsx:997`<br>`styles/ai-design-system.css:310` |
+| Recent Runs filters row | T3 | `section.mb-3 pl-3` inside card content (`RecentRunsFilters`) | transparent (inherits the card background) | none | `components/ui/recent-runs-filters.tsx:71` |
+| Recent Runs data table | T1 | `<div className="ai-table">` wrapping `<table>` | `.ai-table` background (`styles/ai-design-system.css:991`) | `.ai-table` border (`var(--ai-role-border-base)`) | `components/ui/data-table.tsx:1`<br>`styles/ai-design-system.css:991` |
+| Manual ingestion tab rail (Notion vs External buttons) | T3 | `<div className="flex ... border-b ... bg-[hsl(var(--ai-bg))]">` | page background via `var(--ai-bg)` | `border-[hsl(var(--ai-border))]` | `components/admin/ingestion/ManualIngestionPanel.tsx:160` |
+
+## 3. Fragmentation Diagnosis
+- Manual ingestion tabs mix page-level gradients, custom drop shadows, and tailwind `bg-[hsl(var(--ai-bg))]`/`border-[hsl(var(--ai-border))]` instead of reusing `ai-panel` or the surrounding card dependent on `var(--ai-role-…)` tokens (`components/admin/ingestion/ManualIngestionPanel.tsx:160` and `components/ui/tab-pill.tsx:19`). The result is a standalone rail that looks more like a T3 inset despite sitting inside a T1 `ai-card`.
+- Dataset Snapshot blends `ai-card`, `StatCard` (each a nested `.ai-card`), `ai-panel` chips, and ad-hoc `bg-[color:var(--ai-surface)]` panels, creating sibling sections with inconsistent depth and requiring repeated color overrides (see `components/admin/ingestion/DatasetSnapshotSection.tsx:97` and `components/admin/ingestion/DatasetSnapshotSection.tsx:211`).
+- RAG Documents uses `ai-card` for the section but the doc-type chips rely on manual `bg-[hsl(var(--ai-surface))]`/`border-[color:var(--ai-border-soft)]`, which flattens them into the page background and looks materially different from the stat card tiles above (`components/admin/ingestion/RagDocumentsOverview.tsx:58`).
+- Recent Runs filters ride inside `CardContent` but are rendered as a bare `section.mb-3 pl-3`, so there is no explicit surface boundary between controls and the table, which makes the control state feel like a separate page strip rather than a cohesive card header (`components/ui/recent-runs-filters.tsx:71`).
+
+## 4. Nested Surface Offenders (Card-in-card)
+1. **Manual Ingestion panel → Tab panel card**
+   - Outer container: `section.ai-card` (T1, `ManualIngestionPanel` main wrapper).
+   - Inner container: `<Card className="ai-card--tab-panel">` (T1) that hosts the Notion/URL inputs.
+   - Screenshot area: Manual Ingestion “Notion Page / External URL” tab content.
+   - Evidence: `components/admin/ingestion/ManualIngestionPanel.tsx:133` (outer) and `components/admin/ingestion/ManualIngestionPanel.tsx:185` (inner).
+   - Why problematic: Double `ai-card` nesting produces stacked shadows and makes the tab panel appear elevated relative to the surrounding card, which drifts visually in dark mode and wastes space that should instead be a single surface.
+2. **Manual Ingestion → Run Summary grid**
+   - Outer container: `Card` for “Run Summary”.
+   - Inner container: eight `Card`/`StatCard` tiles inside the `<dl>` grid.
+   - Screenshot area: Run Summary metric tiles at the bottom of the Manual Ingestion panel.
+   - Evidence: `components/admin/ingestion/ManualIngestionPanel.tsx:468` and `components/ui/stat-card.tsx:12`.
+   - Why problematic: Each stat tile carries its own shadow, so the section reads as a collage of cards inside another card and makes it difficult to target a single surface for shared hover/spacing tokens.
+3. **Dataset Snapshot → Metric grid & metadata chips**
+   - Outer container: `section.ai-card` for the entire snapshot group.
+   - Inner container: `StatCard` tiles plus the `ai-panel` metadata chips and history panel.
+   - Screenshot area: Dataset Snapshot metrics + metadata chips and Recent Snapshots list.
+  - Evidence: `components/admin/ingestion/DatasetSnapshotSection.tsx:87` (outer) and `components/admin/ingestion/DatasetSnapshotSection.tsx:97`, `components/admin/ingestion/DatasetSnapshotSection.tsx:211` (inner cards/panels).
+   - Why problematic: Three nested surfaces (outer card, stat cards, chips/panel) make the hierarchy noisy and cause the tinted chips to drop shadows twice, which fights the intention of a single cohesive snapshot surface.
+
+## 5. Interaction Contract Compliance
+- **Navigation tabs (Overview / RAG)**: `IngestionSubNav` uses bare `Link` elements with focus-visible outlines but doesn’t opt into `.ai-selectable`, so hover/focus/active styles are bespoke (`components/admin/navigation/IngestionSubNav.tsx:29`).
+- **Manual ingestion tab pills**: `TabPill` renders a custom button pattern with bespoke `bg`/`shadow` but no `.ai-selectable` classes, so it sidesteps the standard selectable tokens (`components/ui/tab-pill.tsx:12`).
+- **Manual ingestion radiobuttons + checkbox**: `Radiobutton` wraps its label in `ai-selectable ai-selectable--hoverable`/`--active` (`components/ui/radiobutton.tsx:17`), and the `CheckboxChoice` uses `ai-checkbox` (`components/ui/checkbox.tsx:25`), so their hover/active/focus states rely on the contract primitives.
+ - **Select + Buttons**: The embedding model `<select>` is `className="ai-select"`, so base + focus states pull from `styles/ai-design-system.css:772` and `styles/ai-design-system.css:804`, while every `<Button>` uses `.ai-button` variants with token-driven hover states (`components/ui/button.tsx:1`, `styles/ai-design-system.css:573`).
+- **Recent Runs table and pagination**: Rows render with `ai-table__row` and the hover color is defined in `styles/ai-design-system.css:1009` and `styles/ai-design-system.css:1014`, so row hover/active cues are token-driven; pagination buttons reuse `.ai-button` as above (`components/ui/data-table.tsx:1`, `styles/ai-design-system.css:991`).
+
+## 6. Token Hygiene & Guardrails Coverage
+- No raw hex/rgba/hsl literals appear in the ingestion components; all colors derive from `var(--ai-...)` tokens.
+- Legacy tokens appear in multiple places, e.g., the tab rail uses `hsl(var(--ai-bg))` + `hsl(var(--ai-border))` (`components/admin/ingestion/ManualIngestionPanel.tsx:160`), the metadata chips reference `var(--ai-border-muted)`/`var(--ai-surface-tint)` (`components/admin/ingestion/DatasetSnapshotSection.tsx:159`), doc-type chips rely on `hsl(var(--ai-surface))` (`components/admin/ingestion/RagDocumentsOverview.tsx:58`), and the system health cards embed `bg-[color:var(--ai-border-soft)]` backgrounds behind code tokens (`components/admin/ingestion/SystemHealthSection.tsx:53`, `components/admin/ingestion/SystemHealthSection.tsx:158`). These legacy tokens should be reconciled with the `--ai-role-*` tokens once the surface tier plan is in place.
+- `scripts/check-css-guardrails.mjs:1` currently lints only the CSS files listed in `featureCssFiles` (styles/ai-design-system.css plus a few feature CSS files) and does not scan component TSX files such as `components/admin/ingestion/ManualIngestionPanel.tsx`, `components/admin/ingestion/DatasetSnapshotSection.tsx`, `components/admin/ingestion/RagDocumentsOverview.tsx`, `components/admin/ingestion/SystemHealthSection.tsx`, `components/admin/ingestion/RecentRunsSection.tsx`, or `components/admin/navigation/IngestionSubNav.tsx`. Add those files (or their generated CSS output) to the script in Phase 5 to catch accidental literal tokens.
+
+## 7. Phase 2+ Patch Plan (smallest diffs first)
+1. **Phase 2 – Surface tier unification**: Normalize every major section to explicit `Card`/`Section` primitives (e.g., keep `ManualIngestionPanel`, `DatasetSnapshotSection`, `RagDocumentsOverview`, `SystemHealthSection`, and `RecentRunsSection` on `surface-1`, convert metadata chips to `surface-0` using `ai-panel` helpers, and keep the filter row in the same card). Files touched: `components/admin/ingestion/ManualIngestionPanel.tsx`, `components/admin/ingestion/DatasetSnapshotSection.tsx`, `components/admin/ingestion/RagDocumentsOverview.tsx`, `components/admin/ingestion/SystemHealthSection.tsx`, `components/admin/ingestion/RecentRunsSection.tsx`. Outcome: clear tier boundaries, easier theming. Risk: medium (layout changes across multiple display modes).
+2. **Phase 3 – Flatten nested card surfaces**: Replace the inner `Card`/`StatCard` duplicates with `ai-panel` or grid wrappers (e.g., the tab panel, run summary tiles, dataset metrics/history). Files: `components/admin/ingestion/ManualIngestionPanel.tsx`, `components/admin/ingestion/DatasetSnapshotSection.tsx`, `components/admin/ingestion/RagDocumentsOverview.tsx`, `components/admin/ingestion/SystemHealthSection.tsx`. Outcome: remove double shadows, ease surface-level token overrides. Risk: medium (need to preserve spacing/shadows while reducing DOM depth).
+3. **Phase 3B – Selectable affordance polish**: Align the Overview/RAG nav and `TabPill` with `.ai-selectable`/token-driven cues, ensuring they reuse `.ai-selectable--hoverable`/`--active` plus the focus ring. Files: `components/admin/navigation/IngestionSubNav.tsx`, `components/ui/tab-pill.tsx`, `components/admin/ingestion/ManualIngestionPanel.tsx`. Outcome: consistent hover, focus, and active styling with the design system. Risk: low.
+4. **Phase 4 – Table and filter polish (optional)**: Tighten the Recent Runs filter row (wrap it in an `ai-panel` or `CardContent` layout) and adjust `DataTable` spacing/pagination to match density goals; optionally give table rows `.ai-selectable` wrappers if they become interactive. Files: `components/admin/ingestion/RecentRunsSection.tsx`, `components/ui/recent-runs-filters.tsx`, `components/ui/data-table.tsx`. Outcome: cleaner separation between filters/table and improved table density. Risk: low.

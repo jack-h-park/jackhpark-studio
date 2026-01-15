@@ -1,18 +1,54 @@
-import type { JSX } from "react";
+import type { JSX, ReactNode } from "react";
 import { FiActivity } from "@react-icons/all-files/fi/FiActivity";
 
 import type { SystemHealthOverview } from "@/lib/admin/ingestion-types";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientSideDate } from "@/components/ui/client-side-date";
 import { GridPanel } from "@/components/ui/grid-panel";
-import { StatCard } from "@/components/ui/stat-card";
+import insetPanelStyles from "@/components/ui/inset-panel.module.css";
 import { StatusPill } from "@/components/ui/status-pill";
+import { cn } from "@/components/ui/utils";
 import {
   formatDuration,
   numberFormatter,
   runStatusVariantMap,
 } from "@/lib/admin/ingestion-formatters";
 import { getStatusLabel } from "@/lib/admin/recent-runs-filters";
+
+type SystemHealthStatTileProps = {
+  label: ReactNode;
+  value: ReactNode;
+  meta?: ReactNode;
+};
+
+function SystemHealthStatTile({
+  label,
+  value,
+  meta,
+}: SystemHealthStatTileProps): JSX.Element {
+  return (
+    <div
+      className={cn(
+        insetPanelStyles.insetPanel,
+        "h-full p-3 flex flex-col justify-between",
+      )}
+    >
+      <div>
+        <p className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
+          {label}
+        </p>
+        <div className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
+          {value}
+        </div>
+      </div>
+      {meta ? (
+        <div className="mt-3 space-y-1 text-xs text-[color:var(--ai-text-muted)]">
+          {meta}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function SystemHealthSection({
   health,
@@ -36,7 +72,7 @@ export function SystemHealthSection({
       </CardHeader>
       <CardContent>
         <GridPanel className="grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-4">
-          <StatCard
+          <SystemHealthStatTile
             label="Last Run"
             value={
               <StatusPill
@@ -74,7 +110,7 @@ export function SystemHealthSection({
               )
             }
           />
-          <StatCard
+          <SystemHealthStatTile
             label="Duration"
             value={formatDuration(health.durationMs)}
             meta={
@@ -90,7 +126,7 @@ export function SystemHealthSection({
               )
             }
           />
-          <StatCard
+          <SystemHealthStatTile
             label="Data Quality"
             value={
               <div className="space-y-1">
@@ -104,12 +140,12 @@ export function SystemHealthSection({
               </div>
             }
             meta={
-              <span className="ai-meta-text  italic">
+              <span className="ai-meta-text italic">
                 Derived from the latest run.
               </span>
             }
           />
-          <StatCard
+          <SystemHealthStatTile
             label="Queue Health"
             value={
               <div className="space-y-1">
@@ -130,7 +166,7 @@ export function SystemHealthSection({
               </span>
             }
           />
-          <StatCard
+          <SystemHealthStatTile
             label="Last Failure"
             value={
               health.lastFailureRunId ? (

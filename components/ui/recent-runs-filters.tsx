@@ -68,9 +68,10 @@ export function RecentRunsFilters({
   onResetFilters,
 }: RecentRunsFiltersProps): JSX.Element {
   return (
-    <section className="mb-3 pl-3">
-      <div className="flex flex-wrap gap-3 flex-col items-stretch md:flex-row md:items-center md:justify-between">
-        <div className="flex flex-wrap items-end gap-2">
+    <section className="mb-3">
+      <div className="ai-panel px-3 py-3">
+        <div className="flex flex-wrap gap-3 flex-col items-stretch md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap items-end gap-2">
           <div className="flex flex-col gap-1 min-w-[180px]">
             <Label
               htmlFor="recent-status-filter"
@@ -225,6 +226,8 @@ export function RecentRunsFilters({
               }
               onChange={onStartedToChange}
             />
+          </div>
+
           </div>
 
           <div className="flex items-center gap-3 justify-end md:justify-start">

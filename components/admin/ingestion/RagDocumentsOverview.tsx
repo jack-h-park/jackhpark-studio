@@ -58,7 +58,7 @@ export function RagDocumentsOverview({
                 {docTypeEntries.map(([type, count]) => (
                   <div
                     key={type}
-                    className="flex items-center justify-between rounded-[var(--ai-radius-md)] border border-[color:var(--ai-border-soft)] bg-[hsl(var(--ai-surface))] px-3 py-2 text-sm"
+                    className="ai-panel ai-selectable ai-selectable--hoverable flex items-center justify-between rounded-[var(--ai-radius-md)] px-3 py-2 text-sm shadow-none"
                   >
                     <span className="text-[color:var(--ai-text-soft)]">
                       {type}

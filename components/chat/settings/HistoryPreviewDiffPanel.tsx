@@ -3,6 +3,7 @@ import { FiClipboard } from "@react-icons/all-files/fi/FiClipboard";
 import { FiTrash2 } from "@react-icons/all-files/fi/FiTrash2";
 import { useEffect, useState } from "react";
 
+import insetPanelStyles from "@/components/ui/inset-panel.module.css";
 import {
   clearDiffTelemetry,
   type DiffTelemetrySnapshot,
@@ -10,8 +11,6 @@ import {
   type HistoryPreviewDiffEvent,
 } from "@/lib/chat/historyPreviewDiffTelemetry";
 import { isDevOnly } from "@/lib/dev/devFlags";
-
-import insetPanelStyles from "./inset-panel.module.css";
 
 export function HistoryPreviewDiffPanel() {
   const [snapshot, setSnapshot] = useState<DiffTelemetrySnapshot | null>(null);

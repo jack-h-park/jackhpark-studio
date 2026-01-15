@@ -1,4 +1,4 @@
-import type { JSX } from "react";
+import type { JSX, ReactNode } from "react";
 import { FiClock } from "@react-icons/all-files/fi/FiClock";
 import { FiDatabase } from "@react-icons/all-files/fi/FiDatabase";
 
@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientSideDate } from "@/components/ui/client-side-date";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
-import { StatCard } from "@/components/ui/stat-card";
+import insetPanelStyles from "@/components/ui/inset-panel.module.css";
+import { cn } from "@/components/ui/utils";
 import {
   buildSparklineData,
   formatCharacters,
@@ -17,6 +18,60 @@ import {
   SNAPSHOT_HISTORY_LIMIT,
 } from "@/lib/admin/ingestion-formatters";
 import { formatEmbeddingSpaceLabel } from "@/lib/admin/recent-runs-filters";
+
+const datasetMetricToneClasses: Record<
+  "success" | "warning" | "error" | "info" | "muted",
+  string
+> = {
+  success: "text-[var(--ai-success)]",
+  warning: "text-[var(--ai-warning)]",
+  error: "text-[var(--ai-error)]",
+  info: "text-[var(--ai-accent)]",
+  muted: "text-[var(--ai-text-soft)]",
+};
+
+type DatasetMetricDelta = {
+  text: string;
+  tone?: "success" | "warning" | "error" | "info" | "muted";
+};
+
+function DatasetMetricTile({
+  label,
+  value,
+  delta,
+}: {
+  label: ReactNode;
+  value: ReactNode;
+  delta?: DatasetMetricDelta;
+}): JSX.Element {
+  return (
+    <div
+      className={cn(
+        insetPanelStyles.insetPanel,
+        "h-full p-3 flex flex-col justify-between",
+      )}
+    >
+      <div className="ai-stat">
+        <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
+          {label}
+        </dt>
+        <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
+          {value}
+        </dd>
+        {delta ? (
+          <p
+            className={cn(
+              "ai-stat__delta",
+              datasetMetricToneClasses[delta.tone ?? "muted"],
+            )}
+          >
+            {delta.text}
+          </p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export function DatasetSnapshotSection({
   overview,
@@ -94,28 +149,28 @@ export function DatasetSnapshotSection({
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
-        <GridPanel className="grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
-          {metrics.map((metric) => {
-            const deltaLabel = formatDeltaLabel(metric.delta);
-            const tone =
-              metric.delta === null
-                ? undefined
-                : metric.delta > 0
-                  ? "success"
-                  : "error";
-            return (
-              <StatCard
-                key={metric.key}
-                label={metric.label}
-                value={metric.value}
-                delta={
-                  deltaLabel
-                    ? { text: deltaLabel, tone: tone ?? "muted" }
-                    : undefined
-                }
-              />
-            );
-          })}
+          <GridPanel className="grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
+            {metrics.map((metric) => {
+              const deltaLabel = formatDeltaLabel(metric.delta);
+              const tone =
+                metric.delta === null
+                  ? undefined
+                  : metric.delta > 0
+                    ? "success"
+                    : "error";
+              return (
+                <DatasetMetricTile
+                  key={metric.key}
+                  label={metric.label}
+                  value={metric.value}
+                  delta={
+                    deltaLabel
+                      ? { text: deltaLabel, tone: tone ?? "muted" }
+                      : undefined
+                  }
+                />
+              );
+            })}
           <Card className="md:col-span-2">
             <CardContent className="space-y-3">
               <p className="ai-label-overline tracking-widest text-[color:var(--ai-text-muted)]">
@@ -156,7 +211,7 @@ export function DatasetSnapshotSection({
         </GridPanel>
         <dl className="mt-6">
           <GridPanel className="grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
-            <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
+            <div className="ai-panel shadow-none rounded-[12px] px-4 py-3">
               <dt className="m-0 ai-label-overline tracking-wide text-[color:var(--ai-text-muted)]">
                 Embedding Model
               </dt>
@@ -164,7 +219,7 @@ export function DatasetSnapshotSection({
                 {embeddingLabel}
               </dd>
             </div>
-            <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
+            <div className="ai-panel shadow-none rounded-[12px] px-4 py-3">
               <dt className="m-0 ai-label-overline tracking-wide text-[color:var(--ai-text-muted)]">
                 Ingestion Mode
               </dt>
@@ -172,7 +227,7 @@ export function DatasetSnapshotSection({
                 {latest.ingestionMode ?? "—"}
               </dd>
             </div>
-            <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
+            <div className="ai-panel shadow-none rounded-[12px] px-4 py-3">
               <dt className="m-0 ai-label-overline tracking-wide text-[color:var(--ai-text-muted)]">
                 Captured
               </dt>
@@ -184,7 +239,7 @@ export function DatasetSnapshotSection({
                 )}
               </dd>
             </div>
-            <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
+            <div className="ai-panel shadow-none rounded-[12px] px-4 py-3">
               <dt className="m-0 ai-label-overline tracking-wide text-[color:var(--ai-text-muted)]">
                 Source Run
               </dt>
@@ -198,7 +253,7 @@ export function DatasetSnapshotSection({
                 )}
               </dd>
             </div>
-            <div className="ai-panel shadow-none border-[color:var(--ai-border-muted)] rounded-[12px] bg-[color:var(--ai-surface-tint)] px-4 py-3">
+            <div className="ai-panel shadow-none rounded-[12px] px-4 py-3">
               <dt className="m-0 ai-label-overline tracking-wide text-[color:var(--ai-text-muted)]">
                 Schema Version
               </dt>
@@ -208,7 +263,7 @@ export function DatasetSnapshotSection({
             </div>
           </GridPanel>
         </dl>
-        <section className="ai-panel mt-6 space-y-3 shadow-none border-[color:var(--ai-border-muted)] rounded-[14px] bg-[color:var(--ai-surface)] px-5 py-4">
+        <section className="ai-panel mt-6 space-y-3 shadow-none rounded-[14px] px-5 py-4">
           <header className="flex flex-col gap-1 mb-3">
             <HeadingWithIcon
               as="h3"

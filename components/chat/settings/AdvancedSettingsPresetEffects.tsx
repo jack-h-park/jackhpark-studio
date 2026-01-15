@@ -8,6 +8,7 @@ import type {
   SessionChatConfig,
   SummaryLevel,
 } from "@/types/chat-config";
+import insetPanelStyles from "@/components/ui/inset-panel.module.css";
 import { cn } from "@/components/ui/utils";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
@@ -16,7 +17,6 @@ import {
   buildEffectiveSettingsPayload,
   buildEffectiveSettingsSupportLine,
 } from "./effective-settings";
-import insetPanelStyles from "./inset-panel.module.css";
 import { computeOverridesActive } from "./preset-overrides";
 import {
   formatPresetDecimal,

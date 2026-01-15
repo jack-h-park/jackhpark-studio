@@ -5,11 +5,11 @@ import { useState } from "react";
 
 import type { HistoryPreviewResult } from "@/lib/chat/historyWindowPreview";
 import { type ChatMessage } from "@/components/chat/hooks/useChatSession";
+import insetPanelStyles from "@/components/ui/inset-panel.module.css";
 import { isDevOnly } from "@/lib/dev/devFlags";
 import { cn } from "@/lib/utils";
 
 import { HistoryPreviewDiffPanel } from "./HistoryPreviewDiffPanel";
-import insetPanelStyles from "./inset-panel.module.css";
 
 const CLIENT_ESTIMATE_LABEL = "Estimate (client)";
 
