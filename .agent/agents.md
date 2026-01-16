@@ -74,14 +74,19 @@ Always align with the existing stack unless explicitly instructed otherwise.
      No ad-hoc logs.
 
 7. **Design system compliance**  
-   All UI changes must follow:
-   - `docs/design-system/ai-design-system.md`
-   - `docs/css-guardrails.md`
+All UI changes must follow:
+- `docs/design-system/ai-design-system.md`
+- `docs/css-guardrails.md`
+- `docs/ui/drawer-ui-contract.md`
 
    Requirements:
-   - `styles/ai-design-system.css` is **primitive-only** (tokens, utilities, reusable UI primitives).
-   - Feature- or screen-specific styling must live in feature-scoped stylesheets.
-   - No color literals or legacy tokens in component rules; consume role tokens only.
+- `styles/ai-design-system.css` is **primitive-only** (tokens, utilities, reusable UI primitives).
+- Feature- or screen-specific styling must live in feature-scoped stylesheets.
+- No color literals or legacy tokens in component rules; consume role tokens only.
+
+## Drawer UI Contract (Advanced Settings)
+- Follow `docs/ui/drawer-ui-contract.md` for drawer-scoped affordances (idle borders, dividers, rows, hit areas).
+- Keep these overrides inside the drawer’s CSS module; do not extend them into `styles/ai-design-system.css`.
 
 ---
 
