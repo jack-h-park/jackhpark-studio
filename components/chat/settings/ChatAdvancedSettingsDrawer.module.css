@@ -217,7 +217,22 @@
 }
 
 .drawerDivider {
-  border-color: var(--ai-role-divider-muted);
+  width: 100%;
+  height: 0;
+  border: 0 solid transparent;
+  border-top-width: 1px;
+  border-top-style: solid;
+  border-top-color: var(--ai-role-divider-muted);
+  flex: 0 0 auto;
+}
+
+:global(.dark) .drawerDivider,
+:global(.dark-mode) .drawerDivider,
+:global(html.dark) .drawerDivider,
+:global(body.dark) .drawerDivider,
+:global(html.dark-mode) .drawerDivider,
+:global(body.dark-mode) .drawerDivider {
+  border-top-color: var(--ai-role-border-base);
 }
 
 .drawerSwitch[data-state="unchecked"] {

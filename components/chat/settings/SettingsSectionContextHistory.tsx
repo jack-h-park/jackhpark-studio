@@ -286,19 +286,22 @@ export function SettingsSectionContextHistory({
         )}
 
         {isDev && (
-          <div
-            className={`flex items-center justify-between gap-2 border-t py-2 mt-1.5 text-sm text-[var(--ai-text-muted)] ${drawerStyles.drawerDivider}`}
-          >
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ai-text-muted)]">
-              Exact preview (server)
-            </span>
-            <Switch
-              className={`${drawerStyles.drawerSwitch} flex-shrink-0`}
-              checked={isExactPreviewEnabled}
-              onCheckedChange={setIsExactPreviewEnabled}
-              disabled={!isContextEnabled}
+          <>
+            <div
+              className={`${drawerStyles.drawerDivider} mt-1.5`}
             />
-          </div>
+            <div className="flex items-center justify-between gap-2 py-2 text-sm text-[var(--ai-text-muted)]">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ai-text-muted)]">
+                Exact preview (server)
+              </span>
+              <Switch
+                className={`${drawerStyles.drawerSwitch} flex-shrink-0`}
+                checked={isExactPreviewEnabled}
+                onCheckedChange={setIsExactPreviewEnabled}
+                disabled={!isContextEnabled}
+              />
+            </div>
+          </>
         )}
 
         <p className="ai-setting-section-description">

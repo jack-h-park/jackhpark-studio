@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/section";
 import { cn } from "@/components/ui/utils";
 
+import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
 import styles from "./PresetEffectsSummary.module.css";
 
 export type PresetEffectItem = {
@@ -57,12 +58,8 @@ export function PresetEffectsSummary({
         <SectionDescription>
           These values are enforced by the selected preset.
         </SectionDescription>
-        <dl
-          className={cn(
-            "pt-2 border-t border-[var(--ai-divider)]",
-            styles.effectsList,
-          )}
-        >
+        <div className={drawerStyles.drawerDivider} />
+        <dl className={cn("pt-2", styles.effectsList)}>
           {items.map((item) => (
             <div key={item.label} className={styles.effectRow}>
               <dt className={styles.effectLabel}>{item.label}</dt>
