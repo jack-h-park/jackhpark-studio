@@ -135,25 +135,30 @@ export function ChatAdvancedSettingsDrawer({
                 ✕
               </Button>
             </div>
-            <div className={`${styles.content} gap-4`}>
-              {warningState.visible && (
-                <DrawerInlineWarning
-                  message={warningState.message}
-                  onDismiss={() =>
-                    setWarningState((prev) => ({ ...prev, visible: false }))
-                  }
+              <div className={`${styles.content} gap-4`}>
+                {warningState.visible && (
+                  <DrawerInlineWarning
+                    message={warningState.message}
+                    onDismiss={() =>
+                      setWarningState((prev) => ({ ...prev, visible: false }))
+                    }
+                  />
+                )}
+
+              <div className={styles.drawerSection}>
+                <SettingsSectionCoreSummary
+                  summary={adminConfig.baseSystemPromptSummary ?? ""}
                 />
-              )}
+              </div>
 
-              <SettingsSectionCoreSummary
-                summary={adminConfig.baseSystemPromptSummary ?? ""}
-              />
+              <div className={styles.drawerSection}>
+                <SettingsSectionDisplay />
+              </div>
 
-              <SettingsSectionDisplay />
-
-              <Section className={styles.presetScope}>
-                <div className={styles.presetScopeHeader}>
-                  <div className={styles.presetScopeTop}>
+              <div className={styles.drawerSection}>
+                <Section className={styles.presetScope}>
+                  <div className={styles.presetScopeHeader}>
+                          <div className={styles.presetScopeTop}>
                     <SectionTitle as="p" icon={<FiLayers aria-hidden="true" />}>
                       <span className="flex items-center gap-2">
                         <span className="flex items-center gap-2">
@@ -209,22 +214,27 @@ export function ChatAdvancedSettingsDrawer({
                   </div>
                 </div>
               </Section>
+              </div>
 
               <div className={`${styles.cascade}`}>
                 {!isSettingLocked("embeddingModel") && (
-                  <SettingsSectionModelEngine
-                    adminConfig={adminConfig}
-                    sessionConfig={sessionConfig}
-                    setSessionConfig={setSessionConfig}
-                  />
+                  <div className={styles.drawerSection}>
+                    <SettingsSectionModelEngine
+                      adminConfig={adminConfig}
+                      sessionConfig={sessionConfig}
+                      setSessionConfig={setSessionConfig}
+                    />
+                  </div>
                 )}
 
                 {!isSettingLocked("rag") && (
-                  <SettingsSectionRagRetrieval
-                    adminConfig={adminConfig}
-                    sessionConfig={sessionConfig}
-                    setSessionConfig={setSessionConfig}
-                  />
+                  <div className={styles.drawerSection}>
+                    <SettingsSectionRagRetrieval
+                      adminConfig={adminConfig}
+                      sessionConfig={sessionConfig}
+                      setSessionConfig={setSessionConfig}
+                    />
+                  </div>
                 )}
               </div>
 

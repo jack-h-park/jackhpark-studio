@@ -4,6 +4,9 @@ import type { ReactNode } from "react";
 
 import { AdminTopNav } from "@/components/admin/navigation/AdminTopNav";
 import { PageHeaderCard } from "@/components/ui/page-header-card";
+import { cn } from "@/lib/utils";
+
+import styles from "./admin-ingestion-shell.module.css";
 
 export type AdminPageShellProps = {
   section: "chat" | "ingestion";
@@ -24,7 +27,12 @@ export function AdminPageShell({
   children,
 }: AdminPageShellProps) {
   return (
-    <div className="ai-container space-y-6 pb-12">
+    <div
+      className={cn(
+        "ai-container space-y-6 pb-12",
+        section === "ingestion" ? styles.adminIngestionScope : undefined,
+      )}
+    >
       <section>
         <div className="flex flex-col gap-3">
           <div className="pb-1 pt-4">

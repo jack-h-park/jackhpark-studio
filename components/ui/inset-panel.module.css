@@ -3,3 +3,12 @@
   border-radius: var(--ai-radius-md);
   background: transparent;
 }
+
+:global(.dark) .insetPanel,
+:global(html.dark) .insetPanel,
+:global(body.dark) .insetPanel,
+:global(.dark-mode) .insetPanel,
+:global(html.dark-mode) .insetPanel,
+:global(body.dark-mode) .insetPanel {
+  border-color: var(--ai-role-border-base);
+}

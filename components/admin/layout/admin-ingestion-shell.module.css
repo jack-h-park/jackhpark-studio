@@ -1,0 +1,19 @@
+/**
+ * Admin Ingestion – Dark Mode Card Border Scope
+ *
+ * This page-scoped contract strengthens `.ai-card` borders inside the
+ * ingestion dashboard because the data-dense layout loses definition when
+ * relying on the global `--ai-role-border-subtle` in dark mode.
+ *
+ * The stronger `--ai-role-border-base` rule applies only within this scope.
+ * Do not migrate this exception into `styles/ai-design-system.css` unless
+ * the global dark-mode border strategy is reapproved.
+ */
+.adminIngestionScope :global(body.dark) .ai-card,
+.adminIngestionScope :global(.dark) .ai-card,
+.adminIngestionScope :global(body.dark-mode) .ai-card,
+.adminIngestionScope :global(.dark-mode) .ai-card,
+.adminIngestionScope :global(html.dark) .ai-card,
+.adminIngestionScope :global(html.dark-mode) .ai-card {
+  border-color: var(--ai-role-border-base);
+}
