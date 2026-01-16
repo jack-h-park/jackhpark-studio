@@ -288,25 +288,34 @@ export function SettingsSectionContextHistory({
         {isDev && (
           <>
             <div
-              className={`${drawerStyles.drawerDivider} mt-1.5`}
+              className={`${drawerStyles.drawerDivider} ${drawerStyles.drawerDividerSpacing}`}
             />
-            <div className="flex items-center justify-between gap-2 py-2 text-sm text-[var(--ai-text-muted)]">
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--ai-text-muted)]">
-                Exact preview (server)
-              </span>
-              <Switch
-                className={`${drawerStyles.drawerSwitch} flex-shrink-0`}
-                checked={isExactPreviewEnabled}
-                onCheckedChange={setIsExactPreviewEnabled}
-                disabled={!isContextEnabled}
-              />
+            <div className={drawerStyles.drawerRow}>
+              <div className={drawerStyles.drawerRowText}>
+                <span className={drawerStyles.drawerRowLabel}>
+                  Exact preview (server)
+                </span>
+                <span className={drawerStyles.drawerRowHint}>
+                  Updates as the conversation grows.
+                </span>
+              </div>
+              <div className={drawerStyles.drawerRowControl}>
+                <Switch
+                  className={`${drawerStyles.drawerSwitch} flex-shrink-0`}
+                  checked={isExactPreviewEnabled}
+                  onCheckedChange={setIsExactPreviewEnabled}
+                  disabled={!isContextEnabled}
+                />
+              </div>
             </div>
           </>
         )}
 
-        <p className="ai-setting-section-description">
-          Updates as the conversation grows.
-        </p>
+        {!isDev && (
+          <p className="ai-setting-section-description">
+            Updates as the conversation grows.
+          </p>
+        )}
         <HistoryPreview
           preview={preview}
           messages={messages}

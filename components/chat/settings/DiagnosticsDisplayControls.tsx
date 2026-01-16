@@ -23,10 +23,7 @@ export function DiagnosticsDisplayControls({
     const rowClass = rowClassName ?? "flex items-center justify-between gap-3";
     return (
       <div className={className}>
-        <div
-          className={rowClass}
-          title="Show telemetry badges like performance metrics and model info."
-        >
+        <div className={rowClass}>
           <span>Telemetry</span>
           <Switch
             checked={showTelemetry}
@@ -34,10 +31,7 @@ export function DiagnosticsDisplayControls({
             aria-label="Toggle telemetry"
           />
         </div>
-        <div
-          className={rowClass}
-          title="Show source citations in chat responses."
-        >
+        <div className={rowClass}>
           <span>Citations</span>
           <Switch
             checked={showCitations}
@@ -50,10 +44,7 @@ export function DiagnosticsDisplayControls({
   }
 
   return (
-    <div
-      className={cn("ai-diagnostics-display-card", className)}
-      title="Controls for telemetry and citation diagnostics"
-    >
+    <div className={cn("ai-diagnostics-display-card", className)}>
       <SwitchField
         id="telemetry-badges"
         label="Telemetry badges"

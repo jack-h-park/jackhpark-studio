@@ -197,32 +197,104 @@
   margin-bottom: 0;
 }
 
-/**
- * Drawer-scoped contrast bump: keeps base tiles visible in dark mode.
- * Unselected ai-selectable tiles inherit the ambient surface/border tokens
- * while hover/active states still rely on the shared contract.
- */
-.drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)) {
+.drawerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-block: 0.5rem;
+}
+
+.drawerRowText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.drawerRowLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ai-text-strong);
+}
+
+.drawerRowHint {
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--ai-text-muted);
+}
+
+.drawerRowControl {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.drawerDividerSpacing {
+  margin-block: 0.75rem;
+}
+
+.drawerDiagnosticsCard {
   border-color: var(--ai-role-border-subtle);
 }
 
-:global(.dark) .drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)),
-:global(.dark-mode) .drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)),
-:global(html.dark) .drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)),
-:global(body.dark) .drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)),
-:global(html.dark-mode) .drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)),
-:global(body.dark-mode) .drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)) {
+:global(.dark) .drawerDiagnosticsCard {
   border-color: var(--ai-role-border-base);
-  background-color: var(--ai-role-surface-hover);
+}
+
+.drawerCloseButton {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: var(--ai-radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/**
+ * Drawer-scoped contrast bump: keeps idle tiles visible without flattening
+ * the shared hover/active contract.
+ */
+.drawerSelectableScope :global(
+  .ai-selectable:not(.ai-selectable--active):not(:hover):not(:focus-visible),
+) {
+  border-color: var(--ai-role-border-subtle);
+  border-style: solid;
+  border-width: 1px;
+}
+
+:global(.dark) .drawerSelectableScope :global(
+  .ai-selectable:not(.ai-selectable--active):not(:hover):not(:focus-visible),
+),
+:global(.dark-mode) .drawerSelectableScope :global(
+  .ai-selectable:not(.ai-selectable--active):not(:hover):not(:focus-visible),
+),
+:global(html.dark) .drawerSelectableScope :global(
+  .ai-selectable:not(.ai-selectable--active):not(:hover):not(:focus-visible),
+),
+:global(body.dark) .drawerSelectableScope :global(
+  .ai-selectable:not(.ai-selectable--active):not(:hover):not(:focus-visible),
+),
+:global(html.dark-mode) .drawerSelectableScope :global(
+  .ai-selectable:not(.ai-selectable--active):not(:hover):not(:focus-visible),
+),
+:global(body.dark-mode) .drawerSelectableScope :global(
+  .ai-selectable:not(.ai-selectable--active):not(:hover):not(:focus-visible),
+) {
+  border-color: var(--ai-role-border-base);
+  border-style: solid;
+  border-width: 1px;
 }
 
 .drawerDivider {
   width: 100%;
   height: 0;
-  border: 0 solid transparent;
   border-top-width: 1px;
   border-top-style: solid;
   border-top-color: var(--ai-role-divider-muted);
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
   flex: 0 0 auto;
 }
 

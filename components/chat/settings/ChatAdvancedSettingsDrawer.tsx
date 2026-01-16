@@ -131,6 +131,7 @@ export function ChatAdvancedSettingsDrawer({
                 size="icon"
                 onClick={onClose}
                 aria-label="Close advanced settings"
+                className={styles.drawerCloseButton}
               >
                 ✕
               </Button>
@@ -238,10 +239,13 @@ export function ChatAdvancedSettingsDrawer({
                 )}
               </div>
 
-              <div className="border-t border-[color:var(--ai-divider)] pt-4">
+              <div className="pt-4">
+                <div
+                  className={`${styles.drawerDivider} ${styles.drawerDividerSpacing}`}
+                />
                 <Button
-                  variant="ghost"
-                  className="w-full text-[color:var(--ai-text-muted)] hover:text-[color:var(--ai-text-default)]"
+                  variant="outline"
+                  className="w-full"
                   onClick={resetToDefault}
                 >
                   Reset to Preset Defaults

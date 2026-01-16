@@ -58,7 +58,12 @@ export function PresetEffectsSummary({
         <SectionDescription>
           These values are enforced by the selected preset.
         </SectionDescription>
-        <div className={drawerStyles.drawerDivider} />
+        <div
+          className={cn(
+            drawerStyles.drawerDivider,
+            drawerStyles.drawerDividerSpacing,
+          )}
+        />
         <dl className={cn("pt-2", styles.effectsList)}>
           {items.map((item) => (
             <div key={item.label} className={styles.effectRow}>
