@@ -8,6 +8,7 @@ import {
 } from "@/types/chat-config";
 
 import type { ImpactKey } from "./impact";
+import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
 import {
   computeOverridesActive,
   PRESET_LABELS,
@@ -58,7 +59,9 @@ export function PresetSelectorTabs({
           </span>
         )}
       </div>
-      <GridPanel className="grid-cols-4 gap-[0.3rem]">
+      <GridPanel
+        className={`grid-cols-4 gap-[0.3rem] ${drawerStyles.drawerSelectableScope}`}
+      >
         {(["precision", "default", "highRecall", "fast"] as PresetKey[]).map(
           (key) => {
             const isActive = sessionConfig.appliedPreset === key;

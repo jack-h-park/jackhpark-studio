@@ -32,6 +32,7 @@ import {
   type SummaryLevel,
 } from "@/types/chat-config";
 
+import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
 import { computeOverridesActive } from "./preset-overrides";
 import styles from "./SettingsSectionOptionalOverrides.module.css";
 
@@ -206,7 +207,13 @@ export function SettingsSectionOptionalOverrides({
                 Summaries
               </Label>
             </div>
-            <GridPanel className={cn("grid-cols-2", styles.summaryGrid)}>
+            <GridPanel
+              className={cn(
+                "grid-cols-2",
+                styles.summaryGrid,
+                drawerStyles.drawerSelectableScope,
+              )}
+            >
               {summaryOptions.map((option) => {
                 const isActive = sessionConfig.summaryLevel === option.value;
                 return (

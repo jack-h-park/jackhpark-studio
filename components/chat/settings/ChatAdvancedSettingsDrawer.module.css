@@ -197,6 +197,39 @@
   margin-bottom: 0;
 }
 
+/**
+ * Drawer-scoped contrast bump: keeps base tiles visible in dark mode.
+ * Unselected ai-selectable tiles inherit the ambient surface/border tokens
+ * while hover/active states still rely on the shared contract.
+ */
+.drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)) {
+  border-color: var(--ai-role-border-subtle);
+}
+
+:global(.dark) .drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)),
+:global(.dark-mode) .drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)),
+:global(html.dark) .drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)),
+:global(body.dark) .drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)),
+:global(html.dark-mode) .drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)),
+:global(body.dark-mode) .drawerSelectableScope :global(.ai-selectable:not(.ai-selectable--active):not(:hover)) {
+  border-color: var(--ai-role-border-base);
+  background-color: var(--ai-role-surface-hover);
+}
+
+.drawerDivider {
+  border-color: var(--ai-role-divider-muted);
+}
+
+.drawerSwitch[data-state="unchecked"] {
+  border-color: var(--ai-role-border-subtle);
+  background-color: var(--ai-role-surface-hover);
+}
+
+:global(.dark) .drawerSwitch[data-state="unchecked"],
+:global(.dark-mode) .drawerSwitch[data-state="unchecked"] {
+  border-color: var(--ai-role-border-base);
+}
+
 @media (max-width: 640px) {
   .drawer {
     width: 100%;
