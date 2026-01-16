@@ -9,8 +9,6 @@ import { type ComponentType, type JSX, useCallback, useMemo } from "react";
 import type { ManualLogEvent } from "@/lib/admin/ingestion-types";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -42,6 +40,8 @@ import {
   numberFormatter,
 } from "@/lib/admin/ingestion-formatters";
 import { EMBEDDING_MODEL_OPTIONS } from "@/lib/admin/recent-runs-filters";
+
+import manualStyles from "./ManualIngestionPanel.module.css";
 
 const LOG_ICONS: Record<
   ManualLogEvent["level"],
@@ -185,6 +185,10 @@ export function ManualIngestionPanel(): JSX.Element {
     [ingestion.status],
   );
   const statusLabel = manualStatusLabels[ingestion.status];
+  const runLogSubtitle =
+    ingestion.logs.length === 0
+      ? "Awaiting events"
+      : `${ingestion.logs.length} entr${ingestion.logs.length === 1 ? "y" : "ies"}`;
 
   return (
     <>
@@ -213,71 +217,102 @@ export function ManualIngestionPanel(): JSX.Element {
             noValidate
           >
             <div className="space-y-0">
+              <p className={manualStyles.stepLabel}>Source</p>
               <div
-                className="ai-panel flex items-stretch gap-0 px-4 pt-0"
+                className={cn(
+                  "ai-panel flex flex-col gap-0 px-4 pt-0",
+                  manualStyles.tabRail,
+                )}
                 role="tablist"
                 aria-label="Manual ingestion source"
               >
-                <TabPill
-                  id="tabs-notion_page"
-                  aria-controls="tabpanel-notion_page"
-                  title="Notion Page"
-                  subtitle="Sync from your workspace"
-                  active={ingestion.mode === "notion_page"}
-                  onClick={() => handleModeChange("notion_page")}
-                  disabled={ingestion.isRunning}
-                />
-                <TabPill
-                  id="tabs-url"
-                  aria-controls="tabpanel-url"
-                  title="External URL"
-                  subtitle="Fetch a public article"
-                  active={ingestion.mode === "url"}
-                  onClick={() => handleModeChange("url")}
-                  disabled={ingestion.isRunning}
-                />
-              </div>
-
-              <Card
-                className="ai-card--tab-panel overflow-hidden p-0"
-                aria-label="Manual ingestion tabs"
-              >
-                <TabPanel
-                  tabId="notion_page"
-                  activeTabId={ingestion.mode}
-                  className="ai-tab-panel space-y-2 px-2 pt-2 pb-2"
+                <div className="flex items-stretch gap-0">
+                  <TabPill
+                    id="tabs-notion_page"
+                    aria-controls="tabpanel-notion_page"
+                    title="Notion Page"
+                    subtitle="Sync from your workspace"
+                    active={ingestion.mode === "notion_page"}
+                    onClick={() => handleModeChange("notion_page")}
+                    disabled={ingestion.isRunning}
+                  />
+                  <TabPill
+                    id="tabs-url"
+                    aria-controls="tabpanel-url"
+                    title="External URL"
+                    subtitle="Fetch a public article"
+                    active={ingestion.mode === "url"}
+                    onClick={() => handleModeChange("url")}
+                    disabled={ingestion.isRunning}
+                  />
+                </div>
+                <div
+                  className={cn(
+                    "space-y-0 overflow-hidden",
+                    manualStyles.tabContent,
+                  )}
                 >
-                  <div className="space-y-4">
-                    <div className="space-y-3">
-                      <Label id="manual-ingestion-scope-label">
-                        Pages to ingest
-                      </Label>
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <Radiobutton
-                          name="manual-ingestion-scope"
-                          value="workspace"
-                          label="Ingest all pages in this workspace"
-                          description="Re-scan and ingest every page across the entire workspace."
-                          checked={ingestion.ingestionScope === "workspace"}
-                          disabled={ingestion.isRunning}
-                          onChange={ingestion.setIngestionScope}
-                        />
-                        <Radiobutton
-                          name="manual-ingestion-scope"
-                          value="selected"
-                          label="Ingest only selected page(s)"
-                          description="Ingest only the page(s) you choose. Optionally include pages directly linked from them."
-                          checked={ingestion.ingestionScope === "selected"}
-                          disabled={ingestion.isRunning}
-                          onChange={ingestion.setIngestionScope}
-                        />
-                      </div>
-                    </div>
-
-                    {ingestion.ingestionScope === "selected" ? (
-                      <>
-                        <div className="space-y-2">
-                          <Label htmlFor="manual-notion-input">
+                  <TabPanel
+                    tabId="notion_page"
+                    activeTabId={ingestion.mode}
+                    className="ai-tab-panel space-y-2 px-2 pt-2 pb-2"
+                  >
+                    <div className="space-y-4">
+                      <div className={manualStyles.stepBlock}>
+                        <p className={manualStyles.stepLabel}>Scope</p>
+                        <div className="space-y-3">
+                          <Label
+                            id="manual-ingestion-scope-label"
+                            className="text-xs uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]"
+                          >
+                            Pages to ingest
+                          </Label>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <Radiobutton
+                              name="manual-ingestion-scope"
+                              value="workspace"
+                              label="Ingest all pages in this workspace"
+                              description="Re-scan and ingest every page across the entire workspace."
+                              checked={ingestion.ingestionScope === "workspace"}
+                              disabled={ingestion.isRunning}
+                              onChange={ingestion.setIngestionScope}
+                              variant="chip"
+                              className={cn(
+                                manualStyles.selectionOption,
+                                ingestion.ingestionScope === "workspace" &&
+                                  manualStyles.selectionOptionActive,
+                              )}
+                            />
+                            <Radiobutton
+                              name="manual-ingestion-scope"
+                              value="selected"
+                              label="Ingest only selected page(s)"
+                              description="Ingest only the page(s) you choose. Optionally include pages directly linked from them."
+                              checked={ingestion.ingestionScope === "selected"}
+                              disabled={ingestion.isRunning}
+                              onChange={ingestion.setIngestionScope}
+                              variant="chip"
+                              className={cn(
+                                manualStyles.selectionOption,
+                                ingestion.ingestionScope === "selected" &&
+                                  manualStyles.selectionOptionActive,
+                              )}
+                            />
+                          </div>
+                        </div>
+                        <div
+                          className={cn(
+                            "space-y-2",
+                            manualStyles.pageInputGroup,
+                            ingestion.ingestionScope === "selected"
+                              ? manualStyles.pageInputGroupActive
+                              : manualStyles.pageInputGroupInactive,
+                          )}
+                        >
+                          <Label
+                            htmlFor="manual-notion-input"
+                            className="text-sm text-[color:var(--ai-text-muted)]"
+                          >
                             Select page(s) to ingest
                           </Label>
                           <Input
@@ -299,9 +334,16 @@ export function ManualIngestionPanel(): JSX.Element {
                             ID from Notion. You can enter multiple IDs separated
                             by commas, spaces, or new lines.
                           </p>
+                          {ingestion.ingestionScope !== "selected" ? (
+                            <p className={manualStyles.inputHelper}>
+                              Only when selected
+                            </p>
+                          ) : null}
                         </div>
+                      </div>
+                      {ingestion.ingestionScope === "selected" ? (
                         <div className="pt-2">
-                          <CheckboxChoice
+                        <CheckboxChoice
                             className="select-none"
                             layout="stacked"
                             label="Include linked pages"
@@ -311,110 +353,138 @@ export function ManualIngestionPanel(): JSX.Element {
                             disabled={ingestion.isRunning}
                           />
                         </div>
-                      </>
-                    ) : (
-                      <p className="ai-meta-text text-sm">
-                        Linked pages are irrelevant because this mode always
-                        scans the entire workspace.
-                      </p>
-                    )}
-                  </div>
-                </TabPanel>
+                      ) : (
+                        <p className="ai-meta-text text-sm">
+                          Linked pages are irrelevant because this mode always
+                          scans the entire workspace.
+                        </p>
+                      )}
+                    </div>
+                  </TabPanel>
 
-                <TabPanel
-                  tabId="url"
-                  activeTabId={ingestion.mode}
-                  className="ai-tab-panel space-y-2 px-5 pt-4 pb-5"
-                >
-                  <div className="space-y-2">
-                    <Label htmlFor="manual-url-input">URL to ingest</Label>
-                    <Input
-                      id="manual-url-input"
-                      type="url"
-                      placeholder="https://example.com/article"
-                      value={ingestion.urlInput}
-                      onChange={(event) =>
-                        ingestion.setUrlInput(event.target.value)
-                      }
-                      disabled={ingestion.isRunning}
-                      aria-describedby={manualUrlDescriptionId}
-                    />
-                    <p id={manualUrlDescriptionId} className="ai-meta-text">
-                      Enter a public HTTP(S) link. Use the scope above to skip
-                      unchanged articles or force a full refresh.
-                    </p>
-                  </div>
-                </TabPanel>
-              </Card>
+
+                  <TabPanel
+                    tabId="url"
+                    activeTabId={ingestion.mode}
+                    className="ai-tab-panel space-y-2 px-5 pt-4 pb-5"
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="manual-url-input">URL to ingest</Label>
+                      <Input
+                        id="manual-url-input"
+                        type="url"
+                        placeholder="https://example.com/article"
+                        value={ingestion.urlInput}
+                        onChange={(event) =>
+                          ingestion.setUrlInput(event.target.value)
+                        }
+                        disabled={ingestion.isRunning}
+                        aria-describedby={manualUrlDescriptionId}
+                      />
+                      <p id={manualUrlDescriptionId} className="ai-meta-text">
+                        Enter a public HTTP(S) link. Use the scope above to skip
+                        unchanged articles or force a full refresh.
+                      </p>
+                    </div>
+                  </TabPanel>
+
+                </div>
+              </div>
             </div>
 
-            <Card
-              className="space-y-4 !px-6"
-              aria-label="Manual ingestion controls"
-            >
-              <GridPanel
-                as="fieldset"
-                className="gap-4"
-                role="radiogroup"
-                aria-labelledby={currentScopeLabelId}
-              >
-                <div className="space-y-3">
-                  <Label
-                    id={currentScopeLabelId}
-                    htmlFor="manual-ingestion-scope"
-                  >
-                    Update strategy
-                  </Label>
-                  <div className="grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center">
-                    <Radiobutton
-                      name={currentScopeGroupName}
-                      value="partial"
-                      label="Only pages with changes"
-                      description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
-                      checked={currentScope === "partial"}
-                      disabled={ingestion.isRunning}
-                      onChange={setCurrentScope}
-                    />
-                    <Radiobutton
-                      name={currentScopeGroupName}
-                      value="full"
-                      label="Re-ingest all pages"
-                      description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
-                      checked={currentScope === "full"}
-                      disabled={ingestion.isRunning}
-                      onChange={setCurrentScope}
-                    />
-                  </div>
-                </div>
-              </GridPanel>
-              <div className="space-y-2">
-                <Label htmlFor="manual-provider-select">Embedding Model</Label>
-                <Select
-                  value={ingestion.manualEmbeddingProvider}
-                  onValueChange={(value) =>
-                    ingestion.setEmbeddingProviderAndSave(value)
-                  }
-                  disabled={ingestion.isRunning}
+            <div className="ai-panel space-y-4 px-6" aria-label="Manual ingestion controls">
+              <div className={manualStyles.stepBlock}>
+                <p className={manualStyles.stepLabel}>Update behavior</p>
+                <GridPanel
+                  as="fieldset"
+                  className="gap-4"
+                  role="radiogroup"
+                  aria-labelledby={currentScopeLabelId}
                 >
-                  <SelectTrigger
-                    id="manual-provider-select"
-                    aria-label="Select embedding model"
-                    aria-describedby={manualProviderDescriptionId}
-                  />
-                  <SelectContent>
-                    {EMBEDDING_MODEL_OPTIONS.map((option) => (
-                      <SelectItem
-                        key={option.embeddingSpaceId}
-                        value={option.embeddingSpaceId}
-                      >
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p id={manualProviderDescriptionId} className="ai-meta-text">
-                  Determines which embedding space is used for this run.
-                </p>
+                  <div className="space-y-3">
+                    <Label
+                      id={currentScopeLabelId}
+                      htmlFor="manual-ingestion-scope"
+                      className="text-sm uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]"
+                    >
+                      Update strategy
+                    </Label>
+                    <div className="grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center">
+                      <Radiobutton
+                        name={currentScopeGroupName}
+                        value="partial"
+                        label="Only pages with changes"
+                        description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
+                        checked={currentScope === "partial"}
+                        disabled={ingestion.isRunning}
+                        onChange={setCurrentScope}
+                        variant="chip"
+                        className={cn(
+                          manualStyles.selectionOption,
+                          currentScope === "partial" &&
+                            manualStyles.selectionOptionActive,
+                        )}
+                      />
+                      <Radiobutton
+                        name={currentScopeGroupName}
+                        value="full"
+                        label="Re-ingest all pages"
+                        description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
+                        checked={currentScope === "full"}
+                        disabled={ingestion.isRunning}
+                        onChange={setCurrentScope}
+                        variant="chip"
+                        className={cn(
+                          manualStyles.selectionOption,
+                          currentScope === "full" &&
+                            manualStyles.selectionOptionActive,
+                        )}
+                      />
+                    </div>
+                  </div>
+                </GridPanel>
+                <div
+                  className={cn(
+                    "space-y-2",
+                    manualStyles.pageInputGroup,
+                    ingestion.ingestionScope === "selected"
+                      ? manualStyles.pageInputGroupActive
+                      : manualStyles.pageInputGroupInactive,
+                  )}
+                >
+                  <Label
+                    htmlFor="manual-provider-select"
+                    className="text-xs uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]"
+                  >
+                    Embedding Model
+                  </Label>
+                  <Select
+                    value={ingestion.manualEmbeddingProvider}
+                    onValueChange={(value) =>
+                      ingestion.setEmbeddingProviderAndSave(value)
+                    }
+                    disabled={ingestion.isRunning}
+                  >
+                    <SelectTrigger
+                      id="manual-provider-select"
+                      aria-label="Select embedding model"
+                      aria-describedby={manualProviderDescriptionId}
+                    />
+                    <SelectContent>
+                      {EMBEDDING_MODEL_OPTIONS.map((option) => (
+                        <SelectItem
+                          key={option.embeddingSpaceId}
+                          value={option.embeddingSpaceId}
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p id={manualProviderDescriptionId} className="ai-meta-text">
+                    Determines which embedding space is used for this run.
+                  </p>
+                </div>
               </div>
 
               {ingestion.errorMessage ? (
@@ -425,63 +495,71 @@ export function ManualIngestionPanel(): JSX.Element {
                 </div>
               ) : null}
 
-              <div className="flex flex-wrap items-center gap-4">
-                <Button type="submit" disabled={ingestion.isRunning}>
-                  {ingestion.isRunning ? "Running" : "Run manually"}
-                </Button>
+              <div className="ai-panel space-y-2">
+                <div>
+                  <p className={manualStyles.stepLabel}>Execution</p>
+                  <p className={manualStyles.executionHint}>
+                    Runs on the server and streams logs below.
+                  </p>
+                </div>
+                <div className={manualStyles.executionRow}>
+                  <Button
+                    type="submit"
+                    disabled={ingestion.isRunning}
+                    className="min-w-[170px]"
+                  >
+                    {ingestion.isRunning ? "Running" : "Run manually"}
+                  </Button>
 
-                <div
-                  className="flex-1 min-w-[240px] flex flex-col gap-4 text-sm"
-                  aria-live="polite"
-                >
-                  {showOverallProgress ? (
-                    <div ref={ingestion.overallProgressRef}>
-                      <ProgressGroup
-                        label="Overall Progress"
-                        meta={`${overallCurrentLabel} / ${totalPages}`}
-                        value={overallPercent}
-                      />
-                    </div>
-                  ) : null}
-
-                  <ProgressGroup
-                    label={showOverallProgress ? "Current Page" : "Progress"}
-                    meta={stageSubtitle ?? undefined}
-                    value={stagePercent}
-                    footer={
-                      <div className="flex flex-wrap items-center gap-3 text-sm">
-                        <span className="ai-meta-text font-semibold">
-                          {Math.round(stagePercent)}%
-                        </span>
-                        {showOverallProgress &&
-                        activePageId &&
-                        activePageTitle ? (
-                          <span className="ai-meta-text rounded-full bg-[color:var(--ai-border-soft)] px-2 py-0.5 text-xs font-mono">
-                            {activePageId}
-                          </span>
-                        ) : null}
-                        {ingestion.finalMessage ? (
-                          <span className="ai-meta-text">
-                            {ingestion.finalMessage}
-                          </span>
-                        ) : null}
+                  <div
+                    className="flex-1 min-w-[240px] flex flex-col gap-4 text-sm"
+                    aria-live="polite"
+                  >
+                    {showOverallProgress ? (
+                      <div ref={ingestion.overallProgressRef}>
+                        <ProgressGroup
+                          label="Overall Progress"
+                          meta={`${overallCurrentLabel} / ${totalPages}`}
+                          value={overallPercent}
+                        />
                       </div>
-                    }
-                  />
+                    ) : null}
+
+                    <ProgressGroup
+                      label={showOverallProgress ? "Current Page" : "Progress"}
+                      meta={stageSubtitle ?? undefined}
+                      value={stagePercent}
+                      footer={
+                        <div className="flex flex-wrap items-center gap-3 text-sm">
+                          <span className="ai-meta-text font-semibold">
+                            {Math.round(stagePercent)}%
+                          </span>
+                          {showOverallProgress &&
+                          activePageId &&
+                          activePageTitle ? (
+                            <span className="ai-meta-text rounded-full bg-[color:var(--ai-border-soft)] px-2 py-0.5 text-xs font-mono">
+                              {activePageId}
+                            </span>
+                          ) : null}
+                          {ingestion.finalMessage ? (
+                            <span className="ai-meta-text">
+                              {ingestion.finalMessage}
+                            </span>
+                          ) : null}
+                        </div>
+                      }
+                    />
+                  </div>
                 </div>
               </div>
-            </Card>
+            </div>
           </form>
         </section>
-        <Card className="pt-0">
-          <CardHeader className="flex flex-wrap items-left justify-between">
-            <div className="flex flex-col">
+        <section className="ai-panel pt-0 space-y-4">
+          <div className={manualStyles.runLogHeader}>
+            <div>
               <CardTitle>Run Log</CardTitle>
-              <span className="ai-card-description">
-                {ingestion.logs.length === 0
-                  ? "Awaiting events"
-                  : `${ingestion.logs.length} entr${ingestion.logs.length === 1 ? "y" : "ies"}`}
-              </span>
+              <p className={manualStyles.runLogSubtitle}>{runLogSubtitle}</p>
             </div>
             <CheckboxChoice
               className="select-none"
@@ -489,97 +567,93 @@ export function ManualIngestionPanel(): JSX.Element {
               checked={ingestion.autoScrollLogs}
               onCheckedChange={ingestion.handleToggleAutoScroll}
             />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {ingestion.logs.length === 0 ? (
-              <div className="text-center py-3 ai-meta-text">
-                Execution logs will appear here.
-              </div>
-            ) : (
-              <div
-                className="max-h-[260px] overflow-y-auto pr-2"
-                ref={ingestion.logsContainerRef}
-                onScroll={ingestion.handleLogsScroll}
-              >
-                <ul className="grid list-none gap-3 p-0">
-                  {ingestion.logs.map((log) => {
-                    const Icon = LOG_ICONS[log.level];
-                    return (
-                      <ManualLogEntry
-                        key={log.id}
-                        level={log.level}
-                        icon={<Icon aria-hidden={true} />}
-                        timestamp={logTimeFormatter.format(
-                          new Date(log.timestamp),
-                        )}
-                        message={log.message}
-                      />
-                    );
-                  })}
-                </ul>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          </div>
+          {ingestion.logs.length === 0 ? (
+            <div className="text-center py-3 ai-meta-text">
+              Execution logs will appear here.
+            </div>
+          ) : (
+            <div
+              className="max-h-[260px] overflow-y-auto pr-2"
+              ref={ingestion.logsContainerRef}
+              onScroll={ingestion.handleLogsScroll}
+            >
+              <ul className="grid list-none gap-3 p-0">
+                {ingestion.logs.map((log) => {
+                  const Icon = LOG_ICONS[log.level];
+                  return (
+                    <ManualLogEntry
+                      key={log.id}
+                      level={log.level}
+                      icon={<Icon aria-hidden={true} />}
+                      timestamp={logTimeFormatter.format(
+                        new Date(log.timestamp),
+                      )}
+                      message={log.message}
+                    />
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </section>
         {ingestion.stats ? (
-          <Card className="mt-8">
-            <CardHeader>
+          <section className="ai-panel mt-8 space-y-3">
+            <div>
               <CardTitle icon={<FiBarChart2 aria-hidden="true" />}>
                 Run Summary
               </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <dl className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4 m-0 p-0">
-                <RunSummaryStatTile
-                  label="Documents Processed"
-                  value={numberFormatter.format(
-                    ingestion.stats.documentsProcessed,
-                  )}
-                />
-                <RunSummaryStatTile
-                  label="Documents Added"
-                  value={numberFormatter.format(ingestion.stats.documentsAdded)}
-                />
-                <RunSummaryStatTile
-                  label="Documents Updated"
-                  value={numberFormatter.format(ingestion.stats.documentsUpdated)}
-                />
-                <RunSummaryStatTile
-                  label="Documents Skipped"
-                  value={numberFormatter.format(ingestion.stats.documentsSkipped)}
-                />
-                <RunSummaryStatTile
-                  label="Chunks Added"
-                  value={numberFormatter.format(ingestion.stats.chunksAdded)}
-                />
-                <RunSummaryStatTile
-                  label="Chunks Updated"
-                  value={numberFormatter.format(ingestion.stats.chunksUpdated)}
-                />
-                <RunSummaryStatTile
-                  label="Characters Added"
-                  value={numberFormatter.format(
-                    ingestion.stats.charactersAdded,
-                  )}
-                />
-                <RunSummaryStatTile
-                  label="Characters Updated"
-                  value={numberFormatter.format(
-                    ingestion.stats.charactersUpdated,
-                  )}
-                />
-                <RunSummaryStatTile
-                  label="Errors"
-                  value={numberFormatter.format(ingestion.stats.errorCount)}
-                />
-              </dl>
-            </CardContent>
-          </Card>
+            </div>
+            <dl className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4 m-0 p-0">
+              <RunSummaryStatTile
+                label="Documents Processed"
+                value={numberFormatter.format(
+                  ingestion.stats.documentsProcessed,
+                )}
+              />
+              <RunSummaryStatTile
+                label="Documents Added"
+                value={numberFormatter.format(ingestion.stats.documentsAdded)}
+              />
+              <RunSummaryStatTile
+                label="Documents Updated"
+                value={numberFormatter.format(ingestion.stats.documentsUpdated)}
+              />
+              <RunSummaryStatTile
+                label="Documents Skipped"
+                value={numberFormatter.format(ingestion.stats.documentsSkipped)}
+              />
+              <RunSummaryStatTile
+                label="Chunks Added"
+                value={numberFormatter.format(ingestion.stats.chunksAdded)}
+              />
+              <RunSummaryStatTile
+                label="Chunks Updated"
+                value={numberFormatter.format(ingestion.stats.chunksUpdated)}
+              />
+              <RunSummaryStatTile
+                label="Characters Added"
+                value={numberFormatter.format(
+                  ingestion.stats.charactersAdded,
+                )}
+              />
+              <RunSummaryStatTile
+                label="Characters Updated"
+                value={numberFormatter.format(
+                  ingestion.stats.charactersUpdated,
+                )}
+              />
+              <RunSummaryStatTile
+                label="Errors"
+                value={numberFormatter.format(ingestion.stats.errorCount)}
+              />
+            </dl>
+          </section>
         ) : null}
       </section>
 
       {ingestion.hasCompleted && !ingestion.isRunning ? (
-        <Card className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+        <div className="ai-panel flex flex-wrap items-center justify-between gap-4 px-5 py-4">
           <p className="ai-meta-text">
             Ingestion run completed. Refresh the dashboard to see the latest
             data.
@@ -592,7 +666,7 @@ export function ManualIngestionPanel(): JSX.Element {
           >
             Refresh Dashboard
           </Button>
-        </Card>
+        </div>
       ) : null}
     </>
   );

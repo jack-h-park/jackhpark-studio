@@ -1,0 +1,87 @@
+.tabRail {
+  border-bottom: 1px solid var(--ai-role-border-muted);
+}
+
+.tabContent {
+  padding-top: 0.5rem;
+  margin-top: -1px;
+}
+
+.selectionOption {
+  border-radius: var(--ai-radius-sm);
+  border: 1px solid var(--ai-role-border-subtle);
+  background: transparent;
+  box-shadow: none;
+  padding: 0.75rem;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
+}
+
+.selectionOptionActive {
+  border-color: var(--ai-role-border-base);
+}
+
+.pageInputGroup {
+  border-radius: var(--ai-radius-md);
+  border: 1px solid var(--ai-role-border-subtle);
+  padding: 0.75rem;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+
+.pageInputGroupInactive {
+  opacity: 0.55;
+}
+
+.pageInputGroupActive {
+  border-color: var(--ai-role-border-base);
+}
+
+.inputHelper {
+  font-size: 0.65rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
+  margin-top: 0.25rem;
+}
+
+.executionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  border-top: 1px solid var(--ai-role-border-muted);
+  padding-top: 1rem;
+}
+
+.executionHint {
+  font-size: 0.75rem;
+  color: var(--ai-text-muted);
+  margin-top: -0.25rem;
+}
+
+.stepLabel {
+  font-size: 0.65rem;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
+}
+
+.stepBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.runLogHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.runLogSubtitle {
+  font-size: 0.75rem;
+  color: var(--ai-text-muted);
+  margin-top: 0.25rem;
+}
