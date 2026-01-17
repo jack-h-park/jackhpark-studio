@@ -222,6 +222,7 @@ export function ManualIngestionPanel(): JSX.Element {
                 className={cn(
                   "ai-panel flex flex-col gap-0 px-4 pt-0",
                   manualStyles.tabRail,
+                  manualStyles.tabRailCompact,
                 )}
                 role="tablist"
                 aria-label="Manual ingestion source"
@@ -235,6 +236,7 @@ export function ManualIngestionPanel(): JSX.Element {
                     active={ingestion.mode === "notion_page"}
                     onClick={() => handleModeChange("notion_page")}
                     disabled={ingestion.isRunning}
+                    className={manualStyles.tabPillCompact}
                   />
                   <TabPill
                     id="tabs-url"
@@ -244,12 +246,13 @@ export function ManualIngestionPanel(): JSX.Element {
                     active={ingestion.mode === "url"}
                     onClick={() => handleModeChange("url")}
                     disabled={ingestion.isRunning}
+                    className={manualStyles.tabPillCompact}
                   />
                 </div>
                 <div
                   className={cn(
                     "space-y-0 overflow-hidden",
-                    manualStyles.tabContent,
+                    manualStyles.tabPanelBorder,
                   )}
                 >
                   <TabPanel
@@ -267,7 +270,7 @@ export function ManualIngestionPanel(): JSX.Element {
                           >
                             Pages to ingest
                           </Label>
-                          <div className="grid gap-3 sm:grid-cols-2">
+                          <div className={cn("grid gap-3 sm:grid-cols-2", manualStyles.chipGrid)}>
                             <Radiobutton
                               name="manual-ingestion-scope"
                               value="workspace"
@@ -277,11 +280,13 @@ export function ManualIngestionPanel(): JSX.Element {
                               disabled={ingestion.isRunning}
                               onChange={ingestion.setIngestionScope}
                               variant="chip"
-                              className={cn(
-                                manualStyles.selectionOption,
-                                ingestion.ingestionScope === "workspace" &&
-                                  manualStyles.selectionOptionActive,
-                              )}
+                            className={cn(
+                              manualStyles.selectionOption,
+                              manualStyles.chipTile,
+                              ingestion.ingestionScope === "workspace" &&
+                                manualStyles.selectionOptionActive &&
+                                manualStyles.chipTileActive,
+                            )}
                             />
                             <Radiobutton
                               name="manual-ingestion-scope"
@@ -292,11 +297,13 @@ export function ManualIngestionPanel(): JSX.Element {
                               disabled={ingestion.isRunning}
                               onChange={ingestion.setIngestionScope}
                               variant="chip"
-                              className={cn(
-                                manualStyles.selectionOption,
-                                ingestion.ingestionScope === "selected" &&
-                                  manualStyles.selectionOptionActive,
-                              )}
+                            className={cn(
+                              manualStyles.selectionOption,
+                              manualStyles.chipTile,
+                              ingestion.ingestionScope === "selected" &&
+                                manualStyles.selectionOptionActive &&
+                                manualStyles.chipTileActive,
+                            )}
                             />
                           </div>
                         </div>
@@ -409,37 +416,41 @@ export function ManualIngestionPanel(): JSX.Element {
                     >
                       Update strategy
                     </Label>
-                    <div className="grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center">
-                      <Radiobutton
-                        name={currentScopeGroupName}
-                        value="partial"
-                        label="Only pages with changes"
-                        description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
-                        checked={currentScope === "partial"}
-                        disabled={ingestion.isRunning}
-                        onChange={setCurrentScope}
-                        variant="chip"
-                        className={cn(
-                          manualStyles.selectionOption,
-                          currentScope === "partial" &&
-                            manualStyles.selectionOptionActive,
-                        )}
-                      />
-                      <Radiobutton
-                        name={currentScopeGroupName}
-                        value="full"
-                        label="Re-ingest all pages"
-                        description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
-                        checked={currentScope === "full"}
-                        disabled={ingestion.isRunning}
-                        onChange={setCurrentScope}
-                        variant="chip"
-                        className={cn(
-                          manualStyles.selectionOption,
-                          currentScope === "full" &&
-                            manualStyles.selectionOptionActive,
-                        )}
-                      />
+                    <div className={cn("grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center", manualStyles.chipGrid)}>
+                        <Radiobutton
+                          name={currentScopeGroupName}
+                          value="partial"
+                          label="Only pages with changes"
+                          description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
+                          checked={currentScope === "partial"}
+                          disabled={ingestion.isRunning}
+                          onChange={setCurrentScope}
+                          variant="chip"
+                          className={cn(
+                            manualStyles.selectionOption,
+                            manualStyles.chipTile,
+                            currentScope === "partial" &&
+                              manualStyles.selectionOptionActive &&
+                              manualStyles.chipTileActive,
+                          )}
+                        />
+                        <Radiobutton
+                          name={currentScopeGroupName}
+                          value="full"
+                          label="Re-ingest all pages"
+                          description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
+                          checked={currentScope === "full"}
+                          disabled={ingestion.isRunning}
+                          onChange={setCurrentScope}
+                          variant="chip"
+                          className={cn(
+                            manualStyles.selectionOption,
+                            manualStyles.chipTile,
+                            currentScope === "full" &&
+                              manualStyles.selectionOptionActive &&
+                              manualStyles.chipTileActive,
+                          )}
+                        />
                     </div>
                   </div>
                 </GridPanel>
@@ -495,14 +506,14 @@ export function ManualIngestionPanel(): JSX.Element {
                 </div>
               ) : null}
 
-              <div className="ai-panel space-y-2">
-                <div>
+              <div className={manualStyles.executionPanel}>
+                <div className={manualStyles.executionHeader}>
                   <p className={manualStyles.stepLabel}>Execution</p>
                   <p className={manualStyles.executionHint}>
                     Runs on the server and streams logs below.
                   </p>
                 </div>
-                <div className={manualStyles.executionRow}>
+                <div className={manualStyles.executionGrid}>
                   <Button
                     type="submit"
                     disabled={ingestion.isRunning}
@@ -512,7 +523,7 @@ export function ManualIngestionPanel(): JSX.Element {
                   </Button>
 
                   <div
-                    className="flex-1 min-w-[240px] flex flex-col gap-4 text-sm"
+                    className="flex flex-col gap-4 text-sm"
                     aria-live="polite"
                   >
                     {showOverallProgress ? (
@@ -531,9 +542,6 @@ export function ManualIngestionPanel(): JSX.Element {
                       value={stagePercent}
                       footer={
                         <div className="flex flex-wrap items-center gap-3 text-sm">
-                          <span className="ai-meta-text font-semibold">
-                            {Math.round(stagePercent)}%
-                          </span>
                           {showOverallProgress &&
                           activePageId &&
                           activePageTitle ? (
@@ -550,13 +558,17 @@ export function ManualIngestionPanel(): JSX.Element {
                       }
                     />
                   </div>
+
+                  <div className={manualStyles.executionPercent}>
+                    {Math.round(stagePercent)}%
+                  </div>
                 </div>
               </div>
             </div>
           </form>
         </section>
         <section className="ai-panel pt-0 space-y-4">
-          <div className={manualStyles.runLogHeader}>
+          <div className={manualStyles.runLogHeaderRow}>
             <div>
               <CardTitle>Run Log</CardTitle>
               <p className={manualStyles.runLogSubtitle}>{runLogSubtitle}</p>
@@ -569,8 +581,16 @@ export function ManualIngestionPanel(): JSX.Element {
             />
           </div>
           {ingestion.logs.length === 0 ? (
-            <div className="text-center py-3 ai-meta-text">
-              Execution logs will appear here.
+            <div className={manualStyles.runLogEmpty}>
+              <span className={manualStyles.runLogEmptyIcon}>
+                <FiInfo aria-hidden="true" />
+              </span>
+              <p className="ai-text text-[color:var(--ai-text-muted)]">
+                No logs yet; run ingestion to populate entries.
+              </p>
+              <p className="ai-meta-text">
+                Execution logs will stream here once you start a run.
+              </p>
             </div>
           ) : (
             <div

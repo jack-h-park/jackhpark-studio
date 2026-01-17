@@ -1,5 +1,12 @@
 .tabRail {
-  border-bottom: 1px solid var(--ai-role-border-muted);
+  border-bottom: 1px solid var(--ai-role-divider-muted);
+}
+
+.tabRailCompact {
+  gap: 0;
+  padding-top: 0.2rem;
+  padding-bottom: 0.15rem;
+  border-bottom: 0;
 }
 
 .tabContent {
@@ -12,7 +19,7 @@
   border: 1px solid var(--ai-role-border-subtle);
   background: transparent;
   box-shadow: none;
-  padding: 0.75rem;
+  padding: 0.65rem;
   transition:
     border-color 0.2s ease,
     background-color 0.2s ease;
@@ -22,11 +29,64 @@
   border-color: var(--ai-role-border-base);
 }
 
+.tabPanelBorder {
+  padding-top: 0.5rem;
+  margin-top: -1px;
+  border-top: 1px solid var(--ai-role-divider-muted);
+}
+
+.chipGrid {
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.chipTile {
+  border-radius: var(--ai-radius-sm);
+  border: 0;
+  background-color: color-mix(
+    in srgb,
+    var(--ai-role-surface-1) 88%,
+    var(--ai-role-surface-hover) 12%
+  );
+  box-shadow: inset 0 0 0 1px var(--ai-role-border-subtle);
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.chipTile:not(.chipTileActive):hover {
+  box-shadow: inset 0 0 0 1px var(--ai-role-border-base);
+  background-color: color-mix(
+    in srgb,
+    var(--ai-role-surface-1) 80%,
+    var(--ai-role-surface-hover) 20%
+  );
+}
+
+.chipTile:not(.chipTileActive):not(:hover):not(:focus-visible) {
+  box-shadow: inset 0 0 0 1px var(--ai-role-border-subtle);
+}
+
+.chipTileActive {
+  border: 0;
+  background-color: var(--ai-role-surface-selected);
+  box-shadow: inset 0 0 0 2px var(--ai-role-border-selected, var(--ai-role-border-base)) !important;
+}
+
+.executionPanel {
+  margin-top: 0.25rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--ai-role-divider-muted);
+}
+
 .pageInputGroup {
   border-radius: var(--ai-radius-md);
   border: 1px solid var(--ai-role-border-subtle);
   padding: 0.75rem;
-  transition: opacity 0.2s ease, border-color 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .pageInputGroupInactive {
@@ -49,7 +109,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
   border-top: 1px solid var(--ai-role-border-muted);
   padding-top: 1rem;
 }
@@ -70,18 +130,118 @@
 .stepBlock {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
-.runLogHeader {
+.runLogHeaderRow {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: baseline;
   gap: 1rem;
 }
 
 .runLogSubtitle {
   font-size: 0.75rem;
   color: var(--ai-text-muted);
-  margin-top: 0.25rem;
+  margin-top: 0.35rem;
+}
+
+.executionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.executionGrid {
+  display: grid;
+  grid-template-columns: minmax(140px, 180px) minmax(0, 1fr) 60px;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.executionPercent {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ai-text-strong);
+  text-align: right;
+}
+
+.runLogEmpty {
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.runLogEmptyIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ai-radius-full);
+  border: 1px solid var(--ai-role-border-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ai-text-muted);
+}
+
+.tabPillCompact {
+  /* Base compaction (wins against Tailwind utility padding via specificity bump below) */
+  border-radius: var(--ai-radius-pill);
+  font-weight: 500;
+  line-height: 1.2;
+  min-height: 2.5rem;
+  padding-block: 0.35rem;
+  padding-inline: 0.8rem;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Specificity bump to reliably override Tailwind px-* utilities without illegal :global(button...) selectors */
+.tabPillCompact.tabPillCompact {
+  padding-block: 0.35rem;
+  padding-inline: 0.8rem;
+}
+
+/*
+  Reduce the stacked label spacing via deeper selectors that
+  don't break the CSS module scoping contract.
+*/
+.tabPillCompact :global(.leading-none) {
+  line-height: 1.05;
+}
+
+.tabPillCompact :global(.text-xs) {
+  font-size: 0.7rem;
+  line-height: 1.05;
+  opacity: 0.72;
+}
+
+.tabPillCompact :global(.tracking-widest) {
+  letter-spacing: 0.12em;
+}
+
+.tabPillCompact :global(.flex.flex-col.items-start.leading-none) {
+  gap: 0.1rem;
+}
+
+/* Active + hover states remain driven by the shared ai-selectable contract */
+.tabPillCompact:global(.ai-selectable--active) {
+  border-color: transparent;
+  background-color: var(--ai-role-surface-1);
+  color: var(--ai-text-strong);
+  margin-bottom: -1px;
+  box-shadow: inset 0 -1px 0 0 var(--ai-role-surface-1);
+}
+
+.tabPillCompact:global(.ai-selectable--hoverable):hover {
+  background-color: color-mix(
+    in srgb,
+    var(--ai-role-surface-1) 70%,
+    var(--ai-role-surface-muted) 30%
+  );
 }
