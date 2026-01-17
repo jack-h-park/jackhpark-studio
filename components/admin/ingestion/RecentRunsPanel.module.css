@@ -1,0 +1,78 @@
+.panelHeaderRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.panelSubtitle {
+  font-size: 0.9rem;
+  color: var(--ai-text-muted);
+  margin-top: 0.35rem;
+}
+
+.filtersPanel {
+  border-radius: var(--ai-radius-md);
+  border: 1px solid var(--ai-role-border-subtle);
+  padding: 0.85rem;
+  background-color: var(--ai-role-surface-1);
+}
+
+.filtersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.filtersRow {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.tableShell {
+  border-radius: var(--ai-radius-md);
+  border: 1px solid var(--ai-role-border-subtle);
+  overflow: hidden;
+  background-color: var(--ai-role-surface-1);
+}
+
+.tableHeaderRow {
+  border-bottom: 1px solid var(--ai-role-divider-muted);
+  background-color: var(--ai-role-surface-1);
+}
+
+.rowSelectable {
+  cursor: pointer;
+}
+
+.emptyState {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-align: center;
+  color: var(--ai-text-muted);
+}
+
+.emptyStateIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--ai-radius-full);
+  border: 1px solid var(--ai-role-border-subtle);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ai-text-muted);
+}
+
+.paginationRow {
+  border-top: 1px solid var(--ai-role-divider-muted);
+}

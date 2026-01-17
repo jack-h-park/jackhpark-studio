@@ -21,6 +21,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ErrorLogSummary } from "@/components/ui/error-log-summary";
 import { RecentRunsFilters } from "@/components/ui/recent-runs-filters";
 import { StatusPill } from "@/components/ui/status-pill";
+import { cn } from "@/components/ui/utils";
 import {
   formatCharacters,
   formatDate,
@@ -58,6 +59,8 @@ import {
   formatEmbeddingSpaceLabel,
   getEmbeddingSpaceOption,
 } from "@/lib/admin/recent-runs-filters";
+
+import recentStyles from "./RecentRunsPanel.module.css";
 
 export function RecentRunsSection({
   initial,
@@ -753,9 +756,6 @@ export function RecentRunsSection({
   const totalPagesSafe = Math.max(totalPages, 1);
   const startIndex = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
   const endIndex = totalCount === 0 ? 0 : Math.min(page * pageSize, totalCount);
-  const emptyMessage = hasFiltersApplied
-    ? "No runs match the selected filters."
-    : "No ingestion runs have been recorded yet.";
   const canReset = hasFiltersApplied || page > 1;
   const summaryText =
     totalCount === 0
@@ -995,46 +995,68 @@ export function RecentRunsSection({
 
   return (
     <section className="ai-card space-y-4 p-6">
-      <CardHeader>
-        <CardTitle icon={<FiLayers aria-hidden="true" />}>
-          Recent Runs
-        </CardTitle>
-        <p className="ai-card-description">
-          Latest ingestion activity from manual and scheduled jobs.
-        </p>
+      <CardHeader className={recentStyles.panelHeaderRow}>
+        <div>
+          <CardTitle icon={<FiLayers aria-hidden="true" />}>
+            Recent Runs
+          </CardTitle>
+          <p className={recentStyles.panelSubtitle}>
+            Latest ingestion activity from manual and scheduled jobs.
+          </p>
+        </div>
       </CardHeader>
-      <CardContent className="space-y-2">
-        <RecentRunsFilters
-          statusFilter={statusFilter}
-          ingestionTypeFilter={ingestionTypeFilter}
-          sourceFilter={sourceFilter}
-          embeddingProviderFilter={embeddingProviderFilter}
-          startedFromFilter={startedFromFilter}
-          startedToFilter={startedToFilter}
-          hideSkipped={hideSkipped}
-          isLoading={isLoading}
-          canReset={canReset}
-          statusOptions={statusOptions}
-          ingestionTypeOptions={ingestionTypeOptions}
-          sourceOptions={sourceOptions}
-          embeddingProviderOptions={embeddingProviderOptions}
-          onStatusChange={handleStatusChange}
-          onIngestionTypeChange={handleIngestionTypeChange}
-          onSourceChange={handleSourceChange}
-          onEmbeddingProviderChange={handleEmbeddingProviderChange}
-          onStartedFromChange={handleStartedFromChange}
-          onStartedToChange={handleStartedToChange}
-          onHideSkippedChange={handleHideSkippedChange}
-          onResetFilters={handleResetFilters}
-        />
-        <div className="space-y-4">
+      <CardContent className="space-y-4">
+        <div className={recentStyles.filtersPanel}>
+          <RecentRunsFilters
+            statusFilter={statusFilter}
+            ingestionTypeFilter={ingestionTypeFilter}
+            sourceFilter={sourceFilter}
+            embeddingProviderFilter={embeddingProviderFilter}
+            startedFromFilter={startedFromFilter}
+            startedToFilter={startedToFilter}
+            hideSkipped={hideSkipped}
+            isLoading={isLoading}
+            canReset={canReset}
+            statusOptions={statusOptions}
+            ingestionTypeOptions={ingestionTypeOptions}
+            sourceOptions={sourceOptions}
+            embeddingProviderOptions={embeddingProviderOptions}
+            onStatusChange={handleStatusChange}
+            onIngestionTypeChange={handleIngestionTypeChange}
+            onSourceChange={handleSourceChange}
+            onEmbeddingProviderChange={handleEmbeddingProviderChange}
+            onStartedFromChange={handleStartedFromChange}
+            onStartedToChange={handleStartedToChange}
+            onHideSkippedChange={handleHideSkippedChange}
+            onResetFilters={handleResetFilters}
+            className={recentStyles.filtersGrid}
+          />
+        </div>
+        <div className={recentStyles.tableShell}>
           <DataTable
             columns={columns}
             data={runs}
-            emptyMessage={emptyMessage}
+            emptyMessage={
+              <div className={recentStyles.emptyState}>
+                <span className={recentStyles.emptyStateIcon}>
+                  <FiLayers aria-hidden="true" />
+                </span>
+                <p className="font-semibold">
+                  No runs match your filters.
+                </p>
+                <p className="ai-meta-text">
+                  Adjust filters or clear them to see recent runs.
+                </p>
+              </div>
+            }
             errorMessage={error}
             isLoading={isLoading}
             rowKey={(run) => run.id}
+            headerClassName={recentStyles.tableHeaderRow}
+            rowClassName={cn(
+              recentStyles.rowSelectable,
+              "ai-selectable ai-selectable--hoverable",
+            )}
             pagination={{
               currentPage: page,
               totalPages: totalPagesSafe,
