@@ -7,6 +7,7 @@ import { useRouter } from "next/router";
 import { type ComponentType, type JSX, useCallback, useMemo } from "react";
 
 import type { ManualLogEvent } from "@/lib/admin/ingestion-types";
+import { IngestionSourceToggle } from "@/components/ingestion/IngestionSourceToggle";
 import { Button } from "@/components/ui/button";
 import {
   CardDescription,
@@ -31,7 +32,6 @@ import {
   StatusPill,
   type StatusPillVariant,
 } from "@/components/ui/status-pill";
-import { TabPill } from "@/components/ui/tab-pill";
 import { TabPanel } from "@/components/ui/tabs";
 import { cn } from "@/components/ui/utils";
 import { useManualIngestion } from "@/hooks/useManualIngestion";
@@ -227,46 +227,38 @@ export function ManualIngestionPanel(): JSX.Element {
             noValidate
           >
             <div className="space-y-0">
-              <p className={manualStyles.stepLabel}>Source</p>
               <div
-                className={cn("ai-panel flex flex-col gap-0 px-4 pt-0", manualStyles.tabRail)}
-                role="tablist"
-                aria-label="Manual ingestion source"
+                className={cn(
+                  "ai-panel flex flex-col gap-0 px-4 pt-0",
+                  manualStyles.tabRail,
+                  manualStyles.sourceCard,
+                )}
               >
-                <div
-                  className={cn(
-                    "flex items-stretch gap-0",
-                    manualStyles.tabRailCompact,
-                    manualStyles.tabRailFrame,
-                  )}
-                >
-                  <TabPill
-                    id="tabs-notion_page"
-                    aria-controls="tabpanel-notion_page"
-                    title="Notion Page"
-                    subtitle="Sync from your workspace"
-                    active={ingestion.mode === "notion_page"}
-                    onClick={() => handleModeChange("notion_page")}
-                    disabled={ingestion.isRunning}
-                    className={manualStyles.tabPillCompact}
-                  />
-                  <TabPill
-                    id="tabs-url"
-                    aria-controls="tabpanel-url"
-                    title="External URL"
-                    subtitle="Fetch a public article"
-                    active={ingestion.mode === "url"}
-                    onClick={() => handleModeChange("url")}
-                    disabled={ingestion.isRunning}
-                    className={manualStyles.tabPillCompact}
-                  />
+                <div className={manualStyles.sourceHeader}>
+                  <div className={manualStyles.sourceHeaderLabel}>
+                    <p className={manualStyles.stepLabel}>Source</p>
+                  </div>
+                  <div className={manualStyles.sourceHeaderControl}>
+                    <IngestionSourceToggle
+                      value={ingestion.mode}
+                      onChange={handleModeChange}
+                      disabled={ingestion.isRunning}
+                      size="md"
+                    />
+                  </div>
                 </div>
                 <div
                   className={cn(
+                    manualStyles.sourceBody,
                     "space-y-0 overflow-hidden",
                     manualStyles.tabContent,
                   )}
                 >
+                  <p className={manualStyles.sourceModeHint}>
+                    {ingestion.mode === "notion_page"
+                      ? "Sync from your workspace."
+                      : "Fetch a public article."}
+                  </p>
                   <TabPanel
                     tabId="notion_page"
                     activeTabId={ingestion.mode}

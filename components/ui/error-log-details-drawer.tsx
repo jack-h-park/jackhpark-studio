@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ErrorLogList } from "@/components/ui/error-log-list";
 
-import styles from "./ErrorLogDetailsDrawer.module.css";
+import styles from "./error-log-details-drawer.module.css";
 
 type ErrorLogDetailsDrawerProps = {
   open: boolean;

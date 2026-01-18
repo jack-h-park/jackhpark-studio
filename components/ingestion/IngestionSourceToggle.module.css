@@ -1,0 +1,93 @@
+.root {
+  width: 100%;
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+  border-radius: var(--ai-radius-md);
+  padding: 2px;
+  background-color: color-mix(
+    in srgb,
+    var(--ai-role-surface-muted) 94%,
+    var(--ai-role-surface-1) 6%
+  );
+  box-shadow: inset 0 0 0 1px var(--ai-role-divider-muted);
+  overflow: hidden;
+}
+
+.md {
+}
+
+.sm {
+  min-height: 32px;
+}
+
+.md .segment {
+  min-height: 36px;
+}
+
+.segment {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0.35rem 0.65rem;
+  text-align: center;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--ai-text-muted);
+  position: relative;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.segment[data-selected="true"] {
+  color: var(--ai-text-strong);
+  background-color: color-mix(
+    in srgb,
+    var(--ai-role-surface-1) 6%,
+    transparent 94%
+  );
+}
+
+.segment:not(:first-child)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  background: var(--ai-role-divider-muted);
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.segment[data-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 3px;
+  height: 2px;
+  background: color-mix(
+    in srgb,
+    var(--ai-role-border-selected, var(--ai-role-border-base)) 80%,
+    transparent 20%
+  );
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.segment:hover:not([data-selected="true"]) {
+  background-color: color-mix(
+    in srgb,
+    var(--ai-role-surface-1) 18%,
+    var(--ai-role-surface-muted) 82%
+  );
+}
+
+.segment[data-disabled="true"] {
+  opacity: 0.65;
+  cursor: not-allowed;
+}

@@ -1,16 +1,18 @@
+
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 15, 15, 0.35);
+  background: var(--ai-role-surface-overlay);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
-  z-index: 120;
+  --error-log-overlay-z: 120;
+  z-index: var(--error-log-overlay-z);
 }
 
 :global(.dark) .overlay,
 :global(.dark-mode) .overlay {
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--ai-role-surface-2);
 }
 
 .overlayVisible {
@@ -26,7 +28,8 @@
   width: min(100%, 520px);
   transform: translateX(110%);
   transition: transform 0.3s ease;
-  z-index: 130;
+  --error-log-drawer-z: 130;
+  z-index: var(--error-log-drawer-z);
   display: flex;
   justify-content: flex-end;
   pointer-events: none;
@@ -56,7 +59,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid hsl(var(--ai-border));
+  border-bottom: 1px solid var(--ai-divider);
 }
 
 .content {

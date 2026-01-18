@@ -6,75 +6,49 @@
     var(--ai-role-surface-hover) 4%
   );
   padding: 0.2rem;
-  /* keep panel decoration but no clipping — frame lives in .tabRailFrame */
+  /* keep panel decoration while the segmented control manages clipping */
 }
 
-.tabRailCompact {
-  display: flex;
-  gap: 0;
-  overflow: visible;
-  /* layout helper only; frame defined via .tabRailFrame to avoid clipping large containers */
-}
-
-.tabRailFrame {
-  padding: 2px;
-  border-radius: var(--ai-radius-lg);
-  overflow: hidden;
-  background-color: color-mix(
-    in srgb,
-    var(--ai-role-surface-muted) 85%,
-    var(--ai-role-surface-1) 15%
-  );
-  box-shadow: inset 0 0 0 1px var(--ai-role-divider-muted);
-  /* guard: apply rounded clipping only when this helper is present */
-}
-
-.tabRailCompact :global(button[role="tab"]) {
-  flex: 1;
+.sourceCard {
   width: 100%;
-  min-height: 2.1rem;
-  padding-block: 0.34rem !important;
-  padding-inline: 0.75rem !important;
-  border-radius: var(--ai-radius-md);
-  margin: 0;
-  background-color: transparent;
-  box-shadow: inset 0 0 0 1px transparent;
-  /* ensure each tab fills the segment */
 }
 
-.tabRailCompact :global(button[role="tab"][aria-selected="false"]) {
-  background-color: transparent;
-  box-shadow: inset 0 0 0 1px transparent;
-  /* idle segments blend into the track */
+.sourceHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.25rem 0 0.4rem;
+  border-bottom: 1px solid var(--ai-role-divider-muted);
+  align-items: flex-start;
 }
 
-.tabRailCompact :global(
-  button[role="tab"][aria-selected="false"]:not(:first-child)
-) {
-  box-shadow: inset 1px 0 0 color-mix(
-    in srgb,
-    var(--ai-role-divider-muted) 70%,
-    transparent 30%
-  );
-  /* softened divider between non-active segments */
+.sourceHeaderLabel {
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
 }
 
-.tabRailCompact :global(button[role="tab"][aria-selected="true"]) {
-  background-color: var(--ai-role-surface-1);
-  box-shadow: inset 0 0 0 1px
-    var(--ai-role-border-selected, var(--ai-role-border-base));
-  /* subtle ring keeps the active segment distinct */
+.sourceHeaderControl {
+  width: min(520px, 100%);
+  margin-top: 0.35rem;
 }
 
-.tabRailCompact :global(button[role="tab"][aria-selected="false"]) {
-  /* idle segments stay filled so the rail feels tactile */
+@media (max-width: 640px) {
+  .sourceHeaderControl {
+    width: 100%;
+    margin-top: 0.2rem;
+  }
 }
 
-/* Stop legacy “docked” active styling from fighting the segmented rail */
-.tabPillCompact :global(.ai-selectable--active) {
-  margin-bottom: 0 !important;
-  box-shadow: none !important;
-  border-radius: var(--ai-radius-md) !important;
+.sourceBody {
+  padding-top: 0.75rem;
+}
+
+.sourceModeHint {
+  font-size: 0.75rem;
+  color: var(--ai-text-muted);
+  margin-bottom: 0.5rem;
 }
 
 .tabContent {
