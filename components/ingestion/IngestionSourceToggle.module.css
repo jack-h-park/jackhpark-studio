@@ -1,5 +1,6 @@
 .root {
   width: 100%;
+  min-height: 40px;
   display: flex;
   gap: 0;
   align-items: stretch;
@@ -14,53 +15,60 @@
   overflow: hidden;
 }
 
-.md {
+.md .segment {
+  min-height: 40px;
 }
 
 .sm {
-  min-height: 32px;
+  min-height: 34px;
 }
 
-.md .segment {
-  min-height: 36px;
+.sm .segment {
+  min-height: 34px;
 }
 
 .segment {
   flex: 1;
   border: 0;
   background: transparent;
-  padding: 0.35rem 0.65rem;
+  padding: 0.4rem 0.85rem;
   text-align: center;
   font-size: 0.8125rem;
   font-weight: 600;
-  line-height: 1.1;
+  line-height: 1.25;
   color: var(--ai-text-muted);
+  opacity: 0.75;
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition:
     background-color 0.2s ease,
-    color 0.2s ease;
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.segment + .segment::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 14%;
+  bottom: 14%;
+  width: 1px;
+  background: var(--ai-role-divider-muted);
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 .segment[data-selected="true"] {
   color: var(--ai-text-strong);
-  background-color: color-mix(
-    in srgb,
-    var(--ai-role-surface-1) 6%,
-    transparent 94%
-  );
+  opacity: 1;
 }
 
-.segment:not(:first-child)::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 10px;
-  bottom: 10px;
-  width: 1px;
-  background: var(--ai-role-divider-muted);
-  opacity: 0.28;
-  pointer-events: none;
+.segment:not([data-selected="true"]) {
+  opacity: 0.7;
 }
 
 .segment[data-selected="true"]::after {
@@ -68,7 +76,7 @@
   position: absolute;
   left: 16px;
   right: 16px;
-  bottom: 3px;
+  bottom: 4px;
   height: 2px;
   background: color-mix(
     in srgb,
@@ -79,12 +87,22 @@
   pointer-events: none;
 }
 
-.segment:hover:not([data-selected="true"]) {
+.segment:not([data-selected="true"]):hover {
   background-color: color-mix(
     in srgb,
-    var(--ai-role-surface-1) 18%,
-    var(--ai-role-surface-muted) 82%
+    var(--ai-role-surface-1) 16%,
+    var(--ai-role-surface-muted) 84%
   );
+}
+
+.segment:focus-visible {
+  outline: none;
+  z-index: 1;
+  box-shadow: 0 0 0 2px color-mix(
+      in srgb,
+      var(--ai-role-border-base) 70%,
+      var(--ai-role-surface-1) 30%
+    );
 }
 
 .segment[data-disabled="true"] {

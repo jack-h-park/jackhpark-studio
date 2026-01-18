@@ -226,44 +226,44 @@ export function ManualIngestionPanel(): JSX.Element {
             onSubmit={ingestion.handleSubmit}
             noValidate
           >
-            <div className="space-y-0">
-              <div
-                className={cn(
-                  "ai-panel flex flex-col gap-0 px-4 pt-0",
-                  manualStyles.tabRail,
-                  manualStyles.sourceCard,
-                )}
-              >
-                <div className={manualStyles.sourceHeader}>
-                  <div className={manualStyles.sourceHeaderLabel}>
-                    <p className={manualStyles.stepLabel}>Source</p>
-                  </div>
-                  <div className={manualStyles.sourceHeaderControl}>
-                    <IngestionSourceToggle
-                      value={ingestion.mode}
-                      onChange={handleModeChange}
-                      disabled={ingestion.isRunning}
-                      size="md"
-                    />
-                  </div>
-                </div>
+              <div className="space-y-0">
                 <div
                   className={cn(
-                    manualStyles.sourceBody,
-                    "space-y-0 overflow-hidden",
-                    manualStyles.tabContent,
+                    "ai-panel flex flex-col gap-0 px-4 pt-0",
+                    manualStyles.tabRail,
+                    manualStyles.sourceCard,
                   )}
                 >
-                  <p className={manualStyles.sourceModeHint}>
-                    {ingestion.mode === "notion_page"
-                      ? "Sync from your workspace."
-                      : "Fetch a public article."}
-                  </p>
-                  <TabPanel
-                    tabId="notion_page"
-                    activeTabId={ingestion.mode}
-                    className="ai-tab-panel space-y-2 px-2 pt-2 pb-2"
+                  <div className={manualStyles.sourceHeader}>
+                    <div className={manualStyles.sourceHeaderStack}>
+                      <p className={manualStyles.stepLabel}>Source</p>
+                      <div className={manualStyles.sourceToggleWrap}>
+                        <IngestionSourceToggle
+                          value={ingestion.mode}
+                          onChange={handleModeChange}
+                          disabled={ingestion.isRunning}
+                          size="md"
+                        />
+                      </div>
+                      <p className={manualStyles.sourceHelper}>
+                        {ingestion.mode === "notion_page"
+                          ? "Sync from your workspace."
+                          : "Fetch a public article."}
+                      </p>
+                    </div>
+                  </div>
+                  <div
+                    className={cn(
+                      manualStyles.sourceBody,
+                      "space-y-0 overflow-hidden",
+                      manualStyles.tabContent,
+                    )}
                   >
+                    <TabPanel
+                      tabId="notion_page"
+                      activeTabId={ingestion.mode}
+                      className="ai-tab-panel space-y-2 px-2 pt-2 pb-2"
+                    >
                     <div className="space-y-4">
                       <div className={manualStyles.stepBlock}>
                         <p className={manualStyles.stepLabel}>Scope</p>
