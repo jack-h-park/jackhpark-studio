@@ -5,7 +5,6 @@ import type { RagDocumentStats } from "@/lib/admin/rag-documents";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { LinkButton } from "@/components/ui/link-button";
-import { StatCard } from "@/components/ui/stat-card";
 import { numberFormatter } from "@/lib/admin/ingestion-formatters";
 
 export function RagDocumentsOverview({
@@ -23,6 +22,23 @@ export function RagDocumentsOverview({
     );
   }, [stats]);
 
+  const statTiles = stats
+    ? [
+        {
+          label: "Total documents",
+          value: numberFormatter.format(stats.total),
+        },
+        {
+          label: "Public",
+          value: numberFormatter.format(stats.publicCount),
+        },
+        {
+          label: "Private",
+          value: numberFormatter.format(stats.privateCount),
+        },
+      ]
+    : [];
+
   return (
     <section className="ai-card space-y-4 p-6">
       <CardHeader>
@@ -37,18 +53,17 @@ export function RagDocumentsOverview({
         {stats ? (
           <>
             <GridPanel className="grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
-              <StatCard
-                label="Total documents"
-                value={numberFormatter.format(stats.total)}
-              />
-              <StatCard
-                label="Public"
-                value={numberFormatter.format(stats.publicCount)}
-              />
-              <StatCard
-                label="Private"
-                value={numberFormatter.format(stats.privateCount)}
-              />
+              {statTiles.map((tile) => (
+                <div
+                  key={tile.label}
+                  className="ai-panel shadow-none rounded-[12px] px-4 py-3"
+                >
+                  <div className="ai-stat">
+                    <p className="ai-stat__label">{tile.label}</p>
+                    <div className="ai-stat__value">{tile.value}</div>
+                  </div>
+                </div>
+              ))}
             </GridPanel>
             <div className="space-y-2">
               <div className="ai-meta-text uppercase tracking-[0.1em] text-xs">

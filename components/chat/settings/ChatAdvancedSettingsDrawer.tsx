@@ -12,7 +12,7 @@ import {
 } from "@/components/chat/settings/impact";
 import { Button } from "@/components/ui/button";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
-import { ImpactTooltip } from "@/components/ui/ImpactTooltip";
+import { ImpactTooltip } from "@/components/ui/impact-tooltip";
 import { Section, SectionTitle } from "@/components/ui/section";
 import { StatusPill } from "@/components/ui/status-pill";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";

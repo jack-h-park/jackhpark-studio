@@ -3,7 +3,7 @@ import { FiClock } from "@react-icons/all-files/fi/FiClock";
 import { FiDatabase } from "@react-icons/all-files/fi/FiDatabase";
 
 import type { DatasetSnapshotOverview } from "@/lib/admin/ingestion-types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientSideDate } from "@/components/ui/client-side-date";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
@@ -171,44 +171,44 @@ export function DatasetSnapshotSection({
                 />
               );
             })}
-          <Card className="md:col-span-2">
-            <CardContent className="space-y-3">
-              <p className="ai-label-overline tracking-widest text-[color:var(--ai-text-muted)]">
-                Trend
-              </p>
-              {sparklineData ? (
-                <>
-                  <svg
-                    className="w-full h-[80px]"
-                    viewBox="0 0 100 100"
-                    role="img"
-                    aria-label="Snapshot trend sparkline"
-                  >
-                    <path
-                      className="fill-none stroke-[color-mix(in_srgb,var(--ai-accent)_90%,transparent)] stroke-2"
-                      d={sparklineData.path}
-                    />
-                  </svg>
-                  <div className="mt-1.5 flex justify-between text-xs text-[color:var(--ai-text-muted)]">
-                    <span className="ai-meta-text">
-                      Min: {numberFormatter.format(sparklineData.min)} · Max:{" "}
-                      {numberFormatter.format(sparklineData.max)}
-                    </span>
-                    {percentChange ? (
+            <div className="ai-panel shadow-none rounded-[14px] px-4 py-3 md:col-span-2">
+              <div className="space-y-3">
+                <p className="ai-label-overline tracking-widest text-[color:var(--ai-text-muted)]">
+                  Trend
+                </p>
+                {sparklineData ? (
+                  <>
+                    <svg
+                      className="w-full h-[80px]"
+                      viewBox="0 0 100 100"
+                      role="img"
+                      aria-label="Snapshot trend sparkline"
+                    >
+                      <path
+                        className="fill-none stroke-[color-mix(in_srgb,var(--ai-accent)_90%,transparent)] stroke-2"
+                        d={sparklineData.path}
+                      />
+                    </svg>
+                    <div className="mt-1.5 flex justify-between text-xs text-[color:var(--ai-text-muted)]">
                       <span className="ai-meta-text">
-                        {percentChange} vs prev.
+                        Min: {numberFormatter.format(sparklineData.min)} · Max:{" "}
+                        {numberFormatter.format(sparklineData.max)}
                       </span>
-                    ) : null}
-                  </div>
-                </>
-              ) : (
-                <span className="ai-meta-text">
-                  More history needed for trend
-                </span>
-              )}
-            </CardContent>
-          </Card>
-        </GridPanel>
+                      {percentChange ? (
+                        <span className="ai-meta-text">
+                          {percentChange} vs prev.
+                        </span>
+                      ) : null}
+                    </div>
+                  </>
+                ) : (
+                  <span className="ai-meta-text">
+                    More history needed for trend
+                  </span>
+                )}
+              </div>
+            </div>
+          </GridPanel>
         <dl className="mt-6">
           <GridPanel className="grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
             <div className="ai-panel shadow-none rounded-[12px] px-4 py-3">

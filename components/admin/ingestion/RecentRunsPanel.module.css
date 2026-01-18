@@ -37,9 +37,9 @@
 
 .tableShell {
   border-radius: var(--ai-radius-md);
-  border: 1px solid var(--ai-role-border-subtle);
-  overflow: hidden;
-  background-color: var(--ai-role-surface-1);
+  border: 0;
+  overflow: visible;
+  background-color: transparent;
 }
 
 .tableHeaderRow {

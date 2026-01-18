@@ -8,7 +8,7 @@ import type { LlmModelId } from "@/lib/shared/models";
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
 import { InlineAlert } from "@/components/ui/alert";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
-import { ImpactTooltip } from "@/components/ui/ImpactTooltip";
+import { ImpactTooltip } from "@/components/ui/impact-tooltip";
 import { Label } from "@/components/ui/label";
 import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
 import {

@@ -1,12 +1,7 @@
 .tabRail {
-  border: 1px solid var(--ai-role-border-subtle);
-  background-color: color-mix(
-    in srgb,
-    var(--ai-role-surface-1) 96%,
-    var(--ai-role-surface-hover) 4%
-  );
-  padding: 0.2rem;
-  /* keep panel decoration while the segmented control manages clipping */
+  background-color: transparent;
+  border: 0;
+  padding: 0;
 }
 
 .sourceCard {
@@ -193,9 +188,8 @@
 }
 
 .runLogPanel {
-  padding: 0.75rem 1.5rem 1.25rem;
+  padding: 1rem;
   margin-top: 1.25rem;
-  border-top: 1px solid var(--ai-role-divider-muted);
 }
 
 .runLogContent {

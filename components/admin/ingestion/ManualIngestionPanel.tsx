@@ -229,7 +229,7 @@ export function ManualIngestionPanel(): JSX.Element {
               <div className="space-y-0">
                 <div
                   className={cn(
-                    "ai-panel flex flex-col gap-0 px-4 pt-0",
+                    "ai-panel flex flex-col gap-0 px-4",
                     manualStyles.tabRail,
                     manualStyles.sourceCard,
                   )}
@@ -602,7 +602,7 @@ export function ManualIngestionPanel(): JSX.Element {
             </div>
           </form>
         </section>
-        <section className={cn("ai-panel pt-0", manualStyles.runLogPanel)}>
+        <section className={cn("ai-panel", manualStyles.runLogPanel)}>
           <div className={manualStyles.runLogContent}>
             <div className={manualStyles.runLogHeaderRow}>
               <div>
