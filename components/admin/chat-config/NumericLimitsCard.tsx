@@ -39,7 +39,7 @@ export function NumericLimitsCard({
           Guardrail the possible values session presets can reach.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-5 px-5 pb-5 pt-4">
         {(
           Object.keys(numericLimits) as Array<
             keyof AdminChatConfig["numericLimits"]
@@ -49,23 +49,21 @@ export function NumericLimitsCard({
           return (
             <div
               key={key}
-              className="rounded-2xl border border-slate-200 p-4 shadow-sm sm:p-5"
+              className="rounded-2xl border border-[color:var(--ai-border-subtle)] p-4 shadow-sm sm:p-5"
             >
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold ">
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(0,1fr))]">
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-sm font-semibold leading-snug">
                     {numericLimitLabels[key]}
                   </p>
                   <p className="ai-field__description">
                     Set guardrails for this value across presets.
                   </p>
+                  <p className="text-[0.62rem] font-semibold uppercase tracking-[0.5em] text-[color:var(--ai-text-muted)]">
+                    Min ≤ Default ≤ Max
+                  </p>
                 </div>
-                <span className="text-[0.62rem] font-semibold uppercase tracking-[0.5em] text-slate-400 sm:text-right">
-                  Min ≤ Default ≤ Max
-                </span>
-              </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="ai-field">
+                <div className="ai-field min-w-0">
                   <Label htmlFor={`${key}-min`} className="ai-field__label">
                     Min
                   </Label>
@@ -84,7 +82,7 @@ export function NumericLimitsCard({
                     max={key === "similarityThreshold" ? 1 : undefined}
                   />
                 </div>
-                <div className="ai-field">
+                <div className="ai-field min-w-0">
                   <Label htmlFor={`${key}-default`} className="ai-field__label">
                     Default
                   </Label>
@@ -104,7 +102,7 @@ export function NumericLimitsCard({
                     step={key === "similarityThreshold" ? 0.01 : 1}
                   />
                 </div>
-                <div className="ai-field">
+                <div className="ai-field min-w-0">
                   <Label htmlFor={`${key}-max`} className="ai-field__label">
                     Max
                   </Label>

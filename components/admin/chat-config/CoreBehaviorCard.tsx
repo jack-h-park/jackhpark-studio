@@ -55,7 +55,7 @@ export function CoreBehaviorCard({
           the chat settings drawer.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 px-5 pb-5 pt-4">
         <div className="ai-field">
           <Label htmlFor="coreSummary" className="ai-field__label">
             Base system prompt summary
@@ -66,6 +66,7 @@ export function CoreBehaviorCard({
             value={config.baseSystemPromptSummary ?? ""}
             onChange={(event) => handleBaseSummaryChange(event.target.value)}
             rows={3}
+            className="w-full max-w-[64ch]"
           />
           <p id="core-summary-description" className="ai-field__description">
             Shown in the chat settings drawer. End users never see the full base
@@ -83,9 +84,10 @@ export function CoreBehaviorCard({
               handleBaseSystemPromptChange(event.target.value)
             }
             rows={4}
+            className="w-full max-w-[64ch]"
           />
         </div>
-        <div className="ai-field max-w-sm">
+        <div className="ai-field">
           <Label
             htmlFor="additionalPromptMaxLength"
             className="ai-field__label"
@@ -100,6 +102,7 @@ export function CoreBehaviorCard({
             onChange={(event) =>
               handleAdditionalPromptMaxLengthChange(event.target.value)
             }
+            className="w-full max-w-[12rem]"
           />
         </div>
       </CardContent>

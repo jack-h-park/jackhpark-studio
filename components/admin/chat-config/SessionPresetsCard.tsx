@@ -230,9 +230,10 @@ export function SessionPresetsCard({
     .filter((id): id is string => typeof id === "string" && id.length > 0);
   const normalizedAllowlistSet = new Set(normalizedAllowlistIds);
   const sessionGridLabelClass =
-    "flex items-center ai-label-overline ai-label-overline--muted";
-  const sessionGridValueClass = "flex flex-col gap-1";
-  const sessionGridHeaderClass = "ai-label-overline ai-label-overline--small";
+    "flex items-center gap-2 ai-label-overline ai-label-overline--muted text-left";
+  const sessionGridValueClass = "flex min-w-0 flex-col gap-2";
+  const sessionGridPresetHeaderClass =
+    "ai-label-overline ai-label-overline--small text-center";
   const handleAdditionalSystemPromptChange = (
     presetKey: PresetKey,
     value: string,
@@ -502,18 +503,14 @@ export function SessionPresetsCard({
           Customize each preset so it stays within the allowed limits.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <GridPanel className="gap-4 px-4 py-5 shadow-sm">
+      <CardContent className="space-y-6 px-5 pb-5 pt-4">
+        <GridPanel className="gap-3 auto-rows-min rounded-2xl px-4 py-5 shadow-sm">
           <div className="grid grid-cols-[minmax(190px,1fr)_repeat(4,minmax(0,1fr))] gap-y-3 gap-x-4 items-start">
-            <div
-              className={`${sessionGridLabelClass} ${sessionGridHeaderClass}`}
-            >
-              Setting
-            </div>
+            <div className={sessionGridLabelClass}>Setting</div>
             {presetDisplayOrder.map((presetKey) => (
               <div
                 key={`session-preset-header-${presetKey}`}
-                className={sessionGridHeaderClass}
+                className={sessionGridPresetHeaderClass}
               >
                 {presetDisplayNames[presetKey]}
               </div>

@@ -101,7 +101,7 @@ export function AllowlistCard({
   const localModels = llmModelOptions.filter((option) => option.isLocal);
 
   const renderModelTiles = (options: AdminLlmModelOption[]) => (
-    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid auto-rows-min gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {options.map((option) => {
         const backend = option.isLocal ? option.provider : undefined;
         const backendLabel =
@@ -163,7 +163,7 @@ export function AllowlistCard({
           {renderBackendStatus("LM Studio", "lmstudio")}
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 px-5 pb-5 pt-4">
         <div className="space-y-3">
           <div className="space-y-1">
             <Label>Cloud models</Label>
@@ -194,7 +194,7 @@ export function AllowlistCard({
 
         <div className="space-y-2">
           <Label>Embedding Models</Label>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid auto-rows-min gap-2 sm:grid-cols-2">
             {EMBEDDING_MODEL_OPTIONS.map((space) => {
               const isSelected = allowlist.embeddingModels.includes(
                 space.embeddingSpaceId as EmbeddingModelId,
@@ -226,7 +226,7 @@ export function AllowlistCard({
 
         <div className="space-y-2">
           <Label>Ranker Allowlist</Label>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid auto-rows-min gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {RANKER_OPTIONS.map((ranker) => {
               const isSelected = allowlist.rankers.includes(ranker);
               const description = RANKER_DESCRIPTIONS[ranker];
@@ -254,7 +254,7 @@ export function AllowlistCard({
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-1">
+        <div className="grid gap-3 sm:grid-cols-2">
           <CheckboxChoice
             label="Allow Reverse RAG"
             checked={allowlist.allowReverseRAG}

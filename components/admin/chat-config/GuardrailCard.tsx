@@ -70,11 +70,12 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
           responds when light conversation or command intents are detected.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 px-5 pb-5 pt-4">
         <Field
           id="guardrailKeywords"
           label="Chit-chat keywords"
           description="Add keywords or phrases that should be treated as lightweight chit-chat and handled without hitting the knowledge base."
+          className="max-w-[64ch]"
         >
           <Textarea
             rows={3}
@@ -82,9 +83,10 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
             onChange={(event) =>
               handleChitchatKeywordsChange(event.target.value)
             }
+            className="w-full max-w-[64ch]"
           />
         </Field>
-        <div className="ai-field">
+        <div className="ai-field max-w-[64ch]">
           <Label
             htmlFor="guardrailFallbackChitchat"
             className="ai-field__label"
@@ -99,6 +101,7 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
               handleFallbackChitchatChange(event.target.value)
             }
             rows={3}
+            className="w-full max-w-[64ch]"
           />
           <p
             id="guardrail-fallback-chitchat-description"
@@ -108,7 +111,7 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
             detected.
           </p>
         </div>
-        <div className="ai-field">
+        <div className="ai-field max-w-[64ch]">
           <Label htmlFor="guardrailFallbackCommand" className="ai-field__label">
             Command fallback context
           </Label>
@@ -120,6 +123,7 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
               handleFallbackCommandChange(event.target.value)
             }
             rows={3}
+            className="w-full max-w-[64ch]"
           />
           <p
             id="guardrail-fallback-command-description"
