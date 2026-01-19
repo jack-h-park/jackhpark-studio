@@ -2,25 +2,12 @@
   background-color: transparent;
   border: 0;
   padding: 0;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 .sourceCard {
   width: 100%;
-}
-
-.sourceHeader {
-  display: flex;
-  flex-direction: column;
-  padding: 0.75rem 0.9rem 0.65rem;
-  border-bottom: 1px solid var(--ai-role-divider-muted);
-}
-
-.sourceHeaderStack {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  align-items: flex-start;
 }
 
 .sourceToggleWrap {
@@ -32,25 +19,6 @@
   .sourceToggleWrap {
     width: 100%;
   }
-}
-
-.sourceHelper {
-  font-size: 0.7rem;
-  color: var(--ai-text-muted);
-  margin: 0;
-  letter-spacing: 0;
-  line-height: 1.3;
-  opacity: 0.9;
-  width: min(840px, 100%);
-  align-self: flex-start;
-}
-
-.sourceBody {
-  padding: 0.8rem 0.9rem 0.75rem;
-}
-
-.tabContent {
-  margin-top: 0.25rem;
 }
 
 .selectionOption {
@@ -108,49 +76,11 @@
     var(--ai-role-border-selected, var(--ai-role-border-base));
 }
 
-.workflowStep {
+.workflowStack {
   display: flex;
   flex-direction: column;
-  gap: var(--ai-space-3);
-  padding-block: var(--ai-space-3);
-  padding-inline: var(--ai-space-5);
-}
-
-.stepHeader {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ai-space-2);
-}
-
-.stepBody {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ai-space-4);
-}
-
-.stepDivider {
-  border-top: 1px solid var(--ai-role-divider-muted);
-  margin-top: var(--ai-space-4);
-}
-
-.peerGroup {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ai-space-3);
-}
-
-.peerBlock {
-  border: 1px solid var(--ai-role-border-subtle);
-  border-radius: var(--ai-radius-md);
-  padding: var(--ai-space-3);
-  background: var(--ai-role-surface-1);
-}
-
-.executionPanel {
-  margin-top: var(--ai-space-3);
-  padding-block: var(--ai-space-4);
-  border-top: 1px solid var(--ai-role-divider-muted);
-  border-bottom: 1px solid var(--ai-role-divider-muted);
+  gap: var(--ai-space-6);
+  width: 100%;
 }
 
 .pageInputGroup {
@@ -198,142 +128,51 @@
   cursor: not-allowed;
 }
 
-.executionHint {
-  font-size: 0.75rem;
-  color: var(--ai-text-muted);
-  margin-top: -0.25rem;
-}
-
-.stepLabel {
-  font-size: 0.72rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ai-text-muted);
-  margin-bottom: 0.35rem;
-}
-
-.sectionHeadingStack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 0.35rem;
-}
-
-.sectionHeading {
-  font-size: 0.72rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ai-text-muted);
-  margin: 0;
-  line-height: 1.2;
-}
-
-.sectionSubheading {
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--ai-text-strong);
-  margin: 0;
-  line-height: 1.35;
-  text-transform: none;
-}
-
-.workflowStack {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ai-space-6);
-}
-
-.updateBehaviorHeading {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  padding-bottom: var(--ai-space-2);
-  border-bottom: 1px solid var(--ai-role-divider-muted);
-}
-
-.updateBehaviorStack {
+.scopeContainer {
   display: flex;
   flex-direction: column;
   gap: var(--ai-space-3);
+  padding: 0 var(--ai-space-3);
 }
 
-.stepGroup {
+.peerGroup {
   display: flex;
   flex-direction: column;
-  gap: var(--ai-space-6);
-  padding-block: var(--ai-space-5);
-}
-
-.stepBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.runLogHeaderRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
   gap: var(--ai-space-3);
-  padding-block: var(--ai-space-2);
+  width: 100%;
 }
 
-.runLogPanel {
-  padding: var(--ai-space-5);
-  margin-top: var(--ai-space-4);
-  border-top: 0;
-  background: transparent;
+.peerBlock {
   border: 0;
+  border-radius: var(--ai-radius-md);
+  padding: var(--ai-space-3);
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ai-space-3);
   box-shadow: none;
-  border-radius: 0;
 }
 
-.runLogContent {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.runLogBody {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding-top: 1rem;
+.peerBlock + .peerBlock {
   border-top: 1px solid var(--ai-role-divider-muted);
 }
 
-.runLogSubtitle {
-  font-size: 0.75rem;
-  color: var(--ai-text-muted);
-  margin-top: 0.15rem;
-}
-
-.executionHeader {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ai-space-2);
-}
-
-.executionGrid {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+.executionStrip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: var(--ai-space-4);
-  margin-top: var(--ai-space-3);
+  align-items: center;
+  width: 100%;
 }
 
-.executionProgressStrip {
-  display: flex;
-  align-items: center;
-  gap: var(--ai-space-3);
+.executionProgressColumn {
   min-width: 0;
-  flex: 1;
 }
 
 .executionProgressStack {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--ai-space-3);
   min-width: 0;
 }
 
@@ -342,8 +181,23 @@
   font-weight: 600;
   color: var(--ai-text-strong);
   text-align: right;
-  justify-self: end;
-  align-self: center;
+  line-height: 1;
+}
+
+.runLogPanel {
+  margin-top: var(--ai-space-4);
+  border: 0;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.runLogBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ai-space-4);
+  padding-block: var(--ai-space-3);
 }
 
 .runLogToggle {
@@ -351,14 +205,14 @@
 }
 
 .runLogEmpty {
-  min-height: var(--ai-space-10);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  text-align: center;
-  padding: var(--ai-space-3) 0;
+  align-items: flex-start;
+  gap: var(--ai-space-2);
+  text-align: left;
+  padding: var(--ai-space-3) 0 var(--ai-space-2);
+  width: min(520px, 100%);
+  margin-inline: auto;
 }
 
 .runLogEmptyIcon {
@@ -370,78 +224,4 @@
   align-items: center;
   justify-content: center;
   color: var(--ai-text-muted);
-}
-
-.tabPillCompact {
-  /* Base compaction (wins against Tailwind utility padding via specificity bump below) */
-  font-weight: 500;
-  line-height: 1.2;
-  min-height: 2.25rem;
-  padding-block: 0.3rem;
-  padding-inline: 0.75rem;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-  border-radius: calc(var(--ai-radius-pill) - 0.25rem);
-  position: relative;
-}
-
-.tabPillCompact:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  top: 20%;
-  bottom: 20%;
-  right: 0;
-  width: 1px;
-  background-color: var(--ai-role-border-muted);
-  pointer-events: none;
-}
-
-/* Specificity bump to reliably override Tailwind px-* utilities without illegal pure :global(button...) selectors */
-.tabPillCompact.tabPillCompact {
-  padding-block: 0.3rem;
-  padding-inline: 0.75rem;
-}
-
-/*
-  Reduce the stacked label spacing via deeper selectors that
-  don't break the CSS module scoping contract.
-*/
-.tabPillCompact :global(.leading-none) {
-  line-height: 1.05;
-}
-
-.tabPillCompact :global(.text-xs) {
-  font-size: 0.7rem;
-  line-height: 1.05;
-  opacity: 0.72;
-}
-
-.tabPillCompact :global(.tracking-widest) {
-  letter-spacing: 0.12em;
-}
-
-.tabPillCompact :global(.flex.flex-col.items-start.leading-none) {
-  gap: 0.1rem;
-}
-
-/* Active + hover states remain driven by the shared ai-selectable contract */
-.tabPillCompact:global(.ai-selectable--active) {
-  border-color: transparent;
-  background-color: var(--ai-role-surface-1);
-  color: var(--ai-text-strong);
-  position: relative;
-  z-index: 1;
-  margin-bottom: 0;
-  box-shadow: inset 0 0 0 1px
-    var(--ai-role-border-selected, var(--ai-role-border-base));
-  border-radius: calc(var(--ai-radius-pill) - 2px);
-}
-
-.tabPillCompact:global(.ai-selectable--hoverable):hover {
-  background-color: color-mix(
-    in srgb,
-    var(--ai-role-surface-1) 70%,
-    var(--ai-role-surface-muted) 30%
-  );
 }
