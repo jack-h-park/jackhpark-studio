@@ -45,7 +45,7 @@ export const INGESTION_TYPE_VALUES: readonly IngestionType[] = [
   "partial",
 ] as const;
 
-export const DEFAULT_RUNS_PAGE_SIZE = 25;
+export const DEFAULT_RUNS_PAGE_SIZE = 15;
 export const MAX_RUNS_PAGE_SIZE = 100;
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

@@ -177,6 +177,9 @@ export function ManualIngestionPanel(): JSX.Element {
   const manualNotionDescriptionId = "manual-notion-input-description";
   const manualUrlDescriptionId = "manual-url-input-description";
   const manualProviderDescriptionId = "manual-provider-select-description";
+  const manualScopeHeadingId = "manual-ingestion-scope-heading";
+  const manualScopePagesSubheadingId = "manual-ingestion-pages-heading";
+  const manualUrlScopeSubheadingId = "manual-ingestion-url-heading";
   const handleRefreshDashboard = useCallback(() => {
     void router.replace(router.asPath);
   }, [router]);
@@ -226,325 +229,376 @@ export function ManualIngestionPanel(): JSX.Element {
             onSubmit={ingestion.handleSubmit}
             noValidate
           >
-              <div className="space-y-0">
-                <div
-                  className={cn(
-                    "ai-panel flex flex-col gap-0 px-4",
-                    manualStyles.tabRail,
-                    manualStyles.sourceCard,
-                  )}
-                >
-                  <div className={manualStyles.sourceHeader}>
-                    <div className={manualStyles.sourceHeaderStack}>
-                      <p className={manualStyles.stepLabel}>Source</p>
-                      <div className={manualStyles.sourceToggleWrap}>
-                        <IngestionSourceToggle
-                          value={ingestion.mode}
-                          onChange={handleModeChange}
-                          disabled={ingestion.isRunning}
-                          size="md"
-                        />
-                      </div>
-                      <p className={manualStyles.sourceHelper}>
-                        {ingestion.mode === "notion_page"
-                          ? "Sync from your workspace."
-                          : "Fetch a public article."}
-                      </p>
-                    </div>
-                  </div>
+            <div className={manualStyles.workflowStack}>
+              <div className={manualStyles.workflowStep}>
+                <div className={manualStyles.stepBody}>
                   <div
                     className={cn(
-                      manualStyles.sourceBody,
-                      "space-y-0 overflow-hidden",
-                      manualStyles.tabContent,
+                      "ai-panel flex flex-col gap-0 px-4",
+                      manualStyles.tabRail,
+                      manualStyles.sourceCard,
                     )}
                   >
-                    <TabPanel
-                      tabId="notion_page"
-                      activeTabId={ingestion.mode}
-                      className="ai-tab-panel space-y-2 px-2 pt-2 pb-2"
+                    <div
+                      className={cn(
+                        manualStyles.sourceHeader,
+                        manualStyles.stepHeader,
+                      )}
                     >
-                    <div className="space-y-4">
-                      <div className={manualStyles.stepBlock}>
-                        <p className={manualStyles.stepLabel}>Scope</p>
-                        <div className="space-y-3">
-                          <Label
-                            id="manual-ingestion-scope-label"
-                            className="text-xs uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]"
-                          >
-                            Pages to ingest
-                          </Label>
-                          <div className={cn(
-                            "grid gap-3 sm:grid-cols-2",
-                            manualStyles.chipGrid,
-                          )}>
-                            <Radiobutton
-                              name="manual-ingestion-scope"
-                              value="workspace"
-                              label="Ingest all pages in this workspace"
-                              description="Re-scan and ingest every page across the entire workspace."
-                              checked={ingestion.ingestionScope === "workspace"}
-                              disabled={ingestion.isRunning}
-                              onChange={ingestion.setIngestionScope}
-                              variant="chip"
-                              className={cn(
-                                manualStyles.selectionOption,
-                                manualStyles.chipTile,
-                                ingestion.ingestionScope === "workspace" &&
-                                  manualStyles.selectionOptionActive &&
-                                  manualStyles.chipTileActive,
-                              )}
-                            />
-                            <Radiobutton
-                              name="manual-ingestion-scope"
-                              value="selected"
-                              label="Ingest only selected page(s)"
-                              description="Ingest only the page(s) you choose. Optionally include pages directly linked from them."
-                              checked={ingestion.ingestionScope === "selected"}
-                              disabled={ingestion.isRunning}
-                              onChange={ingestion.setIngestionScope}
-                              variant="chip"
-                              className={cn(
-                                manualStyles.selectionOption,
-                                manualStyles.chipTile,
-                                ingestion.ingestionScope === "selected" &&
-                                  manualStyles.selectionOptionActive &&
-                                  manualStyles.chipTileActive,
-                              )}
-                            />
-                          </div>
-                        </div>
-                        <div
-                          className={cn(
-                            "space-y-2",
-                            manualStyles.pageInputGroup,
-                            pageInputGroupStateClass,
-                          )}
-                          aria-disabled={isPageSelectionLocked}
-                        >
-                          <div className="flex flex-col gap-1">
-                            <Label
-                              htmlFor="manual-notion-input"
-                              className="text-sm text-[color:var(--ai-text-muted)]"
-                            >
-                              Select page(s) to ingest
-                            </Label>
-                            {isPageSelectionLocked ? (
-                              <p className={manualStyles.lockedHelperText}>
-                                Enabled when ‘Ingest only selected page(s)’ is
-                                selected.
-                              </p>
-                            ) : null}
-                          </div>
-                          <div
-                            className={cn(
-                              manualStyles.pageInputControl,
-                              isPageSelectionLocked &&
-                                manualStyles.pageInputControlLocked,
-                            )}
-                          >
-                            <Input
-                              id="manual-notion-input"
-                              type="text"
-                              placeholder="Search or enter a Notion page ID…"
-                              value={ingestion.notionInput}
-                              onChange={(event) =>
-                                ingestion.setNotionInput(event.target.value)
-                              }
-                              disabled={isPageNotionInputDisabled}
-                              tabIndex={isPageSelectionLocked ? -1 : undefined}
-                              aria-describedby={manualNotionDescriptionId}
-                            />
-                          </div>
-                          <p
-                            id={manualNotionDescriptionId}
-                            className="ai-meta-text"
-                          >
-                            Paste the full shared link or the 32-character page
-                            ID from Notion. You can enter multiple IDs separated
-                            by commas, spaces, or new lines.
-                          </p>
-                        </div>
-                      </div>
-                      {ingestion.ingestionScope === "selected" ? (
-                        <div className="pt-2">
-                          <CheckboxChoice
-                            className="select-none"
-                            layout="stacked"
-                            label="Include linked pages"
-                            description="Also ingest pages directly linked from the selected page(s), such as child pages and link-to-page references. (Does not scan the entire workspace.)"
-                            checked={ingestion.includeLinkedPages}
-                            onCheckedChange={ingestion.setIncludeLinkedPages}
+                      <div className={manualStyles.sourceHeaderStack}>
+                        <p className={manualStyles.stepLabel}>Source</p>
+                        <div className={manualStyles.sourceToggleWrap}>
+                          <IngestionSourceToggle
+                            value={ingestion.mode}
+                            onChange={handleModeChange}
                             disabled={ingestion.isRunning}
+                            size="md"
                           />
                         </div>
-                      ) : (
-                        <p className="ai-meta-text text-sm">
-                          This option has no effect when ingesting the entire
-                          workspace.
-                        </p>
-                      )}
-                    </div>
-                  </TabPanel>
-
-                  <TabPanel
-                    tabId="url"
-                    activeTabId={ingestion.mode}
-                    className="ai-tab-panel space-y-2 px-5 pt-4 pb-5"
-                  >
-                    <div className={cn("space-y-2", manualStyles.stepBlock)}>
-                      <p className={manualStyles.stepLabel}>Scope</p>
-                      <div
-                        className={cn("space-y-2", manualStyles.pageInputGroup)}
-                      >
-                        <Label
-                          htmlFor="manual-url-input"
-                          className="text-sm text-[color:var(--ai-text-muted)]"
-                        >
-                          URL to ingest
-                        </Label>
-                        <Input
-                          id="manual-url-input"
-                          type="url"
-                          placeholder="https://example.com/article"
-                          value={ingestion.urlInput}
-                          onChange={(event) =>
-                            ingestion.setUrlInput(event.target.value)
-                          }
-                          disabled={ingestion.isRunning}
-                          aria-describedby={manualUrlDescriptionId}
-                        />
-                        <p id={manualUrlDescriptionId} className="ai-meta-text">
-                          Enter a public HTTP(S) link. Use the scope above to
-                          skip unchanged articles or force a full refresh.
+                        <p className={manualStyles.sourceHelper}>
+                          {ingestion.mode === "notion_page"
+                            ? "Sync from your workspace."
+                            : "Fetch a public article."}
                         </p>
                       </div>
                     </div>
-                  </TabPanel>
-                </div>
-              </div>
-            </div>
-
-            <div
-              className="ai-panel space-y-4 px-6"
-              aria-label="Manual ingestion controls"
-            >
-              <div className={manualStyles.stepBlock}>
-                <p className={manualStyles.stepLabel}>Update behavior</p>
-                <GridPanel
-                  as="fieldset"
-                  className="gap-4"
-                  role="radiogroup"
-                  aria-labelledby={currentScopeLabelId}
-                >
-                  <div className="space-y-3">
-                    <Label
-                      id={currentScopeLabelId}
-                      htmlFor="manual-ingestion-scope"
-                      className="text-sm uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]"
+                    <div
+                      className={cn(
+                        manualStyles.sourceBody,
+                        "space-y-0 overflow-hidden",
+                        manualStyles.tabContent,
+                      )}
                     >
-                      Update strategy
-                    </Label>
-                    <div className={cn(
-                      "grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center",
-                      manualStyles.chipGrid,
-                    )}>
-                      <Radiobutton
-                        name={currentScopeGroupName}
-                        value="partial"
-                        label="Only pages with changes"
-                        description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
-                        checked={currentScope === "partial"}
-                        disabled={ingestion.isRunning}
-                        onChange={setCurrentScope}
-                        variant="chip"
-                        className={cn(
-                          manualStyles.selectionOption,
-                          manualStyles.chipTile,
-                          currentScope === "partial" &&
-                            manualStyles.selectionOptionActive &&
-                            manualStyles.chipTileActive,
-                        )}
-                      />
-                      <Radiobutton
-                        name={currentScopeGroupName}
-                        value="full"
-                        label="Re-ingest all pages"
-                        description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
-                        checked={currentScope === "full"}
-                        disabled={ingestion.isRunning}
-                        onChange={setCurrentScope}
-                        variant="chip"
-                        className={cn(
-                          manualStyles.selectionOption,
-                          manualStyles.chipTile,
-                          currentScope === "full" &&
-                            manualStyles.selectionOptionActive &&
-                            manualStyles.chipTileActive,
-                        )}
-                      />
+                      <TabPanel
+                        tabId="notion_page"
+                        activeTabId={ingestion.mode}
+                        className="ai-tab-panel space-y-2 px-2 pt-2 pb-2"
+                      >
+                        <div className="space-y-4">
+                          <div className={manualStyles.workflowStep}>
+                            <div className={manualStyles.stepHeader}>
+                              <div className={manualStyles.sectionHeadingStack}>
+                                <h3
+                                  id={manualScopeHeadingId}
+                                  className={manualStyles.sectionHeading}
+                                >
+                                  Scope
+                                </h3>
+                                <h4
+                                  id={manualScopePagesSubheadingId}
+                                  className={manualStyles.sectionSubheading}
+                                >
+                                  Pages to ingest
+                                </h4>
+                              </div>
+                            </div>
+                            <div className={manualStyles.stepBody}>
+                              <div
+                                className={cn(
+                                  "grid gap-3 sm:grid-cols-2",
+                                  manualStyles.chipGrid,
+                                )}
+                                role="radiogroup"
+                                aria-labelledby={manualScopePagesSubheadingId}
+                              >
+                                <Radiobutton
+                                  name="manual-ingestion-scope"
+                                  value="workspace"
+                                  label="Ingest all pages in this workspace"
+                                  description="Re-scan and ingest every page across the entire workspace."
+                                  checked={ingestion.ingestionScope === "workspace"}
+                                  disabled={ingestion.isRunning}
+                                  onChange={ingestion.setIngestionScope}
+                                  variant="chip"
+                                  className={cn(
+                                    manualStyles.selectionOption,
+                                    manualStyles.chipTile,
+                                    ingestion.ingestionScope === "workspace" &&
+                                      manualStyles.selectionOptionActive &&
+                                      manualStyles.chipTileActive,
+                                  )}
+                                />
+                                <Radiobutton
+                                  name="manual-ingestion-scope"
+                                  value="selected"
+                                  label="Ingest only selected page(s)"
+                                  description="Ingest only the page(s) you choose. Optionally include pages directly linked from them."
+                                  checked={ingestion.ingestionScope === "selected"}
+                                  disabled={ingestion.isRunning}
+                                  onChange={ingestion.setIngestionScope}
+                                  variant="chip"
+                                  className={cn(
+                                    manualStyles.selectionOption,
+                                    manualStyles.chipTile,
+                                    ingestion.ingestionScope === "selected" &&
+                                      manualStyles.selectionOptionActive &&
+                                      manualStyles.chipTileActive,
+                                  )}
+                                />
+                              </div>
+                              <div
+                                className={cn(
+                                  "space-y-2",
+                                  manualStyles.pageInputGroup,
+                                  pageInputGroupStateClass,
+                                )}
+                                aria-disabled={isPageSelectionLocked}
+                              >
+                                <div className="flex flex-col gap-1">
+                                  <Label
+                                    htmlFor="manual-notion-input"
+                                    className="text-sm text-[color:var(--ai-text-muted)]"
+                                  >
+                                    Select page(s) to ingest
+                                  </Label>
+                                  {isPageSelectionLocked ? (
+                                    <p className={manualStyles.lockedHelperText}>
+                                      Enabled when ‘Ingest only selected page(s)’ is
+                                      selected.
+                                    </p>
+                                  ) : null}
+                                </div>
+                                <div
+                                  className={cn(
+                                    manualStyles.pageInputControl,
+                                    isPageSelectionLocked &&
+                                      manualStyles.pageInputControlLocked,
+                                  )}
+                                >
+                                  <Input
+                                    id="manual-notion-input"
+                                    type="text"
+                                    placeholder="Search or enter a Notion page ID…"
+                                    value={ingestion.notionInput}
+                                    onChange={(event) =>
+                                      ingestion.setNotionInput(event.target.value)
+                                    }
+                                    disabled={isPageNotionInputDisabled}
+                                    tabIndex={isPageSelectionLocked ? -1 : undefined}
+                                    aria-describedby={manualNotionDescriptionId}
+                                  />
+                                </div>
+                                <p
+                                  id={manualNotionDescriptionId}
+                                  className="ai-meta-text"
+                                >
+                                  Paste the full shared link or the 32-character page
+                                  ID from Notion. You can enter multiple IDs separated
+                                  by commas, spaces, or new lines.
+                                </p>
+                              </div>
+                              {ingestion.ingestionScope === "selected" ? (
+                                <div className="pt-2">
+                                  <CheckboxChoice
+                                    className="select-none"
+                                    layout="stacked"
+                                    label="Include linked pages"
+                                    description="Also ingest pages directly linked from the selected page(s), such as child pages and link-to-page references. (Does not scan the entire workspace.)"
+                                    checked={ingestion.includeLinkedPages}
+                                    onCheckedChange={ingestion.setIncludeLinkedPages}
+                                    disabled={ingestion.isRunning}
+                                  />
+                                </div>
+                              ) : (
+                                <p className="ai-meta-text text-sm">
+                                  This option has no effect when ingesting the entire
+                                  workspace.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </TabPanel>
+
+                      <TabPanel
+                        tabId="url"
+                        activeTabId={ingestion.mode}
+                        className="ai-tab-panel space-y-2 px-5 pt-4 pb-5"
+                      >
+                        <div className={cn("space-y-2", manualStyles.workflowStep)}>
+                          <div className={manualStyles.stepHeader}>
+                            <div className={manualStyles.sectionHeadingStack}>
+                              <h3 className={manualStyles.sectionHeading}>Scope</h3>
+                              <h4
+                                id={manualUrlScopeSubheadingId}
+                                className={manualStyles.sectionSubheading}
+                              >
+                                URL to ingest
+                              </h4>
+                            </div>
+                          </div>
+                          <div className={manualStyles.stepBody}>
+                            <div
+                              className={cn(
+                                "space-y-2",
+                                manualStyles.pageInputGroup,
+                              )}
+                              aria-labelledby={manualUrlScopeSubheadingId}
+                            >
+                              <Label
+                                htmlFor="manual-url-input"
+                                className="text-sm text-[color:var(--ai-text-muted)]"
+                              >
+                                URL to ingest
+                              </Label>
+                              <Input
+                                id="manual-url-input"
+                                type="url"
+                                placeholder="https://example.com/article"
+                                value={ingestion.urlInput}
+                                onChange={(event) =>
+                                  ingestion.setUrlInput(event.target.value)
+                                }
+                                disabled={ingestion.isRunning}
+                                aria-describedby={manualUrlDescriptionId}
+                              />
+                              <p id={manualUrlDescriptionId} className="ai-meta-text">
+                                Enter a public HTTP(S) link. Use the scope above to
+                                skip unchanged articles or force a full refresh.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </TabPanel>
                     </div>
                   </div>
-                </GridPanel>
-                <div
-                  className={cn(
-                    "space-y-2",
-                    manualStyles.pageInputGroup,
-                    ingestion.ingestionScope === "selected"
-                      ? manualStyles.pageInputGroupActive
-                      : manualStyles.pageInputGroupInactive,
-                  )}
-                >
-                  <Label
-                    htmlFor="manual-provider-select"
-                    className="text-xs uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]"
-                  >
-                    Embedding Model
-                  </Label>
-                  <Select
-                    value={ingestion.manualEmbeddingProvider}
-                    onValueChange={(value) =>
-                      ingestion.setEmbeddingProviderAndSave(value)
-                    }
-                    disabled={ingestion.isRunning}
-                  >
-                    <SelectTrigger
-                      id="manual-provider-select"
-                      aria-label="Select embedding model"
-                      aria-describedby={manualProviderDescriptionId}
-                    />
-                    <SelectContent>
-                      {EMBEDDING_MODEL_OPTIONS.map((option) => (
-                        <SelectItem
-                          key={option.embeddingSpaceId}
-                          value={option.embeddingSpaceId}
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p id={manualProviderDescriptionId} className="ai-meta-text">
-                    Determines which embedding space is used for this run.
-                  </p>
                 </div>
               </div>
 
-              {ingestion.errorMessage ? (
-                <div role="alert">
-                  <p className="ai-meta-text text-[color:var(--ai-error)]">
-                    {ingestion.errorMessage}
-                  </p>
+              <div className={manualStyles.workflowStep}>
+                <div
+                  className={cn(
+                    manualStyles.updateBehaviorHeading,
+                    manualStyles.stepHeader,
+                  )}
+                >
+                  <p className={manualStyles.stepLabel}>Update behavior</p>
+                  <Label
+                    id={currentScopeLabelId}
+                    htmlFor="manual-ingestion-scope"
+                    className="text-sm uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]"
+                  >
+                    Update strategy
+                  </Label>
                 </div>
-              ) : null}
+                <div
+                  className={cn(
+                    manualStyles.stepBody,
+                    manualStyles.peerGroup,
+                  )}
+                >
+                  <div className={manualStyles.peerBlock}>
+                    <GridPanel
+                      as="fieldset"
+                      className="gap-4"
+                      role="radiogroup"
+                      aria-labelledby={currentScopeLabelId}
+                    >
+                      <div
+                        className={cn(
+                          "grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center",
+                          manualStyles.chipGrid,
+                        )}
+                      >
+                        <Radiobutton
+                          name={currentScopeGroupName}
+                          value="partial"
+                          label="Only pages with changes"
+                          description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
+                          checked={currentScope === "partial"}
+                          disabled={ingestion.isRunning}
+                          onChange={setCurrentScope}
+                          variant="chip"
+                          className={cn(
+                            manualStyles.selectionOption,
+                            manualStyles.chipTile,
+                            currentScope === "partial" &&
+                              manualStyles.selectionOptionActive &&
+                              manualStyles.chipTileActive,
+                          )}
+                        />
+                        <Radiobutton
+                          name={currentScopeGroupName}
+                          value="full"
+                          label="Re-ingest all pages"
+                          description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
+                          checked={currentScope === "full"}
+                          disabled={ingestion.isRunning}
+                          onChange={setCurrentScope}
+                          variant="chip"
+                          className={cn(
+                            manualStyles.selectionOption,
+                            manualStyles.chipTile,
+                            currentScope === "full" &&
+                              manualStyles.selectionOptionActive &&
+                              manualStyles.chipTileActive,
+                          )}
+                        />
+                      </div>
+                    </GridPanel>
+                  </div>
+                  <div className={manualStyles.peerBlock}>
+                    <Label
+                      htmlFor="manual-provider-select"
+                      className="text-xs uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]"
+                    >
+                      Embedding Model
+                    </Label>
+                    <Select
+                      value={ingestion.manualEmbeddingProvider}
+                      onValueChange={(value) =>
+                        ingestion.setEmbeddingProviderAndSave(value)
+                      }
+                      disabled={ingestion.isRunning}
+                    >
+                      <SelectTrigger
+                        id="manual-provider-select"
+                        aria-label="Select embedding model"
+                        aria-describedby={manualProviderDescriptionId}
+                      />
+                      <SelectContent>
+                        {EMBEDDING_MODEL_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.embeddingSpaceId}
+                            value={option.embeddingSpaceId}
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p id={manualProviderDescriptionId} className="ai-meta-text">
+                      Determines which embedding space is used for this run.
+                    </p>
+                  </div>
+                </div>
+                {ingestion.errorMessage ? (
+                  <div role="alert">
+                    <p className="ai-meta-text text-[color:var(--ai-error)]">
+                      {ingestion.errorMessage}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
 
-              <div className={manualStyles.executionPanel}>
-                <div className={manualStyles.executionHeader}>
+              <div className={manualStyles.workflowStep}>
+                <div
+                  className={cn(
+                    manualStyles.executionHeader,
+                    manualStyles.stepHeader,
+                  )}
+                >
                   <p className={manualStyles.stepLabel}>Execution</p>
                   <p className={manualStyles.executionHint}>
                     Runs on the server and streams logs below.
                   </p>
                 </div>
+                <div
+                  className={cn(
+                    manualStyles.executionPanel,
+                    manualStyles.stepBody,
+                  )}
+                >
                 <div className={manualStyles.executionGrid}>
                   <Button
                     type="submit"
@@ -555,105 +609,121 @@ export function ManualIngestionPanel(): JSX.Element {
                   </Button>
 
                   <div
-                    className={manualStyles.executionProgressStack}
+                    className={manualStyles.executionProgressStrip}
                     aria-live="polite"
                   >
-                    {showOverallProgress ? (
-                      <div ref={ingestion.overallProgressRef}>
-                        <ProgressGroup
-                          label="Overall Progress"
-                          meta={`${overallCurrentLabel} / ${totalPages}`}
-                          value={overallPercent}
-                        />
-                      </div>
-                    ) : null}
-
-                    <ProgressGroup
-                      label={showOverallProgress ? "Current Page" : "Progress"}
-                      meta={stageSubtitle ?? undefined}
-                      value={stagePercent}
-                      footer={
-                        <div className="flex flex-wrap items-center gap-3 text-sm">
-                          {showOverallProgress &&
-                          activePageId &&
-                          activePageTitle ? (
-                            <span className="ai-meta-text rounded-full bg-[color:var(--ai-border-soft)] px-2 py-0.5 text-xs font-mono">
-                              {activePageId}
-                            </span>
-                          ) : null}
-                          {ingestion.finalMessage ? (
-                            <span className="ai-meta-text">
-                              {ingestion.finalMessage}
-                            </span>
-                          ) : null}
+                    <div
+                      className={manualStyles.executionProgressStack}
+                    >
+                      {showOverallProgress ? (
+                        <div ref={ingestion.overallProgressRef}>
+                          <ProgressGroup
+                            label="Overall Progress"
+                            meta={`${overallCurrentLabel} / ${totalPages}`}
+                            value={overallPercent}
+                          />
                         </div>
-                      }
-                    />
-                  </div>
+                      ) : null}
 
-                  <div
-                    className={manualStyles.executionPercent}
-                    aria-hidden="true"
-                  >
-                    {Math.round(stagePercent)}%
+                      <ProgressGroup
+                        label={showOverallProgress ? "Current Page" : "Progress"}
+                        meta={stageSubtitle ?? undefined}
+                        value={stagePercent}
+                        footer={
+                          <div className="flex flex-wrap items-center gap-3 text-sm">
+                            {showOverallProgress &&
+                            activePageId &&
+                            activePageTitle ? (
+                              <span className="ai-meta-text rounded-full bg-[color:var(--ai-border-soft)] px-2 py-0.5 text-xs font-mono">
+                                {activePageId}
+                              </span>
+                            ) : null}
+                            {ingestion.finalMessage ? (
+                              <span className="ai-meta-text">
+                                {ingestion.finalMessage}
+                              </span>
+                            ) : null}
+                          </div>
+                        }
+                      />
+                    </div>
+
+                    <div
+                      className={manualStyles.executionPercent}
+                      aria-hidden="true"
+                    >
+                      {Math.round(stagePercent)}%
+                    </div>
                   </div>
+                </div>
                 </div>
               </div>
             </div>
           </form>
         </section>
-        <section className={cn("ai-panel", manualStyles.runLogPanel)}>
-          <div className={manualStyles.runLogContent}>
-            <div className={manualStyles.runLogHeaderRow}>
-              <div>
-                <CardTitle>Run Log</CardTitle>
-                <p className={manualStyles.runLogSubtitle}>{runLogSubtitle}</p>
+        <section
+          className={cn(
+            "ai-panel",
+            manualStyles.runLogPanel,
+            manualStyles.workflowStep,
+          )}
+        >
+          <div
+            className={cn(
+              manualStyles.runLogHeaderRow,
+              manualStyles.stepHeader,
+            )}
+          >
+            <div>
+              <CardTitle>Run Log</CardTitle>
+              <p className={manualStyles.runLogSubtitle}>{runLogSubtitle}</p>
+            </div>
+            <CheckboxChoice
+              className={cn("select-none", manualStyles.runLogToggle)}
+              label="Auto-scroll to latest"
+              checked={ingestion.autoScrollLogs}
+              onCheckedChange={ingestion.handleToggleAutoScroll}
+            />
+          </div>
+          <div
+            className={cn(manualStyles.runLogBody, manualStyles.stepBody)}
+          >
+            {ingestion.logs.length === 0 ? (
+              <div className={manualStyles.runLogEmpty}>
+                <span className={manualStyles.runLogEmptyIcon}>
+                  <FiInfo aria-hidden="true" />
+                </span>
+                <p className="ai-text text-[color:var(--ai-text-muted)]">
+                  No logs yet; run ingestion to populate entries.
+                </p>
+                <p className="ai-meta-text">
+                  Execution logs will stream here once you start a run.
+                </p>
               </div>
-              <CheckboxChoice
-                className={cn("select-none", manualStyles.runLogToggle)}
-                label="Auto-scroll to latest"
-                checked={ingestion.autoScrollLogs}
-                onCheckedChange={ingestion.handleToggleAutoScroll}
-              />
-            </div>
-            <div className={manualStyles.runLogBody}>
-              {ingestion.logs.length === 0 ? (
-                <div className={manualStyles.runLogEmpty}>
-                  <span className={manualStyles.runLogEmptyIcon}>
-                    <FiInfo aria-hidden="true" />
-                  </span>
-                  <p className="ai-text text-[color:var(--ai-text-muted)]">
-                    No logs yet; run ingestion to populate entries.
-                  </p>
-                  <p className="ai-meta-text">
-                    Execution logs will stream here once you start a run.
-                  </p>
-                </div>
-              ) : (
-                <div
-                  className="max-h-[260px] overflow-y-auto pr-2"
-                  ref={ingestion.logsContainerRef}
-                  onScroll={ingestion.handleLogsScroll}
-                >
-                  <ul className="grid list-none gap-3 p-0">
-                    {ingestion.logs.map((log) => {
-                      const Icon = LOG_ICONS[log.level];
-                      return (
-                        <ManualLogEntry
-                          key={log.id}
-                          level={log.level}
-                          icon={<Icon aria-hidden={true} />}
-                          timestamp={logTimeFormatter.format(
-                            new Date(log.timestamp),
-                          )}
-                          message={log.message}
-                        />
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </div>
+            ) : (
+              <div
+                className="max-h-[260px] overflow-y-auto pr-2"
+                ref={ingestion.logsContainerRef}
+                onScroll={ingestion.handleLogsScroll}
+              >
+                <ul className="grid list-none gap-3 p-0">
+                  {ingestion.logs.map((log) => {
+                    const Icon = LOG_ICONS[log.level];
+                    return (
+                      <ManualLogEntry
+                        key={log.id}
+                        level={log.level}
+                        icon={<Icon aria-hidden={true} />}
+                        timestamp={logTimeFormatter.format(
+                          new Date(log.timestamp),
+                        )}
+                        message={log.message}
+                      />
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
         </section>
         {ingestion.stats ? (

@@ -51,6 +51,18 @@
   cursor: pointer;
 }
 
+.notesColumn {
+  max-width: 24rem;
+  overflow: hidden;
+}
+
+.notesColumn > div {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
 .emptyState {
   padding: 2rem;
   display: flex;

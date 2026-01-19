@@ -50,6 +50,14 @@
   --ai-error: #ef4444;
   --ai-error-muted: color-mix(in srgb, var(--ai-error) 20%, transparent);
   --ai-ring: var(--select-color-0);
+  --ai-space-1: 0.25rem;
+  --ai-space-2: 0.5rem;
+  --ai-space-3: 0.75rem;
+  --ai-space-4: 1rem;
+  --ai-space-5: 1.25rem;
+  --ai-space-6: 1.5rem;
+  --ai-space-7: 2rem;
+  --ai-space-8: 2.5rem;
 
   /* Role aliases */
   --ai-role-surface-default: var(--ai-surface);

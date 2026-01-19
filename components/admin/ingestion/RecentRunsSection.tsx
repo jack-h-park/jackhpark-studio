@@ -958,7 +958,12 @@ export function RecentRunsSection({
             return <span className="ai-meta-text">—</span>;
           }
           return (
-            <div className="space-y-1 text-xs text-[color:var(--ai-text-muted)]">
+            <div
+              className={cn(
+                "space-y-1 text-xs text-[color:var(--ai-text-muted)]",
+                recentStyles.notesColumn,
+              )}
+            >
               {entries.map((entry, index) => (
                 <div key={`${entry.label}-${index}`}>
                   <span className="font-semibold text-[color:var(--ai-text-strong)]">

@@ -16,36 +16,37 @@ export function IngestionSubNav() {
   const isLoading = useRouteLoading(180);
 
   return (
-    <div className="sticky top-0 z-20 -mx-1 mb-4 bg-[color:var(--ai-bg)] px-1 pt-2">
+    <div className="border-b border-[color:var(--ai-role-border-subtle)] pb-3">
       <nav
-        aria-label="Ingestion content navigation"
-        className="flex flex-wrap items-center gap-6 border-b border-[color:var(--ai-border-soft)] px-1"
+        aria-label="Ingestion pages"
+        className="flex items-center justify-between gap-4"
       >
-        {PAGES.map((page) => {
-          const active =
-            pathname === page.href || pathname.startsWith(`${page.href}/`);
+        <div role="tablist" className="flex items-center gap-8 text-base font-semibold">
+          {PAGES.map((page) => {
+            const active =
+              pathname === page.href || pathname.startsWith(`${page.href}/`);
 
-          return (
-            <Link
-              key={page.href}
-              href={page.href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "group relative inline-flex items-center justify-center py-3 text-sm font-medium focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ai-ring)] focus-visible:ring-offset-2",
-                "ai-selectable ai-selectable--hoverable",
-                active && "ai-selectable--active text-[color:var(--ai-text-strong)]",
-                !active && "text-[color:var(--ai-text-muted)]",
-              )}
-            >
-              {page.label}
-              {active && (
-                <span className="absolute bottom-0 left-0 h-[2px] w-full bg-[color:var(--ai-text-strong)]" />
-              )}
-            </Link>
-          );
-        })}
+            return (
+              <Link
+                key={page.href}
+                href={page.href}
+                role="tab"
+                aria-current={active ? "page" : undefined}
+                aria-selected={active}
+                className={cn(
+                  "relative inline-flex items-center border-b-2 border-transparent pb-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ai-ring)] focus-visible:ring-offset-2",
+                  active
+                    ? "border-[color:var(--ai-text-strong)] text-[color:var(--ai-text-strong)]"
+                    : "text-[color:var(--ai-text-muted)] hover:text-[color:var(--ai-text-strong)]",
+                )}
+              >
+                {page.label}
+              </Link>
+            );
+          })}
+        </div>
         {isLoading && (
-          <span className="ml-auto pb-1 flex items-center">
+          <span className="flex items-center gap-2 pb-1 text-sm">
             <span className="sr-only">Loading route</span>
             <span className="h-3.5 w-3.5 rounded-full border-2 border-[color:var(--ai-border-muted)] border-t-[color:var(--ai-text-strong)] animate-spin" />
           </span>
