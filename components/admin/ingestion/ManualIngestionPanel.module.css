@@ -135,27 +135,6 @@
   padding: 0 var(--ai-space-3);
 }
 
-.peerGroup {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ai-space-3);
-  width: 100%;
-}
-
-.peerBlock {
-  border: 0;
-  border-radius: var(--ai-radius-md);
-  padding: var(--ai-space-3);
-  background: transparent;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ai-space-3);
-  box-shadow: none;
-}
-
-.peerBlock + .peerBlock {
-  border-top: 1px solid var(--ai-role-divider-muted);
-}
 
 .executionStrip {
   display: grid;
@@ -198,6 +177,11 @@
   flex-direction: column;
   gap: var(--ai-space-4);
   padding-block: var(--ai-space-3);
+}
+
+.heroHeaderRail {
+  --wf-rail-x: var(--ai-space-5);
+  padding-inline: var(--wf-rail-x);
 }
 
 .runLogToggle {

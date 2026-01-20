@@ -4,11 +4,12 @@ import { FiBarChart2 } from "@react-icons/all-files/fi/FiBarChart2";
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import { FiPlayCircle } from "@react-icons/all-files/fi/FiPlayCircle";
 import { useRouter } from "next/router";
-import { type ComponentType, type JSX, useCallback, useMemo } from "react";
+import { type ComponentType, type JSX, useCallback, useEffect, useMemo } from "react";
 
 import type { ManualLogEvent } from "@/lib/admin/ingestion-types";
 import { WorkflowStep } from "@/components/admin/workflow";
 import { IngestionSourceToggle } from "@/components/ingestion/IngestionSourceToggle";
+import { PeerRow } from "@/components/shared/peer-row";
 import { Button } from "@/components/ui/button";
 import {
   CardDescription,
@@ -177,11 +178,41 @@ export function ManualIngestionPanel(): JSX.Element {
   const stageSubtitle = activePageTitle ?? activePageId;
   const manualNotionDescriptionId = "manual-notion-input-description";
   const manualUrlDescriptionId = "manual-url-input-description";
-  const manualProviderDescriptionId = "manual-provider-select-description";
   const manualScopeHeadingId = "manual-ingestion-scope-heading";
   const manualScopePagesSubheadingId = "manual-ingestion-pages-heading";
   const manualUrlScopeSubheadingId = "manual-ingestion-url-heading";
   const manualRunLogSubtitleId = "manual-run-log-subtitle";
+  const manualEmbeddingLabelId = "manual-embedding-label";
+  const manualEmbeddingHintId = "manual-embedding-hint";
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") {
+      return;
+    }
+    const hero = document.querySelector("[data-rail='hero-title']");
+    const button = document.querySelector("[data-rail='execution-button']");
+    const updateRow = document.querySelector("[data-rail='update-strategy-row']");
+    const embedRow = document.querySelector("[data-rail='embedding-model-row']");
+
+    if (hero && button) {
+      const heroLeft = hero.getBoundingClientRect().left;
+      const buttonLeft = button.getBoundingClientRect().left;
+      console.info(
+        "Rail offsets:",
+        "Hero -> Run button:",
+        `${(buttonLeft - heroLeft).toFixed(1)}px`,
+      );
+    }
+
+    if (updateRow && embedRow) {
+      const updateLeft = updateRow.getBoundingClientRect().left;
+      const embedLeft = embedRow.getBoundingClientRect().left;
+      console.info(
+        "Peer rows offset:",
+        `tiles ${updateLeft.toFixed(1)}px vs embed ${embedLeft.toFixed(1)}px`,
+      );
+    }
+  }, []);
   const handleRefreshDashboard = useCallback(() => {
     void router.replace(router.asPath);
   }, [router]);
@@ -208,9 +239,17 @@ export function ManualIngestionPanel(): JSX.Element {
   return (
     <>
       <section className="ai-card space-y-4">
-        <CardHeader className="flex flex-wrap items-start justify-between gap-5">
+        <CardHeader
+          className={cn(
+            "flex flex-wrap items-start justify-between gap-5",
+            manualStyles.heroHeaderRail,
+          )}
+        >
           <div className="flex flex-col gap-2">
-            <CardTitle icon={<FiPlayCircle aria-hidden="true" />}>
+            <CardTitle
+              icon={<FiPlayCircle aria-hidden="true" />}
+              data-rail="hero-title"
+            >
               Manual Ingestion
             </CardTitle>
             <div className="flex flex-wrap items-center gap-3">
@@ -438,92 +477,87 @@ export function ManualIngestionPanel(): JSX.Element {
                 title="Update strategy"
                 hint="Choose how to refresh your content."
               >
-                <div className={manualStyles.peerGroup}>
-                  <div className={manualStyles.peerBlock}>
-                    <GridPanel
-                      as="fieldset"
-                      className="gap-4"
-                      role="radiogroup"
-                      aria-labelledby={currentScopeLabelId}
+                <PeerRow dataRailId="update-strategy-row">
+                  <GridPanel
+                    as="fieldset"
+                    className="gap-4"
+                    role="radiogroup"
+                    aria-labelledby={currentScopeLabelId}
+                  >
+                    <div
+                      className={cn(
+                        "grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center",
+                        manualStyles.chipGrid,
+                      )}
                     >
-                      <div
+                      <Radiobutton
+                        name={currentScopeGroupName}
+                        value="partial"
+                        label="Only pages with changes"
+                        description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
+                        checked={currentScope === "partial"}
+                        disabled={ingestion.isRunning}
+                        onChange={setCurrentScope}
+                        variant="chip"
                         className={cn(
-                          "grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center",
-                          manualStyles.chipGrid,
+                          manualStyles.selectionOption,
+                          manualStyles.chipTile,
+                          currentScope === "partial" &&
+                            manualStyles.selectionOptionActive &&
+                            manualStyles.chipTileActive,
                         )}
-                      >
-                        <Radiobutton
-                          name={currentScopeGroupName}
-                          value="partial"
-                          label="Only pages with changes"
-                          description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
-                          checked={currentScope === "partial"}
-                          disabled={ingestion.isRunning}
-                          onChange={setCurrentScope}
-                          variant="chip"
-                          className={cn(
-                            manualStyles.selectionOption,
-                            manualStyles.chipTile,
-                            currentScope === "partial" &&
-                              manualStyles.selectionOptionActive &&
-                              manualStyles.chipTileActive,
-                          )}
-                        />
-                        <Radiobutton
-                          name={currentScopeGroupName}
-                          value="full"
-                          label="Re-ingest all pages"
-                          description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
-                          checked={currentScope === "full"}
-                          disabled={ingestion.isRunning}
-                          onChange={setCurrentScope}
-                          variant="chip"
-                          className={cn(
-                            manualStyles.selectionOption,
-                            manualStyles.chipTile,
-                            currentScope === "full" &&
-                              manualStyles.selectionOptionActive &&
-                              manualStyles.chipTileActive,
-                          )}
-                        />
-                      </div>
-                    </GridPanel>
-                  </div>
-                  <div className={manualStyles.peerBlock}>
-                    <Label
-                      htmlFor="manual-provider-select"
-                      className="text-xs uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]"
-                    >
-                      Embedding Model
-                    </Label>
-                    <Select
-                      value={ingestion.manualEmbeddingProvider}
-                      onValueChange={(value) =>
-                        ingestion.setEmbeddingProviderAndSave(value)
-                      }
-                      disabled={ingestion.isRunning}
-                    >
-                      <SelectTrigger
-                        id="manual-provider-select"
-                        aria-label="Select embedding model"
-                        aria-describedby={manualProviderDescriptionId}
                       />
-                      <SelectContent>
-                        {EMBEDDING_MODEL_OPTIONS.map((option) => (
-                          <SelectItem
-                            key={option.embeddingSpaceId}
-                            value={option.embeddingSpaceId}
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p id={manualProviderDescriptionId} className="ai-meta-text">
-                      Determines which embedding space is used for this run.
-                    </p>
-                  </div>
-                </div>
+                      <Radiobutton
+                        name={currentScopeGroupName}
+                        value="full"
+                        label="Re-ingest all pages"
+                        description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
+                        checked={currentScope === "full"}
+                        disabled={ingestion.isRunning}
+                        onChange={setCurrentScope}
+                        variant="chip"
+                        className={cn(
+                          manualStyles.selectionOption,
+                          manualStyles.chipTile,
+                          currentScope === "full" &&
+                            manualStyles.selectionOptionActive &&
+                            manualStyles.chipTileActive,
+                        )}
+                      />
+                    </div>
+                  </GridPanel>
+                </PeerRow>
+                <PeerRow
+                  dataRailId="embedding-model-row"
+                  label="Embedding model"
+                  hint="Determines which embedding space is used for this run."
+                  labelId={manualEmbeddingLabelId}
+                  hintId={manualEmbeddingHintId}
+                >
+                  <Select
+                    value={ingestion.manualEmbeddingProvider}
+                    onValueChange={(value) =>
+                      ingestion.setEmbeddingProviderAndSave(value)
+                    }
+                    disabled={ingestion.isRunning}
+                  >
+                    <SelectTrigger
+                      id="manual-provider-select"
+                      aria-labelledby={manualEmbeddingLabelId}
+                      aria-describedby={manualEmbeddingHintId}
+                    />
+                    <SelectContent>
+                      {EMBEDDING_MODEL_OPTIONS.map((option) => (
+                        <SelectItem
+                          key={option.embeddingSpaceId}
+                          value={option.embeddingSpaceId}
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </PeerRow>
                 {ingestion.errorMessage ? (
                   <div role="alert">
                     <p className="ai-meta-text text-[color:var(--ai-error)]">
@@ -542,6 +576,7 @@ export function ManualIngestionPanel(): JSX.Element {
                     type="submit"
                     disabled={ingestion.isRunning}
                     className="min-w-[170px]"
+                    data-rail="execution-button"
                   >
                     {ingestion.isRunning ? "Running" : "Run manually"}
                   </Button>
