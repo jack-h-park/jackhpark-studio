@@ -189,14 +189,21 @@
 }
 
 .runLogEmpty {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--ai-space-2);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--ai-space-3);
+  align-items: center;
   text-align: left;
   padding: var(--ai-space-3) 0 var(--ai-space-2);
   width: min(520px, 100%);
-  margin-inline: auto;
+  margin-inline: 0;
+  padding-inline: 0;
+}
+
+.runLogEmptyContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ai-space-1);
 }
 
 .runLogEmptyIcon {

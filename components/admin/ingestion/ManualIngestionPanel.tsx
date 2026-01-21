@@ -10,6 +10,7 @@ import type { ManualLogEvent } from "@/lib/admin/ingestion-types";
 import { WorkflowStep } from "@/components/admin/workflow";
 import { IngestionSourceToggle } from "@/components/ingestion/IngestionSourceToggle";
 import { PeerRow } from "@/components/shared/peer-row";
+import { SelectableTile } from "@/components/shared/selectable-tile";
 import { Button } from "@/components/ui/button";
 import {
   CardDescription,
@@ -23,7 +24,6 @@ import insetPanelStyles from "@/components/ui/inset-panel.module.css";
 import { Label } from "@/components/ui/label";
 import { ManualLogEntry } from "@/components/ui/manual-log-entry";
 import { ProgressGroup } from "@/components/ui/progress-group";
-import { Radiobutton } from "@/components/ui/radiobutton";
 import {
   Select,
   SelectContent,
@@ -325,7 +325,7 @@ export function ManualIngestionPanel(): JSX.Element {
                         role="radiogroup"
                         aria-labelledby={`${manualScopeHeadingId} ${manualScopePagesSubheadingId}`}
                       >
-                        <Radiobutton
+                        <SelectableTile
                           name="manual-ingestion-scope"
                           value="workspace"
                           label="Ingest all pages in this workspace"
@@ -333,7 +333,6 @@ export function ManualIngestionPanel(): JSX.Element {
                           checked={ingestion.ingestionScope === "workspace"}
                           disabled={ingestion.isRunning}
                           onChange={ingestion.setIngestionScope}
-                          variant="chip"
                           className={cn(
                             manualStyles.selectionOption,
                             manualStyles.chipTile,
@@ -342,7 +341,7 @@ export function ManualIngestionPanel(): JSX.Element {
                               manualStyles.chipTileActive,
                           )}
                         />
-                        <Radiobutton
+                        <SelectableTile
                           name="manual-ingestion-scope"
                           value="selected"
                           label="Ingest only selected page(s)"
@@ -350,7 +349,6 @@ export function ManualIngestionPanel(): JSX.Element {
                           checked={ingestion.ingestionScope === "selected"}
                           disabled={ingestion.isRunning}
                           onChange={ingestion.setIngestionScope}
-                          variant="chip"
                           className={cn(
                             manualStyles.selectionOption,
                             manualStyles.chipTile,
@@ -473,7 +471,6 @@ export function ManualIngestionPanel(): JSX.Element {
                 </div>
               </WorkflowStep>
               <WorkflowStep
-                eyebrow="Update behavior"
                 title="Update strategy"
                 hint="Choose how to refresh your content."
               >
@@ -490,40 +487,38 @@ export function ManualIngestionPanel(): JSX.Element {
                         manualStyles.chipGrid,
                       )}
                     >
-                      <Radiobutton
-                        name={currentScopeGroupName}
-                        value="partial"
-                        label="Only pages with changes"
-                        description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
-                        checked={currentScope === "partial"}
-                        disabled={ingestion.isRunning}
-                        onChange={setCurrentScope}
-                        variant="chip"
-                        className={cn(
-                          manualStyles.selectionOption,
-                          manualStyles.chipTile,
-                          currentScope === "partial" &&
-                            manualStyles.selectionOptionActive &&
-                            manualStyles.chipTileActive,
-                        )}
-                      />
-                      <Radiobutton
-                        name={currentScopeGroupName}
-                        value="full"
-                        label="Re-ingest all pages"
-                        description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
-                        checked={currentScope === "full"}
-                        disabled={ingestion.isRunning}
-                        onChange={setCurrentScope}
-                        variant="chip"
-                        className={cn(
-                          manualStyles.selectionOption,
-                          manualStyles.chipTile,
-                          currentScope === "full" &&
-                            manualStyles.selectionOptionActive &&
-                            manualStyles.chipTileActive,
-                        )}
-                      />
+                        <SelectableTile
+                          name={currentScopeGroupName}
+                          value="partial"
+                          label="Only pages with changes"
+                          description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
+                          checked={currentScope === "partial"}
+                          disabled={ingestion.isRunning}
+                          onChange={setCurrentScope}
+                          className={cn(
+                            manualStyles.selectionOption,
+                            manualStyles.chipTile,
+                            currentScope === "partial" &&
+                              manualStyles.selectionOptionActive &&
+                              manualStyles.chipTileActive,
+                          )}
+                        />
+                        <SelectableTile
+                          name={currentScopeGroupName}
+                          value="full"
+                          label="Re-ingest all pages"
+                          description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
+                          checked={currentScope === "full"}
+                          disabled={ingestion.isRunning}
+                          onChange={setCurrentScope}
+                          className={cn(
+                            manualStyles.selectionOption,
+                            manualStyles.chipTile,
+                            currentScope === "full" &&
+                              manualStyles.selectionOptionActive &&
+                              manualStyles.chipTileActive,
+                          )}
+                        />
                     </div>
                   </GridPanel>
                 </PeerRow>
@@ -651,12 +646,14 @@ export function ManualIngestionPanel(): JSX.Element {
                   <span className={manualStyles.runLogEmptyIcon}>
                     <FiInfo aria-hidden="true" />
                   </span>
-                  <p className="ai-text text-[color:var(--ai-text-muted)]">
-                    No logs yet; run ingestion to populate entries.
-                  </p>
-                  <p className="ai-meta-text">
-                    Execution logs will stream here once you start a run.
-                  </p>
+                  <div className={manualStyles.runLogEmptyContent}>
+                    <p className="ai-text text-[color:var(--ai-text-muted)]">
+                      No logs yet; run ingestion to populate entries.
+                    </p>
+                    <p className="ai-meta-text">
+                      Execution logs will stream here once you start a run.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div
