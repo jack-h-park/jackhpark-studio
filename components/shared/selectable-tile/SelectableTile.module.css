@@ -1,27 +1,34 @@
 .tile {
   border-radius: var(--ai-radius-md);
-  border: 1px solid var(--ai-role-border-muted);
+  border: 1px solid var(--ai-role-border-base);
   background-color: color-mix(
-    in srgb,
+    in sRGB,
     var(--ai-role-surface-1) 80%,
-    var(--ai-role-surface-hover) 20%
+    var(--ai-role-surface-0) 20%
   );
   min-height: 3rem;
-  box-shadow: inset 0 0 0 1px var(--ai-role-border-base);
+  cursor: pointer;
   transition:
     border-color 0.2s ease,
-    background-color 0.2s ease,
-    box-shadow 0.2s ease;
+    background-color 0.2s ease;
 }
 
 .tile:not(.ai-selectable--active):hover {
   border-color: var(--ai-role-border-base);
   background-color: color-mix(
-    in srgb,
-    var(--ai-role-surface-1) 70%,
-    var(--ai-role-surface-hover) 30%
+    in sRGB,
+    var(--ai-role-surface-hover) 12%,
+    var(--ai-role-surface-1) 88%
   );
-  box-shadow: inset 0 0 0 1px var(--ai-role-border-base);
+}
+
+.tile:not(.ai-selectable--active):active {
+  border-color: var(--ai-role-border-selected, var(--ai-role-border-base));
+  background-color: color-mix(
+    in sRGB,
+    var(--ai-role-surface-hover) 24%,
+    var(--ai-role-surface-1) 76%
+  );
 }
 
 .tile.ai-selectable--active {

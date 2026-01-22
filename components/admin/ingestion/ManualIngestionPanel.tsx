@@ -290,7 +290,7 @@ export function ManualIngestionPanel(): JSX.Element {
                 }
               />
               <WorkflowStep
-                title="Scope"
+                title="Ingestion scope"
                 titleId={manualScopeHeadingId}
                 hint={
                   ingestion.mode === "notion_page"
@@ -314,7 +314,7 @@ export function ManualIngestionPanel(): JSX.Element {
                   <TabPanel
                     tabId="notion_page"
                     activeTabId={ingestion.mode}
-                    className="ai-tab-panel space-y-4 px-2 pt-2 pb-2"
+                    className="ai-tab-panel space-y-4 pt-2 pb-2"
                   >
                     <div className="space-y-4">
                       <div
@@ -333,13 +333,6 @@ export function ManualIngestionPanel(): JSX.Element {
                           checked={ingestion.ingestionScope === "workspace"}
                           disabled={ingestion.isRunning}
                           onChange={ingestion.setIngestionScope}
-                          className={cn(
-                            manualStyles.selectionOption,
-                            manualStyles.chipTile,
-                            ingestion.ingestionScope === "workspace" &&
-                              manualStyles.selectionOptionActive &&
-                              manualStyles.chipTileActive,
-                          )}
                         />
                         <SelectableTile
                           name="manual-ingestion-scope"
@@ -349,13 +342,6 @@ export function ManualIngestionPanel(): JSX.Element {
                           checked={ingestion.ingestionScope === "selected"}
                           disabled={ingestion.isRunning}
                           onChange={ingestion.setIngestionScope}
-                          className={cn(
-                            manualStyles.selectionOption,
-                            manualStyles.chipTile,
-                            ingestion.ingestionScope === "selected" &&
-                              manualStyles.selectionOptionActive &&
-                              manualStyles.chipTileActive,
-                          )}
                         />
                       </div>
                       <div
@@ -434,7 +420,7 @@ export function ManualIngestionPanel(): JSX.Element {
                   <TabPanel
                     tabId="url"
                     activeTabId={ingestion.mode}
-                    className="ai-tab-panel space-y-2 px-5 pt-4 pb-5"
+                    className="ai-tab-panel space-y-2 pt-4 pb-5"
                   >
                     <div className="space-y-3">
                       <div
@@ -471,8 +457,8 @@ export function ManualIngestionPanel(): JSX.Element {
                 </div>
               </WorkflowStep>
               <WorkflowStep
-                title="Update strategy"
-                hint="Choose how to refresh your content."
+                title="Update behavior"
+                hint="Choose how to refresh your content and which embeddings to use."
               >
                 <PeerRow dataRailId="update-strategy-row">
                   <GridPanel
@@ -495,13 +481,6 @@ export function ManualIngestionPanel(): JSX.Element {
                           checked={currentScope === "partial"}
                           disabled={ingestion.isRunning}
                           onChange={setCurrentScope}
-                          className={cn(
-                            manualStyles.selectionOption,
-                            manualStyles.chipTile,
-                            currentScope === "partial" &&
-                              manualStyles.selectionOptionActive &&
-                              manualStyles.chipTileActive,
-                          )}
                         />
                         <SelectableTile
                           name={currentScopeGroupName}
@@ -511,13 +490,6 @@ export function ManualIngestionPanel(): JSX.Element {
                           checked={currentScope === "full"}
                           disabled={ingestion.isRunning}
                           onChange={setCurrentScope}
-                          className={cn(
-                            manualStyles.selectionOption,
-                            manualStyles.chipTile,
-                            currentScope === "full" &&
-                              manualStyles.selectionOptionActive &&
-                              manualStyles.chipTileActive,
-                          )}
                         />
                     </div>
                   </GridPanel>
