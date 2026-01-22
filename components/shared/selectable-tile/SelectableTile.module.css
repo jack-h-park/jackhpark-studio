@@ -3,8 +3,8 @@
   border: 1px solid var(--ai-role-border-base);
   background-color: color-mix(
     in sRGB,
-    var(--ai-role-surface-1) 80%,
-    var(--ai-role-surface-0) 20%
+    var(--ai-role-surface-1) 96%,
+    var(--ai-role-surface-0) 4%
   );
   min-height: 3rem;
   cursor: pointer;
@@ -14,11 +14,11 @@
 }
 
 .tile:not(.ai-selectable--active):hover {
-  border-color: var(--ai-role-border-base);
+  border-color: var(--ai-role-border-selected, var(--ai-role-border-base));
   background-color: color-mix(
     in sRGB,
-    var(--ai-role-surface-hover) 12%,
-    var(--ai-role-surface-1) 88%
+    var(--ai-role-surface-hover) 18%,
+    var(--ai-role-surface-1) 82%
   );
 }
 
@@ -26,8 +26,8 @@
   border-color: var(--ai-role-border-selected, var(--ai-role-border-base));
   background-color: color-mix(
     in sRGB,
-    var(--ai-role-surface-hover) 24%,
-    var(--ai-role-surface-1) 76%
+    var(--ai-role-surface-hover) 30%,
+    var(--ai-role-surface-1) 70%
   );
 }
 

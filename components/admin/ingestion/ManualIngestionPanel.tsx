@@ -285,6 +285,7 @@ export function ManualIngestionPanel(): JSX.Element {
                       onChange={handleModeChange}
                       disabled={ingestion.isRunning}
                       size="md"
+                      className={manualStyles.sourceToggleControl}
                     />
                   </div>
                 }
@@ -314,7 +315,10 @@ export function ManualIngestionPanel(): JSX.Element {
                   <TabPanel
                     tabId="notion_page"
                     activeTabId={ingestion.mode}
-                    className="ai-tab-panel space-y-4 pt-2 pb-2"
+                    className={cn(
+                      "ai-tab-panel space-y-4 pt-2 pb-2",
+                      manualStyles.scopeTabPanel,
+                    )}
                   >
                     <div className="space-y-4">
                       <div
@@ -420,7 +424,10 @@ export function ManualIngestionPanel(): JSX.Element {
                   <TabPanel
                     tabId="url"
                     activeTabId={ingestion.mode}
-                    className="ai-tab-panel space-y-2 pt-4 pb-5"
+                    className={cn(
+                      "ai-tab-panel space-y-2 pt-4 pb-5",
+                      manualStyles.scopeTabPanel,
+                    )}
                   >
                     <div className="space-y-3">
                       <div
@@ -459,72 +466,83 @@ export function ManualIngestionPanel(): JSX.Element {
               <WorkflowStep
                 title="Update behavior"
                 hint="Choose how to refresh your content and which embeddings to use."
+                bodyClassName={manualStyles.updateBehaviorBody}
               >
-                <PeerRow dataRailId="update-strategy-row">
-                  <GridPanel
-                    as="fieldset"
-                    className="gap-4"
-                    role="radiogroup"
-                    aria-labelledby={currentScopeLabelId}
+                <div className={manualStyles.updateBehaviorGroup}>
+                  <PeerRow
+                    dataRailId="update-strategy-row"
+                    className={manualStyles.updateBehaviorRow}
                   >
-                    <div
-                      className={cn(
-                        "grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center",
-                        manualStyles.chipGrid,
-                      )}
+                    <GridPanel
+                      as="fieldset"
+                      className="gap-4"
+                      role="radiogroup"
+                      aria-labelledby={currentScopeLabelId}
                     >
-                        <SelectableTile
-                          name={currentScopeGroupName}
-                          value="partial"
-                          label="Only pages with changes"
-                          description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
-                          checked={currentScope === "partial"}
-                          disabled={ingestion.isRunning}
-                          onChange={setCurrentScope}
-                        />
-                        <SelectableTile
-                          name={currentScopeGroupName}
-                          value="full"
-                          label="Re-ingest all pages"
-                          description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
-                          checked={currentScope === "full"}
-                          disabled={ingestion.isRunning}
-                          onChange={setCurrentScope}
-                        />
-                    </div>
-                  </GridPanel>
-                </PeerRow>
-                <PeerRow
-                  dataRailId="embedding-model-row"
-                  label="Embedding model"
-                  hint="Determines which embedding space is used for this run."
-                  labelId={manualEmbeddingLabelId}
-                  hintId={manualEmbeddingHintId}
-                >
-                  <Select
-                    value={ingestion.manualEmbeddingProvider}
-                    onValueChange={(value) =>
-                      ingestion.setEmbeddingProviderAndSave(value)
-                    }
-                    disabled={ingestion.isRunning}
+                      <div
+                        className={cn(
+                          "grid grid-cols-[minmax(150px,1fr)_repeat(1,minmax(0,1fr))] gap-3 items-center",
+                          manualStyles.chipGrid,
+                        )}
+                      >
+                          <SelectableTile
+                            name={currentScopeGroupName}
+                            value="partial"
+                            label="Only pages with changes"
+                            description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
+                            checked={currentScope === "partial"}
+                            disabled={ingestion.isRunning}
+                            onChange={setCurrentScope}
+                          />
+                          <SelectableTile
+                            name={currentScopeGroupName}
+                            value="full"
+                            label="Re-ingest all pages"
+                            description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
+                            checked={currentScope === "full"}
+                            disabled={ingestion.isRunning}
+                            onChange={setCurrentScope}
+                          />
+                      </div>
+                    </GridPanel>
+                  </PeerRow>
+                  <div
+                    className={manualStyles.updateBehaviorDivider}
+                    aria-hidden="true"
+                  />
+                  <PeerRow
+                    dataRailId="embedding-model-row"
+                    label="Embedding model"
+                    hint="Determines which embedding space is used for this run."
+                    labelId={manualEmbeddingLabelId}
+                    hintId={manualEmbeddingHintId}
+                    className={manualStyles.updateBehaviorRow}
                   >
-                    <SelectTrigger
-                      id="manual-provider-select"
-                      aria-labelledby={manualEmbeddingLabelId}
-                      aria-describedby={manualEmbeddingHintId}
-                    />
-                    <SelectContent>
-                      {EMBEDDING_MODEL_OPTIONS.map((option) => (
-                        <SelectItem
-                          key={option.embeddingSpaceId}
-                          value={option.embeddingSpaceId}
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </PeerRow>
+                    <Select
+                      value={ingestion.manualEmbeddingProvider}
+                      onValueChange={(value) =>
+                        ingestion.setEmbeddingProviderAndSave(value)
+                      }
+                      disabled={ingestion.isRunning}
+                    >
+                      <SelectTrigger
+                        id="manual-provider-select"
+                        aria-labelledby={manualEmbeddingLabelId}
+                        aria-describedby={manualEmbeddingHintId}
+                      />
+                      <SelectContent>
+                        {EMBEDDING_MODEL_OPTIONS.map((option) => (
+                          <SelectItem
+                            key={option.embeddingSpaceId}
+                            value={option.embeddingSpaceId}
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </PeerRow>
+                </div>
                 {ingestion.errorMessage ? (
                   <div role="alert">
                     <p className="ai-meta-text text-[color:var(--ai-error)]">
@@ -611,6 +629,7 @@ export function ManualIngestionPanel(): JSX.Element {
               />
             }
             hintId={manualRunLogSubtitleId}
+            className={manualStyles.runLogStep}
           >
             <div className={manualStyles.runLogBody}>
               {ingestion.logs.length === 0 ? (
@@ -622,7 +641,7 @@ export function ManualIngestionPanel(): JSX.Element {
                     <p className="ai-text text-[color:var(--ai-text-muted)]">
                       No logs yet; run ingestion to populate entries.
                     </p>
-                    <p className="ai-meta-text">
+                    <p className={cn("ai-meta-text", manualStyles.runLogEmptyHint)}>
                       Execution logs will stream here once you start a run.
                     </p>
                   </div>

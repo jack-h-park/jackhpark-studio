@@ -13,12 +13,24 @@
 .sourceToggleWrap {
   width: 100%;
   max-width: min(840px, 100%);
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: var(--ai-space-2);
+  margin-top: calc(var(--ai-space-1) * -1);
+  padding-top: var(--ai-space-1);
+  padding-bottom: var(--ai-space-1);
 }
 
 @media (max-width: 640px) {
   .sourceToggleWrap {
     width: 100%;
   }
+}
+
+.sourceToggleControl {
+  width: min(360px, 100%);
+  min-width: 220px;
 }
 
 .chipGrid {
@@ -33,10 +45,25 @@
   width: 100%;
 }
 
+.updateBehaviorBody {
+  gap: var(--ai-space-2);
+}
+
+.updateBehaviorRow {
+  gap: var(--ai-space-2);
+  padding-block: var(--ai-space-2);
+}
+
+.updateBehaviorDivider {
+  border-top-color: var(--ai-role-divider-base);
+}
+
 .pageInputGroup {
-  border-radius: var(--ai-radius-md);
-  border: 1px solid var(--ai-role-border-subtle);
-  padding: 0.75rem;
+  border-radius: var(--ai-radius-sm);
+  border: 1px solid var(--ai-role-divider-muted);
+  padding-block: var(--ai-space-3);
+  padding-inline: var(--ai-space-4);
+  background-color: transparent;
   transition:
     opacity 0.2s ease,
     border-color 0.2s ease;
@@ -81,15 +108,34 @@
 .scopeContainer {
   display: flex;
   flex-direction: column;
+  border-radius: var(--ai-radius-lg);
+  border: 1px solid color-mix(
+    in srgb,
+    var(--ai-role-border-subtle) 40%,
+    transparent 60%
+  );
+  background-color: color-mix(
+    in srgb,
+    var(--ai-role-surface-1) 90%,
+    transparent 10%
+  );
+  padding: var(--ai-space-4);
   gap: var(--ai-space-3);
+}
+
+.scopeTabPanel {
+  border: 0;
   padding: 0;
+  background-color: transparent;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 
 .executionStrip {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: var(--ai-space-4);
+  gap: var(--ai-space-2);
   align-items: center;
   width: 100%;
 }
@@ -101,7 +147,7 @@
 .executionProgressStack {
   display: flex;
   flex-direction: column;
-  gap: var(--ai-space-3);
+  gap: var(--ai-space-1);
   min-width: 0;
 }
 
@@ -111,6 +157,7 @@
   color: var(--ai-text-strong);
   text-align: right;
   line-height: 1;
+  min-width: 48px;
 }
 
 .runLogPanel {
@@ -125,7 +172,7 @@
 .runLogBody {
   display: flex;
   flex-direction: column;
-  gap: var(--ai-space-3);
+  gap: var(--ai-space-1);
   padding-block: var(--ai-space-3);
 }
 
@@ -158,12 +205,38 @@
 }
 
 .runLogEmptyIcon {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   border-radius: var(--ai-radius-full);
-  border: 1px solid var(--ai-role-border-muted);
+  border: 1px solid var(--ai-role-divider-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: var(--ai-text-muted);
+  opacity: 0.85;
+}
+
+.runLogEmptyHint {
+  color: var(--ai-text-soft);
+  opacity: 0.9;
+  margin: 0;
+}
+
+.updateBehaviorGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.updateBehaviorRow {
+  padding-block: var(--ai-space-2);
+}
+
+.updateBehaviorDivider {
+  border-top: 1px solid var(--ai-role-divider-base);
+  margin: 0 var(--wf-rail-x);
+}
+
+.runLogStep {
+  gap: var(--ai-space-2);
 }
