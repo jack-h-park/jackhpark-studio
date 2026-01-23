@@ -1,3 +1,5 @@
+import { FiChevronDown } from "@react-icons/all-files/fi/FiChevronDown";
+import { FiExternalLink } from "@react-icons/all-files/fi/FiExternalLink";
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 import { useRouter } from "next/router";
 import {
@@ -14,6 +16,7 @@ import type {
   RecentRunsSnapshot,
   RunsApiResponse,
 } from "@/lib/admin/ingestion-types";
+import type { ModelProvider } from "@/lib/shared/model-provider";
 import { RecentRunsFilters } from "@/components/admin/ingestion/recent-runs-filters";
 import { Button } from "@/components/ui/button";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +36,6 @@ import {
   collectEmbeddingModels,
   collectSources,
   getEmbeddingSpaceIdFromMetadata,
-  getNumericMetadata,
   getStringMetadata,
   mergeEmbeddingModels,
   mergeSources,
@@ -56,11 +58,74 @@ import {
 } from "@/lib/admin/ingestion-runs";
 import {
   ALL_FILTER_VALUE,
-  formatEmbeddingSpaceLabel,
   getEmbeddingSpaceOption,
 } from "@/lib/admin/recent-runs-filters";
 
 import recentStyles from "./RecentRunsPanel.module.css";
+
+const EMBEDDING_PROVIDER_BADGES: Record<ModelProvider, string> = {
+  openai: "OpenAI",
+  gemini: "Gemini",
+  ollama: "Ollama",
+  lmstudio: "LM Studio",
+};
+
+type DetailStatLine = {
+  label: string;
+  value: number | null | undefined;
+  format?: (value: number) => string;
+};
+
+function renderDetailStatField(
+  label: string,
+  stats: DetailStatLine[],
+) {
+  return (
+    <div className={recentStyles.detailField} key={label}>
+      <span className={recentStyles.detailsLabel}>{label}</span>
+      <div className={recentStyles.detailStatsList}>
+        {stats.map((stat) => (
+          <div
+            key={`${label}-${stat.label}`}
+            className={recentStyles.detailStatLine}
+          >
+            <span className={recentStyles.detailStatLabelInline}>
+              {stat.label}
+            </span>
+            <span className={recentStyles.detailStatValueInline}>
+              {stat.format
+                ? stat.format(stat.value ?? 0)
+                : numberFormatter.format(stat.value ?? 0)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function getCompactEmbeddingLabel(
+  embeddingSpaceId: string | null | undefined,
+) {
+  const option = getEmbeddingSpaceOption(embeddingSpaceId);
+  const providerLabel = option
+    ? EMBEDDING_PROVIDER_BADGES[option.provider] ?? option.provider
+    : "Model";
+  const rawModel =
+    option?.model ??
+    option?.embeddingModelId ??
+    embeddingSpaceId ??
+    "Unknown";
+  const compactModel =
+    rawModel.replace(/^text-embedding-/, "") || rawModel;
+  const versionSuffix = option?.version ? ` (${option.version})` : "";
+  const displayLabel = `${providerLabel} ${compactModel}${versionSuffix}`.trim();
+  const fullLabel = option?.label ?? embeddingSpaceId ?? "Unknown model";
+  return {
+    displayLabel: displayLabel || "Unknown model",
+    fullLabel,
+  };
+}
 
 export function RecentRunsSection({
   initial,
@@ -107,6 +172,9 @@ export function RecentRunsSection({
     {},
   );
   const firstLoadRef = useRef(true);
+  const [expandedRunIds, setExpandedRunIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const hasFiltersApplied =
     statusFilter !== ALL_FILTER_VALUE ||
@@ -720,6 +788,18 @@ export function RecentRunsSection({
     [handleDeleteRun],
   );
 
+  const toggleRunDetails = useCallback((runId: string) => {
+    setExpandedRunIds((current) => {
+      const next = new Set(current);
+      if (next.has(runId)) {
+        next.delete(runId);
+      } else {
+        next.add(runId);
+      }
+      return next;
+    });
+  }, []);
+
   const handlePageChange = useCallback(
     (nextPage: number) => {
       const maxPages = Math.max(totalPages, 1);
@@ -761,6 +841,13 @@ export function RecentRunsSection({
     totalCount === 0
       ? "No runs to display yet."
       : `Showing ${numberFormatter.format(startIndex)}-${numberFormatter.format(endIndex)} of ${numberFormatter.format(totalCount)} run${totalCount === 1 ? "" : "s"}.`;
+  const resolvePageUrl = useCallback((run: RunRecord) => {
+    const publicPageUrl = getStringMetadata(run.metadata, "publicPageUrl");
+    const pageUrl =
+      publicPageUrl ?? getStringMetadata(run.metadata, "pageUrl");
+    const fallbackUrl = getStringMetadata(run.metadata, "url");
+    return pageUrl ?? fallbackUrl ?? null;
+  }, []);
   const columns = useMemo<DataTableColumn<RunRecord>[]>(() => {
     return [
       {
@@ -768,9 +855,11 @@ export function RecentRunsSection({
         render: (run) => <ClientSideDate value={run.started_at} />,
         variant: "muted",
         size: "xs",
+        className: recentStyles.startedColumn,
+        width: "130px",
       },
       {
-        header: "Status",
+        header: "Outcome",
         render: (run) => {
           const errorCount = run.error_count ?? 0;
           const logs = run.error_logs ?? [];
@@ -788,54 +877,66 @@ export function RecentRunsSection({
             runStatusVariantMap[
               (displayStatus ?? "unknown") as RunStatus | "unknown"
             ];
+          const typeVariant = run.ingestion_type === "full" ? "info" : "warning";
+          const typeLabel =
+            run.ingestion_type === "full" ? "Full" : "Partial";
 
           return (
-            <div className="flex flex-col gap-2">
-              <StatusPill
-                variant={statusVariant}
-                className={
-                  displayStatus === "completed_with_errors"
-                    ? "ai-status-pill--block"
-                    : undefined
-                }
-              >
-                {displayStatusLabel}
-              </StatusPill>
-              <ErrorLogSummary
-                errorCount={errorCount}
-                logs={logs}
-                runId={run.id}
-              />
+            <div className={recentStyles.outcomeCell}>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusPill
+                  variant={statusVariant}
+                  className={
+                    displayStatus === "completed_with_errors"
+                      ? "ai-status-pill--block"
+                      : undefined
+                  }
+                >
+                  {displayStatusLabel}
+                </StatusPill>
+                <StatusPill variant={typeVariant}>{typeLabel}</StatusPill>
+                <ErrorLogSummary
+                  errorCount={errorCount}
+                  logs={logs}
+                  runId={run.id}
+                />
+              </div>
             </div>
           );
         },
+        variant: "primary",
+        size: "sm",
+        className: recentStyles.outcomeColumn,
+        width: "180px",
       },
       {
-        header: "Type",
-        render: (run) => (
-          <div className="space-y-1">
-            <StatusPill
-              variant={run.ingestion_type === "full" ? "info" : "warning"}
-            >
-              {run.ingestion_type === "full" ? "Full" : "Partial"}
-            </StatusPill>
-          </div>
-        ),
-      },
-      {
-        header: "Embedding Model",
+        header: "Embedding",
         render: (run) => {
           const embeddingSpaceId = getEmbeddingSpaceIdFromMetadata(
             run.metadata,
           );
-          const embeddingModelLabel =
-            embeddingSpaceId === null
-              ? "Unknown"
-              : formatEmbeddingSpaceLabel(embeddingSpaceId);
-          return embeddingModelLabel;
+          const { displayLabel, fullLabel } = getCompactEmbeddingLabel(
+            embeddingSpaceId,
+          );
+          return (
+            <span
+              className={cn(
+                recentStyles.embeddingColumn,
+                recentStyles.cellTruncate,
+              )}
+              title={fullLabel}
+            >
+              {displayLabel}
+            </span>
+          );
         },
         variant: "primary",
         size: "xs",
+        className: cn(
+          recentStyles.embeddingColumn,
+          recentStyles.cellTruncate,
+        ),
+        width: "160px",
       },
       {
         header: "Duration",
@@ -843,160 +944,341 @@ export function RecentRunsSection({
         align: "right",
         variant: "numeric",
         size: "xs",
+        className: recentStyles.numericColumn,
+        width: "90px",
       },
       {
         header: "Chunks",
-        render: (run) => (
-          <div className="space-y-1 text-xs text-[color:var(--ai-text-muted)] whitespace-nowrap">
-            <div>Added: {numberFormatter.format(run.chunks_added ?? 0)}</div>
-            <div>
-              Updated: {numberFormatter.format(run.chunks_updated ?? 0)}
-            </div>
-          </div>
-        ),
+        render: (run) => {
+          const added = run.chunks_added ?? 0;
+          const updated = run.chunks_updated ?? 0;
+          const title = `Chunks — Added: ${numberFormatter.format(
+            added,
+          )}, Updated: ${numberFormatter.format(updated)}`;
+          const placeholderSlot = " · —";
+          return (
+            <span
+              className={cn(
+                recentStyles.numericColumn,
+                recentStyles.cellCompact,
+                recentStyles.metricSummary,
+                recentStyles.chunksCell,
+              )}
+              title={title}
+            >
+              {`+${numberFormatter.format(added)} · ~${numberFormatter.format(
+                updated,
+              )}${placeholderSlot}`}
+            </span>
+          );
+        },
         align: "right",
         variant: "muted",
         size: "xs",
+        className: cn(
+          recentStyles.numericColumn,
+          recentStyles.chunksCell,
+        ),
+        width: "140px",
       },
       {
         header: "Docs",
-        render: (run) => (
-          <div className="space-y-1 text-xs text-[color:var(--ai-text-muted)] whitespace-nowrap">
-            <div>Added: {numberFormatter.format(run.documents_added ?? 0)}</div>
-            <div>
-              Updated: {numberFormatter.format(run.documents_updated ?? 0)}
-            </div>
-            <div>
-              Skipped: {numberFormatter.format(run.documents_skipped ?? 0)}
-            </div>
-          </div>
-        ),
+        render: (run) => {
+          const added = run.documents_added ?? 0;
+          const updated = run.documents_updated ?? 0;
+          const skipped = run.documents_skipped ?? 0;
+          const skipPart =
+            skipped > 0
+              ? ` −${numberFormatter.format(skipped)}`
+              : "";
+          const title = `Docs — Added: ${numberFormatter.format(
+            added,
+          )}, Updated: ${numberFormatter.format(updated)}${
+            skipped > 0
+              ? `, Skipped: ${numberFormatter.format(skipped)}`
+              : ""
+          }`;
+          return (
+            <span
+              className={cn(
+                recentStyles.numericColumn,
+                recentStyles.cellCompact,
+                recentStyles.metricSummary,
+                recentStyles.docsCell,
+              )}
+              title={title}
+            >
+              {`+${numberFormatter.format(added)} · ~${numberFormatter.format(
+                updated,
+              )}${skipPart ? ` ·${skipPart}` : " · —"}`}
+            </span>
+          );
+        },
         align: "right",
         variant: "muted",
         size: "xs",
+        className: cn(
+          recentStyles.numericColumn,
+          recentStyles.docsCell,
+        ),
+        width: "140px",
       },
       {
         header: "Data Added",
-        render: (run) => formatCharacters(run.characters_added ?? 0),
+        render: (run) => {
+          const value = run.characters_added ?? 0;
+          const detailText = formatCharacters(value);
+          const display = value > 0 ? detailText : "—";
+          return (
+            <span
+              className={cn(
+                recentStyles.numericColumn,
+                recentStyles.numericDataCell,
+                recentStyles.cellNums,
+              )}
+              title={detailText}
+            >
+              {display}
+            </span>
+          );
+        },
         align: "right",
         variant: "numeric",
         size: "xs",
+        className: cn(
+          recentStyles.numericColumn,
+          recentStyles.numericDataCell,
+        ),
+        width: "110px",
       },
       {
         header: "Data Updated",
-        render: (run) => formatCharacters(run.characters_updated ?? 0),
+        render: (run) => {
+          const value = run.characters_updated ?? 0;
+          const detailText = formatCharacters(value);
+          const display = value > 0 ? detailText : "—";
+          return (
+            <span
+              className={cn(
+                recentStyles.numericColumn,
+                recentStyles.numericDataCell,
+                recentStyles.cellNums,
+              )}
+              title={detailText}
+            >
+              {display}
+            </span>
+          );
+        },
         align: "right",
         variant: "numeric",
         size: "xs",
-      },
-      {
-        header: "Notes",
-        render: (run) => {
-          const rootPageId = getStringMetadata(run.metadata, "rootPageId");
-          const pageUrl =
-            getStringMetadata(run.metadata, "publicPageUrl") ??
-            getStringMetadata(run.metadata, "pageUrl");
-          const pageId = getStringMetadata(run.metadata, "pageId");
-          const targetUrl = getStringMetadata(run.metadata, "url");
-          const hostname = getStringMetadata(run.metadata, "hostname");
-          const urlCount = getNumericMetadata(run.metadata, "urlCount");
-          const finishedAt = run.ended_at;
-          const entries: Array<{ label: string; value: JSX.Element | string }> =
-            [];
-          if (rootPageId) {
-            entries.push({ label: "Root", value: rootPageId });
-          }
-          if (pageId) {
-            entries.push({ label: "Page ID", value: pageId });
-          }
-          if (pageUrl) {
-            entries.push({
-              label: "Page",
-              value: (
-                <a
-                  className="text-[color:var(--ai-accent-strong)] underline"
-                  href={pageUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {pageUrl}
-                </a>
-              ),
-            });
-          }
-          if (targetUrl) {
-            entries.push({
-              label: "URL",
-              value: (
-                <a
-                  className="text-[color:var(--ai-accent-strong)] underline"
-                  href={targetUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {targetUrl}
-                </a>
-              ),
-            });
-          }
-          if (hostname) {
-            entries.push({ label: "Host", value: hostname });
-          }
-          if (urlCount !== null) {
-            entries.push({
-              label: "URLs",
-              value: numberFormatter.format(urlCount),
-            });
-          }
-          if (finishedAt) {
-            entries.push({
-              label: "Finished",
-              value: <ClientSideDate value={finishedAt} />,
-            });
-          }
-          if (entries.length === 0) {
-            return <span className="ai-meta-text">—</span>;
-          }
-          return (
-            <div
-              className={cn(
-                "space-y-1 text-xs text-[color:var(--ai-text-muted)]",
-                recentStyles.notesColumn,
-              )}
-            >
-              {entries.map((entry, index) => (
-                <div key={`${entry.label}-${index}`}>
-                  <span className="font-semibold text-[color:var(--ai-text-strong)]">
-                    {entry.label}:
-                  </span>{" "}
-                  {entry.value}
-                </div>
-              ))}
-            </div>
-          );
-        },
-        size: "xs",
+        className: cn(
+          recentStyles.numericColumn,
+          recentStyles.numericDataCell,
+        ),
+        width: "110px",
       },
       {
         header: "Actions",
         render: (run) => {
           const isDeleting = deletingRunIds[run.id] === true;
+          const pageUrl = resolvePageUrl(run);
+          const isExpanded = expandedRunIds.has(run.id);
           return (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleDeleteRunClick(run)}
-              disabled={isDeleting}
-              className="text-[color:var(--ai-error)] border-[color:var(--ai-error)] hover:bg-[color:var(--ai-error-muted)]"
-            >
-              {isDeleting ? "Deleting…" : "Delete"}
-            </Button>
+            <div className={recentStyles.actionsCell}>
+              <div className={recentStyles.actionsPrimary}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeleteRunClick(run)}
+                  disabled={isDeleting}
+                  className="text-[color:var(--ai-error)] border-[color:var(--ai-error)] hover:bg-[color:var(--ai-error-muted)]"
+                >
+                  {isDeleting ? "Deleting…" : "Delete"}
+                </Button>
+                {pageUrl ? (
+                  <a
+                    href={pageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={pageUrl}
+                    aria-label="Open page in a new tab"
+                    className={cn(
+                      "ai-button ai-button-ghost ai-button-size-sm focus-ring flex-nowrap",
+                      recentStyles.pageAction,
+                    )}
+                  >
+                    <FiExternalLink
+                      aria-hidden="true"
+                      className="h-4 w-4"
+                    />
+                    <span>Page</span>
+                  </a>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => toggleRunDetails(run.id)}
+                aria-expanded={isExpanded}
+                aria-label={
+                  isExpanded ? "Hide run details" : "Show run details"
+                }
+                className={recentStyles.detailToggle}
+              >
+                <FiChevronDown
+                  aria-hidden="true"
+                  className={cn(
+                    "h-4 w-4 transition-transform duration-150",
+                    isExpanded && "rotate-180",
+                  )}
+                />
+              </Button>
+            </div>
           );
         },
-        align: "center",
+        align: "right",
+        variant: "muted",
+        size: "sm",
+        className: cn(recentStyles.actionsColumn, recentStyles.actionsStable),
+        width: "220px",
       },
     ];
-  }, [deletingRunIds, handleDeleteRunClick]);
+  }, [
+    deletingRunIds,
+    handleDeleteRunClick,
+    expandedRunIds,
+    resolvePageUrl,
+    toggleRunDetails,
+  ]);
+
+  const renderRunDetails = useCallback(
+    (run: RunRecord) => {
+      if (!expandedRunIds.has(run.id)) {
+        return null;
+      }
+      const pageUrl = resolvePageUrl(run);
+      const pageId = getStringMetadata(run.metadata, "pageId");
+      const rootPageId = getStringMetadata(run.metadata, "rootPageId");
+      const notes = getStringMetadata(run.metadata, "notes");
+      const note = getStringMetadata(run.metadata, "note");
+      const issue = getStringMetadata(run.metadata, "issue");
+      const finishedAt = run.ended_at;
+      const detailSections: JSX.Element[] = [];
+
+      if (pageId) {
+        detailSections.push(
+          <div className={recentStyles.detailField} key="page-id">
+            <span className={recentStyles.detailsLabel}>Page ID</span>
+            <span
+              className={cn(
+                recentStyles.detailsValue,
+                recentStyles.detailsValueMono,
+              )}
+            >
+              {pageId}
+            </span>
+          </div>,
+        );
+      }
+
+      if (rootPageId) {
+        detailSections.push(
+          <div className={recentStyles.detailField} key="root-page-id">
+            <span className={recentStyles.detailsLabel}>Root page ID</span>
+            <span
+              className={cn(
+                recentStyles.detailsValue,
+                recentStyles.detailsValueMono,
+              )}
+            >
+              {rootPageId}
+            </span>
+          </div>,
+        );
+      }
+
+      if (pageUrl) {
+        detailSections.push(
+          <div className={recentStyles.detailField} key="page-link">
+            <span className={recentStyles.detailsLabel}>Page link</span>
+            <a
+              href={pageUrl}
+              target="_blank"
+              rel="noreferrer"
+              title={pageUrl}
+              className={recentStyles.detailsLink}
+            >
+              {pageUrl}
+            </a>
+          </div>,
+        );
+      }
+
+      if (finishedAt) {
+        detailSections.push(
+          <div className={recentStyles.detailField} key="finished">
+            <span className={recentStyles.detailsLabel}>Finished</span>
+            <span className={recentStyles.detailsValue}>
+              <ClientSideDate value={finishedAt} />
+            </span>
+          </div>,
+        );
+      }
+
+      const chunkStats: DetailStatLine[] = [
+        { label: "Added", value: run.chunks_added ?? 0 },
+        { label: "Updated", value: run.chunks_updated ?? 0 },
+      ];
+      detailSections.push(renderDetailStatField("Chunks", chunkStats));
+
+      const docStats: DetailStatLine[] = [
+        { label: "Added", value: run.documents_added ?? 0 },
+        { label: "Updated", value: run.documents_updated ?? 0 },
+        { label: "Skipped", value: run.documents_skipped ?? 0 },
+      ];
+      detailSections.push(renderDetailStatField("Documents", docStats));
+
+      const dataStats: DetailStatLine[] = [
+        {
+          label: "Added",
+          value: run.characters_added ?? 0,
+          format: formatCharacters,
+        },
+        {
+          label: "Updated",
+          value: run.characters_updated ?? 0,
+          format: formatCharacters,
+        },
+      ];
+      detailSections.push(renderDetailStatField("Data", dataStats));
+
+      const detailNotes = notes || note || issue ? (
+        <div className={recentStyles.detailNotes} key="notes">
+          <span className={recentStyles.detailsLabel}>Notes</span>
+          <div className={recentStyles.detailNotesContent}>
+            {notes && <p>{notes}</p>}
+            {note && note !== notes && <p>{note}</p>}
+            {issue && (
+              <p>
+                <span className="font-semibold">Issue:</span> {issue}
+              </p>
+            )}
+          </div>
+        </div>
+      ) : null;
+
+      return (
+        <div className={recentStyles.detailsPanel}>
+          {detailSections}
+          {detailNotes}
+        </div>
+      );
+    },
+    [expandedRunIds, resolvePageUrl],
+  );
 
   return (
     <section className="ai-card space-y-4 p-6">
@@ -1034,43 +1316,70 @@ export function RecentRunsSection({
             onStartedToChange={handleStartedToChange}
             onHideSkippedChange={handleHideSkippedChange}
             onResetFilters={handleResetFilters}
-            className={recentStyles.filtersGrid}
           />
         </div>
         <div className={recentStyles.tableShell}>
-          <DataTable
-            columns={columns}
-            data={runs}
-            emptyMessage={
-              <div className={recentStyles.emptyState}>
-                <span className={recentStyles.emptyStateIcon}>
-                  <FiLayers aria-hidden="true" />
-                </span>
-                <p className="font-semibold">
-                  No runs match your filters.
-                </p>
-                <p className="ai-meta-text">
-                  Adjust filters or clear them to see recent runs.
-                </p>
-              </div>
-            }
-            errorMessage={error}
-            isLoading={isLoading}
-            rowKey={(run) => run.id}
-            headerClassName={recentStyles.tableHeaderRow}
-            rowClassName={cn(
-              recentStyles.rowSelectable,
-              "ai-selectable ai-selectable--hoverable",
-            )}
-            pagination={{
-              currentPage: page,
-              totalPages: totalPagesSafe,
-              onPageChange: handlePageChange,
-              summaryText,
-            }}
-          />
+          <div className={recentStyles.tableXScroll}>
+            <div className={recentStyles.tableYScroll}>
+              <DataTable
+                columns={columns}
+                data={runs}
+                className={recentStyles.dataTable}
+                emptyMessage={
+                  <div className={recentStyles.emptyState}>
+                    <span className={recentStyles.emptyStateIcon}>
+                      <FiLayers aria-hidden="true" />
+                    </span>
+                    <p className="font-semibold">No runs match your filters.</p>
+                    <p className="ai-meta-text">
+                      Adjust filters or clear them to see recent runs.
+                    </p>
+                  </div>
+                }
+                errorMessage={error}
+                isLoading={isLoading}
+                rowKey={(run) => run.id}
+                stickyHeader
+                headerClassName={recentStyles.tableHeaderRow}
+                rowClassName="ai-selectable ai-selectable--hoverable"
+                renderRowDetails={renderRunDetails}
+                rowDetailsClassName={recentStyles.detailsRow}
+                rowDetailsCellClassName={recentStyles.detailsCell}
+              />
+            </div>
+          </div>
+      <div className={recentStyles.tableFooter}>
+        <div>
+          <span className="ai-meta-text">{summaryText}</span>
         </div>
-      </CardContent>
-    </section>
+        <div className="flex items-center gap-2.5">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(Math.max(page - 1, 1))}
+            disabled={page <= 1 || isLoading}
+          >
+            Previous
+          </Button>
+          <span className="ai-meta-text whitespace-nowrap">
+            Page {page.toLocaleString()} of {totalPagesSafe.toLocaleString()}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              handlePageChange(Math.min(page + 1, totalPagesSafe))
+            }
+            disabled={page >= totalPagesSafe || isLoading}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+    </div>
+  </CardContent>
+</section>
   );
 }

@@ -2,7 +2,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--ai-space-4);
   align-items: flex-start;
 }
 
@@ -15,31 +15,85 @@
 .filtersPanel {
   border-radius: var(--ai-radius-md);
   border: 1px solid var(--ai-role-border-subtle);
-  padding: 0.85rem;
+  padding: var(--ai-space-3);
   background-color: var(--ai-role-surface-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ai-space-2);
+}
+
+.filtersToolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ai-space-4);
+  flex-wrap: wrap;
+}
+
+.filtersGridArea {
+  flex: 1;
+  min-width: 0;
+}
+
+.filtersActionsArea {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ai-space-3);
+  white-space: nowrap;
+  min-height: calc(var(--ai-space-6) + var(--ai-space-2));
 }
 
 .filtersGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-auto-rows: minmax(auto, auto);
+  gap: var(--ai-space-2) var(--ai-space-3);
   align-items: center;
 }
 
-.filtersRow {
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  justify-content: space-between;
-  align-items: flex-end;
+@media (max-width: 900px) {
+  .filtersToolbar {
+    flex-direction: column;
+    gap: var(--ai-space-3);
+  }
+
+  .filtersActionsArea {
+    margin-left: 0;
+    align-self: flex-end;
+  }
+
+  .filtersGrid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .filtersGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.resetButton {
+  padding-inline: calc(var(--ai-space-3) * 1.5);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .tableShell {
   border-radius: var(--ai-radius-md);
-  border: 0;
-  overflow: visible;
-  background-color: transparent;
+  border: 1px solid var(--ai-role-border-muted);
+  background-color: var(--ai-role-surface-1);
+  box-shadow: var(--ai-shadow-soft);
+  padding: 0.35rem;
+}
+
+.tableShell :global(thead) {
+  border-bottom: 1px solid var(--ai-role-divider-base);
+}
+
+.tableShell :global(thead th) {
+  background-color: var(--ai-role-surface-1);
 }
 
 .tableHeaderRow {
@@ -47,20 +101,323 @@
   background-color: var(--ai-role-surface-1);
 }
 
-.rowSelectable {
-  cursor: pointer;
+.tableShell :global(.ai-table__cell) {
+  padding: var(--ai-space-2) var(--ai-space-3);
+  min-width: 0;
 }
 
-.notesColumn {
-  max-width: 24rem;
+.cellTruncate {
+  min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.notesColumn > div {
+.cellCompact {
+  letter-spacing: 0.02em;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  color: var(--ai-text-muted);
+}
+
+.metricSummary {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cellStatsSummary {
+  display: block;
+}
+
+.cellNums {
+  font-variant-numeric: tabular-nums;
+}
+
+.tableXScroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-sizing: border-box;
+  padding-inline-end: var(--ai-space-2);
+  padding-block-end: var(--ai-space-1);
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+}
+
+.tableXScroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.tableXScroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background-color: var(--ai-role-border-muted);
+}
+
+.tableYScroll {
+  max-height: min(54vh, 590px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.tableYScroll .ai-table {
   display: flex;
-  gap: 0.25rem;
+  flex-direction: column;
+  height: 100%;
+}
+
+.tableYScroll .ai-table > .overflow-x-auto {
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+.dataTable {
+  min-width: 100%;
+}
+
+.tableFooter {
+  border-top: 1px solid var(--ai-role-divider-muted);
+  display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ai-space-3);
+  padding: var(--ai-space-3) var(--ai-space-4) 0;
+}
+
+@media (max-width: 900px) {
+  .tableXScroll {
+    overflow-x: auto;
+  }
+}
+
+.tableShell :global(.ai-table__row[data-row-even='true']) {
+  background-color: color-mix(
+    in srgb,
+    var(--ai-role-surface-0) 95%,
+    var(--ai-role-surface-1) 5%
+  );
+}
+
+.tableShell :global(.ai-table__row[data-row-even='false']) {
+  background-color: var(--ai-role-surface-1);
+}
+
+.tableShell :global(.ai-table__row[data-row-details='true'][data-row-even='true']) {
+  background-color: color-mix(
+    in srgb,
+    var(--ai-role-surface-0) 95%,
+    var(--ai-role-surface-1) 5%
+  );
+}
+
+.tableShell :global(.ai-table__row[data-row-details='true'][data-row-even='false']) {
+  background-color: var(--ai-role-surface-1);
+}
+
+.tableShell :global(.ai-table__row) {
+  border-bottom: 1px solid var(--ai-role-divider-subtle);
+}
+
+.tableShell :global(.ai-table__row:last-child) {
+  border-bottom: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tableShell {
+    border-color: var(--ai-role-divider-base);
+  }
+
+  .tableShell :global(thead) {
+    border-color: var(--ai-role-divider-base);
+  }
+
+  .tableShell :global(.ai-table__row) {
+    border-bottom-color: var(--ai-role-divider-base);
+  }
+
+  .tableShell :global(.ai-table__row[data-row-even='false']) {
+    background-color: color-mix(
+      in srgb,
+      var(--ai-role-surface-1) 92%,
+      var(--ai-role-surface-muted) 8%
+    );
+  }
+}
+
+.detailsRow {
+  background-color: inherit;
+  border-top: 1px solid var(--ai-role-divider-muted);
+  box-shadow: inset 0 1px 0 var(--ai-role-divider-subtle);
+}
+
+.detailsCell {
+  padding: 0;
+}
+
+.startedColumn {
+  white-space: normal;
+}
+
+.embeddingColumn {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chunksCell,
+.docsCell {
+  min-width: 0;
+}
+
+.numericDataCell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.actionsStable {
+  min-width: 220px;
+}
+
+.outcomeColumn {
+  min-width: 240px;
+}
+
+.outcomeCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.numericColumn {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.actionsColumn {
+  width: 1%;
+}
+
+.actionsCell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ai-space-2);
+  flex-wrap: nowrap;
+  min-height: 38px;
+}
+
+.actionsPrimary {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: nowrap;
+}
+
+.actionsPrimary > * {
+  flex-shrink: 0;
+}
+
+.pageAction {
+  justify-content: center;
+  gap: 0.25rem;
+  text-transform: none;
+}
+
+.detailToggle {
+  border-radius: var(--ai-radius-full);
+  padding: var(--ai-space-2);
+  box-shadow: inset 0 0 0 1px var(--ai-role-border-subtle);
+}
+
+.detailsPanel {
+  display: grid;
+  gap: var(--ai-space-3);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: flex-start;
+  padding: var(--ai-space-3) var(--ai-space-4);
+}
+
+.detailField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detailsLabel {
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
+}
+
+.detailsValue {
+  font-size: 0.9rem;
+  color: var(--ai-text-strong);
+}
+
+.detailsValueMono {
+  font-variant-numeric: tabular-nums;
+  font-family: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
+}
+
+.detailsLink {
+  color: var(--ai-accent-strong);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detailStatsList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ai-space-2);
+  font-size: 0.85rem;
+}
+
+.detailStatLine {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ai-space-3);
+}
+
+.detailStatLabelInline {
+  color: var(--ai-text-muted);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+.detailStatValueInline {
+  font-variant-numeric: tabular-nums;
+  color: var(--ai-text-strong);
+}
+
+.filtersPanelActions {
+  display: none;
+}
+
+.detailNotes {
+  grid-column: 1 / -1;
+}
+
+.detailNotesContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--ai-text-muted);
+}
+
+.detailNotesContent p {
+  margin: 0;
+  white-space: pre-wrap;
 }
 
 .emptyState {
@@ -83,8 +440,4 @@
   align-items: center;
   justify-content: center;
   color: var(--ai-text-muted);
-}
-
-.paginationRow {
-  border-top: 1px solid var(--ai-role-divider-muted);
 }

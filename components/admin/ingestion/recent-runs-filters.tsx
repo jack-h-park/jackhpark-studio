@@ -19,6 +19,8 @@ import {
   getStatusLabel,
 } from "@/lib/admin/recent-runs-filters";
 
+import recentStyles from "./RecentRunsPanel.module.css";
+
 export type RecentRunsFiltersProps = {
   statusFilter: RunStatus | typeof ALL_FILTER_VALUE;
   ingestionTypeFilter: IngestionType | typeof ALL_FILTER_VALUE;
@@ -70,156 +72,170 @@ export function RecentRunsFilters({
   onResetFilters,
   className,
 }: RecentRunsFiltersProps): JSX.Element {
+  const filterItems = [
+    {
+      id: "recent-status-filter",
+      label: "Status",
+      control: (
+        <Select
+          value={statusFilter}
+          onValueChange={(value) =>
+            onStatusChange(value as RunStatus | typeof ALL_FILTER_VALUE)
+          }
+        >
+          <SelectTrigger
+            id="recent-status-filter"
+            aria-label="Filter runs by status"
+          />
+          <SelectContent>
+            <SelectItem value={ALL_FILTER_VALUE}>All statuses</SelectItem>
+            {statusOptions.map((status) => (
+              <SelectItem key={status} value={status}>
+                {getStatusLabel(status)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      id: "recent-type-filter",
+      label: "Type",
+      control: (
+        <Select
+          value={ingestionTypeFilter}
+          onValueChange={(value) =>
+            onIngestionTypeChange(
+              value as IngestionType | typeof ALL_FILTER_VALUE,
+            )
+          }
+        >
+          <SelectTrigger
+            id="recent-type-filter"
+            aria-label="Filter runs by ingestion type"
+          />
+          <SelectContent>
+            <SelectItem value={ALL_FILTER_VALUE}>All types</SelectItem>
+            {ingestionTypeOptions.map((type) => (
+              <SelectItem key={type} value={type}>
+                {getIngestionTypeLabel(type)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      id: "recent-source-filter",
+      label: "Source",
+      control: (
+        <Select
+          value={sourceFilter}
+          onValueChange={(value) => onSourceChange(value)}
+        >
+          <SelectTrigger
+            id="recent-source-filter"
+            aria-label="Filter runs by source"
+          />
+          <SelectContent>
+            <SelectItem value={ALL_FILTER_VALUE}>All sources</SelectItem>
+            {sourceOptions.map((source) => (
+              <SelectItem key={source} value={source}>
+                {source}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      id: "recent-embedding-filter",
+      label: "Embedding model",
+      control: (
+        <Select
+          value={embeddingProviderFilter}
+          onValueChange={(value) => onEmbeddingProviderChange(value)}
+        >
+          <SelectTrigger
+            id="recent-embedding-filter"
+            aria-label="Filter runs by embedding model"
+          />
+          <SelectContent>
+            <SelectItem value={ALL_FILTER_VALUE}>All models</SelectItem>
+            {embeddingProviderOptions.map((provider) => (
+              <SelectItem key={provider} value={provider}>
+                {getEmbeddingFilterLabel(provider)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      id: "recent-started-from",
+      label: "Started After",
+      control: (
+        <Input
+          id="recent-started-from"
+          type="date"
+          value={startedFromFilter}
+          max={
+            startedToFilter && startedToFilter.length > 0
+              ? startedToFilter
+              : undefined
+          }
+          onChange={onStartedFromChange}
+        />
+      ),
+    },
+    {
+      id: "recent-started-to",
+      label: "Started Before",
+      control: (
+        <Input
+          id="recent-started-to"
+          type="date"
+          value={startedToFilter}
+          min={
+            startedFromFilter && startedFromFilter.length > 0
+              ? startedFromFilter
+              : undefined
+          }
+          onChange={onStartedToChange}
+        />
+      ),
+    },
+  ];
+
   return (
-    <div className={cn("flex flex-wrap gap-3 flex-col items-stretch md:flex-row md:items-center md:justify-between", className)}>
-      <div className="flex flex-wrap items-stretch gap-3">
-        {[
-          {
-            id: "recent-status-filter",
-            label: "Status",
-            control: (
-              <Select
-                value={statusFilter}
-                onValueChange={(value) =>
-                  onStatusChange(value as RunStatus | typeof ALL_FILTER_VALUE)
-                }
+    <div
+      className={cn(
+        recentStyles.filtersToolbar,
+        className,
+      )}
+    >
+      <div className={recentStyles.filtersGridArea}>
+        <div className={recentStyles.filtersGrid}>
+          {filterItems.map((item) => (
+            <div key={item.id} className="flex flex-col gap-1">
+              <Label
+                htmlFor={item.id}
+                size="xs"
+                className="text-[color:var(--ai-text-muted)] tracking-[0.3em]"
               >
-                <SelectTrigger
-                  id="recent-status-filter"
-                  aria-label="Filter runs by status"
-                />
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>All statuses</SelectItem>
-                  {statusOptions.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {getStatusLabel(status)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ),
-          },
-          {
-            id: "recent-type-filter",
-            label: "Type",
-            control: (
-              <Select
-                value={ingestionTypeFilter}
-                onValueChange={(value) =>
-                  onIngestionTypeChange(
-                    value as IngestionType | typeof ALL_FILTER_VALUE,
-                  )
-                }
-              >
-                <SelectTrigger
-                  id="recent-type-filter"
-                  aria-label="Filter runs by ingestion type"
-                />
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>All types</SelectItem>
-                  {ingestionTypeOptions.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {getIngestionTypeLabel(type)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ),
-          },
-          {
-            id: "recent-source-filter",
-            label: "Source",
-            control: (
-              <Select
-                value={sourceFilter}
-                onValueChange={(value) => onSourceChange(value)}
-              >
-                <SelectTrigger
-                  id="recent-source-filter"
-                  aria-label="Filter runs by source"
-                />
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>All sources</SelectItem>
-                  {sourceOptions.map((source) => (
-                    <SelectItem key={source} value={source}>
-                      {source}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ),
-          },
-          {
-            id: "recent-embedding-filter",
-            label: "Embedding model",
-            control: (
-              <Select
-                value={embeddingProviderFilter}
-                onValueChange={(value) => onEmbeddingProviderChange(value)}
-              >
-                <SelectTrigger
-                  id="recent-embedding-filter"
-                  aria-label="Filter runs by embedding model"
-                />
-                <SelectContent>
-                  <SelectItem value={ALL_FILTER_VALUE}>All models</SelectItem>
-                  {embeddingProviderOptions.map((provider) => (
-                    <SelectItem key={provider} value={provider}>
-                      {getEmbeddingFilterLabel(provider)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ),
-          },
-          {
-            id: "recent-started-from",
-            label: "Started After",
-            control: (
-              <Input
-                id="recent-started-from"
-                type="date"
-                value={startedFromFilter}
-                max={
-                  startedToFilter && startedToFilter.length > 0
-                    ? startedToFilter
-                    : undefined
-                }
-                onChange={onStartedFromChange}
-              />
-            ),
-          },
-          {
-            id: "recent-started-to",
-            label: "Started Before",
-            control: (
-              <Input
-                id="recent-started-to"
-                type="date"
-                value={startedToFilter}
-                min={
-                  startedFromFilter && startedFromFilter.length > 0
-                    ? startedFromFilter
-                    : undefined
-                }
-                onChange={onStartedToChange}
-              />
-            ),
-          },
-        ].map((item) => (
-          <div key={item.id} className="flex flex-col gap-1 min-w-[180px]">
-            <Label
-              htmlFor={item.id}
-              size="xs"
-              className="text-[color:var(--ai-text-muted)] tracking-[0.3em]"
-            >
-              {item.label}
-            </Label>
-            {item.control}
-          </div>
-        ))}
+                {item.label}
+              </Label>
+              {item.control}
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="flex items-center gap-3 justify-end md:justify-start w-full md:w-auto">
+      <div
+        className={cn(
+          recentStyles.filtersActionsArea,
+          "flex flex-shrink-0",
+        )}
+      >
         <CheckboxChoice
           className="select-none"
           label="Hide skipped runs"
@@ -233,6 +249,7 @@ export function RecentRunsFilters({
           size="sm"
           onClick={onResetFilters}
           disabled={!canReset}
+          className={recentStyles.resetButton}
         >
           Reset view
         </Button>

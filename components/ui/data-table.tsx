@@ -30,6 +30,9 @@ export type DataTableProps<T> = {
     onPageChange: (page: number) => void;
     summaryText?: React.ReactNode;
   };
+  renderRowDetails?: (item: T, rowIndex: number) => React.ReactNode | null;
+  rowDetailsClassName?: string;
+  rowDetailsCellClassName?: string;
 };
 
 export function DataTable<T>({
@@ -44,6 +47,9 @@ export function DataTable<T>({
   headerClassName,
   rowClassName,
   pagination,
+  renderRowDetails,
+  rowDetailsClassName,
+  rowDetailsCellClassName,
 }: DataTableProps<T>) {
   const hasData = data.length > 0;
   const variantClassMap: Record<
@@ -73,8 +79,20 @@ export function DataTable<T>({
           {errorMessage}
         </div>
       ) : null}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-full border-collapse">
+        <div className="overflow-x-auto">
+        <table className="w-full table-fixed border-collapse">
+          <colgroup>
+            {columns.map((_column, colIndex) => (
+              <col
+                key={`col-${colIndex}`}
+                style={
+                  _column.width
+                    ? { width: _column.width, minWidth: _column.width }
+                    : undefined
+                }
+              />
+            ))}
+          </colgroup>
           <thead
             className={cn(
               "border-b border-[color-mix(in_srgb,hsl(var(--ai-border))_70%,transparent)] bg-[hsl(var(--ai-bg-muted))]",
@@ -127,43 +145,59 @@ export function DataTable<T>({
                   (typeof item === "object" && item !== null
                     ? ((item as { id?: string | number }).id ?? rowIndex)
                     : rowIndex);
+                const rowParity = rowIndex % 2 === 0 ? "true" : "false";
+                const detailsContent = renderRowDetails?.(item, rowIndex);
                 return (
-                  <tr
-                    key={`row-${rowId}`}
-                    className={cn(
-                      "ai-table__row",
-                      rowIndex % 2 === 0
-                        ? "bg-[hsl(var(--ai-surface))]"
-                        : "bg-[hsl(var(--ai-bg-muted))]",
-                      rowClassName,
-                    )}
-                  >
-                    {columns.map((column, cellIndex) => {
-                      const alignment =
-                        column.align === "center"
-                          ? "text-center"
-                          : column.align === "right"
-                            ? "text-right"
-                            : "text-left";
-                      return (
+                  <React.Fragment key={`row-group-${rowId}`}>
+                    <tr
+                      className={cn("ai-table__row", rowClassName)}
+                      data-row-even={rowParity}
+                    >
+                      {columns.map((column, cellIndex) => {
+                        const alignment =
+                          column.align === "center"
+                            ? "text-center"
+                            : column.align === "right"
+                              ? "text-right"
+                              : "text-left";
+                        return (
+                          <td
+                            key={`cell-${rowId}-${cellIndex}`}
+                            className={cn(
+                              "ai-table__cell",
+                              alignment,
+                              sizeClassMap[column.size ?? "sm"],
+                              variantClassMap[column.variant ?? "primary"],
+                              column.className,
+                            )}
+                            style={
+                              column.width ? { width: column.width } : undefined
+                            }
+                          >
+                            {column.render(item)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {detailsContent != null ? (
+                      <tr
+                        key={`row-details-${rowId}`}
+                        className={cn("ai-table__row", rowDetailsClassName)}
+                        data-row-details="true"
+                        data-row-even={rowParity}
+                      >
                         <td
-                          key={`cell-${rowId}-${cellIndex}`}
                           className={cn(
                             "ai-table__cell",
-                            alignment,
-                            sizeClassMap[column.size ?? "sm"],
-                            variantClassMap[column.variant ?? "primary"],
-                            column.className,
+                            rowDetailsCellClassName,
                           )}
-                          style={
-                            column.width ? { width: column.width } : undefined
-                          }
+                          colSpan={columns.length}
                         >
-                          {column.render(item)}
+                          {detailsContent}
                         </td>
-                      );
-                    })}
-                  </tr>
+                      </tr>
+                    ) : null}
+                  </React.Fragment>
                 );
               })
             )}
