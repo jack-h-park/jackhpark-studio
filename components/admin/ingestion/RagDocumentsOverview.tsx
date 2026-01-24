@@ -1,5 +1,5 @@
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
-import { useMemo, type ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 
 import type { RagDocumentStats } from "@/lib/admin/rag-documents";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,30 +13,16 @@ import styles from "./RagDocumentsOverview.module.css";
 type PersonaMetricType = "personal" | "professional" | "hybrid" | "unknown";
 type SourceMetricType = "notion" | "url" | "unknown";
 
-const personaMetricSpecs: ReadonlyArray<
-  { type: Exclude<PersonaMetricType, "unknown">; label: string }
-> = [
+const personaMetricSpecs = [
   { type: "personal", label: "Personal" },
   { type: "professional", label: "Professional" },
   { type: "hybrid", label: "Hybrid" },
-];
+] satisfies ReadonlyArray<{ type: Exclude<PersonaMetricType, "unknown">; label: string }>;
 
-const sourceMetricSpecs: ReadonlyArray<
-  { type: Exclude<SourceMetricType, "unknown">; label: string }
-> = [
+const sourceMetricSpecs = [
   { type: "notion", label: "Notion" },
   { type: "url", label: "URL" },
-];
-
-type PersonaMetricDescriptor = {
-  type: PersonaMetricType;
-  label: string;
-};
-
-type SourceMetricDescriptor = {
-  type: SourceMetricType;
-  label: string;
-};
+] satisfies ReadonlyArray<{ type: Exclude<SourceMetricType, "unknown">; label: string }>;
 
 type RagDocumentsStatTileProps = {
   label: string;
@@ -87,131 +73,140 @@ export function RagDocumentsOverview({
   }, [stats]);
 
   const statTiles = stats
-    ? [
-        {
-          label: "Total documents",
-          value: numberFormatter.format(stats.total),
-        },
-        {
-          label: "Visibility",
-          value: (
-            <>
-              <div
-                className={styles.miniMetric}
-                title={`Public: ${stats.publicCount} documents`}
-              >
-                <span className={styles.kpiMetricLabel}>Public</span>
-                <span
-                  className={cn(
-                    styles.kpiMetricValue,
-                    stats.publicCount === 0 && styles.kpiMetricValueZero,
-                  )}
+    ? (() => {
+        const personaEntries: Array<{ type: PersonaMetricType; label: string }> = [
+          ...personaMetricSpecs.filter(
+            ({ type }) => stats.personaCounts[type] > 0,
+          ),
+          ...(stats.personaCounts.unknown > 0
+            ? [{ type: "unknown" as const, label: "Unassigned" }]
+            : []),
+        ];
+
+        const sourceEntries: Array<{ type: SourceMetricType; label: string }> = [
+          ...sourceMetricSpecs,
+          ...(stats.sourceCounts.unknown > 0
+            ? [{ type: "unknown" as const, label: "Unknown" }]
+            : []),
+        ];
+
+        return [
+          {
+            label: "Total documents",
+            value: numberFormatter.format(stats.total),
+          },
+          {
+            label: "Visibility",
+            value: (
+              <>
+                <div
+                  className={styles.miniMetric}
+                  title={`Public: ${stats.publicCount} documents`}
                 >
-                  {stats.publicCount === 0
-                    ? "—"
-                    : numberFormatter.format(stats.publicCount)}
-                </span>
-              </div>
-              <div
-                className={styles.miniMetric}
-                title={`Private: ${stats.privateCount} documents`}
-              >
-                <span className={styles.kpiMetricLabel}>Private</span>
-                <span
-                  className={cn(
-                    styles.kpiMetricValue,
-                    stats.privateCount === 0 && styles.kpiMetricValueZero,
-                  )}
+                  <span className={styles.kpiMetricLabel}>Public</span>
+                  <span
+                    className={cn(
+                      styles.kpiMetricValue,
+                      stats.publicCount === 0 && styles.kpiMetricValueZero,
+                    )}
+                  >
+                    {stats.publicCount === 0
+                      ? "—"
+                      : numberFormatter.format(stats.publicCount)}
+                  </span>
+                </div>
+                <div
+                  className={styles.miniMetric}
+                  title={`Private: ${stats.privateCount} documents`}
                 >
-                  {stats.privateCount === 0
-                    ? "—"
-                    : numberFormatter.format(stats.privateCount)}
-                </span>
-              </div>
-              {stats.publicCount === 0 && stats.privateCount === 0 && (
-                <span className={styles.kpiHelperText}>
-                  No public/private docs
-                </span>
-              )}
-            </>
-          ),
-          valueClassName: styles.miniMetricGrid,
-        },
-        {
-          label: "Persona",
-          value: (
-            <>
-              {[
-                ...personaMetricSpecs.filter(
-                  ({ type }) => stats.personaCounts[type] > 0,
-                ),
-                ...(stats.personaCounts.unknown > 0
-                  ? [{ type: "unknown", label: "Unassigned" }]
-                  : []),
-              ].map(({ type, label }) => {
-                const count = stats.personaCounts[type];
-                const isUnknown = type === "unknown";
-                return (
-                  <div
-                    key={type}
-                    className={styles.miniMetric}
-                    title={isUnknown ? "Persona not set on these documents." : undefined}
+                  <span className={styles.kpiMetricLabel}>Private</span>
+                  <span
+                    className={cn(
+                      styles.kpiMetricValue,
+                      stats.privateCount === 0 && styles.kpiMetricValueZero,
+                    )}
                   >
-                    <span className={styles.kpiMetricLabel}>{label}</span>
-                    <span
-                      className={cn(
-                        styles.kpiMetricValue,
-                        isUnknown && styles.kpiMetricValueSecondary,
-                      )}
+                    {stats.privateCount === 0
+                      ? "—"
+                      : numberFormatter.format(stats.privateCount)}
+                  </span>
+                </div>
+                {stats.publicCount === 0 && stats.privateCount === 0 && (
+                  <span className={styles.kpiHelperText}>
+                    No public/private docs
+                  </span>
+                )}
+              </>
+            ),
+            valueClassName: styles.miniMetricGrid,
+          },
+          {
+            label: "Persona",
+            value: (
+              <>
+                {personaEntries.map(({ type, label }) => {
+                  const count = stats.personaCounts[type];
+                  const isUnknown = type === "unknown";
+                  const title = isUnknown
+                    ? "Persona not set on these documents."
+                    : undefined;
+                  return (
+                    <div
+                      key={type}
+                      className={styles.miniMetric}
+                      title={title}
                     >
-                      {numberFormatter.format(count)}
-                    </span>
-                  </div>
-                );
-              })}
-            </>
-          ),
-          valueClassName: styles.miniMetricGrid,
-        },
-        {
-          label: "Source",
-          value: (
-            <>
-              {[
-                ...sourceMetricSpecs,
-                ...(stats.sourceCounts.unknown > 0
-                  ? [{ type: "unknown", label: "Unknown" }]
-                  : []),
-              ].map(({ type, label }) => {
-                const count = stats.sourceCounts[type];
-                const isUnknown = type === "unknown";
-                const title = isUnknown
-                  ? "Missing source metadata"
-                  : `${label}: ${count} documents`;
-                return (
-                  <div
-                    key={type}
-                    className={styles.miniMetric}
-                    title={title}
-                  >
-                    <span className={styles.kpiMetricLabel}>{label}</span>
-                    <span
-                      className={cn(
-                        styles.kpiMetricValue,
-                        count === 0 && styles.kpiMetricValueZero,
-                        isUnknown && styles.kpiMetricValueSecondary,
-                      )}
+                      <span className={styles.kpiMetricLabel}>{label}</span>
+                      <span
+                        className={cn(
+                          styles.kpiMetricValue,
+                          isUnknown && styles.kpiMetricValueSecondary,
+                        )}
+                      >
+                        {numberFormatter.format(count)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </>
+            ),
+            valueClassName: styles.miniMetricGrid,
+          },
+          {
+            label: "Source",
+            value: (
+              <>
+                {sourceEntries.map(({ type, label }) => {
+                  const count = stats.sourceCounts[type];
+                  const isUnknown = type === "unknown";
+                  const title = isUnknown
+                    ? "Missing source metadata"
+                    : `${label}: ${count} documents`;
+                  return (
+                    <div
+                      key={type}
+                      className={styles.miniMetric}
+                      title={title}
                     >
-                      {count === 0 ? "—" : numberFormatter.format(count)}
-                    </span>
-                  </div>
-                );
-              })}
-            </>
-          ),
-          valueClassName: styles.miniMetricGrid,
-        },
-      ]
+                      <span className={styles.kpiMetricLabel}>{label}</span>
+                      <span
+                        className={cn(
+                          styles.kpiMetricValue,
+                          count === 0 && styles.kpiMetricValueZero,
+                          isUnknown && styles.kpiMetricValueSecondary,
+                        )}
+                      >
+                        {count === 0 ? "—" : numberFormatter.format(count)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </>
+            ),
+            valueClassName: styles.miniMetricGrid,
+          },
+        ];
+      })()
     : [];
 
   return (

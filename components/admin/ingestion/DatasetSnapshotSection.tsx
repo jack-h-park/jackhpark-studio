@@ -58,7 +58,7 @@ const formatEmbeddingDisplayLabel = (label?: string | null) => {
 };
 
 const formatDeltaOrDash = (value: number | null | undefined) => {
-  const formatted = formatDeltaLabel(value);
+  const formatted = formatDeltaLabel(value ?? null);
   return formatted ?? "—";
 };
 

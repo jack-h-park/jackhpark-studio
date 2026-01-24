@@ -25,6 +25,7 @@ export interface RagDocumentMetadata {
   source_type?: SourceType;
   doc_type?: DocType;
   persona_type?: PersonaType;
+  'public'?: boolean;
   is_public?: boolean;
   tags?: string[];
   [key: string]: unknown;
