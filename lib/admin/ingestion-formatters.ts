@@ -69,6 +69,34 @@ export function formatCharacters(
   })`;
 }
 
+export function formatBytesFromCharacters(
+  characters: number | null | undefined,
+): string {
+  if (!characters || characters <= 0) {
+    return "—";
+  }
+
+  const units = ["B", "KB", "MB", "GB"];
+  let size = characters;
+  let unitIndex = 0;
+
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex += 1;
+  }
+
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
+}
+
+export function formatCharacterCountLabel(
+  characters: number | null | undefined,
+): string {
+  if (!characters || characters <= 0) {
+    return "0 chars";
+  }
+  return `${numberFormatter.format(characters)} chars`;
+}
+
 export function formatDeltaLabel(delta: number | null): string | null {
   if (delta === null || delta === 0) {
     return null;
@@ -111,6 +139,16 @@ export function buildSparklineData(
     })
     .join(" ");
   return { path, min, max };
+}
+
+export function formatKpiValue(
+  value: number | null | undefined,
+  format: (value: number) => string = (val) => numberFormatter.format(val),
+): string {
+  if (value === null || value === undefined || value === 0) {
+    return "—";
+  }
+  return format(value);
 }
 
 export function toSnapshotSummary(snapshot: SnapshotRecord): SnapshotSummary {

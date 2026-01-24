@@ -1,0 +1,76 @@
+.trendPanel {
+  border-radius: 14px;
+  background-color: transparent;
+  min-height: 180px;
+  padding: 0.75rem 1rem;
+}
+
+.trendHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
+}
+
+.trendCaption {
+  font-size: 0.65rem;
+}
+
+.trendSparklineWrap {
+  margin-top: var(--ai-space-2);
+  height: 78px;
+}
+
+.trendFooter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: baseline;
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
+}
+
+.trendMinMax {
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
+  display: flex;
+  gap: 0.5rem;
+}
+
+.recentRow {
+  border-bottom: 1px solid var(--ai-role-border-subtle);
+  padding: 0.65rem 0;
+}
+
+.recentRow:last-child {
+  border-bottom: none;
+}
+
+.snapshotRowPrimary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ai-space-3);
+}
+
+.snapshotRowSummary {
+  font-size: 0.75rem;
+  color: var(--ai-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.snapshotChip {
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-weight: 600;
+}

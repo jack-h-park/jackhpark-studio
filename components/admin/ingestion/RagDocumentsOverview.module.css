@@ -1,0 +1,33 @@
+.docTypeGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ai-space-2);
+  align-items: center;
+}
+
+.docTypeChip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ai-space-1);
+  padding: 0.15rem 0.75rem;
+  border-radius: var(--ai-radius-full);
+  border: 1px solid var(--ai-role-border-subtle);
+  background-color: var(--ai-role-surface-0);
+  font-size: 0.7rem;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: var(--ai-text-strong);
+}
+
+.docTypeChipZero {
+  border-color: var(--ai-role-border-muted);
+  color: var(--ai-text-muted);
+  opacity: 0.75;
+}
+
+.docTypeChipUnknown {
+  border-color: var(--ai-role-border-muted);
+  color: var(--ai-text-soft);
+}
