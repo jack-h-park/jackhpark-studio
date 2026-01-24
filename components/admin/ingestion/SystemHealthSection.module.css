@@ -1,33 +1,76 @@
 .kpiGrid {
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
   gap: var(--ai-space-3);
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 640px) {
   .kpiGrid {
-    grid-template-columns: repeat(4, minmax(180px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .kpiGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
 .kpiTile {
-  min-height: 120px;
+  min-height: 104px;
+  padding: var(--ai-space-3);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: var(--ai-space-2);
 }
 
-.valueLine {
-  line-height: 1.2;
-}
-
-.valueMuted {
-  opacity: 0.65;
-}
-
-.labelRow {
+.kpiHeaderRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--ai-space-2);
+}
+
+.kpiLabel {
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
+  margin: 0;
+}
+
+.kpiValueRow {
+  min-height: 2.5rem;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--ai-space-2);
+}
+
+.kpiValueText {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ai-text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.kpiValueMuted {
+  color: var(--ai-text-muted);
+  opacity: 0.85;
+}
+
+.kpiValuePillWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--ai-space-1);
+}
+
+.kpiValueFallback {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ai-space-1);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ai-text-strong);
 }

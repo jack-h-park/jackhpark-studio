@@ -1,5 +1,5 @@
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import type { RagDocumentStats } from "@/lib/admin/rag-documents";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,59 @@ import { cn } from "@/components/ui/utils";
 import { numberFormatter } from "@/lib/admin/ingestion-formatters";
 
 import styles from "./RagDocumentsOverview.module.css";
+
+type PersonaMetricType = "personal" | "professional" | "hybrid" | "unknown";
+type SourceMetricType = "notion" | "url" | "unknown";
+
+const personaMetricSpecs: ReadonlyArray<
+  { type: Exclude<PersonaMetricType, "unknown">; label: string }
+> = [
+  { type: "personal", label: "Personal" },
+  { type: "professional", label: "Professional" },
+  { type: "hybrid", label: "Hybrid" },
+];
+
+const sourceMetricSpecs: ReadonlyArray<
+  { type: Exclude<SourceMetricType, "unknown">; label: string }
+> = [
+  { type: "notion", label: "Notion" },
+  { type: "url", label: "URL" },
+];
+
+type PersonaMetricDescriptor = {
+  type: PersonaMetricType;
+  label: string;
+};
+
+type SourceMetricDescriptor = {
+  type: SourceMetricType;
+  label: string;
+};
+
+type RagDocumentsStatTileProps = {
+  label: string;
+  value: ReactNode;
+  valueClassName?: string;
+};
+
+function RagDocumentsStatTile({
+  label,
+  value,
+  valueClassName,
+}: RagDocumentsStatTileProps) {
+  const valueClasses = valueClassName ?? styles.kpiMetricValue;
+
+  return (
+    <div className={cn("ai-panel shadow-none rounded-[12px]", styles.kpiTile)}>
+      <div className={styles.kpiLabelRow}>
+        <p className={styles.kpiTileTitle}>{label}</p>
+      </div>
+      <div className={styles.kpiValueRow}>
+        <div className={valueClasses}>{value}</div>
+      </div>
+    </div>
+  );
+}
 
 export function RagDocumentsOverview({
   stats,
@@ -42,30 +95,121 @@ export function RagDocumentsOverview({
         {
           label: "Visibility",
           value: (
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={cn(
-                  "font-semibold",
-                  stats.publicCount === 0
-                    ? "text-[color:var(--ai-text-soft)]"
-                    : "text-[color:var(--ai-text-strong)]",
-                )}
+            <>
+              <div
+                className={styles.miniMetric}
+                title={`Public: ${stats.publicCount} documents`}
               >
-                Public {numberFormatter.format(stats.publicCount)}
-              </span>
-              <span
-                className={cn(
-                  "font-semibold",
-                  stats.privateCount === 0
-                    ? "text-[color:var(--ai-text-soft)]"
-                    : "text-[color:var(--ai-text-strong)]",
-                )}
+                <span className={styles.kpiMetricLabel}>Public</span>
+                <span
+                  className={cn(
+                    styles.kpiMetricValue,
+                    stats.publicCount === 0 && styles.kpiMetricValueZero,
+                  )}
+                >
+                  {stats.publicCount === 0
+                    ? "—"
+                    : numberFormatter.format(stats.publicCount)}
+                </span>
+              </div>
+              <div
+                className={styles.miniMetric}
+                title={`Private: ${stats.privateCount} documents`}
               >
-                Private {numberFormatter.format(stats.privateCount)}
-              </span>
-            </div>
+                <span className={styles.kpiMetricLabel}>Private</span>
+                <span
+                  className={cn(
+                    styles.kpiMetricValue,
+                    stats.privateCount === 0 && styles.kpiMetricValueZero,
+                  )}
+                >
+                  {stats.privateCount === 0
+                    ? "—"
+                    : numberFormatter.format(stats.privateCount)}
+                </span>
+              </div>
+              {stats.publicCount === 0 && stats.privateCount === 0 && (
+                <span className={styles.kpiHelperText}>
+                  No public/private docs
+                </span>
+              )}
+            </>
           ),
-          valueClassName: "text-sm font-semibold text-[color:var(--ai-text-strong)]",
+          valueClassName: styles.miniMetricGrid,
+        },
+        {
+          label: "Persona",
+          value: (
+            <>
+              {[
+                ...personaMetricSpecs.filter(
+                  ({ type }) => stats.personaCounts[type] > 0,
+                ),
+                ...(stats.personaCounts.unknown > 0
+                  ? [{ type: "unknown", label: "Unassigned" }]
+                  : []),
+              ].map(({ type, label }) => {
+                const count = stats.personaCounts[type];
+                const isUnknown = type === "unknown";
+                return (
+                  <div
+                    key={type}
+                    className={styles.miniMetric}
+                    title={isUnknown ? "Persona not set on these documents." : undefined}
+                  >
+                    <span className={styles.kpiMetricLabel}>{label}</span>
+                    <span
+                      className={cn(
+                        styles.kpiMetricValue,
+                        isUnknown && styles.kpiMetricValueSecondary,
+                      )}
+                    >
+                      {numberFormatter.format(count)}
+                    </span>
+                  </div>
+                );
+              })}
+            </>
+          ),
+          valueClassName: styles.miniMetricGrid,
+        },
+        {
+          label: "Source",
+          value: (
+            <>
+              {[
+                ...sourceMetricSpecs,
+                ...(stats.sourceCounts.unknown > 0
+                  ? [{ type: "unknown", label: "Unknown" }]
+                  : []),
+              ].map(({ type, label }) => {
+                const count = stats.sourceCounts[type];
+                const isUnknown = type === "unknown";
+                const title = isUnknown
+                  ? "Missing source metadata"
+                  : `${label}: ${count} documents`;
+                return (
+                  <div
+                    key={type}
+                    className={styles.miniMetric}
+                    title={title}
+                  >
+                    <span className={styles.kpiMetricLabel}>{label}</span>
+                    <span
+                      className={cn(
+                        styles.kpiMetricValue,
+                        count === 0 && styles.kpiMetricValueZero,
+                        isUnknown && styles.kpiMetricValueSecondary,
+                      )}
+                    >
+                      {count === 0 ? "—" : numberFormatter.format(count)}
+                    </span>
+                  </div>
+                );
+              })}
+            </>
+          ),
+          valueClassName: styles.miniMetricGrid,
         },
       ]
     : [];
@@ -77,7 +221,11 @@ export function RagDocumentsOverview({
           <CardTitle icon={<FiLayers aria-hidden="true" />}>
             RAG Documents Overview
           </CardTitle>
-          <LinkButton href="/admin/documents" variant="outline">
+          <LinkButton
+            href="/admin/documents"
+            variant="outline"
+            className="h-8 px-3 text-sm"
+          >
             View all documents
           </LinkButton>
         </div>
@@ -85,48 +233,57 @@ export function RagDocumentsOverview({
           Quick summary of stored documents and metadata.
         </p>
       </CardHeader>
-      <CardContent className="space-y-4 p-3">
+      <CardContent className="space-y-3 p-3">
         {stats ? (
           <>
-            <GridPanel className="grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3">
+            <GridPanel className={styles.kpiGrid}>
               {statTiles.map((tile) => (
-                <div
+                <RagDocumentsStatTile
                   key={tile.label}
-                  className="ai-panel shadow-none rounded-[12px] px-4 py-3"
-                >
-                  <p className="text-[0.65rem] uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]">
-                    {tile.label}
-                  </p>
-                  <div
-                    className={cn(
-                      "mt-1 text-[color:var(--ai-text-strong)]",
-                      tile.valueClassName ?? "text-2xl font-semibold",
-                    )}
-                  >
-                    {tile.value}
-                  </div>
-                </div>
+                  label={tile.label}
+                  value={tile.value}
+                  valueClassName={tile.valueClassName}
+                />
               ))}
             </GridPanel>
-            <div className="space-y-1">
-              <div className="ai-meta-text uppercase tracking-[0.1em] text-xs">
-                By doc type
-              </div>
+            <div className={styles.docTypeRow}>
+              <div className={styles.docTypeLabel}>By doc type</div>
               <div className={styles.docTypeGrid}>
-                {docTypeEntries.map(([type, count]) => (
-                  <span
-                    key={type}
-                    className={cn(
-                      styles.docTypeChip,
-                      count === 0 && styles.docTypeChipZero,
-                      type === "unknown" && styles.docTypeChipUnknown,
-                    )}
-                    title={type === "unknown" ? "Unknown doc type" : undefined}
-                  >
-                    <span>{type}</span>
-                    <span>{count > 0 ? numberFormatter.format(count) : "—"}</span>
-                  </span>
-                ))}
+                {docTypeEntries.map(([type, count]) => {
+                  const isUnknown = type === "unknown";
+                  const isZero = count === 0 && !isUnknown;
+                  const displayCount = numberFormatter.format(count);
+                  const title = isZero
+                    ? `${type}: 0 documents`
+                    : isUnknown
+                      ? "Missing/unknown doc_type"
+                      : undefined;
+
+                  return (
+                    <span
+                      key={type}
+                      className={cn(
+                        styles.docTypeChip,
+                        isZero && styles.docTypeChipZero,
+                        isUnknown && styles.docTypeChipUnknown,
+                      )}
+                      title={title}
+                    >
+                      <span className={styles.docTypeChipLabel}>{type}</span>
+                      {!isZero && (
+                        <span
+                          className={cn(
+                            styles.docTypeCount,
+                            isZero && styles.docTypeCountMuted,
+                            isZero && styles.docTypeChipZeroText,
+                          )}
+                        >
+                          {displayCount}
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           </>

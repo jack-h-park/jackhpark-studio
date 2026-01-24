@@ -2,6 +2,8 @@ import {
   DOC_TYPE_OPTIONS,
   mergeMetadata,
   normalizeMetadata,
+  PERSONA_TYPE_OPTIONS,
+  type PersonaType,
   type RagDocumentMetadata,
 } from "@/lib/rag/metadata";
 import { normalizeTimestamp } from "@/lib/rag/timestamp";
@@ -57,11 +59,18 @@ export function mergeDocumentMetadata(
   return mergeMetadata(existing, incoming);
 }
 
+type RagDocumentPersonaCounts = Record<PersonaType | "unknown", number>;
+
+type RagDocumentSourceBucket = "notion" | "url" | "unknown";
+type RagDocumentSourceCounts = Record<RagDocumentSourceBucket, number>;
+
 export type RagDocumentStats = {
   total: number;
   byDocType: Record<string, number>;
   publicCount: number;
   privateCount: number;
+  personaCounts: RagDocumentPersonaCounts;
+  sourceCounts: RagDocumentSourceCounts;
 };
 
 export function computeDocumentStats(
@@ -70,6 +79,17 @@ export function computeDocumentStats(
   const byDocType: Record<string, number> = {};
   let publicCount = 0;
   let privateCount = 0;
+  const personaCounts: RagDocumentPersonaCounts = {
+    personal: 0,
+    professional: 0,
+    hybrid: 0,
+    unknown: 0,
+  };
+  const sourceCounts: RagDocumentSourceCounts = {
+    notion: 0,
+    url: 0,
+    unknown: 0,
+  };
 
   for (const doc of documents) {
     const docType = doc.metadata?.doc_type;
@@ -83,6 +103,27 @@ export function computeDocumentStats(
       publicCount += 1;
     } else if (doc.metadata?.is_public === false) {
       privateCount += 1;
+    }
+
+    const rawPersona = doc.metadata?.persona_type;
+    const normalizedPersona =
+      typeof rawPersona === "string" ? rawPersona.trim().toLowerCase() : "";
+    if (
+      normalizedPersona &&
+      PERSONA_TYPE_OPTIONS.includes(normalizedPersona as PersonaType)
+    ) {
+      personaCounts[normalizedPersona as PersonaType] += 1;
+    } else {
+      personaCounts.unknown += 1;
+    }
+
+    const rawSource = doc.metadata?.source_type;
+    const normalizedSource =
+      typeof rawSource === "string" ? rawSource.trim().toLowerCase() : "";
+    if (normalizedSource === "notion" || normalizedSource === "url") {
+      sourceCounts[normalizedSource as RagDocumentSourceBucket] += 1;
+    } else {
+      sourceCounts.unknown += 1;
     }
   }
 
@@ -98,5 +139,7 @@ export function computeDocumentStats(
     byDocType,
     publicCount,
     privateCount,
+    personaCounts,
+    sourceCounts,
   };
 }

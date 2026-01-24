@@ -34,18 +34,15 @@ function SystemHealthStatTile({
   isValueMuted,
   valueClassName,
 }: SystemHealthStatTileProps): JSX.Element {
+  const baseValueClass = valueClassName ?? styles.kpiValueText;
+  const valueClasses = cn(baseValueClass, isValueMuted && styles.kpiValueMuted);
+
   return (
     <div
-      className={cn(
-        insetPanelStyles.insetPanel,
-        styles.kpiTile,
-        "p-3",
-      )}
+      className={cn(insetPanelStyles.insetPanel, styles.kpiTile)}
     >
-      <div className={styles.labelRow}>
-        <p className="text-[0.65rem] uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]">
-          {label}
-        </p>
+      <div className={styles.kpiHeaderRow}>
+        <p className={styles.kpiLabel}>{label}</p>
         {tooltip ? (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -61,18 +58,8 @@ function SystemHealthStatTile({
           </Tooltip>
         ) : null}
       </div>
-      <div className={styles.valueRow}>
-        <div
-          className={cn(
-            styles.valueLine,
-            isValueMuted && styles.valueMuted,
-            valueClassName ??
-              "text-2xl font-semibold text-[color:var(--ai-text-strong)]",
-          )}
-          style={{ fontVariantNumeric: "tabular-nums" }}
-        >
-          {value}
-        </div>
+      <div className={styles.kpiValueRow}>
+        <div className={valueClasses}>{value}</div>
       </div>
     </div>
   );
@@ -160,6 +147,9 @@ export function SystemHealthSection({
   const lastFailureLabel = health.lastFailureStatus
     ? getStatusLabel(health.lastFailureStatus)
     : "Failed";
+  const lastFailureValueClassName = health.lastFailureRunId
+    ? styles.kpiValuePillWrap
+    : styles.kpiValueFallback;
 
   const errorsValue = formatKpiValue(health.errorCount);
   const skippedDocsValue = formatKpiValue(health.documentsSkipped);
@@ -167,7 +157,7 @@ export function SystemHealthSection({
   const pendingRunsValue = formatKpiValue(health.pendingRuns);
   const retryCountValue = formatKpiValue(health.retryCount);
 
-  const kpiTiles = [
+  const coreKpis = [
     {
       key: "lastRun",
       label: "Last Run",
@@ -177,6 +167,7 @@ export function SystemHealthSection({
         </StatusPill>
       ),
       tooltip: runTooltip,
+      valueClassName: styles.kpiValuePillWrap,
     },
     {
       key: "duration",
@@ -198,6 +189,9 @@ export function SystemHealthSection({
       tooltip: dataQualityTooltip,
       isValueMuted: skippedDocsValue === "—",
     },
+  ];
+
+  const secondaryKpis = [
     {
       key: "queueDepth",
       label: "Queue Depth",
@@ -232,10 +226,11 @@ export function SystemHealthSection({
         </span>
       ),
       tooltip: lastFailureTooltip,
-      valueClassName:
-        "flex flex-col gap-1 text-sm font-semibold text-[color:var(--ai-text-strong)]",
+      valueClassName: lastFailureValueClassName,
     },
   ];
+
+  const kpiTiles = [...coreKpis, ...secondaryKpis];
 
   return (
     <section className="ai-card space-y-6 p-5">
@@ -270,6 +265,7 @@ export function SystemHealthSection({
               value={tile.value}
               tooltip={tile.tooltip}
               isValueMuted={tile.isValueMuted}
+              valueClassName={tile.valueClassName}
             />
           ))}
         </GridPanel>
