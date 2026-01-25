@@ -321,7 +321,11 @@ const writeCachedRecordMap = async (
 const loadPageFromNotion = async (
   pageId: string,
 ): Promise<ExtendedRecordMap> => {
-  let recordMap = await notion.getPage(pageId);
+  let recordMap = await notion.getPage(pageId, {
+    fetchCollections: true,
+    fetchMissingBlocks: true,
+    fetchRelationPages: true,
+  });
 
   if (navigationStyle !== "default") {
     const navigationLinkRecordMaps = await getNavigationLinkPages();

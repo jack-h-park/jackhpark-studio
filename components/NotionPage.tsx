@@ -230,29 +230,6 @@ const propertyLastEditedTimeValue = (
   return defaultFn();
 };
 
-const propertyDateValue = (
-  { data, schema, pageHeader }: any,
-  defaultFn: () => React.ReactNode,
-) => {
-  debugNotionXLogger.log(
-    "🤪 propertyDateValue called:",
-    schema?.name,
-    schema?.type,
-  );
-
-  if (pageHeader && schema?.name?.toLowerCase() === "published") {
-    const publishDate = data?.[0]?.[1]?.[0]?.[1]?.start_date;
-
-    if (publishDate) {
-      return `${formatDate(publishDate, {
-        month: "long",
-      })}`;
-    }
-  }
-
-  return defaultFn();
-};
-
 const propertyTextValue = (
   { schema, pageHeader, data, block, value }: any,
   defaultFn: () => React.ReactNode,
@@ -763,6 +740,32 @@ export function NotionPage({
   const block =
     recordMap?.block && blockId ? recordMap.block[blockId]?.value : null;
 
+  React.useEffect(() => {
+    if (
+      process.env.NODE_ENV === "production" ||
+      !recordMap ||
+      !pageId ||
+      !block
+    ) {
+      return;
+    }
+
+    const collectionCount = Object.keys(recordMap.collection ?? {}).length;
+    const collectionViewCount = Object.keys(recordMap.collection_view ?? {}).length;
+    const collectionViewPageBlocks = Object.values(recordMap.block ?? {}).filter(
+      (entry) => entry?.value?.type === "collection_view_page",
+    ).length;
+
+    console.log("[NotionPage][recordMapHealth]", {
+      pageId,
+      blockType: block.type,
+      parentTable: block.parent_table,
+      collectionCount,
+      collectionViewCount,
+      collectionViewPageBlocks,
+    });
+  }, [recordMap, pageId, block]);
+
   const isBlogPost =
     block?.type === "page" && block?.parent_table === "collection";
 
@@ -854,7 +857,6 @@ export function NotionPage({
       propertyLastEditedTimeValue,
       propertyTitleValue,
       propertyTextValue,
-      propertyDateValue,
       Text: CleanText,
     }),
     [],
