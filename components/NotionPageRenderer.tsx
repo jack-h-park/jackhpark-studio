@@ -157,6 +157,8 @@ interface NotionPageRendererProps {
   footer?: React.ReactNode;
   components?: Partial<NotionComponents>; // custom components from parent
   onOpenPeek?: (pageId: string) => void; // side peek callback
+  pageId?: string | null;
+  showCustomHeader?: boolean;
 }
 
 export function NotionPageRenderer({
@@ -171,6 +173,8 @@ export function NotionPageRenderer({
   footer,
   components: parentComponents, // custom components from parent
   onOpenPeek,
+  pageId,
+  showCustomHeader,
 }: NotionPageRendererProps) {
   const [mounted, setMounted] = React.useState(false);
 
@@ -318,6 +322,8 @@ export function NotionPageRenderer({
       ...(viewsChanged ? { collection_view: patchedViews! } : {}),
     };
   }, [recordMap]);
+
+  const hasCustomHeader = Boolean(recordMap && pageId && showCustomHeader);
 
   React.useEffect(() => {
     if (!recordMap?.collection_view) {
@@ -490,8 +496,12 @@ export function NotionPageRenderer({
   );
 
   //NotionRendereer
+  const wrapperClassName = hasCustomHeader
+    ? "notion-wrapper has-custom-header-props"
+    : "notion-wrapper";
+
   return (
-    <div className="notion-wrapper">
+    <div className={wrapperClassName}>
       <div className="notion-frame">
         {mounted ? (
           <NotionRenderer

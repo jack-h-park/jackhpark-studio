@@ -901,6 +901,10 @@ svg.notion-collection-column-title-icon {
   border-radius: 0.375rem;
 }
 
+.has-custom-header-props .notion-collection-page-properties {
+  display: none !important;
+}
+
 .notion-link {
   position: relative;
   transition: unset;

@@ -34,6 +34,8 @@ import { Page404 } from "./Page404";
 import { PageAside } from "./PageAside";
 import { PageHead } from "./PageHead";
 import { SidePeek } from "./SidePeek";
+import { NotionHeaderPropertiesPortal } from "@/components/NotionHeaderProperties/NotionHeaderPropertiesPortal";
+import { getPageCollectionId } from "@/lib/notion/getPageCollectionId";
 
 // --- Gallery preview eligibility -------------------------------------------
 // Limit image-preview modal to specific inline database (collection) IDs only.
@@ -740,6 +742,21 @@ export function NotionPage({
   const block =
     recordMap?.block && blockId ? recordMap.block[blockId]?.value : null;
 
+  const pageBlock = React.useMemo(() => {
+    if (!recordMap || !pageId) return null;
+    return recordMap.block?.[pageId]?.value ?? null;
+  }, [recordMap, pageId]);
+
+  const isDbItem = React.useMemo(() => {
+    if (!recordMap || !pageId) return false;
+    if (getPageCollectionId(recordMap, pageId)) {
+      return true;
+    }
+    return pageBlock?.parent_table === "collection";
+  }, [pageBlock, pageId, recordMap]);
+
+  const showCustomHeader = Boolean(recordMap && pageId && isDbItem);
+
   React.useEffect(() => {
     if (
       process.env.NODE_ENV === "production" ||
@@ -947,6 +964,7 @@ export function NotionPage({
   return (
     <>
       {header}
+      <NotionHeaderPropertiesPortal enabled={showCustomHeader} />
 
       {isLiteMode && <BodyClassName className="notion-lite" />}
       {isDarkMode && <BodyClassName className="dark dark-mode" />}
@@ -964,6 +982,8 @@ export function NotionPage({
           pageAside={pageAside}
           footer={footer}
           onOpenPeek={handleOpenPeek}
+          pageId={pageId}
+          showCustomHeader={showCustomHeader}
         />
       )}
 
