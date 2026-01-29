@@ -18,10 +18,12 @@ import { useSearchParam } from "react-use";
 
 import type * as types from "@/lib/types";
 import { ChatFloatingWidget } from "@/components/chat/ChatFloatingWidget";
+import { NotionHeaderPropertiesPortal } from "@/components/NotionHeaderProperties/NotionHeaderPropertiesPortal";
 import * as config from "@/lib/config";
 import { debugNotionXEnabled, debugNotionXLogger } from "@/lib/debug-notion-x";
 import { mapImageUrl } from "@/lib/map-image-url";
 import { getCanonicalPageUrl, mapPageUrl } from "@/lib/map-page-url";
+import { getPageCollectionId } from "@/lib/notion/getPageCollectionId";
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { useSidePeek } from "@/lib/use-side-peek";
 
@@ -34,8 +36,6 @@ import { Page404 } from "./Page404";
 import { PageAside } from "./PageAside";
 import { PageHead } from "./PageHead";
 import { SidePeek } from "./SidePeek";
-import { NotionHeaderPropertiesPortal } from "@/components/NotionHeaderProperties/NotionHeaderPropertiesPortal";
-import { getPageCollectionId } from "@/lib/notion/getPageCollectionId";
 
 // --- Gallery preview eligibility -------------------------------------------
 // Limit image-preview modal to specific inline database (collection) IDs only.
@@ -768,10 +768,12 @@ export function NotionPage({
     }
 
     const collectionCount = Object.keys(recordMap.collection ?? {}).length;
-    const collectionViewCount = Object.keys(recordMap.collection_view ?? {}).length;
-    const collectionViewPageBlocks = Object.values(recordMap.block ?? {}).filter(
-      (entry) => entry?.value?.type === "collection_view_page",
+    const collectionViewCount = Object.keys(
+      recordMap.collection_view ?? {},
     ).length;
+    const collectionViewPageBlocks = Object.values(
+      recordMap.block ?? {},
+    ).filter((entry) => entry?.value?.type === "collection_view_page").length;
 
     console.log("[NotionPage][recordMapHealth]", {
       pageId,

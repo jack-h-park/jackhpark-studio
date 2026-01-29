@@ -1,18 +1,15 @@
 import type { ExtendedRecordMap, PageBlock } from "notion-types";
 import { getBlockCollectionId } from "notion-utils";
 
-const normalizeId = (id?: string | null): string | undefined =>
-  id?.replace(/-/g, "");
-
 function findCollectionIdFromViewBlock(
   recordMap: ExtendedRecordMap,
   viewBlock: Partial<PageBlock> | undefined | null,
 ): string | null {
-  if (!viewBlock?.collection_id) {
+  if (!(viewBlock as any)?.collection_id) {
     return null;
   }
 
-  return viewBlock.collection_id;
+  return (viewBlock as any).collection_id;
 }
 
 export function getPageCollectionId(
@@ -29,7 +26,7 @@ export function getPageCollectionId(
   const parentTable = block?.parent_table ?? null;
   const parentId = block?.parent_id ?? null;
   const blockCollectionId =
-    block?.collection_id ??
+    (block as any)?.collection_id ??
     (block ? getBlockCollectionId(block, recordMap) : undefined);
 
   if (blockCollectionId) {
@@ -58,16 +55,16 @@ export function getPageCollectionId(
   if (parentTable === "collection_view" && parentId) {
     const viewEntry = recordMap.collection_view?.[parentId];
     const viewValue = viewEntry?.value;
-    if (viewValue?.collection_id) {
+    if ((viewValue as any)?.collection_id) {
       if (process.env.NODE_ENV !== "production") {
         console.log("[getPageCollectionId] collection_view parent", {
           pageId,
           parent_table: parentTable,
           parent_id: parentId,
-          collectionId: viewValue.collection_id,
+          collectionId: (viewValue as any).collection_id,
         });
       }
-      return viewValue.collection_id;
+      return (viewValue as any).collection_id;
     }
   }
 
@@ -80,7 +77,7 @@ export function getPageCollectionId(
   if (viewPageBlocks.length === 1) {
     const foundId = findCollectionIdFromViewBlock(
       recordMap,
-      viewPageBlocks[0]?.value,
+      viewPageBlocks[0]?.value as any,
     );
     if (foundId) {
       if (process.env.NODE_ENV !== "production") {
@@ -95,7 +92,10 @@ export function getPageCollectionId(
 
   for (const entry of Object.values(recordMap.block ?? {})) {
     if (entry?.value?.type === "collection_view_page") {
-      const candidate = findCollectionIdFromViewBlock(recordMap, entry.value);
+      const candidate = findCollectionIdFromViewBlock(
+        recordMap,
+        entry.value as any,
+      );
       if (candidate) {
         if (process.env.NODE_ENV !== "production") {
           console.log("[getPageCollectionId] fallback any view page", {

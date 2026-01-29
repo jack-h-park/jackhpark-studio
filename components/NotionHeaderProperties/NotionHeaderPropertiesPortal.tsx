@@ -28,8 +28,6 @@ const formatLongDate = (value?: string) => {
   return LONG_DATE_FORMATTER.format(parsed);
 };
 
-const trimText = (el: Element | null) => el?.textContent?.trim() ?? "";
-
 const collectValues = (anchor: Element) => {
   const rows = Array.from(
     anchor.querySelectorAll<HTMLElement>(".notion-collection-row-property"),
@@ -60,9 +58,8 @@ const collectValues = (anchor: Element) => {
   }
 
   const primary =
-    parsed.find((entry) =>
-      /posted on|published|date/i.test(entry.label),
-    ) ?? parsed[0];
+    parsed.find((entry) => /posted on|published|date/i.test(entry.label)) ??
+    parsed[0];
 
   const extraRows = parsed
     .filter((entry) => entry.key !== primary.key)
@@ -78,7 +75,10 @@ const collectValues = (anchor: Element) => {
       }
       return entry;
     })
-    .filter((entry) => entry.value.length > 0 || entry.label.toLowerCase().includes("tags"));
+    .filter(
+      (entry) =>
+        entry.value.length > 0 || entry.label.toLowerCase().includes("tags"),
+    );
 
   return {
     postedOnLabel: primary.label || "Posted on",
@@ -87,7 +87,11 @@ const collectValues = (anchor: Element) => {
   };
 };
 
-export function NotionHeaderPropertiesPortal({ enabled }: { enabled: boolean }) {
+export function NotionHeaderPropertiesPortal({
+  enabled,
+}: {
+  enabled: boolean;
+}) {
   const [mountNode, setMountNode] = React.useState<HTMLElement | null>(null);
   const [values, setValues] = React.useState<{
     postedOnLabel: string;
@@ -120,15 +124,14 @@ export function NotionHeaderPropertiesPortal({ enabled }: { enabled: boolean }) 
         return;
       }
 
-      mount =
-        document.getElementById(
-          "notion-custom-header-props-mount",
-        ) as HTMLElement | null;
+      mount = document.getElementById(
+        "notion-custom-header-props-mount",
+      ) as HTMLElement | null;
 
       if (!mount) {
         mount = document.createElement("div");
         mount.id = "notion-custom-header-props-mount";
-        mount.setAttribute("data-custom-header-props-mount", "1");
+        mount.dataset.customHeaderPropsMount = "1";
         createdMount = true;
       }
 
@@ -149,7 +152,7 @@ export function NotionHeaderPropertiesPortal({ enabled }: { enabled: boolean }) 
         cancelAnimationFrame(raf);
       }
       if (createdMount && mount && mount.parentElement) {
-        mount.parentElement.removeChild(mount);
+        mount.remove();
       }
     };
   }, [enabled]);
@@ -159,11 +162,11 @@ export function NotionHeaderPropertiesPortal({ enabled }: { enabled: boolean }) 
   }
 
   return createPortal(
-      <NotionHeaderProperties
-        postedOnLabel={values.postedOnLabel}
-        postedOnValue={values.postedOnValue}
-        extraRows={values.extraRows}
-      />,
+    <NotionHeaderProperties
+      postedOnLabel={values.postedOnLabel}
+      postedOnValue={values.postedOnValue}
+      extraRows={values.extraRows}
+    />,
     mountNode,
   );
 }

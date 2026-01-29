@@ -1,14 +1,13 @@
 "use client";
 
-import { type PageBlock } from "notion-types";
-import type { ExtendedRecordMap } from "notion-types";
+import { type ExtendedRecordMap, type PageBlock } from "notion-types";
 import { getPageProperty } from "notion-utils";
 import * as React from "react";
 
-import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/admin/ingestion-formatters";
-import { getVisiblePropertyIdsForPage } from "@/lib/notion/getVisiblePropertyIds";
 import { getPageCollectionId } from "@/lib/notion/getPageCollectionId";
+import { getVisiblePropertyIdsForPage } from "@/lib/notion/getVisiblePropertyIds";
+import { cn } from "@/lib/utils";
 
 import styles from "./PageVisibleProperties.module.css";
 
@@ -32,10 +31,10 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
 });
 
 const normalizeId = (id?: string | null): string | undefined =>
-  id?.replace(/-/g, "");
+  id?.replaceAll("-", "");
 
 const normalizeSchemaName = (name?: string): string =>
-  name?.trim().replace(/\s+/g, " ").toLowerCase() ?? "";
+  name?.trim().replaceAll(/\s+/g, " ").toLowerCase() ?? "";
 
 const isDisplayEmpty = (display: React.ReactNode | null): boolean => {
   if (display === null || display === undefined) {
@@ -87,14 +86,14 @@ const getRawPropertyValue = (
     return null;
   }
 
-  const direct = block.properties?.[propertyId];
+  const direct = (block.properties as any)?.[propertyId];
   if (direct !== undefined) {
     return direct;
   }
 
   const normalized = normalizeId(propertyId);
   if (normalized && normalized !== propertyId) {
-    return block.properties?.[normalized] ?? null;
+    return (block.properties as any)?.[normalized] ?? null;
   }
 
   return null;
@@ -147,7 +146,11 @@ const getPropValue = (
   const shouldPreferNotation =
     schemaType === PropertyType.Date || PREFERRED_LABELS.has(normalizedName);
 
-  if (shouldPreferNotation && notationDisplay && !isDisplayEmpty(notationDisplay)) {
+  if (
+    shouldPreferNotation &&
+    notationDisplay &&
+    !isDisplayEmpty(notationDisplay)
+  ) {
     return {
       raw: notationValue,
       from: "notion-utils",
@@ -160,8 +163,7 @@ const getPropValue = (
   if (blockValue !== null && blockValue !== undefined) {
     const formatted = formatPropertyValue(blockValue, schemaType);
     const fallbackText = extractPlainTextFromNotionProp(blockValue);
-    const display = formatted ?? (fallbackText ? fallbackText : null);
-    const isEmpty = isDisplayEmpty(display);
+    const display = formatted ?? (fallbackText || null);
 
     const shouldWarn =
       process.env.NODE_ENV !== "production" &&
@@ -179,9 +181,7 @@ const getPropValue = (
     }
 
     const cleanedDisplay =
-      shouldPreferNotation &&
-      typeof display === "string" &&
-      display.length <= 2
+      shouldPreferNotation && typeof display === "string" && display.length <= 2
         ? null
         : display;
 
@@ -203,10 +203,6 @@ const getPropValue = (
     isEmpty: isDisplayEmpty(notationDisplay),
     hasBlockValue: Boolean(blockValue),
   };
-};
-
-const LABEL_OVERRIDES: Record<string, string> = {
-  published: "Posted on",
 };
 
 const PREFERRED_LABELS = new Set(["published", "posted on"]);
@@ -245,14 +241,6 @@ const shouldIncludeSchemaEntry = (
   }
 
   return true;
-};
-
-const getDisplayLabel = (
-  schemaEntry: CollectionSchemaEntry | undefined,
-  propertyId: string,
-): string => {
-  const normalized = normalizeSchemaName(schemaEntry?.name);
-  return LABEL_OVERRIDES[normalized] ?? schemaEntry?.name ?? propertyId;
 };
 
 const orderWithPreferred = (
@@ -301,7 +289,7 @@ const findDateCandidate = (value: unknown): string | number | null => {
   }
 
   if (value instanceof Date) {
-    return value;
+    return value.getTime();
   }
 
   if (typeof value === "number" || typeof value === "string") {
@@ -346,9 +334,7 @@ const formatDateCandidate = (value: unknown): string | null => {
   }
 
   const date =
-    candidate instanceof Date
-      ? candidate
-      : typeof candidate === "number"
+    typeof candidate === "number"
       ? new Date(candidate)
       : new Date(String(candidate));
 
@@ -374,7 +360,7 @@ const formatPropertyValue = (
     const inputs = Array.isArray(value) ? value : [value];
     const formatted = inputs
       .map((entry) => formatDateCandidate(entry))
-      .filter((item): item is string => Boolean(item));
+      .filter(Boolean);
 
     if (formatted.length === 0) {
       return null;
@@ -390,7 +376,9 @@ const formatPropertyValue = (
   if (Array.isArray(value)) {
     const visible = value
       .map((item) => formatPropertyValue(item, schemaType))
-      .filter((item): item is string => typeof item === "string" && item.trim());
+      .filter(
+        (item): item is string => typeof item === "string" && !!item.trim(),
+      );
 
     if (visible.length === 0) {
       return null;
@@ -470,7 +458,8 @@ export function PageVisibleProperties({
     return recordMap.collection?.[collectionId]?.value ?? null;
   }, [collectionId, recordMap]);
 
-  const collectionSchema = (collectionEntry?.schema ?? null) as CollectionSchema | null;
+  const collectionSchema = (collectionEntry?.schema ??
+    null) as CollectionSchema | null;
 
   const visiblePropertyResult = React.useMemo(() => {
     if (!recordMap || !pageId) {
@@ -494,10 +483,7 @@ export function PageVisibleProperties({
   }, [visibleResolvedIds, includePropertyIds]);
 
   const excludeTypeSet = React.useMemo(() => {
-    return new Set([
-      ...DEFAULT_EXCLUDED_TYPES,
-      ...(excludeTypes ?? []),
-    ]);
+    return new Set([...DEFAULT_EXCLUDED_TYPES, ...(excludeTypes ?? [])]);
   }, [excludeTypes]);
 
   const excludeIdSet = React.useMemo(
@@ -506,9 +492,10 @@ export function PageVisibleProperties({
   );
 
   const prioritizedPropertyIds = React.useMemo(() => {
-    const baseIds = includePropertyIds && includePropertyIds.length > 0
-      ? includePropertyIds
-      : visibleResolvedIds;
+    const baseIds =
+      includePropertyIds && includePropertyIds.length > 0
+        ? includePropertyIds
+        : visibleResolvedIds;
 
     const filtered = dedupePropertyIds(baseIds).filter((propertyId) => {
       if (!propertyId || !collectionSchema?.[propertyId]) {
@@ -535,7 +522,7 @@ export function PageVisibleProperties({
         return false;
       }
 
-      if (excludeTypeSet.has(schemaEntry.type)) {
+      if (schemaEntry.type && excludeTypeSet.has(schemaEntry.type)) {
         return false;
       }
 
@@ -566,9 +553,11 @@ export function PageVisibleProperties({
         ) {
           return false;
         }
-        if (excludeTypeSet.has(schemaEntry.type)) return false;
+        if (schemaEntry.type && excludeTypeSet.has(schemaEntry.type))
+          return false;
         return true;
-      }, collectionSchema),
+      }),
+      collectionSchema,
     );
   }, [
     includePropertyIds,
@@ -679,9 +668,9 @@ export function PageVisibleProperties({
     };
 
     const resolvedEntries: RenderEntry[] = [];
-    prioritizedDetails.forEach((detail) =>
-      buildEntry(detail, resolvedEntries),
-    );
+    for (const detail of prioritizedDetails) {
+      buildEntry(detail, resolvedEntries);
+    }
 
     const fallbackDetails: EvaluationDetail[] = [];
     const fallbackEntries: RenderEntry[] = [];
@@ -763,15 +752,10 @@ export function PageVisibleProperties({
   const fallbackDetails = propertyRenderState.fallbackDetails;
 
   const dev =
-    typeof process !== "undefined" &&
-    process.env.NODE_ENV !== "production";
+    typeof process !== "undefined" && process.env.NODE_ENV !== "production";
 
   React.useEffect(() => {
-    if (
-      process.env.NODE_ENV === "production" ||
-      !recordMap ||
-      !collectionId
-    ) {
+    if (process.env.NODE_ENV === "production" || !recordMap || !collectionId) {
       return;
     }
 
@@ -826,8 +810,8 @@ export function PageVisibleProperties({
           typeof detail.display === "string"
             ? detail.display
             : detail.display
-            ? "ReactNode"
-            : null,
+              ? "ReactNode"
+              : null,
         from: detail.from,
         hasBlockValue: detail.hasBlockValue,
       })),
@@ -862,8 +846,8 @@ export function PageVisibleProperties({
         typeof detail.display === "string"
           ? detail.display
           : detail.display
-          ? "ReactNode"
-          : null;
+            ? "ReactNode"
+            : null;
 
       return {
         propertyId: detail.propertyId,

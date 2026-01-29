@@ -1,13 +1,17 @@
-import { type ExtendedRecordMap } from "notion-types";
+import {
+  type CollectionViewPageBlock,
+  type ExtendedRecordMap,
+} from "notion-types";
+
 import { getPageCollectionId } from "./getPageCollectionId";
 
 type PropertyEntry = string | Record<string, any>;
 
 const normalizeId = (id?: string | null): string | undefined =>
-  id?.replace(/-/g, "");
+  id?.replaceAll("-", "");
 
 const normalizeName = (value?: string): string =>
-  value?.trim().replace(/\s+/g, " ").toLowerCase() ?? "";
+  value?.trim().replaceAll(/\s+/g, " ").toLowerCase() ?? "";
 
 const getPropertyId = (entry: PropertyEntry): string | undefined => {
   if (!entry) return undefined;
@@ -38,10 +42,7 @@ const isHiddenEntry = (entry: PropertyEntry): boolean => {
   return false;
 };
 
-const extractIds = (
-  entries: unknown,
-  skipHidden = true,
-): string[] => {
+const extractIds = (entries: unknown, skipHidden = true): string[] => {
   if (!Array.isArray(entries)) {
     return [];
   }
@@ -80,7 +81,7 @@ export function getVisiblePropertyIdsForPage(
   pageId?: string | null,
 ): VisiblePropertyResult {
   if (!recordMap || !pageId) {
-    return [];
+    return { resolvedIds: [], rawIds: [] };
   }
 
   const block = (() => {
@@ -97,7 +98,7 @@ export function getVisiblePropertyIdsForPage(
     return recordMap.block?.[normalized]?.value ?? null;
   })();
   if (!block) {
-    return [];
+    return { resolvedIds: [], rawIds: [] };
   }
 
   const collectionId = getPageCollectionId(recordMap, pageId);
@@ -119,13 +120,13 @@ export function getVisiblePropertyIdsForPage(
     });
   }
 
-  const viewPageBlocks = Object.values(recordMap.block ?? {}).filter(
+  const viewPageBlock = Object.values(recordMap.block ?? {}).find(
     (entry) =>
       entry?.value?.type === "collection_view_page" &&
       entry.value?.collection_id === collectionId,
   );
 
-  const viewBlock = viewPageBlocks[0]?.value;
+  const viewBlock = viewPageBlock?.value as CollectionViewPageBlock | undefined;
   const viewId = viewBlock?.view_ids?.[0];
 
   let targetView = viewId
@@ -139,7 +140,7 @@ export function getVisiblePropertyIdsForPage(
   }
 
   if (!targetView) {
-    return [];
+    return { resolvedIds: [], rawIds: [] };
   }
 
   const viewFormat = targetView.format ?? {};
