@@ -1,11 +1,10 @@
 "use client";
 
+import { type ExtendedRecordMap } from "notion-types";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
 import { NotionHeaderProperties } from "./NotionHeaderProperties";
-
-import { type ExtendedRecordMap } from "notion-types";
 
 type Props = {
   enabled: boolean;

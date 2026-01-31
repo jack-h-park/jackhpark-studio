@@ -4,7 +4,6 @@ import { type ExtendedRecordMap, type PageBlock } from "notion-types";
 import { getPageProperty } from "notion-utils";
 import * as React from "react";
 
-import { formatDate } from "@/lib/admin/ingestion-formatters";
 import { getPageCollectionId } from "@/lib/notion/getPageCollectionId";
 import { getVisiblePropertyIdsForPage } from "@/lib/notion/getVisiblePropertyIds";
 import { cn } from "@/lib/utils";
@@ -221,7 +220,7 @@ const getPropValue = (
   return {
     raw: blockValue,
     from: "block",
-    display: display,
+    display,
     isEmpty: isDisplayEmpty(display),
     hasBlockValue: blockValue !== null,
   };
@@ -295,60 +294,6 @@ const formatPropertyValue = (
 
   // Handle Select / Multi-Select (render as pills)
   if (schemaType === "select" || schemaType === "multi_select") {
-    const items = Array.isArray(value) ? value : [value];
-    const elements = items.map((item, index) => {
-      // Item is usually { value: "OptionName", color: "gray" } or just a string "OptionName"
-      // But getRawPropertyValue might return raw Notion structure or simplified.
-      // Based on getPropValue -> getRawFromBlockProperties, it returns what's in block.properties.
-      // In notion-api-worker/notion-types, properties for select are usually [[ "OptionName" ]] (string)
-      // or a more complex object if we are looking at schema.
-
-      // Wait, block.properties values are usually [[ "Text" ]] or [[ "Text", [["b"]] ]] (Rich Text).
-      // For Select, it is [[ "OptionName" ]].
-      // For MultiSelect, it is [[ "Option1" ], [","], [ "Option2" ]].
-
-      // extractPlainTextFromNotionProp handles the string extraction well.
-      // But for distinct pills, we need to split by comma if it's a multi-select stored as rich text.
-      // OR better, we rely on the fact that we might just get a string.
-
-      // Let's rely on extractPlainTextFromNotionProp to get the text,
-      // AND then if it's multi-select, we might need to separate it?
-
-      // Actually, let's look at `extractPlainTextFromNotionProp`. It joins everything.
-      // If we want pills, we need to iterate the array segments if they are comma separated.
-
-      // However, for Simplicity in this "Data Driven" approach,
-      // we might just wrap the whole text in a pill if it's simple.
-      // If it's multi-select, Notion stores it as "A, B".
-
-      // Let's refine:
-      // If value is array of objects from block.properties (RichText),
-      // for Multi-Select, it's typically [["Option1"], [","], ["Option2"]].
-
-      // Let's try to parse it safely.
-      let text = "";
-      if (typeof item === "string") text = item;
-      else text = extractPlainTextFromNotionProp(item);
-
-      // Split by comma if multi-select and looks like a list?
-      // No, that's risky.
-
-      // Let's just create a pill for the content we have.
-      // If it's a single value (Select), one pill.
-      // If Multi-select, ideally multiple pills.
-
-      // If we assume `value` passed here IS the content of the property.
-      // If `value` is the raw property array like [["A"], [","], ["B"]].
-      // Then `formatPropertyValue` calls itself recursively for arrays?
-      // See the array handler below...
-
-      return (
-        <span key={index} className={styles.pill}>
-          {text}
-        </span>
-      );
-    });
-
     // The recursive array handler below might interfere if we don't catch it here.
     // But `schemaType` is passed down.
 
@@ -360,7 +305,7 @@ const formatPropertyValue = (
     if (Array.isArray(value)) {
       // Flatten Notion's structure: [["A"], [","], ["B"]]
       const parts: React.ReactNode[] = [];
-      value.forEach((segment, i) => {
+      for (const [i, segment] of value.entries()) {
         // segment is ["Value", [mod]] or [","] or just ["Value"]
         // If pure string: segment "A"
 
@@ -371,14 +316,14 @@ const formatPropertyValue = (
           text = segment;
         }
 
-        if (!text || text.trim() === "" || text === ",") return;
+        if (!text || text.trim() === "" || text === ",") continue;
 
         parts.push(
           <span key={i} className={styles.pill}>
             {text}
           </span>,
         );
-      });
+      }
 
       if (parts.length > 0) return <>{parts}</>;
       return <span className={styles.empty}>Empty</span>;
@@ -533,9 +478,6 @@ const dedupePropertyIds = (ids: Array<string | undefined | null>) => {
   return deduped;
 };
 
-const CLEAN_DATE_SUFFIX_REGEX =
-  /(?:,\s*\d{1,2}:\d{2}\s*(?:AM|PM)?|\s+at\s.*)$/i;
-
 const findDateCandidate = (value: unknown): string | number | null => {
   if (value === null || value === undefined) {
     return null;
@@ -667,18 +609,18 @@ export function usePageVisibleProperties({
       let createdId: string | undefined;
       let tagsId: string | undefined;
       const customInternalIds: string[] = [];
-      const forceCandidates = [
+      const forceCandidates = new Set([
         "posted on",
         "published",
         "_doc_type",
         "_persona_type",
-      ];
+      ]);
 
       // Map schema to roles
-      Object.entries(collectionSchema).forEach(([id, s]) => {
+      for (const [id, s] of Object.entries(collectionSchema)) {
         const n = normalizeSchemaName(s.name);
 
-        if (forceCandidates.includes(n)) {
+        if (forceCandidates.has(n)) {
           // Ensure it's in baseIds if force-included
           if (!baseIds.includes(id)) baseIds.push(id);
         }
@@ -688,7 +630,7 @@ export function usePageVisibleProperties({
         else if (n === "tags") tagsId = id;
         else if (n === "_doc_type" || n === "_persona_type")
           customInternalIds.push(id);
-      });
+      }
 
       // 2. Separate IDs into buckets
       // We want: PostedOn -> Created -> Tags -> CustomInternal -> Rest
@@ -718,12 +660,12 @@ export function usePageVisibleProperties({
         const nameB = normalizeSchemaName(collectionSchema[b]?.name || "");
         return nameA.localeCompare(nameB);
       });
-      customInternalIds.forEach((id) => addId(id));
+      for (const id of customInternalIds) addId(id);
 
       // Remainder from baseIds
-      baseIds.forEach((id) => {
+      for (const id of baseIds) {
         if (!usedIds.has(id)) newOrder.push(id);
-      });
+      }
 
       baseIds = newOrder;
     }

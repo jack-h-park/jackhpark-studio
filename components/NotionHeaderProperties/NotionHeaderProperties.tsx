@@ -1,5 +1,6 @@
-import * as React from "react";
 import { type ExtendedRecordMap } from "notion-types";
+import * as React from "react";
+
 import { usePageVisibleProperties } from "../PageVisibleProperties/PageVisibleProperties";
 import styles from "./NotionHeaderProperties.module.css";
 
