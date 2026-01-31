@@ -36,3 +36,27 @@
   overflow: hidden;
   clip: rect(0 0 0 0);
 }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  margin: 0 4px 4px 0;
+  border-radius: 4px;
+  font-size: 14px;
+  line-height: 20px;
+  height: 20px;
+  white-space: nowrap;
+  background: rgb(227, 226, 224);
+  color: rgb(50, 48, 44);
+}
+
+:global(.dark-mode) .pill {
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.empty {
+  color: rgba(55, 53, 47, 0.6);
+  font-style: normal;
+}

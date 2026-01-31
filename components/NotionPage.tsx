@@ -756,6 +756,15 @@ export function NotionPage({
   }, [pageBlock, pageId, recordMap]);
 
   const showCustomHeader = Boolean(recordMap && pageId && isDbItem);
+  if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+    console.log("[NotionPage] header debug", {
+      showCustomHeader,
+      isDbItem,
+      pageId,
+      hasRecordMap: !!recordMap,
+      keys: recordMap ? Object.keys(recordMap).join(",") : "none",
+    });
+  }
 
   React.useEffect(() => {
     if (
@@ -966,7 +975,11 @@ export function NotionPage({
   return (
     <>
       {header}
-      <NotionHeaderPropertiesPortal enabled={showCustomHeader} />
+      <NotionHeaderPropertiesPortal
+        enabled={showCustomHeader}
+        recordMap={recordMap}
+        pageId={pageId}
+      />
 
       {isLiteMode && <BodyClassName className="notion-lite" />}
       {isDarkMode && <BodyClassName className="dark dark-mode" />}
