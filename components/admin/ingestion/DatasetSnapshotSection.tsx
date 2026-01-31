@@ -132,13 +132,11 @@ function DatasetMetricTile({
     <div
       className={cn(
         insetPanelStyles.insetPanel,
-        "h-full p-2.5 flex flex-col justify-between gap-1.5",
+        "h-full p-2.5 flex flex-col gap-1",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <dt className="text-[0.65rem] uppercase tracking-[0.3em] text-[color:var(--ai-text-muted)]">
-          {label}
-        </dt>
+      <div className="flex items-center justify-between gap-2">
+        <dt className={styles.kpiTileTitle}>{label}</dt>
         {delta ? (
           <span
             className={cn(
@@ -150,10 +148,7 @@ function DatasetMetricTile({
           </span>
         ) : null}
       </div>
-      <dd
-        className="text-2xl font-semibold text-[color:var(--ai-text-strong)]"
-        style={{ fontVariantNumeric: "tabular-nums" }}
-      >
+      <dd className={styles.kpiMetricValue} style={{ fontVariantNumeric: "tabular-nums" }}>
         {value}
       </dd>
     </div>
@@ -320,8 +315,8 @@ export function DatasetSnapshotSection({
           <div className="ai-panel shadow-none rounded-[14px] px-3 py-2 md:col-span-2">
             <div className={`${styles.trendPanel}`}>
               <div className={styles.trendHeader}>
-                <span>Trend</span>
-                <span className={styles.trendCaption}>
+                <span className={styles.kpiTileTitle}>Trend</span>
+                <span className={styles.kpiHelperText}>
                   Last {historyList.length} captures
                 </span>
               </div>
@@ -340,14 +335,73 @@ export function DatasetSnapshotSection({
                       />
                     </svg>
                   </div>
-                  <div className={styles.trendMinMax}>
-                    <span>Min {numberFormatter.format(sparklineData.min)}</span>
-                    <span>Max {numberFormatter.format(sparklineData.max)}</span>
+                  <div className={`${styles.miniMetricGrid} ${styles.trendMinMax}`}>
+                    <div className={styles.miniMetric}>
+                      <span className={styles.kpiMetricLabel}>Min</span>
+                      <span
+                        className={styles.kpiMetricValue}
+                        title={`Min ${numberFormatter.format(
+                          sparklineData.min,
+                        )}`}
+                      >
+                        {numberFormatter.format(sparklineData.min)}
+                      </span>
+                    </div>
+                    <div className={styles.miniMetric}>
+                      <span className={styles.kpiMetricLabel}>Max</span>
+                      <span
+                        className={styles.kpiMetricValue}
+                        title={`Max ${numberFormatter.format(
+                          sparklineData.max,
+                        )}`}
+                      >
+                        {numberFormatter.format(sparklineData.max)}
+                      </span>
+                    </div>
                   </div>
-                  <div className={styles.trendFooter}>
-                    <span>Δ Docs {docDeltaValue}</span>
-                    <span>Δ Chunks {chunkDeltaValue}</span>
-                    <span>Δ Size {sizeDeltaValue}</span>
+                  <div className={`${styles.miniMetricGrid} ${styles.trendFooter}`}>
+                    <div className={styles.miniMetric}>
+                      <span className={styles.kpiMetricLabel}>Δ Docs</span>
+                      <span
+                        className={cn(
+                          styles.kpiMetricValue,
+                          docDeltaValue === "—" && styles.kpiMetricValueZero,
+                        )}
+                        title={`Δ Docs ${formatDeltaTitleValue(
+                          latest.deltaDocuments,
+                        )} documents`}
+                      >
+                        {docDeltaValue}
+                      </span>
+                    </div>
+                    <div className={styles.miniMetric}>
+                      <span className={styles.kpiMetricLabel}>Δ Chunks</span>
+                      <span
+                        className={cn(
+                          styles.kpiMetricValue,
+                          chunkDeltaValue === "—" && styles.kpiMetricValueZero,
+                        )}
+                        title={`Δ Chunks ${formatDeltaTitleValue(
+                          latest.deltaChunks,
+                        )} documents`}
+                      >
+                        {chunkDeltaValue}
+                      </span>
+                    </div>
+                    <div className={styles.miniMetric}>
+                      <span className={styles.kpiMetricLabel}>Δ Size</span>
+                      <span
+                        className={cn(
+                          styles.kpiMetricValue,
+                          sizeDeltaValue === "—" && styles.kpiMetricValueZero,
+                        )}
+                        title={`Δ Size ${formatBytesDeltaTitleValue(
+                          latest.deltaCharacters,
+                        )}`}
+                      >
+                        {sizeDeltaValue}
+                      </span>
+                    </div>
                     {percentChange ? (
                       <span className="text-[0.55rem] tracking-[0.2em] uppercase">
                         {percentChange} vs prev.
@@ -365,20 +419,24 @@ export function DatasetSnapshotSection({
         </GridPanel>
         <GridPanel className="grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
           {metadataItems.map((item) => (
-              <div
-                key={item.label}
-                className="ai-panel shadow-none rounded-[12px] px-4 py-3"
+            <div
+              key={item.label}
+              className={cn(
+                "ai-panel shadow-none rounded-[12px]",
+                styles.metaTile,
+              )}
+            >
+              <dt className={styles.kpiTileTitle}>{item.label}</dt>
+              <dd
+                title={item.title}
+                className={cn(
+                  styles.kpiMetricValue,
+                  item.title && styles.truncate,
+                )}
               >
-                <dt className="m-0 ai-label-overline tracking-wide text-[color:var(--ai-text-muted)]">
-                  {item.label}
-                </dt>
-                <dd
-                  title={item.title}
-                  className="mt-0.5 text-sm text-[color:var(--ai-text-soft)]"
-                >
-                  {item.value}
-                </dd>
-              </div>
+                {item.value}
+              </dd>
+            </div>
           ))}
         </GridPanel>
         <section className="ai-panel mt-2 space-y-3 shadow-none rounded-[14px] px-5 py-4">
