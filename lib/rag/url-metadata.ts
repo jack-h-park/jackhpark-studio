@@ -1,3 +1,5 @@
+import { fetchFaviconForUrl } from "@/lib/rag/fetch-favicon";
+
 import type { RagDocumentMetadata } from "./metadata";
 
 export function deriveTitleFromUrl(
@@ -17,7 +19,7 @@ export function deriveTitleFromUrl(
   }
 }
 
-export function buildUrlRagDocumentMetadata({
+export async function buildUrlRagDocumentMetadata({
   sourceUrl,
   htmlTitle,
   ogTitle,
@@ -27,7 +29,7 @@ export function buildUrlRagDocumentMetadata({
   htmlTitle?: string | null;
   ogTitle?: string | null;
   ogImageUrl?: string | null;
-}): RagDocumentMetadata {
+}): Promise<RagDocumentMetadata> {
   const bestTitle =
     (ogTitle && ogTitle.trim()) ||
     (htmlTitle && htmlTitle.trim()) ||
@@ -41,5 +43,20 @@ export function buildUrlRagDocumentMetadata({
     origin_id: sourceUrl,
     breadcrumb: undefined,
     preview_image_url: ogImageUrl ?? null,
+    ...(await resolveUrlFaviconMetadata(sourceUrl)),
+  };
+}
+
+async function resolveUrlFaviconMetadata(
+  sourceUrl: string,
+): Promise<Partial<RagDocumentMetadata>> {
+  const faviconUrl = await fetchFaviconForUrl(sourceUrl);
+  if (!faviconUrl) {
+    return {};
+  }
+
+  return {
+    icon_kind: "favicon" as const,
+    icon_image_url: faviconUrl,
   };
 }

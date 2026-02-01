@@ -132,7 +132,7 @@ async function ingestUrl(
   const existingMetadata = stripDocIdentifierFields(
     existingState?.metadata ?? null,
   );
-  const sourceMetadata = buildUrlRagDocumentMetadata({
+  const sourceMetadata = await buildUrlRagDocumentMetadata({
     sourceUrl: normalizedUrl,
     htmlTitle: title,
   });

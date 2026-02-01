@@ -984,7 +984,7 @@ async function runUrlIngestion(
       embeddingSpaceId: embeddingOptions.embeddingSpaceId,
     });
     const existingMetadata = parseRagDocumentMetadata(existingState?.metadata);
-    const sourceMetadata = buildUrlRagDocumentMetadata({
+    const sourceMetadata = await buildUrlRagDocumentMetadata({
       sourceUrl: url,
       htmlTitle: title,
     });

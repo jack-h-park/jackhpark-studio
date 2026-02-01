@@ -5,7 +5,7 @@ import { FiFileText } from "@react-icons/all-files/fi/FiFileText";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
 import { IngestionSubNav } from "@/components/admin/navigation/IngestionSubNav";
@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatusPill } from "@/components/ui/status-pill";
+import { pickDocumentPreviewSlot } from "@/lib/admin/document-preview";
 import {
   normalizeRagDocument,
   type RagDocumentRecord,
@@ -78,6 +79,8 @@ type DocumentDisplayInfo = {
   metadata: RagDocumentMetadata;
   subtitle?: string;
   previewImageUrl?: string;
+  iconEmoji?: string;
+  iconImageUrl?: string;
   teaserText?: string;
 };
 
@@ -117,11 +120,15 @@ function buildDocumentDisplayInfo(doc: DocumentRow): DocumentDisplayInfo {
   const subtitle = trimmedSubtitle || breadcrumbSubtitle;
   const previewImageUrl = metadata.preview_image_url?.trim() || undefined;
   const teaserText = metadata.teaser_text?.trim() || undefined;
+  const iconEmoji = metadata.icon_emoji?.trim() || undefined;
+  const iconImageUrl = metadata.icon_image_url?.trim() || undefined;
 
   return {
     metadata,
     subtitle,
     previewImageUrl,
+    iconEmoji,
+    iconImageUrl,
     teaserText,
   };
 }
@@ -200,6 +207,89 @@ function DocumentPreviewOverlay({ doc, info }: DocumentPreviewOverlayProps) {
   );
 }
 
+type DocumentPreviewThumbnailProps = {
+  doc: DocumentRow;
+  info: DocumentDisplayInfo;
+};
+
+function DocumentPreviewThumbnail({
+  doc,
+  info,
+}: DocumentPreviewThumbnailProps) {
+  const [coverFailed, setCoverFailed] = useState(false);
+  const [iconFailed, setIconFailed] = useState(false);
+  const slot = pickDocumentPreviewSlot({
+    previewImageUrl: coverFailed ? undefined : info.previewImageUrl,
+    iconEmoji: info.iconEmoji,
+    iconImageUrl: iconFailed ? undefined : info.iconImageUrl,
+  });
+
+  useEffect(() => {
+    setCoverFailed(false);
+  }, [doc.doc_id, info.previewImageUrl]);
+
+  useEffect(() => {
+    setIconFailed(false);
+  }, [doc.doc_id, info.iconImageUrl]);
+
+  const placeholderIcon = (
+    <FiFileText
+      aria-hidden="true"
+      className="text-lg text-[color:var(--ai-text-muted)]"
+    />
+  );
+
+  const renderSlot = () => {
+    switch (slot.type) {
+      case "previewImage":
+        if (!slot.value) {
+          break;
+        }
+        return (
+          <img
+            src={slot.value}
+            alt={doc.displayTitle}
+            className="h-full w-full object-cover"
+            loading="lazy"
+            onError={() => setCoverFailed(true)}
+          />
+        );
+      case "notionEmoji":
+        return (
+          <span className="text-2xl leading-tight">{slot.value ?? ""}</span>
+        );
+      case "iconImage":
+        if (!slot.value) {
+          break;
+        }
+        return (
+          <img
+            src={slot.value}
+            alt={`${doc.displayTitle} icon`}
+            className="h-full w-full object-contain"
+            loading="lazy"
+            onError={() => setIconFailed(true)}
+          />
+        );
+      default:
+        return placeholderIcon;
+    }
+
+    return placeholderIcon;
+  };
+
+  return (
+    <div className="flex justify-center">
+      <div className="group relative flex">
+        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-[color:var(--ai-border-soft)] bg-[color:var(--ai-surface-muted)] text-[color:var(--ai-text-muted)]">
+          {renderSlot()}
+        </div>
+        <DocumentPreviewOverlay doc={doc} info={info} />
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDocumentsPage({
   documents,
   totalCount,
@@ -223,28 +313,7 @@ export default function AdminDocumentsPage({
         header: <span className="sr-only">Preview</span>,
         render: (doc) => {
           const info = buildDocumentDisplayInfo(doc);
-          return (
-            <div className="flex justify-center">
-              <div className="group relative flex">
-                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-[color:var(--ai-border-soft)] bg-[color:var(--ai-surface-muted)] text-[color:var(--ai-text-muted)]">
-                  {info.previewImageUrl ? (
-                    <img
-                      src={info.previewImageUrl}
-                      alt={doc.displayTitle}
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <FiFileText
-                      aria-hidden="true"
-                      className="text-lg text-[color:var(--ai-text-muted)]"
-                    />
-                  )}
-                </div>
-                <DocumentPreviewOverlay doc={doc} info={info} />
-              </div>
-            </div>
-          );
+          return <DocumentPreviewThumbnail doc={doc} info={info} />;
         },
         size: "xs",
         width: "56px",

@@ -9,6 +9,7 @@ export type DocType =
 
 export type PersonaType = "personal" | "professional" | "hybrid";
 
+export type IconKind = "notion_emoji" | "notion_icon" | "favicon" | string;
 export type SourceType = "notion" | "url" | string;
 
 export interface RagDocumentMetadata {
@@ -19,6 +20,9 @@ export interface RagDocumentMetadata {
   breadcrumb?: string[];
   preview_image_url?: string | null;
   teaser_text?: string;
+  icon_kind?: IconKind;
+  icon_emoji?: string | null;
+  icon_image_url?: string | null;
   doc_id?: string;
   raw_doc_id?: string;
 
@@ -241,6 +245,12 @@ export function mergeRagDocumentMetadata(
     breadcrumb: incomingNormalized.breadcrumb ?? base.breadcrumb,
     preview_image_url:
       incomingNormalized.preview_image_url ?? base.preview_image_url,
+    icon_kind:
+      incomingNormalized.icon_kind ?? base.icon_kind ?? undefined,
+    icon_emoji:
+      incomingNormalized.icon_emoji ?? base.icon_emoji ?? undefined,
+    icon_image_url:
+      incomingNormalized.icon_image_url ?? base.icon_image_url ?? undefined,
     teaser_text: incomingNormalized.teaser_text ?? base.teaser_text,
     doc_type: incomingNormalized.doc_type ?? base.doc_type ?? undefined,
     persona_type:

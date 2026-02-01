@@ -287,7 +287,7 @@ type NotionPageBlockValue = {
   parent_id?: string;
   parent_table?: string;
   properties?: { title?: Decoration[] };
-  format?: { page_cover?: string | null };
+  format?: { page_cover?: string | null; page_icon?: string | null };
   type?: string;
 };
 
@@ -362,6 +362,65 @@ function resolveNotionPageCoverUrl({
     skipColorTokens: true,
     fallbackId: pageId,
   });
+}
+
+type NotionIconResult =
+  | { kind: "emoji"; value: string }
+  | { kind: "image"; url: string };
+
+function resolveNotionPageIcon({
+  recordMap,
+  pageId,
+}: {
+  recordMap: ExtendedRecordMap;
+  pageId: string;
+}): NotionIconResult | null {
+  const pageBlock = (recordMap.block?.[pageId]?.value as Block | null) ?? null;
+  const rawIcon = pageBlock?.format?.page_icon;
+
+  const mappedIconUrl = resolveNotionImageUrl({
+    raw: rawIcon,
+    block: pageBlock,
+    signedUrls: recordMap.signed_urls,
+    skipColorTokens: true,
+    fallbackId: pageId,
+  });
+  if (mappedIconUrl) {
+    return { kind: "image", url: mappedIconUrl };
+  }
+
+  const normalizedIcon =
+    typeof rawIcon === "string" ? rawIcon.trim() : undefined;
+  if (normalizedIcon && isLikelyEmoji(normalizedIcon)) {
+    return { kind: "emoji", value: normalizedIcon };
+  }
+
+  return null;
+}
+
+const ICON_EMOJI_REGEX = /\p{Extended_Pictographic}/u;
+
+function isLikelyEmoji(value: string): boolean {
+  if (!ICON_EMOJI_REGEX.test(value)) {
+    return false;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return false;
+  }
+
+  const lower = normalized.toLowerCase();
+  if (
+    lower.startsWith("attachment:") ||
+    lower.startsWith("file:") ||
+    lower.startsWith("color_") ||
+    lower.startsWith("grad_")
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function getBlockTitle(block: NotionPageBlockValue | null): string | null {
@@ -586,6 +645,18 @@ export function buildNotionSourceMetadata(
     finalPreview: previewImageUrl ?? null,
   });
   const teaserText = extractNotionTeaserText(recordMap, pageId, title);
+  const iconInfo = resolveNotionPageIcon({ recordMap, pageId });
+  const iconFields = iconInfo
+    ? iconInfo.kind === "emoji"
+      ? {
+          icon_kind: "notion_emoji" as const,
+          icon_emoji: iconInfo.value,
+        }
+      : {
+          icon_kind: "notion_icon" as const,
+          icon_image_url: iconInfo.url,
+        }
+    : undefined;
 
   return {
     title,
@@ -595,5 +666,6 @@ export function buildNotionSourceMetadata(
     breadcrumb,
     preview_image_url: previewImageUrl ?? null,
     teaser_text: teaserText,
+    ...iconFields,
   };
 }
