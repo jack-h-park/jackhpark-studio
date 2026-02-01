@@ -1281,7 +1281,7 @@ export function RecentRunsSection({
   );
 
   return (
-    <section className="ai-card space-y-4 p-6">
+    <section id="recent-runs" className="ai-card space-y-4 p-6">
       <CardHeader className={recentStyles.panelHeaderRow}>
         <div>
           <CardTitle icon={<FiLayers aria-hidden="true" />}>

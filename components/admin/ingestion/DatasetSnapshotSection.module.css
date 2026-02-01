@@ -1,20 +1,20 @@
 .trendPanel {
   border-radius: 14px;
   background-color: transparent;
-  min-height: 180px;
-  padding: 0.75rem 1rem;
+  min-height: 160px;
+  padding: 0.75rem 0.9rem;
 }
 
 .trendSparklineWrap {
-  margin-top: var(--ai-space-2);
-  height: 78px;
+  margin-top: var(--ai-space-1);
+  height: 70px;
 }
 
 .trendHeader {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ai-space-2);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--ai-space-1);
 }
 
 .kpiTile {
@@ -27,12 +27,12 @@
 }
 
 .trendFooter {
-  margin-top: var(--ai-space-2);
+  margin-top: var(--ai-space-1);
   grid-template-columns: repeat(3, minmax(110px, 1fr));
 }
 
 .trendMinMax {
-  margin-top: var(--ai-space-2);
+  margin-top: var(--ai-space-1);
   grid-template-columns: repeat(2, minmax(110px, 1fr));
 }
 
@@ -117,6 +117,30 @@
 
 .recentRow:last-child {
   border-bottom: none;
+}
+
+.recentRowButton {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.recentRowButton:not(.recentRowSelected):hover {
+  background-color: var(--ai-role-surface-1);
+}
+
+.recentRowButton:focus-visible {
+  outline: 2px solid var(--ai-accent-strong);
+  outline-offset: 2px;
+}
+
+.recentRowSelected {
+  background-color: var(--ai-role-surface-selected);
+  box-shadow: inset 3px 0 0 0 var(--ai-accent-strong);
 }
 
 .snapshotRowPrimary {

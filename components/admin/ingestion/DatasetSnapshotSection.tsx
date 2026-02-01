@@ -1,3 +1,5 @@
+"use client";
+
 import type { JSX, ReactNode } from "react";
 import { FiClock } from "@react-icons/all-files/fi/FiClock";
 import { FiDatabase } from "@react-icons/all-files/fi/FiDatabase";
@@ -70,6 +72,8 @@ const formatSignedBytesDelta = (value: number | null | undefined) => {
   return `${value > 0 ? "+" : "-"}${formatted}`;
 };
 
+export type SnapshotEntry = DatasetSnapshotOverview["history"][number];
+
 const formatSnapshotRowSummary = (entry: SnapshotEntry) => {
   const docs = numberFormatter.format(entry.totalDocuments);
   const chunks = numberFormatter.format(entry.totalChunks);
@@ -101,7 +105,7 @@ const formatSnapshotRowTitle = (entry: SnapshotEntry) => {
   return `Docs ${docs} (Δ ${docDelta}) · Chunks ${chunks} (Δ ${chunkDelta}) · Size ${size} (Δ ${sizeDelta})`;
 };
 
-type SnapshotEntry = DatasetSnapshotOverview["history"][number];
+ 
 
 const datasetMetricToneClasses: Record<
   "success" | "warning" | "error" | "info" | "muted",
@@ -117,6 +121,12 @@ const datasetMetricToneClasses: Record<
 type DatasetMetricDelta = {
   text: string;
   tone?: "success" | "warning" | "error" | "info" | "muted";
+};
+
+type DatasetSnapshotSectionProps = {
+  overview: DatasetSnapshotOverview;
+  selectedSnapshotId?: string | null;
+  onSelectSnapshot?: (snapshot: SnapshotEntry) => void;
 };
 
 function DatasetMetricTile({
@@ -156,9 +166,9 @@ function DatasetMetricTile({
 
 export function DatasetSnapshotSection({
   overview,
-}: {
-  overview: DatasetSnapshotOverview;
-}): JSX.Element {
+  selectedSnapshotId,
+  onSelectSnapshot,
+}: DatasetSnapshotSectionProps): JSX.Element {
   const { latest, history } = overview;
   const embeddingLabel = latest
     ? formatEmbeddingSpaceLabel(latest.embeddingSpaceId)
@@ -473,27 +483,40 @@ export function DatasetSnapshotSection({
                   ? "border-[color:var(--ai-accent-strong)] text-[color:var(--ai-accent-strong)] bg-[color:var(--ai-role-surface-1)]"
                   : "",
               );
+              const isSelected = selectedSnapshotId === entry.id;
+              const handleSelect = () => {
+                onSelectSnapshot?.(entry);
+              };
+              const ariaLabel = `Snapshot captured ${entry.capturedAt ?? "unknown date"} · ${snapshotSummary}`;
               return (
-                <li
-                  key={entry.id}
-                  className={styles.recentRow}
-                  title={rowTitle}
-                >
-                  <div className={styles.snapshotRowPrimary}>
-                    <span className="font-semibold text-[color:var(--ai-text-strong)]">
-                      {entry.capturedAt ? (
-                        <ClientSideDate value={entry.capturedAt} />
-                      ) : (
-                        "—"
-                      )}
-                    </span>
-                    <span className={styles.snapshotRowSummary}>
-                      {snapshotSummary}
-                    </span>
-                    <span className={chipClass}>
-                      {index === 0 ? "LATEST" : `#${index + 1}`}
-                    </span>
-                  </div>
+                <li key={entry.id} className={styles.recentRow}>
+                  <button
+                    type="button"
+                    aria-pressed={isSelected}
+                    aria-label={ariaLabel}
+                    title={rowTitle}
+                    className={cn(
+                      styles.recentRowButton,
+                      isSelected && styles.recentRowSelected,
+                    )}
+                    onClick={handleSelect}
+                  >
+                    <div className={styles.snapshotRowPrimary}>
+                      <span className="font-semibold text-[color:var(--ai-text-strong)]">
+                        {entry.capturedAt ? (
+                          <ClientSideDate value={entry.capturedAt} />
+                        ) : (
+                          "—"
+                        )}
+                      </span>
+                      <span className={styles.snapshotRowSummary}>
+                        {snapshotSummary}
+                      </span>
+                      <span className={chipClass}>
+                        {index === 0 ? "LATEST" : `#${index + 1}`}
+                      </span>
+                    </div>
+                  </button>
                 </li>
               );
             })}
@@ -503,3 +526,12 @@ export function DatasetSnapshotSection({
     </section>
   );
 }
+
+export {
+  formatBytesDeltaTitleValue,
+  formatDeltaOrDash,
+  formatDeltaTitleValue,
+  formatEmbeddingDisplayLabel,
+  formatSignedBytesDelta,
+  shortenId,
+};
