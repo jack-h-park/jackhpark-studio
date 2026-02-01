@@ -5,43 +5,42 @@
   padding: 0.75rem 1rem;
 }
 
-.trendHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.65rem;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: var(--ai-text-muted);
-}
-
-.trendCaption {
-  font-size: 0.65rem;
-}
-
 .trendSparklineWrap {
   margin-top: var(--ai-space-2);
   height: 78px;
 }
 
-.trendFooter {
+.trendHeader {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: baseline;
-  font-size: 0.65rem;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--ai-text-muted);
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ai-space-2);
+}
+
+.kpiTile {
+  height: 100%;
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  justify-content: flex-start;
+}
+
+.trendFooter {
+  margin-top: var(--ai-space-2);
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
 }
 
 .trendMinMax {
-  font-size: 0.65rem;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--ai-text-muted);
+  margin-top: var(--ai-space-2);
+  grid-template-columns: repeat(2, minmax(110px, 1fr));
+}
+
+.miniMetric {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.175rem;
+  align-items: flex-start;
 }
 
 .kpiTileTitle {
@@ -83,6 +82,11 @@
   white-space: nowrap;
 }
 
+.kpiDeltaText {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .miniMetricGrid {
   width: 100%;
   display: grid;
@@ -98,16 +102,17 @@
 }
 
 .metaTile {
-  padding: 0.75rem 1rem;
+  padding: 0.65rem 0.9rem;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  min-height: 86px;
+  gap: 0.25rem;
+  min-height: 84px;
+  justify-content: flex-start;
 }
 
 .recentRow {
   border-bottom: 1px solid var(--ai-role-border-subtle);
-  padding: 0.65rem 0;
+  padding-block: 0.45rem;
 }
 
 .recentRow:last-child {
@@ -115,9 +120,9 @@
 }
 
 .snapshotRowPrimary {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: var(--ai-space-3);
 }
 
@@ -127,6 +132,8 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .snapshotChip {
@@ -134,4 +141,10 @@
   letter-spacing: 0.3em;
   text-transform: uppercase;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0 0.7rem;
+  align-self: center;
 }

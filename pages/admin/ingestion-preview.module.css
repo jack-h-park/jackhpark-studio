@@ -1,0 +1,16 @@
+.previewPanel {
+  border-radius: var(--ai-radius-lg);
+  border: 1px solid var(--ai-role-border-muted);
+  background-color: var(--ai-role-surface-0);
+  padding: var(--ai-space-4);
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ai-space-2);
+}
+
+@media (min-width: 1024px) {
+  .previewPanel {
+    min-height: 180px;
+  }
+}

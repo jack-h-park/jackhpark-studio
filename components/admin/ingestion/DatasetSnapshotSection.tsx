@@ -132,25 +132,24 @@ function DatasetMetricTile({
     <div
       className={cn(
         insetPanelStyles.insetPanel,
-        "h-full p-2.5 flex flex-col gap-1",
+        styles.kpiTile,
       )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <dt className={styles.kpiTileTitle}>{label}</dt>
-        {delta ? (
-          <span
-            className={cn(
-              "text-xs font-semibold tracking-wide",
-              datasetMetricToneClasses[delta.tone ?? "muted"],
-            )}
-          >
-            {delta.text}
-          </span>
-        ) : null}
-      </div>
+      <dt className={styles.kpiTileTitle}>{label}</dt>
       <dd className={styles.kpiMetricValue} style={{ fontVariantNumeric: "tabular-nums" }}>
         {value}
       </dd>
+      {delta ? (
+        <p
+          className={cn(
+            styles.kpiHelperText,
+            styles.kpiDeltaText,
+            datasetMetricToneClasses[delta.tone ?? "muted"],
+          )}
+        >
+          {delta.text}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -317,7 +316,7 @@ export function DatasetSnapshotSection({
               <div className={styles.trendHeader}>
                 <span className={styles.kpiTileTitle}>Trend</span>
                 <span className={styles.kpiHelperText}>
-                  Last {historyList.length} captures
+                  {`LAST ${historyList.length} CAPTURES`}
                 </span>
               </div>
               {sparklineData ? (
@@ -337,7 +336,7 @@ export function DatasetSnapshotSection({
                   </div>
                   <div className={`${styles.miniMetricGrid} ${styles.trendMinMax}`}>
                     <div className={styles.miniMetric}>
-                      <span className={styles.kpiMetricLabel}>Min</span>
+                      <span className={styles.kpiMetricLabel}>MIN</span>
                       <span
                         className={styles.kpiMetricValue}
                         title={`Min ${numberFormatter.format(
@@ -347,8 +346,8 @@ export function DatasetSnapshotSection({
                         {numberFormatter.format(sparklineData.min)}
                       </span>
                     </div>
-                    <div className={styles.miniMetric}>
-                      <span className={styles.kpiMetricLabel}>Max</span>
+                      <div className={styles.miniMetric}>
+                        <span className={styles.kpiMetricLabel}>MAX</span>
                       <span
                         className={styles.kpiMetricValue}
                         title={`Max ${numberFormatter.format(
@@ -361,7 +360,7 @@ export function DatasetSnapshotSection({
                   </div>
                   <div className={`${styles.miniMetricGrid} ${styles.trendFooter}`}>
                     <div className={styles.miniMetric}>
-                      <span className={styles.kpiMetricLabel}>Δ Docs</span>
+                      <span className={styles.kpiMetricLabel}>Δ DOCS</span>
                       <span
                         className={cn(
                           styles.kpiMetricValue,
@@ -375,7 +374,7 @@ export function DatasetSnapshotSection({
                       </span>
                     </div>
                     <div className={styles.miniMetric}>
-                      <span className={styles.kpiMetricLabel}>Δ Chunks</span>
+                      <span className={styles.kpiMetricLabel}>Δ CHUNKS</span>
                       <span
                         className={cn(
                           styles.kpiMetricValue,
@@ -389,7 +388,7 @@ export function DatasetSnapshotSection({
                       </span>
                     </div>
                     <div className={styles.miniMetric}>
-                      <span className={styles.kpiMetricLabel}>Δ Size</span>
+                      <span className={styles.kpiMetricLabel}>Δ SIZE</span>
                       <span
                         className={cn(
                           styles.kpiMetricValue,
@@ -418,26 +417,31 @@ export function DatasetSnapshotSection({
           </div>
         </GridPanel>
         <GridPanel className="grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
-          {metadataItems.map((item) => (
-            <div
-              key={item.label}
-              className={cn(
-                "ai-panel shadow-none rounded-[12px]",
-                styles.metaTile,
-              )}
-            >
-              <dt className={styles.kpiTileTitle}>{item.label}</dt>
-              <dd
-                title={item.title}
+          {metadataItems.map((item) => {
+            const isZeroValue =
+              typeof item.value === "string" && item.value === "—";
+            return (
+              <div
+                key={item.label}
                 className={cn(
-                  styles.kpiMetricValue,
-                  item.title && styles.truncate,
+                  "ai-panel shadow-none rounded-[12px]",
+                  styles.metaTile,
                 )}
               >
-                {item.value}
-              </dd>
-            </div>
-          ))}
+                <dt className={styles.kpiTileTitle}>{item.label}</dt>
+                <dd
+                  title={item.title}
+                  className={cn(
+                    styles.kpiMetricValue,
+                    item.title && styles.truncate,
+                    isZeroValue && styles.kpiMetricValueZero,
+                  )}
+                >
+                  {item.value}
+                </dd>
+              </div>
+            );
+          })}
         </GridPanel>
         <section className="ai-panel mt-2 space-y-3 shadow-none rounded-[14px] px-5 py-4">
           <header className="flex flex-col gap-1 mb-3">

@@ -45,6 +45,8 @@ import {
 } from "@/lib/server/page-url";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
+import previewStyles from "./ingestion-preview.module.css";
+
 const PAGE_TITLE = "Ingestion Dashboard";
 const PAGE_TAB_TITLE = `Admin · ${PAGE_TITLE} — Jack H. Park`;
 
@@ -98,7 +100,20 @@ function IngestionDashboard({
           <div className="mb-6 space-y-6">
             <IngestionSubNav />
             <ManualIngestionPanel />
-            <DatasetSnapshotSection overview={datasetSnapshot} />
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]">
+              <DatasetSnapshotSection overview={datasetSnapshot} />
+              <section
+                aria-label="Preview placeholder"
+                className={previewStyles.previewPanel}
+              >
+                <p className="text-[0.65rem] uppercase tracking-[0.35em] text-[color:var(--ai-text-muted)]">
+                  Preview
+                </p>
+                <p className="text-sm text-[color:var(--ai-text-muted)] leading-relaxed">
+                  Select a run or document to preview details
+                </p>
+              </section>
+            </div>
             <RagDocumentsOverview stats={documentsStats} />
             <SystemHealthSection health={systemHealth} />
             <RecentRunsSection initial={recentRuns} />
