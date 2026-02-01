@@ -1,0 +1,145 @@
+.pageFlow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ai-space-6);
+  margin-bottom: var(--ai-space-6);
+  padding-top: var(--ai-space-7);
+}
+
+.documentsCard {
+  margin-top: var(--ai-space-3);
+}
+
+.headerContentTight {
+  gap: 0.25rem;
+}
+
+.headerDescriptionTight {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--ai-text-muted);
+}
+
+.sectionTitleLevelTwo {
+  font-size: 1.125rem;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.sectionDescriptionLevelThree {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--ai-text-muted);
+}
+
+.tableShell {
+  width: 100%;
+}
+
+.tableShell :global(.overflow-x-auto) {
+  scrollbar-gutter: stable both-edges;
+}
+
+.tableShell :global(.ai-table__cell) {
+  min-height: 38px;
+}
+
+.tableShell :global(tbody .ai-table__cell) {
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  padding-left: 0.6rem;
+  padding-right: 0.6rem;
+}
+
+.rowInteractive {
+  cursor: pointer;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rowHover:hover {
+  background-color: var(--ai-role-surface-hover);
+}
+
+.rowFocusVisible:focus-within :global(.ai-table__cell) {
+  outline: 2px solid var(--ai-role-border-selected);
+  outline-offset: -1px;
+}
+
+.rowSelected :global(.ai-table__cell) {
+  background-color: var(--ai-role-surface-selected);
+}
+
+.cellNumeric {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.titlePrimary {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.titleSecondary {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--ai-text-muted);
+  text-transform: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pillPrimary {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.pillSecondary {
+  opacity: 0.7;
+  letter-spacing: 0.02em;
+}
+
+.emptyState {
+  border: 1px solid var(--ai-role-border-muted);
+  background-color: var(--ai-role-surface-muted);
+  border-radius: var(--ai-radius-md);
+  padding: var(--ai-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ai-space-2);
+  text-align: center;
+}
+
+.emptyStateTitle {
+  margin: 0;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.emptyStateHelper {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--ai-text-muted);
+}
+
+.tableFooter {
+  border-top: 1px solid var(--ai-role-divider-muted);
+  padding: 0.75rem 0 0;
+  margin: 0 0 var(--ai-space-1);
+  gap: var(--ai-space-3);
+  align-items: baseline;
+}
+
+.tableFooter :global(div:first-child) {
+  flex: 1;
+}
+
+.tableFooter :global(div:last-child) {
+  gap: var(--ai-space-2) !important;
+}

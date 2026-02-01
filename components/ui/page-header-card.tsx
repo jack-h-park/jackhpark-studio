@@ -14,6 +14,9 @@ export type PageHeaderCardProps = {
   variant?: "default" | "ghost";
   className?: string;
   headerClassName?: string;
+  contentClassName?: string;
+  titleClassName?: string;
+  descriptionClassName?: string;
 };
 
 export function PageHeaderCard({
@@ -27,6 +30,9 @@ export function PageHeaderCard({
   variant = "default",
   className,
   headerClassName,
+  contentClassName,
+  titleClassName,
+  descriptionClassName,
 }: PageHeaderCardProps) {
   const shouldStackActions = alignActions === "bottom";
 
@@ -44,7 +50,12 @@ export function PageHeaderCard({
           headerClassName,
         )}
       >
-        <div className="flex min-w-0 flex-col gap-2">
+        <div
+          className={cn(
+            "flex min-w-0 flex-col gap-2",
+            contentClassName,
+          )}
+        >
           {overline && (
             <p className="ai-label-overline tracking-[0.3em] text-[color:var(--ai-text-soft)]">
               {overline}
@@ -57,13 +68,23 @@ export function PageHeaderCard({
                 {icon}
               </span>
             )}
-            <h1 className="truncate text-2xl font-semibold leading-tight text-[color:var(--ai-text-strong)] sm:text-[2.25rem]">
+            <h1
+              className={cn(
+                "truncate text-2xl font-semibold leading-tight text-[color:var(--ai-text-strong)] sm:text-[2.25rem]",
+                titleClassName,
+              )}
+            >
               {title}
             </h1>
           </div>
 
           {description && (
-            <p className="text-sm text-[color:var(--ai-text-muted)] sm:text-base">
+            <p
+              className={cn(
+                "text-sm text-[color:var(--ai-text-muted)] sm:text-base",
+                descriptionClassName,
+              )}
+            >
               {description}
             </p>
           )}

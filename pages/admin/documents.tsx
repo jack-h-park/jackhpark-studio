@@ -45,6 +45,9 @@ import {
 import { deriveTitleFromUrl } from "@/lib/rag/url-metadata";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
+import { cn } from "@/lib/utils";
+
+import styles from "./documents.module.css";
 
 const PAGE_TITLE = "RAG Documents";
 const PAGE_TAB_TITLE = "Admin · Ingestion · RAG Documents — Jack H. Park";
@@ -252,16 +255,23 @@ export default function AdminDocumentsPage({
         render: (doc) => {
           const info = buildDocumentDisplayInfo(doc);
           return (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 min-w-0">
               <Link
                 href={`/admin/documents/${encodeURIComponent(doc.doc_id)}`}
-                className="font-semibold text-[color:var(--ai-text)] hover:underline"
+                className={cn(
+                  "font-semibold text-[color:var(--ai-text)] hover:underline",
+                  styles.titlePrimary,
+                )}
+                title={doc.displayTitle}
               >
                 {doc.displayTitle}
               </Link>
-              <span className="text-xs text-[color:var(--ai-text-muted)] break-all">
+              <p
+                className={styles.titleSecondary}
+                title={info.subtitle ?? doc.doc_id}
+              >
                 {info.subtitle ?? doc.doc_id}
-              </span>
+              </p>
             </div>
           );
         },
@@ -315,7 +325,9 @@ export default function AdminDocumentsPage({
         header: "Doc Type",
         render: (doc) =>
           doc.metadata?.doc_type ? (
-            <StatusPill variant="muted">{doc.metadata.doc_type}</StatusPill>
+            <StatusPill variant="muted" className={styles.pillPrimary}>
+              {doc.metadata.doc_type}
+            </StatusPill>
           ) : (
             "—"
           ),
@@ -327,7 +339,12 @@ export default function AdminDocumentsPage({
         header: "Persona",
         render: (doc) =>
           doc.metadata?.persona_type ? (
-            <StatusPill variant="muted">{doc.metadata.persona_type}</StatusPill>
+            <StatusPill
+              variant="muted"
+              className={styles.pillSecondary}
+            >
+              {doc.metadata.persona_type}
+            </StatusPill>
           ) : (
             "—"
           ),
@@ -341,7 +358,7 @@ export default function AdminDocumentsPage({
           typeof doc.metadata?.is_public === "boolean" ? (
             <StatusPill
               variant={doc.metadata.is_public ? "success" : "muted"}
-              className={!doc.metadata.is_public ? "opacity-70" : undefined}
+              className={styles.pillSecondary}
             >
               {doc.metadata.is_public ? "Public" : "Private"}
             </StatusPill>
@@ -368,12 +385,23 @@ export default function AdminDocumentsPage({
       },
       {
         header: "Chunks",
-        render: (doc) => doc.chunk_count ?? 0,
+        render: (doc) => {
+          const rawValue = doc.chunk_count ?? 0;
+          const hasChunks = typeof doc.chunk_count === "number" && doc.chunk_count > 0;
+          return (
+            <span
+              title={`Chunks: ${doc.chunk_count ?? 0}`}
+              className="inline-flex min-w-[40px] justify-end"
+            >
+              {hasChunks ? rawValue.toLocaleString() : "—"}
+            </span>
+          );
+        },
         variant: "numeric",
         align: "right",
         width: "90px",
         size: "xs",
-        className: "text-[color:var(--ai-text-muted)]",
+        className: `text-[color:var(--ai-text-muted)] ${styles.cellNumeric}`,
       },
     ];
   }, []);
@@ -451,6 +479,15 @@ export default function AdminDocumentsPage({
       ? "No documents to display yet."
       : `Showing ${Math.min((page - 1) * pageSize + 1, totalCount)}-${Math.min(page * pageSize, totalCount)} of ${totalCount}.`;
 
+  const hasDocuments = documents.length > 0;
+
+  const emptyStatePanel = (
+    <div className={styles.emptyState}>
+      <p className={styles.emptyStateTitle}>No documents found</p>
+      <p className={styles.emptyStateHelper}>Try adjusting your filters.</p>
+    </div>
+  );
+
   return (
     <>
       <Head>
@@ -468,20 +505,24 @@ export default function AdminDocumentsPage({
             title: PAGE_TITLE,
             description:
               "Browse and manage ingested documents and their metadata.",
+            contentClassName: styles.headerContentTight,
+            descriptionClassName: styles.headerDescriptionTight,
           }}
         >
-          <div className="mb-6 space-y-6">
+          <div className={cn("mb-6", styles.pageFlow)}>
             <IngestionSubNav />
             <Card>
               <CardHeader>
-                <CardTitle>Search & Filters</CardTitle>
-                <CardDescription>
+                <CardTitle className={styles.sectionTitleLevelTwo}>
+                  Search & Filters
+                </CardTitle>
+                <CardDescription className={styles.sectionDescriptionLevelThree}>
                   Find documents by ID, type, persona, visibility, or source.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3 px-5 py-4">
                 <form
-                  className="grid grid-cols-1 gap-4 md:grid-cols-12"
+                  className="grid grid-cols-1 gap-3 md:grid-cols-12 md:gap-4"
                   onSubmit={handleSearchSubmit}
                 >
                   <div className="md:col-span-4">
@@ -594,29 +635,39 @@ export default function AdminDocumentsPage({
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className={styles.documentsCard}>
               <CardHeader>
-                <CardTitle>Documents</CardTitle>
-                <CardDescription>
+                <CardTitle className={styles.sectionTitleLevelTwo}>
+                  Documents
+                </CardTitle>
+                <CardDescription className={styles.sectionDescriptionLevelThree}>
                   Browse all ingested text chunks and their associated metadata.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
+              <CardContent className="px-5 pb-5 pt-4">
+                {hasDocuments ? (
                   <DataTable
+                    className={styles.tableShell}
                     columns={columns}
                     data={documents}
-                    emptyMessage="No documents found."
                     rowKey={(doc) => doc.doc_id}
                     stickyHeader
+                    rowClassName={cn(
+                      styles.rowInteractive,
+                      styles.rowHover,
+                      styles.rowFocusVisible,
+                    )}
                     pagination={{
                       currentPage: page,
                       totalPages,
                       onPageChange: handlePageChange,
                       summaryText,
                     }}
+                    paginationClassName={styles.tableFooter}
                   />
-                </div>
+                ) : (
+                  emptyStatePanel
+                )}
               </CardContent>
             </Card>
           </div>

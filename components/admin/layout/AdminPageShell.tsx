@@ -17,6 +17,11 @@ export type AdminPageShellProps = {
     description?: string;
     meta?: ReactNode;
     actions?: ReactNode;
+    cardClassName?: string;
+    headerClassName?: string;
+    contentClassName?: string;
+    titleClassName?: string;
+    descriptionClassName?: string;
   };
   children: ReactNode;
 };
@@ -50,6 +55,11 @@ export function AdminPageShell({
               description={header.description}
               meta={header.meta}
               actions={header.actions}
+              className={header.cardClassName}
+              headerClassName={header.headerClassName}
+              contentClassName={header.contentClassName}
+              titleClassName={header.titleClassName}
+              descriptionClassName={header.descriptionClassName}
             />
           </div>
         </div>

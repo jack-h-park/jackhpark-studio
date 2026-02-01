@@ -33,6 +33,7 @@ export type DataTableProps<T> = {
   renderRowDetails?: (item: T, rowIndex: number) => React.ReactNode | null;
   rowDetailsClassName?: string;
   rowDetailsCellClassName?: string;
+  paginationClassName?: string;
 };
 
 export function DataTable<T>({
@@ -50,6 +51,7 @@ export function DataTable<T>({
   renderRowDetails,
   rowDetailsClassName,
   rowDetailsCellClassName,
+  paginationClassName,
 }: DataTableProps<T>) {
   const hasData = data.length > 0;
   const variantClassMap: Record<
@@ -208,7 +210,12 @@ export function DataTable<T>({
         <div className="absolute inset-0 bg-[color-mix(in_srgb,hsl(var(--ai-bg))_60%,transparent)] pointer-events-none" />
       ) : null}
       {pagination ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ai-border-soft)] px-4 py-3">
+        <div
+          className={cn(
+            "flex flex-wrap items-center justify-between gap-3 border-t border-[color:var(--ai-border-soft)] px-4 py-3",
+            paginationClassName,
+          )}
+        >
           <div>
             <span className="ai-meta-text">{pagination.summaryText}</span>
           </div>
