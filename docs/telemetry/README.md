@@ -1,6 +1,6 @@
 # Telemetry docs
 
-> **Derives from canonical:** [Telemetry alerting contract](./alerting-contract.md)
+> **Derives from canonical:** [Telemetry alerting contract](../canonical/telemetry/alerting-contract.md)
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
@@ -33,14 +33,14 @@ Canonical semantics (e.g., `latency_ms` as handler E2E duration; deterministic b
 
 ## Canonical documents
 
-- `alerting-contract.md` — consolidates Step 1 (alert intent/spec) and Step 2 (canonical events, properties, normalization) into a single operator-facing contract.
-- `posthog-ops.md` — PostHog dashboards, alert implementation notes (intervals, volume gates, cooldowns), and the cache hit/miss fallback.
-- `langfuse-dashboard.md` — explains the Langfuse-side dashboards and their A/B/C layout (unchanged except for updated cross-links).
-- `oncall-runbook.md` — the incident playbooks for Alerts A, B, and C.
-- `rag-observations.md` — field-by-field reference for `rag:root` and `context:selection` observations.
-- `telemetry-logging.md` — logging and Langfuse telemetry architecture.
-- `langfuse-guide.md` — payload formats, tags, and generation summaries sent to Langfuse.
-- `audit.md` — current audit status, fixed documentation touches, and outstanding Platform/Product work.
+- [`alerting-contract.md`](../canonical/telemetry/alerting-contract.md) — consolidates Step 1 (alert intent/spec) and Step 2 (canonical events, properties, normalization) into a single operator-facing contract.
+- [`posthog-ops.md`](posthog-ops.md) — PostHog dashboards, alert implementation notes (intervals, volume gates, cooldowns), and the cache hit/miss fallback.
+- [`langfuse-dashboard.md`](langfuse-dashboard.md) — explains the Langfuse-side dashboards and their A/B/C layout (unchanged except for updated cross-links).
+- [`oncall-runbook.md`](runbooks/oncall-runbook.md) — the incident playbooks for Alerts A, B, and C.
+- [`rag-observations.md`](rag-observations.md) — field-by-field reference for `rag:root` and `context:selection` observations.
+- [`telemetry-logging.md`](telemetry-logging.md) — logging and Langfuse telemetry architecture.
+- [`langfuse-guide.md`](langfuse-guide.md) — payload formats, tags, and generation summaries sent to Langfuse.
+- [`audit.md`](audit.md) — current audit status, fixed documentation touches, and outstanding Platform/Product work.
 
 ## How these docs relate to dashboards
 

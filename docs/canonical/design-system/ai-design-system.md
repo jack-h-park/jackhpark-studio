@@ -6,19 +6,20 @@ This document outlines the architecture and principles of the AI Design System, 
 
 **Status:** Canonical  
 **Defines:**
+
 - the token system (BG/text/role tokens) that powers every color, border, and interaction state.
 - the primitives- vs. feature-layer separation, ensuring `styles/ai-design-system.css` remains primitive-only.
 - the interaction contract (Selectable primitives, tokens, InteractionScope) that unifies hover/active states.
 - the engineering conventions (Tailwind + `cn`, file naming) that keep the system consistent.
-**Invariants:**
+  **Invariants:**
 - No raw color literals appear in primitive CSS or component styles; only role/text/accent tokens may surface.
 - Interaction states are driven by shared primitives (e.g., `.ai-selectable`) and their tokens, not per-feature overrides.
 - Dark mode and border/contrast expectations remain tied to the defined tokens so theme changes flow automatically.
-**Derived documents:**
+  **Derived documents:**
 - [../css-guardrails.md](../css-guardrails.md)
 - [../ui/color-contract.md](../ui/color-contract.md)
 - [../ui/color-audit.md](../ui/color-audit.md)
-**Change rule:** If this contract changes, update derived docs in the same PR.
+  **Change rule:** If this contract changes, update derived docs in the same PR.
 
 ---
 
@@ -185,3 +186,54 @@ This ensures that improving or fixing interaction clarity happens in one place a
 2.  **No hardcoded colors.** Use tokens (`hsl(var(--ai-...))`) or `color-mix` for transparency.
 3.  **Interaction over props.** Prefer `InteractionScope` for managing groups of disabled/loading/readOnly states.
 4.  **Accessibility is first-class.** Always use descriptive labels and prefer the React `Tooltip` component (Radix UI) over manual `data-tooltip` implementations.
+
+---
+
+## 6. Color & Role Contracts (Merged)
+
+This section captures the **surface**, **border**, **divider**, and **interaction** roles that every component should share.
+
+### A. Surface Roles
+
+- **Base surface**: `--ai-surface` / `bg-ai` is the default card/panel fill, `--ai-bg` is the layout background anchor.
+- **Subtle surfaces**: `--ai-surface-muted`, `--ai-surface-tint`, and `--ai-bg-muted` provide layered depth without switching palettes.
+- **DO**
+  - Use `bg-[color:var(--ai-surface)]`, `bg-ai`, or `bg-[color-mix(in srgb,var(--ai-bg),var(--ai-border),<ratio>)]` for cards and dropdowns.
+  - Layer hover/press states by blending `var(--ai-surface)` with `var(--ai-accent)` or `var(--ai-border)` using `color-mix`.
+  - Prefer token-driven classes (`bg-ai-muted`, `bg-[var(--ai-bg-muted)]`) over repeating literal HSL/hex values.
+- **DON’T**
+  - Hardcode opaque hex strings (`#fff`, `#1f2027`, etc.) for UI surfaces.
+  - Create once-off surface fills inside components; reuse the surface tokens instead of inventing new ones.
+
+### B. Border Roles
+
+- **Base and accent borders**: `--ai-border` is the default stroke, with `--ai-border-soft`, `--ai-border-muted`, and `--ai-border-strong` spacing the visual hierarchy.
+- **DO**
+  - Apply `border-[color:var(--ai-border)]`, `border-ai`, `border-[color-mix(in srgb,var(--ai-border) 70%, transparent)]`, etc.
+  - For focus/hover outlines, use `focus-visible:ring-[color:var(--ai-ring)]` and keep `border` widths consistent with the Tailwind tokens.
+  - Favor subtle divider strokes (`--ai-divider`) for lists and sheet separators.
+- **DON’T**
+  - Mix custom border colors per component; we want one portable set so global themes can shift.
+  - Drop in brand-specific colors (e.g., `border-color: #ff0000`) inside reusable primitives.
+
+### C. Divider Roles
+
+- **Separator token**: `--ai-divider` ensures vertical and horizontal separators maintain weight and opacity without clashing with backgrounds.
+- **DO**
+  - Use `border-[color:var(--ai-divider)]` or `bg-[color:var(--ai-divider)]` for thin splits inside panels.
+  - Reserve `--ai-divider` for structural splits, not status badges.
+- **DON’T**
+  - Add custom `rgba`/`hsl` values for separators; they disrupt the intended contrast ratios.
+
+### D. Interaction Roles
+
+- **Accent colors**: `--ai-accent`, `--ai-accent-strong`, `--ai-accent-soft`, `--ai-accent-bg` power links, primary buttons, and badges.
+- **Status colors**: `--ai-success`, `--ai-warning`, `--ai-error` plus their `*-muted` variants drive success/error/warning states.
+- **Focus/hover rings**: `--ai-ring` and `--ai-pill-*` tokens describe outlines and pill backgrounds.
+- **DO**
+  - Tie `hover:bg`, `active:bg`, `focus:ring`, and `text` variants to the tokens above (e.g., `hover:bg-[color-mix(in srgb,var(--ai-accent),var(--ai-bg),15%)]`).
+  - Use semantic tokens like `bg-[var(--ai-error-muted)]` or `text-[var(--ai-success)]` for feedback messaging.
+  - When necessary, use `color-mix` to adjust opacity while staying anchored to a base token.
+- **DON’T**
+  - Use standalone interaction colors (e.g., `hover:text-[#1d4ed8]`) that bypass theme tokens.
+  - Re-implement accent shades per component; extend the existing tokens or add new ones to `styles/ai-design-system.css` before using them in UI code.
