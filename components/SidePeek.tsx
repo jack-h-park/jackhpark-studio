@@ -89,7 +89,7 @@ export function SidePeek({ isOpen, onClose, children }: SidePeekProps) {
 
   const hiddenPosition = isMobile
     ? { x: 0, y: "100%" as const }
-    : { x: 480, y: 0 };
+    : { x: "100%", y: 0 };
 
   if (!mounted || typeof window === "undefined") return null;
 
