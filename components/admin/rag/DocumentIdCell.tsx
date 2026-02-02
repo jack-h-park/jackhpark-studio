@@ -2,6 +2,10 @@ import { FiCheck } from "@react-icons/all-files/fi/FiCheck";
 import { FiCopy } from "@react-icons/all-files/fi/FiCopy";
 import { useCallback, useMemo, useState } from "react";
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/components/ui/utils";
+import { copyToClipboard } from "@/lib/clipboard";
+
 type DocumentIdCellProps = {
   canonicalId: string;
   rawId?: string | null;
@@ -24,26 +28,6 @@ function abbreviateId(value: string, short: boolean): string {
   }
 
   return `${value.slice(0, ID_SHORT_HEAD)}…${value.slice(-ID_SHORT_TAIL)}`;
-}
-
-function copyToClipboard(value: string): Promise<void> {
-  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-    return navigator.clipboard.writeText(value);
-  }
-
-  if (typeof document !== "undefined") {
-    const textarea = document.createElement("textarea");
-    textarea.value = value;
-    textarea.setAttribute("readonly", "true");
-    textarea.style.position = "absolute";
-    textarea.style.left = "-9999px";
-    document.body.append(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    textarea.remove();
-  }
-
-  return Promise.resolve();
 }
 
 export function DocumentIdCell({
@@ -83,54 +67,77 @@ export function DocumentIdCell({
   );
 
   return (
-    <div className={className}>
-      <div className="flex items-center gap-2 text-[color:var(--ai-text-muted)]">
-        <span className="ai-label-overline text-[color:var(--ai-text-muted)]">
-          Raw
-        </span>
-        <span
-          className="truncate text-xs font-mono text-[color:var(--ai-text)]"
-          title={rawValue ?? undefined}
-        >
-          {rawDisplay}
-        </span>
-        {showRawCopy && rawValue ? (
-          <button
-            type="button"
-            onClick={() => handleCopy("raw")}
-            className="flex h-6 w-6 items-center justify-center rounded border border-[color:var(--ai-border-soft)] text-sm text-[color:var(--ai-text-muted)] transition hover:border-[color:var(--ai-border)] hover:text-[color:var(--ai-text)]"
-            aria-label="Copy raw document ID"
+    <div
+      className={cn(
+        "space-y-3 rounded-[var(--ai-radius-lg)] border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-muted)] p-3",
+        className,
+      )}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <span className="ai-label-overline text-[color:var(--ai-text-muted)]">
+            Raw
+          </span>
+          <p
+            className="truncate text-xs font-mono text-[color:var(--ai-text)]"
+            title={rawValue ?? undefined}
           >
-            {copied === "raw" ? (
-              <FiCheck className="text-green-500" />
-            ) : (
-              <FiCopy />
-            )}
-          </button>
-        ) : null}
+            {rawDisplay}
+          </p>
+        </div>
+        {showRawCopy && rawValue ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => handleCopy("raw")}
+                className="flex h-6 w-6 items-center justify-center rounded border border-[var(--ai-border-soft)] text-[var(--ai-text-muted)] transition hover:border-[var(--ai-border)] hover:text-[var(--ai-text)]"
+                aria-label="Copy raw document ID"
+              >
+                {copied === "raw" ? (
+                  <FiCheck className="text-[var(--ai-success)]" />
+                ) : (
+                  <FiCopy />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">Copy RAW ID</TooltipContent>
+          </Tooltip>
+        ) : (
+          <span className="text-xs text-[color:var(--ai-text-muted)]">
+            {rawMissingText}
+          </span>
+        )}
       </div>
-      <div className="mt-1 flex items-center gap-2">
-        <span className="ai-label-overline text-[color:var(--ai-text-muted)]">
-          Canonical
-        </span>
-        <span
-          className="truncate text-xs font-mono text-[color:var(--ai-text)]"
-          title={canonicalId}
-        >
-          {canonicalDisplay}
-        </span>
-        <button
-          type="button"
-          onClick={() => handleCopy("canonical")}
-          className="flex h-6 w-6 items-center justify-center rounded border border-[color:var(--ai-border-soft)] text-sm text-[color:var(--ai-text-muted)] transition hover:border-[color:var(--ai-border)] hover:text-[color:var(--ai-text)]"
-          aria-label="Copy canonical document ID"
-        >
-          {copied === "canonical" ? (
-            <FiCheck className="text-green-500" />
-          ) : (
-            <FiCopy />
-          )}
-        </button>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <span className="ai-label-overline text-[color:var(--ai-text-muted)]">
+            Canonical
+          </span>
+          <p
+            className="truncate text-xs font-mono text-[color:var(--ai-text)]"
+            title={canonicalId}
+          >
+            {canonicalDisplay}
+          </p>
+        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => handleCopy("canonical")}
+              className="flex h-6 w-6 items-center justify-center rounded border border-[var(--ai-border-soft)] text-[var(--ai-text-muted)] transition hover:border-[var(--ai-border)] hover:text-[var(--ai-text)]"
+              aria-label="Copy canonical document ID"
+            >
+              {copied === "canonical" ? (
+                <FiCheck className="text-[var(--ai-success)]" />
+              ) : (
+                <FiCopy />
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">Copy CANONICAL ID</TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );
