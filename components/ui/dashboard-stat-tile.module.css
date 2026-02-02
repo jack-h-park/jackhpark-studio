@@ -1,0 +1,47 @@
+.dashboardStatTile {
+  min-height: 104px;
+  padding: var(--ai-space-3);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--ai-space-2);
+  border-color: var(--ai-role-border-subtle);
+  background-color: var(--ai-role-surface-1);
+  box-shadow: none;
+}
+
+.dashboardStatTileHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ai-space-2);
+}
+
+.dashboardStatTileHeaderAction {
+  display: flex;
+  align-items: center;
+}
+
+.dashboardStatTileLabel {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
+  margin: 0;
+}
+
+.dashboardStatTileValue {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.dashboardStatTileValueStrong {
+  font-weight: 600;
+  color: var(--ai-text-strong);
+}
+
+.dashboardStatTileValueMuted {
+  font-weight: 500;
+  color: var(--ai-text-muted);
+}

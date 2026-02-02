@@ -77,6 +77,10 @@ export type ManualIngestionHookState = {
     pageId: string | null;
     title: string | null;
   };
+  finalQueueSnapshot: {
+    plannedTotal: number;
+    processed: number;
+  } | null;
   finalMessage: string | null;
   errorMessage: string | null;
   logs: ManualLogEvent[];
@@ -124,6 +128,11 @@ export function useManualIngestion(): ManualIngestionHookState {
     title: null,
   });
   const overallProgressRef = useRef<HTMLDivElement | null>(null);
+  const queueProgressRef = useRef({ current: 0, total: 0 });
+  const [finalQueueSnapshot, setFinalQueueSnapshot] = useState<{
+    plannedTotal: number;
+    processed: number;
+  } | null>(null);
   const hasAutoScrolledProgressRef = useRef(false);
   const logsContainerRef = useRef<HTMLDivElement | null>(null);
   const [autoScrollLogs, setAutoScrollLogs] = useState(true);
@@ -201,6 +210,10 @@ export function useManualIngestion(): ManualIngestionHookState {
             Math.max(event.current ?? 1, 1),
             safeTotal,
           );
+          queueProgressRef.current = {
+            total: safeTotal,
+            current: safeCurrent,
+          };
           setOverallProgress({
             current: safeCurrent,
             total: safeTotal,
@@ -214,7 +227,7 @@ export function useManualIngestion(): ManualIngestionHookState {
         case "progress":
           setProgress(Math.max(0, Math.min(100, event.percent)));
           break;
-        case "complete":
+        case "complete": {
           completionMessage =
             event.message ?? "Manual ingestion finished successfully.";
           completionLevel =
@@ -228,6 +241,33 @@ export function useManualIngestion(): ManualIngestionHookState {
           setRunId(event.runId);
           setFinalMessage(completionMessage);
           appendLog(completionMessage, completionLevel);
+          const progressSnapshot = queueProgressRef.current;
+          setFinalQueueSnapshot({
+            plannedTotal: progressSnapshot.total,
+            processed: event.stats.documentsProcessed,
+          });
+          if (process.env.NODE_ENV !== "production") {
+            const plannedTotal = progressSnapshot.total;
+            const processedCount = event.stats.documentsProcessed;
+            const finalTotal = Math.max(plannedTotal, processedCount);
+            const finalCompleted = processedCount;
+            console.debug("[manual-ingestion] completion counts", {
+              plannedTotal,
+              processed: processedCount,
+              finalTotal,
+              finalCompleted,
+              updatedCount: event.stats.documentsUpdated,
+              skippedCount: event.stats.documentsSkipped,
+              failedCount: event.stats.errorCount,
+            });
+            if (plannedTotal !== processedCount) {
+              console.warn(
+                "[manual-ingestion] planned total (%d) != processed (%d)",
+                plannedTotal,
+                processedCount,
+              );
+            }
+          }
           setProgress(100);
           setOverallProgress((prev) =>
             prev.total > 0
@@ -239,11 +279,12 @@ export function useManualIngestion(): ManualIngestionHookState {
           );
           setIsRunning(false);
           break;
+        }
         default:
           break;
       }
     },
-    [appendLog, scrollProgressIntoViewOnce],
+    [appendLog, scrollProgressIntoViewOnce, setFinalQueueSnapshot],
   );
 
   useEffect(() => {
@@ -344,6 +385,9 @@ export function useManualIngestion(): ManualIngestionHookState {
     if (!mountedRef.current) {
       return;
     }
+
+    queueProgressRef.current = { current: 0, total: 0 };
+    setFinalQueueSnapshot(null);
 
     setErrorMessage(null);
     setIsRunning(true);
@@ -552,6 +596,7 @@ export function useManualIngestion(): ManualIngestionHookState {
       runId,
       progress,
       overallProgress,
+      finalQueueSnapshot,
       finalMessage,
       errorMessage,
       logs,
@@ -579,6 +624,7 @@ export function useManualIngestion(): ManualIngestionHookState {
       runId,
       progress,
       overallProgress,
+      finalQueueSnapshot,
       finalMessage,
       errorMessage,
       logs,

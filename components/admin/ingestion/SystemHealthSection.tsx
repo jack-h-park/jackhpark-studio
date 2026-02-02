@@ -5,11 +5,14 @@ import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import type { SystemHealthOverview } from "@/lib/admin/ingestion-types";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientSideDate } from "@/components/ui/client-side-date";
+import { DashboardStatTile } from "@/components/ui/dashboard-stat-tile";
 import { GridPanel } from "@/components/ui/grid-panel";
-import insetPanelStyles from "@/components/ui/inset-panel.module.css";
 import { StatusPill } from "@/components/ui/status-pill";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/components/ui/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   formatDuration,
   formatKpiValue,
@@ -34,34 +37,31 @@ function SystemHealthStatTile({
   isValueMuted,
   valueClassName,
 }: SystemHealthStatTileProps): JSX.Element {
-  const baseValueClass = valueClassName ?? styles.kpiValueText;
-  const valueClasses = cn(baseValueClass, isValueMuted && styles.kpiValueMuted);
+  const headerAction = tooltip ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="flex h-6 w-6 items-center justify-center rounded-full text-[color:var(--ai-text-muted)] transition-colors hover:text-[color:var(--ai-text-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ai-border-soft)] focus-visible:ring-offset-2"
+          aria-label="View details"
+        >
+          <FiInfo className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
+  ) : null;
 
   return (
-    <div
-      className={cn(insetPanelStyles.insetPanel, styles.kpiTile)}
-    >
-      <div className={styles.kpiHeaderRow}>
-        <p className={styles.kpiLabel}>{label}</p>
-        {tooltip ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="flex h-6 w-6 items-center justify-center rounded-full text-[color:var(--ai-text-muted)] transition-colors hover:text-[color:var(--ai-text-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ai-border-soft)] focus-visible:ring-offset-2"
-                aria-label="View details"
-              >
-                <FiInfo className="h-3.5 w-3.5" aria-hidden="true" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{tooltip}</TooltipContent>
-          </Tooltip>
-        ) : null}
-      </div>
-      <div className={styles.kpiValueRow}>
-        <div className={valueClasses}>{value}</div>
-      </div>
-    </div>
+    <DashboardStatTile
+      label={label}
+      value={value}
+      className={styles.kpiTile}
+      headerAction={headerAction}
+      valueTone={isValueMuted ? "muted" : "strong"}
+      valueClassName={valueClassName}
+      sectionHint="System Health"
+    />
   );
 }
 
@@ -88,11 +88,7 @@ export function SystemHealthSection({
         ) : null}
         <div className="ai-meta-text">
           Updated:{" "}
-          {runTimestamp ? (
-            <ClientSideDate value={runTimestamp} />
-          ) : (
-            "—"
-          )}
+          {runTimestamp ? <ClientSideDate value={runTimestamp} /> : "—"}
         </div>
         {health.snapshotCapturedAt ? (
           <div className="ai-meta-text">
@@ -217,9 +213,7 @@ export function SystemHealthSection({
       key: "lastFailure",
       label: "Last Failure",
       value: health.lastFailureRunId ? (
-        <StatusPill variant={lastFailureVariant}>
-          {lastFailureLabel}
-        </StatusPill>
+        <StatusPill variant={lastFailureVariant}>{lastFailureLabel}</StatusPill>
       ) : (
         <span className="ai-meta-text font-normal italic">
           No failures recorded.
@@ -250,8 +244,7 @@ export function SystemHealthSection({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              Operational signals from the latest ingestion run and queue
-              state.
+              Operational signals from the latest ingestion run and queue state.
             </TooltipContent>
           </Tooltip>
         </div>

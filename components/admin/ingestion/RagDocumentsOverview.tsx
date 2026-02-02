@@ -17,12 +17,18 @@ const personaMetricSpecs = [
   { type: "personal", label: "Personal" },
   { type: "professional", label: "Professional" },
   { type: "hybrid", label: "Hybrid" },
-] satisfies ReadonlyArray<{ type: Exclude<PersonaMetricType, "unknown">; label: string }>;
+] satisfies ReadonlyArray<{
+  type: Exclude<PersonaMetricType, "unknown">;
+  label: string;
+}>;
 
 const sourceMetricSpecs = [
   { type: "notion", label: "Notion" },
   { type: "url", label: "URL" },
-] satisfies ReadonlyArray<{ type: Exclude<SourceMetricType, "unknown">; label: string }>;
+] satisfies ReadonlyArray<{
+  type: Exclude<SourceMetricType, "unknown">;
+  label: string;
+}>;
 
 type RagDocumentsStatTileProps = {
   label: string;
@@ -74,7 +80,10 @@ export function RagDocumentsOverview({
 
   const statTiles = stats
     ? (() => {
-        const personaEntries: Array<{ type: PersonaMetricType; label: string }> = [
+        const personaEntries: Array<{
+          type: PersonaMetricType;
+          label: string;
+        }> = [
           ...personaMetricSpecs.filter(
             ({ type }) => stats.personaCounts[type] > 0,
           ),
@@ -83,12 +92,13 @@ export function RagDocumentsOverview({
             : []),
         ];
 
-        const sourceEntries: Array<{ type: SourceMetricType; label: string }> = [
-          ...sourceMetricSpecs,
-          ...(stats.sourceCounts.unknown > 0
-            ? [{ type: "unknown" as const, label: "Unknown" }]
-            : []),
-        ];
+        const sourceEntries: Array<{ type: SourceMetricType; label: string }> =
+          [
+            ...sourceMetricSpecs,
+            ...(stats.sourceCounts.unknown > 0
+              ? [{ type: "unknown" as const, label: "Unknown" }]
+              : []),
+          ];
 
         return [
           {
@@ -151,11 +161,7 @@ export function RagDocumentsOverview({
                     ? "Persona not set on these documents."
                     : undefined;
                   return (
-                    <div
-                      key={type}
-                      className={styles.miniMetric}
-                      title={title}
-                    >
+                    <div key={type} className={styles.miniMetric} title={title}>
                       <span className={styles.kpiMetricLabel}>{label}</span>
                       <span
                         className={cn(
@@ -183,11 +189,7 @@ export function RagDocumentsOverview({
                     ? "Missing source metadata"
                     : `${label}: ${count} documents`;
                   return (
-                    <div
-                      key={type}
-                      className={styles.miniMetric}
-                      title={title}
-                    >
+                    <div key={type} className={styles.miniMetric} title={title}>
                       <span className={styles.kpiMetricLabel}>{label}</span>
                       <span
                         className={cn(

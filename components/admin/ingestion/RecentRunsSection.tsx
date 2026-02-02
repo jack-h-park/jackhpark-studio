@@ -76,10 +76,7 @@ type DetailStatLine = {
   format?: (value: number) => string;
 };
 
-function renderDetailStatField(
-  label: string,
-  stats: DetailStatLine[],
-) {
+function renderDetailStatField(label: string, stats: DetailStatLine[]) {
   return (
     <div className={recentStyles.detailField} key={label}>
       <span className={recentStyles.detailsLabel}>{label}</span>
@@ -104,22 +101,17 @@ function renderDetailStatField(
   );
 }
 
-function getCompactEmbeddingLabel(
-  embeddingSpaceId: string | null | undefined,
-) {
+function getCompactEmbeddingLabel(embeddingSpaceId: string | null | undefined) {
   const option = getEmbeddingSpaceOption(embeddingSpaceId);
   const providerLabel = option
-    ? EMBEDDING_PROVIDER_BADGES[option.provider] ?? option.provider
+    ? (EMBEDDING_PROVIDER_BADGES[option.provider] ?? option.provider)
     : "Model";
   const rawModel =
-    option?.model ??
-    option?.embeddingModelId ??
-    embeddingSpaceId ??
-    "Unknown";
-  const compactModel =
-    rawModel.replace(/^text-embedding-/, "") || rawModel;
+    option?.model ?? option?.embeddingModelId ?? embeddingSpaceId ?? "Unknown";
+  const compactModel = rawModel.replace(/^text-embedding-/, "") || rawModel;
   const versionSuffix = option?.version ? ` (${option.version})` : "";
-  const displayLabel = `${providerLabel} ${compactModel}${versionSuffix}`.trim();
+  const displayLabel =
+    `${providerLabel} ${compactModel}${versionSuffix}`.trim();
   const fullLabel = option?.label ?? embeddingSpaceId ?? "Unknown model";
   return {
     displayLabel: displayLabel || "Unknown model",
@@ -843,8 +835,7 @@ export function RecentRunsSection({
       : `Showing ${numberFormatter.format(startIndex)}-${numberFormatter.format(endIndex)} of ${numberFormatter.format(totalCount)} run${totalCount === 1 ? "" : "s"}.`;
   const resolvePageUrl = useCallback((run: RunRecord) => {
     const publicPageUrl = getStringMetadata(run.metadata, "publicPageUrl");
-    const pageUrl =
-      publicPageUrl ?? getStringMetadata(run.metadata, "pageUrl");
+    const pageUrl = publicPageUrl ?? getStringMetadata(run.metadata, "pageUrl");
     const fallbackUrl = getStringMetadata(run.metadata, "url");
     return pageUrl ?? fallbackUrl ?? null;
   }, []);
@@ -877,9 +868,9 @@ export function RecentRunsSection({
             runStatusVariantMap[
               (displayStatus ?? "unknown") as RunStatus | "unknown"
             ];
-          const typeVariant = run.ingestion_type === "full" ? "info" : "warning";
-          const typeLabel =
-            run.ingestion_type === "full" ? "Full" : "Partial";
+          const typeVariant =
+            run.ingestion_type === "full" ? "info" : "warning";
+          const typeLabel = run.ingestion_type === "full" ? "Full" : "Partial";
 
           return (
             <div className={recentStyles.outcomeCell}>
@@ -915,9 +906,8 @@ export function RecentRunsSection({
           const embeddingSpaceId = getEmbeddingSpaceIdFromMetadata(
             run.metadata,
           );
-          const { displayLabel, fullLabel } = getCompactEmbeddingLabel(
-            embeddingSpaceId,
-          );
+          const { displayLabel, fullLabel } =
+            getCompactEmbeddingLabel(embeddingSpaceId);
           return (
             <span
               className={cn(
@@ -932,10 +922,7 @@ export function RecentRunsSection({
         },
         variant: "primary",
         size: "xs",
-        className: cn(
-          recentStyles.embeddingColumn,
-          recentStyles.cellTruncate,
-        ),
+        className: cn(recentStyles.embeddingColumn, recentStyles.cellTruncate),
         width: "160px",
       },
       {
@@ -975,10 +962,7 @@ export function RecentRunsSection({
         align: "right",
         variant: "muted",
         size: "xs",
-        className: cn(
-          recentStyles.numericColumn,
-          recentStyles.chunksCell,
-        ),
+        className: cn(recentStyles.numericColumn, recentStyles.chunksCell),
         width: "140px",
       },
       {
@@ -988,15 +972,11 @@ export function RecentRunsSection({
           const updated = run.documents_updated ?? 0;
           const skipped = run.documents_skipped ?? 0;
           const skipPart =
-            skipped > 0
-              ? ` −${numberFormatter.format(skipped)}`
-              : "";
+            skipped > 0 ? ` −${numberFormatter.format(skipped)}` : "";
           const title = `Docs — Added: ${numberFormatter.format(
             added,
           )}, Updated: ${numberFormatter.format(updated)}${
-            skipped > 0
-              ? `, Skipped: ${numberFormatter.format(skipped)}`
-              : ""
+            skipped > 0 ? `, Skipped: ${numberFormatter.format(skipped)}` : ""
           }`;
           return (
             <span
@@ -1017,10 +997,7 @@ export function RecentRunsSection({
         align: "right",
         variant: "muted",
         size: "xs",
-        className: cn(
-          recentStyles.numericColumn,
-          recentStyles.docsCell,
-        ),
+        className: cn(recentStyles.numericColumn, recentStyles.docsCell),
         width: "140px",
       },
       {
@@ -1045,10 +1022,7 @@ export function RecentRunsSection({
         align: "right",
         variant: "numeric",
         size: "xs",
-        className: cn(
-          recentStyles.numericColumn,
-          recentStyles.numericDataCell,
-        ),
+        className: cn(recentStyles.numericColumn, recentStyles.numericDataCell),
         width: "110px",
       },
       {
@@ -1073,10 +1047,7 @@ export function RecentRunsSection({
         align: "right",
         variant: "numeric",
         size: "xs",
-        className: cn(
-          recentStyles.numericColumn,
-          recentStyles.numericDataCell,
-        ),
+        className: cn(recentStyles.numericColumn, recentStyles.numericDataCell),
         width: "110px",
       },
       {
@@ -1109,10 +1080,7 @@ export function RecentRunsSection({
                       recentStyles.pageAction,
                     )}
                   >
-                    <FiExternalLink
-                      aria-hidden="true"
-                      className="h-4 w-4"
-                    />
+                    <FiExternalLink aria-hidden="true" className="h-4 w-4" />
                     <span>Page</span>
                   </a>
                 ) : null}
@@ -1255,20 +1223,21 @@ export function RecentRunsSection({
       ];
       detailSections.push(renderDetailStatField("Data", dataStats));
 
-      const detailNotes = notes || note || issue ? (
-        <div className={recentStyles.detailNotes} key="notes">
-          <span className={recentStyles.detailsLabel}>Notes</span>
-          <div className={recentStyles.detailNotesContent}>
-            {notes && <p>{notes}</p>}
-            {note && note !== notes && <p>{note}</p>}
-            {issue && (
-              <p>
-                <span className="font-semibold">Issue:</span> {issue}
-              </p>
-            )}
+      const detailNotes =
+        notes || note || issue ? (
+          <div className={recentStyles.detailNotes} key="notes">
+            <span className={recentStyles.detailsLabel}>Notes</span>
+            <div className={recentStyles.detailNotesContent}>
+              {notes && <p>{notes}</p>}
+              {note && note !== notes && <p>{note}</p>}
+              {issue && (
+                <p>
+                  <span className="font-semibold">Issue:</span> {issue}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-      ) : null;
+        ) : null;
 
       return (
         <div className={recentStyles.detailsPanel}>
@@ -1348,38 +1317,39 @@ export function RecentRunsSection({
               />
             </div>
           </div>
-      <div className={recentStyles.tableFooter}>
-        <div>
-          <span className="ai-meta-text">{summaryText}</span>
+          <div className={recentStyles.tableFooter}>
+            <div>
+              <span className="ai-meta-text">{summaryText}</span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handlePageChange(Math.max(page - 1, 1))}
+                disabled={page <= 1 || isLoading}
+              >
+                Previous
+              </Button>
+              <span className="ai-meta-text whitespace-nowrap">
+                Page {page.toLocaleString()} of{" "}
+                {totalPagesSafe.toLocaleString()}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  handlePageChange(Math.min(page + 1, totalPagesSafe))
+                }
+                disabled={page >= totalPagesSafe || isLoading}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2.5">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(Math.max(page - 1, 1))}
-            disabled={page <= 1 || isLoading}
-          >
-            Previous
-          </Button>
-          <span className="ai-meta-text whitespace-nowrap">
-            Page {page.toLocaleString()} of {totalPagesSafe.toLocaleString()}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              handlePageChange(Math.min(page + 1, totalPagesSafe))
-            }
-            disabled={page >= totalPagesSafe || isLoading}
-          >
-            Next
-          </Button>
-        </div>
-      </div>
-    </div>
-  </CardContent>
-</section>
+      </CardContent>
+    </section>
   );
 }

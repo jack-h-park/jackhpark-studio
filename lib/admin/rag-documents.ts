@@ -99,8 +99,7 @@ export function computeDocumentStats(
       byDocType.unknown = (byDocType.unknown ?? 0) + 1;
     }
 
-    const visibility =
-      doc.metadata?.public ?? doc.metadata?.is_public;
+    const visibility = doc.metadata?.public ?? doc.metadata?.is_public;
     if (visibility === true) {
       publicCount += 1;
     } else if (visibility === false) {

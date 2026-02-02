@@ -29,7 +29,7 @@ export interface RagDocumentMetadata {
   source_type?: SourceType;
   doc_type?: DocType;
   persona_type?: PersonaType;
-  'public'?: boolean;
+  public?: boolean;
   is_public?: boolean;
   tags?: string[];
   [key: string]: unknown;
@@ -245,10 +245,8 @@ export function mergeRagDocumentMetadata(
     breadcrumb: incomingNormalized.breadcrumb ?? base.breadcrumb,
     preview_image_url:
       incomingNormalized.preview_image_url ?? base.preview_image_url,
-    icon_kind:
-      incomingNormalized.icon_kind ?? base.icon_kind ?? undefined,
-    icon_emoji:
-      incomingNormalized.icon_emoji ?? base.icon_emoji ?? undefined,
+    icon_kind: incomingNormalized.icon_kind ?? base.icon_kind ?? undefined,
+    icon_emoji: incomingNormalized.icon_emoji ?? base.icon_emoji ?? undefined,
     icon_image_url:
       incomingNormalized.icon_image_url ?? base.icon_image_url ?? undefined,
     teaser_text: incomingNormalized.teaser_text ?? base.teaser_text,

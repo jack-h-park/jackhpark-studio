@@ -81,7 +81,7 @@ export function DataTable<T>({
           {errorMessage}
         </div>
       ) : null}
-        <div className="overflow-x-auto">
+      <div className="overflow-x-auto">
         <table className="w-full table-fixed border-collapse">
           <colgroup>
             {columns.map((_column, colIndex) => (

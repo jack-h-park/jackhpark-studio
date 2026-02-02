@@ -408,10 +408,7 @@ export default function AdminDocumentsPage({
         header: "Persona",
         render: (doc) =>
           doc.metadata?.persona_type ? (
-            <StatusPill
-              variant="muted"
-              className={styles.pillSecondary}
-            >
+            <StatusPill variant="muted" className={styles.pillSecondary}>
               {doc.metadata.persona_type}
             </StatusPill>
           ) : (
@@ -456,7 +453,8 @@ export default function AdminDocumentsPage({
         header: "Chunks",
         render: (doc) => {
           const rawValue = doc.chunk_count ?? 0;
-          const hasChunks = typeof doc.chunk_count === "number" && doc.chunk_count > 0;
+          const hasChunks =
+            typeof doc.chunk_count === "number" && doc.chunk_count > 0;
           return (
             <span
               title={`Chunks: ${doc.chunk_count ?? 0}`}
@@ -585,7 +583,9 @@ export default function AdminDocumentsPage({
                 <CardTitle className={styles.sectionTitleLevelTwo}>
                   Search & Filters
                 </CardTitle>
-                <CardDescription className={styles.sectionDescriptionLevelThree}>
+                <CardDescription
+                  className={styles.sectionDescriptionLevelThree}
+                >
                   Find documents by ID, type, persona, visibility, or source.
                 </CardDescription>
               </CardHeader>
@@ -709,7 +709,9 @@ export default function AdminDocumentsPage({
                 <CardTitle className={styles.sectionTitleLevelTwo}>
                   Documents
                 </CardTitle>
-                <CardDescription className={styles.sectionDescriptionLevelThree}>
+                <CardDescription
+                  className={styles.sectionDescriptionLevelThree}
+                >
                   Browse all ingested text chunks and their associated metadata.
                 </CardDescription>
               </CardHeader>

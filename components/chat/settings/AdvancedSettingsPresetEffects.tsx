@@ -232,9 +232,7 @@ export function AdvancedSettingsPresetEffects({
           <span aria-hidden="true">▾</span>
         </button>
         {copyMenuOpen && (
-          <div
-            className={cn(styles.copyMenu, insetPanelStyles.insetPanel)}
-          >
+          <div className={cn(styles.copyMenu, insetPanelStyles.insetPanel)}>
             <button
               type="button"
               onClick={() => handleMenuAction("json")}
@@ -335,10 +333,7 @@ function EmbeddingValueWithPopover({ label }: EmbeddingValueWithPopoverProps) {
           id={popoverId}
           role="dialog"
           aria-label="Full embeddings model name"
-          className={cn(
-            styles.embeddingPopover,
-            insetPanelStyles.insetPanel,
-          )}
+          className={cn(styles.embeddingPopover, insetPanelStyles.insetPanel)}
         >
           {label}
         </div>

@@ -8,10 +8,17 @@ import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import type { DatasetSnapshotOverview } from "@/lib/admin/ingestion-types";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ClientSideDate } from "@/components/ui/client-side-date";
+import {
+  DashboardStatTile,
+  type DashboardStatTone,
+} from "@/components/ui/dashboard-stat-tile";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
-import insetPanelStyles from "@/components/ui/inset-panel.module.css";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/components/ui/utils";
 import {
   buildSparklineData,
@@ -51,11 +58,7 @@ const formatEmbeddingDisplayLabel = (label?: string | null) => {
     return label;
   }
   const model = rest.join(" ").replace(/^text-embedding-/, "");
-  const trimmed =
-    `${provider} ${model}`
-      .split(/\s+/)
-      .join(" ")
-      .trim() || label;
+  const trimmed = `${provider} ${model}`.split(/\s+/).join(" ").trim() || label;
   return version ? `${trimmed} ${version}` : trimmed;
 };
 
@@ -105,22 +108,9 @@ const formatSnapshotRowTitle = (entry: SnapshotEntry) => {
   return `Docs ${docs} (Δ ${docDelta}) · Chunks ${chunks} (Δ ${chunkDelta}) · Size ${size} (Δ ${sizeDelta})`;
 };
 
- 
-
-const datasetMetricToneClasses: Record<
-  "success" | "warning" | "error" | "info" | "muted",
-  string
-> = {
-  success: "text-[var(--ai-success)]",
-  warning: "text-[var(--ai-warning)]",
-  error: "text-[var(--ai-error)]",
-  info: "text-[var(--ai-accent)]",
-  muted: "text-[var(--ai-text-soft)]",
-};
-
 type DatasetMetricDelta = {
   text: string;
-  tone?: "success" | "warning" | "error" | "info" | "muted";
+  tone?: DashboardStatTone;
 };
 
 type DatasetSnapshotSectionProps = {
@@ -139,28 +129,14 @@ function DatasetMetricTile({
   delta?: DatasetMetricDelta;
 }): JSX.Element {
   return (
-    <div
-      className={cn(
-        insetPanelStyles.insetPanel,
-        styles.kpiTile,
-      )}
-    >
-      <dt className={styles.kpiTileTitle}>{label}</dt>
-      <dd className={styles.kpiMetricValue} style={{ fontVariantNumeric: "tabular-nums" }}>
-        {value}
-      </dd>
-      {delta ? (
-        <p
-          className={cn(
-            styles.kpiHelperText,
-            styles.kpiDeltaText,
-            datasetMetricToneClasses[delta.tone ?? "muted"],
-          )}
-        >
-          {delta.text}
-        </p>
-      ) : null}
-    </div>
+    <DashboardStatTile
+      label={label}
+      value={value}
+      delta={delta}
+      className={styles.kpiTile}
+      deltaClassName={cn(styles.kpiHelperText, styles.kpiDeltaText)}
+      sectionHint="Dataset Snapshot"
+    />
   );
 }
 
@@ -210,8 +186,12 @@ export function DatasetSnapshotSection({
 
   const documentValue = formatKpiValue(latest.totalDocuments);
   const chunkValue = formatKpiValue(latest.totalChunks);
-  const characterPrimaryValue = formatBytesFromCharacters(latest.totalCharacters);
-  const characterDetailLabel = formatCharacterCountLabel(latest.totalCharacters);
+  const characterPrimaryValue = formatBytesFromCharacters(
+    latest.totalCharacters,
+  );
+  const characterDetailLabel = formatCharacterCountLabel(
+    latest.totalCharacters,
+  );
   const displayEmbeddingLabel = formatEmbeddingDisplayLabel(embeddingLabel);
 
   const metrics = [
@@ -344,7 +324,9 @@ export function DatasetSnapshotSection({
                       />
                     </svg>
                   </div>
-                  <div className={`${styles.miniMetricGrid} ${styles.trendMinMax}`}>
+                  <div
+                    className={`${styles.miniMetricGrid} ${styles.trendMinMax}`}
+                  >
                     <div className={styles.miniMetric}>
                       <span className={styles.kpiMetricLabel}>MIN</span>
                       <span
@@ -356,8 +338,8 @@ export function DatasetSnapshotSection({
                         {numberFormatter.format(sparklineData.min)}
                       </span>
                     </div>
-                      <div className={styles.miniMetric}>
-                        <span className={styles.kpiMetricLabel}>MAX</span>
+                    <div className={styles.miniMetric}>
+                      <span className={styles.kpiMetricLabel}>MAX</span>
                       <span
                         className={styles.kpiMetricValue}
                         title={`Max ${numberFormatter.format(
@@ -368,7 +350,9 @@ export function DatasetSnapshotSection({
                       </span>
                     </div>
                   </div>
-                  <div className={`${styles.miniMetricGrid} ${styles.trendFooter}`}>
+                  <div
+                    className={`${styles.miniMetricGrid} ${styles.trendFooter}`}
+                  >
                     <div className={styles.miniMetric}>
                       <span className={styles.kpiMetricLabel}>Δ DOCS</span>
                       <span

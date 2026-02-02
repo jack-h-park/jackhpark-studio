@@ -40,7 +40,7 @@ export function PeerRow({
 }: PeerRowProps) {
   return (
     <div className={cn(styles.root, className)} data-rail={dataRailId}>
-      {(label || hint) ? (
+      {label || hint ? (
         <div className={styles.header}>
           {label ? (
             <p className={styles.label} id={labelId}>

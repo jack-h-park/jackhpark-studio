@@ -50,12 +50,7 @@ export function PageHeaderCard({
           headerClassName,
         )}
       >
-        <div
-          className={cn(
-            "flex min-w-0 flex-col gap-2",
-            contentClassName,
-          )}
-        >
+        <div className={cn("flex min-w-0 flex-col gap-2", contentClassName)}>
           {overline && (
             <p className="ai-label-overline tracking-[0.3em] text-[color:var(--ai-text-soft)]">
               {overline}

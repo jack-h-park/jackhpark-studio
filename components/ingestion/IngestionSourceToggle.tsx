@@ -42,7 +42,10 @@ export function IngestionSourceToggle({
         type="button"
         aria-pressed={notionSelected}
         aria-label="Notion"
-        className={cn(styles.segment, "ai-selectable ai-selectable--hoverable focus-ring")}
+        className={cn(
+          styles.segment,
+          "ai-selectable ai-selectable--hoverable focus-ring",
+        )}
         data-selected={notionSelected ? "true" : undefined}
         data-disabled={disabled ? "true" : undefined}
         disabled={disabled}
@@ -54,7 +57,10 @@ export function IngestionSourceToggle({
         type="button"
         aria-pressed={urlSelected}
         aria-label="URL"
-        className={cn(styles.segment, "ai-selectable ai-selectable--hoverable focus-ring")}
+        className={cn(
+          styles.segment,
+          "ai-selectable ai-selectable--hoverable focus-ring",
+        )}
         data-selected={urlSelected ? "true" : undefined}
         data-disabled={disabled ? "true" : undefined}
         disabled={disabled}

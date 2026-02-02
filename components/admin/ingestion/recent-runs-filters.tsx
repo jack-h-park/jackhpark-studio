@@ -208,12 +208,7 @@ export function RecentRunsFilters({
   ];
 
   return (
-    <div
-      className={cn(
-        recentStyles.filtersToolbar,
-        className,
-      )}
-    >
+    <div className={cn(recentStyles.filtersToolbar, className)}>
       <div className={recentStyles.filtersGridArea}>
         <div className={recentStyles.filtersGrid}>
           {filterItems.map((item) => (
@@ -231,10 +226,7 @@ export function RecentRunsFilters({
         </div>
       </div>
       <div
-        className={cn(
-          recentStyles.filtersActionsArea,
-          "flex flex-shrink-0",
-        )}
+        className={cn(recentStyles.filtersActionsArea, "flex flex-shrink-0")}
       >
         <CheckboxChoice
           className="select-none"

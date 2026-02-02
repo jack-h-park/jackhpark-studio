@@ -134,9 +134,9 @@
 
 .executionStrip {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: var(--ai-space-2);
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
 }
 
@@ -147,17 +147,124 @@
 .executionProgressStack {
   display: flex;
   flex-direction: column;
-  gap: var(--ai-space-1);
+  gap: var(--ai-space-3);
   min-width: 0;
 }
 
-.executionPercent {
-  font-size: 1rem;
+.executionProgressRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ai-space-2);
+}
+
+.executionRowHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--ai-space-3);
+}
+
+.overallLabelCluster {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ai-space-2);
+}
+
+.overallHelperText {
+  font-size: 0.75rem;
+  color: var(--ai-text-muted);
+}
+
+.overallTotalsHint {
+  font-size: 0.75rem;
+  color: var(--ai-text-muted);
+  margin-left: var(--ai-space-1);
+}
+
+.currentTitleMuted {
+  font-size: 0.75rem;
+  color: var(--ai-text-muted);
+  font-weight: 500;
+}
+.executionOverallKpi {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ai-space-2);
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.executionKpiPrimary {
+  font-size: 1.25rem;
   font-weight: 600;
+  line-height: 1.2;
   color: var(--ai-text-strong);
-  text-align: right;
+}
+
+.executionKpiSecondary {
+  font-size: 0.75rem;
+  color: var(--ai-text-muted);
+}
+
+.executionProgressBar {
+  height: 0.5rem;
+  border-radius: var(--ai-radius-full);
+  background-color: var(--ai-border-muted);
+  overflow: hidden;
+}
+
+.executionProgressBarFill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: var(--ai-radius-full);
+  background-color: var(--ai-accent-strong);
+  transition: width 0.2s ease;
+}
+
+.currentPageTitle {
+  max-width: min(220px, 100%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ai-text-strong);
+}
+
+.currentPercentPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ai-radius-full);
+  border: 1px solid var(--ai-role-border-muted);
+  background-color: var(--ai-role-surface-1);
+  color: var(--ai-text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.125rem 0.625rem;
   line-height: 1;
-  min-width: 48px;
+}
+
+.currentPercentPillPlaceholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ai-radius-full);
+  padding: 0.125rem 0.625rem;
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+
+.currentHeaderRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--ai-space-3);
+}
+
+.tabularNums {
+  font-variant-numeric: tabular-nums;
 }
 
 .runLogPanel {
@@ -239,4 +346,71 @@
 
 .runLogStep {
   gap: var(--ai-space-2);
+}
+
+.runSummaryHeader {
+  margin: 0 0 var(--ai-space-3);
+  line-height: 1.4;
+}
+
+.runSummaryGroups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ai-space-4);
+}
+
+.runSummaryGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ai-space-2);
+}
+
+.runSummaryPanel {
+  padding: var(--ai-space-4);
+}
+
+.runSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--ai-space-3);
+  width: 100%;
+  justify-content: start;
+}
+
+.metricCardZero {
+  opacity: 0.9;
+}
+
+.runSummaryStatTile {
+  min-height: 104px;
+  padding: var(--ai-space-3);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--ai-space-2);
+  border-color: var(--ai-role-border-muted);
+  box-shadow: none;
+}
+
+.runSummaryGroupLabel {
+  font-size: 0.65rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
+  margin: 0;
+}
+
+.healthGrid {
+  max-width: min(360px, 100%);
+}
+
+.healthEmptyState {
+  padding: var(--ai-space-2) var(--ai-space-3);
+  border-radius: var(--ai-radius-sm);
+  border: 1px dashed var(--ai-role-border-muted);
+  background-color: var(--ai-role-surface-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
 }

@@ -123,11 +123,7 @@ export function SegmentedControl({
       role="tablist"
       aria-label={ariaLabel}
       aria-disabled={disabled ? true : undefined}
-      className={cn(
-        styles.root,
-        className,
-        size === "sm" && styles.rootSm,
-      )}
+      className={cn(styles.root, className, size === "sm" && styles.rootSm)}
     >
       {items.map((item, index) => {
         const isActive = value === item.value;

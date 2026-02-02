@@ -50,10 +50,10 @@ export function WorkflowStep({
     seam === "both"
       ? cn(styles.seamTop, styles.seamBottom)
       : seam === "top"
-      ? styles.seamTop
-      : seam === "bottom"
-      ? styles.seamBottom
-      : undefined;
+        ? styles.seamTop
+        : seam === "bottom"
+          ? styles.seamBottom
+          : undefined;
 
   return (
     <div className={cn(styles.root, seamClass, className)}>

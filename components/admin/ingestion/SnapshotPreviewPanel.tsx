@@ -33,11 +33,7 @@ const deltaItems = [
   { label: "Δ Size", key: "deltaCharacters" as const },
 ];
 
-function DeltaGrid({
-  snapshot,
-}: {
-  snapshot: SnapshotEntry;
-}) {
+function DeltaGrid({ snapshot }: { snapshot: SnapshotEntry }) {
   return (
     <div className={previewStyles.previewDeltaGrid}>
       {deltaItems.map((item) => {
@@ -52,7 +48,9 @@ function DeltaGrid({
             : formatDeltaTitleValue(rawValue);
         return (
           <div key={item.label} className={previewStyles.previewDeltaItem}>
-            <span className={previewStyles.previewDeltaLabel}>{item.label}</span>
+            <span className={previewStyles.previewDeltaLabel}>
+              {item.label}
+            </span>
             <span
               className={previewStyles.previewDeltaValue}
               title={`${item.label} ${title}`}
@@ -66,7 +64,11 @@ function DeltaGrid({
   );
 }
 
-function SnapshotPreviewHeader({ snapshot }: { snapshot: SnapshotEntry | null }) {
+function SnapshotPreviewHeader({
+  snapshot,
+}: {
+  snapshot: SnapshotEntry | null;
+}) {
   return (
     <div className={previewStyles.previewHeader}>
       <p className={previewStyles.previewHeaderTitle}>Snapshot preview</p>
@@ -95,11 +97,14 @@ function SnapshotPreviewHeader({ snapshot }: { snapshot: SnapshotEntry | null })
 function SnapshotDetails({ snapshot }: { snapshot: SnapshotEntry }) {
   const docs = formatKpiValue(snapshot.totalDocuments);
   const chunks = formatKpiValue(snapshot.totalChunks);
-  const characterCountLabel = formatCharacterCountLabel(snapshot.totalCharacters);
+  const characterCountLabel = formatCharacterCountLabel(
+    snapshot.totalCharacters,
+  );
   const sizeLabel = formatBytesFromCharacters(snapshot.totalCharacters);
   const hasSizeValue = sizeLabel !== "—";
   const rawEmbeddingLabel =
-    snapshot.embeddingLabel ?? formatEmbeddingSpaceLabel(snapshot.embeddingSpaceId);
+    snapshot.embeddingLabel ??
+    formatEmbeddingSpaceLabel(snapshot.embeddingSpaceId);
   const embeddingLabel = formatEmbeddingDisplayLabel(rawEmbeddingLabel);
   const runLabel = snapshot.runId ? shortenId(snapshot.runId) : "—";
 
@@ -114,11 +119,15 @@ function SnapshotDetails({ snapshot }: { snapshot: SnapshotEntry }) {
         <span className={previewStyles.previewFieldValue}>{chunks}</span>
       </div>
       <div className={previewStyles.previewField}>
-        <span className={previewStyles.previewFieldLabel}>Characters / Size</span>
+        <span className={previewStyles.previewFieldLabel}>
+          Characters / Size
+        </span>
         <span className={previewStyles.previewFieldValue}>
           {characterCountLabel}
           {hasSizeValue && (
-            <span className={previewStyles.previewFieldMeta}>· {sizeLabel}</span>
+            <span className={previewStyles.previewFieldMeta}>
+              · {sizeLabel}
+            </span>
           )}
         </span>
       </div>
@@ -168,9 +177,8 @@ function SnapshotDetails({ snapshot }: { snapshot: SnapshotEntry }) {
 }
 
 export function SnapshotPreviewPanel({ overview }: SnapshotPreviewPanelProps) {
-  const [selectedSnapshot, setSelectedSnapshot] = useState<SnapshotEntry | null>(
-    null,
-  );
+  const [selectedSnapshot, setSelectedSnapshot] =
+    useState<SnapshotEntry | null>(null);
 
   const selectedId = selectedSnapshot?.id ?? null;
 

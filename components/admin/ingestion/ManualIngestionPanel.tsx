@@ -4,7 +4,13 @@ import { FiBarChart2 } from "@react-icons/all-files/fi/FiBarChart2";
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import { FiPlayCircle } from "@react-icons/all-files/fi/FiPlayCircle";
 import { useRouter } from "next/router";
-import { type ComponentType, type JSX, useCallback, useEffect, useMemo } from "react";
+import {
+  type ComponentType,
+  type JSX,
+  useCallback,
+  useEffect,
+  useMemo,
+} from "react";
 
 import type { ManualLogEvent } from "@/lib/admin/ingestion-types";
 import { WorkflowStep } from "@/components/admin/workflow";
@@ -12,18 +18,16 @@ import { IngestionSourceToggle } from "@/components/ingestion/IngestionSourceTog
 import { PeerRow } from "@/components/shared/peer-row";
 import { SelectableTile } from "@/components/shared/selectable-tile";
 import { Button } from "@/components/ui/button";
-import {
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckboxChoice } from "@/components/ui/checkbox";
+import {
+  DashboardStatTile,
+  type DashboardStatTone,
+} from "@/components/ui/dashboard-stat-tile";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
-import insetPanelStyles from "@/components/ui/inset-panel.module.css";
 import { Label } from "@/components/ui/label";
 import { ManualLogEntry } from "@/components/ui/manual-log-entry";
-import { ProgressGroup } from "@/components/ui/progress-group";
 import {
   Select,
   SelectContent,
@@ -76,57 +80,40 @@ const manualStatusLabels: Record<
   failed: "Failed",
 };
 
-const runSummaryToneClasses: Record<
-  "success" | "warning" | "error" | "info" | "muted",
-  string
-> = {
-  success: "text-[var(--ai-success)]",
-  warning: "text-[var(--ai-warning)]",
-  error: "text-[var(--ai-error)]",
-  info: "text-[var(--ai-accent)]",
-  muted: "text-[var(--ai-text-soft)]",
-};
-
 type RunSummaryStatTileProps = {
   label: React.ReactNode;
   value: React.ReactNode;
+  numericValue?: number;
+  className?: string;
   delta?: {
     text: string;
-    tone?: "success" | "warning" | "error" | "info" | "muted";
+    tone?: DashboardStatTone;
   };
+  sectionHint?: string;
 };
 
 function RunSummaryStatTile({
   label,
   value,
+  numericValue,
+  className,
   delta,
+  sectionHint,
 }: RunSummaryStatTileProps): JSX.Element {
+  const isZeroValue = typeof numericValue === "number" && numericValue === 0;
   return (
-    <div
+    <DashboardStatTile
+      label={label}
+      value={value}
+      delta={delta}
       className={cn(
-        insetPanelStyles.insetPanel,
-        "h-full p-3 flex flex-col justify-between",
+        manualStyles.runSummaryStatTile,
+        className,
+        isZeroValue && manualStyles.metricCardZero,
       )}
-    >
-      <div className="ai-stat">
-        <dt className="text-xs uppercase tracking-widest text-[color:var(--ai-text-muted)]">
-          {label}
-        </dt>
-        <dd className="text-2xl font-semibold text-[color:var(--ai-text-strong)]">
-          {value}
-        </dd>
-        {delta ? (
-          <p
-            className={cn(
-              "ai-stat__delta",
-              runSummaryToneClasses[delta.tone ?? "muted"],
-            )}
-          >
-            {delta.text}
-          </p>
-        ) : null}
-      </div>
-    </div>
+      valueTone={isZeroValue ? "muted" : "strong"}
+      sectionHint={sectionHint}
+    />
   );
 }
 
@@ -155,27 +142,57 @@ export function ManualIngestionPanel(): JSX.Element {
       ? "manual-scope-label-notion"
       : "manual-scope-label-url";
   const totalPages = ingestion.overallProgress.total;
-  const completedPages =
-    totalPages > 0 ? Math.max(0, ingestion.overallProgress.current - 1) : 0;
   const stagePercent = Math.max(0, Math.min(100, ingestion.progress));
-  const overallPercent =
-    totalPages > 0
-      ? Math.min(
-          100,
-          Math.max(
-            0,
-            ((completedPages + stagePercent / 100) / totalPages) * 100,
-          ),
-        )
-      : stagePercent;
-  const overallCurrentLabel =
-    totalPages > 0
-      ? Math.min(ingestion.overallProgress.current, totalPages)
-      : 0;
   const activePageTitle = ingestion.overallProgress.title ?? null;
   const activePageId = ingestion.overallProgress.pageId ?? null;
-  const showOverallProgress = totalPages > 1;
+  const queuedCompletedPages =
+    totalPages > 0 ? Math.max(0, ingestion.overallProgress.current - 1) : 0;
+  const isTerminal =
+    ingestion.hasCompleted && ingestion.status !== "in_progress";
+  const finalSnapshot = ingestion.finalQueueSnapshot;
+  const plannedTotalSnapshot = finalSnapshot?.plannedTotal ?? totalPages;
+  const processedFromSnapshot =
+    finalSnapshot?.processed ?? ingestion.stats?.documentsProcessed ?? null;
+  const finalProcessedValue = processedFromSnapshot ?? 0;
+  const finalTotal = isTerminal
+    ? Math.max(plannedTotalSnapshot, finalProcessedValue, totalPages)
+    : totalPages;
+  const finalCompleted = isTerminal
+    ? finalProcessedValue
+    : queuedCompletedPages;
+  const displayTotal = finalTotal;
+  const displayTotalKnown = displayTotal > 0;
+  const boundedCompleted = displayTotalKnown
+    ? Math.min(finalCompleted, displayTotal)
+    : finalCompleted;
   const stageSubtitle = activePageTitle ?? activePageId;
+  const totalLabel = displayTotalKnown ? displayTotal.toString() : "?";
+  const overallFractionLabel = `${boundedCompleted} / ${totalLabel}`;
+  const overallPct = displayTotalKnown
+    ? Math.round((boundedCompleted / displayTotal) * 100)
+    : null;
+  const ongoingOverallPercent = displayTotalKnown
+    ? Math.min(
+        100,
+        Math.max(
+          0,
+          ((boundedCompleted + stagePercent / 100) / displayTotal) * 100,
+        ),
+      )
+    : stagePercent;
+  const totalsMismatch =
+    isTerminal &&
+    finalSnapshot !== null &&
+    finalSnapshot.plannedTotal !== finalSnapshot.processed;
+  const overallBarPercent = isTerminal ? 100 : ongoingOverallPercent;
+  const showOverallProgress = displayTotal > 1;
+  const currentPagePercent = Number.isFinite(stagePercent)
+    ? stagePercent
+    : null;
+  const hasCurrentPercentValue =
+    ingestion.isRunning || ingestion.hasCompleted || currentPagePercent === 100;
+  const showCurrentPercentPill =
+    currentPagePercent !== null && hasCurrentPercentValue;
   const manualNotionDescriptionId = "manual-notion-input-description";
   const manualUrlDescriptionId = "manual-url-input-description";
   const manualScopeHeadingId = "manual-ingestion-scope-heading";
@@ -184,6 +201,25 @@ export function ManualIngestionPanel(): JSX.Element {
   const manualRunLogSubtitleId = "manual-run-log-subtitle";
   const manualEmbeddingLabelId = "manual-embedding-label";
   const manualEmbeddingHintId = "manual-embedding-hint";
+  const stats = ingestion.stats;
+  const formatMetricValue = (value: number) => (
+    <span className={manualStyles.tabularNums}>
+      {numberFormatter.format(value)}
+    </span>
+  );
+  const runSummaryHeaderSuffix: React.ReactNode | null = stats ? (
+    stats.errorCount > 0 ? (
+      <>{formatMetricValue(stats.errorCount)} errors</>
+    ) : stats.documentsAdded + stats.documentsUpdated > 0 ? (
+      <>
+        {formatMetricValue(stats.documentsAdded)} added ·{" "}
+        {formatMetricValue(stats.documentsUpdated)} updated ·{" "}
+        {formatMetricValue(stats.documentsSkipped)} skipped
+      </>
+    ) : (
+      "no changes detected"
+    )
+  ) : null;
 
   useEffect(() => {
     if (process.env.NODE_ENV === "production") {
@@ -191,8 +227,12 @@ export function ManualIngestionPanel(): JSX.Element {
     }
     const hero = document.querySelector("[data-rail='hero-title']");
     const button = document.querySelector("[data-rail='execution-button']");
-    const updateRow = document.querySelector("[data-rail='update-strategy-row']");
-    const embedRow = document.querySelector("[data-rail='embedding-model-row']");
+    const updateRow = document.querySelector(
+      "[data-rail='update-strategy-row']",
+    );
+    const embedRow = document.querySelector(
+      "[data-rail='embedding-model-row']",
+    );
 
     if (hero && button) {
       const heroLeft = hero.getBoundingClientRect().left;
@@ -233,8 +273,8 @@ export function ManualIngestionPanel(): JSX.Element {
   const pageInputGroupStateClass = isPageSelectionLocked
     ? manualStyles.pageInputGroupLocked
     : ingestion.ingestionScope === "selected"
-    ? manualStyles.pageInputGroupActive
-    : manualStyles.pageInputGroupInactive;
+      ? manualStyles.pageInputGroupActive
+      : manualStyles.pageInputGroupInactive;
 
   return (
     <>
@@ -395,9 +435,9 @@ export function ManualIngestionPanel(): JSX.Element {
                           id={manualNotionDescriptionId}
                           className="ai-meta-text"
                         >
-                          Paste the full shared link or the 32-character page
-                          ID from Notion. You can enter multiple IDs separated
-                          by commas, spaces, or new lines.
+                          Paste the full shared link or the 32-character page ID
+                          from Notion. You can enter multiple IDs separated by
+                          commas, spaces, or new lines.
                         </p>
                       </div>
                       {ingestion.ingestionScope === "selected" ? (
@@ -431,10 +471,7 @@ export function ManualIngestionPanel(): JSX.Element {
                   >
                     <div className="space-y-3">
                       <div
-                        className={cn(
-                          "space-y-2",
-                          manualStyles.pageInputGroup,
-                        )}
+                        className={cn("space-y-2", manualStyles.pageInputGroup)}
                         aria-labelledby={`${manualScopeHeadingId} ${manualUrlScopeSubheadingId}`}
                       >
                         <Label
@@ -485,24 +522,24 @@ export function ManualIngestionPanel(): JSX.Element {
                           manualStyles.chipGrid,
                         )}
                       >
-                          <SelectableTile
-                            name={currentScopeGroupName}
-                            value="partial"
-                            label="Only pages with changes"
-                            description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
-                            checked={currentScope === "partial"}
-                            disabled={ingestion.isRunning}
-                            onChange={setCurrentScope}
-                          />
-                          <SelectableTile
-                            name={currentScopeGroupName}
-                            value="full"
-                            label="Re-ingest all pages"
-                            description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
-                            checked={currentScope === "full"}
-                            disabled={ingestion.isRunning}
-                            onChange={setCurrentScope}
-                          />
+                        <SelectableTile
+                          name={currentScopeGroupName}
+                          value="partial"
+                          label="Only pages with changes"
+                          description="Only ingest pages that have changed since the last run. Ideal when updates are infrequent and you want to avoid unnecessary runs."
+                          checked={currentScope === "partial"}
+                          disabled={ingestion.isRunning}
+                          onChange={setCurrentScope}
+                        />
+                        <SelectableTile
+                          name={currentScopeGroupName}
+                          value="full"
+                          label="Re-ingest all pages"
+                          description="Re-ingest all selected pages regardless of detected changes. Useful for manual refreshes or when you need to rebuild embeddings."
+                          checked={currentScope === "full"}
+                          disabled={ingestion.isRunning}
+                          onChange={setCurrentScope}
+                        />
                       </div>
                     </GridPanel>
                   </PeerRow>
@@ -570,46 +607,132 @@ export function ManualIngestionPanel(): JSX.Element {
                     className={manualStyles.executionProgressColumn}
                     aria-live="polite"
                   >
+                    {/* Screenshot checklist: Execution progress module (light/dark); verify running bar, terminal 100%, mismatch note when totals differ. */}
                     <div className={manualStyles.executionProgressStack}>
                       {showOverallProgress ? (
-                        <div ref={ingestion.overallProgressRef}>
-                          <ProgressGroup
-                            label="Overall Progress"
-                            meta={`${overallCurrentLabel} / ${totalPages}`}
-                            value={overallPercent}
-                          />
+                        <div
+                          ref={ingestion.overallProgressRef}
+                          className={manualStyles.executionProgressRow}
+                        >
+                          <div className={manualStyles.executionRowHeader}>
+                            <div
+                              className={manualStyles.overallLabelCluster}
+                              aria-hidden="true"
+                            >
+                              <p className="text-sm font-normal ai-text-strong">
+                                Overall Progress
+                              </p>
+                              <span className={manualStyles.overallHelperText}>
+                                pages completed
+                              </span>
+                              {totalsMismatch ? (
+                                <span
+                                  className={manualStyles.overallTotalsHint}
+                                >
+                                  · based on processed total
+                                </span>
+                              ) : null}
+                            </div>
+                            <div
+                              className={manualStyles.executionOverallKpi}
+                              role="status"
+                              aria-live="polite"
+                            >
+                              <span
+                                className={cn(
+                                  manualStyles.executionKpiPrimary,
+                                  manualStyles.tabularNums,
+                                )}
+                              >
+                                {overallFractionLabel}
+                              </span>
+                              {overallPct !== null ? (
+                                <span
+                                  className={cn(
+                                    manualStyles.executionKpiSecondary,
+                                    manualStyles.tabularNums,
+                                  )}
+                                >
+                                  ({overallPct}%)
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                          <div className={manualStyles.executionProgressBar}>
+                            <span
+                              className={manualStyles.executionProgressBarFill}
+                              style={{ width: `${overallBarPercent}%` }}
+                            />
+                          </div>
                         </div>
                       ) : null}
 
-                      <ProgressGroup
-                        label={showOverallProgress ? "Current Page" : "Progress"}
-                        meta={stageSubtitle ?? undefined}
-                        value={stagePercent}
-                        footer={
-                          <div className="flex flex-wrap items-center gap-3 text-sm">
-                            {showOverallProgress &&
-                            activePageId &&
-                            activePageTitle ? (
-                              <span className="ai-meta-text rounded-full bg-[color:var(--ai-border-soft)] px-2 py-0.5 text-xs font-mono">
-                                {activePageId}
-                              </span>
-                            ) : null}
-                            {ingestion.finalMessage ? (
-                              <span className="ai-meta-text">
-                                {ingestion.finalMessage}
-                              </span>
-                            ) : null}
-                          </div>
-                        }
-                      />
+                      <div className={manualStyles.executionProgressRow}>
+                        <div className={manualStyles.currentHeaderRow}>
+                          <p className="text-sm font-normal ai-text-strong">
+                            Current Page
+                          </p>
+                          {stageSubtitle ? (
+                            <span
+                              className={cn(
+                                manualStyles.currentTitle,
+                                manualStyles.currentTitleMuted,
+                              )}
+                              title={stageSubtitle}
+                            >
+                              {stageSubtitle}
+                            </span>
+                          ) : (
+                            <span
+                              className={manualStyles.currentTitle}
+                              aria-hidden="true"
+                            >
+                              {"\u00A0"}
+                            </span>
+                          )}
+                          {showCurrentPercentPill &&
+                          currentPagePercent !== null ? (
+                            <span
+                              className={cn(
+                                manualStyles.currentPercentPill,
+                                manualStyles.tabularNums,
+                              )}
+                            >
+                              {Math.round(currentPagePercent)}%
+                            </span>
+                          ) : (
+                            <span
+                              aria-hidden="true"
+                              className={
+                                manualStyles.currentPercentPillPlaceholder
+                              }
+                            >
+                              {"\u00A0"}
+                            </span>
+                          )}
+                        </div>
+                        <div className={manualStyles.executionProgressBar}>
+                          <span
+                            className={manualStyles.executionProgressBarFill}
+                            style={{ width: `${stagePercent}%` }}
+                          />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3 text-sm">
+                          {showOverallProgress &&
+                          activePageId &&
+                          activePageTitle ? (
+                            <span className="ai-meta-text rounded-full bg-[color:var(--ai-border-soft)] px-2 py-0.5 text-xs font-mono">
+                              {activePageId}
+                            </span>
+                          ) : null}
+                          {ingestion.finalMessage ? (
+                            <span className="ai-meta-text">
+                              {ingestion.finalMessage}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-
-                  <div
-                    className={manualStyles.executionPercent}
-                    aria-hidden="true"
-                  >
-                    {Math.round(stagePercent)}%
                   </div>
                 </div>
               </WorkflowStep>
@@ -641,7 +764,12 @@ export function ManualIngestionPanel(): JSX.Element {
                     <p className="ai-text text-[color:var(--ai-text-muted)]">
                       No logs yet; run ingestion to populate entries.
                     </p>
-                    <p className={cn("ai-meta-text", manualStyles.runLogEmptyHint)}>
+                    <p
+                      className={cn(
+                        "ai-meta-text",
+                        manualStyles.runLogEmptyHint,
+                      )}
+                    >
                       Execution logs will stream here once you start a run.
                     </p>
                   </div>
@@ -673,55 +801,125 @@ export function ManualIngestionPanel(): JSX.Element {
             </div>
           </WorkflowStep>
         </section>
-        {ingestion.stats ? (
-          <section className="ai-panel mt-8 space-y-3">
+        {stats ? (
+          <section
+            className={cn(
+              "ai-panel mt-8 space-y-3",
+              manualStyles.runSummaryPanel,
+            )}
+          >
             <div>
               <CardTitle icon={<FiBarChart2 aria-hidden="true" />}>
                 Run Summary
               </CardTitle>
             </div>
-            <dl className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4 m-0 p-0">
-              <RunSummaryStatTile
-                label="Documents Processed"
-                value={numberFormatter.format(
-                  ingestion.stats.documentsProcessed,
+            <p
+              className={cn(
+                "text-sm text-[color:var(--ai-text-muted)]",
+                manualStyles.runSummaryHeader,
+              )}
+            >
+              Processed {formatMetricValue(stats.documentsProcessed)} documents
+              {" — "}
+              {runSummaryHeaderSuffix}
+            </p>
+            {/* Verification: header for zero/mixed/error states; zero cards quiet; errors weight >0. */}
+            <div className={manualStyles.runSummaryGroups}>
+              <div className={manualStyles.runSummaryGroup}>
+                <p className={manualStyles.runSummaryGroupLabel}>
+                  Document Outcome
+                </p>
+                <div className={manualStyles.runSummaryGrid}>
+                  <RunSummaryStatTile
+                    label="Documents Processed"
+                    value={formatMetricValue(stats.documentsProcessed)}
+                    numericValue={stats.documentsProcessed}
+                    sectionHint="Run Summary"
+                  />
+                  <RunSummaryStatTile
+                    label="Documents Updated"
+                    value={formatMetricValue(stats.documentsUpdated)}
+                    numericValue={stats.documentsUpdated}
+                    sectionHint="Run Summary"
+                  />
+                  <RunSummaryStatTile
+                    label="Documents Added"
+                    value={formatMetricValue(stats.documentsAdded)}
+                    numericValue={stats.documentsAdded}
+                    sectionHint="Run Summary"
+                  />
+                  <RunSummaryStatTile
+                    label="Documents Skipped"
+                    value={formatMetricValue(stats.documentsSkipped)}
+                    numericValue={stats.documentsSkipped}
+                    sectionHint="Run Summary"
+                  />
+                </div>
+              </div>
+              <div className={manualStyles.runSummaryGroup}>
+                <p className={manualStyles.runSummaryGroupLabel}>
+                  Index Impact
+                </p>
+                <div className={manualStyles.runSummaryGrid}>
+                  <RunSummaryStatTile
+                    label="Chunks Added"
+                    value={formatMetricValue(stats.chunksAdded)}
+                    numericValue={stats.chunksAdded}
+                    sectionHint="Run Summary"
+                  />
+                  <RunSummaryStatTile
+                    label="Chunks Updated"
+                    value={formatMetricValue(stats.chunksUpdated)}
+                    numericValue={stats.chunksUpdated}
+                    sectionHint="Run Summary"
+                  />
+                  <RunSummaryStatTile
+                    label="Characters Added"
+                    value={formatMetricValue(stats.charactersAdded)}
+                    numericValue={stats.charactersAdded}
+                    sectionHint="Run Summary"
+                  />
+                  <RunSummaryStatTile
+                    label="Characters Updated"
+                    value={formatMetricValue(stats.charactersUpdated)}
+                    numericValue={stats.charactersUpdated}
+                    sectionHint="Run Summary"
+                  />
+                </div>
+              </div>
+              <div className={manualStyles.runSummaryGroup}>
+                <p className={manualStyles.runSummaryGroupLabel}>Health</p>
+                {stats.errorCount > 0 ? (
+                  <div
+                    className={cn(
+                      manualStyles.runSummaryGrid,
+                      manualStyles.healthGrid,
+                    )}
+                  >
+                    <RunSummaryStatTile
+                      label={
+                        <span className="flex items-center gap-1">
+                          <FiAlertTriangle
+                            aria-hidden="true"
+                            className="h-4 w-4 text-[color:var(--ai-warning)]"
+                          />
+                          <span>Errors</span>
+                        </span>
+                      }
+                      value={formatMetricValue(stats.errorCount)}
+                      numericValue={stats.errorCount}
+                      sectionHint="Run Summary"
+                    />
+                  </div>
+                ) : (
+                  <div className={manualStyles.healthEmptyState}>
+                    <span className="ai-meta-text text-[color:var(--ai-text-muted)]">
+                      No errors detected
+                    </span>
+                  </div>
                 )}
-              />
-              <RunSummaryStatTile
-                label="Documents Added"
-                value={numberFormatter.format(ingestion.stats.documentsAdded)}
-              />
-              <RunSummaryStatTile
-                label="Documents Updated"
-                value={numberFormatter.format(ingestion.stats.documentsUpdated)}
-              />
-              <RunSummaryStatTile
-                label="Documents Skipped"
-                value={numberFormatter.format(ingestion.stats.documentsSkipped)}
-              />
-              <RunSummaryStatTile
-                label="Chunks Added"
-                value={numberFormatter.format(ingestion.stats.chunksAdded)}
-              />
-              <RunSummaryStatTile
-                label="Chunks Updated"
-                value={numberFormatter.format(ingestion.stats.chunksUpdated)}
-              />
-              <RunSummaryStatTile
-                label="Characters Added"
-                value={numberFormatter.format(ingestion.stats.charactersAdded)}
-              />
-              <RunSummaryStatTile
-                label="Characters Updated"
-                value={numberFormatter.format(
-                  ingestion.stats.charactersUpdated,
-                )}
-              />
-              <RunSummaryStatTile
-                label="Errors"
-                value={numberFormatter.format(ingestion.stats.errorCount)}
-              />
-            </dl>
+              </div>
+            </div>
           </section>
         ) : null}
       </section>

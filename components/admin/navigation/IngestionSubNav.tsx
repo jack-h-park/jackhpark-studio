@@ -21,7 +21,10 @@ export function IngestionSubNav() {
         aria-label="Ingestion pages"
         className="flex items-center justify-between gap-4"
       >
-        <div role="tablist" className="flex items-center gap-8 text-base font-semibold">
+        <div
+          role="tablist"
+          className="flex items-center gap-8 text-base font-semibold"
+        >
           {PAGES.map((page) => {
             const active =
               pathname === page.href || pathname.startsWith(`${page.href}/`);
