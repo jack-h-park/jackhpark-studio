@@ -100,9 +100,11 @@ export function useAdminChatConfig({
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(lastUpdatedAt);
   const [isRawModalOpen, setIsRawModalOpen] = useState(false);
   const [isWordWrapEnabled, setIsWordWrapEnabled] = useState(false);
+  const [savedSnapshot, setSavedSnapshot] = useState<AdminChatConfig>(adminConfig);
 
   useEffect(() => {
     setConfig(adminConfig);
+    setSavedSnapshot(adminConfig);
   }, [adminConfig]);
 
   const additionalPromptMaxLength = getAdditionalPromptMaxLength(config);
@@ -145,6 +147,7 @@ export function useAdminChatConfig({
 
   const isFormBusy = saveStatus === "saving";
   const isSaveDisabled = hasNumericErrors || isFormBusy;
+  const hasUnsavedChanges = savedSnapshot !== config;
 
   const handleSave = async () => {
     if (isSaveDisabled) {
@@ -168,6 +171,7 @@ export function useAdminChatConfig({
       }
       setLastSavedAt(payload?.updatedAt ?? new Date().toISOString());
       setSaveStatus("success");
+      setSavedSnapshot(config);
       setTimeout(() => setSaveStatus("idle"), 2500);
     } catch (err: unknown) {
       const message =
@@ -178,6 +182,12 @@ export function useAdminChatConfig({
       setSaveStatus("error");
     }
   };
+
+  const handleReset = useCallback(() => {
+    setConfig(savedSnapshot);
+    setErrorMessage(null);
+    setSaveStatus("idle");
+  }, [savedSnapshot]);
 
   const updateNumericLimit = (
     key: keyof AdminChatConfig["numericLimits"],
@@ -363,6 +373,8 @@ export function useAdminChatConfig({
     hasNumericErrors,
     isFormBusy,
     isSaveDisabled,
+    hasUnsavedChanges,
+    handleReset,
     llmModelOptions,
     updateNumericLimit,
     updateDocTypeWeight,

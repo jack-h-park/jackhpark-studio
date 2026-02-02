@@ -1,15 +1,9 @@
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
-import { Fragment } from "react";
 
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
+import { Card, CardContent } from "@/components/ui/card";
 import { CheckboxChoice } from "@/components/ui/checkbox";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
@@ -380,16 +374,34 @@ export function SessionPresetsCard({
   const renderPresetRow = (
     label: string,
     renderCell: (presetKey: PresetKey) => React.ReactNode,
-  ) => (
-    <Fragment key={label}>
-      <div className={sessionGridLabelClass}>{label}</div>
-      {presetDisplayOrder.map((presetKey) => (
-        <div key={`${label}-${presetKey}`} className={sessionGridValueClass}>
-          {renderCell(presetKey)}
-        </div>
-      ))}
-    </Fragment>
-  );
+    rowIndex: number,
+  ) => {
+    const tone =
+      rowIndex % 2 === 0
+        ? "bg-[var(--ai-role-surface-1)]"
+        : "bg-[var(--ai-role-surface-0)]";
+    return (
+      <div
+        key={`${label}-${rowIndex}`}
+        className={`grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] gap-4 items-start rounded-2xl border border-transparent px-4 py-3 transition-colors hover:border-[var(--ai-role-border-muted)] hover:bg-[var(--ai-role-surface-muted)] ${tone}`}
+      >
+        <div className={sessionGridLabelClass}>{label}</div>
+        {presetDisplayOrder.map((presetKey) => (
+          <div
+            key={`${label}-${presetKey}`}
+            className={sessionGridValueClass}
+          >
+            {renderCell(presetKey)}
+          </div>
+        ))}
+      </div>
+    );
+  };
+  let rowIndex = 0;
+  const renderRow = (
+    label: string,
+    renderCell: (presetKey: PresetKey) => React.ReactNode,
+  ) => renderPresetRow(label, renderCell, rowIndex++);
 
   const renderRagSection = (presetKey: PresetKey) => {
     const preset = presets[presetKey];
@@ -495,17 +507,14 @@ export function SessionPresetsCard({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle icon={<FiLayers aria-hidden="true" />}>
-          Session Presets
-        </CardTitle>
-        <CardDescription>
-          Customize each preset so it stays within the allowed limits.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6 px-5 pb-5 pt-4">
-        <GridPanel className="gap-3 auto-rows-min rounded-2xl px-4 py-5 shadow-sm">
-          <div className="grid grid-cols-[minmax(190px,1fr)_repeat(4,minmax(0,1fr))] gap-y-3 gap-x-4 items-start">
+      <ChatConfigCardHeader
+        icon={<FiLayers aria-hidden="true" />}
+        title="Session Presets"
+        description="Customize each preset so it stays within the allowed limits."
+      />
+      <CardContent className="space-y-6 px-5 py-4">
+        <GridPanel className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] px-4 py-4 shadow-sm">
+          <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] items-center gap-3 text-[0.625rem] uppercase tracking-[0.4em] text-[var(--ai-text-muted)]">
             <div className={sessionGridLabelClass}>Setting</div>
             {presetDisplayOrder.map((presetKey) => (
               <div
@@ -515,7 +524,9 @@ export function SessionPresetsCard({
                 {presetDisplayNames[presetKey]}
               </div>
             ))}
-            {renderPresetRow("Additional user system prompt", (presetKey) => {
+          </div>
+          <div className="space-y-3">
+            {renderRow("Additional user system prompt", (presetKey) => {
               const preset = presets[presetKey];
               return (
                 <PromptWithCounter
@@ -530,7 +541,7 @@ export function SessionPresetsCard({
                 />
               );
             })}
-            {renderPresetRow("LLM Model", (presetKey) => {
+            {renderRow("LLM Model", (presetKey) => {
               const resolution = presetResolutions[presetKey];
               const wasSubstituted = resolution?.wasSubstituted;
               const substitutionTooltip = wasSubstituted
@@ -609,7 +620,7 @@ export function SessionPresetsCard({
                 </div>
               );
             })}
-            {renderPresetRow("Embedding Model", (presetKey) => (
+            {renderRow("Embedding Model", (presetKey) => (
               <Select
                 value={presets[presetKey].embeddingModel}
                 onValueChange={(value) =>
@@ -639,7 +650,7 @@ export function SessionPresetsCard({
                 </SelectContent>
               </Select>
             ))}
-            {renderPresetRow("Require local backend", (presetKey) => {
+            {renderRow("Require local backend", (presetKey) => {
               const preset = presets[presetKey];
               const modelOption = llmModelOptions.find(
                 (option) => option.id === preset.llmModel,
@@ -689,7 +700,7 @@ export function SessionPresetsCard({
                 />
               );
             })}
-            {renderPresetRow("Safe Mode", (presetKey) => {
+            {renderRow("Safe Mode", (presetKey) => {
               const preset = presets[presetKey];
               return (
                 <CheckboxChoice
@@ -706,6 +717,8 @@ export function SessionPresetsCard({
                 />
               );
             })}
+          </div>
+          <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] gap-4 items-start rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-2)]/50 px-4 py-3">
             <div className={sessionGridLabelClass}>Retrieval (RAG)</div>
             {presetDisplayOrder.map((presetKey) => (
               <div
@@ -715,6 +728,8 @@ export function SessionPresetsCard({
                 {renderRagSection(presetKey)}
               </div>
             ))}
+          </div>
+          <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] gap-4 items-start rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-2)]/40 px-4 py-3">
             <div className={sessionGridLabelClass}>Context & History</div>
             {presetDisplayOrder.map((presetKey) => (
               <div

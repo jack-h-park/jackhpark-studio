@@ -1,5 +1,6 @@
 import type { AdminChatConfig } from "@/types/chat-config";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -36,13 +37,11 @@ export function CachingCard({
 
   return (
     <Card className="mb-6">
-      <CardHeader>
-        <CardTitle>Caching</CardTitle>
-        <p className="ai-card-description">
-          Tune simple TTLs for chat responses and retrieval results.
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <ChatConfigCardHeader
+        title="Caching"
+        description="Tune simple TTLs for chat responses and retrieval results."
+      />
+      <CardContent className="space-y-4 px-5 py-4">
         <div className="space-y-2">
           <Label htmlFor="cache-response-ttl">
             Response cache TTL (seconds)

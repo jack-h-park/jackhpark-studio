@@ -2,7 +2,8 @@ import type {
   AdminChatConfig,
   TelemetryDetailLevel,
 } from "@/types/chat-config";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Radiobutton } from "@/components/ui/radiobutton";
@@ -42,13 +43,11 @@ export function TelemetryCard({
 
   return (
     <Card className="mb-6">
-      <CardHeader>
-        <CardTitle>Telemetry &amp; Tracing</CardTitle>
-        <p className="ai-card-description">
-          Control how much data is sent to Langfuse for analysis.
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <ChatConfigCardHeader
+        title="Telemetry &amp; Tracing"
+        description="Control how much data is sent to Langfuse for analysis."
+      />
+      <CardContent className="space-y-4 px-5 py-4">
         <div className="space-y-2">
           <Label htmlFor="telemetry-sample-rate">Sample rate</Label>
           <Input

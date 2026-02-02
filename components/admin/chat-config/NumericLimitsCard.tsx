@@ -1,13 +1,8 @@
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 
 import type { AdminChatConfig, AdminNumericLimit } from "@/types/chat-config";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { numericLimitLabels } from "@/hooks/use-admin-chat-config";
@@ -31,15 +26,12 @@ export function NumericLimitsCard({
 }: NumericLimitsCardProps) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle icon={<FiSliders aria-hidden="true" />}>
-          Numeric Limits
-        </CardTitle>
-        <CardDescription>
-          Guardrail the possible values session presets can reach.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5 px-5 pb-5 pt-4">
+      <ChatConfigCardHeader
+        icon={<FiSliders aria-hidden="true" />}
+        title="Numeric Limits"
+        description="Guardrail the possible values session presets can reach."
+      />
+      <CardContent className="space-y-5 px-5 py-4">
         {(
           Object.keys(numericLimits) as Array<
             keyof AdminChatConfig["numericLimits"]
@@ -49,7 +41,7 @@ export function NumericLimitsCard({
           return (
             <div
               key={key}
-              className="rounded-2xl border border-[color:var(--ai-border-subtle)] p-4 shadow-sm sm:p-5"
+              className="rounded-2xl border border-[var(--ai-role-border-muted)] p-4 shadow-sm sm:p-5"
             >
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(0,1fr))]">
                 <div className="flex flex-col gap-1.5">
@@ -126,7 +118,7 @@ export function NumericLimitsCard({
           );
         })}
         {hasNumericErrors && (
-          <p className="mt-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          <p className="mt-2 rounded-xl border border-[var(--ai-error)] bg-[var(--ai-error-muted)] px-4 py-2 text-sm text-[var(--ai-error)]">
             {numericLimitErrors[0]}
           </p>
         )}

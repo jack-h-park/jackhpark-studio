@@ -1,30 +1,20 @@
 import { FiBookOpen } from "@react-icons/all-files/fi/FiBookOpen";
 import Link from "next/link";
 
+import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export function RagMetadataInfoCard() {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle icon={<FiBookOpen aria-hidden="true" />}>
-          RAG Document Metadata
-        </CardTitle>
-        <CardDescription>
-          Review and adjust document-level metadata used during RAG retrieval
-          (doc_type, persona_type, visibility, tags). Use the dedicated manager
-          for fine-grained edits.
-        </CardDescription>
-      </CardHeader>
+      <ChatConfigCardHeader
+        icon={<FiBookOpen aria-hidden="true" />}
+        title="RAG Document Metadata"
+        description="Review and adjust document-level metadata used during RAG retrieval (doc_type, persona_type, visibility, tags). Use the dedicated manager for fine-grained edits."
+      />
 
-      <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <CardContent className="space-y-4 px-5 py-4">
         <div className="space-y-1 max-w-xl">
           <p className="ai-meta-text">
             Metadata such as <code>doc_type</code>, <code>persona_type</code>,{" "}

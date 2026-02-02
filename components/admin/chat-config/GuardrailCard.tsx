@@ -1,13 +1,8 @@
 import { FiShield } from "@react-icons/all-files/fi/FiShield";
 
 import type { AdminChatConfig } from "@/types/chat-config";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
+import { Card, CardContent } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,77 +56,83 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle icon={<FiShield aria-hidden="true" />}>
-          Guardrail Keywords &amp; Fallbacks
-        </CardTitle>
-        <CardDescription>
-          Define how guardrails recognize chit-chat and how the assistant
-          responds when light conversation or command intents are detected.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6 px-5 pb-5 pt-4">
-        <Field
-          id="guardrailKeywords"
-          label="Chit-chat keywords"
-          description="Add keywords or phrases that should be treated as lightweight chit-chat and handled without hitting the knowledge base."
-          className="max-w-[64ch]"
-        >
-          <Textarea
-            rows={3}
-            value={arrayToText(config.guardrails.chitchatKeywords)}
-            onChange={(event) =>
-              handleChitchatKeywordsChange(event.target.value)
-            }
-            className="w-full max-w-[64ch]"
-          />
-        </Field>
-        <div className="ai-field max-w-[64ch]">
-          <Label
-            htmlFor="guardrailFallbackChitchat"
-            className="ai-field__label"
-          >
-            Chit-chat fallback context
-          </Label>
-          <Textarea
-            id="guardrailFallbackChitchat"
-            aria-describedby="guardrail-fallback-chitchat-description"
-            value={config.guardrails.fallbackChitchat}
-            onChange={(event) =>
-              handleFallbackChitchatChange(event.target.value)
-            }
-            rows={3}
-            className="w-full max-w-[64ch]"
-          />
-          <p
-            id="guardrail-fallback-chitchat-description"
-            className="ai-field__description"
-          >
-            The concise, friendly prompt injected whenever a chit-chat intent is
-            detected.
+      <ChatConfigCardHeader
+        icon={<FiShield aria-hidden="true" />}
+        title="Guardrail Keywords &amp; Fallbacks"
+        description="Define how guardrails recognize chit-chat and how the assistant responds when light conversation or command intents are detected."
+      />
+      <CardContent className="space-y-5 px-5 py-4">
+        <div className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4">
+          <p className="ai-label-overline ai-label-overline--muted">
+            Behavior detection
           </p>
+          <Field
+            id="guardrailKeywords"
+            label="Chit-chat keywords"
+            description="Add keywords or phrases treated as lightweight chit-chat instead of knowledge base queries."
+            className="max-w-[64ch]"
+          >
+            <Textarea
+              rows={3}
+              value={arrayToText(config.guardrails.chitchatKeywords)}
+              onChange={(event) =>
+                handleChitchatKeywordsChange(event.target.value)
+              }
+              className="w-full max-w-[64ch]"
+            />
+          </Field>
         </div>
-        <div className="ai-field max-w-[64ch]">
-          <Label htmlFor="guardrailFallbackCommand" className="ai-field__label">
-            Command fallback context
-          </Label>
-          <Textarea
-            id="guardrailFallbackCommand"
-            aria-describedby="guardrail-fallback-command-description"
-            value={config.guardrails.fallbackCommand}
-            onChange={(event) =>
-              handleFallbackCommandChange(event.target.value)
-            }
-            rows={3}
-            className="w-full max-w-[64ch]"
-          />
-          <p
-            id="guardrail-fallback-command-description"
-            className="ai-meta-text"
-          >
-            The polite refusal context shown whenever a user asks the assistant
-            to run actions or commands.
+        <div className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4">
+          <p className="ai-label-overline ai-label-overline--muted">
+            Fallback messaging
           </p>
+          <div className="ai-field max-w-[64ch]">
+            <Label
+              htmlFor="guardrailFallbackChitchat"
+              className="ai-field__label"
+            >
+              Chit-chat fallback context
+            </Label>
+            <Textarea
+              id="guardrailFallbackChitchat"
+              aria-describedby="guardrail-fallback-chitchat-description"
+              value={config.guardrails.fallbackChitchat}
+              onChange={(event) =>
+                handleFallbackChitchatChange(event.target.value)
+              }
+              rows={3}
+              className="w-full max-w-[64ch]"
+            />
+            <p
+              id="guardrail-fallback-chitchat-description"
+              className="ai-field__description"
+            >
+              The concise prompt injected whenever a chit-chat intent is
+              detected.
+            </p>
+          </div>
+          <div className="ai-field max-w-[64ch]">
+            <Label htmlFor="guardrailFallbackCommand" className="ai-field__label">
+              Command fallback context
+            </Label>
+            <Textarea
+              id="guardrailFallbackCommand"
+              aria-describedby="guardrail-fallback-command-description"
+              value={config.guardrails.fallbackCommand}
+              onChange={(event) =>
+                handleFallbackCommandChange(event.target.value)
+              }
+              rows={3}
+              className="w-full max-w-[64ch]"
+            />
+            <p
+              id="guardrail-fallback-command-description"
+              className="ai-meta-text"
+            >
+              The polite refusal context shown whenever a user asks the
+              assistant to run actions or commands.
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>

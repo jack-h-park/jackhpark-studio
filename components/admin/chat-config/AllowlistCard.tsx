@@ -3,16 +3,11 @@ import { FiShield } from "@react-icons/all-files/fi/FiShield";
 
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import type { AdminChatConfig } from "@/types/chat-config";
+import { ChatConfigCardHeader, ToggleRow } from "@/components/admin/chat-config/ChatConfigHelpers";
 import { AllowlistTile } from "@/components/ui/allowlist-tile";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { CheckboxChoice } from "@/components/ui/checkbox";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { type AdminLlmModelOption } from "@/hooks/use-admin-chat-config";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { normalizeLlmModelId } from "@/lib/core/llm-registry";
@@ -153,37 +148,43 @@ export function AllowlistCard({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle icon={<FiShield aria-hidden="true" />}>Allowlist</CardTitle>
-        <CardDescription>
-          Control which models and rankers visitors can pick.
-        </CardDescription>
-        <div className="mt-2 flex flex-wrap gap-4">
-          {renderBackendStatus("Ollama", "ollama")}
-          {renderBackendStatus("LM Studio", "lmstudio")}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6 px-5 pb-5 pt-4">
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label>Cloud models</Label>
-            {cloudModels.length > 0 ? (
-              renderModelTiles(cloudModels)
-            ) : (
-              <p className="ai-helper-text">
-                No cloud models are available in the allowlist.
-              </p>
-            )}
+      <ChatConfigCardHeader
+        icon={<FiShield aria-hidden="true" />}
+        title="Allowlist"
+        description="Control which models and rankers visitors can pick."
+        status={
+          <div className="flex max-w-xs flex-wrap gap-3 text-xs text-[var(--ai-text-muted)]">
+            {renderBackendStatus("Ollama", "ollama")}
+            {renderBackendStatus("LM Studio", "lmstudio")}
           </div>
-          <div className="space-y-1">
-            <Label>Local models</Label>
-            {localModels.length > 0 ? (
-              renderModelTiles(localModels)
-            ) : (
-              <p className="ai-helper-text">
-                Add at least one local model to enable “Require local backend”.
-              </p>
-            )}
+        }
+      />
+      <CardContent className="space-y-5 px-5 py-4">
+        <div className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4">
+          <p className="ai-label-overline ai-label-overline--muted">
+            LLM models
+          </p>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label>Cloud models</Label>
+              {cloudModels.length > 0 ? (
+                renderModelTiles(cloudModels)
+              ) : (
+                <p className="ai-helper-text">
+                  No cloud models are available in the allowlist.
+                </p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label>Local models</Label>
+              {localModels.length > 0 ? (
+                renderModelTiles(localModels)
+              ) : (
+                <p className="ai-helper-text">
+                  Add at least one local model to enable “Require local backend”.
+                </p>
+              )}
+            </div>
           </div>
           <p className="ai-helper-text">
             Choose which LLM models visitors can select. Values like
@@ -192,8 +193,10 @@ export function AllowlistCard({
           </p>
         </div>
 
-        <div className="space-y-2">
-          <Label>Embedding Models</Label>
+        <div className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4">
+          <p className="ai-label-overline ai-label-overline--muted">
+            Embedding models
+          </p>
           <div className="grid auto-rows-min gap-2 sm:grid-cols-2">
             {EMBEDDING_MODEL_OPTIONS.map((space) => {
               const isSelected = allowlist.embeddingModels.includes(
@@ -224,8 +227,10 @@ export function AllowlistCard({
           </p>
         </div>
 
-        <div className="space-y-2">
-          <Label>Ranker Allowlist</Label>
+        <div className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4">
+          <p className="ai-label-overline ai-label-overline--muted">
+            Ranker allowlist
+          </p>
           <div className="grid auto-rows-min gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {RANKER_OPTIONS.map((ranker) => {
               const isSelected = allowlist.rankers.includes(ranker);
@@ -254,17 +259,26 @@ export function AllowlistCard({
           </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <CheckboxChoice
+        <div className="space-y-3">
+          <ToggleRow
             label="Allow Reverse RAG"
-            checked={allowlist.allowReverseRAG}
-            onCheckedChange={handleAllowReverseRagChange}
+            description="Include retrieved chunks in the prompt whenever visitors opt in."
+            control={
+              <Switch
+                checked={allowlist.allowReverseRAG}
+                onCheckedChange={handleAllowReverseRagChange}
+              />
+            }
           />
-
-          <CheckboxChoice
+          <ToggleRow
             label="Allow HyDE"
-            checked={allowlist.allowHyde}
-            onCheckedChange={handleAllowHydeChange}
+            description="Let workers add hallucination-reduction prompts before retrieval."
+            control={
+              <Switch
+                checked={allowlist.allowHyde}
+                onCheckedChange={handleAllowHydeChange}
+              />
+            }
           />
         </div>
       </CardContent>
