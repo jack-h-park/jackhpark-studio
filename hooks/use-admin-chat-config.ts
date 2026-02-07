@@ -100,7 +100,8 @@ export function useAdminChatConfig({
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(lastUpdatedAt);
   const [isRawModalOpen, setIsRawModalOpen] = useState(false);
   const [isWordWrapEnabled, setIsWordWrapEnabled] = useState(false);
-  const [savedSnapshot, setSavedSnapshot] = useState<AdminChatConfig>(adminConfig);
+  const [savedSnapshot, setSavedSnapshot] =
+    useState<AdminChatConfig>(adminConfig);
 
   useEffect(() => {
     setConfig(adminConfig);

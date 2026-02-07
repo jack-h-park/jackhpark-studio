@@ -1,6 +1,7 @@
 import "@/styles/admin-doc-preview.css";
 
 import type { GetServerSideProps } from "next";
+import { FiChevronRight } from "@react-icons/all-files/fi/FiChevronRight";
 import { FiFileText } from "@react-icons/all-files/fi/FiFileText";
 import Head from "next/head";
 import Link from "next/link";
@@ -31,6 +32,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { StatusPill } from "@/components/ui/status-pill";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { pickDocumentPreviewSlot } from "@/lib/admin/document-preview";
 import {
   normalizeRagDocument,
@@ -82,6 +88,11 @@ type DocumentDisplayInfo = {
   iconEmoji?: string;
   iconImageUrl?: string;
   teaserText?: string;
+};
+
+type ActiveFilterDescriptor = {
+  display: string;
+  full: string;
 };
 
 function formatSourceUrlForDisplay(sourceUrl: string): string {
@@ -306,6 +317,108 @@ export default function AdminDocumentsPage({
   const [personaType, setPersonaType] = useState(filters.personaType);
   const [sourceType, setSourceType] = useState(filters.sourceType);
   const [isPublic, setIsPublic] = useState(filters.isPublic);
+  const trimmedQuery = query.trim();
+  const {
+    docType: defaultDocType,
+    personaType: defaultPersonaType,
+    sourceType: defaultSourceType,
+    isPublic: defaultIsPublic,
+  } = filters;
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [navigationError, setNavigationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleStart = () => {
+      setIsNavigating(true);
+      setNavigationError(null);
+    };
+    const handleComplete = () => {
+      setIsNavigating(false);
+    };
+    const handleError = () => {
+      setIsNavigating(false);
+      setNavigationError("Unable to load documents. Please try again.");
+    };
+
+    router.events.on("routeChangeStart", handleStart);
+    router.events.on("routeChangeComplete", handleComplete);
+    router.events.on("routeChangeError", handleError);
+
+    return () => {
+      router.events.off("routeChangeStart", handleStart);
+      router.events.off("routeChangeComplete", handleComplete);
+      router.events.off("routeChangeError", handleError);
+    };
+  }, [router.events]);
+
+  const activeFilters = useMemo(() => {
+    const filtersList: ActiveFilterDescriptor[] = [];
+    const pushFilter = (
+      label: string,
+      value: string,
+      displayOverride?: string,
+      fullOverride?: string,
+    ) => {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return;
+      }
+      const displayValue = displayOverride ?? trimmed;
+      const fullValue = fullOverride ?? trimmed;
+      filtersList.push({
+        display: `${label}=${displayValue}`,
+        full: `${label}=${fullValue}`,
+      });
+    };
+
+    if (trimmedQuery) {
+      pushFilter("Search", trimmedQuery, `"${trimmedQuery}"`, trimmedQuery);
+    }
+    if (docType) {
+      pushFilter("Doc Type", docType);
+    }
+    if (personaType) {
+      pushFilter("Persona", personaType);
+    }
+    if (sourceType) {
+      pushFilter("Source", sourceType);
+    }
+    if (isPublic) {
+      const visibility = isPublic === "true" ? "Public" : "Private";
+      pushFilter("Visibility", visibility, visibility);
+    }
+
+    return filtersList;
+  }, [docType, isPublic, personaType, sourceType, trimmedQuery]);
+
+  const isFilterDirty = useMemo(
+    () =>
+      trimmedQuery !== search ||
+      docType !== defaultDocType ||
+      personaType !== defaultPersonaType ||
+      sourceType !== defaultSourceType ||
+      isPublic !== defaultIsPublic,
+    [
+      trimmedQuery,
+      search,
+      docType,
+      defaultDocType,
+      personaType,
+      defaultPersonaType,
+      sourceType,
+      defaultSourceType,
+      isPublic,
+      defaultIsPublic,
+    ],
+  );
+
+  const FILTER_TOKEN_LIMIT = 3;
+  const visibleFilters = activeFilters.slice(0, FILTER_TOKEN_LIMIT);
+  const overflowFilters = activeFilters.slice(FILTER_TOKEN_LIMIT);
+  const overflowCount = overflowFilters.length;
+  const overflowTitle = overflowFilters
+    .map((filter) => filter.full)
+    .join(" · ");
 
   const columns = useMemo<DataTableColumn<DocumentRow>[]>(() => {
     return [
@@ -318,6 +431,7 @@ export default function AdminDocumentsPage({
         size: "xs",
         width: "56px",
         className: "px-2",
+        skeletonWidth: "32px",
       },
       {
         header: "Title",
@@ -325,16 +439,22 @@ export default function AdminDocumentsPage({
           const info = buildDocumentDisplayInfo(doc);
           return (
             <div className="flex flex-col gap-1 min-w-0">
-              <Link
-                href={`/admin/documents/${encodeURIComponent(doc.doc_id)}`}
-                className={cn(
-                  "font-semibold text-[color:var(--ai-text)] hover:underline",
-                  styles.titlePrimary,
-                )}
-                title={doc.displayTitle}
-              >
-                {doc.displayTitle}
-              </Link>
+              <div className="flex items-center gap-1 min-w-0 group">
+                <Link
+                  href={`/admin/documents/${encodeURIComponent(doc.doc_id)}`}
+                  className={cn(
+                    "font-semibold text-[color:var(--ai-text)] transition hover:underline focus-visible:underline",
+                    styles.titlePrimary,
+                  )}
+                  title={doc.displayTitle}
+                >
+                  {doc.displayTitle}
+                </Link>
+                <FiChevronRight
+                  aria-hidden="true"
+                  className="text-[color:var(--ai-text-muted)] opacity-0 transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                />
+              </div>
               <p
                 className={styles.titleSecondary}
                 title={info.subtitle ?? doc.doc_id}
@@ -346,6 +466,7 @@ export default function AdminDocumentsPage({
         },
         className: "min-w-[280px] text-[color:var(--ai-text-muted)]",
         size: "sm",
+        skeletonWidth: "70%",
       },
       {
         header: "Source",
@@ -378,6 +499,7 @@ export default function AdminDocumentsPage({
         },
         size: "xs",
         className: "text-[color:var(--ai-text-muted)]",
+        skeletonWidth: "45%",
       },
       {
         header: "Identifiers",
@@ -385,10 +507,12 @@ export default function AdminDocumentsPage({
           <DocumentIdCell
             canonicalId={doc.doc_id}
             rawId={doc.raw_doc_id ?? doc.metadata?.raw_doc_id ?? null}
+            compact
           />
         ),
         size: "sm",
-        className: "max-w-[240px]",
+        className: "max-w-[240px] min-w-0",
+        skeletonWidth: "40%",
       },
       {
         header: "Doc Type",
@@ -402,7 +526,8 @@ export default function AdminDocumentsPage({
           ),
         size: "xs",
         align: "center",
-        className: "min-w-[130px] text-[color:var(--ai-text-muted)]",
+        className: "min-w-[110px] text-[color:var(--ai-text-muted)]",
+        skeletonWidth: "40%",
       },
       {
         header: "Persona",
@@ -416,7 +541,8 @@ export default function AdminDocumentsPage({
           ),
         size: "xs",
         align: "center",
-        className: "min-w-[130px] text-[color:var(--ai-text-muted)]",
+        className: "min-w-[110px] text-[color:var(--ai-text-muted)]",
+        skeletonWidth: "40%",
       },
       {
         header: "Public",
@@ -432,9 +558,10 @@ export default function AdminDocumentsPage({
             "—"
           ),
         align: "center",
-        width: "100px",
+        width: "96px",
         size: "xs",
-        className: "text-[color:var(--ai-text-muted)]",
+        className: "min-w-[96px] text-[color:var(--ai-text-muted)]",
+        skeletonWidth: "30%",
       },
       {
         header: "Last Ingested",
@@ -446,8 +573,9 @@ export default function AdminDocumentsPage({
           ),
         variant: "muted",
         size: "xs",
-        width: "160px",
-        className: "text-[color:var(--ai-text-muted)]",
+        width: "140px",
+        className: "min-w-[140px] text-[color:var(--ai-text-muted)]",
+        skeletonWidth: "55%",
       },
       {
         header: "Chunks",
@@ -469,6 +597,7 @@ export default function AdminDocumentsPage({
         width: "90px",
         size: "xs",
         className: `text-[color:var(--ai-text-muted)] ${styles.cellNumeric}`,
+        skeletonWidth: "25%",
       },
     ];
   }, []);
@@ -541,6 +670,22 @@ export default function AdminDocumentsPage({
     [applyFilters],
   );
 
+  const resetFilters = useCallback(() => {
+    setQuery("");
+    setDocType("");
+    setPersonaType("");
+    setSourceType("");
+    setIsPublic("");
+    applyFilters({
+      q: "",
+      docType: "",
+      personaType: "",
+      sourceType: "",
+      isPublic: "",
+      page: 1,
+    });
+  }, [applyFilters]);
+
   const summaryText =
     totalCount === 0
       ? "No documents to display yet."
@@ -552,6 +697,11 @@ export default function AdminDocumentsPage({
     <div className={styles.emptyState}>
       <p className={styles.emptyStateTitle}>No documents found</p>
       <p className={styles.emptyStateHelper}>Try adjusting your filters.</p>
+      <div className="flex justify-center">
+        <Button size="sm" variant="ghost" onClick={resetFilters}>
+          Reset filters
+        </Button>
+      </div>
     </div>
   );
 
@@ -680,27 +830,62 @@ export default function AdminDocumentsPage({
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={() => {
-                        setQuery("");
-                        setDocType("");
-                        setPersonaType("");
-                        setSourceType("");
-                        setIsPublic("");
-                        applyFilters({
-                          q: "",
-                          docType: "",
-                          personaType: "",
-                          sourceType: "",
-                          isPublic: "",
-                          page: 1,
-                        });
-                      }}
+                      onClick={resetFilters}
                     >
                       Reset
                     </Button>
-                    <Button type="submit">Apply</Button>
+                    <Button type="submit" disabled={!isFilterDirty}>
+                      Apply
+                    </Button>
                   </div>
                 </form>
+                {activeFilters.length > 0 ? (
+                  <div
+                    className="flex flex-wrap items-center gap-2 text-xs text-[color:var(--ai-text-muted)]"
+                    aria-live="polite"
+                  >
+                    <span className="font-semibold text-[color:var(--ai-text-muted)]">
+                      Active filters:
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {visibleFilters.map((filter, index) => (
+                        <span
+                          key={`${filter.display}-${index}`}
+                          className="flex items-center gap-1"
+                        >
+                          {index > 0 ? (
+                            <span className="text-[color:var(--ai-text-muted)]">
+                              ·
+                            </span>
+                          ) : null}
+                          <span
+                            className="max-w-[12ch] truncate"
+                            title={filter.full}
+                          >
+                            {filter.display}
+                          </span>
+                        </span>
+                      ))}
+                      {overflowCount > 0 ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="flex items-center gap-1">
+                              <span className="text-[color:var(--ai-text-muted)]">
+                                ·
+                              </span>
+                              <span className="max-w-[8ch] truncate">
+                                +{overflowCount} more
+                              </span>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            {overflowTitle}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
 
@@ -716,7 +901,22 @@ export default function AdminDocumentsPage({
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-5 pb-5 pt-4">
-                {hasDocuments ? (
+                {navigationError ? (
+                  <div className="rounded border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-muted)] p-4 text-center">
+                    <p className="text-sm font-semibold text-[color:var(--ai-text-muted)]">
+                      {navigationError}
+                    </p>
+                    <div className="mt-3 flex justify-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => router.reload()}
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                ) : hasDocuments ? (
                   <DataTable
                     className={styles.tableShell}
                     columns={columns}
@@ -735,6 +935,7 @@ export default function AdminDocumentsPage({
                       summaryText,
                     }}
                     paginationClassName={styles.tableFooter}
+                    isLoading={isNavigating}
                   />
                 ) : (
                   emptyStatePanel

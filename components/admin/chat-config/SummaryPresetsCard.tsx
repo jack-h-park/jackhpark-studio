@@ -76,7 +76,9 @@ export function SummaryPresetsCard({
                     handleSummaryPresetChange(level, Number(event.target.value))
                   }
                 />
-                <span className="text-xs text-[var(--ai-text-muted)]">turn(s)</span>
+                <span className="text-xs text-[var(--ai-text-muted)]">
+                  turn(s)
+                </span>
               </div>
             ))}
           </div>

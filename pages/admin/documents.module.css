@@ -58,8 +58,14 @@
   transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.rowHover:hover {
+.rowHover:hover,
+.rowHover:focus-within {
   background-color: var(--ai-role-surface-hover);
+}
+
+.rowHover:has(button:hover),
+.rowHover:has(button:focus-visible) {
+  background-color: var(--ai-role-surface-muted);
 }
 
 .rowFocusVisible:focus-within :global(.ai-table__cell) {

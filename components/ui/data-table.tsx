@@ -11,6 +11,7 @@ export type DataTableColumn<T> = {
   width?: string;
   variant?: "primary" | "muted" | "numeric" | "code";
   size?: "sm" | "xs";
+  skeletonWidth?: string;
 };
 
 export type DataTableProps<T> = {
@@ -131,7 +132,7 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody>
-            {!hasData ? (
+            {!hasData && !isLoading ? (
               <tr className="bg-[hsl(var(--ai-surface))]">
                 <td
                   colSpan={columns.length}
@@ -203,12 +204,53 @@ export function DataTable<T>({
                 );
               })
             )}
+            {isLoading && columns.length > 0 && (
+              <>
+                {Array.from({ length: 3 }).map((_, skeletonIndex) => (
+                  <tr
+                    key={`skeleton-${skeletonIndex}`}
+                    className="ai-table__row animate-pulse"
+                    aria-hidden="true"
+                  >
+                    {columns.map((column, cellIndex) => {
+                      const alignment =
+                        column.align === "center"
+                          ? "text-center"
+                          : column.align === "right"
+                            ? "text-right"
+                            : "text-left";
+                      return (
+                        <td
+                          key={`skeleton-cell-${skeletonIndex}-${cellIndex}`}
+                          className={cn(
+                            "ai-table__cell",
+                            alignment,
+                            sizeClassMap[column.size ?? "sm"],
+                            variantClassMap[column.variant ?? "primary"],
+                            column.className,
+                          )}
+                        >
+                          <span
+                            className="block h-3 w-full rounded bg-[color:var(--ai-role-surface-1)]"
+                            style={
+                              column.skeletonWidth
+                                ? {
+                                    width: column.skeletonWidth,
+                                    maxWidth: column.skeletonWidth,
+                                  }
+                                : undefined
+                            }
+                          />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </>
+            )}
           </tbody>
         </table>
       </div>
-      {isLoading ? (
-        <div className="absolute inset-0 bg-[color-mix(in_srgb,hsl(var(--ai-bg))_60%,transparent)] pointer-events-none" />
-      ) : null}
       {pagination ? (
         <div
           className={cn(

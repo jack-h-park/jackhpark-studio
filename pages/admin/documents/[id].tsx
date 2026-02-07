@@ -150,9 +150,10 @@ export default function AdminDocumentDetailPage({
   );
   const [saving, setSaving] = useState(false);
   const [wrapJson, setWrapJson] = useState(false);
-  const [toast, setToast] = useState<
-    { variant: "success" | "error"; message: string } | null
-  >(null);
+  const [toast, setToast] = useState<{
+    variant: "success" | "error";
+    message: string;
+  } | null>(null);
   const [metadataSnapshot, setMetadataSnapshot] = useState(() =>
     createMetadataSnapshot(document),
   );
@@ -307,9 +308,7 @@ export default function AdminDocumentDetailPage({
     lastSourceUpdateDate!.getTime() > lastIngestedDate!.getTime();
 
   const chunkHint =
-    document.chunk_count === 0
-      ? "No chunks ingested yet."
-      : undefined;
+    document.chunk_count === 0 ? "No chunks ingested yet." : undefined;
   const characterHint =
     typeof document.total_characters === "number" &&
     document.total_characters > 0 &&
@@ -391,7 +390,9 @@ export default function AdminDocumentDetailPage({
                   <div className="space-y-2">
                     <CardTitle>Document</CardTitle>
                     <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--ai-text-muted)]">
-                      <span className="truncate font-mono">{document.doc_id}</span>
+                      <span className="truncate font-mono">
+                        {document.doc_id}
+                      </span>
                       {document.source_url ? (
                         <a
                           href={document.source_url}
@@ -503,8 +504,8 @@ export default function AdminDocumentDetailPage({
                       }
                     />
                     <p className="text-xs text-[var(--ai-text-muted)]">
-                      Controls whether this document is exposed to search and chat
-                      responses.
+                      Controls whether this document is exposed to search and
+                      chat responses.
                     </p>
                   </div>
                   <div className="md:col-span-2 space-y-2">
@@ -515,8 +516,8 @@ export default function AdminDocumentDetailPage({
                       onChange={(e) => setTagsInput(e.target.value)}
                     />
                     <p className="text-xs text-[var(--ai-text-muted)]">
-                      Tags keep metadata structured; duplicates and whitespace are
-                      adjusted automatically.
+                      Tags keep metadata structured; duplicates and whitespace
+                      are adjusted automatically.
                     </p>
                     {normalizedTagWarnings.length ? (
                       <p className="text-xs font-semibold text-[var(--ai-warning)]">

@@ -3,7 +3,10 @@ import { FiShield } from "@react-icons/all-files/fi/FiShield";
 
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import type { AdminChatConfig } from "@/types/chat-config";
-import { ChatConfigCardHeader, ToggleRow } from "@/components/admin/chat-config/ChatConfigHelpers";
+import {
+  ChatConfigCardHeader,
+  ToggleRow,
+} from "@/components/admin/chat-config/ChatConfigHelpers";
 import { AllowlistTile } from "@/components/ui/allowlist-tile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -181,7 +184,8 @@ export function AllowlistCard({
                 renderModelTiles(localModels)
               ) : (
                 <p className="ai-helper-text">
-                  Add at least one local model to enable “Require local backend”.
+                  Add at least one local model to enable “Require local
+                  backend”.
                 </p>
               )}
             </div>

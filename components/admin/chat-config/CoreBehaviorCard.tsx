@@ -2,10 +2,7 @@ import { FiSettings } from "@react-icons/all-files/fi/FiSettings";
 
 import type { AdminChatConfig } from "@/types/chat-config";
 import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -63,7 +60,9 @@ export function CoreBehaviorCard({
                 id="coreSummary"
                 aria-describedby="core-summary-description"
                 value={config.baseSystemPromptSummary ?? ""}
-                onChange={(event) => handleBaseSummaryChange(event.target.value)}
+                onChange={(event) =>
+                  handleBaseSummaryChange(event.target.value)
+                }
                 rows={3}
                 className="w-full max-w-[64ch]"
               />
@@ -96,7 +95,10 @@ export function CoreBehaviorCard({
             Length limits
           </p>
           <div className="ai-field">
-            <Label htmlFor="additionalPromptMaxLength" className="ai-field__label">
+            <Label
+              htmlFor="additionalPromptMaxLength"
+              className="ai-field__label"
+            >
               Additional prompt max length
             </Label>
             <Input

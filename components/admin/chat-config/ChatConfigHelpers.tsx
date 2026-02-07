@@ -44,7 +44,9 @@ export function ChatConfigSection({
       {divider && (
         <div className="border-b border-[var(--ai-role-border-muted)]" />
       )}
-      <div className={cn("space-y-5", divider ? "pt-4" : "mt-2")}>{children}</div>
+      <div className={cn("space-y-5", divider ? "pt-4" : "mt-2")}>
+        {children}
+      </div>
     </section>
   );
 }

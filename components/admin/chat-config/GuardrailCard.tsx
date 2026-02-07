@@ -112,7 +112,10 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
             </p>
           </div>
           <div className="ai-field max-w-[64ch]">
-            <Label htmlFor="guardrailFallbackCommand" className="ai-field__label">
+            <Label
+              htmlFor="guardrailFallbackCommand"
+              className="ai-field__label"
+            >
               Command fallback context
             </Label>
             <Textarea

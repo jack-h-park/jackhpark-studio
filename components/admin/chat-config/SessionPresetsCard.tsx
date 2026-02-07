@@ -387,10 +387,7 @@ export function SessionPresetsCard({
       >
         <div className={sessionGridLabelClass}>{label}</div>
         {presetDisplayOrder.map((presetKey) => (
-          <div
-            key={`${label}-${presetKey}`}
-            className={sessionGridValueClass}
-          >
+          <div key={`${label}-${presetKey}`} className={sessionGridValueClass}>
             {renderCell(presetKey)}
           </div>
         ))}
