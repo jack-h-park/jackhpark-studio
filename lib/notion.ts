@@ -240,8 +240,8 @@ type MemoryCacheEntry = {
 
 const memoryPageCache = new Map<string, MemoryCacheEntry>();
 
-const getPageCacheKey = (pageId: string) => {
-  const normalizedId = pageId.replaceAll("-", "");
+const getPageCacheKey = (pageId: string | null | undefined) => {
+  const normalizedId = (pageId ?? "").replaceAll("-", "");
   return `${notionPageCacheKeyPrefix}:${environment}:${normalizedId}`;
 };
 

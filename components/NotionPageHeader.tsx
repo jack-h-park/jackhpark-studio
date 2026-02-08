@@ -70,6 +70,7 @@ export function NotionPageHeader({
                   style={{
                     display: "flex",
                     alignItems: "center",
+                    gap: "0.5rem",
                     textDecoration: "none",
                   }}
                 >
@@ -77,7 +78,7 @@ export function NotionPageHeader({
                   {rootBlock && <PageIcon className="icon" block={rootBlock} />}
 
                   {/* Title */}
-                  <span className="title" style={{ marginLeft: "0.25em" }}>
+                  <span className="title">
                     {root.title}
                   </span>
                 </Link>

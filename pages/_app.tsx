@@ -10,6 +10,7 @@ import { useRouter } from "next/router";
 import { posthog } from "posthog-js";
 import React, { useEffect } from "react";
 
+import { ChatPromotionSessionProvider } from "@/components/chat/context/ChatPromotionSessionContext";
 import { DarkModeProvider } from "@/components/DarkModeProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { fathomConfig, fathomId, posthogConfig, posthogId } from "@/lib/config";
@@ -91,9 +92,11 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <DarkModeProvider>
-      <TooltipProvider>
-        <Component {...pageProps} />
-      </TooltipProvider>
+      <ChatPromotionSessionProvider>
+        <TooltipProvider>
+          <Component {...pageProps} />
+        </TooltipProvider>
+      </ChatPromotionSessionProvider>
     </DarkModeProvider>
   );
 }

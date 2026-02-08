@@ -6,6 +6,7 @@ import { AiOutlineCompress } from "@react-icons/all-files/ai/AiOutlineCompress";
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiChevronRight } from "@react-icons/all-files/fi/FiChevronRight";
 import { GiBrain } from "@react-icons/all-files/gi/GiBrain";
+import { useRouter } from "next/router";
 import {
   type ReactNode,
   useCallback,
@@ -16,6 +17,7 @@ import {
 
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { ChatMessagesPanel } from "@/components/chat/ChatMessagesPanel";
+import { useChatPromotionSession } from "@/components/chat/context/ChatPromotionSessionContext";
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { useChatScroll } from "@/components/chat/hooks/useChatScroll";
 import { useChatSession } from "@/components/chat/hooks/useChatSession";
@@ -26,6 +28,9 @@ import {
 } from "@/lib/shared/model-provider";
 
 import styles from "./ChatFloatingWindow.module.css";
+
+const CHAT_PROMOTION_MVP_ENABLED =
+  process.env.NEXT_PUBLIC_CHAT_PROMOTION_MVP === "1";
 
 export type ChatFloatingWindowProps = {
   isOpen: boolean;
@@ -42,7 +47,15 @@ export function ChatFloatingWindow({
   onClose,
   headerAction,
 }: ChatFloatingWindowProps) {
+  const router = useRouter();
+  const {
+    ensureCid,
+    setDraft,
+    setMessages: setSessionMessages,
+    markInterrupted,
+  } = useChatPromotionSession();
   const [input, setInput] = useState("");
+  const [cid, setCid] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   // const messagesEndRef = useRef<HTMLDivElement>(null); // Removed: using useChatScroll
@@ -129,13 +142,70 @@ export function ChatFloatingWindow({
     }
   }, [focusInput, isLoading]);
 
+  const ensureLocalCid = useCallback(() => {
+    if (!CHAT_PROMOTION_MVP_ENABLED) {
+      return null;
+    }
+    const next = ensureCid(cid);
+    setCid(next);
+    return next;
+  }, [cid, ensureCid]);
+
+  useEffect(() => {
+    if (!CHAT_PROMOTION_MVP_ENABLED || !cid) {
+      return;
+    }
+    setSessionMessages(cid, messages);
+  }, [cid, messages, setSessionMessages]);
+
   const handleSubmit = () => {
     const value = input.trim();
     if (!value || isLoading || showRequireLocalError) {
       return;
     }
+
+    if (CHAT_PROMOTION_MVP_ENABLED) {
+      const resolvedCid = ensureLocalCid();
+      if (resolvedCid) {
+        setDraft(resolvedCid, "");
+        markInterrupted(resolvedCid, false);
+      }
+    }
+
     void sendMessage(value);
     setInput("");
+  };
+
+  const handleInputChange = (value: string) => {
+    setInput(value);
+    if (!CHAT_PROMOTION_MVP_ENABLED) {
+      return;
+    }
+
+    const resolvedCid = ensureLocalCid();
+    if (resolvedCid) {
+      setDraft(resolvedCid, value);
+    }
+  };
+
+  const handlePromote = () => {
+    if (!CHAT_PROMOTION_MVP_ENABLED) {
+      return;
+    }
+    const resolvedCid = ensureLocalCid();
+    if (!resolvedCid) {
+      return;
+    }
+
+    setSessionMessages(resolvedCid, messages);
+    setDraft(resolvedCid, input);
+
+    if (isLoading) {
+      abortActiveRequest();
+      markInterrupted(resolvedCid, true);
+    }
+
+    void router.push(`/chat?cid=${encodeURIComponent(resolvedCid)}`);
   };
 
   return (
@@ -162,12 +232,22 @@ export function ChatFloatingWindow({
               )}
               <button
                 type="button"
-                className={styles.chatConfigToggle}
+                className={`${styles.chatConfigToggle} ${styles.primaryActionButton}`}
                 onClick={toggleOptions}
                 title="Inspect active model, retrieval (RAG), and system configuration"
               >
                 {showOptions ? "Hide System View" : "System View"}
               </button>
+              {CHAT_PROMOTION_MVP_ENABLED && (
+                <button
+                  type="button"
+                  className={`${styles.chatConfigToggle} ${styles.primaryActionButton}`}
+                  onClick={handlePromote}
+                  title="Open chat in full screen"
+                >
+                  Fullscreen
+                </button>
+              )}
               {headerAction}
               {showExpandButton && (
                 <button
@@ -324,7 +404,7 @@ export function ChatFloatingWindow({
 
         <ChatInputBar
           value={input}
-          onChange={setInput}
+          onChange={handleInputChange}
           onSubmit={handleSubmit}
           onStop={abortActiveRequest}
           isLoading={isLoading}

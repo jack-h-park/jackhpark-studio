@@ -12,17 +12,39 @@ export type NotionNavigationHeader = {
 export async function loadNotionNavigationHeader(): Promise<NotionNavigationHeader> {
   const canonicalRootPageId =
     parsePageId(rootNotionPageId, { uuid: true }) ?? rootNotionPageId;
+  const normalizedRootPageId = canonicalRootPageId.replaceAll("-", "");
 
   try {
     const recordMap = await getPage(canonicalRootPageId);
-    const blockEntry =
+    const rawBlockEntry =
       recordMap.block?.[canonicalRootPageId] ??
+      recordMap.block?.[normalizedRootPageId] ??
       recordMap.block?.[rootNotionPageId];
 
-    if (blockEntry) {
+    if (rawBlockEntry) {
+      const rawValue = (rawBlockEntry as any).value;
+      const normalizedValue =
+        rawValue &&
+        typeof rawValue === "object" &&
+        rawValue.value &&
+        typeof rawValue.value === "object"
+          ? rawValue.value
+          : rawValue;
+      const blockEntry = {
+        ...(rawBlockEntry as any),
+        value: {
+          ...(normalizedValue as any),
+          id:
+            (normalizedValue as any)?.id ??
+            canonicalRootPageId ??
+            rootNotionPageId,
+        },
+      } as typeof rawBlockEntry;
+
       const trimmedRecordMap: ExtendedRecordMap = {
         block: {
           [canonicalRootPageId]: blockEntry,
+          [normalizedRootPageId]: blockEntry,
         },
         collection: {},
         collection_query: {},

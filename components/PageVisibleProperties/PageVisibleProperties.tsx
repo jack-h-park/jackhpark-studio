@@ -41,7 +41,7 @@ const normalizeId = (id?: string | null): string | undefined =>
   id?.replaceAll("-", "");
 
 const normalizeSchemaName = (name?: string): string =>
-  name?.trim().replaceAll(/\s+/g, " ").toLowerCase() ?? "";
+  name?.trim()?.replaceAll(/\s+/g, " ")?.toLowerCase() ?? "";
 
 const isDisplayEmpty = (display: React.ReactNode | null): boolean => {
   if (display === null || display === undefined) {

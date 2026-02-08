@@ -46,3 +46,6 @@ instrumentation.js
 
 # Obsidian vault
 /docs/.obsidian/
+
+# TypeScript incremental build cache
+tsconfig.tsbuildinfo

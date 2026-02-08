@@ -11,7 +11,7 @@ const normalizeId = (id?: string | null): string | undefined =>
   id?.replaceAll("-", "");
 
 const normalizeName = (value?: string): string =>
-  value?.trim().replaceAll(/\s+/g, " ").toLowerCase() ?? "";
+  value?.trim()?.replaceAll(/\s+/g, " ")?.toLowerCase() ?? "";
 
 const getPropertyId = (entry: PropertyEntry): string | undefined => {
   if (!entry) return undefined;

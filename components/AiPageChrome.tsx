@@ -37,7 +37,15 @@ export function AiPageChrome({
     (canonicalHeaderBlockId
       ? headerRecordMap?.block?.[canonicalHeaderBlockId]
       : undefined);
-  const headerBlock = headerBlockEntry?.value as PageBlock | undefined;
+  const headerBlockValue = headerBlockEntry?.value as
+    | (PageBlock & { value?: PageBlock })
+    | undefined;
+  const headerBlock =
+    headerBlockValue?.value &&
+    typeof headerBlockValue.value === "object" &&
+    (headerBlockValue.value as PageBlock).type
+      ? (headerBlockValue.value as PageBlock)
+      : (headerBlockValue as PageBlock | undefined);
 
   return (
     <div

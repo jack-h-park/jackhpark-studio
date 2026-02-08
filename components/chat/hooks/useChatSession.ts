@@ -218,6 +218,8 @@ const getUserFacingErrorMessage = (error: unknown) => {
 export type UseChatSessionOptions = {
   source?: string;
   config?: SessionChatConfig;
+  sessionKey?: string;
+  initialMessages?: ChatMessage[];
 };
 
 export type UseChatSessionResult = {
@@ -247,6 +249,21 @@ export function useChatSession(
 
   const sourceLabel = options?.source ?? "unknown";
   const config = options?.config;
+  const sessionKey = options?.sessionKey ?? "__default__";
+  const initialMessages = options?.initialMessages ?? [];
+  const initialMessagesRef = useRef<ChatMessage[]>(initialMessages);
+
+  useEffect(() => {
+    initialMessagesRef.current = initialMessages;
+  }, [initialMessages]);
+
+  useEffect(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setMessages(initialMessagesRef.current);
+    setIsLoading(false);
+    setLoadingAssistantId(null);
+  }, [sessionKey]);
 
   useEffect(() => {
     const controller = new AbortController();

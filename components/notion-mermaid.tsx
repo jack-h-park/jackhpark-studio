@@ -18,7 +18,7 @@ async function loadMermaid() {
 
 interface MermaidDiagramProps {
   code: string;
-  blockId: string;
+  blockId?: string;
 }
 
 export function MermaidDiagram({ code, blockId }: MermaidDiagramProps) {
@@ -41,7 +41,7 @@ export function MermaidDiagram({ code, blockId }: MermaidDiagramProps) {
           startOnLoad: false,
         });
 
-        const sanitizedId = `mermaid-${blockId.replaceAll("-", "")}`;
+        const sanitizedId = `mermaid-${(blockId ?? "unknown").replaceAll("-", "")}`;
         const { svg } = await mermaid.render(sanitizedId, code);
 
         if (isMounted && containerRef.current) {

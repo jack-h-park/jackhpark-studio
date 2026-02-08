@@ -200,12 +200,75 @@ export function NotionPageRenderer({
     }
 
     const views = recordMap.collection_view;
+    const collections = recordMap.collection;
     const blocks = recordMap.block;
 
     let viewsChanged = false;
+    let collectionsChanged = false;
     let blocksChanged = false;
     let patchedViews = views;
+    let patchedCollections = collections;
     let patchedBlocks = blocks;
+
+    if (collections) {
+      for (const [collectionId, collection] of Object.entries(collections)) {
+        const collectionValue = collection?.value as Record<string, any> | undefined;
+        if (!collectionValue) {
+          continue;
+        }
+
+        let normalizedCollectionValue = collectionValue;
+        let normalizedCollection = collection;
+        let shouldPatchCollection = false;
+
+        if (
+          (!normalizedCollectionValue.schema ||
+            typeof normalizedCollectionValue.schema !== "object") &&
+          normalizedCollectionValue.value &&
+          typeof normalizedCollectionValue.value === "object"
+        ) {
+          normalizedCollectionValue = normalizedCollectionValue.value as Record<
+            string,
+            any
+          >;
+          normalizedCollection = {
+            ...(collection as any),
+            value: normalizedCollectionValue,
+          } as typeof collection;
+          shouldPatchCollection = true;
+        }
+
+        const schema =
+          normalizedCollectionValue.schema &&
+          typeof normalizedCollectionValue.schema === "object"
+            ? { ...(normalizedCollectionValue.schema as Record<string, any>) }
+            : {};
+        if (!schema.title || typeof schema.title !== "object") {
+          schema.title = {
+            name: "Name",
+            type: "title",
+          };
+          shouldPatchCollection = true;
+        }
+
+        if (!shouldPatchCollection) {
+          continue;
+        }
+
+        if (!collectionsChanged) {
+          patchedCollections = { ...collections };
+          collectionsChanged = true;
+        }
+
+        patchedCollections[collectionId] = {
+          ...(normalizedCollection as any),
+          value: {
+            ...(normalizedCollectionValue as any),
+            schema,
+          },
+        } as typeof collection;
+      }
+    }
 
     if (blocks) {
       for (const [blockId, block] of Object.entries(blocks)) {
@@ -214,14 +277,62 @@ export function NotionPageRenderer({
           continue;
         }
 
+        let normalizedBlockValue = blockValue;
+        let normalizedBlock = block;
+
+        // Some malformed recordMaps contain a doubly-wrapped block payload:
+        // block.value = { value: { id, type, ... } }
+        // react-notion-x expects block.value to be the inner payload directly.
         if (
-          blockValue.type !== "page" ||
-          blockValue.parent_table !== "collection"
+          (!normalizedBlockValue.type || !normalizedBlockValue.id) &&
+          normalizedBlockValue.value &&
+          typeof normalizedBlockValue.value === "object" &&
+          (normalizedBlockValue.value.type || normalizedBlockValue.value.id)
+        ) {
+          if (!blocksChanged) {
+            patchedBlocks = { ...blocks };
+            blocksChanged = true;
+          }
+
+          normalizedBlockValue = normalizedBlockValue.value as Record<string, any>;
+          normalizedBlock = {
+            ...(block as any),
+            value: normalizedBlockValue,
+          } as typeof block;
+          patchedBlocks[blockId] = normalizedBlock;
+        }
+
+        // react-notion-x assumes every block has a stable id string.
+        // Some merged recordMap entries can miss `value.id`, which crashes
+        // inside uuidToId(block.id). Repair with the block map key.
+        if (
+          (typeof blockValue.id !== "string" || blockValue.id.length === 0) &&
+          typeof blockId === "string" &&
+          blockId.length > 0
+        ) {
+          if (!blocksChanged) {
+            patchedBlocks = { ...blocks };
+            blocksChanged = true;
+          }
+
+          normalizedBlockValue = {
+            ...(normalizedBlockValue as any),
+            id: blockId,
+          };
+          patchedBlocks[blockId] = {
+            ...(normalizedBlock as any),
+            value: normalizedBlockValue,
+          } as typeof block;
+        }
+
+        if (
+          normalizedBlockValue.type !== "page" ||
+          normalizedBlockValue.parent_table !== "collection"
         ) {
           continue;
         }
 
-        const properties = blockValue.properties as
+        const properties = normalizedBlockValue.properties as
           | Record<string, any>
           | undefined;
         if (!properties) {
@@ -243,12 +354,12 @@ export function NotionPageRenderer({
         }
 
         const updatedValue = {
-          ...(blockValue as any),
+          ...(normalizedBlockValue as any),
           properties: { ...(properties as any), title: sanitizedTitle },
         };
 
         patchedBlocks[blockId] = {
-          ...(block as any),
+          ...(normalizedBlock as any),
           value: updatedValue,
         } as typeof block;
       }
@@ -312,13 +423,14 @@ export function NotionPageRenderer({
       }
     }
 
-    if (!blocksChanged && !viewsChanged) {
+    if (!blocksChanged && !viewsChanged && !collectionsChanged) {
       return recordMap;
     }
 
     return {
       ...recordMap,
       ...(blocksChanged ? { block: patchedBlocks! } : {}),
+      ...(collectionsChanged ? { collection: patchedCollections! } : {}),
       ...(viewsChanged ? { collection_view: patchedViews! } : {}),
     };
   }, [recordMap]);
