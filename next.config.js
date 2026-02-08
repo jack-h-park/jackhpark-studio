@@ -8,6 +8,12 @@ const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
 
+const WATCH_IGNORED_PATTERNS = [
+  "**/*.log",
+  "**/logs/**",
+  "**/jack-rag-logs/**",
+];
+
 export default withBundleAnalyzer({
   compress: false,
   staticPageGenerationTimeout: 300,
@@ -43,6 +49,18 @@ export default withBundleAnalyzer({
       dirname,
       "node_modules/react-dom",
     );
+
+    const priorIgnored = config.watchOptions?.ignored;
+    const ignored = Array.isArray(priorIgnored)
+      ? priorIgnored
+      : priorIgnored
+        ? [priorIgnored]
+        : [];
+    config.watchOptions = {
+      ...(config.watchOptions ?? {}),
+      ignored: [...new Set([...ignored, ...WATCH_IGNORED_PATTERNS])],
+    };
+
     return config;
   },
 
