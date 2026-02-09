@@ -197,13 +197,33 @@ export function ChatFloatingWindow({
       return;
     }
 
-    setSessionMessages(resolvedCid, messages);
-    setDraft(resolvedCid, input);
-
+    // Capture state immediately
+    let messagesToSave = messages;
     if (isLoading) {
+      // Manually finish the last assistant message so the next page sees it as interrupted.
+      // We do this because abortActiveRequest() is async and might happen after unmount/nav,
+      // leading to a race condition where the "stopped" state isn't saved.
+      messagesToSave = messages.map((m) => {
+        if (m.id === loadingAssistantId && m.role === "assistant") {
+          return {
+            ...m,
+            content: m.content + " [Stopped by promotion]",
+            isComplete: true,
+            metrics: {
+              ...m.metrics,
+              aborted: true,
+            },
+          };
+        }
+        return m;
+      });
+
       abortActiveRequest();
       markInterrupted(resolvedCid, true);
     }
+
+    setSessionMessages(resolvedCid, messagesToSave);
+    setDraft(resolvedCid, input);
 
     void router.push(`/chat?cid=${encodeURIComponent(resolvedCid)}`);
   };

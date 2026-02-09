@@ -227,7 +227,10 @@ export type UseChatSessionResult = {
   isLoading: boolean;
   runtimeConfig: ChatRuntimeConfig | null;
   loadingAssistantId: string | null;
-  sendMessage: (value: string) => Promise<void>;
+  sendMessage: (
+    value: string,
+    options?: { skipUserInsert?: boolean },
+  ) => Promise<void>;
   retryWithDeepSearch: () => Promise<void>;
   abortActiveRequest: () => void;
 };
@@ -317,7 +320,7 @@ export function useChatSession(
   }, []);
 
   const sendMessage = useCallback(
-    async (value: string) => {
+    async (value: string, options?: { skipUserInsert?: boolean }) => {
       const trimmed = value.trim();
       if (!trimmed || isLoading) {
         return;
@@ -341,6 +344,9 @@ export function useChatSession(
       setMessages((previous) => {
         if (!isMountedRef.current) {
           return previous;
+        }
+        if (options?.skipUserInsert) {
+          return [...previous, assistantMessage];
         }
         return [...previous, userMessage, assistantMessage];
       });
@@ -390,12 +396,12 @@ export function useChatSession(
         );
       };
 
-      const sanitizedMessagesPayload = [...messages, userMessage].map(
-        (message) => ({
-          role: message.role,
-          content: message.content,
-        }),
-      );
+      const sanitizedMessagesPayload = (
+        options?.skipUserInsert ? messages : [...messages, userMessage]
+      ).map((message) => ({
+        role: message.role,
+        content: message.content,
+      }));
 
       const run = async () => {
         try {

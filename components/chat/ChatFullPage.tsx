@@ -19,7 +19,10 @@ import {
 import { useChatPromotionSession } from "@/components/chat/context/ChatPromotionSessionContext";
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { useChatScroll } from "@/components/chat/hooks/useChatScroll";
-import { type ChatMessage, useChatSession } from "@/components/chat/hooks/useChatSession";
+import {
+  type ChatMessage,
+  useChatSession,
+} from "@/components/chat/hooks/useChatSession";
 import { ChatAdvancedSettingsDrawer } from "@/components/chat/settings/ChatAdvancedSettingsDrawer";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
@@ -148,12 +151,29 @@ function ChatShellContent() {
     setInputValue(activeSession?.draft ?? "");
   }, [activeSession?.draft, localCid]);
 
+  const hasSyncedInitial = useRef(false);
+
   useEffect(() => {
     if (!CHAT_PROMOTION_MVP_ENABLED || !localCid) {
       return;
     }
+
+    // Guard: Don't overwrite registry with empty messages on initial load
+    // if we know there should be initial messages.
+    if (
+      !hasSyncedInitial.current &&
+      messages.length === 0 &&
+      initialMessages.length > 0
+    ) {
+      return;
+    }
+
+    if (messages.length > 0) {
+      hasSyncedInitial.current = true;
+    }
+
     setSessionMessages(localCid, messages);
-  }, [localCid, messages, setSessionMessages]);
+  }, [localCid, messages, setSessionMessages, initialMessages.length]);
 
   const ensureConversationCid = useCallback(() => {
     if (!CHAT_PROMOTION_MVP_ENABLED) {
@@ -219,8 +239,8 @@ function ChatShellContent() {
     !isLoading &&
     Boolean(
       lastAssistantMessage &&
-        (lastAssistantMessage.isComplete === false ||
-          lastAssistantMessage.metrics?.aborted === true),
+      (lastAssistantMessage.isComplete === false ||
+        lastAssistantMessage.metrics?.aborted === true),
     );
 
   const handleResume = () => {
@@ -238,7 +258,7 @@ function ChatShellContent() {
       return;
     }
     markInterrupted(cid, false);
-    void sendMessage(latestUserMessage.content);
+    void sendMessage(latestUserMessage.content, { skipUserInsert: true });
   };
 
   const { scrollRef, onScroll } = useChatScroll({
