@@ -70,7 +70,7 @@ export function NotionPageHeader({
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: "0.5rem",
+                    gap: "0.75rem",
                     textDecoration: "none",
                   }}
                 >

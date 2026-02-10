@@ -47,6 +47,13 @@ export const inversePageUrlOverrides = invertPageUrlOverrides(pageUrlOverrides);
 
 export const environment = process.env.NODE_ENV || "development";
 export const isDev = environment === "development";
+export type NotionPolishProfile = "balanced" | "legacy";
+const notionPolishProfileEnv = getEnv(
+  "NEXT_PUBLIC_NOTION_POLISH_PROFILE",
+  "balanced",
+);
+export const notionPolishProfile: NotionPolishProfile =
+  notionPolishProfileEnv === "legacy" ? "legacy" : "balanced";
 
 const notionPageCacheTTLFromConfig =
   getSiteConfig("notionPageCacheTTLSeconds", isDev ? 0 : 300) ??

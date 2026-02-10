@@ -36,6 +36,7 @@ Always align with the existing stack unless explicitly instructed otherwise.
 - Prefer feature- or domain-oriented structure
 - Avoid premature abstraction
 - Errors must be explicit and intentional
+- All code comments must be written in English only
 - Comments only for non-obvious trade-offs or system invariants
 
 ---

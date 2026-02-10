@@ -247,7 +247,7 @@ svg[data-processed-mermaid] .section-root tspan {
 } */
 
 /* 인라인 데이터베이스에서 페이지 제목 줄바꿈 허용 */
-.notion-table-view .notion-page-title-text {
+.notion-polish-legacy .notion-table-view .notion-page-title-text {
   white-space: normal !important; /* nowrap을 normal로 강제 변환 */
   word-break: break-word !important;
   overflow-wrap: anywhere !important;
@@ -257,7 +257,7 @@ svg[data-processed-mermaid] .section-root tspan {
 }
 
 /* 인라인 DB 아이콘 크기 조정 */
-.notion-table-view .notion-page-icon-inline {
+.notion-polish-legacy .notion-table-view .notion-page-icon-inline {
   width: 1.5em !important;
   height: 1.5em !important;
   margin-right: 6px !important;
@@ -265,7 +265,7 @@ svg[data-processed-mermaid] .section-root tspan {
 }
 
 /* 보조 속성 텍스트 정렬을 기본 레이아웃과 맞춤 */
-.notion-table-view .notion-property-title {
+.notion-polish-legacy .notion-table-view .notion-property-title {
   display: flex !important;
   align-items: center !important;
   min-height: auto !important;
@@ -274,16 +274,16 @@ svg[data-processed-mermaid] .section-root tspan {
   line-height: 1.4;
 }
 
-.notion-table-view td,
-.notion-table-view th,
-.notion-table-view-header-cell {
+.notion-polish-legacy .notion-table-view td,
+.notion-polish-legacy .notion-table-view th,
+.notion-polish-legacy .notion-table-view-header-cell {
   vertical-align: middle !important;
   /* padding-left를 0으로 설정하여 제목(Professional Experience)과 시작점을 맞춤 */
   padding: 8px 0 !important;
 }
 
 /* 인라인 DB 제목과 아이콘을 한 줄 정렬 */
-.notion-table-view .notion-page-title {
+.notion-polish-legacy .notion-table-view .notion-page-title {
   display: inline-flex !important; /* inline-flex로 변경해 인접 요소와 조화 */
   align-items: center !important; /* 아이콘과 텍스트를 수직 중앙 정렬 */
   gap: 6px !important; /* 아이콘과 텍스트 간격 */
@@ -291,15 +291,15 @@ svg[data-processed-mermaid] .section-root tspan {
 }
 
 /* 인라인 DB 컨테이너 패딩 초기화 */
-.notion-table,
-.notion-table-view {
+.notion-polish-legacy .notion-table,
+.notion-polish-legacy .notion-table-view {
   margin-left: 20px !important; /* Move the whole table right */
   width: auto !important; /* Let it shrink to fit */
   padding-left: 0 !important; /* Alignment handled by margin */
   padding-right: 0 !important;
   box-sizing: border-box;
 }
-.notion-table {
+.notion-polish-legacy .notion-table {
   overflow: unset !important;
 }
 
@@ -320,26 +320,26 @@ svg[data-processed-mermaid] .section-root tspan {
 } */
 
 /* 인라인 DB 상하 간격 재조정 */
-.notion-table,
-.notion-collection {
+.notion-polish-legacy .notion-table,
+.notion-polish-legacy .notion-collection {
   margin-top: 0 !important;
   margin-bottom: 1.25rem !important;
 }
-.notion-table-row {
+.notion-polish-legacy .notion-table-row {
   width: min(100%, 1000px) !important;
   /* margin-left: auto !important;
   margin-right: auto !important; */
 }
 
-.notion-full-width .notion-table-header,
-.notion-full-width .notion-table-header-inner {
+.notion-polish-legacy .notion-full-width .notion-table-header,
+.notion-polish-legacy .notion-full-width .notion-table-header-inner {
   width: min(100%, 1000px) !important;
 }
 
 /* full width + 인라인 테이블에서 컬럼 폭을 컨텐츠에 맞춰 놓기 */
-.notion-full-width .notion-collection-inline .notion-table-th,
-.notion-full-width .notion-collection-inline .notion-table-view-header-cell,
-.notion-full-width .notion-collection-inline .notion-table-cell {
+.notion-polish-legacy .notion-full-width .notion-collection-inline .notion-table-th,
+.notion-polish-legacy .notion-full-width .notion-collection-inline .notion-table-view-header-cell,
+.notion-polish-legacy .notion-full-width .notion-collection-inline .notion-table-cell {
   width: auto !important;
   flex: 0 0 auto !important;
   min-width: 140px; /* 너무 좁아지지 않도록 안전장치 */
@@ -347,8 +347,8 @@ svg[data-processed-mermaid] .section-root tspan {
   word-break: break-word;
 }
 
-.notion-full-width .notion-collection .notion-table-th:last-child,
-.notion-full-width
+.notion-polish-legacy .notion-full-width .notion-collection .notion-table-th:last-child,
+.notion-polish-legacy .notion-full-width
   .notion-collection
   .notion-table-row
   > .notion-table-cell:last-child {
@@ -360,21 +360,21 @@ svg[data-processed-mermaid] .section-root tspan {
 }
 
 /* 컴팩트 테이블 셀 패딩 축소 */
-.notion-table td,
-.notion-table th {
+.notion-polish-legacy .notion-table td,
+.notion-polish-legacy .notion-table th {
   padding: 0.4rem 0.6rem !important;
 }
 
 /* 테이블 헤더 폰트 두께 보정 */
-.notion-table th {
+.notion-polish-legacy .notion-table th {
   font-weight: 500 !important;
 }
-.dark-mode .notion-table,
-.dark-mode .notion-table td,
-.dark-mode .notion-table th,
-.dark-mode .notion-table-view,
-.dark-mode .notion-table-view td,
-.dark-mode .notion-table-view th {
+.dark-mode .notion-polish-legacy .notion-table,
+.dark-mode .notion-polish-legacy .notion-table td,
+.dark-mode .notion-polish-legacy .notion-table th,
+.dark-mode .notion-polish-legacy .notion-table-view,
+.dark-mode .notion-polish-legacy .notion-table-view td,
+.dark-mode .notion-polish-legacy .notion-table-view th {
   border-color: rgba(255, 255, 255, 0.16) !important;
 }
 
@@ -594,12 +594,12 @@ svg[data-processed-mermaid] .section-root tspan {
   transform: translateY(-1px);
 }
 
-.notion-gallery-grid .notion-collection-card-cover .notion-page-icon-wrapper,
-.notion-gallery-grid .notion-collection-card-cover .notion-page-icon {
+.notion-gallery-view[data-gallery-preview="1"] .notion-gallery-grid .notion-collection-card-cover .notion-page-icon-wrapper,
+.notion-gallery-view[data-gallery-preview="1"] .notion-gallery-grid .notion-collection-card-cover .notion-page-icon {
   display: none !important;
 }
 
-.notion-gallery-grid .notion-collection-card-body {
+.notion-gallery-view[data-gallery-preview="1"] .notion-gallery-grid .notion-collection-card-body {
   display: none !important;
 }
 
@@ -1211,7 +1211,7 @@ svg.notion-collection-column-title-icon {
 }
 
 /* 인라인 데이터베이스 속성 정렬 보정 */
-.notion-table-view .notion-property-title {
+.notion-polish-legacy .notion-table-view .notion-property-title {
   display: flex !important;
   align-items: center !important;
   height: auto !important;
@@ -1219,18 +1219,18 @@ svg.notion-collection-column-title-icon {
 }
 
 /* 페이지 아이콘 중앙 정렬 */
-.notion-table-view .notion-page-icon-inline {
+.notion-polish-legacy .notion-table-view .notion-page-icon-inline {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   width: 20px !important;
   height: 20px !important;
-  margin-right: 0px !important;
+  margin-right: 4px !important;
   flex-shrink: 0 !important;
 }
 
 /* 페이지 제목 텍스트 baseline 보정 */
-.notion-table-view .notion-page-title-text {
+.notion-polish-legacy .notion-table-view .notion-page-title-text {
   display: inline-block !important;
   vertical-align: middle !important;
   line-height: 1.4 !important;
@@ -1241,28 +1241,27 @@ svg.notion-collection-column-title-icon {
 }
 
 /* property wrapper 높이 균일화 */
-.notion-table-view .notion-property {
+.notion-polish-legacy .notion-table-view .notion-property {
   height: auto !important;
   align-items: center !important;
 }
 
 /* 표 셀과 속성을 수직 중앙 정렬 */
-.notion-table-view td,
-.notion-table-view .notion-property,
-.notion-table-view .notion-property-title {
-  display: flex !important;
-  align-items: center !important;
+/* Avoid forcing flex/table-cell semantics globally; this can break grouped/list DB rendering. */
+.notion-polish-legacy .notion-table-view td,
+.notion-polish-legacy .notion-table-view .notion-property,
+.notion-polish-legacy .notion-table-view .notion-property-title {
   vertical-align: middle !important;
-  height: 100% !important;
+  height: auto !important;
 }
 
 /* Inline DB group header tweak */
-.notion-collection-group-title {
+.notion-polish-legacy .notion-collection-group-title {
   font-size: 1.1em;
   font-weight: 600;
 }
 
-.notion-collection-group-title .notion-property-text {
+.notion-polish-legacy .notion-collection-group-title .notion-property-text {
   text-transform: capitalize;
 }
 
@@ -1280,17 +1279,5 @@ svg.notion-collection-column-title-icon {
   color: #facc15;
 }
 
-/* Hide collection row properties that are empty */
-.notion-collection-row-property:has(.notion-property:empty),
-.notion-collection-row-property:has(.notion-property-select:empty),
-.notion-collection-row-property:has(.notion-property-multi_select:empty),
-.notion-collection-row-property:has(.notion-property-text:empty),
-.notion-collection-row-property:has(.notion-property-date:empty),
-.notion-collection-row-property:has(.notion-property-person:empty),
-.notion-collection-row-property:has(.notion-property-file:empty),
-.notion-collection-row-property:has(.notion-property-checkbox:empty),
-.notion-collection-row-property:has(.notion-property-url:empty),
-.notion-collection-row-property:has(.notion-property-email:empty),
-.notion-collection-row-property:has(.notion-property-phone_number:empty) {
-  display: none !important;
-}
+/* NOTE: Do not globally hide empty row properties.
+   It can unintentionally remove grouped/list items in some DB views. */

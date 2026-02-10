@@ -1,6 +1,10 @@
 @import "react-notion-x/src/styles.css";
 @import "prismjs/themes/prism-coy.css";
 @import "./notion.css";
+@import "./notion-parity.css";
+@import "./notion-feature.css";
+@import "./notion-brand.css";
+@import "./notion-legacy.css";
 @import "./prism-theme.css";
 
 @tailwind base;

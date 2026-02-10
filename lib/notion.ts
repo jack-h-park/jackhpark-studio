@@ -89,6 +89,16 @@ const sanitizeCollectionViewForGrouping = (viewValue: any) => {
     patchedFormat.board_columns = format.board_columns.map(normalizeGroupValue);
   }
 
+  // Some list/gallery views carry stale board grouping metadata.
+  // That can force reducer keys like results:status:* and produce empty groups.
+  if (
+    (viewValue?.type === "list" || viewValue?.type === "gallery") &&
+    patchedFormat.collection_group_by
+  ) {
+    delete patchedFormat.board_columns;
+    delete patchedFormat.board_columns_by;
+  }
+
   const sanitized = {
     ...viewValue,
     collection_id: collectionId ?? viewValue.collection_id,
@@ -103,6 +113,45 @@ const sanitizeCollectionViewForGrouping = (viewValue: any) => {
   }
 
   return sanitized;
+};
+
+const getCollectionValueDeep = (entry: any): any => {
+  let value = entry?.value;
+  let depth = 0;
+  while (depth < 5 && value && typeof value === "object" && value.value) {
+    const next = value.value;
+    if (!next || typeof next !== "object") break;
+    if (
+      next.schema ||
+      next.parent_id ||
+      next.parent_table ||
+      next.copied_from
+    ) {
+      value = next;
+      break;
+    }
+    value = next;
+    depth += 1;
+  }
+  return value;
+};
+
+const resolveCollectionDataId = (
+  recordMap: ExtendedRecordMap,
+  collectionId: string,
+): string => {
+  const rawEntry = recordMap.collection?.[collectionId];
+  const value = getCollectionValueDeep(rawEntry);
+  if (
+    value &&
+    typeof value === "object" &&
+    value.parent_table === "collection" &&
+    typeof value.parent_id === "string" &&
+    value.parent_id.length > 0
+  ) {
+    return value.parent_id;
+  }
+  return collectionId;
 };
 
 const sanitizeForJSON = (value: any): any => {
@@ -126,6 +175,96 @@ const sanitizeForJSON = (value: any): any => {
   }
 
   return value;
+};
+
+const collectBlockIdsFromResultsBuckets = (entry: any): string[] => {
+  if (!entry || typeof entry !== "object") {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const blockIds: string[] = [];
+
+  for (const [key, value] of Object.entries(entry)) {
+    if (!key.startsWith("results:")) continue;
+    const ids = (value as any)?.blockIds;
+    if (!Array.isArray(ids)) continue;
+    for (const id of ids) {
+      if (typeof id !== "string" || id.length === 0 || seen.has(id)) continue;
+      seen.add(id);
+      blockIds.push(id);
+    }
+  }
+
+  return blockIds;
+};
+
+const normalizeCollectionQueryEntry = (entry: any): Record<string, any> => {
+  if (!entry || typeof entry !== "object") {
+    return {};
+  }
+
+  const reducerResults =
+    entry.reducerResults && typeof entry.reducerResults === "object"
+      ? entry.reducerResults
+      : entry.reducers && typeof entry.reducers === "object"
+        ? entry.reducers
+        : null;
+
+  // react-notion-x grouped renderers read results:* keys from top-level.
+  // Ensure reducer payloads are flattened to that shape.
+  const normalized: Record<string, any> = {
+    ...(reducerResults ?? entry),
+  };
+
+  if (entry.collection_group_results && !normalized.collection_group_results) {
+    normalized.collection_group_results = entry.collection_group_results;
+  }
+  if (entry.blockIds && !normalized.blockIds) {
+    normalized.blockIds = entry.blockIds;
+  }
+  if (entry.list_groups && !normalized.list_groups) {
+    normalized.list_groups = entry.list_groups;
+  }
+  if (entry.board_columns && !normalized.board_columns) {
+    normalized.board_columns = entry.board_columns;
+  }
+
+  const groupedBlockIds = collectBlockIdsFromResultsBuckets(normalized);
+  if (groupedBlockIds.length > 0) {
+    if (!normalized.collection_group_results) {
+      normalized.collection_group_results = {
+        type: "results",
+        blockIds: groupedBlockIds,
+      };
+    } else if (
+      !Array.isArray(normalized.collection_group_results.blockIds) ||
+      normalized.collection_group_results.blockIds.length === 0
+    ) {
+      normalized.collection_group_results = {
+        ...normalized.collection_group_results,
+        blockIds: groupedBlockIds,
+      };
+    }
+
+    if (!Array.isArray(normalized.blockIds) || normalized.blockIds.length === 0) {
+      normalized.blockIds = groupedBlockIds;
+    }
+  }
+
+  return sanitizeForJSON(normalized);
+};
+
+const getQueryBlockCount = (entry: any): number => {
+  if (!entry || typeof entry !== "object") return 0;
+
+  const groupCount = entry.collection_group_results?.blockIds?.length;
+  if (typeof groupCount === "number" && groupCount > 0) return groupCount;
+
+  const blockCount = entry.blockIds?.length;
+  if (typeof blockCount === "number" && blockCount > 0) return blockCount;
+
+  return collectBlockIdsFromResultsBuckets(entry).length;
 };
 
 const hasGroupedBlocks = (entry: any): boolean => {
@@ -181,9 +320,10 @@ const mergeCollectionQuery = (
   }
 
   const existing = clone.collection_query[collectionId][viewId] ?? {};
+  const normalizedSource = normalizeCollectionQueryEntry(source);
   clone.collection_query[collectionId][viewId] = sanitizeForJSON({
     ...existing,
-    ...source,
+    ...normalizedSource,
   });
 
   return clone;
@@ -232,6 +372,8 @@ const getNavigationLinkPages = pMemoize(
 );
 
 const inFlightPageFetches = new Map<string, Promise<ExtendedRecordMap>>();
+const enableGroupedCollectionHydration =
+  process.env.NOTION_GROUP_HYDRATION !== "0";
 
 type MemoryCacheEntry = {
   recordMap: ExtendedRecordMap;
@@ -242,7 +384,8 @@ const memoryPageCache = new Map<string, MemoryCacheEntry>();
 
 const getPageCacheKey = (pageId: string | null | undefined) => {
   const normalizedId = (pageId ?? "").replaceAll("-", "");
-  return `${notionPageCacheKeyPrefix}:${environment}:${normalizedId}`;
+  const hydrationMode = enableGroupedCollectionHydration ? "gh-on" : "gh-off";
+  return `${notionPageCacheKeyPrefix}:${environment}:${hydrationMode}:${normalizedId}`;
 };
 
 const getCacheExpiry = () =>
@@ -395,8 +538,20 @@ const hydrateGroupedCollectionData = async (
       const existingEntry =
         recordMap.collection_query?.[collectionId]?.[viewId] ?? null;
 
-      if (hasGroupedBlocks(existingEntry)) {
-        return null;
+      if (existingEntry) {
+        const normalizedExisting = normalizeCollectionQueryEntry(existingEntry);
+        if (!recordMap.collection_query) {
+          recordMap.collection_query = {};
+        }
+        if (!recordMap.collection_query[collectionId]) {
+          recordMap.collection_query[collectionId] = {};
+        }
+        recordMap.collection_query[collectionId][viewId] =
+          normalizedExisting as any;
+
+        if (hasGroupedBlocks(normalizedExisting)) {
+          return null;
+        }
       }
 
       if (debugNotionXEnabled) {
@@ -412,13 +567,17 @@ const hydrateGroupedCollectionData = async (
       return {
         viewId,
         collectionId,
+        fetchCollectionId: resolveCollectionDataId(recordMap, collectionId),
         viewValue: sanitizedView,
+        existingEntry,
       };
     })
     .filter(Boolean) as Array<{
     viewId: string;
     collectionId: string;
+    fetchCollectionId: string;
     viewValue: any;
+    existingEntry: any;
   }>;
 
   if (!targets.length) {
@@ -427,10 +586,16 @@ const hydrateGroupedCollectionData = async (
 
   await pMap(
     targets,
-    async ({ viewId, collectionId, viewValue }) => {
+    async ({
+      viewId,
+      collectionId,
+      fetchCollectionId,
+      viewValue,
+      existingEntry,
+    }) => {
       try {
         const data = await notion.getCollectionData(
-          collectionId,
+          fetchCollectionId,
           viewId,
           viewValue,
           {
@@ -441,8 +606,13 @@ const hydrateGroupedCollectionData = async (
         if (data?.recordMap) {
           recordMap = mergeRecordMaps(recordMap, data.recordMap as any);
 
-          const fetchedEntry = (data.recordMap as ExtendedRecordMap)
-            .collection_query?.[collectionId]?.[viewId];
+          const fetchedEntry =
+            (data.recordMap as ExtendedRecordMap).collection_query?.[
+              fetchCollectionId
+            ]?.[viewId] ??
+            (data.recordMap as ExtendedRecordMap).collection_query?.[
+              collectionId
+            ]?.[viewId];
           if (fetchedEntry) {
             recordMap = mergeCollectionQuery(
               recordMap,
@@ -454,245 +624,7 @@ const hydrateGroupedCollectionData = async (
         }
 
         if (data?.result) {
-          const reducerResults = data.result.reducerResults as
-            | Record<string, any>
-            | undefined;
-
-          let normalizedResult = sanitizeForJSON({
-            ...data.result,
-            ...reducerResults,
-          });
-
-          const groupByProperty =
-            viewValue?.format?.collection_group_by?.property;
-          const collectionSchema =
-            recordMap.collection?.[collectionId]?.value?.schema;
-          const schemaType = collectionSchema?.[groupByProperty]?.type;
-          const groupType =
-            viewValue?.format?.collection_group_by?.type ??
-            schemaType ??
-            "select";
-
-          if (!hasGroupedBlocks(normalizedResult) && groupByProperty) {
-            if (debugNotionXEnabled) {
-              debugNotionXLogger.debug("[grouped-collection] list groups raw", {
-                viewId,
-                collectionId,
-                listGroups: normalizedResult?.list_groups,
-                reducerKeys: Object.keys(
-                  normalizedResult?.reducerResults || {},
-                ),
-              });
-            }
-            const bucketMap = new Map<string, Set<string>>();
-            const UNCATEGORIZED_KEY = "uncategorized";
-            const UNCATEGORIZED_LABEL = "Uncategorized";
-
-            for (const [blockId, blockWrapper] of Object.entries(
-              recordMap.block ?? {},
-            )) {
-              const blockValue: any = (blockWrapper as any)?.value;
-              if (!blockValue || blockValue.parent_table !== "collection")
-                continue;
-              if (blockValue.parent_id !== collectionId) continue;
-              if (blockValue.alive === false) continue;
-
-              const propertyValue = blockValue.properties?.[groupByProperty];
-
-              if (!propertyValue) {
-                if (debugNotionXEnabled) {
-                  debugNotionXLogger.debug(
-                    "[grouped-collection] missing property value",
-                    {
-                      viewId,
-                      collectionId,
-                      blockId,
-                      availableProperties: Object.keys(
-                        blockValue.properties ?? {},
-                      ),
-                    },
-                  );
-                }
-              }
-
-              const labels: string[] = [];
-              if (Array.isArray(propertyValue)) {
-                for (const item of propertyValue) {
-                  if (Array.isArray(item)) {
-                    const [raw] = item;
-                    if (typeof raw === "string") {
-                      labels.push(raw);
-                    } else if (
-                      Array.isArray(raw) &&
-                      typeof raw[0] === "string"
-                    ) {
-                      labels.push(raw[0]);
-                    }
-                  } else if (typeof item === "string") {
-                    labels.push(item);
-                  }
-                }
-              }
-
-              if (labels.length === 0) {
-                if (!bucketMap.has(UNCATEGORIZED_KEY)) {
-                  bucketMap.set(UNCATEGORIZED_KEY, new Set());
-                }
-                bucketMap.get(UNCATEGORIZED_KEY)!.add(blockId);
-              } else {
-                for (const label of labels) {
-                  if (!bucketMap.has(label)) {
-                    bucketMap.set(label, new Set());
-                  }
-                  bucketMap.get(label)!.add(blockId);
-                }
-              }
-            }
-
-            if (bucketMap.size > 0) {
-              const bucketEntries = Array.from(bucketMap.entries()).map(
-                ([label, set]) => ({
-                  originalLabel: label,
-                  displayLabel:
-                    label === UNCATEGORIZED_KEY ? UNCATEGORIZED_LABEL : label,
-                  set,
-                }),
-              );
-              const updatedReducers: Record<string, any> = {
-                ...normalizedResult?.reducerResults,
-              };
-              const topLevelEntries: Record<string, any> = {};
-              const listGroupResults: any[] = [];
-              const allBlockIds = new Set<string>();
-
-              if (debugNotionXEnabled) {
-                debugNotionXLogger.debug("[grouped-collection] buckets built", {
-                  viewId,
-                  collectionId,
-                  buckets: bucketEntries.map(({ displayLabel, set }) => ({
-                    label: displayLabel,
-                    count: set.size,
-                  })),
-                });
-              }
-
-              for (const {
-                originalLabel,
-                displayLabel,
-                set,
-              } of bucketEntries) {
-                const blockIds = Array.from(set);
-                for (const id of blockIds) allBlockIds.add(id);
-
-                const originalResultsKey = `results:${groupType}:${originalLabel}`;
-                const originalAggregationKey = `group_aggregation:${groupType}:${originalLabel}`;
-
-                delete updatedReducers[originalResultsKey];
-                delete updatedReducers[originalAggregationKey];
-                delete (normalizedResult as any)[originalResultsKey];
-                delete (normalizedResult as any)[originalAggregationKey];
-
-                const resultsKey = `results:${groupType}:${displayLabel}`;
-                const aggregationKey = `group_aggregation:${groupType}:${displayLabel}`;
-
-                const resultEntry = {
-                  type: "results",
-                  blockIds,
-                  hasMore: false,
-                };
-
-                const aggregationEntry = {
-                  type: "aggregation",
-                  aggregationResult: {
-                    type: "number",
-                    value: blockIds.length,
-                  },
-                };
-
-                updatedReducers[resultsKey] = resultEntry;
-                updatedReducers[aggregationKey] = aggregationEntry;
-                topLevelEntries[resultsKey] = resultEntry;
-                topLevelEntries[aggregationKey] = aggregationEntry;
-
-                listGroupResults.push({
-                  value: {
-                    type: groupType,
-                    value: displayLabel,
-                  },
-                  visible: true,
-                });
-              }
-
-              normalizedResult = sanitizeForJSON({
-                ...normalizedResult,
-                collection_group_results: {
-                  type: "results",
-                  blockIds: Array.from(allBlockIds),
-                  hasMore: false,
-                },
-                ...topLevelEntries,
-                list_groups: {
-                  type: "groups",
-                  version: "v2",
-                  hasMore: false,
-                  results: listGroupResults,
-                },
-                reducerResults: {
-                  ...updatedReducers,
-                  ...topLevelEntries,
-                },
-              });
-
-              if (Array.isArray(normalizedResult?.list_groups?.results)) {
-                normalizedResult.list_groups.results =
-                  normalizedResult.list_groups.results.map(
-                    (group: any, index: number) => {
-                      if (!group) return group;
-                      const entry = bucketEntries[index];
-                      const displayLabel =
-                        entry?.displayLabel ?? UNCATEGORIZED_LABEL;
-
-                      if (
-                        typeof group.value === "object" &&
-                        group.value !== null
-                      ) {
-                        return {
-                          ...group,
-                          value: {
-                            ...group.value,
-                            type: groupType,
-                            value: displayLabel,
-                          },
-                        };
-                      }
-
-                      return {
-                        ...group,
-                        value: {
-                          type: groupType,
-                          value: displayLabel,
-                        },
-                      };
-                    },
-                  );
-
-                const view = recordMap.collection_view?.[viewId];
-                if (view?.value?.format) {
-                  view.value.format.collection_groups = bucketEntries.map(
-                    ({ displayLabel }) =>
-                      normalizeGroupValue({
-                        value: {
-                          type: groupType,
-                          value: displayLabel,
-                        },
-                        property: groupByProperty,
-                        hidden: false,
-                      }),
-                  );
-                }
-              }
-            }
-          }
+          const normalizedResult = normalizeCollectionQueryEntry(data.result);
 
           if (!recordMap.collection_query) {
             recordMap.collection_query = {};
@@ -702,7 +634,14 @@ const hydrateGroupedCollectionData = async (
             recordMap.collection_query[collectionId] = {};
           }
 
-          recordMap.collection_query[collectionId][viewId] = normalizedResult;
+          const fetchedBlockCount = getQueryBlockCount(normalizedResult);
+          const existingBlockCount = getQueryBlockCount(existingEntry);
+
+          // Keep previous query when fetched grouped payload is empty.
+          if (!(fetchedBlockCount === 0 && existingBlockCount > 0)) {
+            recordMap.collection_query[collectionId][viewId] =
+              normalizedResult as any;
+          }
 
           const listGroups = normalizedResult?.list_groups?.results;
           if (Array.isArray(listGroups) && listGroups.length > 0) {
@@ -712,14 +651,12 @@ const hydrateGroupedCollectionData = async (
                 ?.collection_group_by?.property;
             if (view?.value?.format) {
               view.value.format.collection_groups = listGroups.map(
-                (group: any) => {
-                  const normalizedGroup = normalizeGroupValue({
+                (group: any) =>
+                  normalizeGroupValue({
                     value: group?.value,
                     property: propertyKey,
                     hidden: group?.visible === false,
-                  });
-                  return normalizedGroup;
-                },
+                  }),
               );
             }
           }
@@ -743,19 +680,27 @@ export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
   if (isNotionPageCacheEnabled) {
     const memoryCached = getCachedRecordMapFromMemory(cacheKey);
     if (memoryCached) {
-      const hydratedCached = await hydrateGroupedCollectionData(memoryCached);
-      setCachedRecordMapInMemory(cacheKey, hydratedCached);
-      await writeCachedRecordMap(cacheKey, hydratedCached);
-      return hydratedCached;
+      if (enableGroupedCollectionHydration) {
+        const hydratedCached = await hydrateGroupedCollectionData(memoryCached);
+        setCachedRecordMapInMemory(cacheKey, hydratedCached);
+        await writeCachedRecordMap(cacheKey, hydratedCached);
+        return hydratedCached;
+      }
+
+      return memoryCached;
     }
 
     const persistentCached = await readCachedRecordMap(cacheKey);
     if (persistentCached) {
-      const hydratedPersistent =
-        await hydrateGroupedCollectionData(persistentCached);
-      setCachedRecordMapInMemory(cacheKey, hydratedPersistent);
-      await writeCachedRecordMap(cacheKey, hydratedPersistent);
-      return hydratedPersistent;
+      if (enableGroupedCollectionHydration) {
+        const hydratedPersistent =
+          await hydrateGroupedCollectionData(persistentCached);
+        setCachedRecordMapInMemory(cacheKey, hydratedPersistent);
+        await writeCachedRecordMap(cacheKey, hydratedPersistent);
+        return hydratedPersistent;
+      }
+
+      return persistentCached;
     }
   }
 
@@ -767,11 +712,13 @@ export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
 
   const fetchPromise = (async () => {
     const recordMap = await loadPageFromNotion(pageId);
-    const hydratedRecordMap = await hydrateGroupedCollectionData(recordMap);
+    const finalRecordMap = enableGroupedCollectionHydration
+      ? await hydrateGroupedCollectionData(recordMap)
+      : recordMap;
 
-    await writeCachedRecordMap(cacheKey, hydratedRecordMap);
+    await writeCachedRecordMap(cacheKey, finalRecordMap);
 
-    return hydratedRecordMap;
+    return finalRecordMap;
   })();
 
   inFlightPageFetches.set(cacheKey, fetchPromise);

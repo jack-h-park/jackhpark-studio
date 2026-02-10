@@ -52,3 +52,11 @@ instrumentation.js
 
 # TypeScript incremental build cache
 tsconfig.tsbuildinfo
+
+# Playwright
+.playwright-cli/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+output/playwright

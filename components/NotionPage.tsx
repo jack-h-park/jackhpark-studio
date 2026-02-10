@@ -983,6 +983,9 @@ export function NotionPage({
 
       {isLiteMode && <BodyClassName className="notion-lite" />}
       {isDarkMode && <BodyClassName className="dark dark-mode" />}
+      <BodyClassName
+        className={`notion-polish-${config.notionPolishProfile}`}
+      />
 
       {recordMap && (
         <NotionPageRenderer
@@ -1081,136 +1084,6 @@ export function NotionPage({
           />
         )}
       </SidePeek>
-
-      <style
-        // Gallery card title/icon visibility & alignment rules
-        dangerouslySetInnerHTML={{
-          __html: `
-  /* --- Gallery title/icon visibility & alignment (reinforced) -------------- */
-  /* NON-preview gallery views: left-align and SHOW everything explicitly */
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card,
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card * {
-    text-align: left !important;
-  }
-  /* Ensure the card body and first property row render */
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-collection-card-body {
-    display: block !important;
-    justify-content: flex-start !important;
-    align-items: flex-start !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-collection-card-property {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-  /* Property/title wrappers */
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-property,
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-property-title {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-  /* Title row as flex */
-  .notion-gallery-view .notion-collection-card .notion-page-title {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    margin: 0 !important;
-    text-align: left !important;
-  }
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title {
-    gap: 0.12rem !important; /* tighter spacing */
-  }
-  /* Anchor wrapping the title */
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-link {
-    display: inline-flex !important;
-    align-items: center !important;
-    gap: 0.4rem !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-  /* Icon + icon glyph + text must be visible */
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon-inline,
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon,
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon {
-    display: inline-flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-text {
-    display: inline-block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  }
-  /* Center the icon glyph inside its inline container */
-  .notion-gallery-view .notion-collection-card .notion-page-icon-inline {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    vertical-align: middle !important;
-    line-height: 1 !important;
-  }
-  /* Remove margins/padding from icon/title/text to eliminate hidden space */
-  .notion-gallery-view .notion-collection-card .notion-page-icon-inline,
-  .notion-gallery-view .notion-collection-card .notion-page-title-icon,
-  .notion-gallery-view .notion-collection-card .notion-page-icon,
-  .notion-gallery-view .notion-collection-card .notion-page-title-text {
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  /* Tiny extra breathing room between icon and title */
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon-inline,
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon,
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon {
-    margin-right: 0.08rem !important; /* adjust 0.06–0.12rem to taste */
-  }
-  /* Slightly increase icon size for non-preview gallery cards */
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon,
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon {
-    width: 1.15em !important;
-    height: 1.15em !important;
-    min-width: 1.15em !important;
-    min-height: 1.15em !important;
-  }
-  /* Emoji (span-based) icons */
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon-span {
-    font-size: 1.1em !important;   /* was ~1em; slightly larger */
-    line-height: 1 !important;
-  }
-  /* SVG/IMG inside icon wrappers: size up to match */
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon svg,
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon img,
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon svg,
-  .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon img {
-    width: 1.15em !important;
-    height: 1.15em !important;
-  }
-  .notion-gallery-view .notion-collection-card .notion-page-title-icon,
-  .notion-gallery-view .notion-collection-card .notion-page-icon {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    line-height: 1 !important;
-  }
-  /* Ensure inner SVG/IMG participate correctly without extra baseline offset */
-  .notion-gallery-view .notion-collection-card .notion-page-title-icon svg,
-  .notion-gallery-view .notion-collection-card .notion-page-title-icon img,
-  .notion-gallery-view .notion-collection-card .notion-page-icon svg,
-  .notion-gallery-view .notion-collection-card .notion-page-icon img {
-    display: block !important;
-  }
-  /* Preview-enabled gallery views: hide ONLY the icon and the title text */
-  .notion-gallery-view[data-gallery-preview="1"] .notion-collection-card .notion-page-icon-inline,
-  .notion-gallery-view[data-gallery-preview="1"] .notion-collection-card .notion-page-title-text {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-  }
-  `,
-        }}
-      />
 
       <ChatFloatingWidget />
     </>

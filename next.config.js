@@ -8,27 +8,6 @@ const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
 
-const WATCH_IGNORED_PATTERNS = [
-  "**/*.log",
-  "**/logs/**",
-  "**/jack-rag-logs/**",
-];
-
-function mergeWatchIgnored(priorIgnored) {
-  const base = [...WATCH_IGNORED_PATTERNS];
-  if (!priorIgnored) {
-    return base;
-  }
-
-  const candidateList = Array.isArray(priorIgnored)
-    ? priorIgnored
-    : [priorIgnored];
-  const priorStringGlobs = candidateList.filter(
-    (item) => typeof item === "string" && item.length > 0,
-  );
-  return [...new Set([...priorStringGlobs, ...base])];
-}
-
 export default withBundleAnalyzer({
   compress: false,
   staticPageGenerationTimeout: 300,
@@ -64,11 +43,6 @@ export default withBundleAnalyzer({
       dirname,
       "node_modules/react-dom",
     );
-
-    // config.watchOptions = {
-    //   ...config.watchOptions,
-    //   ignored: mergeWatchIgnored(config.watchOptions?.ignored),
-    // };
 
     return config;
   },

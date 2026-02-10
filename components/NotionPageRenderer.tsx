@@ -15,7 +15,6 @@ import { Equation } from "react-notion-x/build/third-party/equation";
 import { Modal } from "react-notion-x/build/third-party/modal";
 import { Pdf } from "react-notion-x/build/third-party/pdf";
 
-import { inlineCollectionTitleBold } from "@/lib/config";
 import {
   SIDE_PEEK_DISABLED_COLLECTION_BLOCK_IDS,
   SIDE_PEEK_DISABLED_COLLECTION_IDS,
@@ -29,61 +28,6 @@ const NotionRenderer = dynamic(
 );
 
 let modalInitialized = false;
-
-const transformInlineTitleBold = (title: any, shouldBold: boolean): any => {
-  if (!Array.isArray(title)) {
-    return title;
-  }
-
-  let changed = false;
-
-  const transformed = title.map((segment) => {
-    if (!Array.isArray(segment)) {
-      return segment;
-    }
-
-    const [text, decorations] = segment as [string, any[] | undefined];
-
-    if (shouldBold) {
-      if (!Array.isArray(decorations) || decorations.length === 0) {
-        changed = true;
-        return [text, [["b"]]];
-      }
-
-      const hasBold = decorations.some(
-        (decoration) => Array.isArray(decoration) && decoration[0] === "b",
-      );
-
-      if (hasBold) {
-        return segment;
-      }
-
-      changed = true;
-      return [text, [...decorations, ["b"]]];
-    }
-
-    if (!Array.isArray(decorations) || decorations.length === 0) {
-      return segment;
-    }
-
-    const filtered = decorations.filter((decoration) => {
-      if (!Array.isArray(decoration)) {
-        return true;
-      }
-
-      return decoration[0] !== "b";
-    });
-
-    if (filtered.length === decorations.length) {
-      return segment;
-    }
-
-    changed = true;
-    return filtered.length > 0 ? [text, filtered] : [text];
-  });
-
-  return changed ? transformed : title;
-};
 
 function CollectionWithDescription(props: any) {
   const { recordMap, components } = useNotionContext();
@@ -199,15 +143,15 @@ export function NotionPageRenderer({
       return recordMap;
     }
 
-    const views = recordMap.collection_view;
     const collections = recordMap.collection;
+    const views = recordMap.collection_view;
     const blocks = recordMap.block;
 
-    let viewsChanged = false;
     let collectionsChanged = false;
+    let viewsChanged = false;
     let blocksChanged = false;
-    let patchedViews = views;
     let patchedCollections = collections;
+    let patchedViews = views;
     let patchedBlocks = blocks;
 
     if (collections) {
@@ -221,7 +165,11 @@ export function NotionPageRenderer({
         let normalizedCollection = collection;
         let shouldPatchCollection = false;
 
-        if (
+        // Some recordMaps contain nested wrappers like value.value.value...
+        // Unwrap until schema is found (or until safety cap).
+        let unwrapDepth = 0;
+        while (
+          unwrapDepth < 4 &&
           (!normalizedCollectionValue.schema ||
             typeof normalizedCollectionValue.schema !== "object") &&
           normalizedCollectionValue.value &&
@@ -236,6 +184,7 @@ export function NotionPageRenderer({
             value: normalizedCollectionValue,
           } as typeof collection;
           shouldPatchCollection = true;
+          unwrapDepth += 1;
         }
 
         const schema =
@@ -243,11 +192,23 @@ export function NotionPageRenderer({
           typeof normalizedCollectionValue.schema === "object"
             ? { ...(normalizedCollectionValue.schema as Record<string, any>) }
             : {};
-        if (!schema.title || typeof schema.title !== "object") {
+
+        // react-notion-x table expects a title schema entry.
+        const hasTitleSchema = Object.values(schema).some(
+          (entry: any) => entry?.type === "title",
+        );
+        if (!hasTitleSchema) {
           schema.title = {
             name: "Name",
             type: "title",
           };
+          shouldPatchCollection = true;
+        }
+
+        if (
+          normalizedCollectionValue.schema !== schema ||
+          normalizedCollectionValue.schema == null
+        ) {
           shouldPatchCollection = true;
         }
 
@@ -325,97 +286,118 @@ export function NotionPageRenderer({
           } as typeof block;
         }
 
-        if (
-          normalizedBlockValue.type !== "page" ||
-          normalizedBlockValue.parent_table !== "collection"
-        ) {
-          continue;
-        }
-
-        const properties = normalizedBlockValue.properties as
-          | Record<string, any>
-          | undefined;
-        if (!properties) {
-          continue;
-        }
-
-        const title = properties.title;
-        const sanitizedTitle = transformInlineTitleBold(
-          title,
-          inlineCollectionTitleBold,
-        );
-        if (sanitizedTitle === title) {
-          continue;
-        }
-
-        if (!blocksChanged) {
-          patchedBlocks = { ...blocks };
-          blocksChanged = true;
-        }
-
-        const updatedValue = {
-          ...(normalizedBlockValue as any),
-          properties: { ...(properties as any), title: sanitizedTitle },
-        };
-
-        patchedBlocks[blockId] = {
-          ...(normalizedBlock as any),
-          value: updatedValue,
-        } as typeof block;
       }
     }
 
     if (views) {
       const workingViews = { ...views };
       for (const [viewId, view] of Object.entries(views)) {
-        const viewValue = view?.value;
-
-        if (!view || !viewValue || viewValue.type !== "list") {
-          continue;
-        }
-
-        const format = viewValue.format;
-
-        const listProperties = format?.list_properties;
-
-        if (!Array.isArray(listProperties) || listProperties.length === 0) {
-          continue;
-        }
-
+        let viewValue = view?.value as any;
         let viewChanged = false;
 
-        const patchedListProperties = listProperties.map((propertyConfig) => {
-          if (!propertyConfig || typeof propertyConfig !== "object") {
-            return propertyConfig;
-          }
-
-          if (propertyConfig.visible === false) {
-            return propertyConfig;
-          }
-
-          if (propertyConfig.property !== "title") {
-            return propertyConfig;
-          }
-
+        // Some recordMaps wrap collection views like value.value.value...
+        // Unwrap until a stable payload (type/format) is found.
+        let unwrapDepth = 0;
+        while (
+          unwrapDepth < 4 &&
+          viewValue &&
+          typeof viewValue === "object" &&
+          viewValue.value &&
+          typeof viewValue.value === "object" &&
+          (!viewValue.format || !viewValue.type)
+        ) {
+          viewValue = viewValue.value;
           viewChanged = true;
-          return { ...propertyConfig, visible: false };
-        });
+          unwrapDepth += 1;
+        }
 
-        if (!viewChanged) {
+        const format = viewValue?.format as Record<string, any> | undefined;
+        if (!format || typeof format !== "object") {
+          if (viewChanged) {
+            viewsChanged = true;
+            workingViews[viewId] = {
+              ...(view as any),
+              value: viewValue,
+            } as any;
+          }
+          continue;
+        }
+
+        let formatChanged = false;
+        const nextFormat: Record<string, any> = { ...format };
+
+        if (Array.isArray(format.table_properties)) {
+          const seen = new Set<string>();
+          const deduped = format.table_properties.filter((prop: any) => {
+            const key = prop?.property;
+            if (typeof key !== "string" || key.length === 0) {
+              return false;
+            }
+            if (seen.has(key)) {
+              return false;
+            }
+            seen.add(key);
+            return true;
+          });
+
+          if (deduped.length !== format.table_properties.length) {
+            nextFormat.table_properties = deduped;
+            formatChanged = true;
+          }
+        }
+
+        // List rows always render title in their header.
+        // Keep list_properties for metadata only, never duplicate title in body.
+        if (viewValue?.type === "list" && Array.isArray(format.list_properties)) {
+          let listChanged = false;
+          const seenListProps = new Set<string>();
+          const patchedList = format.list_properties
+            .filter((p: any) => {
+              const key = p?.property;
+              if (typeof key !== "string" || key.length === 0) return false;
+              if (seenListProps.has(key)) {
+                listChanged = true;
+                return false;
+              }
+              seenListProps.add(key);
+              return true;
+            })
+            .map((p: any) => {
+              if (!p || typeof p !== "object") {
+                return p;
+              }
+              if (p.property === "title" && p.visible !== false) {
+                listChanged = true;
+                return { ...p, visible: false };
+              }
+              return p;
+            });
+
+          if (listChanged) {
+            nextFormat.list_properties = patchedList;
+            formatChanged = true;
+          }
+        }
+
+        if (!formatChanged) {
+          if (viewChanged) {
+            viewsChanged = true;
+            workingViews[viewId] = {
+              ...(view as any),
+              value: viewValue,
+            } as any;
+          }
           continue;
         }
 
         viewsChanged = true;
         workingViews[viewId] = {
-          ...view,
+          ...(view as any),
           value: {
-            ...viewValue,
-            format: {
-              ...viewValue.format,
-              list_properties: patchedListProperties,
-            },
+            ...(viewValue as any),
+            format: nextFormat,
           },
-        };
+        } as any;
       }
 
       if (viewsChanged) {
@@ -423,15 +405,15 @@ export function NotionPageRenderer({
       }
     }
 
-    if (!blocksChanged && !viewsChanged && !collectionsChanged) {
+    if (!blocksChanged && !collectionsChanged && !viewsChanged) {
       return recordMap;
     }
 
     return {
       ...recordMap,
-      ...(blocksChanged ? { block: patchedBlocks! } : {}),
       ...(collectionsChanged ? { collection: patchedCollections! } : {}),
       ...(viewsChanged ? { collection_view: patchedViews! } : {}),
+      ...(blocksChanged ? { block: patchedBlocks! } : {}),
     };
   }, [recordMap]);
 

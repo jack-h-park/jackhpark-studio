@@ -1,0 +1,86 @@
+/**
+ * Legacy profile roll-back rules.
+ * Set NEXT_PUBLIC_NOTION_POLISH_PROFILE=legacy to opt into these styles.
+ */
+
+.notion-polish-legacy .notion-title {
+  display: block;
+  text-align: left;
+  font-size: 2.5rem !important;
+  line-height: 1.2 !important;
+}
+
+.notion-polish-legacy .notion-page-block .notion-title {
+  margin-top: 0.2em !important;
+  margin-bottom: 0.1em !important;
+  padding-left: 0 !important;
+}
+
+.notion-polish-legacy .notion-table,
+.notion-polish-legacy .notion-table-view {
+  margin-left: 20px !important;
+  width: auto !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  box-sizing: border-box;
+}
+
+.notion-polish-legacy .notion-table {
+  overflow: unset !important;
+}
+
+.notion-polish-legacy .notion-page-cover-wrapper,
+.notion-polish-legacy .notion-page-cover-wrapper span,
+.notion-polish-legacy .notion-page-cover-wrapper img {
+  width: 100% !important;
+  max-width: none !important;
+  border-radius: 24px;
+}
+
+.notion-polish-legacy .notion-page-cover-wrapper {
+  margin: 0 auto;
+  box-shadow: 2px 2px 8px 4px rgba(15, 15, 15, 0.1);
+}
+
+.notion-polish-legacy .notion-page-icon-hero,
+.notion-polish-legacy .notion-page-icon-image {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+  align-self: flex-start !important;
+}
+
+.notion-polish-legacy .notion-page-icon-hero.notion-page-icon-image {
+  border-radius: 50%;
+  box-shadow: 0 8px 40px 0 rgb(0 0 0 / 21%);
+}
+
+.notion-polish-legacy .notion-page-icon-hero.notion-page-icon-image span,
+.notion-polish-legacy .notion-page-icon-hero.notion-page-icon-image img {
+  border-radius: 50%;
+}
+
+.notion-polish-legacy .notion-header {
+  background: rgba(248, 248, 248, 0.6);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+}
+
+.notion-polish-legacy.dark-mode .notion-header {
+  background: rgba(24, 24, 27, 0.75);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+  backdrop-filter: blur(14px);
+}
+
+.notion-polish-legacy .notion-text-block {
+  margin-bottom: 0.3em !important;
+}
+
+.notion-polish-legacy .notion-text-block > p {
+  margin-bottom: 0.3em !important;
+}
+
+.notion-polish-legacy .notion-text-block + .notion-text-block {
+  margin-top: 0.2em !important;
+}
