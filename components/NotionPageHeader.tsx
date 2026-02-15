@@ -78,9 +78,7 @@ export function NotionPageHeader({
                   {rootBlock && <PageIcon className="icon" block={rootBlock} />}
 
                   {/* Title */}
-                  <span className="title">
-                    {root.title}
-                  </span>
+                  <span className="title">{root.title}</span>
                 </Link>
               </div>
             );

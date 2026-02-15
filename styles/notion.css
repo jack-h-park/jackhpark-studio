@@ -883,13 +883,17 @@ svg[data-processed-mermaid] .section-root tspan {
   transition: background-color 0.2s ease;
 }
 
-/* 테이블 컬럼 헤더 아이콘 숨김 (사용 안 함) */
-.notion-collection-view-type-table th .notion-collection-column-title-icon,
-.notion-collection
+/* 테이블 컬럼 헤더 아이콘 숨김 (legacy profile only) */
+.notion-polish-legacy
+  .notion-collection-view-type-table
+  th
+  .notion-collection-column-title-icon,
+.notion-polish-legacy
+  .notion-collection
   .notion-collection-column-title
   .notion-collection-column-title-icon,
-th .notion-collection-column-title-icon,
-svg.notion-collection-column-title-icon {
+.notion-polish-legacy th .notion-collection-column-title-icon,
+.notion-polish-legacy svg.notion-collection-column-title-icon {
   display: none !important;
   visibility: hidden !important;
   width: 0 !important;

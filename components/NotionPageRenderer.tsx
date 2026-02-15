@@ -15,6 +15,7 @@ import { Equation } from "react-notion-x/build/third-party/equation";
 import { Modal } from "react-notion-x/build/third-party/modal";
 import { Pdf } from "react-notion-x/build/third-party/pdf";
 
+import { defaultPageIcon } from "@/lib/config";
 import {
   SIDE_PEEK_DISABLED_COLLECTION_BLOCK_IDS,
   SIDE_PEEK_DISABLED_COLLECTION_IDS,
@@ -134,6 +135,34 @@ export function NotionPageRenderer({
     return () => cancelAnimationFrame(timer);
   }, []);
 
+  React.useEffect(() => {
+    const onImgError = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLImageElement)) return;
+
+      const isIconImage = Boolean(
+        target.closest(
+          ".notion-page-title-icon, .notion-page-icon-inline, .notion-collection-column-title-icon",
+        ),
+      );
+      if (!isIconImage) return;
+      if (target.dataset.iconFallbackApplied === "1") return;
+
+      target.dataset.iconFallbackApplied = "1";
+
+      if (defaultPageIcon && !target.src.includes(defaultPageIcon)) {
+        target.src = defaultPageIcon;
+      } else {
+        target.style.display = "none";
+      }
+    };
+
+    document.addEventListener("error", onImgError, true);
+    return () => {
+      document.removeEventListener("error", onImgError, true);
+    };
+  }, []);
+
   const sanitizedRecordMap = React.useMemo<ExtendedRecordMap>(() => {
     if (process.env.NODE_ENV === "development") {
       console.log("[NotionPageRenderer] sanitizeRecordMap invoked");
@@ -156,7 +185,9 @@ export function NotionPageRenderer({
 
     if (collections) {
       for (const [collectionId, collection] of Object.entries(collections)) {
-        const collectionValue = collection?.value as Record<string, any> | undefined;
+        const collectionValue = collection?.value as
+          | Record<string, any>
+          | undefined;
         if (!collectionValue) {
           continue;
         }
@@ -255,7 +286,10 @@ export function NotionPageRenderer({
             blocksChanged = true;
           }
 
-          normalizedBlockValue = normalizedBlockValue.value as Record<string, any>;
+          normalizedBlockValue = normalizedBlockValue.value as Record<
+            string,
+            any
+          >;
           normalizedBlock = {
             ...(block as any),
             value: normalizedBlockValue,
@@ -285,7 +319,6 @@ export function NotionPageRenderer({
             value: normalizedBlockValue,
           } as typeof block;
         }
-
       }
     }
 
@@ -348,7 +381,10 @@ export function NotionPageRenderer({
 
         // List rows always render title in their header.
         // Keep list_properties for metadata only, never duplicate title in body.
-        if (viewValue?.type === "list" && Array.isArray(format.list_properties)) {
+        if (
+          viewValue?.type === "list" &&
+          Array.isArray(format.list_properties)
+        ) {
           let listChanged = false;
           const seenListProps = new Set<string>();
           const patchedList = format.list_properties

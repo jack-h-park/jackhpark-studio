@@ -66,7 +66,9 @@ export function ChatPromotionSessionProvider({
 
   const ensureCid = useCallback((preferredCid?: string | null) => {
     const cid =
-      preferredCid && preferredCid.trim().length > 0 ? preferredCid : createCid();
+      preferredCid && preferredCid.trim().length > 0
+        ? preferredCid
+        : createCid();
 
     setSessionsByCid((prev) => {
       if (prev.has(cid)) {
@@ -105,7 +107,8 @@ export function ChatPromotionSessionProvider({
     setSessionsByCid((prev) => {
       const base = prev.get(cid) ?? buildSession(cid);
       const next = new Map(prev);
-      const lastAnchorId = messages.length > 0 ? messages.at(-1)?.id : undefined;
+      const lastAnchorId =
+        messages.length > 0 ? messages.at(-1)?.id : undefined;
       next.set(cid, {
         ...base,
         messages,

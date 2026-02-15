@@ -17,10 +17,14 @@
   --np-body-size: 0.92rem;
   --np-list-size: 0.92rem;
   --np-table-size: 0.9rem;
+  --np-table-header-size: 0.9rem;
+  --np-table-row-icon-size: 1rem;
+  --np-table-row-icon-gap: 8px;
+  --np-table-cell-py: 6px;
+  --np-table-cell-px: 10px;
   --np-leading-body: 1.56;
-  --np-icon-gap: 5px;
-  --np-icon-box: 20px;
-  --np-icon-font-size: 17px;
+  --np-heading-icon-gap: 7px;
+  --np-heading-icon-font-size: 0.9em;
 }
 
 .notion-polish-balanced .notion {
@@ -151,54 +155,75 @@
 }
 
 /* Normalize collection title emoji/icon rhythm (e.g. 🧠, 💼). */
-/* Tokenized icon rhythm across section titles and row icons, without forcing row layout. */
 .notion-polish-balanced .notion-page .notion-collection-header-title {
-  display: flex !important;
+  display: inline-flex !important;
   align-items: center !important;
-  column-gap: var(--np-icon-gap) !important;
+  column-gap: 0 !important;
+  vertical-align: middle !important;
+}
+
+/* Section header icon baseline (icon-only polish). */
+.notion-polish-balanced
+  .notion-page
+  .notion-collection-header-title
+  .notion-page-title-icon,
+.notion-polish-balanced
+  .notion-page
+  .notion-collection-header-title
+  .notion-page-icon-inline,
+.notion-polish-balanced
+  .notion-page
+  .notion-collection-header-title
+  .notion-page-icon {
+  margin-right: var(--np-heading-icon-gap) !important;
+  width: 1em !important;
+  height: 1em !important;
+  min-width: 1em !important;
+  min-height: 1em !important;
+  font-size: var(--np-heading-icon-font-size) !important;
+  line-height: 1em !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  vertical-align: middle !important;
+  transform: translateY(0.5px) !important;
 }
 
 .notion-polish-balanced
   .notion-page
   .notion-collection-header-title
-  .notion-page-title-icon,
+  .notion-page-title-icon
+  img,
 .notion-polish-balanced
   .notion-page
   .notion-collection-header-title
-  .notion-page-icon-inline.notion-page-icon-span,
+  .notion-page-icon-inline
+  img,
 .notion-polish-balanced
   .notion-page
-  .notion-list-view
-  .notion-page-title-icon,
+  .notion-collection-header-title
+  .notion-page-icon
+  img,
 .notion-polish-balanced
   .notion-page
-  .notion-list-view
-  .notion-page-icon-inline,
+  .notion-collection-header-title
+  .notion-page-title-icon
+  svg,
 .notion-polish-balanced
   .notion-page
-  .notion-collection-view-type-list
-  .notion-page-title-icon,
+  .notion-collection-header-title
+  .notion-page-icon-inline
+  svg,
 .notion-polish-balanced
   .notion-page
-  .notion-collection-view-type-list
-  .notion-page-icon-inline,
-.notion-polish-balanced
-  .notion-page
-  .notion-table-view
-  .notion-page-title-icon,
-.notion-polish-balanced
-  .notion-page
-  .notion-table-view
-  .notion-page-icon-inline {
-  width: var(--np-icon-box) !important;
-  height: var(--np-icon-box) !important;
-  margin-right: var(--np-icon-gap) !important;
-  font-size: var(--np-icon-font-size) !important;
-  line-height: var(--np-icon-box) !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  flex-shrink: 0 !important;
+  .notion-collection-header-title
+  .notion-page-icon
+  svg {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
 }
 
 .notion-polish-balanced .notion-page .notion-h2 {
@@ -236,10 +261,211 @@
   padding-right: 0 !important;
 }
 
-.notion-polish-balanced .notion-page .notion-table td,
-.notion-polish-balanced .notion-page .notion-table th {
-  padding: 8px 10px !important;
+/* Section rhythm around inline databases */
+.notion-polish-balanced .notion-page .notion-collection-header {
+  margin-top: 1.05rem;
+  margin-bottom: 0.38rem;
+}
+
+.notion-polish-balanced .notion-page .notion-collection + .notion-collection {
+  margin-top: 1.22rem;
+}
+
+/* react-notion-x table view is div-based, not <table>/<th>/<td>. */
+.notion-polish-balanced .notion-page .notion-table {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.notion-polish-balanced .notion-page .notion-table-view {
+  float: none;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.notion-polish-balanced .notion-page .notion-table-header {
+  height: 34px;
+}
+
+.notion-polish-balanced .notion-page .notion-table-view-header-cell {
+  height: 34px;
+  font-size: var(--np-table-header-size);
+}
+
+.notion-polish-balanced .notion-page .notion-table-header-inner > .notion-table-th > .notion-table-view-header-cell {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+.notion-polish-balanced .notion-page .notion-table-view-header-cell-inner {
+  padding-left: var(--np-table-cell-px);
+  padding-right: var(--np-table-cell-px);
+  align-items: center;
+}
+
+.notion-polish-balanced .notion-page .notion-collection-column-title {
+  align-items: center;
+  line-height: 1.2;
+  font-size: var(--np-table-header-size);
+}
+
+/* Column header icon baseline (Aa, property icons). */
+.notion-polish-balanced .notion-page .notion-collection-column-title-icon {
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  min-height: 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  margin-right: 5px !important;
+  transform: translateY(0.5px) !important;
+}
+
+.notion-polish-balanced .notion-page .notion-table-header .notion-collection-column-title-icon img,
+.notion-polish-balanced .notion-page .notion-table-header .notion-collection-column-title-icon svg {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+.notion-polish-balanced .notion-page .notion-table-cell {
+  min-height: 34px;
+  padding: var(--np-table-cell-py) var(--np-table-cell-px) calc(var(--np-table-cell-py) + 1px);
   font-size: var(--np-table-size);
+  line-height: 1.42;
+  vertical-align: top;
+}
+
+.notion-polish-balanced .notion-page .notion-table-cell-text,
+.notion-polish-balanced .notion-page .notion-table-cell-number,
+.notion-polish-balanced .notion-page .notion-table-cell-url,
+.notion-polish-balanced .notion-page .notion-table-cell-email,
+.notion-polish-balanced .notion-page .notion-table-cell-phone_number {
+  line-height: 1.42;
+}
+
+/* Row icon sizing and baseline (icon-only polish). */
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-link,
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-property-title {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon-inline,
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-title-icon,
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  min-height: 16px !important;
+  max-width: 16px !important;
+  max-height: 16px !important;
+  margin: 1px 6px 0 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  transform: none !important;
+}
+
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon-inline img,
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-title-icon img,
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon img,
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon-inline svg,
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-title-icon svg,
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon svg {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+/* Preserve current wrapping behavior (icon-only patch must not alter text flow). */
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-title-text {
+  min-width: 0;
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+/* Ex Level pills */
+.notion-polish-balanced .notion-page .notion-table-cell-multi_select {
+  padding-top: var(--np-table-cell-py);
+  padding-bottom: var(--np-table-cell-py);
+}
+
+.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-property-multi_select,
+.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-property-select,
+.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-property-status {
+  align-items: center;
+  gap: 4px 6px;
+}
+
+.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-property-multi_select-item,
+.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-property-select-item,
+.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-property-status-item,
+.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-pill {
+  height: 22px;
+  line-height: 1.15;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Column sizing strategy for common inline database layouts. */
+.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-header-inner > .notion-table-th:nth-child(1),
+.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-body > .notion-table-row > .notion-table-cell:nth-child(1) {
+  width: 30%;
+  flex: 0 0 30%;
+  min-width: 0;
+  max-width: 30%;
+}
+
+.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-header-inner > .notion-table-th:nth-child(2),
+.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-body > .notion-table-row > .notion-table-cell:nth-child(2) {
+  width: 13%;
+  flex: 0 0 13%;
+  min-width: 0;
+  max-width: 13%;
+}
+
+.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-header-inner > .notion-table-th:nth-child(3),
+.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-body > .notion-table-row > .notion-table-cell:nth-child(3) {
+  width: 14%;
+  flex: 0 0 14%;
+  min-width: 0;
+  max-width: 14%;
+}
+
+.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-header-inner > .notion-table-th:nth-child(4),
+.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-body > .notion-table-row > .notion-table-cell:nth-child(4) {
+  width: 43%;
+  flex: 0 0 43%;
+  min-width: 0;
+  max-width: 43%;
+}
+
+.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(2)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(3))) .notion-table-header-inner > .notion-table-th:nth-child(1),
+.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(2)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(3))) .notion-table-body > .notion-table-row > .notion-table-cell:nth-child(1) {
+  width: 50%;
+  flex: 0 0 50%;
+  min-width: 0;
+  max-width: 50%;
+}
+
+.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(2)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(3))) .notion-table-header-inner > .notion-table-th:nth-child(2),
+.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(2)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(3))) .notion-table-body > .notion-table-row > .notion-table-cell:nth-child(2) {
+  width: 50%;
+  flex: 0 0 50%;
+  min-width: 0;
+  max-width: 50%;
 }
 
 @media only screen and (max-width: 920px) {

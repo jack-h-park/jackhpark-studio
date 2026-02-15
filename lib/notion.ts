@@ -247,7 +247,10 @@ const normalizeCollectionQueryEntry = (entry: any): Record<string, any> => {
       };
     }
 
-    if (!Array.isArray(normalized.blockIds) || normalized.blockIds.length === 0) {
+    if (
+      !Array.isArray(normalized.blockIds) ||
+      normalized.blockIds.length === 0
+    ) {
       normalized.blockIds = groupedBlockIds;
     }
   }
