@@ -830,8 +830,55 @@ body.dark-mode {
 
 .ai-textarea {
   min-height: 60px;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 1rem 1rem 0.75rem;
   font-size: 0.875rem;
+  resize: vertical;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--ai-role-border-muted) 70%, transparent) transparent;
+  background-image:
+    linear-gradient(
+      135deg,
+      transparent 72%,
+      color-mix(in oklab, var(--ai-role-border-muted) 80%, transparent) 72%,
+      color-mix(in oklab, var(--ai-role-border-muted) 80%, transparent) 76%,
+      transparent 76%
+    ),
+    linear-gradient(
+      135deg,
+      transparent 58%,
+      color-mix(in oklab, var(--ai-role-border-muted) 55%, transparent) 58%,
+      color-mix(in oklab, var(--ai-role-border-muted) 55%, transparent) 62%,
+      transparent 62%
+    );
+  background-size: 14px 14px, 10px 10px;
+  background-position: calc(100% - 6px) calc(100% - 6px),
+    calc(100% - 12px) calc(100% - 12px);
+  background-repeat: no-repeat;
+}
+
+.ai-textarea::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ai-textarea::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background-color: color-mix(
+    in oklab,
+    var(--ai-role-border-muted) 70%,
+    transparent
+  );
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.ai-textarea::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+.ai-textarea::-webkit-resizer {
+  background: transparent;
 }
 
 .ai-select {

@@ -64,7 +64,7 @@ export function CoreBehaviorCard({
                   handleBaseSummaryChange(event.target.value)
                 }
                 rows={3}
-                className="w-full max-w-[64ch]"
+                className="w-full max-w-none"
               />
               <p
                 id="core-summary-description"
@@ -85,7 +85,7 @@ export function CoreBehaviorCard({
                   handleBaseSystemPromptChange(event.target.value)
                 }
                 rows={4}
-                className="w-full max-w-[64ch]"
+                className="w-full max-w-none"
               />
             </div>
           </div>
