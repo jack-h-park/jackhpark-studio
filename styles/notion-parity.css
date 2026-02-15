@@ -175,7 +175,7 @@
   .notion-page
   .notion-collection-header-title
   .notion-page-icon {
-  margin-right: var(--np-heading-icon-gap) !important;
+  margin-right: calc(var(--np-heading-icon-gap) - 1px) !important;
   width: 1em !important;
   height: 1em !important;
   min-width: 1em !important;
@@ -188,7 +188,7 @@
   flex: 0 0 auto !important;
   flex-shrink: 0 !important;
   vertical-align: middle !important;
-  transform: translateY(0.5px) !important;
+  transform: none !important;
 }
 
 .notion-polish-balanced
@@ -322,7 +322,7 @@
   justify-content: center !important;
   flex: 0 0 auto !important;
   margin-right: 5px !important;
-  transform: translateY(0.5px) !important;
+  transform: none !important;
 }
 
 .notion-polish-balanced .notion-page .notion-table-header .notion-collection-column-title-icon img,
@@ -356,6 +356,17 @@
   min-width: 0;
 }
 
+.notion-polish-balanced .notion-page .notion-table-cell-title {
+  overflow: hidden;
+}
+
+/* Root-cause fix: upstream .notion-page-link has fixed height:30px, which clips wrapped titles. */
+.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-link {
+  height: auto !important;
+  min-height: 30px;
+  align-items: flex-start;
+}
+
 .notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon-inline,
 .notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-title-icon,
 .notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon {
@@ -365,7 +376,7 @@
   min-height: 16px !important;
   max-width: 16px !important;
   max-height: 16px !important;
-  margin: 1px 6px 0 0 !important;
+  margin: 0 6px 0 0 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -389,9 +400,12 @@
   min-width: 0;
   display: block;
   white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
   overflow-wrap: anywhere;
   word-break: break-word;
-  line-height: 1.45;
+  line-height: 1.4;
+  padding-bottom: 0;
 }
 
 /* Ex Level pills */
