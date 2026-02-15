@@ -806,12 +806,16 @@ async function runNotionPageIngestion({
         finalMessage =
           processedPages.length === 0
             ? "No Notion pages were available to ingest."
-            : `Processed ${processedPages.length} Notion page(s) workspace-wide; updated ${updatedPages}, skipped ${skippedPages}.`;
+            : stats.errorCount > 0
+              ? `Manual Notion ingestion completed with failures (${stats.errorCount}).`
+              : `Processed ${processedPages.length} Notion page(s) workspace-wide; updated ${updatedPages}, skipped ${skippedPages}.`;
       } else if (includeLinkedPages) {
         finalMessage =
           processedPages.length === 0
             ? "No Notion pages were available to ingest."
-            : `Processed ${processedPages.length} Notion page(s); updated ${updatedPages}, skipped ${skippedPages}.`;
+            : stats.errorCount > 0
+              ? `Manual Notion ingestion completed with failures (${stats.errorCount}).`
+              : `Processed ${processedPages.length} Notion page(s); updated ${updatedPages}, skipped ${skippedPages}.`;
       } else {
         finalMessage =
           updatedPages > 0

@@ -4,15 +4,13 @@ export type RagRetrievalMode = "native" | "langchain";
 export type RagEmbeddingProvider = "openai" | "gemini";
 export type RagFilter = Record<string, unknown>;
 
-const MATCH_RPC_VERSION =
-  process.env.RAG_MATCH_RPC_VERSION === "2" ? "2" : "1";
+const MATCH_RPC_VERSION = process.env.RAG_MATCH_RPC_VERSION === "2" ? "2" : "1";
 
 function getMatchFunctionName(
   mode: RagRetrievalMode,
   provider: RagEmbeddingProvider,
 ): string {
-  const suffix =
-    provider === "gemini" ? "gemini_te4" : "openai_te3s";
+  const suffix = provider === "gemini" ? "gemini_te4" : "openai_te3s";
   const prefix =
     mode === "native" ? "match_native_chunks" : "match_langchain_chunks";
   return `${prefix}_${suffix}_v${MATCH_RPC_VERSION}`;
@@ -64,5 +62,18 @@ export async function matchRagChunksForConfig(
     );
   }
 
-  return Array.isArray(data) ? data : [];
+  const rows = Array.isArray(data) ? data : [];
+  const lowResultThreshold = Math.max(1, Math.floor(matchCount / 2));
+  if (rows.length === 0 || rows.length < lowResultThreshold) {
+    console.warn("[rag:retrieval] low result count", {
+      rpcName,
+      mode,
+      embeddingProvider,
+      matchCount,
+      returned: rows.length,
+      statusPolicy: "active-only",
+    });
+  }
+
+  return rows;
 }

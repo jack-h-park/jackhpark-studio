@@ -7,6 +7,8 @@
 **Status:** authoritative
 **Implementations:** `lib/admin/manual-ingestor.ts`, `lib/rag/index.ts`
 
+Related: [RAG Document Lifecycle](./rag-document-lifecycle.md)
+
 This document details the **Write Path** of the RAG system: how data is fetched, processed, chunked, and stored in the vector database.  
 Canonical invariants on chunking/token budgets, change detection, and ingestion hygiene live in [RAG System](../../canonical/rag/rag-system.md); this page focuses on the implementation hooks that satisfy those invariants.
 

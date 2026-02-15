@@ -20,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { CheckboxChoice } from "@/components/ui/checkbox";
 import { ClientSideDate } from "@/components/ui/client-side-date";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
@@ -74,7 +75,7 @@ type PageProps = {
     personaType: string;
     sourceType: string;
     isPublic: string;
-    status: string;
+    status: string[];
   };
   headerRecordMap: any;
   headerBlockId: string;
@@ -118,6 +119,10 @@ function formatStatusLabel(status: RagDocumentRecord["status"]): string {
     return "unknown";
   }
   return status.replaceAll("_", " ");
+}
+
+function isRetrievalEligible(status: RagDocumentRecord["status"]): boolean {
+  return status === "active";
 }
 
 function formatSourceUrlForDisplay(sourceUrl: string): string {
@@ -342,7 +347,7 @@ export default function AdminDocumentsPage({
   const [personaType, setPersonaType] = useState(filters.personaType);
   const [sourceType, setSourceType] = useState(filters.sourceType);
   const [isPublic, setIsPublic] = useState(filters.isPublic);
-  const [statusFilter, setStatusFilter] = useState(filters.status);
+  const [statusFilter, setStatusFilter] = useState<string[]>(filters.status);
   const trimmedQuery = query.trim();
   const {
     docType: defaultDocType,
@@ -414,8 +419,8 @@ export default function AdminDocumentsPage({
       const visibility = isPublic === "true" ? "Public" : "Private";
       pushFilter("Visibility", visibility, visibility);
     }
-    if (statusFilter) {
-      pushFilter("Status", statusFilter);
+    if (statusFilter.length > 0) {
+      pushFilter("Status", statusFilter.join(", "));
     }
 
     return filtersList;
@@ -428,7 +433,7 @@ export default function AdminDocumentsPage({
       personaType !== defaultPersonaType ||
       sourceType !== defaultSourceType ||
       isPublic !== defaultIsPublic ||
-      statusFilter !== defaultStatus,
+      statusFilter.join(",") !== defaultStatus.join(","),
     [
       trimmedQuery,
       search,
@@ -470,6 +475,15 @@ export default function AdminDocumentsPage({
         header: "Title",
         render: (doc) => {
           const info = buildDocumentDisplayInfo(doc);
+          const docType = doc.metadata?.doc_type;
+          const persona = doc.metadata?.persona_type;
+          const visibility =
+            typeof doc.metadata?.is_public === "boolean"
+              ? doc.metadata.is_public
+                ? "Public"
+                : "Private"
+              : null;
+          const metaBits = [docType, persona, visibility].filter(Boolean);
           return (
             <div className="flex flex-col gap-1 min-w-0">
               <div className="flex items-center gap-1 min-w-0 group">
@@ -492,12 +506,17 @@ export default function AdminDocumentsPage({
                 className={styles.titleSecondary}
                 title={info.subtitle ?? doc.doc_id}
               >
-                {info.subtitle ?? doc.doc_id}
+                {info.subtitle ?? ""}
               </p>
+              {metaBits.length > 0 ? (
+                <p className="text-xs text-[color:var(--ai-text-muted)]">
+                  {metaBits.join(" · ")}
+                </p>
+              ) : null}
             </div>
           );
         },
-        className: "min-w-[280px] text-[color:var(--ai-text-muted)]",
+        className: "min-w-[340px] text-[color:var(--ai-text-muted)]",
         size: "sm",
         skeletonWidth: "70%",
       },
@@ -541,75 +560,67 @@ export default function AdminDocumentsPage({
             canonicalId={doc.doc_id}
             rawId={doc.raw_doc_id ?? doc.metadata?.raw_doc_id ?? null}
             compact
+            hideLabel
+            hideRawStatusIcon
           />
         ),
-        size: "sm",
-        className: "max-w-[240px] min-w-0",
-        skeletonWidth: "40%",
-      },
-      {
-        header: "Doc Type",
-        render: (doc) =>
-          doc.metadata?.doc_type ? (
-            <StatusPill variant="muted" className={styles.pillPrimary}>
-              {doc.metadata.doc_type}
-            </StatusPill>
-          ) : (
-            "—"
-          ),
         size: "xs",
-        align: "center",
-        className: "min-w-[110px] text-[color:var(--ai-text-muted)]",
+        width: "140px",
+        className: "max-w-[160px] min-w-[120px]",
         skeletonWidth: "40%",
-      },
-      {
-        header: "Persona",
-        render: (doc) =>
-          doc.metadata?.persona_type ? (
-            <StatusPill variant="muted" className={styles.pillSecondary}>
-              {doc.metadata.persona_type}
-            </StatusPill>
-          ) : (
-            "—"
-          ),
-        size: "xs",
-        align: "center",
-        className: "min-w-[110px] text-[color:var(--ai-text-muted)]",
-        skeletonWidth: "40%",
-      },
-      {
-        header: "Public",
-        render: (doc) =>
-          typeof doc.metadata?.is_public === "boolean" ? (
-            <StatusPill
-              variant={doc.metadata.is_public ? "success" : "muted"}
-              className={styles.pillSecondary}
-            >
-              {doc.metadata.is_public ? "Public" : "Private"}
-            </StatusPill>
-          ) : (
-            "—"
-          ),
-        align: "center",
-        width: "96px",
-        size: "xs",
-        className: "min-w-[96px] text-[color:var(--ai-text-muted)]",
-        skeletonWidth: "30%",
       },
       {
         header: "Status",
         render: (doc) =>
           doc.status ? (
-            <StatusPill variant={getStatusPillVariant(doc.status)}>
-              {formatStatusLabel(doc.status)}
-            </StatusPill>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex flex-col items-start gap-1">
+                  <div className="flex items-center gap-2">
+                    <StatusPill variant={getStatusPillVariant(doc.status)}>
+                      {formatStatusLabel(doc.status)}
+                    </StatusPill>
+                    <StatusPill variant="muted">
+                      {(doc.raw_doc_id ?? doc.metadata?.raw_doc_id)
+                        ? "RAW OK"
+                        : "RAW N/A"}
+                    </StatusPill>
+                  </div>
+                  <span className="text-[11px] text-[color:var(--ai-text-muted)]">
+                    {isRetrievalEligible(doc.status) ? "Eligible" : "Excluded"}
+                  </span>
+                  <span className="text-[11px] text-[color:var(--ai-text-muted)]">
+                    {doc.status === "missing" && doc.missing_detected_at
+                      ? `Missing: ${new Date(
+                          doc.missing_detected_at,
+                        ).toLocaleDateString()}`
+                      : `Fetch: ${doc.last_fetch_status ?? "—"} · Sync: ${
+                          doc.last_sync_success_at
+                            ? new Date(
+                                doc.last_sync_success_at,
+                              ).toLocaleDateString()
+                            : "Never"
+                        }`}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                {doc.status === "active"
+                  ? "Included in retrieval"
+                  : doc.status === "missing"
+                    ? "Excluded (status must be active)"
+                    : doc.status === "soft_deleted"
+                      ? "Excluded (soft-deleted)"
+                      : "Excluded (status must be active)"}
+              </TooltipContent>
+            </Tooltip>
           ) : (
             "—"
           ),
         align: "center",
-        width: "110px",
+        width: "180px",
         size: "xs",
-        className: "min-w-[110px] text-[color:var(--ai-text-muted)]",
+        className: "min-w-[180px] text-[color:var(--ai-text-muted)]",
         skeletonWidth: "35%",
       },
       {
@@ -662,7 +673,7 @@ export default function AdminDocumentsPage({
         personaType: string;
         sourceType: string;
         isPublic: string;
-        status: string;
+        status: string[];
         page: number;
       }>,
     ) => {
@@ -690,8 +701,8 @@ export default function AdminDocumentsPage({
       if (nextIsPublic) {
         params.set("is_public", nextIsPublic);
       }
-      if (nextStatus) {
-        params.set("status", nextStatus);
+      if (nextStatus.length > 0) {
+        params.set("status", nextStatus.join(","));
       }
       if (nextPage > 1) {
         params.set("page", String(nextPage));
@@ -730,14 +741,14 @@ export default function AdminDocumentsPage({
     setPersonaType("");
     setSourceType("");
     setIsPublic("");
-    setStatusFilter("");
+    setStatusFilter(["active", "missing"]);
     applyFilters({
       q: "",
       docType: "",
       personaType: "",
       sourceType: "",
       isPublic: "",
-      status: "",
+      status: ["active", "missing"],
       page: 1,
     });
   }, [applyFilters]);
@@ -792,7 +803,8 @@ export default function AdminDocumentsPage({
                 <CardDescription
                   className={styles.sectionDescriptionLevelThree}
                 >
-                  Find documents by ID, type, persona, visibility, source, or status.
+                  Find documents by ID, type, persona, visibility, source, or
+                  status.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 px-5 py-4">
@@ -884,21 +896,32 @@ export default function AdminDocumentsPage({
                   </div>
                   <div className="md:col-span-2">
                     <Label>Status</Label>
-                    <Select
-                      value={statusFilter}
-                      onValueChange={(value) => setStatusFilter(value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Any" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Any</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="missing">Missing</SelectItem>
-                        <SelectItem value="archived">Archived</SelectItem>
-                        <SelectItem value="soft_deleted">Soft deleted</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className="mt-2 grid grid-cols-1 gap-2">
+                      {[
+                        { value: "active", label: "Active" },
+                        { value: "missing", label: "Missing" },
+                        { value: "archived", label: "Archived" },
+                        { value: "soft_deleted", label: "Soft deleted" },
+                      ].map((option) => (
+                        <CheckboxChoice
+                          key={option.value}
+                          checked={statusFilter.includes(option.value)}
+                          onCheckedChange={(checked) => {
+                            setStatusFilter((prev) => {
+                              if (checked) {
+                                return Array.from(
+                                  new Set([...prev, option.value]),
+                                );
+                              }
+                              return prev.filter(
+                                (value) => value !== option.value,
+                              );
+                            });
+                          }}
+                          label={option.label}
+                        />
+                      ))}
+                    </div>
                   </div>
                   <div className="md:col-span-12 flex justify-end gap-2">
                     <Button
@@ -1052,8 +1075,14 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
     typeof context.query.source_type === "string"
       ? context.query.source_type
       : "";
-  const status =
+  const statusParam =
     typeof context.query.status === "string" ? context.query.status : "";
+  const status = statusParam
+    ? statusParam
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+    : ["active", "missing"];
   const isPublicParam =
     typeof context.query.is_public === "string" ? context.query.is_public : "";
   const isPublic =
@@ -1066,8 +1095,8 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
       { count: "exact" },
     )
     .order("last_ingested_at", { ascending: false, nullsFirst: false });
-  if (status) {
-    query = query.eq("status", status);
+  if (status.length > 0) {
+    query = query.in("status", status);
   }
 
   if (search) {

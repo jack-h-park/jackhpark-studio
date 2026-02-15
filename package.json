@@ -6,7 +6,7 @@
   "author": "Travis Fischer <travis@transitivebullsh.it>",
   "repository": "transitive-bullshit/nextjs-notion-starter-kit",
   "license": "MIT",
-  "packageManager": "pnpm@10.25.0",
+  "packageManager": "pnpm@10.29.3",
   "pnpm": {
     "onlyBuiltDependencies": [
       "canvas",
@@ -52,6 +52,7 @@
     "dev:prewarm": "DEBUG_SURFACES_ENABLED=1 pnpm next dev",
     "dev:prewarm:run": "node scripts/smoke/prewarm-langchain-chat.mjs",
     "dev:prewarm:all": "run-p dev:prewarm dev:prewarm:run",
+    "smoke:admin-ui": "node scripts/smoke/admin-pages-smoke.mjs",
     "smoke:langchain-chat": "node scripts/smoke/smoke-langchain-chat.mjs",
     "smoke:chat": "tsx scripts/smoke/chat-api-smoke.ts",
     "qa:notion-polish": "bash scripts/playwright/notion-polish-visual-regression.sh",

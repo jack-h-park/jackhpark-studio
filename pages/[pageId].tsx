@@ -26,8 +26,11 @@ export const getStaticProps: GetStaticProps<PageProps, Params> = async (
     console.error("page error", domain, rawPageId, err);
 
     // we don't want to publish the error version of this page, so
-    // let next.js know explicitly that incremental SSG failed
-    throw err;
+    // fall back to 404 to avoid failing the build on transient fetch errors
+    return {
+      notFound: true,
+      revalidate: 10,
+    };
   }
 };
 
@@ -39,7 +42,16 @@ export async function getStaticPaths() {
     };
   }
 
-  const siteMap = await getSiteMap();
+  let siteMap;
+  try {
+    siteMap = await getSiteMap();
+  } catch (err) {
+    console.error("site map error", domain, err);
+    return {
+      paths: [],
+      fallback: true,
+    };
+  }
 
   const staticPaths = {
     paths: Object.keys(siteMap.canonicalPageMap).map((pageId) => ({

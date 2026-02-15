@@ -819,9 +819,12 @@ export function ManualIngestionPanel(): JSX.Element {
                 manualStyles.runSummaryHeader,
               )}
             >
-              Processed {formatMetricValue(stats.documentsProcessed)} documents
-              {" — "}
-              {runSummaryHeaderSuffix}
+              {stats.errorCount > 0
+                ? `Completed with failures — Failed ${stats.errorCount}`
+                : `Processed ${formatMetricValue(
+                    stats.documentsProcessed,
+                  )} documents — `}
+              {stats.errorCount > 0 ? null : runSummaryHeaderSuffix}
             </p>
             {/* Verification: header for zero/mixed/error states; zero cards quiet; errors weight >0. */}
             <div className={manualStyles.runSummaryGroups}>

@@ -17,6 +17,13 @@ import { SystemHealthSection } from "@/components/admin/ingestion/SystemHealthSe
 import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
 import { IngestionSubNav } from "@/components/admin/navigation/IngestionSubNav";
 import { AiPageChrome } from "@/components/AiPageChrome";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { LinkButton } from "@/components/ui/link-button";
 import {
   SNAPSHOT_HISTORY_LIMIT,
@@ -55,6 +62,12 @@ type PageProps = {
   headerRecordMap: ExtendedRecordMap | null;
   headerBlockId: string;
   documentsStats: RagDocumentStats | null;
+  lifecycleSummary: {
+    recentMissingCount: number;
+    softDeletedCount: number;
+    recentAuthErrorCount: number;
+    recentWindowLabel: string;
+  };
 };
 
 function IngestionDashboard({
@@ -64,6 +77,7 @@ function IngestionDashboard({
   headerRecordMap,
   headerBlockId,
   documentsStats,
+  lifecycleSummary,
 }: PageProps): JSX.Element {
   return (
     <>
@@ -100,6 +114,40 @@ function IngestionDashboard({
             <ManualIngestionPanel />
             <SnapshotPreviewPanel overview={datasetSnapshot} />
             <RagDocumentsOverview stats={documentsStats} />
+            <Card>
+              <CardHeader>
+                <CardTitle>Lifecycle Summary</CardTitle>
+                <CardDescription>
+                  Signals from recent document sync attempts.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="rounded-md border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-muted)] p-3">
+                  <p className="text-xs text-[var(--ai-text-muted)]">
+                    Missing (recent {lifecycleSummary.recentWindowLabel})
+                  </p>
+                  <p className="text-lg font-semibold">
+                    {lifecycleSummary.recentMissingCount.toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-md border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-muted)] p-3">
+                  <p className="text-xs text-[var(--ai-text-muted)]">
+                    Soft-deleted
+                  </p>
+                  <p className="text-lg font-semibold">
+                    {lifecycleSummary.softDeletedCount.toLocaleString()}
+                  </p>
+                </div>
+                <div className="rounded-md border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-muted)] p-3">
+                  <p className="text-xs text-[var(--ai-text-muted)]">
+                    401/403 (recent {lifecycleSummary.recentWindowLabel})
+                  </p>
+                  <p className="text-lg font-semibold">
+                    {lifecycleSummary.recentAuthErrorCount.toLocaleString()}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
             <SystemHealthSection health={systemHealth} />
             <RecentRunsSection initial={recentRuns} />
           </div>
@@ -176,24 +224,55 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
         run.status === "failed" || run.status === "completed_with_errors",
     ) ?? null;
 
-  const { data: docsData, error: docsError } = await supabase
+  const { data: statsData, error: statsError } = await supabase
     .from("rag_documents")
-    .select(
-      "doc_id, source_url, last_ingested_at, last_source_update, status, last_sync_attempt_at, last_sync_success_at, missing_detected_at, soft_deleted_at, last_fetch_status, last_fetch_error, chunk_count, total_characters, metadata",
-    )
+    .select("doc_id, metadata")
     .order("last_ingested_at", { ascending: false })
     .limit(2000);
 
-  const documentsStats = docsError
+  const { data: docsData, error: docsError } = await supabase
+    .from("rag_documents")
+    .select("doc_id, status, last_sync_attempt_at, last_fetch_status")
+    .order("last_ingested_at", { ascending: false })
+    .limit(2000);
+
+  const documentsStats = statsError
     ? null
     : computeDocumentStats(
-        (docsData ?? [])
+        (statsData ?? [])
           .map((row: unknown) => normalizeRagDocument(row))
           .filter(
             (doc: RagDocumentRecord | null): doc is RagDocumentRecord =>
               doc !== null && typeof doc.doc_id === "string",
           ),
       );
+
+  const normalizedDocs: RagDocumentRecord[] = docsError
+    ? []
+    : (docsData ?? [])
+        .map((row: unknown) => normalizeRagDocument(row))
+        .filter(
+          (doc: RagDocumentRecord | null): doc is RagDocumentRecord =>
+            doc !== null && typeof doc.doc_id === "string",
+        );
+
+  const recentWindowDays = 7;
+  const recentWindowMs = recentWindowDays * 24 * 60 * 60 * 1000;
+  const cutoffMs = Date.now() - recentWindowMs;
+  const recentAttempts = normalizedDocs.filter((doc) => {
+    if (!doc.last_sync_attempt_at) return false;
+    const ts = new Date(doc.last_sync_attempt_at).getTime();
+    return Number.isFinite(ts) && ts >= cutoffMs;
+  });
+  const recentMissingCount = recentAttempts.filter(
+    (doc) => doc.status === "missing",
+  ).length;
+  const softDeletedCount = normalizedDocs.filter(
+    (doc) => doc.status === "soft_deleted",
+  ).length;
+  const recentAuthErrorCount = recentAttempts.filter(
+    (doc) => doc.last_fetch_status === 401 || doc.last_fetch_status === 403,
+  ).length;
 
   const systemHealth: SystemHealthOverview = {
     runId: latestSnapshotRecord?.runId ?? latestRun?.id ?? null,
@@ -241,6 +320,12 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
       headerRecordMap,
       headerBlockId,
       documentsStats,
+      lifecycleSummary: {
+        recentMissingCount,
+        softDeletedCount,
+        recentAuthErrorCount,
+        recentWindowLabel: `${recentWindowDays}d`,
+      },
     },
   };
 };

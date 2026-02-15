@@ -80,6 +80,13 @@ function extractErrorMessage(error: unknown): string | null {
   }
 }
 
+function isNotionNotFound(message: string | null): boolean {
+  if (!message) {
+    return false;
+  }
+  return /not\s+found/i.test(message) && /notion\s+page/i.test(message);
+}
+
 function classifyOutcome(statusCode: number | null, errorCode: string | null) {
   if (statusCode && statusCode >= 200 && statusCode < 300) {
     return "success" as const;
@@ -122,6 +129,16 @@ export function normalizeFetchOutcome({
   const shortError = toShortError(
     [errorCode, message].filter(Boolean).join(": "),
   );
+  const isMissing =
+    (errorCode && MISSING_ERROR_CODES.has(errorCode)) ||
+    isNotionNotFound(message);
+  if (isMissing) {
+    return {
+      classification: "missing",
+      statusCode: statusCode ?? 404,
+      shortError,
+    };
+  }
 
   return {
     classification: classifyOutcome(statusCode, errorCode),
@@ -233,46 +250,59 @@ export async function markMissing(
   docId: string,
   statusCode: number | null,
   errorMessage: string | null,
-): Promise<void> {
+): Promise<{
+  statusUpdated: boolean;
+  missingDetectedAtSet: boolean;
+}> {
+  const now = new Date().toISOString();
   const outcome: FetchOutcome = {
     classification: "missing",
-    statusCode,
+    statusCode: statusCode ?? 404,
     shortError: errorMessage,
   };
   logLifecycle(docId, outcome);
 
   try {
-    const { error: fetchError } = await supabase
+    const { data: statusData, error: statusError } = await supabase
       .from(DOCUMENTS_TABLE)
       .update({
-        last_fetch_status: statusCode,
+        status: "missing",
+        last_fetch_status: statusCode ?? 404,
         last_fetch_error: errorMessage,
+        last_sync_attempt_at: now,
       })
-      .eq("doc_id", docId);
-    if (fetchError) {
-      await logLifecycleError("markMissing.fetch", docId, fetchError);
-    }
-
-    const { error: statusError } = await supabase
-      .from(DOCUMENTS_TABLE)
-      .update({ status: "missing" })
       .eq("doc_id", docId)
-      .neq("status", "soft_deleted");
+      .neq("status", "soft_deleted")
+      .select("doc_id");
     if (statusError) {
       await logLifecycleError("markMissing.status", docId, statusError);
     }
 
-    const { error: missingAtError } = await supabase
+    if (!statusError && (!statusData || statusData.length === 0)) {
+      console.warn("[rag:lifecycle] markMissing affected 0 rows", {
+        docId,
+        statusCode: statusCode ?? 404,
+        errorMessage,
+      });
+    }
+
+    const { data: missingAtData, error: missingAtError } = await supabase
       .from(DOCUMENTS_TABLE)
-      .update({ missing_detected_at: new Date().toISOString() })
+      .update({ missing_detected_at: now })
       .eq("doc_id", docId)
       .neq("status", "soft_deleted")
-      .is("missing_detected_at", null);
+      .is("missing_detected_at", null)
+      .select("doc_id");
     if (missingAtError) {
       await logLifecycleError("markMissing.detectedAt", docId, missingAtError);
     }
+    return {
+      statusUpdated: Boolean(statusData && statusData.length > 0),
+      missingDetectedAtSet: Boolean(missingAtData && missingAtData.length > 0),
+    };
   } catch (err) {
     await logLifecycleError("markMissing", docId, err);
+    return { statusUpdated: false, missingDetectedAtSet: false };
   }
 }
 

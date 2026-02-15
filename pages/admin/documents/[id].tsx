@@ -21,6 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CheckboxChoice } from "@/components/ui/checkbox";
+import { ClientSideDate } from "@/components/ui/client-side-date";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -68,6 +69,10 @@ function formatStatusLabel(status: RagDocumentRecord["status"]): string {
     return "unknown";
   }
   return status.replaceAll("_", " ");
+}
+
+function isRetrievalEligible(status: RagDocumentRecord["status"]): boolean {
+  return status === "active";
 }
 
 type PageProps = {
@@ -182,11 +187,33 @@ export default function AdminDocumentDetailPage({
     createMetadataSnapshot(document),
   );
   const [isDirty, setIsDirty] = useState(false);
+  const retrievalEligible = isRetrievalEligible(document.status);
 
   const sourceType =
     typeof document.metadata?.source_type === "string"
       ? document.metadata.source_type
       : "notion";
+
+  const fetchStatus = document.last_fetch_status;
+  const fetchError = document.last_fetch_error;
+  const suggestedNextAction = useMemo(() => {
+    if (document.status === "soft_deleted") {
+      return "Document is soft-deleted; remove soft deletion to restore retrieval.";
+    }
+    if (document.status === "missing") {
+      if (fetchStatus === 404) {
+        return "Check whether the Notion page was moved or deleted.";
+      }
+      if (fetchStatus === 401 || fetchStatus === 403) {
+        return "Check Notion auth/token permissions for this source.";
+      }
+      return "Verify the source is reachable and re-run ingestion.";
+    }
+    if (!retrievalEligible) {
+      return "Document is not eligible for retrieval; review status and ingestion.";
+    }
+    return "No action needed.";
+  }, [document.status, fetchStatus, retrievalEligible]);
 
   const normalizedTagResult = useMemo(
     () => normalizeTagInput(tagsInput),
@@ -453,9 +480,7 @@ export default function AdminDocumentDetailPage({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusPill variant="muted">Source: {sourceType}</StatusPill>
-                  <StatusPill
-                    variant={getStatusPillVariant(document.status)}
-                  >
+                  <StatusPill variant={getStatusPillVariant(document.status)}>
                     Status: {formatStatusLabel(document.status)}
                   </StatusPill>
                   <StatusPill variant="muted">{docType || "Unset"}</StatusPill>
@@ -582,6 +607,124 @@ export default function AdminDocumentDetailPage({
                   showRawCopy
                   rawMissingLabel="(not available)"
                 />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Retrieval Status</CardTitle>
+                <CardDescription>
+                  Eligibility and diagnostics for retrieval.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusPill variant={retrievalEligible ? "success" : "muted"}>
+                    Eligible: {retrievalEligible ? "YES" : "NO"}
+                  </StatusPill>
+                  <StatusPill variant={getStatusPillVariant(document.status)}>
+                    Status: {formatStatusLabel(document.status)}
+                  </StatusPill>
+                  {fetchStatus ? (
+                    <StatusPill variant="muted">
+                      Fetch status: {fetchStatus}
+                    </StatusPill>
+                  ) : null}
+                </div>
+                <div className="text-sm text-[var(--ai-text-muted)]">
+                  Reason:{" "}
+                  {document.status === "active"
+                    ? "Included in retrieval."
+                    : document.status === "missing"
+                      ? "Excluded (status must be active)."
+                      : document.status === "soft_deleted"
+                        ? "Excluded (soft-deleted)."
+                        : "Excluded (status must be active)."}
+                </div>
+                {fetchError ? (
+                  <div className="text-sm text-[var(--ai-text-muted)]">
+                    Last error: {fetchError}
+                  </div>
+                ) : null}
+                <div className="rounded-md border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-muted)] p-3 text-sm text-[var(--ai-text-muted)]">
+                  Suggested next action: {suggestedNextAction}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Lifecycle Timeline</CardTitle>
+                <CardDescription>
+                  Recent lifecycle events and sync metadata.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+                <div>
+                  <p className="text-xs text-[var(--ai-text-muted)]">
+                    Last sync attempt
+                  </p>
+                  <p>
+                    {document.last_sync_attempt_at ? (
+                      <ClientSideDate value={document.last_sync_attempt_at} />
+                    ) : (
+                      "Never"
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--ai-text-muted)]">
+                    Last sync success
+                  </p>
+                  <p>
+                    {document.last_sync_success_at ? (
+                      <ClientSideDate value={document.last_sync_success_at} />
+                    ) : (
+                      "Never"
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--ai-text-muted)]">
+                    Missing detected at
+                  </p>
+                  <p>
+                    {document.missing_detected_at ? (
+                      <ClientSideDate value={document.missing_detected_at} />
+                    ) : (
+                      "—"
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--ai-text-muted)]">
+                    Soft deleted at
+                  </p>
+                  <p>
+                    {document.soft_deleted_at ? (
+                      <ClientSideDate value={document.soft_deleted_at} />
+                    ) : (
+                      "—"
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--ai-text-muted)]">
+                    Last fetch status
+                  </p>
+                  <p>{document.last_fetch_status ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--ai-text-muted)]">
+                    Last fetch error
+                  </p>
+                  <p
+                    className="truncate"
+                    title={document.last_fetch_error ?? ""}
+                  >
+                    {document.last_fetch_error ?? "—"}
+                  </p>
+                </div>
               </CardContent>
             </Card>
 

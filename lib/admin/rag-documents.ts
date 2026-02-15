@@ -57,9 +57,7 @@ export function normalizeRagDocument(input: unknown): RagDocumentRecord | null {
     last_sync_success_at: normalizeTimestamp(
       record.last_sync_success_at ?? null,
     ),
-    missing_detected_at: normalizeTimestamp(
-      record.missing_detected_at ?? null,
-    ),
+    missing_detected_at: normalizeTimestamp(record.missing_detected_at ?? null),
     soft_deleted_at: normalizeTimestamp(record.soft_deleted_at ?? null),
     last_fetch_status:
       typeof record.last_fetch_status === "number"

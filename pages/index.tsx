@@ -15,8 +15,11 @@ export const getStaticProps = async () => {
     console.error("page error", domain, err);
 
     // we don't want to publish the error version of this page, so
-    // let next.js know explicitly that incremental SSG failed
-    throw err;
+    // fall back to 404 to avoid failing the build on transient fetch errors
+    return {
+      notFound: true,
+      revalidate: 10,
+    };
   }
 };
 

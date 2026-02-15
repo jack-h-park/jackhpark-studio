@@ -20,6 +20,8 @@ type DocumentIdCellProps = {
   showRawCopy?: boolean;
   rawMissingLabel?: string;
   compact?: boolean;
+  hideLabel?: boolean;
+  hideRawStatusIcon?: boolean;
 };
 
 const ID_SHORT_HEAD = 8;
@@ -48,6 +50,8 @@ export function DocumentIdCell({
   showRawCopy,
   rawMissingLabel,
   compact = false,
+  hideLabel = false,
+  hideRawStatusIcon = false,
 }: DocumentIdCellProps) {
   const [copied, setCopied] = useState<"canonical" | "raw" | null>(null);
   const rawMissingText = rawMissingLabel ?? (short ? "—" : "(not available)");
@@ -164,14 +168,36 @@ export function DocumentIdCell({
     : "space-y-3 rounded-[var(--ai-radius-lg)] border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-muted)] p-3";
 
   if (compact) {
+    if (hideLabel) {
+      return (
+        <div className={cn(containerClass, className)}>
+          <div className="flex items-center justify-between gap-2">
+            <p
+              className="min-w-0 truncate text-xs font-mono text-[color:var(--ai-text)]"
+              title={canonicalId}
+            >
+              {canonicalDisplay}
+            </p>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {renderCopyIcon("canonical")}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={cn(containerClass, className)}>
         <div className="flex items-center justify-between gap-2">
-          <span className="ai-label-overline text-[color:var(--ai-text-muted)]">
-            Identifier
-          </span>
+          {!hideLabel ? (
+            <span className="ai-label-overline text-[color:var(--ai-text-muted)]">
+              Identifier
+            </span>
+          ) : (
+            <span />
+          )}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {renderRawStatusIcon()}
+            {hideRawStatusIcon ? null : renderRawStatusIcon()}
           </div>
         </div>
         <div className="flex items-center justify-between gap-2">
