@@ -74,6 +74,7 @@ type PageProps = {
     personaType: string;
     sourceType: string;
     isPublic: string;
+    status: string;
   };
   headerRecordMap: any;
   headerBlockId: string;
@@ -94,6 +95,30 @@ type ActiveFilterDescriptor = {
   display: string;
   full: string;
 };
+
+function getStatusPillVariant(
+  status: RagDocumentRecord["status"],
+): "success" | "warning" | "error" | "info" | "muted" {
+  switch (status) {
+    case "active":
+      return "success";
+    case "missing":
+      return "warning";
+    case "archived":
+      return "info";
+    case "soft_deleted":
+      return "muted";
+    default:
+      return "muted";
+  }
+}
+
+function formatStatusLabel(status: RagDocumentRecord["status"]): string {
+  if (!status) {
+    return "unknown";
+  }
+  return status.replaceAll("_", " ");
+}
 
 function formatSourceUrlForDisplay(sourceUrl: string): string {
   try {
@@ -317,12 +342,14 @@ export default function AdminDocumentsPage({
   const [personaType, setPersonaType] = useState(filters.personaType);
   const [sourceType, setSourceType] = useState(filters.sourceType);
   const [isPublic, setIsPublic] = useState(filters.isPublic);
+  const [statusFilter, setStatusFilter] = useState(filters.status);
   const trimmedQuery = query.trim();
   const {
     docType: defaultDocType,
     personaType: defaultPersonaType,
     sourceType: defaultSourceType,
     isPublic: defaultIsPublic,
+    status: defaultStatus,
   } = filters;
   const [isNavigating, setIsNavigating] = useState(false);
   const [navigationError, setNavigationError] = useState<string | null>(null);
@@ -387,9 +414,12 @@ export default function AdminDocumentsPage({
       const visibility = isPublic === "true" ? "Public" : "Private";
       pushFilter("Visibility", visibility, visibility);
     }
+    if (statusFilter) {
+      pushFilter("Status", statusFilter);
+    }
 
     return filtersList;
-  }, [docType, isPublic, personaType, sourceType, trimmedQuery]);
+  }, [docType, isPublic, personaType, sourceType, statusFilter, trimmedQuery]);
 
   const isFilterDirty = useMemo(
     () =>
@@ -397,7 +427,8 @@ export default function AdminDocumentsPage({
       docType !== defaultDocType ||
       personaType !== defaultPersonaType ||
       sourceType !== defaultSourceType ||
-      isPublic !== defaultIsPublic,
+      isPublic !== defaultIsPublic ||
+      statusFilter !== defaultStatus,
     [
       trimmedQuery,
       search,
@@ -409,6 +440,8 @@ export default function AdminDocumentsPage({
       defaultSourceType,
       isPublic,
       defaultIsPublic,
+      statusFilter,
+      defaultStatus,
     ],
   );
 
@@ -564,6 +597,22 @@ export default function AdminDocumentsPage({
         skeletonWidth: "30%",
       },
       {
+        header: "Status",
+        render: (doc) =>
+          doc.status ? (
+            <StatusPill variant={getStatusPillVariant(doc.status)}>
+              {formatStatusLabel(doc.status)}
+            </StatusPill>
+          ) : (
+            "—"
+          ),
+        align: "center",
+        width: "110px",
+        size: "xs",
+        className: "min-w-[110px] text-[color:var(--ai-text-muted)]",
+        skeletonWidth: "35%",
+      },
+      {
         header: "Last Ingested",
         render: (doc) =>
           doc.last_ingested_at ? (
@@ -613,6 +662,7 @@ export default function AdminDocumentsPage({
         personaType: string;
         sourceType: string;
         isPublic: string;
+        status: string;
         page: number;
       }>,
     ) => {
@@ -621,6 +671,7 @@ export default function AdminDocumentsPage({
       const nextPersonaType = override?.personaType ?? personaType;
       const nextSourceType = override?.sourceType ?? sourceType;
       const nextIsPublic = override?.isPublic ?? isPublic;
+      const nextStatus = override?.status ?? statusFilter;
       const nextPage = override?.page ?? 1;
 
       const params = new URLSearchParams();
@@ -639,6 +690,9 @@ export default function AdminDocumentsPage({
       if (nextIsPublic) {
         params.set("is_public", nextIsPublic);
       }
+      if (nextStatus) {
+        params.set("status", nextStatus);
+      }
       if (nextPage > 1) {
         params.set("page", String(nextPage));
       }
@@ -652,7 +706,7 @@ export default function AdminDocumentsPage({
         { scroll: true },
       );
     },
-    [docType, isPublic, personaType, query, router, sourceType],
+    [docType, isPublic, personaType, query, router, sourceType, statusFilter],
   );
 
   const handleSearchSubmit = useCallback(
@@ -676,12 +730,14 @@ export default function AdminDocumentsPage({
     setPersonaType("");
     setSourceType("");
     setIsPublic("");
+    setStatusFilter("");
     applyFilters({
       q: "",
       docType: "",
       personaType: "",
       sourceType: "",
       isPublic: "",
+      status: "",
       page: 1,
     });
   }, [applyFilters]);
@@ -736,7 +792,7 @@ export default function AdminDocumentsPage({
                 <CardDescription
                   className={styles.sectionDescriptionLevelThree}
                 >
-                  Find documents by ID, type, persona, visibility, or source.
+                  Find documents by ID, type, persona, visibility, source, or status.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3 px-5 py-4">
@@ -744,7 +800,7 @@ export default function AdminDocumentsPage({
                   className="grid grid-cols-1 gap-3 md:grid-cols-12 md:gap-4"
                   onSubmit={handleSearchSubmit}
                 >
-                  <div className="md:col-span-4">
+                  <div className="md:col-span-3">
                     <Label htmlFor="search">Search</Label>
                     <Input
                       id="search"
@@ -810,7 +866,7 @@ export default function AdminDocumentsPage({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-1">
                     <Label>Public</Label>
                     <Select
                       value={isPublic}
@@ -823,6 +879,24 @@ export default function AdminDocumentsPage({
                         <SelectItem value="">Any</SelectItem>
                         <SelectItem value="true">Public</SelectItem>
                         <SelectItem value="false">Private</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>Status</Label>
+                    <Select
+                      value={statusFilter}
+                      onValueChange={(value) => setStatusFilter(value)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">Any</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="missing">Missing</SelectItem>
+                        <SelectItem value="archived">Archived</SelectItem>
+                        <SelectItem value="soft_deleted">Soft deleted</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -841,17 +915,20 @@ export default function AdminDocumentsPage({
                 </form>
                 {activeFilters.length > 0 ? (
                   <div
-                    className="flex flex-wrap items-center gap-2 text-xs text-[color:var(--ai-text-muted)]"
+                    className={cn(
+                      "flex flex-wrap items-center gap-2 text-xs text-[color:var(--ai-text-muted)]",
+                      styles.activeFilters,
+                    )}
                     aria-live="polite"
                   >
                     <span className="font-semibold text-[color:var(--ai-text-muted)]">
                       Active filters:
                     </span>
-                    <div className="flex flex-wrap items-center gap-1">
+                    <div className={styles.activeFiltersTokens}>
                       {visibleFilters.map((filter, index) => (
                         <span
                           key={`${filter.display}-${index}`}
-                          className="flex items-center gap-1"
+                          className={styles.activeFilterToken}
                         >
                           {index > 0 ? (
                             <span className="text-[color:var(--ai-text-muted)]">
@@ -859,7 +936,7 @@ export default function AdminDocumentsPage({
                             </span>
                           ) : null}
                           <span
-                            className="max-w-[12ch] truncate"
+                            className={styles.activeFilterLabel}
                             title={filter.full}
                           >
                             {filter.display}
@@ -975,6 +1052,8 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
     typeof context.query.source_type === "string"
       ? context.query.source_type
       : "";
+  const status =
+    typeof context.query.status === "string" ? context.query.status : "";
   const isPublicParam =
     typeof context.query.is_public === "string" ? context.query.is_public : "";
   const isPublic =
@@ -983,10 +1062,13 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   let query = supabase
     .from("rag_documents")
     .select(
-      "doc_id, raw_doc_id, source_url, last_ingested_at, last_source_update, chunk_count, total_characters, metadata",
+      "doc_id, raw_doc_id, source_url, last_ingested_at, last_source_update, status, last_sync_attempt_at, last_sync_success_at, missing_detected_at, soft_deleted_at, last_fetch_status, last_fetch_error, chunk_count, total_characters, metadata",
       { count: "exact" },
     )
     .order("last_ingested_at", { ascending: false, nullsFirst: false });
+  if (status) {
+    query = query.eq("status", status);
+  }
 
   if (search) {
     const pattern = `%${search}%`;
@@ -1041,6 +1123,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
         personaType,
         sourceType,
         isPublic,
+        status,
       },
       headerRecordMap,
       headerBlockId,

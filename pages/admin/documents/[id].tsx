@@ -46,6 +46,30 @@ const PAGE_TITLE = "RAG Document Details";
 const PAGE_TAB_TITLE =
   "Admin · Ingestion · RAG Document Details — Jack H. Park";
 
+function getStatusPillVariant(
+  status: RagDocumentRecord["status"],
+): "success" | "warning" | "error" | "info" | "muted" {
+  switch (status) {
+    case "active":
+      return "success";
+    case "missing":
+      return "warning";
+    case "archived":
+      return "info";
+    case "soft_deleted":
+      return "muted";
+    default:
+      return "muted";
+  }
+}
+
+function formatStatusLabel(status: RagDocumentRecord["status"]): string {
+  if (!status) {
+    return "unknown";
+  }
+  return status.replaceAll("_", " ");
+}
+
 type PageProps = {
   document: RagDocumentRecord;
   headerRecordMap: any;
@@ -429,6 +453,11 @@ export default function AdminDocumentDetailPage({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusPill variant="muted">Source: {sourceType}</StatusPill>
+                  <StatusPill
+                    variant={getStatusPillVariant(document.status)}
+                  >
+                    Status: {formatStatusLabel(document.status)}
+                  </StatusPill>
                   <StatusPill variant="muted">{docType || "Unset"}</StatusPill>
                   <StatusPill variant="muted">
                     {personaType || "Unset"}
@@ -646,7 +675,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   const { data, error } = await supabase
     .from("rag_documents")
     .select(
-      "doc_id, raw_doc_id, source_url, last_ingested_at, last_source_update, chunk_count, total_characters, metadata",
+      "doc_id, raw_doc_id, source_url, last_ingested_at, last_source_update, status, last_sync_attempt_at, last_sync_success_at, missing_detected_at, soft_deleted_at, last_fetch_status, last_fetch_error, chunk_count, total_characters, metadata",
     )
     .eq("doc_id", docId)
     .maybeSingle();

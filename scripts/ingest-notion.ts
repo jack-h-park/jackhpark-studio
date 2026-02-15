@@ -6,6 +6,7 @@ import pMap from "p-map";
 
 import { rootNotionPageId as configRootNotionPageId } from "../lib/config";
 import { resolveEmbeddingSpace } from "../lib/core/embedding-spaces";
+import { supabaseClient } from "../lib/core/supabase";
 import {
   chunkByTokens,
   type ChunkInsert,
@@ -42,6 +43,14 @@ import {
   buildNotionSourceMetadata,
   extractNotionMetadata,
 } from "../lib/rag/notion-metadata";
+import {
+  markAttempt,
+  markAuthError,
+  markFetchError,
+  markMissing,
+  markSuccess,
+  normalizeFetchOutcome,
+} from "../lib/rag/ragDocumentLifecycle";
 import { deriveDocIdentifiers } from "../lib/server/doc-identifiers";
 import { formatNotionPageId } from "../lib/server/page-url";
 
@@ -136,6 +145,7 @@ async function ingestPage(
   const plainText = extractPlainText(recordMap, pageId);
 
   if (!plainText) {
+    await markSuccess(supabaseClient, canonicalId, 200);
     console.warn(`No readable content for Notion page ${pageId}; skipping`);
     stats.documentsSkipped += 1;
     return;
@@ -198,6 +208,7 @@ async function ingestPage(
   });
 
   if (decision === "skip") {
+    await markSuccess(supabaseClient, canonicalId, 200);
     console.log(
       `Skipping unchanged Notion page: ${title} (content and metadata unchanged)`,
     );
@@ -216,6 +227,7 @@ async function ingestPage(
       chunk_count: existingState?.chunk_count ?? undefined,
       total_characters: existingState?.total_characters ?? undefined,
     });
+    await markSuccess(supabaseClient, canonicalId, 200);
 
     stats.documentsUpdated += 1;
     console.log(
@@ -236,6 +248,7 @@ async function ingestPage(
 
   const chunks = chunkByTokens(plainText, 450, 75);
   if (chunks.length === 0) {
+    await markSuccess(supabaseClient, canonicalId, 200);
     console.warn(`Chunking produced no content for ${pageId}; skipping`);
     stats.documentsSkipped += 1;
     return;
@@ -278,6 +291,7 @@ async function ingestPage(
     total_characters: totalCharacters,
     metadata: metadataWithIds,
   });
+  await markSuccess(supabaseClient, canonicalId, 200);
 
   if (existingState) {
     stats.documentsUpdated += 1;
@@ -306,7 +320,39 @@ async function ingestWorkspace(
   const pageMap = await getAllPagesInSpace(
     rootPageId,
     undefined,
-    async (pageId) => notion.getPage(pageId),
+    async (pageId) => {
+      const rawNotionId = formatNotionPageId(pageId) ?? pageId;
+      const { canonicalId } = deriveDocIdentifiers(rawNotionId);
+      await markAttempt(supabaseClient, canonicalId);
+      try {
+        return await notion.getPage(pageId);
+      } catch (err) {
+        const outcome = normalizeFetchOutcome({ error: err });
+        if (outcome.classification === "missing") {
+          await markMissing(
+            supabaseClient,
+            canonicalId,
+            outcome.statusCode,
+            outcome.shortError,
+          );
+        } else if (outcome.classification === "auth") {
+          await markAuthError(
+            supabaseClient,
+            canonicalId,
+            outcome.statusCode,
+            outcome.shortError,
+          );
+        } else {
+          await markFetchError(
+            supabaseClient,
+            canonicalId,
+            outcome.statusCode,
+            outcome.shortError,
+          );
+        }
+        throw err;
+      }
+    },
   );
 
   console.log(`Found ${Object.keys(pageMap).length} total pages.`);
@@ -348,6 +394,9 @@ async function ingestSinglePage(
 ) {
   debugIngestionLog("single-page-mode", { pageId });
   try {
+    const rawNotionId = formatNotionPageId(pageId) ?? pageId;
+    const { canonicalId } = deriveDocIdentifiers(rawNotionId);
+    await markAttempt(supabaseClient, canonicalId);
     const recordMap = await notion.getPage(pageId);
     await ingestPage(pageId, recordMap, stats, ingestionType);
   } catch (err) {
@@ -357,6 +406,31 @@ async function ingestSinglePage(
       doc_id: pageId,
       message,
     });
+    const rawNotionId = formatNotionPageId(pageId) ?? pageId;
+    const { canonicalId } = deriveDocIdentifiers(rawNotionId);
+    const outcome = normalizeFetchOutcome({ error: err });
+    if (outcome.classification === "missing") {
+      await markMissing(
+        supabaseClient,
+        canonicalId,
+        outcome.statusCode,
+        outcome.shortError,
+      );
+    } else if (outcome.classification === "auth") {
+      await markAuthError(
+        supabaseClient,
+        canonicalId,
+        outcome.statusCode,
+        outcome.shortError,
+      );
+    } else {
+      await markFetchError(
+        supabaseClient,
+        canonicalId,
+        outcome.statusCode,
+        outcome.shortError,
+      );
+    }
     console.error(`Failed to ingest Notion page ${pageId}: ${message}`);
   }
 }

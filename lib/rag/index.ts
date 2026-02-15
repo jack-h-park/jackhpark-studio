@@ -664,6 +664,7 @@ export type ExtractedArticle = {
   title: string;
   text: string;
   lastModified: string | null;
+  statusCode: number;
 };
 
 export async function extractMainContent(
@@ -676,9 +677,12 @@ export async function extractMainContent(
   });
 
   if (!response.ok) {
-    throw new Error(
+    const error = new Error(
       `Failed to fetch ${url}: ${response.status} ${response.statusText}`,
     );
+    (error as { status?: number }).status = response.status;
+    (error as { statusCode?: number }).statusCode = response.status;
+    throw error;
   }
 
   const html = await response.text();
@@ -705,7 +709,7 @@ export async function extractMainContent(
       .filter(Boolean)
       .join("\n\n");
 
-    return { title, text, lastModified };
+    return { title, text, lastModified, statusCode: response.status };
   } finally {
     dom.window.close();
   }

@@ -2,6 +2,7 @@
 import pMap from "p-map";
 
 import { resolveEmbeddingSpace } from "../lib/core/embedding-spaces";
+import { supabaseClient } from "../lib/core/supabase";
 import { ingestionLogger } from "../lib/logging/logger";
 import {
   chunkByTokens,
@@ -30,6 +31,14 @@ import {
   normalizeMetadata,
   stripDocIdentifierFields,
 } from "../lib/rag/metadata";
+import {
+  markAttempt,
+  markAuthError,
+  markFetchError,
+  markMissing,
+  markSuccess,
+  normalizeFetchOutcome,
+} from "../lib/rag/ragDocumentLifecycle";
 import { buildUrlRagDocumentMetadata } from "../lib/rag/url-metadata";
 import { deriveDocIdentifiers } from "../lib/server/doc-identifiers";
 
@@ -103,10 +112,42 @@ async function ingestUrl(
   const { canonicalId, rawId } = deriveDocIdentifiers(normalizedUrl);
   // NOTE: ID-sensitive ingestion path: must use deriveDocIdentifiers for doc_id/raw_doc_id.
 
-  const { title, text, lastModified }: ExtractedArticle =
-    await extractMainContent(normalizedUrl);
+  await markAttempt(supabaseClient, canonicalId);
+
+  let article: ExtractedArticle;
+  try {
+    article = await extractMainContent(normalizedUrl);
+  } catch (err) {
+    const outcome = normalizeFetchOutcome({ error: err });
+    if (outcome.classification === "missing") {
+      await markMissing(
+        supabaseClient,
+        canonicalId,
+        outcome.statusCode,
+        outcome.shortError,
+      );
+    } else if (outcome.classification === "auth") {
+      await markAuthError(
+        supabaseClient,
+        canonicalId,
+        outcome.statusCode,
+        outcome.shortError,
+      );
+    } else {
+      await markFetchError(
+        supabaseClient,
+        canonicalId,
+        outcome.statusCode,
+        outcome.shortError,
+      );
+    }
+    throw err;
+  }
+
+  const { title, text, lastModified, statusCode } = article;
 
   if (!text) {
+    await markSuccess(supabaseClient, canonicalId, statusCode);
     ingestionLogger.error(
       `[ingest-url] No text content extracted for ${normalizedUrl}; skipping`,
     );
@@ -159,6 +200,7 @@ async function ingestUrl(
   });
 
   if (shouldSkip) {
+    await markSuccess(supabaseClient, canonicalId, statusCode);
     ingestionLogger.info(`[ingest-url] Skipping unchanged URL: ${title}`);
     stats.documentsSkipped += 1;
     return;
@@ -167,6 +209,7 @@ async function ingestUrl(
   const chunks = chunkByTokens(text, 450, 75);
 
   if (chunks.length === 0) {
+    await markSuccess(supabaseClient, canonicalId, statusCode);
     ingestionLogger.error(
       `[ingest-url] Extracted content for ${normalizedUrl} produced no chunks; skipping`,
     );
@@ -211,6 +254,7 @@ async function ingestUrl(
     total_characters: totalCharacters,
     metadata: metadataWithIds,
   });
+  await markSuccess(supabaseClient, canonicalId, statusCode);
 
   if (existingState) {
     stats.documentsUpdated += 1;

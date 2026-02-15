@@ -4,6 +4,20 @@ export type RagRetrievalMode = "native" | "langchain";
 export type RagEmbeddingProvider = "openai" | "gemini";
 export type RagFilter = Record<string, unknown>;
 
+const MATCH_RPC_VERSION =
+  process.env.RAG_MATCH_RPC_VERSION === "2" ? "2" : "1";
+
+function getMatchFunctionName(
+  mode: RagRetrievalMode,
+  provider: RagEmbeddingProvider,
+): string {
+  const suffix =
+    provider === "gemini" ? "gemini_te4" : "openai_te3s";
+  const prefix =
+    mode === "native" ? "match_native_chunks" : "match_langchain_chunks";
+  return `${prefix}_${suffix}_v${MATCH_RPC_VERSION}`;
+}
+
 export interface RagRetrievalOptions {
   client: SupabaseClient;
   embedding: number[];
@@ -27,17 +41,7 @@ export async function matchRagChunksForConfig(
     embeddingProvider,
   } = options;
 
-  const rpcName = (() => {
-    if (mode === "native") {
-      return embeddingProvider === "gemini"
-        ? "match_rag_chunks_native_gemini"
-        : "match_rag_chunks_native_openai";
-    }
-
-    return embeddingProvider === "gemini"
-      ? "match_rag_chunks_langchain_gemini"
-      : "match_rag_chunks_langchain_openai";
-  })();
+  const rpcName = getMatchFunctionName(mode, embeddingProvider);
 
   const payload =
     mode === "native"

@@ -136,7 +136,7 @@
 
 .tableFooter {
   border-top: 1px solid var(--ai-role-divider-muted);
-  padding: 0.75rem 0 0;
+  padding: 0.75rem 1rem 0;
   margin: 0 0 var(--ai-space-1);
   gap: var(--ai-space-3);
   align-items: baseline;
@@ -144,8 +144,34 @@
 
 .tableFooter :global(div:first-child) {
   flex: 1;
+  padding-left: 0.5rem;
 }
 
 .tableFooter :global(div:last-child) {
   gap: var(--ai-space-2) !important;
+  padding-right: 0.5rem;
+}
+
+.activeFilters {
+  margin-top: 0.25rem;
+  padding-left: 0.25rem;
+}
+
+.activeFiltersTokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.activeFilterToken {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.activeFilterLabel {
+  max-width: 20ch;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

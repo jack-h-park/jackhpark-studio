@@ -14,6 +14,13 @@ export type RagDocumentRecord = {
   source_url: string | null;
   last_ingested_at: string | null;
   last_source_update: string | null;
+  status: "active" | "archived" | "missing" | "soft_deleted" | null;
+  last_sync_attempt_at: string | null;
+  last_sync_success_at: string | null;
+  missing_detected_at: string | null;
+  soft_deleted_at: string | null;
+  last_fetch_status: number | null;
+  last_fetch_error: string | null;
   chunk_count: number | null;
   total_characters: number | null;
   metadata: RagDocumentMetadata | null;
@@ -40,6 +47,28 @@ export function normalizeRagDocument(input: unknown): RagDocumentRecord | null {
       typeof record.source_url === "string" ? record.source_url : null,
     last_ingested_at: normalizeTimestamp(record.last_ingested_at ?? null),
     last_source_update: normalizeTimestamp(record.last_source_update ?? null),
+    status:
+      typeof record.status === "string"
+        ? (record.status as RagDocumentRecord["status"])
+        : null,
+    last_sync_attempt_at: normalizeTimestamp(
+      record.last_sync_attempt_at ?? null,
+    ),
+    last_sync_success_at: normalizeTimestamp(
+      record.last_sync_success_at ?? null,
+    ),
+    missing_detected_at: normalizeTimestamp(
+      record.missing_detected_at ?? null,
+    ),
+    soft_deleted_at: normalizeTimestamp(record.soft_deleted_at ?? null),
+    last_fetch_status:
+      typeof record.last_fetch_status === "number"
+        ? record.last_fetch_status
+        : null,
+    last_fetch_error:
+      typeof record.last_fetch_error === "string"
+        ? record.last_fetch_error
+        : null,
     chunk_count:
       typeof record.chunk_count === "number" ? record.chunk_count : null,
     total_characters:

@@ -4,6 +4,7 @@ import { getAllPagesInSpace, parsePageId } from "notion-utils";
 
 import type { ModelProvider } from "../shared/model-provider";
 import { resolveEmbeddingSpace } from "../core/embedding-spaces";
+import { supabaseClient } from "../core/supabase";
 import { getSiteConfig } from "../get-config-value";
 import { debugIngestionLog } from "../rag/debug";
 import {
@@ -12,6 +13,7 @@ import {
   createEmptyRunStats,
   embedBatch,
   type EmbedBatchOptions,
+  type ExtractedArticle,
   extractMainContent,
   extractPlainText,
   finishIngestRun,
@@ -48,6 +50,14 @@ import {
   buildNotionSourceMetadata,
   extractNotionMetadata,
 } from "../rag/notion-metadata";
+import {
+  markAttempt,
+  markAuthError,
+  markFetchError,
+  markMissing,
+  markSuccess,
+  normalizeFetchOutcome,
+} from "../rag/ragDocumentLifecycle";
 import { buildUrlRagDocumentMetadata } from "../rag/url-metadata";
 import { deriveDocIdentifiers } from "../server/doc-identifiers";
 import { formatNotionPageId } from "../server/page-url";
@@ -288,6 +298,7 @@ async function ingestNotionPage({
   const plainText = extractPlainText(recordMap, pageId);
 
   if (!plainText) {
+    await markSuccess(supabaseClient, canonicalId, 200);
     stats.documentsSkipped += 1;
     await emit({
       type: "log",
@@ -365,6 +376,7 @@ async function ingestNotionPage({
   });
 
   if (decision === "skip") {
+    await markSuccess(supabaseClient, canonicalId, 200);
     stats.documentsSkipped += 1;
     await emit({
       type: "log",
@@ -385,6 +397,7 @@ async function ingestNotionPage({
       chunk_count: existingState?.chunk_count ?? undefined,
       total_characters: existingState?.total_characters ?? undefined,
     });
+    await markSuccess(supabaseClient, canonicalId, 200);
 
     stats.documentsUpdated += 1;
     await emit({
@@ -409,6 +422,7 @@ async function ingestNotionPage({
 
   const chunks = chunkByTokens(plainText, 450, 75);
   if (chunks.length === 0) {
+    await markSuccess(supabaseClient, canonicalId, 200);
     stats.documentsSkipped += 1;
     await emit({
       type: "log",
@@ -460,6 +474,7 @@ async function ingestNotionPage({
     total_characters: totalCharacters,
     metadata: metadataWithIds,
   });
+  await markSuccess(supabaseClient, canonicalId, 200);
 
   if (existingState) {
     stats.documentsUpdated += 1;
@@ -687,6 +702,9 @@ async function runNotionPageIngestion({
       let recordMap: ExtendedRecordMap | null = null;
 
       try {
+        const rawNotionId = formatNotionPageId(currentPageId) ?? currentPageId;
+        const { canonicalId } = deriveDocIdentifiers(rawNotionId);
+        await markAttempt(supabaseClient, canonicalId);
         await emit({
           type: "log",
           level: "info",
@@ -702,6 +720,31 @@ async function runNotionPageIngestion({
           doc_id: currentPageId,
           message,
         });
+        const rawNotionId = formatNotionPageId(currentPageId) ?? currentPageId;
+        const { canonicalId } = deriveDocIdentifiers(rawNotionId);
+        const outcome = normalizeFetchOutcome({ error: err });
+        if (outcome.classification === "missing") {
+          await markMissing(
+            supabaseClient,
+            canonicalId,
+            outcome.statusCode,
+            outcome.shortError,
+          );
+        } else if (outcome.classification === "auth") {
+          await markAuthError(
+            supabaseClient,
+            canonicalId,
+            outcome.statusCode,
+            outcome.shortError,
+          );
+        } else {
+          await markFetchError(
+            supabaseClient,
+            canonicalId,
+            outcome.statusCode,
+            outcome.shortError,
+          );
+        }
         await emit({
           type: "log",
           level: "error",
@@ -882,7 +925,37 @@ async function runUrlIngestion(
       level: "info",
       message: `Fetching ${url}...`,
     });
-    const { title, text, lastModified } = await extractMainContent(url);
+    await markAttempt(supabaseClient, url);
+    let article: ExtractedArticle;
+    try {
+      article = await extractMainContent(url);
+    } catch (err) {
+      const outcome = normalizeFetchOutcome({ error: err });
+      if (outcome.classification === "missing") {
+        await markMissing(
+          supabaseClient,
+          url,
+          outcome.statusCode,
+          outcome.shortError,
+        );
+      } else if (outcome.classification === "auth") {
+        await markAuthError(
+          supabaseClient,
+          url,
+          outcome.statusCode,
+          outcome.shortError,
+        );
+      } else {
+        await markFetchError(
+          supabaseClient,
+          url,
+          outcome.statusCode,
+          outcome.shortError,
+        );
+      }
+      throw err;
+    }
+    const { title, text, lastModified, statusCode } = article;
     await emit({
       type: "progress",
       step: "fetched",
@@ -890,6 +963,7 @@ async function runUrlIngestion(
     });
 
     if (!text) {
+      await markSuccess(supabaseClient, url, statusCode);
       stats.documentsSkipped += 1;
       finalMessage = `No readable text extracted from ${url}; nothing ingested.`;
       await emit({
@@ -916,6 +990,7 @@ async function runUrlIngestion(
     });
 
     if (skip) {
+      await markSuccess(supabaseClient, url, statusCode);
       stats.documentsSkipped += 1;
       finalMessage = `No changes detected for ${title} (${url}); skipping ingest.`;
       await emit({
@@ -934,6 +1009,7 @@ async function runUrlIngestion(
     const chunks = chunkByTokens(text, 450, 75);
 
     if (chunks.length === 0) {
+      await markSuccess(supabaseClient, url, statusCode);
       stats.documentsSkipped += 1;
       finalMessage = `Extracted content produced no chunks for ${url}; nothing stored.`;
       await emit({
@@ -1002,6 +1078,7 @@ async function runUrlIngestion(
       total_characters: totalCharacters,
       metadata: nextMetadata,
     });
+    await markSuccess(supabaseClient, url, statusCode);
 
     if (existingState) {
       stats.documentsUpdated += 1;

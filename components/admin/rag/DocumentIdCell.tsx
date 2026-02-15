@@ -166,20 +166,22 @@ export function DocumentIdCell({
   if (compact) {
     return (
       <div className={cn(containerClass, className)}>
-        <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <span className="ai-label-overline text-[color:var(--ai-text-muted)]">
-              Identifier
-            </span>
-            <p
-              className="truncate text-xs font-mono text-[color:var(--ai-text)]"
-              title={canonicalId}
-            >
-              {canonicalDisplay}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="ai-label-overline text-[color:var(--ai-text-muted)]">
+            Identifier
+          </span>
+          <div className="flex items-center gap-2 flex-shrink-0">
             {renderRawStatusIcon()}
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <p
+            className="min-w-0 truncate text-xs font-mono text-[color:var(--ai-text)]"
+            title={canonicalId}
+          >
+            {canonicalDisplay}
+          </p>
+          <div className="flex items-center gap-2 flex-shrink-0">
             {renderCopyIcon("canonical")}
           </div>
         </div>

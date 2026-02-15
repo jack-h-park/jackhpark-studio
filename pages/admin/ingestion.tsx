@@ -179,7 +179,7 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
   const { data: docsData, error: docsError } = await supabase
     .from("rag_documents")
     .select(
-      "doc_id, source_url, last_ingested_at, last_source_update, chunk_count, total_characters, metadata",
+      "doc_id, source_url, last_ingested_at, last_source_update, status, last_sync_attempt_at, last_sync_success_at, missing_detected_at, soft_deleted_at, last_fetch_status, last_fetch_error, chunk_count, total_characters, metadata",
     )
     .order("last_ingested_at", { ascending: false })
     .limit(2000);
