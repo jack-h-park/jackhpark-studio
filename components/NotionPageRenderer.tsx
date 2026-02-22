@@ -182,6 +182,13 @@ export function NotionPageRenderer({
     let patchedCollections = collections;
     let patchedViews = views;
     let patchedBlocks = blocks;
+    const getIdAliases = (id?: string | null): string[] => {
+      if (typeof id !== "string" || id.length === 0) return [];
+      const aliases = new Set<string>();
+      aliases.add(id);
+      aliases.add(id.replaceAll("-", ""));
+      return Array.from(aliases).filter((alias) => alias.length > 0);
+    };
 
     if (collections) {
       for (const [collectionId, collection] of Object.entries(collections)) {
@@ -252,13 +259,20 @@ export function NotionPageRenderer({
           collectionsChanged = true;
         }
 
-        patchedCollections[collectionId] = {
+        const nextCollectionEntry = {
           ...(normalizedCollection as any),
           value: {
             ...(normalizedCollectionValue as any),
             schema,
           },
         } as typeof collection;
+        patchedCollections[collectionId] = nextCollectionEntry;
+
+        for (const aliasId of getIdAliases(normalizedCollectionValue.id)) {
+          if (aliasId === collectionId) continue;
+          if (patchedCollections[aliasId]) continue;
+          patchedCollections[aliasId] = nextCollectionEntry;
+        }
       }
     }
 
@@ -319,6 +333,21 @@ export function NotionPageRenderer({
             value: normalizedBlockValue,
           } as typeof block;
         }
+
+        const nextBlockEntry = {
+          ...(normalizedBlock as any),
+          value: normalizedBlockValue,
+        } as typeof block;
+
+        for (const aliasId of getIdAliases(normalizedBlockValue.id)) {
+          if (aliasId === blockId) continue;
+          if (patchedBlocks?.[aliasId]) continue;
+          if (!blocksChanged) {
+            patchedBlocks = { ...blocks };
+            blocksChanged = true;
+          }
+          patchedBlocks[aliasId] = nextBlockEntry;
+        }
       }
     }
 
@@ -346,12 +375,20 @@ export function NotionPageRenderer({
 
         const format = viewValue?.format as Record<string, any> | undefined;
         if (!format || typeof format !== "object") {
+          const nextViewEntry = {
+            ...(view as any),
+            value: viewValue,
+          } as any;
           if (viewChanged) {
             viewsChanged = true;
-            workingViews[viewId] = {
-              ...(view as any),
-              value: viewValue,
-            } as any;
+            workingViews[viewId] = nextViewEntry;
+          }
+
+          for (const aliasId of getIdAliases(viewValue?.id)) {
+            if (aliasId === viewId) continue;
+            if (workingViews[aliasId]) continue;
+            viewsChanged = true;
+            workingViews[aliasId] = nextViewEntry;
           }
           continue;
         }
@@ -416,24 +453,39 @@ export function NotionPageRenderer({
         }
 
         if (!formatChanged) {
+          const nextViewEntry = {
+            ...(view as any),
+            value: viewValue,
+          } as any;
           if (viewChanged) {
             viewsChanged = true;
-            workingViews[viewId] = {
-              ...(view as any),
-              value: viewValue,
-            } as any;
+            workingViews[viewId] = nextViewEntry;
+          }
+
+          for (const aliasId of getIdAliases(viewValue?.id)) {
+            if (aliasId === viewId) continue;
+            if (workingViews[aliasId]) continue;
+            viewsChanged = true;
+            workingViews[aliasId] = nextViewEntry;
           }
           continue;
         }
 
-        viewsChanged = true;
-        workingViews[viewId] = {
+        const nextViewEntry = {
           ...(view as any),
           value: {
             ...(viewValue as any),
             format: nextFormat,
           },
         } as any;
+        viewsChanged = true;
+        workingViews[viewId] = nextViewEntry;
+
+        for (const aliasId of getIdAliases(viewValue?.id)) {
+          if (aliasId === viewId) continue;
+          if (workingViews[aliasId]) continue;
+          workingViews[aliasId] = nextViewEntry;
+        }
       }
 
       if (viewsChanged) {
