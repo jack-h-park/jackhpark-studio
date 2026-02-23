@@ -6,7 +6,7 @@
 .notion-polish-balanced {
   --np-page-max-width: 744px;
   --np-page-padding-bottom: calc(max(5vh, 32px));
-  --np-cover-height: 188px;
+  --np-cover-height: clamp(232px, 26vw, 300px);
   --np-hero-left: clamp(18px, 2vw, 28px);
   --np-hero-overlap: -10px;
   --np-hero-gap-after: 14px;
@@ -20,6 +20,12 @@
   --np-table-header-size: 0.9rem;
   --np-table-row-icon-size: 1rem;
   --np-table-row-icon-gap: 8px;
+  --np-table-title-icon-size: 16px;
+  --np-table-title-icon-gap: 4px;
+  --np-table-title-icon-offset-y: 2px;
+  --np-table-title-align: flex-start;
+  --np-list-row-icon-size: 20px;
+  --np-list-row-icon-gap: 6px;
   --np-table-cell-py: 6px;
   --np-table-cell-px: 10px;
   --np-leading-body: 1.56;
@@ -133,7 +139,10 @@
   align-self: flex-start !important;
 }
 
-.notion-polish-balanced .notion-page .notion-page-icon-hero .notion-page-icon-cover {
+.notion-polish-balanced
+  .notion-page
+  .notion-page-icon-hero
+  .notion-page-icon-cover {
   margin: 0;
 }
 
@@ -151,7 +160,134 @@
 
 .notion-polish-balanced .notion-page .notion-list li {
   font-size: var(--np-list-size);
-  line-height: 1.35;
+  line-height: 1.4;
+}
+
+/* Normalize list-view title icon slot (emoji/svg/img) to keep spacing/baseline consistent. */
+.notion-polish-balanced
+  .notion-page
+  .notion-list-view
+  .notion-list-item-title
+  .notion-page-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--np-list-row-icon-gap);
+  min-width: 0;
+}
+
+.notion-polish-balanced .notion-page .notion-list-view .notion-list-item-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: var(--np-list-row-icon-gap) !important;
+  min-width: 0;
+}
+
+.notion-polish-balanced
+  .notion-page
+  .notion-list-view
+  .notion-list-item-title
+  .notion-property-title,
+.notion-polish-balanced
+  .notion-page
+  .notion-list-view
+  .notion-list-item-title
+  .notion-page-title {
+  min-width: 0;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.notion-polish-balanced
+  .notion-page
+  .notion-list-view
+  .notion-list-item-title
+  .notion-page-title-icon {
+  width: var(--np-list-row-icon-size) !important;
+  height: var(--np-list-row-icon-size) !important;
+  min-width: var(--np-list-row-icon-size) !important;
+  min-height: var(--np-list-row-icon-size) !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+}
+
+.notion-polish-balanced
+  .notion-page
+  .notion-list-view
+  .notion-list-item-title
+  .notion-page-icon-inline,
+.notion-polish-balanced
+  .notion-page
+  .notion-list-view
+  .notion-list-item-title
+  .notion-page-icon {
+  width: var(--np-list-row-icon-size) !important;
+  height: var(--np-list-row-icon-size) !important;
+  min-width: var(--np-list-row-icon-size) !important;
+  min-height: var(--np-list-row-icon-size) !important;
+  max-width: var(--np-list-row-icon-size) !important;
+  max-height: var(--np-list-row-icon-size) !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  transform: none !important;
+}
+
+.notion-polish-balanced
+  .notion-page
+  .notion-list-view
+  .notion-list-item-title
+  .notion-page-icon-inline
+  span {
+  width: 100%;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.notion-polish-balanced
+  .notion-page
+  .notion-list-view
+  .notion-list-item-title
+  .notion-page-icon-inline
+  img,
+.notion-polish-balanced
+  .notion-page
+  .notion-list-view
+  .notion-list-item-title
+  .notion-page-icon-inline
+  svg,
+.notion-polish-balanced
+  .notion-page
+  .notion-list-view
+  .notion-list-item-title
+  .notion-page-icon
+  img,
+.notion-polish-balanced
+  .notion-page
+  .notion-list-view
+  .notion-list-item-title
+  .notion-page-icon
+  svg {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
+
+.notion-polish-balanced
+  .notion-page
+  .notion-list-view
+  .notion-list-item-title
+  .notion-page-title-text {
+  top: 0 !important;
+  min-width: 0;
+  line-height: 1.4;
 }
 
 /* Normalize collection title emoji/icon rhythm (e.g. 🧠, 💼). */
@@ -239,7 +375,10 @@
 }
 
 .notion-polish-balanced .notion-page .notion-collection-header-title,
-.notion-polish-balanced .notion-page .notion-collection-inline .notion-collection-header-title {
+.notion-polish-balanced
+  .notion-page
+  .notion-collection-inline
+  .notion-collection-header-title {
   font-size: calc(var(--np-h2-size) + 0.08rem) !important;
   line-height: 1.35 !important;
   font-weight: 650 !important;
@@ -293,7 +432,11 @@
   font-size: var(--np-table-header-size);
 }
 
-.notion-polish-balanced .notion-page .notion-table-header-inner > .notion-table-th > .notion-table-view-header-cell {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-header-inner
+  > .notion-table-th
+  > .notion-table-view-header-cell {
   width: 100% !important;
   min-width: 0 !important;
   max-width: none !important;
@@ -325,8 +468,16 @@
   transform: none !important;
 }
 
-.notion-polish-balanced .notion-page .notion-table-header .notion-collection-column-title-icon img,
-.notion-polish-balanced .notion-page .notion-table-header .notion-collection-column-title-icon svg {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-header
+  .notion-collection-column-title-icon
+  img,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-header
+  .notion-collection-column-title-icon
+  svg {
   width: 100% !important;
   height: 100% !important;
   object-fit: contain !important;
@@ -334,7 +485,8 @@
 
 .notion-polish-balanced .notion-page .notion-table-cell {
   min-height: 34px;
-  padding: var(--np-table-cell-py) var(--np-table-cell-px) calc(var(--np-table-cell-py) + 1px);
+  padding: var(--np-table-cell-py) var(--np-table-cell-px)
+    calc(var(--np-table-cell-py) + 1px);
   font-size: var(--np-table-size);
   line-height: 1.42;
   vertical-align: top;
@@ -350,9 +502,12 @@
 
 /* Row icon sizing and baseline (icon-only polish). */
 .notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-link,
-.notion-polish-balanced .notion-page .notion-table-cell-title .notion-property-title {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-title
+  .notion-property-title {
   display: flex;
-  align-items: flex-start;
+  align-items: var(--np-table-title-align);
   min-width: 0;
 }
 
@@ -361,22 +516,34 @@
 }
 
 /* Root-cause fix: upstream .notion-page-link has fixed height:30px, which clips wrapped titles. */
-.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-link {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-title
+  .notion-page-link {
   height: auto !important;
   min-height: 30px;
-  align-items: flex-start;
+  align-items: var(--np-table-title-align);
 }
 
-.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon-inline,
-.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-title-icon,
-.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon {
-  width: 16px !important;
-  height: 16px !important;
-  min-width: 16px !important;
-  min-height: 16px !important;
-  max-width: 16px !important;
-  max-height: 16px !important;
-  margin: 0 6px 0 0 !important;
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-title
+  .notion-page-icon-inline,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-title
+  .notion-page-title-icon,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-title
+  .notion-page-icon {
+  width: var(--np-table-title-icon-size) !important;
+  height: var(--np-table-title-icon-size) !important;
+  min-width: var(--np-table-title-icon-size) !important;
+  min-height: var(--np-table-title-icon-size) !important;
+  max-width: var(--np-table-title-icon-size) !important;
+  max-height: var(--np-table-title-icon-size) !important;
+  margin: var(--np-table-title-icon-offset-y) var(--np-table-title-icon-gap) 0 0 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -384,19 +551,46 @@
   transform: none !important;
 }
 
-.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon-inline img,
-.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-title-icon img,
-.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon img,
-.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon-inline svg,
-.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-title-icon svg,
-.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-icon svg {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-title
+  .notion-page-icon-inline
+  img,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-title
+  .notion-page-title-icon
+  img,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-title
+  .notion-page-icon
+  img,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-title
+  .notion-page-icon-inline
+  svg,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-title
+  .notion-page-title-icon
+  svg,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-title
+  .notion-page-icon
+  svg {
   width: 100% !important;
   height: 100% !important;
   object-fit: contain !important;
 }
 
 /* Preserve current wrapping behavior (icon-only patch must not alter text flow). */
-.notion-polish-balanced .notion-page .notion-table-cell-title .notion-page-title-text {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-title
+  .notion-page-title-text {
   min-width: 0;
   display: block;
   white-space: normal;
@@ -414,17 +608,38 @@
   padding-bottom: var(--np-table-cell-py);
 }
 
-.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-property-multi_select,
-.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-property-select,
-.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-property-status {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-multi_select
+  .notion-property-multi_select,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-multi_select
+  .notion-property-select,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-multi_select
+  .notion-property-status {
   align-items: center;
   gap: 4px 6px;
 }
 
-.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-property-multi_select-item,
-.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-property-select-item,
-.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-property-status-item,
-.notion-polish-balanced .notion-page .notion-table-cell-multi_select .notion-pill {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-multi_select
+  .notion-property-multi_select-item,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-multi_select
+  .notion-property-select-item,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-multi_select
+  .notion-property-status-item,
+.notion-polish-balanced
+  .notion-page
+  .notion-table-cell-multi_select
+  .notion-pill {
   height: 22px;
   line-height: 1.15;
   padding-left: 8px;
@@ -434,48 +649,126 @@
 }
 
 /* Column sizing strategy for common inline database layouts. */
-.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-header-inner > .notion-table-th:nth-child(1),
-.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-body > .notion-table-row > .notion-table-cell:nth-child(1) {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-view:has(
+    .notion-table-header-inner > .notion-table-th:nth-child(4)
+  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
+  .notion-table-header-inner
+  > .notion-table-th:nth-child(1),
+.notion-polish-balanced
+  .notion-page
+  .notion-table-view:has(
+    .notion-table-header-inner > .notion-table-th:nth-child(4)
+  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
+  .notion-table-body
+  > .notion-table-row
+  > .notion-table-cell:nth-child(1) {
   width: 30%;
   flex: 0 0 30%;
   min-width: 0;
   max-width: 30%;
 }
 
-.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-header-inner > .notion-table-th:nth-child(2),
-.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-body > .notion-table-row > .notion-table-cell:nth-child(2) {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-view:has(
+    .notion-table-header-inner > .notion-table-th:nth-child(4)
+  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
+  .notion-table-header-inner
+  > .notion-table-th:nth-child(2),
+.notion-polish-balanced
+  .notion-page
+  .notion-table-view:has(
+    .notion-table-header-inner > .notion-table-th:nth-child(4)
+  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
+  .notion-table-body
+  > .notion-table-row
+  > .notion-table-cell:nth-child(2) {
   width: 13%;
   flex: 0 0 13%;
   min-width: 0;
   max-width: 13%;
 }
 
-.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-header-inner > .notion-table-th:nth-child(3),
-.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-body > .notion-table-row > .notion-table-cell:nth-child(3) {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-view:has(
+    .notion-table-header-inner > .notion-table-th:nth-child(4)
+  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
+  .notion-table-header-inner
+  > .notion-table-th:nth-child(3),
+.notion-polish-balanced
+  .notion-page
+  .notion-table-view:has(
+    .notion-table-header-inner > .notion-table-th:nth-child(4)
+  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
+  .notion-table-body
+  > .notion-table-row
+  > .notion-table-cell:nth-child(3) {
   width: 14%;
   flex: 0 0 14%;
   min-width: 0;
   max-width: 14%;
 }
 
-.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-header-inner > .notion-table-th:nth-child(4),
-.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(4)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5))) .notion-table-body > .notion-table-row > .notion-table-cell:nth-child(4) {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-view:has(
+    .notion-table-header-inner > .notion-table-th:nth-child(4)
+  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
+  .notion-table-header-inner
+  > .notion-table-th:nth-child(4),
+.notion-polish-balanced
+  .notion-page
+  .notion-table-view:has(
+    .notion-table-header-inner > .notion-table-th:nth-child(4)
+  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
+  .notion-table-body
+  > .notion-table-row
+  > .notion-table-cell:nth-child(4) {
   width: 43%;
   flex: 0 0 43%;
   min-width: 0;
   max-width: 43%;
 }
 
-.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(2)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(3))) .notion-table-header-inner > .notion-table-th:nth-child(1),
-.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(2)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(3))) .notion-table-body > .notion-table-row > .notion-table-cell:nth-child(1) {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-view:has(
+    .notion-table-header-inner > .notion-table-th:nth-child(2)
+  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(3)))
+  .notion-table-header-inner
+  > .notion-table-th:nth-child(1),
+.notion-polish-balanced
+  .notion-page
+  .notion-table-view:has(
+    .notion-table-header-inner > .notion-table-th:nth-child(2)
+  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(3)))
+  .notion-table-body
+  > .notion-table-row
+  > .notion-table-cell:nth-child(1) {
   width: 50%;
   flex: 0 0 50%;
   min-width: 0;
   max-width: 50%;
 }
 
-.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(2)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(3))) .notion-table-header-inner > .notion-table-th:nth-child(2),
-.notion-polish-balanced .notion-page .notion-table-view:has(.notion-table-header-inner > .notion-table-th:nth-child(2)):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(3))) .notion-table-body > .notion-table-row > .notion-table-cell:nth-child(2) {
+.notion-polish-balanced
+  .notion-page
+  .notion-table-view:has(
+    .notion-table-header-inner > .notion-table-th:nth-child(2)
+  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(3)))
+  .notion-table-header-inner
+  > .notion-table-th:nth-child(2),
+.notion-polish-balanced
+  .notion-page
+  .notion-table-view:has(
+    .notion-table-header-inner > .notion-table-th:nth-child(2)
+  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(3)))
+  .notion-table-body
+  > .notion-table-row
+  > .notion-table-cell:nth-child(2) {
   width: 50%;
   flex: 0 0 50%;
   min-width: 0;
