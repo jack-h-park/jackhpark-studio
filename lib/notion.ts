@@ -306,6 +306,86 @@ const getGroupedResultBucketKeys = (entry: any): string[] => {
   return Object.keys(entry).filter((key) => key.startsWith("results:"));
 };
 
+const buildGroupedFormatEntriesFromV2Reducer = (
+  result: any,
+  viewValue: any,
+): Array<Record<string, any>> => {
+  if (!result || typeof result !== "object") return [];
+  if (!viewValue || typeof viewValue !== "object") return [];
+
+  const isBoardType = viewValue?.type === "board";
+  const reducerKey = isBoardType ? "board_columns" : `${viewValue?.type}_groups`;
+  const reducer =
+    result?.[reducerKey] ??
+    result?.reducerResults?.[reducerKey] ??
+    result?.reducers?.[reducerKey];
+  const reducerResults = Array.isArray(reducer?.results) ? reducer.results : [];
+
+  const propertyKey =
+    viewValue?.format?.collection_group_by?.property ??
+    viewValue?.format?.board_columns_by?.property;
+  if (typeof propertyKey !== "string" || propertyKey.length === 0) {
+    return [];
+  }
+
+  return reducerResults
+    .map((group: any) =>
+      normalizeGroupValue({
+        property: propertyKey,
+        hidden: group?.visible === false,
+        value: group?.value,
+      }),
+    )
+    .filter(
+      (group: any) =>
+        group &&
+        typeof group === "object" &&
+        group.value &&
+        typeof group.value === "object" &&
+        typeof group.value.type === "string",
+    );
+};
+
+const hasEmptyGroupedFormatEntries = (viewValue: any): boolean => {
+  const format = viewValue?.format;
+  if (!format || typeof format !== "object") return false;
+
+  if (format.collection_group_by) {
+    return !Array.isArray(format.collection_groups) || format.collection_groups.length === 0;
+  }
+  if (format.board_columns_by) {
+    return !Array.isArray(format.board_columns) || format.board_columns.length === 0;
+  }
+  return false;
+};
+
+const applyGroupedFormatEntriesToView = (viewValue: any, groups: any[]) => {
+  if (!viewValue || typeof viewValue !== "object") return viewValue;
+  if (!Array.isArray(groups) || groups.length === 0) return viewValue;
+
+  const format = viewValue?.format ?? {};
+  if (format.collection_group_by) {
+    return {
+      ...viewValue,
+      format: {
+        ...format,
+        collection_groups: groups,
+      },
+    };
+  }
+  if (format.board_columns_by) {
+    return {
+      ...viewValue,
+      format: {
+        ...format,
+        board_columns: groups,
+      },
+    };
+  }
+
+  return viewValue;
+};
+
 const getGroupQueryLabelFromFormatEntry = (entry: any): string | undefined => {
   const rawValue = entry?.value?.value;
   if (rawValue === undefined) return "uncategorized";
@@ -741,7 +821,7 @@ const hydrateGroupedCollectionData = async (
       existingEntry,
     }) => {
       try {
-        const data = await notion.getCollectionData(
+        let data = await notion.getCollectionData(
           fetchCollectionId,
           viewId,
           viewValue,
@@ -749,6 +829,113 @@ const hydrateGroupedCollectionData = async (
             limit: 999,
           },
         );
+
+        console.warn("[grouped-collection] first fetch result", {
+          viewId,
+          collectionId,
+          fetchCollectionId,
+          viewType: viewValue?.type,
+          hasCollectionGroups: Array.isArray(viewValue?.format?.collection_groups),
+          collectionGroupsLen: Array.isArray(viewValue?.format?.collection_groups)
+            ? viewValue.format.collection_groups.length
+            : null,
+          hasBoardColumns: Array.isArray(viewValue?.format?.board_columns),
+          boardColumnsLen: Array.isArray(viewValue?.format?.board_columns)
+            ? viewValue.format.board_columns.length
+            : null,
+          resultKeys: data?.result ? Object.keys(data.result) : null,
+          resultBucketKeys: getGroupedResultBucketKeys(data?.result),
+          hasGalleryGroups:
+            !!(
+              (data?.result as any)?.gallery_groups?.results?.length ||
+              (data?.result as any)?.reducerResults?.gallery_groups?.results
+                ?.length ||
+              (data?.result as any)?.reducers?.gallery_groups?.results?.length
+            ),
+          galleryGroupsLen:
+            (data?.result as any)?.gallery_groups?.results?.length ??
+            (data?.result as any)?.reducerResults?.gallery_groups?.results
+              ?.length ??
+            (data?.result as any)?.reducers?.gallery_groups?.results?.length ??
+            0,
+        });
+
+        const bootstrapGroups = buildGroupedFormatEntriesFromV2Reducer(
+          data?.result,
+          viewValue,
+        );
+        const shouldBootstrapGroupedRefetch =
+          hasEmptyGroupedFormatEntries(viewValue) &&
+          bootstrapGroups.length > 0 &&
+          getGroupedResultBucketKeys(data?.result).length === 0;
+
+        if (shouldBootstrapGroupedRefetch) {
+          const bootstrappedViewValue = applyGroupedFormatEntriesToView(
+            viewValue,
+            bootstrapGroups,
+          );
+
+          const currentViewEntry = recordMap.collection_view?.[viewId];
+          if (currentViewEntry?.value) {
+            recordMap.collection_view[viewId] = {
+              ...currentViewEntry,
+              value: bootstrappedViewValue,
+            } as any;
+          }
+
+          console.warn("[grouped-collection] bootstrap refetch from v2 groups", {
+            viewId,
+            collectionId,
+            fetchCollectionId,
+            viewType: viewValue?.type,
+            reducerKeys: Object.keys(data?.result ?? {}),
+            bootstrapGroupCount: bootstrapGroups.length,
+            bootstrapFirstGroup: bootstrapGroups[0] ?? null,
+          });
+
+          data = await notion.getCollectionData(
+            fetchCollectionId,
+            viewId,
+            bootstrappedViewValue,
+            {
+              limit: 999,
+            },
+          );
+
+          console.warn("[grouped-collection] second fetch result", {
+            viewId,
+            collectionId,
+            fetchCollectionId,
+            viewType: bootstrappedViewValue?.type,
+            collectionGroupsLen: Array.isArray(
+              bootstrappedViewValue?.format?.collection_groups,
+            )
+              ? bootstrappedViewValue.format.collection_groups.length
+              : null,
+            boardColumnsLen: Array.isArray(
+              bootstrappedViewValue?.format?.board_columns,
+            )
+              ? bootstrappedViewValue.format.board_columns.length
+              : null,
+            resultKeys: data?.result ? Object.keys(data.result) : null,
+            resultBucketKeys: getGroupedResultBucketKeys(data?.result),
+            hasGalleryGroups:
+              !!(
+                (data?.result as any)?.gallery_groups?.results?.length ||
+                (data?.result as any)?.reducerResults?.gallery_groups?.results
+                  ?.length ||
+                (data?.result as any)?.reducers?.gallery_groups?.results
+                  ?.length
+              ),
+            galleryGroupsLen:
+              (data?.result as any)?.gallery_groups?.results?.length ??
+              (data?.result as any)?.reducerResults?.gallery_groups?.results
+                ?.length ??
+              (data?.result as any)?.reducers?.gallery_groups?.results
+                ?.length ??
+              0,
+          });
+        }
 
         if (data?.recordMap) {
           recordMap = mergeRecordMaps(recordMap, data.recordMap as any);
