@@ -301,6 +301,133 @@ const hasGroupedBlocks = (entry: any): boolean => {
   return false;
 };
 
+const getGroupedResultBucketKeys = (entry: any): string[] => {
+  if (!entry || typeof entry !== "object") return [];
+  return Object.keys(entry).filter((key) => key.startsWith("results:"));
+};
+
+const getGroupQueryLabelFromFormatEntry = (entry: any): string | undefined => {
+  const rawValue = entry?.value?.value;
+  if (rawValue === undefined) return "uncategorized";
+
+  if (rawValue && typeof rawValue === "object" && "range" in rawValue) {
+    return rawValue.range?.start_date || rawValue.range?.end_date;
+  }
+
+  if (rawValue && typeof rawValue === "object" && "value" in rawValue) {
+    return rawValue.value;
+  }
+
+  return rawValue;
+};
+
+const formatGroupEntryToBucketKey = (entry: any): string | null => {
+  const type = entry?.value?.type;
+  const queryLabel = getGroupQueryLabelFromFormatEntry(entry);
+  if (typeof type !== "string" || type.length === 0) return null;
+  if (typeof queryLabel !== "string" || queryLabel.length === 0) return null;
+  return `results:${type}:${queryLabel}`;
+};
+
+const syncGroupedViewFormatFromResultBuckets = (view: any, result: any) => {
+  const format = view?.format;
+  if (!format || typeof format !== "object") return;
+
+  const bucketKeys = getGroupedResultBucketKeys(result);
+  if (bucketKeys.length === 0) return;
+
+  const collectionGroupBy = format.collection_group_by;
+  const boardGroupBy = format.board_columns_by;
+  const targetKey = collectionGroupBy
+    ? "collection_groups"
+    : boardGroupBy
+      ? "board_columns"
+      : null;
+  const propertyKey = collectionGroupBy?.property ?? boardGroupBy?.property;
+
+  if (!targetKey || typeof propertyKey !== "string" || propertyKey.length === 0) {
+    return;
+  }
+
+  const existingGroups = Array.isArray(format[targetKey]) ? format[targetKey] : [];
+  const visibleExistingGroups = existingGroups.filter(
+    (group: any) => group?.hidden !== true,
+  );
+  const visibleExistingBucketKeys = new Set(
+    visibleExistingGroups
+      .map(formatGroupEntryToBucketKey)
+      .filter(Boolean) as string[],
+  );
+  const hiddenExistingBucketKeys = new Set(
+    existingGroups.map(formatGroupEntryToBucketKey).filter(Boolean) as string[],
+  );
+  const hasVisibleMatchingGroup =
+    visibleExistingBucketKeys.size > 0 &&
+    bucketKeys.some((bucketKey) => visibleExistingBucketKeys.has(bucketKey));
+  const hasAnyMatchingGroup =
+    hiddenExistingBucketKeys.size > 0 &&
+    bucketKeys.some((bucketKey) => hiddenExistingBucketKeys.has(bucketKey));
+  const allGroupsHidden =
+    existingGroups.length > 0 &&
+    existingGroups.every((group: any) => group?.hidden === true);
+
+  // Rebuild when groups are absent, all hidden, or only hidden groups match.
+  if (
+    hasVisibleMatchingGroup ||
+    (hasAnyMatchingGroup && !allGroupsHidden && visibleExistingGroups.length > 0)
+  ) {
+    return;
+  }
+
+  format[targetKey] = bucketKeys.map((bucketKey) => {
+    const [, type = "text", ...labelParts] = bucketKey.split(":");
+    const label = labelParts.join(":");
+
+    return {
+      property: propertyKey,
+      hidden: false,
+      value: {
+        type,
+        value: label === "uncategorized" ? undefined : label,
+      },
+    };
+  });
+};
+
+const isGroupedQueryPayloadUsableForView = (entry: any, viewValue: any) => {
+  if (!entry || typeof entry !== "object") return false;
+  if (!hasGroupedBlocks(entry)) return false;
+
+  const format = viewValue?.format;
+  const groupProperty =
+    format?.collection_group_by?.property ?? format?.board_columns_by?.property;
+
+  const bucketKeys = getGroupedResultBucketKeys(entry);
+  const hasListGroups = Array.isArray(entry?.list_groups?.results);
+  const hasBoardColumns = Array.isArray(entry?.board_columns);
+
+  // Grouped views need either reducer buckets or a view-specific grouped payload.
+  // `collection_group_results.blockIds` alone can be stale and produce an empty render.
+  if (bucketKeys.length === 0 && !hasListGroups && !hasBoardColumns) {
+    return false;
+  }
+
+  if (typeof groupProperty === "string" && groupProperty.length > 0) {
+    if (
+      bucketKeys.length > 0 &&
+      !bucketKeys.some(
+        (key) =>
+          key === `results:${groupProperty}` ||
+          key.startsWith(`results:${groupProperty}:`),
+      )
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 const mergeCollectionQuery = (
   target: any,
   source: any,
@@ -552,8 +679,25 @@ const hydrateGroupedCollectionData = async (
         recordMap.collection_query[collectionId][viewId] =
           normalizedExisting as any;
 
-        if (hasGroupedBlocks(normalizedExisting)) {
+        if (isGroupedQueryPayloadUsableForView(normalizedExisting, sanitizedView)) {
           return null;
+        }
+
+        if (debugNotionXEnabled) {
+          debugNotionXLogger.debug(
+            "[grouped-collection] forcing refetch due to stale grouped payload",
+            {
+              viewId,
+              collectionId,
+              viewType: sanitizedView?.type,
+              groupBy:
+                sanitizedView?.format?.collection_group_by?.property ??
+                sanitizedView?.format?.board_columns_by?.property ??
+                null,
+              existingQueryKeys: Object.keys(normalizedExisting ?? {}),
+              resultBucketKeys: getGroupedResultBucketKeys(normalizedExisting),
+            },
+          );
         }
       }
 
@@ -645,6 +789,9 @@ const hydrateGroupedCollectionData = async (
             recordMap.collection_query[collectionId][viewId] =
               normalizedResult as any;
           }
+
+          const hydratedView = recordMap.collection_view?.[viewId]?.value;
+          syncGroupedViewFormatFromResultBuckets(hydratedView, normalizedResult);
 
           const listGroups = normalizedResult?.list_groups?.results;
           if (Array.isArray(listGroups) && listGroups.length > 0) {

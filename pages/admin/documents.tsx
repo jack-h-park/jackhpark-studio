@@ -50,7 +50,7 @@ import {
   type RagDocumentMetadata,
   SOURCE_TYPE_OPTIONS,
 } from "@/lib/rag/metadata";
-import { deriveTitleFromUrl } from "@/lib/rag/url-metadata";
+import { deriveTitleFromUrl } from "@/lib/rag/url-title";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { cn } from "@/lib/utils";

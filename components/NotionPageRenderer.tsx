@@ -189,6 +189,52 @@ export function NotionPageRenderer({
       aliases.add(id.replaceAll("-", ""));
       return Array.from(aliases).filter((alias) => alias.length > 0);
     };
+    const getGroupedBucketKeys = (entry: any): string[] => {
+      if (!entry || typeof entry !== "object") return [];
+
+      const sources: Array<Record<string, any>> = [];
+      if (entry && typeof entry === "object") {
+        sources.push(entry as Record<string, any>);
+      }
+      if (entry.reducerResults && typeof entry.reducerResults === "object") {
+        sources.push(entry.reducerResults as Record<string, any>);
+      }
+      if (entry.reducers && typeof entry.reducers === "object") {
+        sources.push(entry.reducers as Record<string, any>);
+      }
+
+      const seen = new Set<string>();
+      const keys: string[] = [];
+      for (const source of sources) {
+        for (const key of Object.keys(source)) {
+          if (!key.startsWith("results:")) continue;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          keys.push(key);
+        }
+      }
+      return keys;
+    };
+    const buildGroupsFromBucketKeys = (
+      bucketKeys: string[],
+      property: string,
+    ): Array<Record<string, any>> => {
+      return bucketKeys
+        .map((bucketKey) => {
+          const [, type = "text", ...labelParts] = bucketKey.split(":");
+          const label = labelParts.join(":");
+          if (!type || !label) return null;
+          return {
+            property,
+            hidden: false,
+            value: {
+              type,
+              value: label === "uncategorized" ? undefined : label,
+            },
+          };
+        })
+        .filter(Boolean) as Array<Record<string, any>>;
+    };
 
     if (collections) {
       for (const [collectionId, collection] of Object.entries(collections)) {
@@ -395,6 +441,14 @@ export function NotionPageRenderer({
 
         let formatChanged = false;
         const nextFormat: Record<string, any> = { ...format };
+        const viewCollectionId =
+          viewValue?.collection_id ??
+          viewValue?.collectionId ??
+          viewValue?.format?.collection_pointer?.id;
+        const existingQueryEntry =
+          typeof viewCollectionId === "string"
+            ? recordMap.collection_query?.[viewCollectionId]?.[viewId]
+            : null;
 
         if (Array.isArray(format.table_properties)) {
           const seen = new Set<string>();
@@ -448,6 +502,34 @@ export function NotionPageRenderer({
 
           if (listChanged) {
             nextFormat.list_properties = patchedList;
+            formatChanged = true;
+          }
+        }
+
+        const groupedProperty =
+          nextFormat.collection_group_by?.property ??
+          nextFormat.board_columns_by?.property;
+        const groupedTargetKey = nextFormat.collection_group_by
+          ? "collection_groups"
+          : nextFormat.board_columns_by
+            ? "board_columns"
+            : null;
+        const existingGroups = groupedTargetKey
+          ? nextFormat[groupedTargetKey]
+          : null;
+        const hasEmptyGroupedMetadata =
+          !!groupedTargetKey &&
+          typeof groupedProperty === "string" &&
+          groupedProperty.length > 0 &&
+          (!Array.isArray(existingGroups) || existingGroups.length === 0);
+
+        if (hasEmptyGroupedMetadata) {
+          const bucketKeys = getGroupedBucketKeys(existingQueryEntry);
+          if (bucketKeys.length > 0) {
+            nextFormat[groupedTargetKey!] = buildGroupsFromBucketKeys(
+              bucketKeys,
+              groupedProperty!,
+            );
             formatChanged = true;
           }
         }
