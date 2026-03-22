@@ -2,9 +2,7 @@
  * Inline database IDs (collection parent IDs) that should opt out of Side Peek.
  * Provide the 32-character ID without dashes.
  */
-export const SIDE_PEEK_DISABLED_COLLECTION_IDS = new Set<string>([
-  // 'yourcollectionidwithoutdashes'
-]);
+export const SIDE_PEEK_DISABLED_COLLECTION_IDS = new Set<string>();
 
 /**
  * Inline database block IDs (collection view blocks) that should opt out of Side Peek.
