@@ -326,67 +326,164 @@
 }
 
 /* Keep this behavior tied to gallery preview-enabled views only. */
-.notion-page .notion-gallery-view[data-gallery-preview="1"] .notion-collection-card .notion-page-icon-inline,
-.notion-page .notion-gallery-view[data-gallery-preview="1"] .notion-collection-card .notion-page-title-text {
+.notion-page
+  .notion-gallery-view[data-gallery-preview="1"]
+  .notion-collection-card
+  .notion-page-icon-inline,
+.notion-page
+  .notion-gallery-view[data-gallery-preview="1"]
+  .notion-collection-card
+  .notion-page-title-text {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
 }
 
 /* Keep non-preview gallery card content visible and aligned. */
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card,
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card * {
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card,
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  * {
   text-align: left !important;
 }
 
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-collection-card-body,
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-collection-card-property,
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-property,
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-property-title {
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-collection-card-body,
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-collection-card-property,
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-property,
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-property-title {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
 }
 
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-link {
-  display: inline-flex !important;
-  align-items: center !important;
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-collection-card-body {
+  padding: 4px 6px !important;
+  gap: 8px !important;
+}
+
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-collection-card-property {
+  padding: 4px 0 !important;
+  overflow: visible !important;
+}
+
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-collection-card-property:first-child {
+  margin-bottom: 4px !important;
+}
+
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-page-link {
+  display: flex !important;
+  align-items: flex-start !important;
   gap: 0.4rem !important;
+  width: 100% !important;
+  min-width: 0 !important;
   visibility: visible !important;
   opacity: 1 !important;
 }
 
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title {
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-page-title {
   display: flex !important;
-  align-items: center !important;
-  gap: 0.12rem !important;
+  align-items: baseline !important;
+  gap: 0.15rem !important;
+  min-width: 0 !important;
   margin: 0 !important;
   text-align: left !important;
 }
 
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon-inline,
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon,
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon {
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-page-title-text {
+  display: block !important;
+  min-width: 0 !important;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  line-height: 1.4 !important;
+  padding-bottom: 0 !important;
+}
+
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-page-icon-inline,
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-page-title-icon,
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-page-icon {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 1.15em !important;
-  height: 1.15em !important;
-  min-width: 1.15em !important;
-  min-height: 1.15em !important;
-  margin-right: 0.08rem !important;
+  width: 1.4em !important;
+  height: 1.4em !important;
+  min-width: 1.4em !important;
+  min-height: 1.4em !important;
+  font-size: 1.12em !important;
+  margin-right: 0.04rem !important;
   line-height: 1 !important;
+  transform: translateY(0.04em) !important;
   visibility: visible !important;
   opacity: 1 !important;
 }
 
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon svg,
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-title-icon img,
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon svg,
-.notion-page .notion-gallery-view:not([data-gallery-preview="1"]) .notion-collection-card .notion-page-icon img {
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-page-title-icon
+  svg,
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-page-title-icon
+  img,
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-page-icon
+  svg,
+.notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-page-icon
+  img {
   display: block !important;
-  width: 1.15em !important;
-  height: 1.15em !important;
+  width: 1.26em !important;
+  height: 1.26em !important;
 }
 
 .notion-page
