@@ -184,9 +184,7 @@ export function NotionPageRenderer({
     let patchedBlocks = blocks;
     const getIdAliases = (id?: string | null): string[] => {
       if (typeof id !== "string" || id.length === 0) return [];
-      const aliases = new Set<string>();
-      aliases.add(id);
-      aliases.add(id.replaceAll("-", ""));
+      const aliases = new Set<string>([id, id.replaceAll("-", "")]);
       return Array.from(aliases).filter((alias) => alias.length > 0);
     };
     const getGroupedBucketKeys = (entry: any): string[] => {
