@@ -492,6 +492,21 @@
   vertical-align: top;
 }
 
+/* Inline database thinner/fainter borders in dark mode */
+.notion-polish-balanced.dark-mode .notion-table-header-inner {
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.notion-polish-balanced.dark-mode .notion-table-view-header-cell-inner {
+  border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.notion-polish-balanced.dark-mode .notion-table-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+.notion-polish-balanced.dark-mode .notion-table-cell {
+  border-right: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
 .notion-polish-balanced .notion-page .notion-table-cell-text,
 .notion-polish-balanced .notion-page .notion-table-cell-number,
 .notion-polish-balanced .notion-page .notion-table-cell-url,
@@ -793,4 +808,45 @@
   .notion-polish-balanced .notion-search-button {
     display: none !important;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Gallery Card Dark Mode Contrast & Multi-select Layout Fixes                */
+/* -------------------------------------------------------------------------- */
+.notion-polish-balanced.dark-mode .notion-collection-card {
+  background: var(--bg-color-0) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  box-shadow: none !important;
+}
+
+.notion-polish-balanced
+  .notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-property-multi_select,
+.notion-polish-balanced
+  .notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-property-select,
+.notion-polish-balanced
+  .notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-property-status {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  width: auto !important;
+}
+
+.notion-polish-balanced
+  .notion-page
+  .notion-gallery-view:not([data-gallery-preview="1"])
+  .notion-collection-card
+  .notion-pill {
+  width: auto !important;
+  display: inline-flex !important;
+  flex-shrink: 0 !important;
+  max-width: 100% !important;
 }

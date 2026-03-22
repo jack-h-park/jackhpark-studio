@@ -138,10 +138,10 @@ body {
   --fg-color-6: #fff;
   --fg-color-icon: #fff;
 
-  --bg-color: #2f3437;
-  --bg-color-0: rgb(71, 76, 80);
-  --bg-color-1: rgb(63, 68, 71);
-  --bg-color-2: rgba(135, 131, 120, 0.15);
+  --bg-color: #191919;
+  --bg-color-0: #252525;
+  --bg-color-1: #202020;
+  --bg-color-2: rgba(255, 255, 255, 0.05);
 
   --notion-red: rgb(255, 115, 105);
   --notion-pink: rgb(226, 85, 161);

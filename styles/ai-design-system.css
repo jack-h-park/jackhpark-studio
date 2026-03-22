@@ -117,8 +117,8 @@ html.dark,
 html.dark-mode,
 body.dark,
 body.dark-mode {
-  --ai-bg: 203 8% 20%;
-  --ai-bg-muted: 203 6% 26%;
+  --ai-bg: 0 0% 10%;
+  --ai-bg-muted: 0 0% 15%;
   --ai-fg: 60 4% 90%;
   --ai-fg-muted: 0 0% 70%;
   --ai-border: 204 3% 36%;
@@ -307,8 +307,16 @@ body.dark-mode {
   border-color: var(--ai-role-border-muted);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--ai-role-surface-1) 94%, var(--ai-role-surface-muted) 6%),
-    color-mix(in srgb, var(--ai-role-surface-1) 88%, var(--ai-role-surface-muted) 12%)
+    color-mix(
+      in srgb,
+      var(--ai-role-surface-1) 94%,
+      var(--ai-role-surface-muted) 6%
+    ),
+    color-mix(
+      in srgb,
+      var(--ai-role-surface-1) 88%,
+      var(--ai-role-surface-muted) 12%
+    )
   );
   box-shadow:
     var(--ai-shadow-soft),
@@ -395,8 +403,16 @@ body.dark-mode {
   border-color: var(--ai-role-border-muted);
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, var(--ai-role-surface-1) 100%, var(--ai-role-surface-muted) 0%),
-    color-mix(in srgb, var(--ai-role-surface-1) 95%, var(--ai-role-surface-muted) 5%)
+    color-mix(
+      in srgb,
+      var(--ai-role-surface-1) 100%,
+      var(--ai-role-surface-muted) 0%
+    ),
+    color-mix(
+      in srgb,
+      var(--ai-role-surface-1) 95%,
+      var(--ai-role-surface-muted) 5%
+    )
   );
   box-shadow:
     var(--ai-shadow-elevated),
@@ -836,7 +852,12 @@ body.dark-mode {
   overflow: auto;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklab, var(--ai-role-border-muted) 70%, transparent) transparent;
+  scrollbar-color: color-mix(
+      in oklab,
+      var(--ai-role-border-muted) 70%,
+      transparent
+    )
+    transparent;
   background-image:
     linear-gradient(
       135deg,
@@ -852,8 +873,11 @@ body.dark-mode {
       color-mix(in oklab, var(--ai-role-border-muted) 55%, transparent) 62%,
       transparent 62%
     );
-  background-size: 14px 14px, 10px 10px;
-  background-position: calc(100% - 6px) calc(100% - 6px),
+  background-size:
+    14px 14px,
+    10px 10px;
+  background-position:
+    calc(100% - 6px) calc(100% - 6px),
     calc(100% - 12px) calc(100% - 12px);
   background-repeat: no-repeat;
 }
@@ -950,11 +974,8 @@ body.dark-mode {
   box-shadow:
     var(--ai-shadow-soft),
     inset 0 0 0 1px var(--ai-role-border-selected),
-    inset 0 0 0 2px color-mix(
-      in srgb,
-      var(--ai-role-border-selected) 60%,
-      transparent
-    );
+    inset 0 0 0 2px
+      color-mix(in srgb, var(--ai-role-border-selected) 60%, transparent);
 }
 
 .ai-selectable--disabled {
@@ -976,8 +997,10 @@ body.dark-mode {
     font-size: 0.8rem;
     background: var(--ai-accent);
     color: var(--ai-accent-contrast);
-    border: 1px solid color-mix(in srgb, var(--ai-accent) 70%, var(--ai-role-border-muted) 30%);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ai-accent) 80%, var(--ai-role-surface-1) 20%);
+    border: 1px solid
+      color-mix(in srgb, var(--ai-accent) 70%, var(--ai-role-border-muted) 30%);
+    box-shadow: 0 0 0 1px
+      color-mix(in srgb, var(--ai-accent) 80%, var(--ai-role-surface-1) 20%);
   }
 }
 
