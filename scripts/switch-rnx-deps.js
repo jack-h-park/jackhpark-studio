@@ -4,9 +4,16 @@ import path from "node:path";
 
 function main() {
   const mode = process.argv[2];
+  const tag = process.argv[3];
 
   if (!["local", "remote"].includes(mode)) {
-    throw new Error("Usage: node switch-rnx-deps.js [local|remote]");
+    throw new Error("Usage: node switch-rnx-deps.js [local|remote] [tag]");
+  }
+
+  if (mode === "remote" && !tag) {
+    throw new Error(
+      'Usage: node switch-rnx-deps.js remote <tag>  (e.g. "7.7.1-jp.4")',
+    );
   }
 
   const pkgPath = path.resolve("./package.json");
@@ -36,7 +43,7 @@ function main() {
 
   if (mode === "remote") {
     pkg.dependencies["react-notion-x"] =
-      "github:jack-h-park/react-notion-x#7.7.1-jp.3";
+      `github:jack-h-park/react-notion-x#${tag}`;
     pkg.dependencies["notion-utils"] = "7.7.1";
     pkg.dependencies["notion-types"] = "7.7.1";
     pkg.dependencies["notion-client"] = "7.7.1";
@@ -46,7 +53,7 @@ function main() {
     delete pkg.pnpm.overrides["notion-utils"];
     delete pkg.pnpm.overrides["notion-types"];
     delete pkg.pnpm.overrides["notion-client"];
-    console.log("✅ Switched to REMOTE react-notion-x");
+    console.log(`✅ Switched to REMOTE react-notion-x @ ${tag}`);
   }
 
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
