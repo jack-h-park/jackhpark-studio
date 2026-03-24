@@ -671,6 +671,67 @@ const writeCachedRecordMap = async (
   }
 };
 
+/**
+ * Resolves a block's actual value, handling both the standard format
+ * ({role, value: {type, ...}}) and the nested format used by collection
+ * query results ({spaceId, value: {value: {type, ...}}}).
+ */
+const getActualBlockValue = (raw: any): any => {
+  if (!raw) return null;
+  const v = raw.value;
+  if (!v || typeof v !== "object") return null;
+  // Nested format: value.value contains the actual block data
+  if ("value" in v && v.value && typeof v.value === "object") {
+    const inner = v.value;
+    if (inner.id || inner.type || inner.parent_id) return inner;
+  }
+  return v;
+};
+
+/**
+ * After getPage, notion-client may not load children of callout/toggle blocks
+ * inside collection item pages (due to page-boundary stops in block traversal).
+ * This function finds those missing grandchildren and fetches them so that
+ * collection card cover thumbnails can use their text content (e.g. eyebrow labels).
+ */
+const fetchCollectionCardCalloutChildren = async (
+  recordMap: ExtendedRecordMap,
+): Promise<void> => {
+  const missingChildIds = new Set<string>();
+
+  for (const blockId of Object.keys(recordMap.block)) {
+    const b = getActualBlockValue(recordMap.block[blockId]);
+    if (!b || b.parent_table !== "collection") continue;
+    if (b.type !== "page" && b.type !== "collection_view_page") continue;
+    if (!Array.isArray(b.content)) continue;
+
+    for (const childId of b.content) {
+      const child = getActualBlockValue(recordMap.block[childId]);
+      if (!child || (child.type !== "callout" && child.type !== "toggle"))
+        continue;
+      if (!Array.isArray(child.content)) continue;
+
+      for (const grandchildId of child.content) {
+        if (!recordMap.block[grandchildId]) {
+          missingChildIds.add(grandchildId);
+        }
+      }
+    }
+  }
+
+  if (missingChildIds.size === 0) return;
+
+  try {
+    const result = await notion.getBlocks(Array.from(missingChildIds));
+    const newBlocks = result?.recordMap?.block;
+    if (newBlocks) {
+      recordMap.block = { ...recordMap.block, ...newBlocks };
+    }
+  } catch (err: any) {
+    console.warn("fetchCollectionCardCalloutChildren error", err?.message);
+  }
+};
+
 const loadPageFromNotion = async (
   pageId: string,
 ): Promise<ExtendedRecordMap> => {
@@ -679,6 +740,8 @@ const loadPageFromNotion = async (
     fetchMissingBlocks: true,
     fetchRelationPages: true,
   });
+
+  await fetchCollectionCardCalloutChildren(recordMap);
 
   if (navigationStyle !== "default") {
     const navigationLinkRecordMaps = await getNavigationLinkPages();
