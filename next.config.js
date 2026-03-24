@@ -11,6 +11,9 @@ const withBundleAnalyzer = bundleAnalyzer({
 export default withBundleAnalyzer({
   compress: false,
   staticPageGenerationTimeout: 300,
+  experimental: {
+    externalDir: true,
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "www.notion.so" },

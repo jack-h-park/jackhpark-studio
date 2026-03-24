@@ -14,7 +14,13 @@
       "esbuild",
       "sharp",
       "unrs-resolver"
-    ]
+    ],
+    "overrides": {
+      "notion-types": "link:../react-notion-x/packages/notion-types",
+      "notion-utils": "link:../react-notion-x/packages/notion-utils",
+      "notion-client": "link:../react-notion-x/packages/notion-client",
+      "react-notion-x": "link:../react-notion-x/packages/react-notion-x"
+    }
   },
   "engines": {
     "node": ">=18"
@@ -106,7 +112,7 @@
     "react-body-classname": "^1.3.1",
     "react-dom": "^19.1.1",
     "react-modal": "^3.16.3",
-    "react-notion-x": "file:../react-notion-x/packages/react-notion-x",
+    "react-notion-x": "github:jack-h-park/react-notion-x#7.7.1-jp.3",
     "react-tweet": "^3.2.2",
     "react-use": "^17.6.0",
     "rss": "^1.2.2",

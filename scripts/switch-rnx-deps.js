@@ -20,7 +20,7 @@ function main() {
 
   if (mode === "remote") {
     pkg.dependencies["react-notion-x"] =
-      "github:jack-h-park/react-notion-x#7.7.1-jp.2";
+      "github:jack-h-park/react-notion-x#7.7.1-jp.3";
     console.log("✅ Switched to REMOTE react-notion-x");
   }
 
