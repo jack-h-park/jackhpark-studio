@@ -52,6 +52,8 @@ The `terminology.md` file remains the single authoritative source for shared ter
 | `testing/`        | Smoke and experiment verification docs                                                                           | Operational/default when testing          |
 | `ui/`             | Current UI policy and active audit guidance                                                                      | Operational/default                       |
 | `ui-audits/`      | One-off or phase-specific UI investigations                                                                      | Historical/reference unless task-specific |
+| `product/`        | Product-level interpretation of telemetry signals                                                                | Historical/reference unless task-specific |
+| `pr/`             | PR template and process documentation                                                                            | Supporting reference                      |
 
 ## Navigation Rules
 

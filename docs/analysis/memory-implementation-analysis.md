@@ -4,6 +4,8 @@
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
+**Last verified:** Unknown — verify `lib/server/chat-guardrails.ts` and `lib/server/langchain/ragAnswerChain.ts` still match the implementation described here before acting on recommendations.
+
 This analysis assumes the canonical guardrail contracts for context budgeting described in `../canonical/rag/rag-system.md`; the focus here is the decision to stay with a stateless, functional memory implementation.
 
 ## 1. Current Implementation Analysis ("Lightweight Custom Approach")

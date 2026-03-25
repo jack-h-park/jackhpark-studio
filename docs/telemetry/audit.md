@@ -1,5 +1,7 @@
 # Telemetry audit
 
+**Last reviewed:** 2026-01-03 — verify "Remaining gaps" section against current instrumentation before acting on action items. P0 events (`chat_completion`, `cache_decision`, `latency_breakdown`) may have been partially wired since this was written.
+
 This file replaces `step1-3-audit-report.md` and documents what changed in the docs plus the remaining Platform/Product gaps that keep the telemetry chain incomplete.
 
 ## Fixed items (docs-level)

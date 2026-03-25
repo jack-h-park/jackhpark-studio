@@ -1,9 +1,13 @@
 # Operations Documentation
 
-This folder houses the operational runbooks, checklists, and audits that keep the chat/telemetry platform healthy in day-to-day and incident contexts. Treat these docs as the practical counterpart to the telemetry contracts in `docs/telemetry/`.
+This folder houses the operational runbooks and checklists for day-to-day platform administration. Treat these docs as the practical counterpart to the canonical contracts in `docs/canonical/`.
 
-Key files:
+## Files in this folder
 
-- `telemetry-audit-checklist.md` — operational checklist for telemetry invariants and audit procedures.
-- `local-llm-operations-checklist.md` — operational guidance for the local LLM routing matrix.
-- `../telemetry/runbooks/oncall-runbook.md` — the on-call playbooks for Alerts A, B, and C.
+- `admin-guide.md` — ingestion workflows, document management, run history, and global chat config procedures.
+- `local-llm-operations-checklist.md` — local LLM backend setup and testing procedures.
+
+## Related operational docs (other folders)
+
+- `../telemetry/operations/telemetry-audit-checklist.md` — operational checklist for telemetry invariants and audit procedures.
+- `../telemetry/runbooks/oncall-runbook.md` — on-call playbooks for Alerts A, B, and C.

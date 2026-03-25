@@ -13,6 +13,16 @@ This folder mixes **active UI policy** with **surface-specific audit material**.
 - `ingestion-depth-audit.md` — current default audit input for ingestion dashboard hierarchy issues.
 - `depth/admin-chat-config-depth-policy.md` — current default depth policy for admin chat-config work.
 
+## Depth document quick reference
+
+| File | Role | When to open |
+|------|------|--------------|
+| `depth-system.md` | Canonical policy | Always — start here for any depth/hierarchy work |
+| `depth/admin-chat-config-depth-policy.md` | Operational (current) | When the task is specifically about the admin chat-config surface |
+| `ingestion-depth-audit.md` | Operational (current) | When the task is about the ingestion dashboard hierarchy |
+| `audits/admin-chat-config-depth-audit.md` | Historical (point-in-time) | When you need background on a prior review, not for routine work |
+| `../ui-audits/admin-ingestion-phase1.md` | Historical (phase-specific) | When you need context on an older ingestion investigation |
+
 ## Historical / reference context
 
 - `audits/admin-chat-config-depth-audit.md` — point-in-time audit summary for admin chat-config; use when you need background or want to compare against a prior review.

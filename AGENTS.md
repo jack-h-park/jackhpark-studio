@@ -58,7 +58,7 @@ Always align with the existing stack unless explicitly instructed otherwise.
    All logging must follow `docs/telemetry/implementation/telemetry-logging.md` and `docs/telemetry/langfuse-guide.md`. No ad-hoc logs.
 
 4. **Design system compliance.**
-   All UI changes must follow `docs/design-system/ai-design-system.md`, `docs/css-guardrails.md`, and `docs/ui/drawer-ui-contract.md`.
+   All UI changes must follow `docs/canonical/design-system/ai-design-system.md`, `docs/css-guardrails.md`, and `docs/ui/drawer-ui-contract.md`.
    - `styles/ai-design-system.css` is primitive-only (tokens, utilities, reusable primitives).
    - Feature- or screen-specific styling must live in feature-scoped stylesheets.
    - No color literals or legacy tokens in component rules; consume role tokens only.

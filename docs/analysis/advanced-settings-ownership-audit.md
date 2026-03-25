@@ -6,7 +6,8 @@
 
 This audit assumes the guardrail contract described in `../canonical/guardrails/guardrail-system.md`; it evaluates how the Advanced Settings UX implements those policies without restating them.
 
-**Status:** Draft Analysis
+**Status:** Audit completed — key findings implemented 2026-01-03
+**Last verified:** 2026-01-03 — re-verify against `components/chat/settings/`, `lib/server/chat-settings.ts`, and `lib/server/api/langchain_chat_impl_heavy.ts` before acting on recommendations.
 **Date:** 2026-01-03
 **Scope:** `components/chat/settings/`, `lib/server/chat-settings.ts`, `lib/server/api/langchain_chat_impl_heavy.ts`
 
