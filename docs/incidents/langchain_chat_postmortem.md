@@ -1,5 +1,8 @@
 # Langchain Chat Postmortem
 
+> **Historical / Reference Context**
+> Use this document for background on a prior streaming/import incident. It is not a default skill input for routine smoke checks unless the current failure points back to the same wrapper/import/first-byte path.
+
 ## Root cause
 - In Next dev the heavy `langchain_chat_impl_heavy` graph pulled in Node-only dependencies (Langfuse + `crypto`) during instrumentation and debug probes, so Webpack/Turbopack spent 10–60s compiling before the route could start streaming.
 - Even when the import eventually succeeded, the streaming path would wait for the first LM chunk, so simple `curl` clients saw 0 bytes and timed out before the first token arrived.

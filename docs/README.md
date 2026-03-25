@@ -1,51 +1,81 @@
 # Documentation Portal
 
-This documentation portal centers on a canonical approach to knowledge management. The `terminology.md` file serves as the single authoritative source for definitions and meanings. Canonical system and policy documents establish the invariants and contracts that govern the product. All supporting documents derive from and reference these canonical contracts to ensure consistency and clarity.
+This documentation tree works best when you treat documents by **role**, not just by folder. The repository has three distinct documentation classes:
 
-## Canonical Reading Order (Start Here)
+1. **Canonical contracts**: the authoritative definitions and invariants.
+2. **Operational/default guides**: the docs you should usually use while building, debugging, or reviewing.
+3. **Historical/reference context**: audits, plans, postmortems, and background writeups that provide rationale, not default execution steps.
+
+The `terminology.md` file remains the single authoritative source for shared terms. Supporting docs must derive from those terms and from the canonical contracts.
+
+## Read First
 
 1. `00-start-here/terminology.md`
-2. Canonical system contracts:
+2. Canonical contracts:
    - `canonical/rag/rag-system.md`
    - `canonical/guardrails/guardrail-system.md`
    - `canonical/telemetry/alerting-contract.md`
    - `canonical/design-system/ai-design-system.md`
-3. Supporting documentation by role and function:
-   - Architecture briefs and system summaries
-   - Chat experience documentation (`chat/`)
-   - Analysis audits (`analysis/`)
-   - Telemetry and operations guidance
+
+## Use By Default
+
+- `operations/` for reusable operational procedures and runbooks
+- `telemetry/README.md` for telemetry navigation by contract vs operations vs historical context
+- `chat/` for current UX and preset behavior
+- `ui/README.md` for UI policy vs one-off audit navigation
+- `testing/` when the task is explicitly about smoke or experiment verification
+
+## Historical / Reference Context
+
+- `analysis/` for implementation assessments and policy audits
+- `ui-audits/` for one-off or phase-specific UI investigations
+- `incidents/` for postmortems and prior failure context
+- `implementation/plans/` for historical hardening plans and executable initiatives
+- `debug/` for targeted investigations tied to specific failures or migrations
 
 ## Directory Overview
 
-| Folder            | Purpose                                                                                                         | Primary Audience                          |
-| ----------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| `00-start-here/`  | Canonical terminology: single source of truth for all product definitions                                       | All contributors                          |
-| `canonical/`      | Canonical contracts that define invariants and governing policies for every layer of the product                | Platform, backend, and policy architects  |
-| `architecture/`   | Architecture summaries and implementation patterns that explain how canonical contracts are realized in the stack | Technical leads and systems architects    |
-| `chat/`           | User experience, preset, and advanced settings guidance grounded in canonical guardrails                        | Product, UX and platform engineers        |
-| `analysis/`       | Audits and assessments of how implementation (e.g., advanced settings, memory) obeys canonical constraints       | Architects and risk/ops reviewers         |
-| `implementation/` | Supporting executable plans (`plans/`) and historic migrations (`migrations/`) derived from canonical contracts | Teams executing initiatives               |
-| `operations/`     | Operational playbooks, runbooks, and checklists aligned with canonical contracts                                 | SREs, operators, and incident responders  |
-| `telemetry/`      | Contract-driven observability semantics, dashboards, and implementation guidance                                | Telemetry and observability engineers     |
-| `database/`       | Data model and schema documentation consistent with canonical definitions                                       | Data platform & backend engineers         |
-| `incidents/`      | Postmortems and corrective actions that refer back to canonical contracts                                        | Incident responders, leadership learnings |
-| `principles/`     | Guiding principles that frame interpretation of canonical contracts and trade-offs                              | Leadership and cross-functional partners  |
-| `design-system/`  | Canonical UI/token standards and component guidance                                                             | Front-end and design partners             |
+| Folder            | Purpose                                                                                                          | Default role                              |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `00-start-here/`  | Canonical terminology and shared meanings                                                                        | Canonical                                 |
+| `canonical/`      | Stable contracts and invariants                                                                                  | Canonical                                 |
+| `architecture/`   | Runtime/system realization of canonical contracts                                                                | Supporting reference                      |
+| `chat/`           | Current UX and preset behavior grounded in canonical guardrails                                                  | Operational/default                       |
+| `analysis/`       | Audits and implementation assessments                                                                            | Historical/reference unless task-specific |
+| `implementation/` | Historic migrations and executable plans                                                                         | Historical/reference unless task-specific |
+| `operations/`     | Reusable procedures, runbooks, and checklists                                                                    | Operational/default                       |
+| `telemetry/`      | Telemetry navigation, operations, dashboards, and implementation guidance                                        | Mixed; start with `telemetry/README.md`   |
+| `database/`       | Data model and schema documentation                                                                              | Supporting reference                      |
+| `incidents/`      | Postmortems and corrective actions                                                                               | Historical/reference                      |
+| `principles/`     | High-level engineering principles                                                                                | Canonical/supporting                      |
+| `debug/`          | Targeted investigations for specific failures                                                                    | Historical/reference unless task-specific |
+| `testing/`        | Smoke and experiment verification docs                                                                           | Operational/default when testing          |
+| `ui/`             | Current UI policy and active audit guidance                                                                      | Operational/default                       |
+| `ui-audits/`      | One-off or phase-specific UI investigations                                                                      | Historical/reference unless task-specific |
 
-## How to Start
+## Navigation Rules
 
-- **New contributors:** Begin with `00-start-here/terminology.md` to understand foundational meanings and definitions. This ensures clarity and alignment across all documentation and development efforts.
-- **Feature authors:** Start with terminology, then read the canonical contracts before exploring supporting guides. Key content includes:
-  - Chat navigation: `chat/chat-user-guide.md`, `chat/advanced-settings-ux.md`, `chat/session-presets.md`.
-  - Analysis audits: `analysis/advanced-settings-ownership-audit.md` and `analysis/memory-implementation-analysis.md`.
-- **Operators and SREs:** Begin with the telemetry contract to understand observability expectations, then move to operations documentation for runbook requirements, and refer to incidents for historical context and learning.
+- Start with canonical docs when you need definitions, invariants, or policy.
+- Start with operational docs when you need to execute a procedure or audit.
+- Use historical/reference docs only when:
+  - the task is explicitly about that artifact, or
+  - the canonical/operational docs do not explain the current issue.
+- Do not treat audits, postmortems, plans, or experiments as default reading for routine skill execution.
 
-## Telemetry: Contract-First Navigation
+## Default Reading Paths
 
-- The primary source of truth for telemetry semantics and alerting is `canonical/telemetry/alerting-contract.md`.
-- Consult the telemetry contract before reading supporting telemetry docs in `telemetry/`, such as dashboards, operations, runbooks, and implementation guidance (`telemetry/dashboards/`, `telemetry/operations/`, `telemetry/runbooks/`, `telemetry/implementation/`).
-- Treat all telemetry documentation as extensions of the canonical contract rather than standalone guidance.
+- **Telemetry work**
+  - Start: `canonical/telemetry/alerting-contract.md`
+  - Then: `telemetry/README.md`
+- **Advanced settings / guardrails**
+  - Start: `canonical/guardrails/guardrail-system.md`
+  - Then: `chat/advanced-settings-ux.md`
+- **RAG retrieval behavior**
+  - Start: `canonical/rag/rag-system.md`
+  - Then: `architecture/rag/rag-retrieval-engine.md`
+- **Admin UI depth and hierarchy**
+  - Start: `ui/README.md`
+  - Then: `ui/depth-system.md`
 
 ## Contribution Guidance
 
@@ -55,5 +85,16 @@ This documentation portal centers on a canonical approach to knowledge managemen
 - When changes span multiple areas, link between folders rather than duplicating content.
 - Before editing telemetry or other contract-driven docs, confirm the contract in the canonical files to ensure consistency.
 - Add new entries to this portal when adding folders, and update the overview table accordingly so readers always know where to look.
+- If a document is primarily a one-off audit, postmortem, plan, or experiment, label it as historical/reference context and avoid presenting it as a default operational input.
+
+## Promotion Candidates For Shared Extraction
+
+The repo now stages generic skill cores and shared reference docs separately from repo adapters.
+
+- Shared skill cores live under `shared/skills/`
+- Shared reusable reference docs live under `shared-docs/skills/`
+- Repo-specific adapters remain under `ai/skills/*/references/repo-adapter.md`
+
+Promote only material that is reusable across codebases. Keep repo names, file paths, event names, local trace names, primitive names, and canonical local contracts in this repository.
 
 Stay concise, keep cross-links explicit, and avoid mixing implementation details into principle or operations-level narratives.

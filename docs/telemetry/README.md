@@ -4,15 +4,11 @@
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
-This directory documents the **end-to-end telemetry and alerting model** for the system.
+This directory documents the **end-to-end telemetry and alerting model** for the system. Read it by role:
 
-The docs are organized around a deliberate separation of concerns:
-
-- **Intent & contracts** (what we want to detect and why)
-- **Signals & mappings** (what telemetry exists and how it is normalized)
-- **Tool-specific realization** (how PostHog and Langfuse consume those signals)
-
-This structure avoids coupling operational intent to any single observability tool.
+- **Canonical**: the stable contract and field semantics
+- **Operational/default**: the docs you should usually open when auditing telemetry or responding to issues
+- **Historical/reference**: dashboards, audit history, and background material that should not be the first thing a skill reads by default
 
 ## Alert lifecycle (A/B/C)
 
@@ -24,23 +20,40 @@ This space treats alerts as first-class contracts:
 
 Canonical semantics (e.g., `latency_ms` as handler E2E duration; deterministic booleans for `response_cache_hit` / `retrieval_cache_hit` and their `*_enabled` flags) are defined in `alerting-contract.md` and must be kept in sync with code.
 
-## How to use this space
+## Read by default
 
-1. Start with `alerting-contract.md` to understand _why_ each alert exists, which signals it depends on, and how operators are expected to react.
-2. Continue to `posthog-ops.md` to see _how_ those signals are implemented in PostHog dashboards and alerts, including plan limitations and fallbacks.
-3. Use the remaining documents for deeper diagnostics, operational playbooks, Langfuse-specific dashboards, and audit history.
-4. Read `../product/telemetry-to-product.md` when you need the product interpretation layer: telemetry defines the signals, the product docs explain how to reason about them and take action.
+1. **Canonical**
+   - [`alerting-contract.md`](../canonical/telemetry/alerting-contract.md)
+2. **Operational/default**
+   - [`operations/telemetry-audit-checklist.md`](operations/telemetry-audit-checklist.md)
+   - [`implementation/telemetry-logging.md`](implementation/telemetry-logging.md) when wiring or env behavior matters
+   - [`runbooks/oncall-runbook.md`](runbooks/oncall-runbook.md) when an alert is active
+3. **Historical/reference**
+   - open only if the task specifically needs dashboard shape, audit history, or prior implementation rationale
 
-## Canonical documents
+## Document roles
 
-- [`alerting-contract.md`](../canonical/telemetry/alerting-contract.md) — consolidates Step 1 (alert intent/spec) and Step 2 (canonical events, properties, normalization) into a single operator-facing contract.
-- [`posthog-ops.md`](posthog-ops.md) — PostHog dashboards, alert implementation notes (intervals, volume gates, cooldowns), and the cache hit/miss fallback.
-- [`langfuse-dashboard.md`](langfuse-dashboard.md) — explains the Langfuse-side dashboards and their A/B/C layout (unchanged except for updated cross-links).
-- [`oncall-runbook.md`](runbooks/oncall-runbook.md) — the incident playbooks for Alerts A, B, and C.
-- [`rag-observations.md`](rag-observations.md) — field-by-field reference for `rag:root` and `context:selection` observations.
-- [`telemetry-logging.md`](telemetry-logging.md) — logging and Langfuse telemetry architecture.
-- [`langfuse-guide.md`](langfuse-guide.md) — payload formats, tags, and generation summaries sent to Langfuse.
-- [`audit.md`](audit.md) — current audit status, fixed documentation touches, and outstanding Platform/Product work.
+### Canonical
+- [`alerting-contract.md`](../canonical/telemetry/alerting-contract.md) — the source of truth for alert intent, event names, property semantics, normalization, and invariants.
+
+### Operational/default
+- [`operations/telemetry-audit-checklist.md`](operations/telemetry-audit-checklist.md) — default operational checklist for telemetry audits.
+- [`implementation/telemetry-logging.md`](implementation/telemetry-logging.md) — logging and telemetry wiring, merge rules, env knobs, and shared helper behavior.
+- [`runbooks/oncall-runbook.md`](runbooks/oncall-runbook.md) — first-response playbooks for A/B/C alerts.
+- [`implementation/rag-observations.md`](implementation/rag-observations.md) — default reference when the task is about `rag:root` or `context:selection`.
+
+### Historical / reference context
+- [`posthog-ops.md`](posthog-ops.md) — dashboard and alert realization details; useful when implementing or tuning PostHog, not the default first read for a contract audit.
+- [`langfuse-guide.md`](langfuse-guide.md) — detailed payload shape and dashboard usage; useful when trace-level detail is needed.
+- [`dashboards/langfuse-dashboard.md`](dashboards/langfuse-dashboard.md) and [`dashboards/posthog-dashboard.md`](dashboards/posthog-dashboard.md) — dashboard interpretation/reference.
+- [`audit.md`](audit.md) — telemetry doc history and open gaps.
+
+## Selection rules
+
+- Open the canonical contract first when checking whether a field or event is correct.
+- Open the operational checklist first when running a telemetry audit.
+- Open dashboard docs only when the task is explicitly about dashboard behavior, alert implementation, or observability interpretation.
+- Open audit-history docs only when you need background on why the current telemetry model was shaped the way it is.
 
 ## How these docs relate to dashboards
 
@@ -53,6 +66,7 @@ If a dashboard changes, the corresponding contract or ops doc should be updated 
 
 ## Next steps
 
-- When you need to check whether an alert is healthy, start with `posthog-ops.md` and the dashboard tiles it references.
 - When updating instrumentation, sync the code change with the canonical signal tables in `alerting-contract.md`.
+- When running a telemetry audit, start with `operations/telemetry-audit-checklist.md`.
+- When responding to an active alert, start with `runbooks/oncall-runbook.md`.
 - If you spot a doc drift, update `audit.md` so the TODO list stays actionable.

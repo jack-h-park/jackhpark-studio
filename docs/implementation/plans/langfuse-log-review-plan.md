@@ -1,5 +1,8 @@
 # Langfuse Log Review & Hardening Plan
 
+> **Historical / Reference Context**
+> This is a hardening-plan document, not a default operational input. Use it when the task is specifically about prior Langfuse span-shape decisions, telemetry hardening history, or unfinished follow-up work.
+
 This document defines a **phased, executable plan** to stabilize and improve Langfuse telemetry for the RAG pipeline.
 The phases are ordered by **observability correctness first**, then **semantic clarity**, then **selection-quality validation**.
 

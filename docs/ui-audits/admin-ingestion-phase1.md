@@ -1,5 +1,8 @@
 # Admin Ingestion Dashboard — Phase 1 Audit
 
+> **Historical / Reference Context**
+> This phase audit is useful when you need broader historical context for ingestion layout problems. It is not the default first input for routine depth audits; prefer `docs/ui/depth-system.md` plus the current surface-specific depth audit first.
+
 ## Executive Summary
 
 This Phase 1 audit is code-analysis only (no UI changes). It maps every major Admin Ingestion Dashboard region to a surface tier (T0/T1/T2/T3), identifies fragmentation and nested-surface offenders, evaluates interaction-contract compliance, and proposes a smallest-diff Phase 2+ patch plan.
