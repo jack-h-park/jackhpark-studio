@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --import tsx --test test/cache-key.test.ts)",
+      "Bash(node --import tsx --test test/trace-metadata-merge.test.ts)",
+      "Bash(node --import tsx --test test/auto-rag-trigger.test.ts test/cache-key.test.ts test/trace-metadata-merge.test.ts)"
+    ]
+  }
+}

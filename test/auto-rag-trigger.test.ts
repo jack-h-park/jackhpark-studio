@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
 
-import { evaluateAutoTrigger } from "@/lib/server/api/langchain_chat_impl_heavy";
+import { evaluateAutoTrigger } from "@/lib/server/rag/auto-rag-decision";
 
 void describe("Auto RAG Trigger Logic", () => {
   const defaults = {

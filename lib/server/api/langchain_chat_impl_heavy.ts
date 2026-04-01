@@ -27,14 +27,22 @@ import {
   shouldRetryGeminiModel,
 } from "@/lib/core/gemini";
 import { resolveLlmModel } from "@/lib/core/llm-registry";
-import { getLmStudioRuntimeConfig } from "@/lib/core/lmstudio";
-import { requireProviderApiKey } from "@/lib/core/model-provider";
-import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
 import { type AppEnv, getAppEnv, type LangfuseTrace } from "@/lib/langfuse";
 import { getLoggingConfig, llmLogger, ragLogger } from "@/lib/logging/logger";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
+import {
+  buildResponseCacheKeyPayload,
+  buildRetrievalCacheKey,
+  computeHistorySummaryHash,
+  type RagDecisionSignature,
+  type RetrievalCacheKeyArgs,
+} from "@/lib/server/api/chat-cache-keys";
+import {
+  createChatModel,
+  createEmbeddingsInstance,
+} from "@/lib/server/api/llm-provider-factory";
 import { hashPayload, memoryCacheClient } from "@/lib/server/chat-cache";
 import {
   type ChatRequestBody,
@@ -68,7 +76,6 @@ import { isDebugSurfacesEnabled } from "@/lib/server/debug/debug-surfaces";
 import { createRequestAbortSignal } from "@/lib/server/langchain/abort";
 import {
   mergeCandidates,
-  type MultiQueryAltType,
   pickAltQueryType,
 } from "@/lib/server/langchain/multi-query";
 import { buildRagAnswerChain } from "@/lib/server/langchain/ragAnswerChain";
@@ -78,8 +85,24 @@ import {
   type ChainRunContext,
   makeRunName,
 } from "@/lib/server/langchain/runnableConfig";
+import {
+  escapeForPromptTemplate,
+  renderStreamChunk,
+} from "@/lib/server/langchain/stream-chunk";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
+import {
+  type AutoDecisionMetrics,
+  AutoPassTimeoutError,
+  buildFailedAutoMetrics,
+  buildPassMetrics,
+  evaluateAutoTrigger,
+  isWeakRetrieval,
+  type RagDecisionTelemetry,
+  resolveAutoCapability,
+  selectBetterRetrieval,
+  shouldSuppressAuto,
+} from "@/lib/server/rag/auto-rag-decision";
 import { logDebugRag } from "@/lib/server/rag-logger";
 import {
   buildEmbeddingResolutionTrace,
@@ -92,7 +115,6 @@ import {
 } from "@/lib/server/telemetry/langfuse-metadata";
 import { emitRagScores } from "@/lib/server/telemetry/langfuse-scores";
 import { attachLangfuseTraceTags } from "@/lib/server/telemetry/langfuse-tags";
-import { stableHash } from "@/lib/server/telemetry/stable-hash";
 import {
   clearRequestTrace,
   createTelemetryBuffer,
@@ -110,6 +132,13 @@ import {
   type SafeTraceInputSummary,
   type SafeTraceOutputSummary,
 } from "@/lib/server/telemetry/telemetry-summaries";
+import {
+  applyTraceMetadataMerge,
+  mergeTraceMetadata,
+  type ResponseCacheMeta,
+  type TraceMetadataSnapshot,
+  type TraceUpdate,
+} from "@/lib/server/telemetry/trace-metadata-merge";
 import { buildSpanTiming, withSpan } from "@/lib/server/telemetry/withSpan";
 import {
   type GuardrailEnhancements,
@@ -151,109 +180,10 @@ function setSmokeHeaders(res: NextApiResponse, cacheHit: boolean | null) {
   res.setHeader("x-cache-hit", cacheHit === true ? "1" : "0");
 }
 
-const AUTO_SCORE_MARGIN = 0.05;
-const AUTO_MIN_INCLUDED = 3;
 const AUTO_PASS_TIMEOUT_MS = 2000;
 const MULTI_QUERY_TIMEOUT_MS = 1200;
-const AUTO_SUPPRESS_TOPK = 18;
-const AUTO_SUPPRESS_SIMILARITY = 0.1;
 
 const MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 1024);
-
-export type ResponseCacheKeyArgs = {
-  presetId: string;
-  intent: string;
-  messages: ChatMessage[];
-  guardrails: {
-    ragTopK: number;
-    similarityThreshold: number;
-    ragContextTokenBudget: number;
-    ragContextClipTokens: number;
-  };
-  runtimeFlags: {
-    reverseRagEnabled: boolean;
-    reverseRagMode: ReverseRagMode;
-    hydeEnabled: boolean;
-    rankerMode: RankerMode;
-    hydeMode: RagAutoMode;
-    rewriteMode: RagAutoMode;
-    ragMultiQueryMode: RagMultiQueryMode;
-    ragMultiQueryMaxQueries: number;
-  };
-  decision?: RagDecisionSignature | null;
-  resolvedProvider: string;
-  resolvedModelId: string;
-  requestedModelId: string | null;
-  summaryHash: string;
-};
-
-export function buildResponseCacheKeyPayload(args: ResponseCacheKeyArgs) {
-  const payload = {
-    presetId: args.presetId,
-    intent: args.intent,
-    messages: args.messages,
-    guardrails: args.guardrails,
-    runtime: args.runtimeFlags,
-    provider: args.resolvedProvider,
-    resolvedModelId: args.resolvedModelId,
-    requestedModelId: args.requestedModelId,
-    summaryHash: args.summaryHash,
-  } as Record<string, unknown>;
-
-  if (args.decision) {
-    payload.decision = args.decision;
-  }
-
-  return payload;
-}
-
-export function computeHistorySummaryHash(
-  summaryMemory: string | null | undefined,
-): string {
-  return stableHash(summaryMemory ?? "");
-}
-
-export type RetrievalCacheKeyArgs = {
-  presetId: string;
-  question: string;
-  ragTopK: number;
-  similarityThreshold: number;
-  candidateK: number;
-  reverseRagEnabled: boolean;
-  reverseRagMode: ReverseRagMode;
-  hydeEnabled: boolean;
-  rankerMode: RankerMode;
-  hydeMode: RagAutoMode;
-  rewriteMode: RagAutoMode;
-  ragMultiQueryMode: RagMultiQueryMode;
-  ragMultiQueryMaxQueries: number;
-};
-
-export function buildRetrievalCacheKeyPayload(
-  args: RetrievalCacheKeyArgs,
-): Record<string, unknown> {
-  return {
-    question: args.question,
-    presetId: args.presetId,
-    ragTopK: args.ragTopK,
-    similarityThreshold: args.similarityThreshold,
-    candidateK: args.candidateK,
-    reverseRagEnabled: args.reverseRagEnabled,
-    reverseRagMode: args.reverseRagMode,
-    hydeEnabled: args.hydeEnabled,
-    rankerMode: args.rankerMode,
-    hydeMode: args.hydeMode,
-    rewriteMode: args.rewriteMode,
-    ragMultiQueryMode: args.ragMultiQueryMode,
-    ragMultiQueryMaxQueries: args.ragMultiQueryMaxQueries,
-  };
-}
-
-export function buildRetrievalCacheKey(args: RetrievalCacheKeyArgs): string {
-  return `chat:retrieval:${args.presetId}:${hashPayload(
-    buildRetrievalCacheKeyPayload(args),
-  )}`;
-}
 
 const SUPABASE_URL = process.env.SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env
@@ -298,159 +228,8 @@ function buildStableLangfuseTags(
   return tags;
 }
 
-type TraceMetadataSnapshot = {
-  [key: string]: unknown;
-  cache?: {
-    responseHit: boolean | null;
-    retrievalHit: boolean | null;
-  };
-  retrievalAutoDecision?: AutoDecisionMetrics;
-};
 
-type ResponseCacheMeta = {
-  responseHit: boolean | null;
-  retrievalHit: boolean | null;
-};
-
-type TraceUpdate = {
-  metadata?: Record<string, unknown>;
-  input?: SafeTraceInputSummary;
-  output?: SafeTraceOutputSummary;
-};
-
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  Boolean(value) && typeof value === "object" && !Array.isArray(value);
-
-const mergeBooleanMonotonic = (
-  prev: boolean | null | undefined,
-  next: boolean | null | undefined,
-): boolean | null => {
-  if (prev === true || next === true) {
-    return true;
-  }
-  if (prev === false || next === false) {
-    return false;
-  }
-  return null;
-};
-
-const mergeNumeric = (
-  prev: number | null | undefined,
-  next: number | null | undefined,
-): number | null => {
-  if (typeof prev === "number" && typeof next === "number") {
-    return Math.max(prev, next);
-  }
-  if (typeof next === "number") {
-    return next;
-  }
-  if (typeof prev === "number") {
-    return prev;
-  }
-  return null;
-};
-
-const mergeTraceMetadata = (
-  prev: Record<string, unknown>,
-  next: Record<string, unknown>,
-): Record<string, unknown> => {
-  // ─────────────────────────────────────────────────────────────
-  // Telemetry semantic invariant (do not change casually)
-  // See: docs/telemetry/telemetry-audit-checklist.md
-  // Invariant: metadata merges keep cache/rag flags monotonic and intent first-write-wins.
-  // ─────────────────────────────────────────────────────────────
-  const merged = { ...prev };
-  for (const [key, value] of Object.entries(next)) {
-    if (value === undefined) {
-      continue;
-    }
-    if (key === "cache" && isPlainObject(value)) {
-      // Cache hit flags are monotonic: once true, never revert to false.
-      const prior = isPlainObject(merged.cache) ? merged.cache : {};
-      merged.cache = {
-        ...prior,
-        responseHit: mergeBooleanMonotonic(
-          prior.responseHit as boolean | null | undefined,
-          value.responseHit as boolean | null | undefined,
-        ),
-        retrievalHit: mergeBooleanMonotonic(
-          prior.retrievalHit as boolean | null | undefined,
-          value.retrievalHit as boolean | null | undefined,
-        ),
-      };
-      continue;
-    }
-    if (key === "rag" && isPlainObject(value)) {
-      // Retrieval flags are monotonic so cache-hit inference stays stable.
-      const prior = isPlainObject(merged.rag) ? merged.rag : {};
-      const base = mergeTraceMetadata(prior, value);
-      merged.rag = {
-        ...base,
-        retrieval_attempted: mergeBooleanMonotonic(
-          prior.retrieval_attempted as boolean | null | undefined,
-          value.retrieval_attempted as boolean | null | undefined,
-        ),
-        retrieval_used: mergeBooleanMonotonic(
-          prior.retrieval_used as boolean | null | undefined,
-          value.retrieval_used as boolean | null | undefined,
-        ),
-      };
-      continue;
-    }
-    if (key === "intent" && typeof value === "string") {
-      // Intent is first-write-wins; record any later changes as *_final.
-      const prevIntent = merged.intent;
-      if (typeof prevIntent === "string" && prevIntent !== value) {
-        merged.intent_prev = merged.intent_prev ?? prevIntent;
-        merged.intent_final = value;
-        continue;
-      }
-      merged.intent = value;
-      continue;
-    }
-    if (key === "aborted" && typeof value === "boolean") {
-      // Aborts are terminal: once true, never flip back to false.
-      merged.aborted = mergeBooleanMonotonic(
-        merged.aborted as boolean | null | undefined,
-        value,
-      );
-      continue;
-    }
-    if (typeof value === "number") {
-      // Numeric counters move monotonically for stable dashboards.
-      merged[key] = mergeNumeric(
-        merged[key] as number | null | undefined,
-        value,
-      );
-      continue;
-    }
-    if (isPlainObject(value)) {
-      const prior = isPlainObject(merged[key])
-        ? (merged[key] as Record<string, unknown>)
-        : {};
-      merged[key] = mergeTraceMetadata(prior, value);
-      continue;
-    }
-    merged[key] = value;
-  }
-  return merged;
-};
-
-const applyTraceMetadataMerge = (
-  target: TraceMetadataSnapshot | null | undefined,
-  updates: Record<string, unknown>,
-) => {
-  if (!target) {
-    return;
-  }
-  const merged = mergeTraceMetadata(target, updates);
-  Object.assign(target, merged);
-};
-
-interface ComputeRagContextParams {
-  guardrails: ChatGuardrailConfig;
-  normalizedQuestion: NormalizedQuestion;
-  routingDecision: RoutedQuestion;
+interface RagExecutionFlags {
   reverseRagEnabled: boolean;
   reverseRagMode: ReverseRagMode;
   hydeEnabled: boolean;
@@ -459,38 +238,50 @@ interface ComputeRagContextParams {
   ragMultiQueryMode: RagMultiQueryMode;
   ragMultiQueryMaxQueries: number;
   rankerMode: RankerMode;
-  provider: ModelProvider;
-  llmModel: string;
-  embeddingModel: string;
-  embeddingSelection: EmbeddingSpace;
+  ragRanking?: RagRankingConfig | null;
+}
+
+interface RagInfrastructure {
   embeddings: EmbeddingsInterface;
   supabase: SupabaseClient;
   supabaseAdmin: SupabaseClient;
   tableName: string;
   queryName: string;
-  chatConfigSnapshot: ReturnType<typeof buildChatConfigSnapshot> | undefined;
-  includeVerboseDetails: boolean;
-  includeSelectionTelemetry: boolean;
-  env: AppEnv;
   memoryCacheClient: typeof memoryCacheClient;
   retrievalCacheTtl: number;
-  presetId: string;
-  cacheMeta: ResponseCacheMeta;
-  traceMetadata: TraceMetadataSnapshot | undefined;
+}
+
+interface RagTelemetryCallbacks {
   trace?: LangfuseTrace | null;
   updateTrace?: (updates: TraceUpdate) => void;
   updateTraceCacheMetadata?: () => void;
   updateRetrievalMetadata?: (attempted: boolean, used: boolean) => void;
+  traceMetadata: TraceMetadataSnapshot | undefined;
+  cacheMeta: ResponseCacheMeta;
+}
+
+interface ComputeRagContextParams {
+  guardrails: ChatGuardrailConfig;
+  normalizedQuestion: NormalizedQuestion;
+  routingDecision: RoutedQuestion;
   historyWindow: HistoryWindowResult;
-  ragRanking?: RagRankingConfig | null;
+  presetId: string;
+  provider: ModelProvider;
+  llmModel: string;
+  embeddingModel: string;
+  embeddingSelection: EmbeddingSpace;
+  chatConfigSnapshot: ReturnType<typeof buildChatConfigSnapshot> | undefined;
+  includeVerboseDetails: boolean;
+  includeSelectionTelemetry: boolean;
+  env: AppEnv;
   abortSignal?: AbortSignal | null;
   chainRunContext: ChainRunContext;
   markStage: (stage: string, extra?: Record<string, unknown>) => void;
   safeMode: boolean;
-  forcedFlags?: {
-    reverseRag?: boolean;
-    hyde?: boolean;
-  };
+  forcedFlags?: { reverseRag?: boolean; hyde?: boolean };
+  ragFlags: RagExecutionFlags;
+  infra: RagInfrastructure;
+  telemetry: RagTelemetryCallbacks;
 }
 
 interface ComputeRagContextResult {
@@ -503,197 +294,6 @@ interface ComputeRagContextResult {
   retrievalLatencyMs: number | null;
 }
 
-type RetrievalPassMetrics = {
-  pass: "base" | "auto";
-  firedHyde: boolean;
-  firedRewrite: boolean;
-  highestScore: number | null;
-  includedCount: number;
-  droppedCount: number;
-  insufficient: boolean;
-  tookMs: number;
-};
-
-type AutoDecisionMetrics = {
-  enabledHydeMode: RagAutoMode;
-  enabledRewriteMode: RagAutoMode;
-  enabledMultiQueryMode: RagMultiQueryMode;
-  autoTriggered: boolean;
-  winner: "base" | "auto" | null;
-  base: RetrievalPassMetrics;
-  auto?: RetrievalPassMetrics;
-  multiQuery?: {
-    enabled: boolean;
-    ran: boolean;
-    altType: MultiQueryAltType;
-    mergedCandidates: number;
-    baseCandidates: number;
-    altCandidates: number;
-    altQueryHash?: string | null;
-    tookMsAlt?: number;
-    skippedReason?:
-      | "not_enabled"
-      | "not_weak"
-      | "no_alt"
-      | "aborted"
-      | "timeout"
-      | "error";
-  };
-};
-
-type RagDecisionSignature = {
-  autoTriggered: boolean;
-  winner: "base" | "auto" | null;
-  altType: MultiQueryAltType;
-  multiQueryRan: boolean;
-  altQueryHash?: string | null;
-};
-
-type MultiQuerySkipReason =
-  | "not_enabled"
-  | "not_weak"
-  | "no_alt"
-  | "aborted"
-  | "timeout"
-  | "error";
-
-type RagDecisionTelemetry = {
-  autoTriggered: boolean;
-  winner: "base" | "auto" | null;
-  altType: MultiQueryAltType;
-  multiQueryRan: boolean;
-  skippedReason?: MultiQuerySkipReason;
-  reason?: "forced" | "auto" | "weak_signal";
-};
-
-function resolveAutoCapability(
-  mode: RagAutoMode,
-  settingsEnabled: boolean,
-): { capabilityEnabled: boolean; autoAllowed: boolean } {
-  if (mode === "on") {
-    // Legacy "on" from admin config might mean "Force", but applied to session settings it's just "Enabled"
-    return { capabilityEnabled: true, autoAllowed: false }; // Reserved for system-forced
-  }
-  if (mode === "auto") {
-    // If settings enabled it, it's available for Auto.
-    return { capabilityEnabled: settingsEnabled, autoAllowed: true };
-  }
-  return { capabilityEnabled: false, autoAllowed: false };
-}
-
-function isWeakRetrieval(
-  result: ContextWindowResult,
-  similarityThreshold: number,
-  finalK: number,
-): boolean {
-  return (
-    result.insufficient ||
-    result.highestScore < similarityThreshold + AUTO_SCORE_MARGIN ||
-    result.included.length < Math.min(finalK, AUTO_MIN_INCLUDED)
-  );
-}
-
-function selectBetterRetrieval(
-  baseResult: ContextWindowResult,
-  autoResult: ContextWindowResult,
-): "base" | "auto" {
-  if (autoResult.highestScore !== baseResult.highestScore) {
-    return autoResult.highestScore > baseResult.highestScore ? "auto" : "base";
-  }
-  if (autoResult.included.length !== baseResult.included.length) {
-    return autoResult.included.length > baseResult.included.length
-      ? "auto"
-      : "base";
-  }
-  if (autoResult.insufficient !== baseResult.insufficient) {
-    return autoResult.insufficient ? "base" : "auto";
-  }
-  return "base";
-}
-
-export function evaluateAutoTrigger(args: {
-  forcedFlags?: { reverseRag?: boolean; hyde?: boolean };
-  reverseRagDecision: { autoAllowed: boolean; capabilityEnabled: boolean };
-  hydeDecision: { autoAllowed: boolean; capabilityEnabled: boolean };
-  baseWeak: boolean;
-  suppressAuto: boolean;
-}) {
-  const {
-    forcedFlags,
-    reverseRagDecision,
-    hydeDecision,
-    baseWeak,
-    suppressAuto,
-  } = args;
-
-  const shouldAutoRewrite =
-    (forcedFlags?.reverseRag ?? false) ||
-    (reverseRagDecision.autoAllowed &&
-      reverseRagDecision.capabilityEnabled && // Only run if allowed AND enabled
-      baseWeak &&
-      !suppressAuto);
-
-  const shouldAutoHyde =
-    (forcedFlags?.hyde ?? false) ||
-    (hydeDecision.autoAllowed &&
-      hydeDecision.capabilityEnabled && // Only run if allowed AND enabled
-      baseWeak &&
-      !suppressAuto);
-
-  return { shouldAutoRewrite, shouldAutoHyde };
-}
-
-class AutoPassTimeoutError extends Error {
-  constructor() {
-    super("auto-pass-timeout");
-  }
-}
-
-function buildPassMetrics(
-  pass: "base" | "auto",
-  result: ContextWindowResult,
-  firedHyde: boolean,
-  firedRewrite: boolean,
-  tookMs: number,
-): RetrievalPassMetrics {
-  return {
-    pass,
-    firedHyde,
-    firedRewrite,
-    highestScore: Number.isFinite(result.highestScore)
-      ? Number(result.highestScore.toFixed(3))
-      : null,
-    includedCount: result.included.length,
-    droppedCount: result.dropped ?? 0,
-    insufficient: result.insufficient,
-    tookMs,
-  };
-}
-
-function buildFailedAutoMetrics(
-  firedHyde: boolean,
-  firedRewrite: boolean,
-  tookMs: number,
-): RetrievalPassMetrics {
-  return {
-    pass: "auto",
-    firedHyde,
-    firedRewrite,
-    highestScore: null,
-    includedCount: 0,
-    droppedCount: 0,
-    insufficient: true,
-    tookMs,
-  };
-}
-
-function shouldSuppressAuto(guardrails: ChatGuardrailConfig): boolean {
-  // Suppress auto when user settings already favor high recall.
-  return (
-    guardrails.ragTopK >= AUTO_SUPPRESS_TOPK &&
-    guardrails.similarityThreshold <= AUTO_SUPPRESS_SIMILARITY
-  );
-}
 
 interface StreamAnswerParams {
   llmInstance: BaseLanguageModelInterface;
@@ -738,43 +338,49 @@ async function computeRagContextAndCitations({
   guardrails,
   normalizedQuestion: initialNormalizedQuestion,
   routingDecision,
-  reverseRagEnabled,
-  reverseRagMode,
-  hydeEnabled,
-  hydeMode,
-  rewriteMode,
-  ragMultiQueryMode,
-  ragMultiQueryMaxQueries,
-  rankerMode,
+  historyWindow,
+  presetId,
   provider,
   llmModel,
   embeddingModel,
   embeddingSelection,
-  embeddings,
-  supabase,
-  supabaseAdmin,
-  tableName,
-  queryName,
   chatConfigSnapshot,
   includeVerboseDetails,
-  trace = null,
+  includeSelectionTelemetry,
   env,
-  memoryCacheClient,
-  retrievalCacheTtl,
-  presetId,
-  cacheMeta,
-  traceMetadata: _traceMetadata,
-  historyWindow,
-  ragRanking,
   abortSignal,
   chainRunContext,
   markStage,
-  updateTrace,
-  updateTraceCacheMetadata,
-  updateRetrievalMetadata,
-  includeSelectionTelemetry,
   safeMode = false,
   forcedFlags,
+  ragFlags: {
+    reverseRagEnabled,
+    reverseRagMode,
+    hydeEnabled,
+    hydeMode,
+    rewriteMode,
+    ragMultiQueryMode,
+    ragMultiQueryMaxQueries,
+    rankerMode,
+    ragRanking,
+  },
+  infra: {
+    embeddings,
+    supabase,
+    supabaseAdmin,
+    tableName,
+    queryName,
+    memoryCacheClient,
+    retrievalCacheTtl,
+  },
+  telemetry: {
+    trace = null,
+    updateTrace,
+    updateTraceCacheMetadata,
+    updateRetrievalMetadata,
+    traceMetadata: _traceMetadata,
+    cacheMeta,
+  },
 }: ComputeRagContextParams): Promise<ComputeRagContextResult> {
   const normalizedQuestion = normalizeQuestion(
     typeof routingDecision.question === "string"
@@ -2769,43 +2375,49 @@ export async function handleLangchainChat(
         guardrails,
         normalizedQuestion,
         routingDecision,
-        reverseRagEnabled,
-        reverseRagMode,
-        hydeEnabled,
-        hydeMode,
-        rewriteMode,
-        ragMultiQueryMode,
-        ragMultiQueryMaxQueries,
-        rankerMode,
+        historyWindow,
+        presetId,
         provider,
         llmModel,
         embeddingModel,
         embeddingSelection,
-        embeddings,
-        supabase,
-        supabaseAdmin,
-        tableName,
-        queryName,
         chatConfigSnapshot,
         includeVerboseDetails,
         includeSelectionTelemetry,
-        trace,
         env,
-        memoryCacheClient,
-        retrievalCacheTtl,
-        presetId,
-        cacheMeta,
-        traceMetadata: traceMetadata ?? undefined,
-        historyWindow,
-        ragRanking,
         abortSignal: requestAbortSignal,
         chainRunContext,
         markStage: mark,
-        updateTrace: updateTrace ?? undefined,
-        updateTraceCacheMetadata,
-        updateRetrievalMetadata,
         safeMode: safeModeActive,
         forcedFlags: body?.ragOverride?.forceStrategies,
+        ragFlags: {
+          reverseRagEnabled,
+          reverseRagMode,
+          hydeEnabled,
+          hydeMode,
+          rewriteMode,
+          ragMultiQueryMode,
+          ragMultiQueryMaxQueries,
+          rankerMode,
+          ragRanking,
+        },
+        infra: {
+          embeddings,
+          supabase,
+          supabaseAdmin,
+          tableName,
+          queryName,
+          memoryCacheClient,
+          retrievalCacheTtl,
+        },
+        telemetry: {
+          trace,
+          updateTrace: updateTrace ?? undefined,
+          updateTraceCacheMetadata,
+          updateRetrievalMetadata,
+          traceMetadata: traceMetadata ?? undefined,
+          cacheMeta,
+        },
       });
       mark("after-rag-context");
 
@@ -3129,172 +2741,3 @@ export async function handleLangchainChat(
   }
 }
 
-function messageContentToString(content: unknown): string {
-  if (typeof content === "string") {
-    return content;
-  }
-
-  if (Array.isArray(content)) {
-    return content
-      .map((entry: any) => {
-        if (typeof entry === "string") {
-          return entry;
-        }
-
-        if (entry && typeof entry === "object") {
-          // LangChain MessageContent-like shapes
-          const candidate = entry as {
-            type?: string;
-            text?: unknown;
-            content?: unknown;
-            data?: { text?: unknown };
-          };
-
-          // Common pattern: { type: "text", text: "..." }
-          if (typeof candidate.text === "string") {
-            return candidate.text;
-          }
-
-          // Some providers may put text in `content`
-          if (typeof candidate.content === "string") {
-            return candidate.content;
-          }
-
-          // Fallback: sometimes nested under data.text
-          if (candidate.data && typeof candidate.data.text === "string") {
-            return candidate.data.text;
-          }
-        }
-
-        return "";
-      })
-      .join("");
-  }
-
-  return "";
-}
-
-function renderStreamChunk(chunk: unknown): string | null {
-  if (!chunk) {
-    return null;
-  }
-
-  // Already a plain string
-  if (typeof chunk === "string") {
-    return chunk;
-  }
-
-  if (typeof chunk !== "object") {
-    return null;
-  }
-
-  const anyChunk = chunk as {
-    content?: unknown;
-    text?: unknown;
-    lc_kwargs?: { content?: unknown };
-  };
-
-  // Prefer the raw LangChain kwargs content when available (e.g., ChatOllama)
-  const rawContent =
-    anyChunk.lc_kwargs?.content ?? anyChunk.content ?? anyChunk.text;
-
-  const text = messageContentToString(rawContent);
-  return text.length > 0 ? text : null;
-}
-
-function escapeForPromptTemplate(value: string): string {
-  return value.replaceAll("{", "{{").replaceAll("}", "}}");
-}
-
-async function createEmbeddingsInstance(
-  selection: EmbeddingSpace,
-): Promise<EmbeddingsInterface> {
-  switch (selection.provider) {
-    case "openai": {
-      const { OpenAIEmbeddings } = await import("@langchain/openai");
-      const apiKey = requireProviderApiKey("openai");
-      return new OpenAIEmbeddings({
-        model: selection.model,
-        apiKey,
-      });
-    }
-    case "gemini": {
-      const { GoogleGenerativeAIEmbeddings } =
-        await import("@langchain/google-genai");
-      const apiKey = requireProviderApiKey("gemini");
-      return new GoogleGenerativeAIEmbeddings({
-        model: selection.model,
-        apiKey,
-      });
-    }
-    default:
-      throw new Error(`Unsupported embedding provider: ${selection.provider}`);
-  }
-}
-
-async function createChatModel(
-  provider: ModelProvider,
-  modelName: string,
-  temperature: number,
-  maxTokens: number,
-): Promise<BaseLanguageModelInterface> {
-  switch (provider) {
-    case "openai": {
-      const { ChatOpenAI } = await import("@langchain/openai");
-      const apiKey = requireProviderApiKey("openai");
-      return new ChatOpenAI({
-        model: modelName,
-        apiKey,
-        temperature,
-        streaming: true,
-        maxTokens,
-      });
-    }
-    case "gemini": {
-      const { ChatGoogleGenerativeAI } =
-        await import("@langchain/google-genai");
-      const apiKey = requireProviderApiKey("gemini");
-      return new ChatGoogleGenerativeAI({
-        model: modelName,
-        apiKey,
-        temperature,
-        streaming: true,
-        maxOutputTokens: maxTokens,
-      });
-    }
-    case "lmstudio": {
-      const { ChatOpenAI } = await import("@langchain/openai");
-      const config = getLmStudioRuntimeConfig();
-      if (!config.enabled || !config.baseUrl) {
-        throw new Error("LM Studio provider is disabled or missing base URL.");
-      }
-      return new ChatOpenAI({
-        model: modelName,
-        apiKey: "lm-studio",
-        configuration: {
-          baseURL: config.baseUrl,
-        },
-        temperature,
-        streaming: true,
-        maxTokens,
-      });
-    }
-    case "ollama": {
-      const { ChatOllama } =
-        await import("@langchain/community/chat_models/ollama");
-      const config = getOllamaRuntimeConfig();
-      if (!config.enabled || !config.baseUrl) {
-        throw new OllamaUnavailableError(
-          "Ollama provider is disabled in this environment.",
-        );
-      }
-      return new ChatOllama({
-        baseUrl: config.baseUrl,
-        model: modelName ?? config.defaultModel,
-        temperature,
-      }) as unknown as BaseLanguageModelInterface;
-    }
-    default:
-      throw new Error(`Unsupported LLM provider: ${provider}`);
-  }
-}

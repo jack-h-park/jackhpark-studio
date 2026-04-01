@@ -7,7 +7,7 @@ import {
   computeHistorySummaryHash,
   type ResponseCacheKeyArgs,
   type RetrievalCacheKeyArgs,
-} from "@/lib/server/api/langchain_chat_impl_heavy";
+} from "@/lib/server/api/chat-cache-keys";
 import {
   clearMemoryCache,
   hashPayload,
