@@ -24,6 +24,7 @@ Canonical semantics (e.g., `latency_ms` as handler E2E duration; deterministic b
 
 1. **Canonical**
    - [`alerting-contract.md`](../canonical/telemetry/alerting-contract.md)
+   - canonical playbook `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md`
 2. **Operational/default**
    - [`operations/telemetry-audit-checklist.md`](operations/telemetry-audit-checklist.md)
    - [`implementation/telemetry-logging.md`](implementation/telemetry-logging.md) when wiring or env behavior matters
@@ -35,9 +36,10 @@ Canonical semantics (e.g., `latency_ms` as handler E2E duration; deterministic b
 
 ### Canonical
 - [`alerting-contract.md`](../canonical/telemetry/alerting-contract.md) — the source of truth for alert intent, event names, property semantics, normalization, and invariants.
+- canonical playbook `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md` — reusable operational verification checklist.
 
 ### Operational/default
-- [`operations/telemetry-audit-checklist.md`](operations/telemetry-audit-checklist.md) — default operational checklist for telemetry audits.
+- [`operations/telemetry-audit-checklist.md`](operations/telemetry-audit-checklist.md) — local supplement with exact field names, observation names, and first-pass ownership hints.
 - [`implementation/telemetry-logging.md`](implementation/telemetry-logging.md) — logging and telemetry wiring, merge rules, env knobs, and shared helper behavior.
 - [`runbooks/oncall-runbook.md`](runbooks/oncall-runbook.md) — first-response playbooks for A/B/C alerts.
 - [`implementation/rag-observations.md`](implementation/rag-observations.md) — default reference when the task is about `rag:root` or `context:selection`.
@@ -51,7 +53,8 @@ Canonical semantics (e.g., `latency_ms` as handler E2E duration; deterministic b
 ## Selection rules
 
 - Open the canonical contract first when checking whether a field or event is correct.
-- Open the operational checklist first when running a telemetry audit.
+- Open the canonical operational verification playbook first when running a telemetry audit.
+- Open the local supplement when you need exact field names or local ownership hints.
 - Open dashboard docs only when the task is explicitly about dashboard behavior, alert implementation, or observability interpretation.
 - Open audit-history docs only when you need background on why the current telemetry model was shaped the way it is.
 
@@ -67,6 +70,6 @@ If a dashboard changes, the corresponding contract or ops doc should be updated 
 ## Next steps
 
 - When updating instrumentation, sync the code change with the canonical signal tables in `alerting-contract.md`.
-- When running a telemetry audit, start with `operations/telemetry-audit-checklist.md`.
+- When running a telemetry audit, start with the canonical playbook `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md`, then use `operations/telemetry-audit-checklist.md` for local specifics.
 - When responding to an active alert, start with `runbooks/oncall-runbook.md`.
 - If you spot a doc drift, update `audit.md` so the TODO list stays actionable.

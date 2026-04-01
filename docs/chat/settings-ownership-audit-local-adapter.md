@@ -110,6 +110,12 @@ Users should select among these approved configurations rather than reconstructi
 - Reset should restore preset defaults, clear the Custom state, and remove the override warning state.
 - History preview and exact preview tooling are local preview aids; they inform users about budget effects but do not change ownership rules.
 
+## Local Presentation Notes
+
+- Local managed-state wording should continue using **Preset Effects** and **Custom**.
+- Session-only overrides should remain grouped separately from preset-managed values.
+- Read-only managed settings should prefer summary presentation over disabled low-level controls.
+
 ## Local Implementation References
 
 - `components/chat/settings/`

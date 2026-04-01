@@ -71,7 +71,7 @@ The `terminology.md` file remains the single authoritative source for shared ter
   - Then: `telemetry/README.md`
 - **Advanced settings / guardrails**
   - Start: `canonical/guardrails/guardrail-system.md`
-  - Then: `chat/advanced-settings-ux.md`
+  - Then: `chat/advanced-settings-ux.md` for local UX wording and `docs/chat/settings-ownership-audit-local-adapter.md` for repo-specific mappings
 - **RAG retrieval behavior**
   - Start: `canonical/rag/rag-system.md`
   - Then: `architecture/rag/rag-retrieval-engine.md`
@@ -99,5 +99,9 @@ The repo now stages generic skill cores separately from repo adapters.
 - Repo-local skill bindings remain under `ai/skill-wrappers/`
 
 Promote only material that is reusable across codebases. Keep repo names, file paths, event names, local trace names, primitive names, and canonical local contracts in this repository.
+
+- A checklist can be promoted to a canonical playbook if another repo could reuse the sequence with only local adapter substitutions.
+- Audit results, postmortems, rollout notes, and one-off investigations stay local even when they contain useful examples.
+- Operator guides usually stay local unless they describe a repo-independent verification workflow.
 
 Stay concise, keep cross-links explicit, and avoid mixing implementation details into principle or operations-level narratives.

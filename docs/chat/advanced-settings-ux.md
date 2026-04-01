@@ -1,4 +1,4 @@
-# Advanced Settings UX Model
+# Advanced Settings UX Local Supplement
 
 > **Derives from canonical:** [Chat Guardrail System](../canonical/guardrails/guardrail-system.md)
 > This document is role-specific; it must not redefine the canonical invariants.
@@ -28,13 +28,15 @@
 - **History preview** and **Exact Preview (server)** toggle help users understand how budgets apply.
 - These tools read the current session config but do not change enforcement rules.
 
-## UI Principles
-- **Avoid disabled knobs** – when something is preset-managed, show the read-only Preset Effects summary instead of a disabled slider/toggle.
-- **Single source of truth** – the drawer shows one “Preset Effects (Managed by Preset)” card at the top so users know what drives core behavior.
-- **Optional Overrides zone** – the only editable controls live under a dedicated section with impact badges.
-- **Custom state** – a “Custom” badge appears next to the preset name and an inline banner alerts users when overrides diverge from a preset.
-- **Impact communication** – badges and inline warnings explain that overrides may affect cost, speed, or memory.
-- **Reset semantics** – “Reset to Preset Defaults” restores the preset, clears the Custom state, and hides the inline warning.
+This document is the repo-local supplement to the canonical playbook `jackhpark-ai-skills/playbooks/settings-ownership-audit.md`.
+
+## Local UX Mappings
+- **Preset Effects** is the preferred local label for the read-only managed summary.
+- The drawer should show one managed summary card before editable controls.
+- The editable area should remain an Optional Overrides zone with impact badges.
+- Divergence from the preset should surface as local **Custom** state plus an override banner.
+- Reset should restore preset defaults, clear the Custom state, and remove the override warning state.
+- History preview and Exact Preview remain local preview tools and must not change ownership rules.
 
 ## Developer Guidelines
 - When adding a new setting, decide if it belongs to a preset-owned bucket, a user override, or preview tooling before touching the UI.

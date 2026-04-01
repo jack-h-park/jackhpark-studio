@@ -9,5 +9,6 @@ This folder houses the operational runbooks and checklists for day-to-day platfo
 
 ## Related operational docs (other folders)
 
-- `../telemetry/operations/telemetry-audit-checklist.md` — operational checklist for telemetry invariants and audit procedures.
+- `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md` — reusable operational telemetry verification playbook.
+- `../telemetry/operations/telemetry-audit-checklist.md` — local telemetry supplement for exact field names and local ownership hints.
 - `../telemetry/runbooks/oncall-runbook.md` — on-call playbooks for Alerts A, B, and C.

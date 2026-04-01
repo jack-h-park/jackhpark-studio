@@ -1,9 +1,19 @@
-# Depth Violation Checklist (Ingestion Dashboard PRs)
+# Admin Depth Review Local Supplement
 
-Use this before merging any ingestion UI change to confirm depth/hierarchy rules.
+This document is the repo-local supplement to the canonical playbook `jackhpark-ai-skills/playbooks/admin-surface-hierarchy-audit.md`.
 
-- **Depth mapping**: Have you assigned each new section/card to L0–L3 and kept the heirarchy consistent with the depth system policy?
-- **Container correctness**: Are you using the right surface primitive (`ai-card`, `ai-panel`, `inset-panel`, etc.) for the declared depth instead of stacking extra borders/shadows?
-- **Seam ownership**: Does only one container/divider own each horizontal or vertical cut (no double `border-top`/`border` or duplicate `ai-panel` around the same block)?
-- **Mode toggle vs tab**: If you added tabs, do they break workflows (L1) instead of toggling short-lived modes? Use inline toggles for mode changes that live within the same card.
-- **Naming/placement**: Are new primitives placed under `components/ui` with kebab-case file names and CSS module pairs, while domain-aware wrappers stay under `components/<domain>`?
+Use the canonical playbook for the reusable review checklist. Use this local supplement only for this repo's preferred wording when reviewing admin ingestion and admin chat-config changes.
+
+## Local Review Prompts
+
+- **Depth mapping**: Have you assigned each new section or card to L0-L3 and kept the hierarchy consistent with this repo's depth model?
+- **Container correctness**: Are you using the right local surface primitive (`ai-card`, `ai-panel`, `inset-panel`, `ai-table`) instead of stacking extra borders or shadows?
+- **Seam ownership**: Does only one container or divider own each visible cut?
+- **Mode toggle vs tab**: If you added tabs, do they break a workflow boundary rather than toggling a short-lived mode inside the same card?
+- **Naming and placement**: Are domain-agnostic primitives still under `components/ui` and admin-specific composition still under `components/admin`?
+
+## Repo-Specific Scope
+
+- Default target surfaces are `/admin/ingestion` and `/admin/chat-config`.
+- Recent-runs tables should not gain an unnecessary extra frame around `ai-table`.
+- Short-lived mode switches inside a card should prefer inline controls over new tab shells.

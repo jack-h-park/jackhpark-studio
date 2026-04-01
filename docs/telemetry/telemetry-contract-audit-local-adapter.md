@@ -37,6 +37,11 @@ It intentionally contains only the local signal vocabulary, canonical semantics,
 - Terminal outcome fields must classify completion state consistently across traces and analytics events.
 - Missing values that are part of the local analytics contract should be emitted explicitly when required for stable dashboards.
 
+## Local Operational Verification Notes
+
+- Use the canonical playbook `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md` for the reusable scenario checklist.
+- Use the local supplement `docs/telemetry/operations/telemetry-audit-checklist.md` only for exact field names, observation names, and first-pass code ownership hints.
+
 ## Local Event and Field Contract
 
 ### Shared Context Fields

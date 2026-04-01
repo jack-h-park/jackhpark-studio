@@ -40,6 +40,12 @@ It intentionally contains only the local vocabulary, primitive mappings, page-sp
 - Shared primitives must stay domain-agnostic, and domain-aware compositions must stay in feature folders.
 - Structural hierarchy fixes should remain localized to the owning admin surface and should not drift into runtime logic or unrelated feature changes.
 
+## Local Review Checklist Notes
+
+- Default checklist targets are admin ingestion and admin chat-config.
+- Local primitive checks should call out `ai-card`, `ai-panel`, `inset-panel`, and `ai-table` explicitly.
+- Placement review should enforce `components/ui` for primitives and `components/admin` for admin-specific composition.
+
 ## Repo-Specific Exclusions
 
 - Do not use this adapter for settings ownership or policy questions; that belongs to the settings ownership adapter/workflow.
