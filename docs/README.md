@@ -91,11 +91,12 @@ The `terminology.md` file remains the single authoritative source for shared ter
 
 ## Promotion Candidates For Shared Extraction
 
-The repo now stages generic skill cores and shared reference docs separately from repo adapters.
+The repo now stages generic skill cores separately from repo adapters.
 
-- Shared skill cores live under `shared/skills/`
-- Shared reusable reference docs live under `shared-docs/skills/`
-- Repo-specific adapters remain under `ai/skills/*/references/repo-adapter.md`
+- Canonical playbooks live in the sibling `jackhpark-ai-skills/playbooks/` repo path
+- Canonical skills live in the sibling `jackhpark-ai-skills/skills/` repo path
+- Repo-specific adapters remain under `docs/...-local-adapter.md`
+- Repo-local skill bindings remain under `ai/skill-wrappers/`
 
 Promote only material that is reusable across codebases. Keep repo names, file paths, event names, local trace names, primitive names, and canonical local contracts in this repository.
 

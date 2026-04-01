@@ -95,11 +95,12 @@ When debugging UI or runtime issues:
 
 ## AI Skills
 
-Reusable skills are defined in `ai/skills/`. Each skill has a `SKILL.md` with:
+Project skill wrappers are defined in `ai/skill-wrappers/`. Each skill has a `SKILL.md` with:
 
 - `description` frontmatter: trigger phrases indicating when to use it
-- explicit use-this / do-not-use-this boundaries
-- workflow referencing a shared method (`shared-docs/skills/`) and a local adapter (`docs/...-local-adapter.md`)
+- a reference to the canonical shared skill in the sibling `jackhpark-ai-skills` repo
+- a reference to the repo-local adapter in `docs/...-local-adapter.md`
+- any narrow project-specific overrides that apply only inside this repo
 
 Available skills:
 
@@ -111,4 +112,4 @@ Available skills:
 | `advanced-settings-policy-audit` | "should this setting be editable", "preset-owned vs user override", "Auto-RAG conflict" |
 | `admin-surface-depth-audit` | "admin UI messy", "nested cards", "double borders", "depth issue" |
 
-When a request matches a skill's trigger phrases, read `ai/skills/<skill>/SKILL.md` first, then follow its references to the shared doc and local adapter before executing.
+When a request matches a skill's trigger phrases, read `ai/skill-wrappers/<skill>/SKILL.md` first, then follow its references to the canonical skill and local adapter before executing.

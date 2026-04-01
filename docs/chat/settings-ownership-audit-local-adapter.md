@@ -1,6 +1,6 @@
 # Settings Ownership Local Adapter
 
-This document is the repo-specific adapter for the shared ownership review method in [shared-docs/skills/settings-ownership-audit.md](../../shared-docs/skills/settings-ownership-audit.md).
+This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/settings-ownership-audit.md` and the canonical skill `jackhpark-ai-skills/skills/hybrid/advanced-settings-policy-audit/SKILL.md`.
 
 It intentionally contains only the local vocabulary, ownership mappings, UX semantics, and implementation references needed to apply that method inside `nextjs-react-notion-x`.
 
@@ -117,4 +117,3 @@ Users should select among these approved configurations rather than reconstructi
 - `lib/server/chat-settings.ts`
 - `lib/server/api/langchain_chat_impl_heavy.ts`
 - `lib/shared/chat-settings-policy`
-

@@ -1,6 +1,6 @@
 # API Smoke Local Adapter
 
-This document is the repo-specific adapter for the shared smoke-test method in [shared-docs/skills/api-smoke-patterns.md](../../shared-docs/skills/api-smoke-patterns.md).
+This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/api-smoke-patterns.md` and the canonical skill `jackhpark-ai-skills/skills/dev/chat-api-smoke-regression/SKILL.md`.
 
 It intentionally contains only local information needed to apply that method inside `nextjs-react-notion-x`.
 
@@ -103,4 +103,3 @@ It intentionally contains only local information needed to apply that method ins
 
 - The legacy `/api/langchain_chat` smoke path is also used to infer whether debug surfaces are enabled or disabled on the running server.
 - Shell environment and running server state may differ; local smoke interpretation must prefer observed endpoint behavior over shell assumptions.
-

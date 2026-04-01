@@ -1,6 +1,6 @@
 # Admin Surface Hierarchy Local Adapter
 
-This document is the repo-specific adapter for the shared hierarchy review method in [shared-docs/skills/admin-surface-hierarchy-audit.md](../../shared-docs/skills/admin-surface-hierarchy-audit.md).
+This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/admin-surface-hierarchy-audit.md` and the canonical skill `jackhpark-ai-skills/skills/dev/admin-surface-depth-audit/SKILL.md`.
 
 It intentionally contains only the local vocabulary, primitive mappings, page-specific hierarchy models, and current audit references needed to apply that method inside `nextjs-react-notion-x`.
 
@@ -128,4 +128,3 @@ Use these local docs as examples of how the shared method appears in this repo:
   - example of a mostly-stable surface with “no action” findings
 - [docs/ui/depth/admin-chat-config-depth-policy.md](../../docs/ui/depth/admin-chat-config-depth-policy.md)
   - example of local red-flag rules and PR checklist for a specific admin page
-

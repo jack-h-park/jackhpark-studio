@@ -1,6 +1,6 @@
 # Telemetry Contract Local Adapter
 
-This document is the repo-specific adapter for the shared telemetry audit method in [shared-docs/skills/telemetry-contract-audit.md](../../shared-docs/skills/telemetry-contract-audit.md).
+This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/telemetry-contract-audit.md` and the canonical skill `jackhpark-ai-skills/skills/dev/telemetry-contract-audit/SKILL.md`.
 
 It intentionally contains only the local signal vocabulary, canonical semantics, vendor surfaces, alert groups, and configuration controls needed to apply that method inside `nextjs-react-notion-x`.
 
@@ -183,4 +183,3 @@ The local precedence and merge rules for these controls are defined in `docs/tel
 - Do not use this adapter for retrieval-quality diagnosis of a single trace; that belongs to the RAG trace review workflow.
 - Do not use this adapter for live incident response beyond contract verification and observability sanity.
 - Do not treat local proxy fields as authoritative unless the canonical contract explicitly says they are.
-

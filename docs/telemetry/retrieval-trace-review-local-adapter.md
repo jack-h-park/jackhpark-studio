@@ -1,6 +1,6 @@
 # Retrieval Trace Local Adapter
 
-This document is the repo-specific adapter for the shared retrieval review method in [shared-docs/skills/retrieval-trace-review.md](../../shared-docs/skills/retrieval-trace-review.md).
+This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/retrieval-trace-review.md` and the canonical skill `jackhpark-ai-skills/skills/dev/rag-trace-review/SKILL.md`.
 
 It intentionally contains only the local trace vocabulary, stage map, metric meanings, strategy terms, implementation ownership clues, and reporting additions needed to apply that method inside `nextjs-react-notion-x`.
 
@@ -106,4 +106,3 @@ Key field names to recognize when reading traces:
 - Do not use this adapter for telemetry contract auditing of global event semantics.
 - Do not use this adapter for live incident triage beyond localizing retrieval/selection failure within a trace.
 - Do not generalize local dedupe, quota, or diversity counters into another repo without a matching schema.
-
