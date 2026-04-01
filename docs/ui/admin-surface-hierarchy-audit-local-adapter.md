@@ -25,7 +25,6 @@ It intentionally contains only the local vocabulary, primitive mappings, page-sp
 ## Primary Local Docs
 
 - [docs/ui/depth-system.md](../../docs/ui/depth-system.md)
-- [docs/ui/depth-violation-checklist.md](../../docs/ui/depth-violation-checklist.md)
 - [docs/ui/ingestion-depth-audit.md](../../docs/ui/ingestion-depth-audit.md)
 - [docs/ui-audits/admin-ingestion-phase1.md](../../docs/ui-audits/admin-ingestion-phase1.md)
 - [docs/ui/depth/admin-chat-config-depth-policy.md](../../docs/ui/depth/admin-chat-config-depth-policy.md)
@@ -45,6 +44,9 @@ It intentionally contains only the local vocabulary, primitive mappings, page-sp
 - Default checklist targets are admin ingestion and admin chat-config.
 - Local primitive checks should call out `ai-card`, `ai-panel`, `inset-panel`, and `ai-table` explicitly.
 - Placement review should enforce `components/ui` for primitives and `components/admin` for admin-specific composition.
+- Use the `depth-system.md` PR checklist as the source of truth for depth reviews in this repo.
+- Recent-runs tables should not gain an unnecessary extra outer frame around `ai-table`.
+- Short-lived mode switches inside an existing card should prefer inline controls over new tab shells.
 
 ## Repo-Specific Exclusions
 

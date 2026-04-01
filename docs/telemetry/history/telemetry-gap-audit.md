@@ -1,4 +1,6 @@
-# Telemetry audit
+# Telemetry Gap Audit
+
+> **Historical / Reference Context**
 
 **Last reviewed:** 2026-01-03 — verify "Remaining gaps" section against current instrumentation before acting on action items. P0 events (`chat_completion`, `cache_decision`, `latency_breakdown`) may have been partially wired since this was written.
 

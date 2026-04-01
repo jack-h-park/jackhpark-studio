@@ -1,5 +1,7 @@
 # Root cause: Manual Ingestion Update Behavior panel padding
 
+> **Historical / Reference Context**
+
 ## Evidence
 1. `rg -n "\.ai-panel" -S .` (shows there is only one `.ai-panel` definition; no overrides):
 ```

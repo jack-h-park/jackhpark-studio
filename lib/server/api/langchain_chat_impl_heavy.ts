@@ -2207,7 +2207,7 @@ export async function handleLangchainChat(
       res.end(body);
       // ─────────────────────────────────────────────────────────────
       // Telemetry semantic invariant (do not change casually)
-      // See: docs/telemetry/telemetry-audit-checklist.md
+      // See: docs/telemetry/operations/telemetry-operational-verification-local.md
       // Invariant: cache-hit "insufficient" only inferred when retrieval was attempted and no citations.
       // ─────────────────────────────────────────────────────────────
       const retrievalAttemptedForTrace = Boolean(
@@ -2623,7 +2623,7 @@ export async function handleLangchainChat(
     return;
     // ─────────────────────────────────────────────────────────────
     // Telemetry semantic invariant (do not change casually)
-    // See: docs/telemetry/telemetry-audit-checklist.md
+    // See: docs/telemetry/operations/telemetry-operational-verification-local.md
     // Invariant: finalize ensures trace input/output summaries exist on all exits.
     // ─────────────────────────────────────────────────────────────
   } finally {
@@ -2740,4 +2740,3 @@ export async function handleLangchainChat(
     }
   }
 }
-

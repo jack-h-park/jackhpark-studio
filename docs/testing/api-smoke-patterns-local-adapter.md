@@ -24,8 +24,7 @@ It intentionally contains only local information needed to apply that method ins
 
 ## Primary Local Docs
 
-- [docs/testing/api-smoke-chat.md](../../docs/testing/api-smoke-chat.md)
-- [docs/testing/api-smoke-test-summary.md](../../docs/testing/api-smoke-test-summary.md)
+- [docs/testing/chat-api-smoke-guide.md](../../docs/testing/chat-api-smoke-guide.md)
 - [docs/incidents/langchain_chat_postmortem.md](../../docs/incidents/langchain_chat_postmortem.md)
 - [docs/operations/local-llm-operations-checklist.md](../../docs/operations/local-llm-operations-checklist.md)
 - [docs/architecture/engine-parity-report.md](../../docs/architecture/engine-parity-report.md)

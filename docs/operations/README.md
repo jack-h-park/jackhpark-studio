@@ -1,14 +1,12 @@
-# Operations Documentation
+# Operations Docs
 
-This folder houses the operational runbooks and checklists for day-to-day platform administration. Treat these docs as the practical counterpart to the canonical contracts in `docs/canonical/`.
+## Read First
 
-## Files in this folder
+- `admin-guide.md` for day-to-day admin workflows
+- `local-llm-operations-checklist.md` for local backend setup and smoke readiness
 
-- `admin-guide.md` — ingestion workflows, document management, run history, and global chat config procedures.
-- `local-llm-operations-checklist.md` — local LLM backend setup and testing procedures.
+## Related Operational Docs
 
-## Related operational docs (other folders)
-
-- `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md` — reusable operational telemetry verification playbook.
-- `../telemetry/operations/telemetry-audit-checklist.md` — local telemetry supplement for exact field names and local ownership hints.
-- `../telemetry/runbooks/oncall-runbook.md` — on-call playbooks for Alerts A, B, and C.
+- `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md`
+- `../telemetry/operations/telemetry-operational-verification-local.md`
+- `../telemetry/runbooks/oncall-runbook.md`

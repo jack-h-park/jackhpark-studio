@@ -108,7 +108,7 @@ export function mergeSafeTraceOutputSummary(
 ): SafeTraceOutputSummary {
   // ─────────────────────────────────────────────────────────────
   // Telemetry semantic invariant (do not change casually)
-  // See: docs/telemetry/telemetry-audit-checklist.md
+  // See: docs/telemetry/operations/telemetry-operational-verification-local.md
   // Invariant: citationsCount is final-only and must not be overwritten by interim zeros.
   // ─────────────────────────────────────────────────────────────
   if (!prev) {

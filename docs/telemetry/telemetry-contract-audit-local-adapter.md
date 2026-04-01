@@ -19,7 +19,7 @@ It intentionally contains only the local signal vocabulary, canonical semantics,
 ## Primary Local Docs
 
 - [docs/canonical/telemetry/alerting-contract.md](../../docs/canonical/telemetry/alerting-contract.md)
-- [docs/telemetry/operations/telemetry-audit-checklist.md](../../docs/telemetry/operations/telemetry-audit-checklist.md)
+- [docs/telemetry/operations/telemetry-operational-verification-local.md](../../docs/telemetry/operations/telemetry-operational-verification-local.md)
 - [docs/telemetry/implementation/telemetry-logging.md](../../docs/telemetry/implementation/telemetry-logging.md)
 - [docs/telemetry/langfuse-guide.md](../../docs/telemetry/langfuse-guide.md)
 - [docs/telemetry/posthog-ops.md](../../docs/telemetry/posthog-ops.md)
@@ -40,7 +40,7 @@ It intentionally contains only the local signal vocabulary, canonical semantics,
 ## Local Operational Verification Notes
 
 - Use the canonical playbook `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md` for the reusable scenario checklist.
-- Use the local supplement `docs/telemetry/operations/telemetry-audit-checklist.md` only for exact field names, observation names, and first-pass code ownership hints.
+- Use the local supplement `docs/telemetry/operations/telemetry-operational-verification-local.md` only for exact field names, observation names, and first-pass code ownership hints.
 
 ## Local Event and Field Contract
 

@@ -1,5 +1,6 @@
 # Advanced Settings Ownership Audit
 
+> **Historical / Reference Context**
 > **Derives from canonical:** [Chat Guardrail System](../canonical/guardrails/guardrail-system.md)
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.

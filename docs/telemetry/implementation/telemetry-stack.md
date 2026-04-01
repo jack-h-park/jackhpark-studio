@@ -1,4 +1,6 @@
-# Telemetry & Observability Architecture
+# Telemetry Stack Reference
+
+> **Historical / Reference Context**
 
 This document provides a ground-truth analysis of the observability stack for the AI Platform. It details how the system monitors itself, tracks quality, and ensures safe operations.
 

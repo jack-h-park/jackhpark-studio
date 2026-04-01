@@ -71,7 +71,7 @@ The `terminology.md` file remains the single authoritative source for shared ter
   - Then: `telemetry/README.md`
 - **Advanced settings / guardrails**
   - Start: `canonical/guardrails/guardrail-system.md`
-  - Then: `chat/advanced-settings-ux.md` for local UX wording and `docs/chat/settings-ownership-audit-local-adapter.md` for repo-specific mappings
+  - Then: `chat/settings-ownership-audit-local-adapter.md` for repo-specific mappings and UX wording
 - **RAG retrieval behavior**
   - Start: `canonical/rag/rag-system.md`
   - Then: `architecture/rag/rag-retrieval-engine.md`

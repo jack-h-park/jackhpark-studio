@@ -1,5 +1,6 @@
 # LangChain Memory Implementation Analysis
 
+> **Historical / Reference Context**
 > **Derives from canonical:** [RAG System](../canonical/rag/rag-system.md)
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.

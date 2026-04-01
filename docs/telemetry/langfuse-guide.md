@@ -8,7 +8,7 @@ This guide describes the telemetry data structure (payloads) sent to Langfuse an
 The canonical alerting contract (`../canonical/telemetry/alerting-contract.md`) defines the signal names and invariants; the sections below cover how Langfuse realizes those signals.
 
 > For the overall architecture, telemetry controls (sampling/detail levels), and environment variables, see [Logging & Telemetry Architecture](./telemetry-logging.md).
-> For operational verification, start with the canonical playbook `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md`, then use the [Telemetry Operational Verification Local Supplement](../operations/telemetry-audit-checklist.md) for exact local fields and ownership hints.
+> For operational verification, start with the canonical playbook `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md`, then use the [Telemetry Operational Verification Local Supplement](../operations/telemetry-operational-verification-local.md) for exact local fields and ownership hints.
 
 ## Trace Metadata (Request-Level)
 

@@ -18,7 +18,7 @@ The Guardrail System is the safety and control layer that sits between the user'
 - Safe Mode always disables retrieval/enhancements and applies the guarded budget caps (context/history/token budgets).
 - Budget enforcement and sanitization rules are consistently applied for every session/config resolution.
 **Derived documents:**
-- [../chat/advanced-settings-ux.md](../chat/advanced-settings-ux.md)
+- [../chat/settings-ownership-audit-local-adapter.md](../chat/settings-ownership-audit-local-adapter.md)
 - [../chat/session-presets.md](../chat/session-presets.md)
 - [../analysis/advanced-settings-ownership-audit.md](../analysis/advanced-settings-ownership-audit.md)
 - [../operations/chat-user-guide.md](../operations/chat-user-guide.md)

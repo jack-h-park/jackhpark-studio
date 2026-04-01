@@ -25,7 +25,6 @@ It intentionally contains only the local vocabulary, ownership mappings, UX sema
 ## Primary Local Docs
 
 - [docs/analysis/advanced-settings-ownership-audit.md](../../docs/analysis/advanced-settings-ownership-audit.md)
-- [docs/chat/advanced-settings-ux.md](../../docs/chat/advanced-settings-ux.md)
 - [docs/canonical/guardrails/guardrail-system.md](../../docs/canonical/guardrails/guardrail-system.md)
 - [docs/chat/session-presets.md](../../docs/chat/session-presets.md)
 - [docs/00-start-here/terminology.md](../../docs/00-start-here/terminology.md)
@@ -115,6 +114,10 @@ Users should select among these approved configurations rather than reconstructi
 - Local managed-state wording should continue using **Preset Effects** and **Custom**.
 - Session-only overrides should remain grouped separately from preset-managed values.
 - Read-only managed settings should prefer summary presentation over disabled low-level controls.
+- Show one managed summary card before editable controls so users can identify the source of truth quickly.
+- Keep editable controls inside a dedicated overrides zone with impact cues.
+- Reset interactions must restore the preset baseline and clear the override state.
+- History preview and Exact Preview remain explanatory tools only and must not change ownership or persistence rules.
 
 ## Local Implementation References
 

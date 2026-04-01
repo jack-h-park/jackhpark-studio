@@ -2,7 +2,7 @@
  * Trace metadata merge utilities for Langfuse trace updates.
  *
  * Merge semantics are domain-specific and must not be changed casually.
- * See: docs/telemetry/telemetry-audit-checklist.md
+ * See: docs/telemetry/operations/telemetry-operational-verification-local.md
  *
  * Invariants:
  * - cache/rag boolean flags are monotonic: once true, never revert to false.
@@ -73,7 +73,7 @@ export const mergeTraceMetadata = (
 ): Record<string, unknown> => {
   // ─────────────────────────────────────────────────────────────
   // Telemetry semantic invariant (do not change casually)
-  // See: docs/telemetry/telemetry-audit-checklist.md
+  // See: docs/telemetry/operations/telemetry-operational-verification-local.md
   // Invariant: metadata merges keep cache/rag flags monotonic and intent first-write-wins.
   // ─────────────────────────────────────────────────────────────
   const merged = { ...prev };
