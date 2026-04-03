@@ -29,7 +29,12 @@ import {
 import { resolveLlmModel } from "@/lib/core/llm-registry";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
 import { type AppEnv, getAppEnv, type LangfuseTrace } from "@/lib/langfuse";
-import { getLoggingConfig, llmLogger, ragLogger } from "@/lib/logging/logger";
+import {
+  getLoggingConfig,
+  llmLogger,
+  ragLogger,
+  telemetryLogger,
+} from "@/lib/logging/logger";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import {
@@ -207,8 +212,8 @@ function buildStableLangfuseTags(
     normalizedPreset.length > 0
       ? `preset:${normalizedPreset}`
       : "preset:unknown";
-  if (normalizedPreset.length === 0 && process.env.NODE_ENV !== "production") {
-    console.warn(
+  if (normalizedPreset.length === 0) {
+    telemetryLogger.error(
       "[Langfuse] preset key missing when building trace tags; using preset:unknown",
     );
   }
@@ -216,15 +221,13 @@ function buildStableLangfuseTags(
     guardrailRoute !== undefined
       ? `guardrail:${guardrailRoute}`
       : "guardrail:normal";
-  if (guardrailRoute === undefined && process.env.NODE_ENV !== "production") {
-    console.warn(
+  if (guardrailRoute === undefined) {
+    telemetryLogger.error(
       "[Langfuse] guardrail route missing from chat config snapshot; using guardrail:normal",
     );
   }
   const tags = mergeLangfuseTags(existingTags, envTag, presetTag, guardrailTag);
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[Langfuse] tags", tags);
-  }
+  telemetryLogger.debug("[Langfuse] tags", { tags });
   return tags;
 }
 
