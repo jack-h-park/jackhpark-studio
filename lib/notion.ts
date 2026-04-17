@@ -781,7 +781,7 @@ const hydrateGroupedCollectionData = async (
       }
 
       const typedView = view as { role: Role; value: CollectionView };
-      const rawView = typedView.value;
+      const rawView = getActualBlockValue(view) ?? typedView.value;
       if (!rawView) return null;
 
       const sanitizedView = sanitizeCollectionViewForGrouping(rawView);
@@ -804,10 +804,6 @@ const hydrateGroupedCollectionData = async (
         (Array.isArray(format?.board_columns) &&
           format.board_columns.length > 0);
 
-      if (!hasGrouping) {
-        return null;
-      }
-
       const existingEntry =
         recordMap.collection_query?.[collectionId]?.[viewId] ?? null;
 
@@ -822,7 +818,10 @@ const hydrateGroupedCollectionData = async (
         recordMap.collection_query[collectionId][viewId] =
           normalizedExisting as any;
 
-        if (isGroupedQueryPayloadUsableForView(normalizedExisting, sanitizedView)) {
+        if (
+          !hasGrouping ||
+          isGroupedQueryPayloadUsableForView(normalizedExisting, sanitizedView)
+        ) {
           return null;
         }
 

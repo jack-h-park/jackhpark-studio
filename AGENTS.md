@@ -25,9 +25,9 @@ This codebase is part of an interview. Favor clarity, consistency, and explainab
 
 ## Repo-Governed Systems
 
-- All logging must follow [docs/telemetry/implementation/telemetry-logging.md](/Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/docs/telemetry/implementation/telemetry-logging.md) and [docs/telemetry/langfuse-guide.md](/Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/docs/telemetry/langfuse-guide.md). Do not add ad-hoc logs.
-- All UI changes must follow [docs/canonical/design-system/ai-design-system.md](/Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/docs/canonical/design-system/ai-design-system.md), [docs/css-guardrails.md](/Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/docs/css-guardrails.md), and [docs/ui/drawer-ui-contract.md](/Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/docs/ui/drawer-ui-contract.md).
-- [styles/ai-design-system.css](/Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/styles/ai-design-system.css) is primitive-only. Keep feature- or screen-specific styling out of it, and consume role tokens rather than hard-coded colors or legacy tokens.
+- All logging must follow [docs/telemetry/implementation/telemetry-logging.md](docs/telemetry/implementation/telemetry-logging.md) and [docs/telemetry/langfuse-guide.md](docs/telemetry/langfuse-guide.md). Do not add ad-hoc logs.
+- All UI changes must follow [docs/canonical/design-system/ai-design-system.md](docs/canonical/design-system/ai-design-system.md), [docs/css-guardrails.md](docs/css-guardrails.md), and [docs/ui/drawer-ui-contract.md](docs/ui/drawer-ui-contract.md).
+- [styles/ai-design-system.css](styles/ai-design-system.css) is primitive-only. Keep feature- or screen-specific styling out of it, and consume role tokens rather than hard-coded colors or legacy tokens.
 
 ## Debugging Guidance
 
@@ -36,6 +36,6 @@ This codebase is part of an interview. Favor clarity, consistency, and explainab
 
 ## Skill-Wrapper Routing
 
-Project skill wrappers live in [ai/skill-wrappers](/Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/ai/skill-wrappers). Inspect that directory for repo-local routing.
+Project skill wrappers live in [ai/skill-wrappers](ai/skill-wrappers). Inspect that directory for repo-local routing.
 
 When a request matches a wrapper's trigger phrases, read `ai/skill-wrappers/<skill>/SKILL.md` first, then follow its canonical skill reference and repo-local adapter before executing.

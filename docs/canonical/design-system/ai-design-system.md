@@ -164,9 +164,9 @@ This ensures that improving or fixing interaction clarity happens in one place a
 
 ### B. Higher-Order Patterns
 
-- **[card.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/card.tsx)**: Structural cards using `.ai-card`.
-- **[meta-card.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/meta-card.tsx)**: **[NEW]** Diagnostic display for telemetry and guardrail data.
-- **[field.tsx](file:///Users/jackpark/Local%20Code%20Repositories/nextjs-react-notion-x/components/ui/field.tsx)**: Combines Label + Control + Helper text.
+- **[card.tsx](file:///Users/jackpark/workspace/code/core/nextjs-react-notion-x/components/ui/card.tsx)**: Structural cards using `.ai-card`.
+- **[meta-card.tsx](file:///Users/jackpark/workspace/code/core/nextjs-react-notion-x/components/ui/meta-card.tsx)**: **[NEW]** Diagnostic display for telemetry and guardrail data.
+- **[field.tsx](file:///Users/jackpark/workspace/code/core/nextjs-react-notion-x/components/ui/field.tsx)**: Combines Label + Control + Helper text.
 
 ---
 

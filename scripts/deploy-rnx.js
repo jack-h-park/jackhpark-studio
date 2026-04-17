@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const NEXTJS_ROOT = path.resolve(__dirname, "..");
-const RNX_ROOT = path.resolve(NEXTJS_ROOT, "../react-notion-x");
+const RNX_ROOT = path.resolve(NEXTJS_ROOT, "../../forks/react-notion-x");
 
 function run(cmd, cwd = NEXTJS_ROOT) {
   console.log(`\n$ ${cmd}`);

@@ -21,23 +21,23 @@ function main() {
 
   if (mode === "local") {
     pkg.dependencies["react-notion-x"] =
-      "file:../react-notion-x/packages/react-notion-x";
+      "file:../../forks/react-notion-x/packages/react-notion-x";
     pkg.dependencies["notion-utils"] =
-      "link:../react-notion-x/packages/notion-utils";
+      "link:../../forks/react-notion-x/packages/notion-utils";
     pkg.dependencies["notion-types"] =
-      "link:../react-notion-x/packages/notion-types";
+      "link:../../forks/react-notion-x/packages/notion-types";
     pkg.dependencies["notion-client"] =
-      "link:../react-notion-x/packages/notion-client";
+      "link:../../forks/react-notion-x/packages/notion-client";
     pkg.pnpm = pkg.pnpm ?? {};
     pkg.pnpm.overrides = pkg.pnpm.overrides ?? {};
     pkg.pnpm.overrides["react-notion-x"] =
-      "link:../react-notion-x/packages/react-notion-x";
+      "link:../../forks/react-notion-x/packages/react-notion-x";
     pkg.pnpm.overrides["notion-utils"] =
-      "link:../react-notion-x/packages/notion-utils";
+      "link:../../forks/react-notion-x/packages/notion-utils";
     pkg.pnpm.overrides["notion-types"] =
-      "link:../react-notion-x/packages/notion-types";
+      "link:../../forks/react-notion-x/packages/notion-types";
     pkg.pnpm.overrides["notion-client"] =
-      "link:../react-notion-x/packages/notion-client";
+      "link:../../forks/react-notion-x/packages/notion-client";
     console.log("✅ Switched to LOCAL react-notion-x");
   }
 
@@ -56,7 +56,7 @@ function main() {
     console.log(`✅ Switched to REMOTE react-notion-x @ ${tag}`);
   }
 
-  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
+  fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
 main();

@@ -3,7 +3,9 @@ import path from 'node:path'
 import process from 'node:process'
 
 const repoRoot = process.cwd()
-const sharedRepoRoot = path.resolve(repoRoot, '..', 'jackhpark-ai-skills')
+const sharedRepoRoot = process.env.JACKHPARK_AI_SKILLS_PATH
+  ? path.resolve(process.env.JACKHPARK_AI_SKILLS_PATH)
+  : path.resolve(repoRoot, '..', '..', '..', 'ai-assets', 'jackhpark-ai-skills')
 
 const scanRoots = [
   'AGENTS.md',
