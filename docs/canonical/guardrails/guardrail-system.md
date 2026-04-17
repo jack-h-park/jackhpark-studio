@@ -21,7 +21,7 @@ The Guardrail System is the safety and control layer that sits between the user'
 - [../chat/settings-ownership-audit-local-adapter.md](../chat/settings-ownership-audit-local-adapter.md)
 - [../chat/session-presets.md](../chat/session-presets.md)
 - [../analysis/advanced-settings-ownership-audit.md](../analysis/advanced-settings-ownership-audit.md)
-- [../operations/chat-user-guide.md](../operations/chat-user-guide.md)
+- [../chat/chat-user-guide.md](../chat/chat-user-guide.md)
 **Change rule:** If this contract changes, update derived docs in the same PR.
 
 ---

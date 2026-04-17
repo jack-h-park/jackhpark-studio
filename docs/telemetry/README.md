@@ -10,13 +10,13 @@
 
 - [implementation/telemetry-logging.md](implementation/telemetry-logging.md)
 - [implementation/rag-observations.md](implementation/rag-observations.md)
+- [langfuse-guide.md](langfuse-guide.md)
+- [posthog-ops.md](posthog-ops.md)
 - [runbooks/oncall-runbook.md](runbooks/oncall-runbook.md)
 
 ## Historical / Reference
 
 - [history/telemetry-gap-audit.md](history/telemetry-gap-audit.md)
-- [langfuse-guide.md](langfuse-guide.md)
-- [posthog-ops.md](posthog-ops.md)
 - [dashboards/langfuse-dashboard.md](dashboards/langfuse-dashboard.md)
 - [dashboards/posthog-dashboard.md](dashboards/posthog-dashboard.md)
 

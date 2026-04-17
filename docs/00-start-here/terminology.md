@@ -17,7 +17,7 @@ Other documents MUST NOT redefine these terms.
 ## Auto Mode
 **Canonical meaning:** The UI label that exposes the Auto-RAG capability to users (enabling/disabling its considerations).  
 **Scope:** UX / Settings  
-**Used in:** `chat/settings-ownership-audit-local-adapter.md`, `analysis/advanced-settings-ownership-audit.md`, `operations/chat-user-guide.md`  
+**Used in:** `chat/settings-ownership-audit-local-adapter.md`, `analysis/advanced-settings-ownership-audit.md`, `chat/chat-user-guide.md`  
 **Notes:** Enabling Auto Mode grants capability but never forces execution; force remains request-scoped.
 
 ---
@@ -25,7 +25,7 @@ Other documents MUST NOT redefine these terms.
 ## Auto-Pilot (Auto-RAG)
 **Canonical meaning:** User-facing alias for Auto-RAG that explains the runtime’s self-correcting behavior.  
 **Scope:** UX copy  
-**Used in:** `operations/chat-user-guide.md`, `chat/session-presets.md`  
+**Used in:** `chat/chat-user-guide.md`, `chat/session-presets.md`  
 **Notes:** Must always appear with “(Auto-RAG)” on first mention to keep the linkage clear.
 
 ---
@@ -33,7 +33,7 @@ Other documents MUST NOT redefine these terms.
 ## Safe Mode
 **Canonical meaning:** The preset or UI guardrail that disables retrieval, tools, and advanced enhancements.  
 **Scope:** UX / Configuration  
-**Used in:** `guardrail-system.md`, `chat/session-presets.md`, `operations/chat-user-guide.md`  
+**Used in:** `guardrail-system.md`, `chat/session-presets.md`, `chat/chat-user-guide.md`  
 **Notes:** Applies canonical budget clamps and retrieval bypass rules when enabled.
 
 ---

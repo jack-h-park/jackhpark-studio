@@ -62,6 +62,7 @@
     "qa:notion-polish": "bash scripts/playwright/notion-polish-visual-regression.sh",
     "smoke:langchain-chat:debug-off": "EXPECT_DEBUG_SURFACES=0 pnpm smoke:langchain-chat",
     "smoke:langchain-chat:debug-on": "EXPECT_DEBUG_SURFACES=1 pnpm smoke:langchain-chat",
+    "check:ai-docs": "node scripts/check-ai-docs.mjs",
     "check:server-only-pages": "node scripts/check-server-only-pages.mjs"
   },
   "dependencies": {
