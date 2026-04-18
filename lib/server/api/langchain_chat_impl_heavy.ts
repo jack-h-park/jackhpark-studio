@@ -1,16 +1,12 @@
 import { randomUUID } from "node:crypto";
 
-import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import type { BaseLanguageModelInterface } from "@langchain/core/language_models/base";
-import type { PromptTemplate } from "@langchain/core/prompts";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { GuardrailRoute } from "@/lib/rag/types";
 import type {
   RagAutoMode,
   RagMultiQueryMode,
-  RagRankingConfig,
   SessionChatConfig,
 } from "@/types/chat-config";
 import {
@@ -18,17 +14,14 @@ import {
   classifyChatCompletionError,
   isPostHogEnabled,
 } from "@/lib/analytics/posthog";
-import {
-  type EmbeddingSpace,
-  resolveEmbeddingSpace,
-} from "@/lib/core/embedding-spaces";
+import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
 import {
   getGeminiModelCandidates,
   shouldRetryGeminiModel,
 } from "@/lib/core/gemini";
 import { resolveLlmModel } from "@/lib/core/llm-registry";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
-import { type AppEnv, getAppEnv, type LangfuseTrace } from "@/lib/langfuse";
+import { getAppEnv, type LangfuseTrace } from "@/lib/langfuse";
 import {
   getLoggingConfig,
   llmLogger,
@@ -39,11 +32,14 @@ import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import {
   buildResponseCacheKeyPayload,
-  buildRetrievalCacheKey,
   computeHistorySummaryHash,
   type RagDecisionSignature,
-  type RetrievalCacheKeyArgs,
 } from "@/lib/server/api/chat-cache-keys";
+import { computeRagContextAndCitations } from "@/lib/server/api/chat-rag-context";
+import {
+  type StreamAnswerResult,
+  streamAnswerWithPrompt,
+} from "@/lib/server/api/chat-stream-answer";
 import {
   createChatModel,
   createEmbeddingsInstance,
@@ -56,14 +52,8 @@ import {
 } from "@/lib/server/chat-common";
 import {
   applyHistoryWindow,
-  buildContextWindow,
-  buildIntentContextFallback,
   type ChatGuardrailConfig,
-  type ContextWindowResult,
-  estimateTokens,
   getChatGuardrailConfig,
-  type HistoryWindowResult,
-  type NormalizedQuestion,
   normalizeQuestion,
   type RoutedQuestion,
   routeQuestion,
@@ -79,46 +69,16 @@ import {
 } from "@/lib/server/chat-settings";
 import { isDebugSurfacesEnabled } from "@/lib/server/debug/debug-surfaces";
 import { createRequestAbortSignal } from "@/lib/server/langchain/abort";
-import {
-  mergeCandidates,
-  pickAltQueryType,
-} from "@/lib/server/langchain/multi-query";
-import { buildRagAnswerChain } from "@/lib/server/langchain/ragAnswerChain";
-import { buildRagRetrievalChain } from "@/lib/server/langchain/ragRetrievalChain";
-import {
-  buildChainRunnableConfig,
-  type ChainRunContext,
-  makeRunName,
-} from "@/lib/server/langchain/runnableConfig";
-import {
-  escapeForPromptTemplate,
-  renderStreamChunk,
-} from "@/lib/server/langchain/stream-chunk";
+import { type ChainRunContext } from "@/lib/server/langchain/runnableConfig";
+import { escapeForPromptTemplate } from "@/lib/server/langchain/stream-chunk";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
-import {
-  type AutoDecisionMetrics,
-  AutoPassTimeoutError,
-  buildFailedAutoMetrics,
-  buildPassMetrics,
-  evaluateAutoTrigger,
-  isWeakRetrieval,
-  type RagDecisionTelemetry,
-  resolveAutoCapability,
-  selectBetterRetrieval,
-  shouldSuppressAuto,
-} from "@/lib/server/rag/auto-rag-decision";
-import { logDebugRag } from "@/lib/server/rag-logger";
 import {
   buildEmbeddingResolutionTrace,
   logEmbeddingResolutionTrace,
 } from "@/lib/server/telemetry/embedding-trace";
 import { emitAnswerGeneration } from "@/lib/server/telemetry/langfuse-generations";
-import {
-  buildCacheMetadata,
-  computeRetrievalUsed,
-} from "@/lib/server/telemetry/langfuse-metadata";
-import { emitRagScores } from "@/lib/server/telemetry/langfuse-scores";
+import { buildCacheMetadata } from "@/lib/server/telemetry/langfuse-metadata";
 import { attachLangfuseTraceTags } from "@/lib/server/telemetry/langfuse-tags";
 import {
   clearRequestTrace,
@@ -128,7 +88,6 @@ import {
 } from "@/lib/server/telemetry/telemetry-buffer";
 import { buildTelemetryConfigSnapshot } from "@/lib/server/telemetry/telemetry-config-snapshot";
 import { isTelemetryEnabled } from "@/lib/server/telemetry/telemetry-enabled";
-import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
 import {
   buildSafeTraceInputSummary,
   buildSafeTraceOutputSummary,
@@ -144,13 +103,6 @@ import {
   type TraceMetadataSnapshot,
   type TraceUpdate,
 } from "@/lib/server/telemetry/trace-metadata-merge";
-import { buildSpanTiming, withSpan } from "@/lib/server/telemetry/withSpan";
-import {
-  type GuardrailEnhancements,
-  type GuardrailMeta,
-  serializeGuardrailMeta,
-} from "@/lib/shared/guardrail-meta";
-import { type ModelProvider } from "@/lib/shared/model-provider";
 import {
   DEFAULT_REVERSE_RAG_MODE,
   type RankerMode,
@@ -159,19 +111,6 @@ import {
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 import { decideTelemetryMode } from "@/lib/telemetry/chat-langfuse";
 import { computeBasePromptVersion } from "@/lib/telemetry/prompt-version";
-import {
-  buildCitationPayload,
-  type CitationPayload,
-} from "@/lib/types/citation";
-
-function formatChunkPreview(value: string) {
-  // eslint-disable-next-line unicorn/prefer-string-replace-all
-  const collapsed = value.replace(/\s+/g, " ").trim();
-  if (collapsed.length <= 60) {
-    return collapsed;
-  }
-  return `${collapsed.slice(0, 60)}…`;
-}
 
 const debugSurfacesEnabled = isDebugSurfacesEnabled();
 const telemetryEnabled = isTelemetryEnabled();
@@ -184,9 +123,6 @@ function setSmokeHeaders(res: NextApiResponse, cacheHit: boolean | null) {
   }
   res.setHeader("x-cache-hit", cacheHit === true ? "1" : "0");
 }
-
-const AUTO_PASS_TIMEOUT_MS = 2000;
-const MULTI_QUERY_TIMEOUT_MS = 1200;
 
 const MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 1024);
 
@@ -229,1094 +165,6 @@ function buildStableLangfuseTags(
   const tags = mergeLangfuseTags(existingTags, envTag, presetTag, guardrailTag);
   telemetryLogger.debug("[Langfuse] tags", { tags });
   return tags;
-}
-
-
-interface RagExecutionFlags {
-  reverseRagEnabled: boolean;
-  reverseRagMode: ReverseRagMode;
-  hydeEnabled: boolean;
-  hydeMode: RagAutoMode;
-  rewriteMode: RagAutoMode;
-  ragMultiQueryMode: RagMultiQueryMode;
-  ragMultiQueryMaxQueries: number;
-  rankerMode: RankerMode;
-  ragRanking?: RagRankingConfig | null;
-}
-
-interface RagInfrastructure {
-  embeddings: EmbeddingsInterface;
-  supabase: SupabaseClient;
-  supabaseAdmin: SupabaseClient;
-  tableName: string;
-  queryName: string;
-  memoryCacheClient: typeof memoryCacheClient;
-  retrievalCacheTtl: number;
-}
-
-interface RagTelemetryCallbacks {
-  trace?: LangfuseTrace | null;
-  updateTrace?: (updates: TraceUpdate) => void;
-  updateTraceCacheMetadata?: () => void;
-  updateRetrievalMetadata?: (attempted: boolean, used: boolean) => void;
-  traceMetadata: TraceMetadataSnapshot | undefined;
-  cacheMeta: ResponseCacheMeta;
-}
-
-interface ComputeRagContextParams {
-  guardrails: ChatGuardrailConfig;
-  normalizedQuestion: NormalizedQuestion;
-  routingDecision: RoutedQuestion;
-  historyWindow: HistoryWindowResult;
-  presetId: string;
-  provider: ModelProvider;
-  llmModel: string;
-  embeddingModel: string;
-  embeddingSelection: EmbeddingSpace;
-  chatConfigSnapshot: ReturnType<typeof buildChatConfigSnapshot> | undefined;
-  includeVerboseDetails: boolean;
-  includeSelectionTelemetry: boolean;
-  env: AppEnv;
-  abortSignal?: AbortSignal | null;
-  chainRunContext: ChainRunContext;
-  markStage: (stage: string, extra?: Record<string, unknown>) => void;
-  safeMode: boolean;
-  forcedFlags?: { reverseRag?: boolean; hyde?: boolean };
-  ragFlags: RagExecutionFlags;
-  infra: RagInfrastructure;
-  telemetry: RagTelemetryCallbacks;
-}
-
-interface ComputeRagContextResult {
-  contextResult: ContextWindowResult;
-  citations: CitationPayload;
-  latestMeta: GuardrailMeta;
-  enhancementSummary: GuardrailEnhancements;
-  decisionSignature?: RagDecisionSignature;
-  decisionTelemetry?: RagDecisionTelemetry;
-  retrievalLatencyMs: number | null;
-}
-
-
-interface StreamAnswerParams {
-  llmInstance: BaseLanguageModelInterface;
-  prompt: PromptTemplate;
-  question: string;
-  historyWindow: HistoryWindowResult;
-  contextResult: ContextWindowResult;
-  citationPayload: CitationPayload;
-  latestMeta: GuardrailMeta;
-  routingDecision: RoutedQuestion;
-  env: AppEnv;
-  temperature: number;
-  provider: ModelProvider;
-  model: string;
-  requestedModelId: string;
-  candidateModelId: string;
-  responseCacheKey: string | null;
-  responseCacheTtl: number;
-  cacheMeta: ResponseCacheMeta;
-  traceMetadata: TraceMetadataSnapshot | undefined;
-  res: NextApiResponse;
-  respondJson: (status: number, payload: unknown) => void;
-  clearWatchdog: () => void;
-  capturePosthogEvent:
-    | ((status: "success" | "error", errorType?: string | null) => void)
-    | null;
-  markStage?: (stage: string, extra?: Record<string, unknown>) => void;
-  abortSignal?: AbortSignal | null;
-  chainRunContext: ChainRunContext;
-  logReturn: (label: string) => void;
-  initialStreamStarted: boolean;
-  trace?: LangfuseTrace | null;
-  updateTrace?: (updates: TraceUpdate) => void;
-}
-
-interface StreamAnswerResult {
-  finalOutput: string;
-  handledEarlyExit?: boolean;
-}
-
-async function computeRagContextAndCitations({
-  guardrails,
-  normalizedQuestion: initialNormalizedQuestion,
-  routingDecision,
-  historyWindow,
-  presetId,
-  provider,
-  llmModel,
-  embeddingModel,
-  embeddingSelection,
-  chatConfigSnapshot,
-  includeVerboseDetails,
-  includeSelectionTelemetry,
-  env,
-  abortSignal,
-  chainRunContext,
-  markStage,
-  safeMode = false,
-  forcedFlags,
-  ragFlags: {
-    reverseRagEnabled,
-    reverseRagMode,
-    hydeEnabled,
-    hydeMode,
-    rewriteMode,
-    ragMultiQueryMode,
-    ragMultiQueryMaxQueries,
-    rankerMode,
-    ragRanking,
-  },
-  infra: {
-    embeddings,
-    supabase,
-    supabaseAdmin,
-    tableName,
-    queryName,
-    memoryCacheClient,
-    retrievalCacheTtl,
-  },
-  telemetry: {
-    trace = null,
-    updateTrace,
-    updateTraceCacheMetadata,
-    updateRetrievalMetadata,
-    traceMetadata: _traceMetadata,
-    cacheMeta,
-  },
-}: ComputeRagContextParams): Promise<ComputeRagContextResult> {
-  const normalizedQuestion = normalizeQuestion(
-    typeof routingDecision.question === "string"
-      ? routingDecision.question
-      : initialNormalizedQuestion.normalized,
-  );
-  let contextResult = buildIntentContextFallback(
-    routingDecision.intent,
-    guardrails,
-  );
-  let citationPayload: CitationPayload | null = null;
-  let topKChunks = guardrails.ragTopK;
-  let retrievalCacheKey: string | null = null;
-  let retrievalCacheWriteKey: string | null = null;
-  let enhancementSummary: GuardrailEnhancements = {
-    reverseRag: {
-      enabled: reverseRagEnabled,
-      mode: reverseRagMode,
-      original: normalizedQuestion.normalized,
-      rewritten: normalizedQuestion.normalized,
-    },
-    hyde: {
-      enabled: hydeEnabled,
-      generated: null,
-    },
-    ranker: {
-      mode: rankerMode,
-    },
-  };
-  let autoDecisionMetrics: AutoDecisionMetrics | undefined;
-  let decisionSignature: RagDecisionSignature | undefined;
-  let decisionTelemetry: RagDecisionTelemetry | undefined;
-  let retrievalLatencyMs: number | null = null;
-
-  if (routingDecision.intent === "knowledge" && !safeMode) {
-    const finalK = guardrails.ragTopK;
-    const CANDIDATE_MULTIPLIER = 5;
-    const CANDIDATE_MIN = 20;
-    const CANDIDATE_MAX = 80;
-    const candidateK = Math.max(
-      CANDIDATE_MIN,
-      Math.min(CANDIDATE_MAX, finalK * CANDIDATE_MULTIPLIER),
-    );
-    const reverseRagDecision = resolveAutoCapability(
-      rewriteMode,
-      reverseRagEnabled,
-    );
-    const hydeDecision = resolveAutoCapability(hydeMode, hydeEnabled);
-    if (retrievalCacheTtl > 0) {
-      const retrievalCacheArgs: RetrievalCacheKeyArgs = {
-        question: normalizedQuestion.normalized,
-        presetId,
-        ragTopK: guardrails.ragTopK,
-        similarityThreshold: guardrails.similarityThreshold,
-        candidateK,
-        reverseRagEnabled: reverseRagDecision.capabilityEnabled,
-        reverseRagMode,
-        hydeEnabled: hydeDecision.capabilityEnabled,
-        rankerMode,
-        hydeMode,
-        rewriteMode,
-        ragMultiQueryMode,
-        ragMultiQueryMaxQueries,
-      };
-      retrievalCacheKey = buildRetrievalCacheKey(retrievalCacheArgs);
-      retrievalCacheWriteKey = retrievalCacheKey;
-      const cachedContext =
-        await memoryCacheClient.get<ContextWindowResult>(retrievalCacheKey);
-      if (cachedContext) {
-        cacheMeta.retrievalHit = true;
-        contextResult = cachedContext;
-        updateTraceCacheMetadata?.();
-        const cachedRetrievalUsed =
-          computeRetrievalUsed({
-            intent: routingDecision.intent,
-            retrievedCount:
-              cachedContext.included.length + cachedContext.dropped,
-            finalSelectedCount:
-              cachedContext.selection?.finalSelectedCount ?? null,
-          }) ?? false;
-        updateRetrievalMetadata?.(false, cachedRetrievalUsed);
-      }
-    }
-
-    if (cacheMeta.retrievalHit === true) {
-      logDebugRag("retrieval-cache", {
-        hit: true,
-        presetId,
-        finalK: guardrails.ragTopK,
-        candidateK,
-        similarityThreshold: guardrails.similarityThreshold,
-      });
-    } else {
-      logDebugRag("retrieval-cache", {
-        hit: false,
-        presetId,
-        finalK: guardrails.ragTopK,
-        candidateK,
-        similarityThreshold: guardrails.similarityThreshold,
-      });
-      const ragRootStartMs = Date.now();
-      let ragRootMetadata: Record<string, unknown> | null = null;
-      try {
-        const runRetrieval = async (
-          flags: { reverseRagEnabled: boolean; hydeEnabled: boolean },
-          stageLabel: string,
-        ) => {
-          markStage?.(stageLabel);
-          const ragChain = buildRagRetrievalChain();
-          const ragChainRunnableConfig = buildChainRunnableConfig({
-            ...chainRunContext,
-            stage: "rag",
-          });
-          return ragChain.invoke(
-            {
-              guardrails,
-              question: normalizedQuestion.normalized,
-              requestId: chainRunContext.requestId ?? null,
-              reverseRagEnabled: flags.reverseRagEnabled,
-              reverseRagMode,
-              hydeEnabled: flags.hydeEnabled,
-              rankerMode,
-              provider,
-              llmModel,
-              embeddingModel,
-              embeddingSelection,
-              embeddings,
-              supabase,
-              supabaseAdmin,
-              tableName,
-              queryName,
-              chatConfigSnapshot,
-              includeVerboseDetails,
-              includeSelectionMetadata: includeSelectionTelemetry,
-              trace,
-              env,
-              logDebugRag,
-              ragRanking,
-              cacheMeta,
-              candidateK,
-              updateTrace: updateTrace ?? undefined,
-            },
-            {
-              ...ragChainRunnableConfig,
-              runName: makeRunName("rag", "root"),
-              signal: abortSignal ?? undefined,
-            },
-          );
-        };
-
-        const baseFlags = {
-          reverseRagEnabled: forcedFlags?.reverseRag ?? false,
-          hydeEnabled: forcedFlags?.hyde ?? false,
-        };
-        const baseStart = Date.now();
-        const baseResult = await runRetrieval(baseFlags, "before-rag-retrieve");
-        const baseMetrics = buildPassMetrics(
-          "base",
-          baseResult.contextResult,
-          baseFlags.hydeEnabled,
-          baseFlags.reverseRagEnabled,
-          Date.now() - baseStart,
-        );
-        const multiQueryEnabled =
-          ragMultiQueryMode === "auto" && ragMultiQueryMaxQueries >= 2;
-        const autoPassTimeoutMs = multiQueryEnabled
-          ? Math.min(AUTO_PASS_TIMEOUT_MS, MULTI_QUERY_TIMEOUT_MS)
-          : AUTO_PASS_TIMEOUT_MS;
-        autoDecisionMetrics = {
-          enabledHydeMode: hydeMode,
-          enabledRewriteMode: rewriteMode,
-          enabledMultiQueryMode: ragMultiQueryMode,
-          autoTriggered: false,
-          winner: "base",
-          base: baseMetrics,
-        };
-        let selectedResult = baseResult;
-        let autoWinner: "base" | "auto" = "base";
-        let autoResult: typeof baseResult | null = null;
-        let autoFailureReason: "timeout" | "error" | null = null;
-        const baseWeak = isWeakRetrieval(
-          baseResult.contextResult,
-          guardrails.similarityThreshold,
-          finalK,
-        );
-        const suppressAuto = shouldSuppressAuto(guardrails);
-        // Auto Trigger Logic
-        const { shouldAutoRewrite, shouldAutoHyde } = evaluateAutoTrigger({
-          forcedFlags,
-          reverseRagDecision,
-          hydeDecision,
-          baseWeak,
-          suppressAuto,
-        });
-
-        if ((shouldAutoRewrite || shouldAutoHyde) && !abortSignal?.aborted) {
-          const autoFlags = {
-            reverseRagEnabled: shouldAutoRewrite
-              ? true
-              : baseFlags.reverseRagEnabled,
-            hydeEnabled: shouldAutoHyde ? true : baseFlags.hydeEnabled,
-          };
-          autoDecisionMetrics.autoTriggered = true;
-          const autoStart = Date.now();
-          autoResult = null;
-          let timeoutId: ReturnType<typeof setTimeout> | null = null;
-          try {
-            const timeoutPromise = new Promise<never>((_, reject) => {
-              timeoutId = setTimeout(
-                () => reject(new AutoPassTimeoutError()),
-                autoPassTimeoutMs,
-              );
-            });
-            autoResult = await Promise.race([
-              runRetrieval(autoFlags, "auto-rag-retrieve"),
-              timeoutPromise,
-            ]);
-            if (timeoutId) {
-              clearTimeout(timeoutId);
-            }
-            const autoMetrics = buildPassMetrics(
-              "auto",
-              autoResult.contextResult,
-              autoFlags.hydeEnabled,
-              autoFlags.reverseRagEnabled,
-              Date.now() - autoStart,
-            );
-            autoDecisionMetrics.auto = autoMetrics;
-            autoWinner = selectBetterRetrieval(
-              baseResult.contextResult,
-              autoResult.contextResult,
-            );
-            selectedResult = autoWinner === "auto" ? autoResult : baseResult;
-          } catch (err) {
-            if (timeoutId) {
-              clearTimeout(timeoutId);
-            }
-            if (err instanceof AutoPassTimeoutError) {
-              autoFailureReason = "timeout";
-              autoDecisionMetrics.auto = buildFailedAutoMetrics(
-                autoFlags.hydeEnabled,
-                autoFlags.reverseRagEnabled,
-                Date.now() - autoStart,
-              );
-            } else if (abortSignal?.aborted) {
-              throw err;
-            } else {
-              autoFailureReason = "error";
-              autoDecisionMetrics.auto = buildFailedAutoMetrics(
-                autoFlags.hydeEnabled,
-                autoFlags.reverseRagEnabled,
-                Date.now() - autoStart,
-              );
-            }
-            autoWinner = "base";
-            selectedResult = baseResult;
-          }
-          autoDecisionMetrics.winner = autoWinner;
-        }
-
-        const altQueryType = pickAltQueryType({
-          firedRewrite: shouldAutoRewrite,
-          firedHyde: shouldAutoHyde,
-          rewriteQuery: autoResult?.preRetrieval?.rewrittenQuery,
-          hydeQuery: autoResult?.preRetrieval?.embeddingTarget,
-        });
-        let skippedReason:
-          | "not_enabled"
-          | "not_weak"
-          | "no_alt"
-          | "aborted"
-          | "timeout"
-          | "error"
-          | undefined;
-        if (!multiQueryEnabled) {
-          skippedReason = "not_enabled";
-        } else if (!baseWeak) {
-          skippedReason = "not_weak";
-        } else if (altQueryType === "none") {
-          skippedReason = "no_alt";
-        } else if (abortSignal?.aborted) {
-          skippedReason = "aborted";
-        } else if (!autoResult) {
-          skippedReason = autoFailureReason ?? "error";
-        }
-        let altQueryHash: string | null = null;
-        const shouldRunMultiQuery =
-          multiQueryEnabled &&
-          baseWeak &&
-          altQueryType !== "none" &&
-          autoResult &&
-          !abortSignal?.aborted;
-
-        if (autoDecisionMetrics) {
-          autoDecisionMetrics.multiQuery = {
-            enabled: multiQueryEnabled,
-            ran: false,
-            altType: altQueryType,
-            altQueryHash,
-            mergedCandidates: baseResult.rankedDocs.length,
-            baseCandidates: baseResult.rankedDocs.length,
-            altCandidates: autoResult?.rankedDocs?.length ?? 0,
-            tookMsAlt: autoDecisionMetrics.auto?.tookMs,
-            skippedReason,
-          };
-        }
-
-        if (shouldRunMultiQuery && autoResult) {
-          altQueryHash = hashPayload({
-            altType: altQueryType,
-            query: autoResult.preRetrieval.embeddingTarget,
-          });
-          const mergedCandidates = mergeCandidates(
-            baseResult.rankedDocs,
-            autoResult.rankedDocs,
-          );
-          const mergedContext = buildContextWindow(
-            mergedCandidates,
-            guardrails,
-            {
-              includeVerboseDetails,
-              includeSelectionMetadata: includeSelectionTelemetry,
-            },
-          );
-          contextResult = mergedContext;
-          if (autoDecisionMetrics?.multiQuery) {
-            autoDecisionMetrics.multiQuery = {
-              ...autoDecisionMetrics.multiQuery,
-              ran: true,
-              mergedCandidates: mergedCandidates.length,
-              baseCandidates: baseResult.rankedDocs.length,
-              altCandidates: autoResult.rankedDocs.length,
-              altQueryHash,
-            };
-          }
-        } else {
-          contextResult = selectedResult.contextResult;
-        }
-
-        const autoOrMultiEnabled =
-          hydeMode === "auto" ||
-          rewriteMode === "auto" ||
-          ragMultiQueryMode === "auto";
-        let altQueryHashForDecision: string | null = null;
-        if (autoOrMultiEnabled && altQueryType !== "none" && autoResult) {
-          const altQuery =
-            altQueryType === "rewrite"
-              ? autoResult.preRetrieval.rewrittenQuery
-              : autoResult.preRetrieval.embeddingTarget;
-          altQueryHashForDecision = altQuery
-            ? hashPayload({ q: altQuery })
-            : null;
-        }
-        if (autoOrMultiEnabled && autoDecisionMetrics) {
-          decisionSignature = {
-            autoTriggered: autoDecisionMetrics.autoTriggered,
-            winner: autoDecisionMetrics.winner,
-            altType: autoDecisionMetrics.multiQuery?.altType ?? "none",
-            multiQueryRan: autoDecisionMetrics.multiQuery?.ran ?? false,
-            altQueryHash: altQueryHashForDecision,
-          };
-        }
-        decisionTelemetry = autoDecisionMetrics
-          ? {
-              autoTriggered: autoDecisionMetrics.autoTriggered,
-              winner: autoDecisionMetrics.winner,
-              altType: autoDecisionMetrics.multiQuery?.altType ?? "none",
-              multiQueryRan: autoDecisionMetrics.multiQuery?.ran ?? false,
-              skippedReason: autoDecisionMetrics.multiQuery?.skippedReason,
-              reason:
-                forcedFlags?.reverseRag || forcedFlags?.hyde
-                  ? "forced"
-                  : "weak_signal",
-            }
-          : undefined;
-
-        if (autoDecisionMetrics && includeVerboseDetails) {
-          ragLogger.debug(
-            "[langchain_chat] rag auto decision",
-            autoDecisionMetrics,
-          );
-        }
-
-        enhancementSummary = selectedResult.preRetrieval.enhancementSummary;
-        const droppedCount = contextResult.dropped ?? 0;
-        const retrievedCount = contextResult.included.length + droppedCount;
-        const retrievalUsed =
-          computeRetrievalUsed({
-            intent: routingDecision.intent,
-            retrievedCount,
-            finalSelectedCount:
-              contextResult.selection?.finalSelectedCount ?? null,
-          }) ?? false;
-        updateRetrievalMetadata?.(true, retrievalUsed);
-        topKChunks = Math.max(finalK, retrievedCount);
-        citationPayload = buildCitationPayload(contextResult.included, {
-          topKChunks,
-          ragRanking,
-        });
-        if (retrievalCacheWriteKey) {
-          await memoryCacheClient.set(
-            retrievalCacheWriteKey,
-            contextResult,
-            retrievalCacheTtl,
-          );
-          cacheMeta.retrievalHit = false;
-          updateTraceCacheMetadata?.();
-        }
-        ragRootMetadata = {
-          finalK,
-          candidateK,
-          topKChunks,
-          similarityThreshold: guardrails.similarityThreshold,
-          retrievedCount,
-          droppedCount,
-          highestScore: Number(contextResult.highestScore.toFixed(3)),
-          includedCount: contextResult.included.length,
-          insufficient: contextResult.insufficient,
-          autoTriggered: decisionSignature?.autoTriggered ?? false,
-          winner: decisionSignature?.winner ?? null,
-          multiQueryRan: decisionSignature?.multiQueryRan ?? false,
-        };
-        ragLogger.debug("[langchain_chat] context compression", {
-          finalK,
-          topKChunks,
-          candidateK,
-          retrieved: retrievedCount,
-          ranked: retrievedCount,
-          included: contextResult.included.length,
-          dropped: droppedCount,
-          totalTokens: contextResult.totalTokens,
-          highestScore: Number(contextResult.highestScore.toFixed(3)),
-          insufficient: contextResult.insufficient,
-          rankerMode,
-          similarityThreshold: guardrails.similarityThreshold,
-        });
-        if (includeVerboseDetails && contextResult.selection) {
-          ragLogger.debug("[langchain_chat] context selection", {
-            finalK,
-            quotaStart: contextResult.selection.quotaStart,
-            quotaEnd: contextResult.selection.quotaEnd,
-            quotaEndUsed: contextResult.selection.quotaEndUsed,
-            droppedByDedupe: contextResult.selection.droppedByDedupe,
-            droppedByQuota: contextResult.selection.droppedByQuota,
-            uniqueDocs: contextResult.selection.uniqueDocs,
-            finalSelectedCount: contextResult.selection.finalSelectedCount,
-            selectionUnit: contextResult.selection.selectionUnit,
-            inputCount: contextResult.selection.inputCount,
-            uniqueBeforeDedupe: contextResult.selection.uniqueBeforeDedupe,
-            uniqueAfterDedupe: contextResult.selection.uniqueAfterDedupe,
-            docInputCount: contextResult.selection.docSelection.inputCount,
-            docUniqueBeforeDedupe:
-              contextResult.selection.docSelection.uniqueBeforeDedupe,
-            docUniqueAfterDedupe:
-              contextResult.selection.docSelection.uniqueAfterDedupe,
-            docDroppedByDedupe:
-              contextResult.selection.docSelection.droppedByDedupe,
-            mmrLite: contextResult.selection.mmrLite,
-            mmrLambda: contextResult.selection.mmrLambda,
-          });
-        }
-        ragLogger.debug("[langchain_chat] included metadata sample", {
-          entries: contextResult.included.map((doc) => ({
-            docId:
-              (doc.metadata as { doc_id?: string | null })?.doc_id ??
-              doc.doc_id ??
-              null,
-            doc_type: (doc.metadata as { doc_type?: string | null })?.doc_type,
-            persona_type: (doc.metadata as { persona_type?: string | null })
-              ?.persona_type,
-          })),
-        });
-      } finally {
-        if (trace) {
-          const { startTime, endTime } = buildSpanTiming({
-            name: "rag:root",
-            startMs: ragRootStartMs,
-            endMs: Date.now(),
-            requestId: chainRunContext.requestId ?? null,
-          });
-          const metadata = buildTelemetryMetadata({
-            kind: "rag_root",
-            requestId: chainRunContext.requestId ?? null,
-            additional: ragRootMetadata ?? undefined,
-          });
-          void trace.observation({
-            name: "rag:root",
-            metadata,
-            startTime,
-            endTime,
-          });
-          emitRagScores({
-            trace,
-            intent: routingDecision.intent,
-            requestId: chainRunContext.requestId ?? null,
-            highestScore: contextResult.highestScore,
-            insufficient: contextResult.insufficient,
-            uniqueDocs: contextResult.selection?.uniqueDocs,
-          });
-        }
-        retrievalLatencyMs = Date.now() - ragRootStartMs;
-      }
-    }
-  }
-
-  if (safeMode && routingDecision.intent === "knowledge") {
-    updateRetrievalMetadata?.(false, false);
-  }
-
-  if (
-    routingDecision.intent !== "knowledge" &&
-    cacheMeta.retrievalHit !== null
-  ) {
-    cacheMeta.retrievalHit = null;
-    updateTraceCacheMetadata?.();
-  }
-
-  const summaryTokens =
-    historyWindow.summaryMemory && historyWindow.summaryMemory.length > 0
-      ? estimateTokens(historyWindow.summaryMemory)
-      : null;
-  const summaryInfo =
-    summaryTokens !== null
-      ? {
-          originalTokens: historyWindow.tokenCount,
-          summaryTokens,
-          trimmedTurns: historyWindow.trimmed.length,
-          maxTurns: guardrails.summary.maxTurns,
-        }
-      : undefined;
-
-  const latestMeta: GuardrailMeta = {
-    intent: routingDecision.intent,
-    reason: routingDecision.reason,
-    historyTokens: historyWindow.tokenCount,
-    summaryApplied: Boolean(historyWindow.summaryMemory),
-    history: {
-      tokens: historyWindow.tokenCount,
-      budget: guardrails.historyTokenBudget,
-      trimmedTurns: historyWindow.trimmed.length,
-      preservedTurns: historyWindow.preserved.length,
-    },
-    context: {
-      included: contextResult.included.length,
-      dropped: contextResult.dropped,
-      totalTokens: contextResult.totalTokens,
-      insufficient: contextResult.insufficient,
-      retrieved: contextResult.included.length + contextResult.dropped,
-      similarityThreshold: guardrails.similarityThreshold,
-      highestSimilarity: Number.isFinite(contextResult.highestScore)
-        ? contextResult.highestScore
-        : undefined,
-      contextTokenBudget: guardrails.ragContextTokenBudget,
-      contextClipTokens: guardrails.ragContextClipTokens,
-    },
-    enhancements: enhancementSummary,
-    summaryConfig: {
-      enabled: guardrails.summary.enabled,
-      triggerTokens: guardrails.summary.triggerTokens,
-      maxTurns: guardrails.summary.maxTurns,
-      maxChars: guardrails.summary.maxChars,
-    },
-    llmModel,
-    provider,
-    embeddingModel,
-    summaryInfo,
-  };
-
-  const resolvedCitations =
-    citationPayload ??
-    buildCitationPayload(contextResult.included, {
-      topKChunks,
-      ragRanking,
-    });
-
-  const autoOrMultiEnabled =
-    hydeMode === "auto" ||
-    rewriteMode === "auto" ||
-    ragMultiQueryMode === "auto";
-  if (autoOrMultiEnabled && !decisionSignature) {
-    decisionSignature = {
-      autoTriggered: false,
-      winner: null,
-      altType: "none",
-      multiQueryRan: false,
-    };
-  }
-
-  if (_traceMetadata && includeVerboseDetails && autoDecisionMetrics) {
-    applyTraceMetadataMerge(_traceMetadata, {
-      retrievalAutoDecision: autoDecisionMetrics,
-    });
-  }
-
-  return {
-    contextResult,
-    citations: resolvedCitations,
-    latestMeta,
-    enhancementSummary,
-    decisionSignature,
-    decisionTelemetry,
-    retrievalLatencyMs,
-  };
-}
-
-async function streamAnswerWithPrompt({
-  llmInstance,
-  prompt,
-  question,
-  historyWindow,
-  contextResult,
-  citationPayload,
-  latestMeta,
-  routingDecision,
-  env: _env,
-  temperature: _temperature,
-  requestedModelId,
-  candidateModelId,
-  responseCacheKey,
-  responseCacheTtl,
-  cacheMeta,
-  traceMetadata: _traceMetadata,
-  res,
-  respondJson,
-  clearWatchdog,
-  markStage,
-  abortSignal,
-  capturePosthogEvent,
-  chainRunContext,
-  logReturn,
-  initialStreamStarted,
-  provider,
-  model,
-  trace,
-  updateTrace,
-}: StreamAnswerParams): Promise<StreamAnswerResult> {
-  const guardrailMeta = [
-    `Intent: ${routingDecision.intent} (${routingDecision.reason})`,
-    contextResult.insufficient
-      ? "Context status: insufficient matches. Be explicit when information is missing."
-      : `Context status: ${contextResult.included.length} excerpts (${contextResult.totalTokens} tokens).`,
-  ].join(" | ");
-  const contextValue =
-    contextResult.contextBlock.length > 0
-      ? contextResult.contextBlock
-      : "(No relevant context was found.)";
-
-  // Build a formatted transcript of the most recent turns (preserved messages)
-  // that are not already part of the summarized summaryMemory.
-  const transcriptLines: string[] = [];
-  const questionNormalized = question?.trim();
-
-  // Robustly exclude the current question from the history transcript.
-  // We identify the last message that matches the current user question to avoid
-  // duplicating it in the {memory} section, as it's already in the {question} section.
-  let excludeIndex = -1;
-  if (questionNormalized) {
-    for (let i = historyWindow.preserved.length - 1; i >= 0; i -= 1) {
-      const m = historyWindow.preserved[i];
-      if (m.role === "user" && m.content?.trim() === questionNormalized) {
-        excludeIndex = i;
-        break;
-      }
-    }
-  }
-
-  for (let i = 0; i < historyWindow.preserved.length; i++) {
-    if (i === excludeIndex) continue;
-    const m = historyWindow.preserved[i];
-    const roleLabel = m.role === "user" ? "User" : "Assistant";
-    transcriptLines.push(`${roleLabel}: ${m.content}`);
-  }
-
-  const preservedTranscript = transcriptLines.join("\n");
-
-  // Combine summarized old history and recent transcript with clear section headers.
-  const memoryParts: string[] = [];
-  const summaryMemory = historyWindow.summaryMemory?.trim();
-  if (summaryMemory) {
-    memoryParts.push(`Summary of earlier conversation:\n${summaryMemory}`);
-  }
-  if (preservedTranscript) {
-    memoryParts.push(
-      `Most recent conversation transcript:\n${preservedTranscript}`,
-    );
-  }
-
-  const memoryValue =
-    memoryParts.length > 0
-      ? memoryParts.join("\n\n")
-      : "(No prior conversation history. Treat this as a standalone exchange.)";
-  const answerChain = buildRagAnswerChain();
-  const answerChainRunnableConfig = buildChainRunnableConfig({
-    ...chainRunContext,
-    stage: "answer",
-  });
-  const signal = abortSignal ?? undefined;
-
-  let streamHeadersSent = initialStreamStarted;
-  let finalOutput = "";
-  let chunkIndex = 0;
-  const ensureStreamHeaders = () => {
-    if (res.headersSent) {
-      streamHeadersSent = true;
-      return;
-    }
-    if (!streamHeadersSent) {
-      setSmokeHeaders(res, cacheMeta.responseHit);
-      res.writeHead(200, {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Transfer-Encoding": "chunked",
-      });
-      streamHeadersSent = true;
-    }
-  };
-
-  if (latestMeta) {
-    latestMeta.telemetry = {
-      cache: {
-        responseHit:
-          cacheMeta.responseHit === null ? undefined : cacheMeta.responseHit,
-        retrievalHit:
-          cacheMeta.retrievalHit === null ? undefined : cacheMeta.retrievalHit,
-      },
-    };
-    res.setHeader(
-      "X-Guardrail-Meta",
-      encodeURIComponent(serializeGuardrailMeta(latestMeta)),
-    );
-  }
-  res.setHeader("Content-Encoding", "identity");
-
-  const emitTraceOutput = (aborted: boolean) => {
-    if (!updateTrace) {
-      return;
-    }
-    const citationsCount = citationPayload?.citations?.length ?? 0;
-    const canInferInsufficient = routingDecision.intent === "knowledge";
-    updateTrace?.({
-      output: buildSafeTraceOutputSummary({
-        answerChars: finalOutput.length,
-        citationsCount,
-        cacheHit: cacheMeta.responseHit,
-        insufficient: canInferInsufficient ? contextResult.insufficient : null,
-        finishReason: aborted ? "aborted" : "success",
-      }),
-      metadata: {
-        aborted,
-      },
-    });
-  };
-
-  const answerMetadata = buildTelemetryMetadata({
-    kind: "llm",
-    requestId: chainRunContext.requestId ?? null,
-    generationProvider: provider,
-    generationModel: model,
-    additional: {
-      responseCacheHit: cacheMeta.responseHit,
-    },
-  });
-  let handledEarlyExit = false;
-
-  try {
-    await withSpan(
-      {
-        trace,
-        requestId: chainRunContext.requestId ?? null,
-        name: "answer:llm",
-        metadata: answerMetadata,
-      },
-      async () => {
-        try {
-          markStage?.("before-llm-call");
-          markStage?.("answer-chain-invoked");
-          const answerResult = await answerChain.invoke(
-            {
-              question,
-              guardrailMeta,
-              contextValue,
-              memoryValue,
-              prompt,
-              llmInstance,
-            },
-            {
-              ...answerChainRunnableConfig,
-              runName: makeRunName("answer", "root"),
-              signal,
-            },
-          );
-          const { promptInput, stream } = answerResult;
-          markStage?.("stream-loop-started");
-
-          if (candidateModelId !== requestedModelId) {
-            llmLogger.info(
-              `[langchain_chat] Gemini model "${candidateModelId}" succeeded after falling back from "${requestedModelId}".`,
-            );
-          }
-
-          ragLogger.trace("[langchain_chat] debug context", {
-            length: contextValue.length,
-            preview: contextValue.slice(0, 100).replaceAll("\n", "\\n"),
-            insufficient: contextResult.insufficient,
-          });
-          ragLogger.trace(
-            "[langchain_chat] prompt input preview",
-            promptInput.slice(0, 500).replaceAll("\n", "\\n"),
-          );
-
-          for await (const chunk of stream) {
-            if (abortSignal?.aborted) {
-              break;
-            }
-            const rendered = renderStreamChunk(chunk);
-            if (!rendered || res.writableEnded) {
-              continue;
-            }
-            chunkIndex += 1;
-            llmLogger.trace("[langchain_chat] stream chunk", {
-              chunkIndex,
-              length: rendered.length,
-              preview: formatChunkPreview(rendered),
-            });
-            if (chunkIndex === 1) {
-              markStage?.("first-chunk-sent", {
-                chunkIndex,
-                chunkLength: rendered.length,
-              });
-              markStage?.("after-llm-first-byte", {
-                chunkIndex,
-                chunkLength: rendered.length,
-              });
-            }
-            if (abortSignal?.aborted) {
-              break;
-            }
-            ensureStreamHeaders();
-            finalOutput += rendered;
-            res.write(rendered);
-          }
-
-          if (abortSignal?.aborted) {
-            answerMetadata.aborted = true;
-            answerMetadata.finishReason = "aborted";
-            emitTraceOutput(true);
-            handledEarlyExit = true;
-            return;
-          }
-
-          ensureStreamHeaders();
-          llmLogger.trace("[langchain_chat] stream completed", {
-            chunkCount: chunkIndex,
-          });
-          answerMetadata.aborted = false;
-          answerMetadata.finishReason = "success";
-          emitTraceOutput(false);
-        } catch (spanErr) {
-          answerMetadata.aborted = true;
-          answerMetadata.finishReason = "error";
-          throw spanErr;
-        }
-      },
-    );
-
-    if (handledEarlyExit) {
-      return { finalOutput, handledEarlyExit: true };
-    }
-
-    const citationJson = JSON.stringify(citationPayload);
-    if (!abortSignal?.aborted && responseCacheKey) {
-      await memoryCacheClient.set(
-        responseCacheKey,
-        { output: finalOutput, citations: citationJson },
-        responseCacheTtl,
-      );
-      cacheMeta.responseHit = false;
-    }
-    if (!res.writableEnded) {
-      res.write(`${CITATIONS_SEPARATOR}${citationJson}`);
-    }
-    // Trace updates moved to telemetry buffer flush.
-    res.end();
-    markStage?.("response-end");
-    markStage?.("stream-completed");
-    return { finalOutput };
-  } catch (streamErr) {
-    if (abortSignal?.aborted) {
-      emitTraceOutput(true);
-      return { finalOutput, handledEarlyExit: true };
-    }
-    if (!res.headersSent) {
-      const errMessage = (streamErr as any)?.message || "";
-      if (streamErr instanceof OllamaUnavailableError) {
-        capturePosthogEvent?.("error", "local_llm_unavailable");
-        markStage?.("stream-ollama-unavailable");
-        clearWatchdog();
-        respondWithOllamaUnavailable(res);
-        logReturn("stream-ollama-unavailable");
-        return { finalOutput: "", handledEarlyExit: true };
-      }
-      if (
-        errMessage.includes("No models loaded") ||
-        errMessage.includes("connection refused")
-      ) {
-        capturePosthogEvent?.("error", "local_llm_unavailable");
-        markStage?.("stream-local-llm-unavailable");
-        respondJson(503, {
-          error: {
-            code: "LOCAL_LLM_UNAVAILABLE",
-            message:
-              "No model loaded in LM Studio. Please load a model in the LM Studio app.",
-          },
-        });
-        updateTrace?.({
-          output: buildSafeTraceOutputSummary({
-            answerChars: 0,
-            citationsCount: 0,
-            cacheHit: cacheMeta.responseHit,
-            insufficient: null,
-            finishReason: "error",
-            errorCategory: "local_llm_unavailable",
-          }),
-          metadata: {
-            aborted: false,
-            error_category: "local_llm_unavailable",
-          },
-        });
-        logReturn("stream-local-llm-unavailable");
-        return { finalOutput: "", handledEarlyExit: true };
-      }
-    }
-    throw streamErr;
-  }
 }
 
 export async function handleLangchainChat(
@@ -2375,34 +1223,38 @@ export async function handleLangchainChat(
         (detailLevel === "standard" || detailLevel === "verbose"),
       );
       const ragResult = await computeRagContextAndCitations({
-        guardrails,
-        normalizedQuestion,
-        routingDecision,
-        historyWindow,
-        presetId,
-        provider,
-        llmModel,
-        embeddingModel,
-        embeddingSelection,
-        chatConfigSnapshot,
-        includeVerboseDetails,
-        includeSelectionTelemetry,
-        env,
-        abortSignal: requestAbortSignal,
-        chainRunContext,
-        markStage: mark,
-        safeMode: safeModeActive,
-        forcedFlags: body?.ragOverride?.forceStrategies,
-        ragFlags: {
-          reverseRagEnabled,
-          reverseRagMode,
-          hydeEnabled,
-          hydeMode,
-          rewriteMode,
-          ragMultiQueryMode,
-          ragMultiQueryMaxQueries,
-          rankerMode,
-          ragRanking,
+        request: {
+          guardrails,
+          normalizedQuestion,
+          routingDecision,
+          historyWindow,
+          presetId,
+        },
+        runtime: {
+          provider,
+          llmModel,
+          embeddingModel,
+          embeddingSelection,
+          chatConfigSnapshot,
+          includeVerboseDetails,
+          includeSelectionTelemetry,
+          env,
+          abortSignal: requestAbortSignal,
+          chainRunContext,
+          markStage: mark,
+          safeMode: safeModeActive,
+          forcedFlags: body?.ragOverride?.forceStrategies,
+          ragFlags: {
+            reverseRagEnabled,
+            reverseRagMode,
+            hydeEnabled,
+            hydeMode,
+            rewriteMode,
+            ragMultiQueryMode,
+            ragMultiQueryMaxQueries,
+            rankerMode,
+            ragRanking,
+          },
         },
         infra: {
           embeddings,
@@ -2485,35 +1337,42 @@ export async function handleLangchainChat(
       let streamResult: StreamAnswerResult;
       try {
         streamResult = await streamAnswerWithPrompt({
-          llmInstance,
-          prompt,
-          question,
-          historyWindow,
-          contextResult: ragResult.contextResult,
-          citationPayload: ragResult.citations,
-          latestMeta: ragResult.latestMeta,
-          routingDecision,
-          env,
-          temperature,
-          provider,
-          model: llmModel,
-          requestedModelId: llmModel,
-          candidateModelId,
-          responseCacheKey,
-          responseCacheTtl,
-          cacheMeta,
-          traceMetadata: traceMetadata ?? undefined,
-          res,
-          abortSignal: requestAbortSignal,
-          capturePosthogEvent,
-          respondJson,
-          clearWatchdog,
-          markStage: (stage, extra) => mark(stage, extra),
-          chainRunContext,
-          logReturn,
-          initialStreamStarted: earlyStreamStarted,
-          trace,
-          updateTrace: updateTrace ?? undefined,
+          promptInput: {
+            llmInstance,
+            prompt,
+            question,
+            historyWindow,
+          },
+          ragOutput: {
+            contextResult: ragResult.contextResult,
+            citationPayload: ragResult.citations,
+            latestMeta: ragResult.latestMeta,
+            routingDecision,
+          },
+          runtime: {
+            provider,
+            model: llmModel,
+            requestedModelId: llmModel,
+            candidateModelId,
+            responseCacheKey,
+            responseCacheTtl,
+            abortSignal: requestAbortSignal,
+            chainRunContext,
+            initialStreamStarted: earlyStreamStarted,
+          },
+          http: {
+            res,
+            respondJson,
+            clearWatchdog,
+          },
+          telemetry: {
+            cacheMeta,
+            trace,
+            updateTrace: updateTrace ?? undefined,
+            capturePosthogEvent,
+            markStage: (stage, extra) => mark(stage, extra),
+            logReturn,
+          },
         });
         llmGenerationEndMs = Date.now();
       } catch (streamErr) {

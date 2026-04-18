@@ -30,7 +30,10 @@ void describe("mergeTraceMetadata", () => {
         { cache: { responseHit: null, retrievalHit: null } },
         { cache: { responseHit: false, retrievalHit: null } },
       );
-      assert.deepEqual(result.cache, { responseHit: false, retrievalHit: null });
+      assert.deepEqual(result.cache, {
+        responseHit: false,
+        retrievalHit: null,
+      });
     });
   });
 
@@ -103,19 +106,30 @@ void describe("mergeTraceMetadata", () => {
   });
 
   void describe("numeric values — monotonic max", () => {
-    void it("takes the max of two numeric values", () => {
-      const result = mergeTraceMetadata({ count: 3 }, { count: 7 });
-      assert.equal(result.count, 7);
+    void it("takes the max for allowlisted numeric values", () => {
+      const result = mergeTraceMetadata(
+        { questionLength: 10 },
+        { questionLength: 7 },
+      );
+      assert.equal(result.questionLength, 10);
     });
 
-    void it("never decreases a numeric counter", () => {
+    void it("uses the latest explicit value for non-allowlisted numeric values", () => {
       const result = mergeTraceMetadata({ count: 10 }, { count: 2 });
-      assert.equal(result.count, 10);
+      assert.equal(result.count, 2);
     });
 
-    void it("sets numeric value when previously absent", () => {
+    void it("sets non-allowlisted numeric value when previously absent", () => {
       const result = mergeTraceMetadata({}, { count: 5 });
       assert.equal(result.count, 5);
+    });
+
+    void it("applies the same numeric policy inside nested objects", () => {
+      const result = mergeTraceMetadata(
+        { nested: { questionLength: 10, count: 10 } },
+        { nested: { questionLength: 7, count: 2 } },
+      );
+      assert.deepEqual(result.nested, { questionLength: 10, count: 2 });
     });
   });
 
@@ -139,10 +153,7 @@ void describe("mergeTraceMetadata", () => {
 
   void describe("undefined values", () => {
     void it("skips undefined values in next", () => {
-      const result = mergeTraceMetadata(
-        { a: "existing" },
-        { a: undefined },
-      );
+      const result = mergeTraceMetadata({ a: "existing" }, { a: undefined });
       assert.equal(result.a, "existing");
     });
   });

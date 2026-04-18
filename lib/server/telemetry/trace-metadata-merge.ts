@@ -8,10 +8,13 @@
  * - cache/rag boolean flags are monotonic: once true, never revert to false.
  * - intent is first-write-wins; later changes are recorded as intent_final.
  * - aborted is terminal: once true, never flips back to false.
- * - numeric counters take the max value for stable dashboards.
+ * - explicitly allowlisted numeric counters take the max value for stable dashboards.
  */
 
-import type { SafeTraceInputSummary, SafeTraceOutputSummary } from "@/lib/server/telemetry/telemetry-summaries";
+import type {
+  SafeTraceInputSummary,
+  SafeTraceOutputSummary,
+} from "@/lib/server/telemetry/telemetry-summaries";
 
 export type TraceMetadataSnapshot = {
   [key: string]: unknown;
@@ -66,6 +69,13 @@ const mergeNumeric = (
   }
   return null;
 };
+
+// New numeric metadata keys must choose a merge policy intentionally.
+// Values in this set are counters/gauges that should only move upward when
+// multiple trace updates arrive out of order for the same request.
+export const MONOTONIC_NUMERIC_METADATA_KEYS = new Set<string>([
+  "questionLength",
+]);
 
 export const mergeTraceMetadata = (
   prev: Record<string, unknown>,
@@ -134,11 +144,15 @@ export const mergeTraceMetadata = (
       continue;
     }
     if (typeof value === "number") {
-      // Numeric counters move monotonically for stable dashboards.
-      merged[key] = mergeNumeric(
-        merged[key] as number | null | undefined,
-        value,
-      );
+      if (MONOTONIC_NUMERIC_METADATA_KEYS.has(key)) {
+        // Allowlisted numeric counters move monotonically for stable dashboards.
+        merged[key] = mergeNumeric(
+          merged[key] as number | null | undefined,
+          value,
+        );
+      } else {
+        merged[key] = value;
+      }
       continue;
     }
     if (isPlainObject(value)) {
