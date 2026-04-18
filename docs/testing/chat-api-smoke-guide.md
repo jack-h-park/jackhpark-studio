@@ -15,11 +15,12 @@ path, streaming health, cache signaling, and Safe Mode fallback behavior.
   - unified `/api/chat`
   - streaming and non-empty output
   - repeat-request cache signaling via `x-cache-hit`
+  - RAG-ish prompt includes the citations payload separator
   - Safe Mode fallback validation when enabled
 
 ### `pnpm smoke:langchain-chat`
 
-- Underlying script: `scripts/smoke/smoke-langchain-chat.mjs`
+- Underlying script: `scripts/smoke/smoke-langchain-chat.ts`
 - Covers:
   - legacy `/api/langchain_chat`
   - `GET` returns `405`
@@ -63,6 +64,7 @@ unified smoke script. It should still stream a response while emitting
 - streaming output or chunked text
 - non-empty answer content
 - `x-cache-hit` on the second unified request when smoke headers are enabled
+- citations payload separator on the RAG-ish prompt
 - optional `x-trace-id`
 - `GET /api/langchain_chat` returns `405`
 - `POST /api/langchain_chat` streams a response
@@ -87,4 +89,5 @@ The scripts report:
 - `answer too short`: model returned too little content
 - `expected streamed chunk`: streaming did not deliver content
 - `missing x-cache-hit`: smoke headers are off or cache signaling is unavailable
+- `missing citations payload separator`: retrieval/citation assembly regressed or the running preset disabled retrieval
 - `GET` not returning `405` on the legacy path: method handling regression

@@ -27,7 +27,7 @@
 
 - The `chat_completion` PostHog event name has not changed (per constraints). Its payload still contains `latency_ms`, `aborted`, `response_cache_hit`, `retrieval_cache_hit`, `response_cache_enabled`, `retrieval_cache_enabled`, `rag_enabled`, and `status`, with `safe_mode` appended.
 - Langfuse metadata mirrors guardrail snapshots, cache metadata, decision telemetry, and the `safe_mode` flag so traces reveal exactly why the runtime chose the conservative path.
-- Smoke scripts (`scripts/smoke/chat-api-smoke.ts`, `scripts/smoke/smoke-langchain-chat.mjs`, `scripts/smoke/prewarm-langchain-chat.mjs`) exercise `/api/chat` and can toggle safe mode to confirm the fallback path remains responsive.
+- Smoke scripts (`scripts/smoke/chat-api-smoke.ts`, `scripts/smoke/smoke-langchain-chat.ts`) exercise `/api/chat` and legacy `/api/langchain_chat`; rerun the unified smoke with Safe Mode enabled to confirm the fallback path remains responsive.
 
 ## Takeaways
 

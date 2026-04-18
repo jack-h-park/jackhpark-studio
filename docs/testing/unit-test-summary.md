@@ -2,66 +2,100 @@
 
 ## Overview
 
-현재 프로젝트의 단위 테스트는 `node:test`와 `node:assert/strict`를 사용해 **순수 함수/유틸 로직**을 검증합니다. 대부분 RAG 파이프라인의 설정 정규화, 텔레메트리 결정 로직, 후보 문서 머징 등 **서버 사이드 비즈니스 로직**에 집중되어 있습니다.
+현재 프로젝트의 단위 테스트는 `node:test`와 `node:assert/strict`를 사용해
+**외부 서비스에 의존하지 않는 순수 계약**을 검증합니다. PR gate에서는
+Notion, Supabase, LLM provider, Langfuse, PostHog, 외부 네트워크가 없어도
+실행 가능한 테스트만 필수로 다룹니다.
 
 ## Test Framework
 
 - Runner: `node:test`
 - Assertion: `node:assert/strict`
 - 테스트 위치: `test/*.test.ts`
+- 공통 helper: `test/helpers/`
+- fixture: `test/fixtures/`
 
-## Unit Test Coverage (File별 요약)
+## Coverage Summary
 
-### `test/rag-k-normalization.test.ts`
-- 대상: `normalizeRagK` (`@/lib/server/langchain/ragRetrievalChain`)
-- 검증 내용:
-  - rerank 비활성화 시 `retrieveK`/`finalK` 정규화
-  - rerank 활성화 시 `rerankK` 기본값(미지정) 적용 및 명시값 보존
-  - `finalK`가 `rerankK`를 초과하지 않도록 클램핑
+### Notion contracts
 
-### `test/chat-langfuse.test.ts`
-- 대상: `decideTelemetryMode`, `buildRetrievalTelemetryEntries`
-  - `decideTelemetryMode` (`@/lib/telemetry/chat-langfuse`)
-    - 샘플링 비율 0/1 처리
-    - 난수 샘플링 임계값 판정
-    - detail level(`minimal`/`standard`/`verbose`)에 따른 스냅샷/상세 로깅 여부
-    - 강제 트레이싱 플래그
-  - `buildRetrievalTelemetryEntries` (`@/lib/server/chat-common`)
-    - 입력 문서 필드 정규화(`docId`/`doc_id`/`document_id` 등)
-    - 유사도/가중치 필드 매핑(`baseSimilarity`, `metadata_weight`, `metadata.weight`)
-    - `doc_type`, `persona_type`, `is_public` 메타데이터 정규화
-    - 최대 엔트리 수 제한
+- `test/notion-fixture-contract.test.ts`
+  - fixture recordMap에서 title/plain text/source timestamp/metadata 추출을 검증합니다.
+  - malformed collection/view/block shape가 renderer-safe shape로 보정되는지 검증합니다.
+- `test/notion-katex.test.ts`
+  - `hasKaTeXContent`가 equation block, inline equation decoration, LaTeX-like fragment를 감지하는지 검증합니다.
+  - 일반 텍스트는 KaTeX content로 오탐하지 않는지 검증합니다.
 
-### `test/chat-guardrails-sanitize.test.ts`
-- 대상: `sanitizeChatSettings` (`@/lib/server/chat-guardrails`)
-- 검증 내용:
-  - guardrail 파라미터 범위 클램핑(유사도, 토큰 버짓, 요약 조건 등)
-  - runtime flags 타입/enum 보정 및 기본값 적용
-  - 변경 감지(`changes`) 존재 여부
-  - 정상 범위 값 유지(변경 없음)
+### RAG and cache contracts
 
-### `test/multi-query.test.ts`
-- 대상: `pickAltQueryType`, `mergeCandidates` (`@/lib/server/langchain/multi-query`)
-- 검증 내용:
-  - 대체 쿼리 타입 결정 우선순위(Rewrite > Hyde > None)
-  - 후보 머징 시 동일 키는 더 높은 유사도 유지
-  - 동점 시 결정적 순서 유지(기존 순서 안정성)
+- `test/rag-contract.test.ts`
+  - context window selection, dedupe, citation payload grouping, RAG-affecting cache key dimensions을 검증합니다.
+- `test/rag-k-normalization.test.ts`
+  - rerank enabled/disabled 상태의 effective K ordering을 검증합니다.
+- `test/multi-query.test.ts`
+  - 대체 쿼리 선택과 multi-query candidate merge의 deterministic ordering을 검증합니다.
+- `test/selection-dedupe.test.ts`
+  - chunk/doc 단위 dedupe metric을 검증합니다.
+- `test/cache-key.test.ts`
+  - response/retrieval cache key가 model, provider, summary, RAG flags를 반영하는지 검증합니다.
+- `test/auto-rag-trigger.test.ts`
+  - weak retrieval, forced flags, suppression 조건에서 Auto-RAG trigger 결정을 검증합니다.
 
-## Unit Test 범위 밖의 테스트 스크립트
+### Chat settings, guardrails, and UI policy
 
-단위 테스트와 별도로, `/api/chat`의 LangChain 경로와 Safe Mode fallback을 검증하는 수동 스모크 스크립트가 존재합니다.
+- `test/chat-guardrails-sanitize.test.ts`
+  - guardrail numeric bounds와 runtime flag enum 보정을 검증합니다.
+- `test/chat-settings-policy.test.ts`
+  - user-tunable setting enforcement를 검증합니다.
+- `test/require-local-policy.test.ts`
+  - local-required model routing/fallback policy를 검증합니다.
+- `test/settings-section-rag-retrieval.test.tsx`
+  - RAG retrieval settings UI helper와 rendered markup contract를 검증합니다.
+- `test/admin-chat-config.presets.test.ts`
+  - approved admin preset defaults를 검증합니다.
 
-- `pnpm smoke:chat` (`scripts/smoke/chat-api-smoke.ts`): `/api/chat`을 호출해 SSE 배포, `x-cache-hit`, 스트리밍 청크, 타임아웃, 그리고 `safe_mode` 텔레메트리까지 확인합니다. `SMOKE_CHAT_PRESET=local-required` 또는 `safeMode=true` 옵션을 주면 안전 모드 경로도 커버할 수 있습니다.
-- `scripts/smoke/smoke-langchain-chat.mjs` / `prewarm-langchain-chat.mjs`: LangChain 디버그 surfaces (405/OPTIONS, readiness)와 prewarm 경로를 점검하며 전체 런타임 준비 상태를 체크합니다.
+### Telemetry contracts
 
-## 현재 테스트 성격 요약
+- `test/chat-langfuse.test.ts`
+  - trace sampling/detail-level decision과 retrieval telemetry entry normalization을 검증합니다.
+- `test/langfuse-metadata.test.ts`
+  - generation input, cache metadata, retrieval-used inference를 검증합니다.
+- `test/langfuse-generations.test.ts`, `test/langfuse-scores.test.ts`, `test/langfuse-tags.test.ts`
+  - Langfuse generation/score/tag helper behavior를 검증합니다.
+- `test/telemetry-config-snapshot.test.ts`
+  - telemetry config summary와 stable hash behavior를 검증합니다.
+- `test/trace-metadata-merge.test.ts`
+  - monotonic cache/RAG flags, first-write intent, terminal abort, numeric merge policy를 검증합니다.
+- `test/telemetry-golden/telemetry-golden.knowledge-standard.test.ts`
+  - standard knowledge intent telemetry payload의 golden snapshot을 검증합니다.
 
-- **순수 함수/정규화 로직** 중심 (I/O 의존성 없음)
-- **RAG 설정/텔레메트리 결정/후보 병합** 등 핵심 로직에 집중
-- 네트워크/외부 서비스 의존 테스트는 `scripts/`의 수동 실행 스크립트로 분리
+### Smoke parser and operational helpers
 
-## 명시적 커버리지 갭(관찰 기준)
+- `test/smoke-chat-response.test.ts`
+  - chat smoke parser가 JSON, SSE, plain streamed response를 읽고 citations payload separator를 감지하는지 검증합니다.
+- `test/fetch-favicon.test.ts`
+  - favicon fetch timeout, private IP redirect block, cache/inflight behavior를 검증합니다.
+- `test/admin-documents-import-graph.test.ts`
+  - admin documents page가 heavy URL metadata import chain을 정적으로 끌어오지 않는지 검증합니다.
+- `test/document-preview-slot.test.ts`, `test/rag-documents-stats.test.ts`, `test/embedding-resolution.test.ts`, `test/logging-config.test.ts`
+  - admin/RAG document display, embedding provider availability, logging config helper behavior를 검증합니다.
 
-- API 핸들러 단의 통합 테스트는 별도 파일/디렉터리에서 보이지 않음
-- DB/외부 서비스 연계 테스트는 단위 테스트 범위에 포함되지 않음
-- 프론트엔드 UI/컴포넌트 테스트는 현재 단위 테스트 목록에서 확인되지 않음
+## Outside Unit Tests
+
+- `pnpm smoke:chat`
+  - running dev server의 `/api/chat`을 호출해 streaming, cache-hit header, citations payload separator를 검증합니다.
+- `pnpm smoke:langchain-chat`
+  - running dev server의 legacy `/api/langchain_chat`에서 GET 405, POST streaming, debug-route inference를 검증합니다.
+- `pnpm smoke:admin-ui`
+  - admin route availability를 검증합니다.
+- `pnpm qa:notion-polish`
+  - desktop/mobile Notion render screenshot을 캡처합니다.
+- `pnpm check:katex`
+  - live Notion content inventory audit입니다. PR 필수 테스트가 아니며 네트워크/Notion fetch에 의존합니다.
+
+## Remaining Gaps
+
+- API handler를 in-process로 호출하는 deterministic integration test는 아직 없습니다.
+- Supabase/pgvector와 실제 LLM provider를 포함한 end-to-end 검증은 live smoke 또는 수동 검증으로 분리되어 있습니다.
+- 브라우저 기반 visual regression은 `qa:notion-polish`에 의존하며 PR unit test에는 포함하지 않습니다.
+- LLM answer-quality grading은 아직 자동화하지 않았습니다. 현재 gate는 retrieval/citation/cache/telemetry 계약 중심입니다.

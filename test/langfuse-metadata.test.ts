@@ -1,16 +1,19 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { type ChatGuardrailConfig } from "@/lib/server/chat-guardrails";
 import {
   buildCacheMetadata,
   buildGenerationInput,
   computeRetrievalUsed,
 } from "@/lib/server/telemetry/langfuse-metadata";
 import { stableHash } from "@/lib/server/telemetry/stable-hash";
-import { type TelemetryConfigSummary } from "@/lib/server/telemetry/telemetry-config-snapshot";
 
-const guardrails: ChatGuardrailConfig = {
+import {
+  buildTestGuardrails,
+  buildTestTelemetryConfigSummary,
+} from "./helpers/chat-builders";
+
+const guardrails = buildTestGuardrails({
   similarityThreshold: 0.7,
   ragTopK: 5,
   ragContextTokenBudget: 2048,
@@ -27,19 +30,14 @@ const guardrails: ChatGuardrailConfig = {
     chitchat: "fallback-chat",
     command: "fallback-command",
   },
-};
-
-const configSummary: TelemetryConfigSummary = {
-  presetKey: "default",
-  engine: {
-    safeMode: false,
-    llmModel: "gpt-4",
-    embeddingModel: "embedder",
-  },
+});
+const configSummary = buildTestTelemetryConfigSummary({
+  llmModel: "gpt-4",
+  embeddingModel: "embedder",
   rag: {
     enabled: true,
     topK: 5,
-    similarityThreshold: 0.65,
+    similarity: 0.65,
     ranker: "mmr",
     reverseRAG: false,
     hyde: false,
@@ -54,19 +52,10 @@ const configSummary: TelemetryConfigSummary = {
     detailLevel: "standard",
     sampleRate: 1,
   },
-  cache: {
-    responseEnabled: true,
-    retrievalEnabled: true,
-    responseTtlSeconds: 60,
-    retrievalTtlSeconds: 120,
-  },
   prompt: {
     baseVersion: "base-v1",
   },
-  guardrails: {
-    route: "normal",
-  },
-};
+});
 
 void describe("Langfuse metadata helpers", () => {
   void it("ensures generation input has intent/model/topK/settings_hash for knowledge", () => {

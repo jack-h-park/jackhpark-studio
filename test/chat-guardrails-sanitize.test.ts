@@ -1,39 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import {
-  type ChatGuardrailConfig,
-  sanitizeChatSettings,
-} from "@/lib/server/chat-guardrails";
+import { sanitizeChatSettings } from "@/lib/server/chat-guardrails";
 import {
   DEFAULT_RANKER_MODE,
   DEFAULT_REVERSE_RAG_MODE,
 } from "@/lib/shared/rag-config";
 
-const buildGuardrails = (
-  overrides: Partial<ChatGuardrailConfig> = {},
-): ChatGuardrailConfig => ({
-  similarityThreshold: 0.2,
-  ragTopK: 5,
-  ragContextTokenBudget: 1024,
-  ragContextClipTokens: 256,
-  historyTokenBudget: 512,
-  summary: {
-    enabled: true,
-    triggerTokens: 400,
-    maxChars: 1000,
-    maxTurns: 8,
-  },
-  chitchatKeywords: [],
-  fallbacks: {
-    chitchat: "",
-    command: "",
-  },
-  ...overrides,
-});
+import { buildTestGuardrails } from "./helpers/chat-builders";
 
 void test("sanitizeChatSettings clamps out-of-range values and enums", () => {
-  const guardrails = buildGuardrails({
+  const guardrails = buildTestGuardrails({
     similarityThreshold: 2,
     ragTopK: 30,
     ragContextTokenBudget: 100,
@@ -74,7 +51,7 @@ void test("sanitizeChatSettings clamps out-of-range values and enums", () => {
 });
 
 void test("sanitizeChatSettings preserves safe values", () => {
-  const guardrails = buildGuardrails();
+  const guardrails = buildTestGuardrails();
   const result = sanitizeChatSettings({
     guardrails,
     runtimeFlags: {

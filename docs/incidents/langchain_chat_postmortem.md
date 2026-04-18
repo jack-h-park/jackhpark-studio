@@ -4,39 +4,49 @@
 > Use this document for background on a prior streaming/import incident. It is not a default skill input for routine smoke checks unless the current failure points back to the same wrapper/import/first-byte path.
 
 ## Root cause
+
 - In Next dev the heavy `langchain_chat_impl_heavy` graph pulled in Node-only dependencies (Langfuse + `crypto`) during instrumentation and debug probes, so Webpack/Turbopack spent 10–60s compiling before the route could start streaming.
 - Even when the import eventually succeeded, the streaming path would wait for the first LM chunk, so simple `curl` clients saw 0 bytes and timed out before the first token arrived.
 
 ## Fix summary
+
 - Rebuilt `lib/langfuse` as a Node-safe boundary (`lib/langfuse.node.ts` + the neutral `lib/langfuse.ts` re-export) so instrumentation doesn’t resolve Node builtins, while the `lib/langfuse.server.ts`/`langfuse.next-server.ts` wrappers stay available for App Router-only workloads.
 - Added an early header/first-byte guarantee inside `langchain_chat_impl_heavy.ts` (headers are emitted and flushed before any Saturn work, and the streaming helper reuses the same flags) so the connection never stays at 0 bytes.
 - Reined in RCA diagnostics: `/api/_debug/heavy-import` survives as the guarded debug doorway behind `DEBUG_SURFACES_ENABLED`, so instrumentation probes stay isolated from normal traffic.
 - Cleaned up the handler so every path writes/ends the response without ever returning objects (avoids Next’s “API handler should not return a value” warning).
 
 ## Cleanup inventory
+
 - `pages/api/_debug/heavy-import.ts`: **KEEP (dev-only)** – debug entry point stays available for deep tracing but is gated behind `DEBUG_SURFACES_ENABLED=1` so it never impacts normal traffic.
 - `debug_early_flush` / `debug_no_external` query flags in `langchain_chat_impl_heavy.ts`: **HARDEN** – they now leverage `isDebugSurfacesEnabled()` so they are no-ops unless `DEBUG_SURFACES_ENABLED=1`.
 
 ## Verification
+
 1. `curl -i --max-time 3 http://127.0.0.1:3000/api/langchain_chat`
    - Expect `HTTP/1.1 405 Method Not Allowed` within 100 ms.
 2. `curl -v -N --http1.1 --max-time 25 http://127.0.0.1:3000/api/langchain_chat -H "Content-Type: application/json" -d '{"messages":[{"role":"user","content":"hi"}]}'`
-  - Expect HTTP headers (status 200 + chunked) and any streamed chunk (there is no guaranteed early marker when `DEBUG_SURFACES_ENABLED` is unset) within ~10 s, followed by the streamed answer and `CITATIONS_SEPARATOR` payload.
+
+- Expect HTTP headers (status 200 + chunked) and any streamed chunk (there is no guaranteed early marker when `DEBUG_SURFACES_ENABLED` is unset) within ~10 s, followed by the streamed answer and `CITATIONS_SEPARATOR` payload.
+
 3. Watch the dev server logs to confirm there are no `ERR_HTTP_HEADERS_SENT` or “API handler should not return a value” warnings while the POST request streams.
 
 ## Regression checks
+
 - `pnpm smoke:langchain-chat` runs a lightweight smoke test against a running dev server and asserts that:
   - `GET /api/langchain_chat` responds 405 within ~3 s.
   - `POST /api/langchain_chat` returns 200, emits the first chunk in under 2 s, and drains the stream.
+  - `/api/_debug/heavy-import` reports debug-surface availability when enabled.
   - No transport errors are emitted.
 
 Run this script after starting `pnpm dev` to ensure the first-byte guarantee and streaming behavior stay working without needing manual curl commands.
 
 ## Debug surfaces vs Telemetry
+
 - `DEBUG_SURFACES_ENABLED`: enables `/api/_debug/heavy-import`, `debug_early_flush`/`debug_no_external`, and other instrumentation hooks so you can exercise deeper diagnostics. This toggle is independent of telemetry and defaults to off.
 - `TELEMETRY_ENABLED`: gates Langfuse buffering and flush activity; it never flips on debug routes or query flags. The telemetry helper and smoke script keep it off the request path until the flush runs on finish/close.
 
 ### Required smoke/test loops
+
 1. `EXPECT_DEBUG_SURFACES=0 pnpm smoke:langchain-chat` (or `pnpm smoke:langchain-chat:debug-off`) – your baseline check for GET=405, POST streaming, and debug-route inference; when you need to prove the server is honoring `DEBUG_SURFACES_ENABLED=1`, run `pnpm smoke:langchain-chat:debug-on` instead.
 2. Whenever telemetry logic changes, rerun the same smoke (use the debug-off script unless you really need DEBUG=1) and confirm the dev server log prints `[telemetry] flush-start` with `requestId`, `sessionId`, and `question` so you know telemetry still flushed asynchronously without overwriting the session ID with the question text.
 
@@ -45,8 +55,10 @@ If your dev server runs with `DEBUG_SURFACES_ENABLED=1`, you can still run `pnpm
 Telemetry instrumentation remains gated by `TELEMETRY_ENABLED`; disabling it keeps the chat stream untouched while ceasing Langfuse buffer/flush activity.
 
 ## Re-enabling deep tracing (developer option)
+
 Set `DEBUG_SURFACES_ENABLED=1` and visit `/api/_debug/heavy-import` to unlock extra diagnostics (debug query flags, verbose log hooks, etc.). Without that env var the route responds 404 and `debug_early_flush` / `debug_no_external` are no-ops, so production traffic stays lean. `DEBUG_SURFACES_ENABLED=1` also enables the early marker/headers when `debug_early_flush=1`, and `debug_no_external=1` can short-circuit streaming to aid instrumentation runs.
 
 ### Server-only / telemetry guardrails
-- `pages/api/*` and all `lib/server/api/*` code must only import the Node-safe `@/lib/langfuse` entry (which re-exports the `langfuse.node.ts` implementation); the `lib/langfuse.server.ts` / `langfuse.next-server.ts` wrappers (which include `import "server-only"`) are reserved for App Router server components and must never be referenced from Pages/Pages API routes.  
+
+- `pages/api/*` and all `lib/server/api/*` code must only import the Node-safe `@/lib/langfuse` entry (which re-exports the `langfuse.node.ts` implementation); the `lib/langfuse.server.ts` / `langfuse.next-server.ts` wrappers (which include `import "server-only"`) are reserved for App Router server components and must never be referenced from Pages/Pages API routes.
 - When `TELEMETRY_ENABLED=false`, no telemetry packages (Langfuse or PostHog) are imported at all; the handler merely buffers—in-memory events and flushes nothing—so telemetry toggles cannot block the chat stream.

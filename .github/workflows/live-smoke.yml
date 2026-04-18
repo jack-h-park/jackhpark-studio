@@ -1,0 +1,71 @@
+name: Live Smoke
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 10 * * *"
+
+jobs:
+  live-smoke:
+    name: Live Notion/RAG smoke
+    runs-on: ubuntu-latest
+    if: ${{ vars.ENABLE_LIVE_SMOKE == '1' }}
+
+    steps:
+      - id: preflight
+        run: |
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "has_secrets=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_secrets=0" >> "$GITHUB_OUTPUT"
+            echo "Live smoke skipped: required Supabase secrets are not configured."
+          fi
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - uses: actions/checkout@v4
+        if: ${{ steps.preflight.outputs.has_secrets == '1' }}
+      - uses: pnpm/action-setup@v4
+        if: ${{ steps.preflight.outputs.has_secrets == '1' }}
+      - uses: actions/setup-node@v4
+        if: ${{ steps.preflight.outputs.has_secrets == '1' }}
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile --strict-peer-dependencies
+        if: ${{ steps.preflight.outputs.has_secrets == '1' }}
+      - run: pnpm dev &
+        if: ${{ steps.preflight.outputs.has_secrets == '1' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+          LANGFUSE_PUBLIC_KEY: ${{ secrets.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.LANGFUSE_SECRET_KEY }}
+          SMOKE_HEADERS: "1"
+
+      - run: |
+          for i in {1..60}; do
+            curl -fsS http://localhost:3000/api/ping && exit 0
+            sleep 1
+          done
+          exit 1
+        if: ${{ steps.preflight.outputs.has_secrets == '1' }}
+      - run: pnpm smoke:chat -- --baseUrl http://localhost:3000 --timeoutMs 45000
+        if: ${{ steps.preflight.outputs.has_secrets == '1' }}
+        env:
+          SMOKE_HEADERS: "1"
+      - run: pnpm smoke:langchain-chat
+        if: ${{ steps.preflight.outputs.has_secrets == '1' }}
+        env:
+          LANGCHAIN_CHAT_BASE_URL: http://localhost:3000
+      - run: |
+          if [ -f "$HOME/.codex/skills/playwright/scripts/playwright_cli.sh" ]; then
+            pnpm qa:notion-polish -- --base-url http://localhost:3000
+          else
+            echo "Notion polish visual smoke skipped: Codex Playwright wrapper is not installed on this runner."
+          fi
+        if: ${{ steps.preflight.outputs.has_secrets == '1' }}

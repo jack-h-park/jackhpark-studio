@@ -4,50 +4,9 @@ import { describe, it } from "node:test";
 import type { ChatConfigSnapshot } from "@/lib/rag/types";
 import { buildTelemetryConfigSnapshot } from "@/lib/server/telemetry/telemetry-config-snapshot";
 
-const baseConfig: ChatConfigSnapshot = {
-  presetKey: "default",
-  safeMode: false,
-  llmModel: "mistral-ollama",
-  embeddingModel: "text-embedding-3-small",
-  rag: {
-    enabled: true,
-    topK: 6,
-    similarity: 0.2,
-    ranker: "none",
-    reverseRAG: true,
-    hyde: true,
-    summaryLevel: "detailed",
-    numericLimits: {
-      ragTopK: 6,
-      similarityThreshold: 0.2,
-    },
-    ranking: {
-      docTypeWeights: { official: 1, blog: 2 },
-      personaTypeWeights: { expert: 1.5 },
-    },
-  },
-  context: {
-    tokenBudget: 4096,
-    historyBudget: 1024,
-    clipTokens: 256,
-  },
-  telemetry: {
-    sampleRate: 0.25,
-    detailLevel: "standard",
-  },
-  cache: {
-    responseTtlSeconds: 60,
-    retrievalTtlSeconds: 120,
-    responseEnabled: true,
-    retrievalEnabled: true,
-  },
-  prompt: {
-    baseVersion: "2025-01",
-  },
-  guardrails: {
-    route: "normal",
-  },
-};
+import { buildTestChatConfigSnapshot } from "./helpers/chat-builders";
+
+const baseConfig: ChatConfigSnapshot = buildTestChatConfigSnapshot();
 
 void describe("buildTelemetryConfigSnapshot", () => {
   void it("produces consistent hashes regardless of object key order", () => {

@@ -1,17 +1,12 @@
 import process from "node:process";
-import { setTimeout as wait } from "node:timers/promises";
 
-type SmokeResult = {
-  answerText: string;
-  chunkCount: number;
-  elapsedMs: number;
-  isEventStream: boolean;
-  isChunked: boolean;
-  cacheHitHeader: string | null;
-  traceIdHeader: string | null;
-};
+import {
+  type ChatSmokeResult,
+  readChatResponseBody,
+} from "./lib/chat-response";
+import { normalizeBaseUrl, withAbortTimeout } from "./lib/smoke-core";
 
-type JsonValue = Record<string, unknown> | unknown[] | string | number | null;
+type SmokeResult = ChatSmokeResult;
 
 type ArgOptions = {
   baseUrl: string;
@@ -20,8 +15,6 @@ type ArgOptions = {
 
 const DEFAULT_BASE_URL = "http://localhost:3000";
 const DEFAULT_TIMEOUT_MS = 30_000;
-const CITATIONS_SEPARATOR = "\n\n--- begin citations ---\n";
-
 const args = parseArgs(process.argv.slice(2));
 const baseUrl = normalizeBaseUrl(args.baseUrl ?? DEFAULT_BASE_URL);
 const timeoutMs = args.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -68,7 +61,13 @@ async function run() {
   const tcC = await runCase("TC-C rag-ish prompt", () =>
     sendChatRequest(ragPrompt, timeoutMs),
   );
-  if (!tcC.ok) {
+  if (tcC.ok) {
+    if (!tcC.result.hasCitations) {
+      failures.push(
+        "TC-C rag-ish prompt: missing citations payload separator in response",
+      );
+    }
+  } else {
     failures.push(tcC.error);
   }
 
@@ -134,17 +133,15 @@ async function sendChatRequest(
   message: string,
   timeoutMsValue: number,
 ): Promise<SmokeResult> {
-  const controller = new AbortController();
-  const timeout = wait(timeoutMsValue).then(() => controller.abort());
   const body = buildRequestBody(message);
 
   const start = Date.now();
-  try {
+  return withAbortTimeout(timeoutMsValue, async (signal) => {
     const response = await fetch(`${baseUrl}${endpoint}`, {
       method: "POST",
       headers: baseHeaders,
       body: JSON.stringify(body),
-      signal: controller.signal,
+      signal,
     });
 
     if (response.status !== 200) {
@@ -154,211 +151,12 @@ async function sendChatRequest(
       );
     }
 
-    const smokeResult = await readResponseBody(response);
+    const smokeResult = await readChatResponseBody(response);
     return {
       ...smokeResult,
       elapsedMs: Date.now() - start,
     };
-  } finally {
-    controller.abort();
-    await timeout.catch(() => undefined);
-  }
-}
-
-async function readResponseBody(response: Response): Promise<SmokeResult> {
-  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
-  const isEventStream = contentType.includes("text/event-stream");
-  const isJson = contentType.includes("application/json");
-  const isChunked =
-    response.headers
-      .get("transfer-encoding")
-      ?.toLowerCase()
-      .includes("chunked") ?? false;
-  const cacheHitHeader = response.headers.get("x-cache-hit");
-  const traceIdHeader = response.headers.get("x-trace-id");
-
-  if (isJson) {
-    const text = await response.text();
-    const payload = safeJsonParse(text);
-    const answerText = extractAnswerFromJson(payload);
-    return {
-      answerText: stripCitations(answerText),
-      chunkCount: answerText ? 1 : 0,
-      elapsedMs: 0,
-      isEventStream,
-      isChunked,
-      cacheHitHeader,
-      traceIdHeader,
-    };
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) {
-    throw new Error("response body is missing");
-  }
-
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let chunkCount = 0;
-  let answerText = "";
-  let streamFinished = false;
-
-  const recordChunk = (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed) {
-      return;
-    }
-    chunkCount += 1;
-    answerText += text;
-  };
-
-  const handleData = (dataContent: string) => {
-    if (dataContent === "[DONE]") {
-      streamFinished = true;
-      return;
-    }
-    const extracted = extractChunkText(dataContent);
-    if (extracted) {
-      recordChunk(extracted);
-    }
-  };
-
-  const processBuffer = (flush: boolean) => {
-    if (!isEventStream) {
-      if (buffer) {
-        recordChunk(buffer);
-        buffer = "";
-      }
-      return;
-    }
-    const sections = buffer.split("\n\n");
-    const remainder = flush ? "" : (sections.pop() ?? "");
-    for (const section of sections) {
-      const trimmed = section.trim();
-      if (!trimmed) {
-        continue;
-      }
-      const dataLines = trimmed
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line.startsWith("data:"));
-      if (dataLines.length === 0) {
-        handleData(trimmed);
-        continue;
-      }
-      const dataContent = dataLines
-        .map((line) => line.replace(/^data:\s*/, ""))
-        .join("\n");
-      handleData(dataContent);
-    }
-    buffer = remainder;
-  };
-
-  try {
-    while (true) {
-      const { value, done } = await reader.read();
-      if (value) {
-        buffer += decoder.decode(value, { stream: true });
-        processBuffer(false);
-      }
-      if (done || streamFinished) {
-        break;
-      }
-    }
-    processBuffer(true);
-  } finally {
-    await reader.cancel().catch(() => {});
-  }
-
-  return {
-    answerText: stripCitations(answerText),
-    chunkCount,
-    elapsedMs: 0,
-    isEventStream,
-    isChunked,
-    cacheHitHeader,
-    traceIdHeader,
-  };
-}
-
-function extractChunkText(dataContent: string): string {
-  const trimmed = dataContent.trim();
-  if (!trimmed) {
-    return "";
-  }
-  const parsed = safeJsonParse(trimmed);
-  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    const obj = parsed as Record<string, unknown>;
-    const choices = obj.choices;
-    if (Array.isArray(choices)) {
-      return choices
-        .map((choice) => {
-          if (!choice || typeof choice !== "object") {
-            return "";
-          }
-          const choiceObj = choice as Record<string, unknown>;
-          const delta = choiceObj.delta as Record<string, unknown> | undefined;
-          if (delta && typeof delta.content === "string") {
-            return delta.content;
-          }
-          const message = choiceObj.message as
-            | Record<string, unknown>
-            | undefined;
-          if (message && typeof message.content === "string") {
-            return message.content;
-          }
-          if (typeof choiceObj.text === "string") {
-            return choiceObj.text;
-          }
-          return "";
-        })
-        .join("");
-    }
-    if (typeof obj.content === "string") {
-      return obj.content;
-    }
-    if (typeof obj.text === "string") {
-      return obj.text;
-    }
-  }
-  return trimmed;
-}
-
-function extractAnswerFromJson(payload: JsonValue): string {
-  if (!payload || typeof payload !== "object") {
-    return typeof payload === "string" ? payload : "";
-  }
-  if (Array.isArray(payload)) {
-    return (payload as JsonValue[])
-      .map((item) => extractAnswerFromJson(item))
-      .join(" ");
-  }
-  const obj = payload as Record<string, unknown>;
-  const candidates = [
-    obj.answer,
-    obj.output,
-    obj.text,
-    obj.content,
-    obj.message,
-    obj.data,
-  ];
-  for (const candidate of candidates) {
-    if (typeof candidate === "string") {
-      return candidate;
-    }
-  }
-  if (obj.message && typeof obj.message === "object") {
-    const messageObj = obj.message as Record<string, unknown>;
-    if (typeof messageObj.content === "string") {
-      return messageObj.content;
-    }
-  }
-  return "";
-}
-
-function stripCitations(text: string): string {
-  const index = text.indexOf(CITATIONS_SEPARATOR);
-  return index === -1 ? text : text.slice(0, index);
+  });
 }
 
 function buildRequestBody(message: string) {
@@ -397,16 +195,4 @@ function parseArgs(argv: string[]): Partial<ArgOptions> {
     }
   }
   return result;
-}
-
-function normalizeBaseUrl(url: string): string {
-  return url.replace(/\/$/, "");
-}
-
-function safeJsonParse(value: string): JsonValue {
-  try {
-    return JSON.parse(value) as JsonValue;
-  } catch {
-    return null;
-  }
 }

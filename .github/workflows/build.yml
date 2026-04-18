@@ -1,6 +1,6 @@
 name: CI
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   test:
@@ -24,6 +24,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile --strict-peer-dependencies
       - run: pnpm test:unit
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm check:server-only-pages
 
       # TODO Enable those lines below if you use a Redis cache, you'll also need to configure GitHub Repository Secrets
       # env:

@@ -54,9 +54,8 @@
 - [ ] embedding model / vector space (`rag_chunks_*`)
 
 Notes:
-- 
 
----
+- ***
 
 # Design System & UI Consistency (if UI touched)
 
@@ -99,15 +98,17 @@ Notes:
 - [ ] Typecheck (`pnpm typecheck`)
 - [ ] Lint (`pnpm lint`)
 - [ ] Unit tests (`pnpm test:unit`) (CI runs this: `.github/workflows/build.yml`)
-- [ ] Prettier check (`pnpm test:prettier`) (if TS/TSX touched)
-- [ ] Local LLM tests (`pnpm test:llm:matrix`, `pnpm test:llm:deep`) (if local LLM paths changed)
-- [ ] Full test sweep (`pnpm test`) (runs all `test:*` scripts)
+- [ ] Telemetry golden (`pnpm test:telemetry-golden`) (if telemetry contracts changed)
+- [ ] Prettier check (`pnpm test:prettier`) (changed files or after formatting cleanup)
+- [ ] Full deterministic test sweep (`pnpm test`)
 
 ## Manual (required when applicable)
 
 - [ ] Dev server (`pnpm dev`) and exercised the changed path
 - [ ] Build (`pnpm build`) and Start (`pnpm start`) (if prod-only behavior touched)
 - [ ] Chat smoke (`pnpm smoke:langchain-chat`) hits `/api/langchain_chat`
+- [ ] Unified chat smoke (`pnpm smoke:chat`) hits `/api/chat` (if chat/RAG behavior changed)
+- [ ] KaTeX content audit (`pnpm check:katex`) (optional; only when deciding whether math support can be removed)
 - [ ] Streaming: start → partial tokens → completion (if streaming-related)
 - [ ] Abort/disconnect path (if streaming-related)
 - [ ] Admin UI load (if admin-related): `/admin/chat-config` or `/admin/ingestion`
@@ -137,9 +138,11 @@ Notes:
 ---
 
 # Screenshots / Logs (if relevant)
-- 
+
+-
 
 # Follow-ups
+
 - [ ] Add/adjust tests
 - [ ] Update docs
 - [ ] Telemetry dashboard tweaks

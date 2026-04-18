@@ -55,10 +55,8 @@ It intentionally contains only local information needed to apply that method ins
   - Underlying script for the unified endpoint smoke path.
 - `pnpm smoke:langchain-chat`
   - Legacy smoke runner for `/api/langchain_chat`.
-- `node scripts/smoke/smoke-langchain-chat.mjs`
+- `tsx scripts/smoke/smoke-langchain-chat.ts`
   - Underlying script for the legacy endpoint path.
-- `node scripts/smoke/prewarm-langchain-chat.mjs`
-  - Supplemental prewarm path for the legacy endpoint workflow when needed.
 
 ## Local Headers and Validation Signals
 
@@ -67,6 +65,8 @@ It intentionally contains only local information needed to apply that method ins
   - Expected on the second request when smoke headers are available.
 - `x-trace-id`
   - Optional local trace correlation header during smoke runs.
+- citations payload separator
+  - Expected on the unified `/api/chat` RAG-ish smoke case when retrieval is enabled.
 
 ## Local Flags and Mode Switches
 
