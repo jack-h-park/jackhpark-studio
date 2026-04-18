@@ -11,7 +11,10 @@ The `terminology.md` file remains the single authoritative source for shared ter
 ## Read First
 
 1. `00-start-here/terminology.md`
-2. Canonical contracts:
+2. Orientation maps:
+   - `00-start-here/repository-map.md`
+   - `00-start-here/skill-source-architecture.md`
+3. Canonical contracts:
    - `canonical/rag/rag-system.md`
    - `canonical/guardrails/guardrail-system.md`
    - `canonical/telemetry/alerting-contract.md`
@@ -37,7 +40,7 @@ The `terminology.md` file remains the single authoritative source for shared ter
 
 | Folder            | Purpose                                                                                                          | Default role                              |
 | ----------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| `00-start-here/`  | Canonical terminology and shared meanings                                                                        | Canonical                                 |
+| `00-start-here/`  | Canonical terminology plus repository and skill-source orientation                                                | Canonical/supporting                      |
 | `canonical/`      | Stable contracts and invariants                                                                                  | Canonical                                 |
 | `architecture/`   | Runtime/system realization of canonical contracts                                                                | Supporting reference                      |
 | `chat/`           | Current UX and preset behavior grounded in canonical guardrails                                                  | Operational/default                       |
@@ -92,6 +95,8 @@ The `terminology.md` file remains the single authoritative source for shared ter
 ## Promotion Candidates For Shared Extraction
 
 The repo now stages generic skill cores separately from repo adapters.
+
+For the full layer contract, start with `00-start-here/skill-source-architecture.md`.
 
 - Canonical playbooks live in the sibling `jackhpark-ai-skills/playbooks/` repo path
 - Canonical skills live in the sibling `jackhpark-ai-skills/skills/` repo path

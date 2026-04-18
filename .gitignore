@@ -44,6 +44,9 @@ jack-rag-logs/
 # vercel
 .vercel
 
+# obsidian
+/.obsidian/
+
 # auto-generated
 instrumentation.js
 
