@@ -43,7 +43,7 @@ export function AdminPageShell({
           <div className="pb-1 pt-4">
             <AdminTopNav
               activeSection={section}
-              className="w-full bg-[color:var(--ai-bg-subtle)]/80"
+              className="w-full bg-[color:var(--ai-role-surface-muted)]/80"
             />
           </div>
           <div className="pb-4">

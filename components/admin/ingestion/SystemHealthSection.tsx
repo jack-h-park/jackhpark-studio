@@ -42,7 +42,7 @@ function SystemHealthStatTile({
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="flex h-6 w-6 items-center justify-center rounded-full text-[color:var(--ai-text-muted)] transition-colors hover:text-[color:var(--ai-text-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ai-border-soft)] focus-visible:ring-offset-2"
+          className="flex h-6 w-6 items-center justify-center rounded-full text-[color:var(--ai-text-muted)] transition-colors hover:text-[color:var(--ai-text-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ai-role-border-subtle)] focus-visible:ring-offset-2"
           aria-label="View details"
         >
           <FiInfo className="h-3.5 w-3.5" aria-hidden="true" />
@@ -81,7 +81,7 @@ export function SystemHealthSection({
         {health.runId ? (
           <div className="ai-meta-text">
             Run ID:{" "}
-            <code className="font-mono text-xs bg-[color:var(--ai-border-soft)] px-1.5 py-0.5 rounded-md">
+            <code className="font-mono text-xs bg-[color:var(--ai-role-border-subtle)] px-1.5 py-0.5 rounded-md">
               {health.runId}
             </code>
           </div>
@@ -123,7 +123,7 @@ export function SystemHealthSection({
     <div className="space-y-1 text-xs text-[color:var(--ai-text-muted)]">
       <span className="ai-meta-text">
         Run ID:{" "}
-        <code className="font-mono text-xs bg-[color:var(--ai-border-soft)] px-1.5 py-0.5 rounded-md">
+        <code className="font-mono text-xs bg-[color:var(--ai-role-border-subtle)] px-1.5 py-0.5 rounded-md">
           {health.lastFailureRunId}
         </code>
       </span>
@@ -237,7 +237,7 @@ export function SystemHealthSection({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="flex h-6 w-6 items-center justify-center rounded-full text-[color:var(--ai-text-muted)] transition-colors hover:text-[color:var(--ai-text-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ai-border-soft)] focus-visible:ring-offset-2"
+                className="flex h-6 w-6 items-center justify-center rounded-full text-[color:var(--ai-text-muted)] transition-colors hover:text-[color:var(--ai-text-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ai-role-border-subtle)] focus-visible:ring-offset-2"
                 aria-label="System health overview info"
               >
                 <FiInfo className="h-3.5 w-3.5" aria-hidden="true" />

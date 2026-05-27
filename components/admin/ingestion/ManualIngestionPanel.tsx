@@ -721,7 +721,7 @@ export function ManualIngestionPanel(): JSX.Element {
                           {showOverallProgress &&
                           activePageId &&
                           activePageTitle ? (
-                            <span className="ai-meta-text rounded-full bg-[color:var(--ai-border-soft)] px-2 py-0.5 text-xs font-mono">
+                            <span className="ai-meta-text rounded-full bg-[color:var(--ai-role-border-subtle)] px-2 py-0.5 text-xs font-mono">
                               {activePageId}
                             </span>
                           ) : null}

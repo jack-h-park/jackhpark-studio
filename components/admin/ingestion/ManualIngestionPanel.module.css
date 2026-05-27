@@ -209,7 +209,7 @@
 .executionProgressBar {
   height: 0.5rem;
   border-radius: var(--ai-radius-full);
-  background-color: var(--ai-border-muted);
+  background-color: var(--ai-role-surface-muted);
   overflow: hidden;
 }
 

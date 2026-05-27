@@ -27,7 +27,7 @@ export function ErrorLogSummary({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 rounded-full border border-[color:var(--ai-border-muted)] bg-[color:var(--ai-bg-subtle)] px-2 py-0.5 text-xs text-[color:var(--ai-text-muted)] hover:border-[color:var(--ai-accent)] hover:text-[color:var(--ai-accent)] cursor-pointer whitespace-nowrap"
+        className="inline-flex items-center gap-1 rounded-full border border-[color:var(--ai-role-border-muted)] bg-[color:var(--ai-role-surface-muted)] px-2 py-0.5 text-xs text-[color:var(--ai-text-muted)] hover:border-[color:var(--ai-accent)] hover:text-[color:var(--ai-accent)] cursor-pointer whitespace-nowrap"
         aria-expanded={open}
       >
         {errorCount} issue{errorCount === 1 ? "" : "s"}

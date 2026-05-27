@@ -88,7 +88,7 @@ export function DocumentIdCell({
         : "Copy CANONICAL ID";
 
   const copyButtonClass =
-    "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded border border-[var(--ai-border-soft)] text-[var(--ai-text-muted)] transition hover:border-[var(--ai-border)] hover:text-[var(--ai-text)]";
+    "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded border border-[var(--ai-role-border-subtle)] text-[var(--ai-text-muted)] transition hover:border-[var(--ai-role-border-strong)] hover:text-[var(--ai-text)]";
 
   const renderCopyIcon = (target: "canonical" | "raw") => (
     <Tooltip>
@@ -165,7 +165,7 @@ export function DocumentIdCell({
 
   const containerClass = compact
     ? "flex flex-col gap-1"
-    : "space-y-3 rounded-[var(--ai-radius-lg)] border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-muted)] p-3";
+    : "space-y-3 rounded-[var(--ai-radius-lg)] border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-muted)] p-3";
 
   if (compact) {
     if (hideLabel) {

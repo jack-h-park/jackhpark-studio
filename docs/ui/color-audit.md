@@ -26,3 +26,22 @@ We scoped this audit to **ad-hoc background**, **border**, and **hover/active/fo
 
 - **Areas still tokenized**  
   Many UI components already respect tokens (e.g., `components/ui/*`, `styles/ai-design-system.css`), but the files listed above represent the current “exceptions” that should be prioritized in Phase 2 (component refactors).
+
+## Admin Dashboard Audit
+
+During the dark mode visual readability (시인성) audit, several color anomalies and token mismatches were identified and resolved across the admin scope (`pages/admin/*` and `components/admin/*`):
+
+- **Transitioning from Raw Tokens to Role Tokens**
+  - Many files previously consumed raw border tokens like `var(--ai-border-soft)` and `var(--ai-border-muted)` directly. These were replaced with theme-aware, semantic role tokens:
+    - `var(--ai-border-soft)` -> `var(--ai-role-border-subtle)` (e.g., in `components/admin/ingestion/DatasetSnapshotSection.tsx`, `components/admin/ingestion/ManualIngestionPanel.tsx`, `components/admin/ingestion/SystemHealthSection.tsx`, and `components/admin/rag/DocumentIdCell.tsx`)
+    - `var(--ai-border-muted)` -> `var(--ai-role-border-muted)` (e.g., in `components/admin/navigation/IngestionSubNav.tsx`, `components/admin/rag/DocumentIdCell.tsx`, and `components/ui/error-log-summary.tsx`)
+  - By routing these elements through role tokens, we ensure that their visual contrast scales cleanly when switching between light and dark themes.
+
+- **Resolving Undefined Background Tokens**
+  - The layouts (`components/admin/layout/AdminPageShell.tsx`, `components/admin/navigation/AdminTopNav.tsx`, and `components/ui/error-log-summary.tsx`) previously referenced an undefined CSS custom property `var(--ai-bg-subtle)`.
+  - These have been updated to consume the semantic role token `var(--ai-role-surface-muted)` (which correctly routes to `var(--ai-surface-muted)` in light mode and `var(--ai-surface)` in dark mode to align with the depth elevation model).
+  - Additionally, `--ai-bg-subtle` was explicitly defined in `styles/ai-design-system.css` as a fallback.
+
+- **Correcting Guardrail Violations in CSS Modules**
+  - Background color declarations using raw border tokens (e.g., `background-color: var(--ai-border-muted)` in `components/admin/ingestion/ManualIngestionPanel.module.css`) were updated to role tokens (`var(--ai-role-surface-muted)`) to satisfy the automated CSS guardrails and prevent visual bleed.
+

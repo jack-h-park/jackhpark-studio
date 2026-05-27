@@ -8,6 +8,15 @@ const featureCssFiles = [
   "styles/admin-doc-preview.css",
   "styles/meta-card.css",
   "styles/diagnostics-display-card.css",
+  "pages/admin/documents.module.css",
+  "pages/admin/ingestion-preview.module.css",
+  "components/admin/ingestion/DatasetSnapshotSection.module.css",
+  "components/admin/ingestion/ManualIngestionPanel.module.css",
+  "components/admin/ingestion/RagDocumentsOverview.module.css",
+  "components/admin/ingestion/RecentRunsPanel.module.css",
+  "components/admin/ingestion/SystemHealthSection.module.css",
+  "components/admin/layout/admin-ingestion-shell.module.css",
+  "components/admin/workflow/WorkflowStep.module.css",
 ];
 
 const forbiddenKeywords = [

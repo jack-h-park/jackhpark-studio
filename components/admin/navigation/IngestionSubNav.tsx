@@ -51,7 +51,7 @@ export function IngestionSubNav() {
         {isLoading && (
           <span className="flex items-center gap-2 pb-1 text-sm">
             <span className="sr-only">Loading route</span>
-            <span className="h-3.5 w-3.5 rounded-full border-2 border-[color:var(--ai-border-muted)] border-t-[color:var(--ai-text-strong)] animate-spin" />
+            <span className="h-3.5 w-3.5 rounded-full border-2 border-[color:var(--ai-role-border-muted)] border-t-[color:var(--ai-text-strong)] animate-spin" />
           </span>
         )}
       </nav>

@@ -28,37 +28,37 @@ Depth references are literal in both markup and naming (e.g., `Section` for L1, 
 
 - **Page-level Section container**  
   - Intended depth: L1.  
-  - Visual semantics: use `spacing.section` vertical padding and `border.section` to frame the area without extra shadow; reserve stacked overflow for hero + section separation.  
+  - Visual semantics: use section vertical padding (mapped to `var(--ai-space-6)`) and border (mapped to `var(--ai-role-border-base)`) to frame the area without extra shadow; reserve stacked overflow for hero + section separation.  
   - Accessibility: ensure landmarks (e.g., `<section aria-labelledby="manual-ingestion">`) exist so assistive tech can skip between workflows.
 
 - **Card (top-level)**  
   - Intended depth: L1–L2 depending on whether the card defines a whole section or just a grouped subsection.  
-  - Visual semantics: single tokenized shadow (`shadow.card`) and border (`border.card`) with `spacing.md` around, avoiding additional gradients.  
+  - Visual semantics: single tokenized shadow (`var(--ai-shadow-soft)`) and border (`var(--ai-role-border-base)`) with padding around (mapped to `var(--ai-space-4)` / `p-4`), avoiding additional gradients.  
   - Accessibility: use headers as landmarks and keep focus order strictly top-to-bottom.
 
 - **Sub-card / Group card**  
   - Intended depth: L2.  
-  - Visual semantics: lighter border-only treatment (`border.subtle`) with tight `spacing.sm` gutters; no extra drop shadow.  
+  - Visual semantics: lighter border-only treatment (`var(--ai-role-border-muted)`) with tight gutters (mapped to `var(--ai-space-2)` / `gap-2`); no extra drop shadow.  
   - Accessibility: provide meaningful titles; groupings should align with form fieldset semantics where possible.
 
 - **Inset panel (for nested emphasis)**  
   - Intended depth: L2 when stacking within a card.  
-  - Visual semantics: background tint through tokens like `background.elevated-1`, small radius, and `spacing.sm` padding; treat as callout without extra header chrome.  
+  - Visual semantics: background tint through tokens like `var(--ai-role-surface-muted)` / `var(--ai-role-surface-0)`, small radius, and padding (mapped to `var(--ai-space-2)` / `p-2`); treat as callout without extra header chrome.  
   - Accessibility: optional `role="region"` with `aria-label` if it contains contextual instructions.
 
 - **Divider group (no card, just separation)**  
   - Intended depth: L2–L3 depending on spacing (used when the section is already framed and only needs soft separation).  
-  - Visual semantics: tokenized divider (`border.divider`) and `spacing.xs` for content spacing.  
+  - Visual semantics: tokenized divider (`var(--ai-role-divider-base)`) and spacing (mapped to `var(--ai-space-1)` / `gap-1` or `var(--ai-space-2)` / `gap-2`) for content spacing.  
   - Accessibility: ensure a single divider owns the visual cut; avoid stacking multiple unlabeled separators.
 
 - **Inline header strip (label + control + helper + seam)**  
   - Intended depth: L3.  
-  - Visual semantics: use text tokens (`text.label`, `text.helper`), place helper under label with `spacing.xs`.  
+  - Visual semantics: use text tokens (`.ai-label-overline` / `.ai-label-emphasis`, `.ai-helper-text` / `.ai-meta-text`), place helper under label with spacing (mapped to `var(--ai-space-1)` / `gap-1`).  
   - Accessibility: pair label/control with `aria-describedby`; keep toggles aligned to the label (no “floating control”).
 
 - **Table/list container (Recent Runs)**  
   - Intended depth: L2 when it anchors a section; within it, rows are L3.  
-  - Visual semantics: use responsive striping via `background.list-row`, `spacing.sm` padding, and `border.bottom` dividers; cards or sub-cards should not wrap the table unless additional grouping is needed.  
+  - Visual semantics: use responsive striping via background roles, padding (mapped to `var(--ai-space-2)` / `p-2`), and dividers (`var(--ai-role-divider-base)`); cards or sub-cards should not wrap the table unless additional grouping is needed.  
   - Accessibility: include column headers, `aria-live` for updates, and avoid nesting tables inside cards that would confuse focus or announce redundant groups.
 
 ### 4 Ingestion Dashboard: Canonical Depth Map
@@ -74,7 +74,7 @@ Aim for no more than one L1 container per workflow, with L2 and L3 content neste
 - **Ingestion Status** – L1 section whose primary children are Dataset Snapshot + System Health; they share a card because both summarize the current state.  
   - Dataset Snapshot + System Health grouping: both are “current state” readings that users scan together, so a shared L2 card keeps depth consistent and avoids redundant headers.  
 - **RAG Documents Overview** – L1 section tied to the RAG tab; content can reuse cards/sub-cards for document metadata.  
-- **Recent Runs** – L2 list container within Overview with vertical spacing `spacing.md`; renders as a fueled table/list with status chips, not nested cards.
+- **Recent Runs** – L2 list container within Overview with vertical spacing (mapped to `var(--ai-space-4)`); renders as a table/list with status chips, not nested cards.
 
 ### 5 Anti-patterns
 

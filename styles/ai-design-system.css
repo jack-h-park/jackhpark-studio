@@ -21,6 +21,7 @@
   --ai-shadow-elevated: 0 10px 20px rgba(15, 15, 15, 0.05);
   --ai-surface: hsl(var(--ai-bg));
   --ai-surface-muted: hsl(var(--ai-bg-muted));
+  --ai-bg-subtle: hsl(var(--ai-bg-muted));
   --ai-surface-tint: color-mix(in srgb, var(--ai-surface) 90%, transparent);
   --ai-text: hsl(var(--ai-fg));
   --ai-text-muted: hsl(var(--ai-fg-muted));
@@ -119,6 +120,7 @@ body.dark,
 body.dark-mode {
   --ai-bg: 0 0% 10%;
   --ai-bg-muted: 0 0% 15%;
+  --ai-bg-subtle: hsl(var(--ai-bg-muted));
   --ai-fg: 60 4% 90%;
   --ai-fg-muted: 0 0% 70%;
   --ai-border: 204 3% 36%;
@@ -134,7 +136,7 @@ body.dark-mode {
   --ai-text-strong: color-mix(in srgb, var(--ai-text) 96%, transparent);
   --ai-text-soft: color-mix(in srgb, var(--ai-text) 72%, transparent);
   --ai-text-faint: color-mix(in srgb, var(--ai-text) 50%, transparent);
-  --ai-text-muted: var(--ai-text);
+  --ai-text-muted: hsl(var(--ai-fg-muted));
   --ai-ring: var(--notion-blue);
   --ai-accent-contrast: var(--ai-text);
   --ai-pill-bg: color-mix(in srgb, var(--ai-text) 14%, var(--ai-surface));
@@ -142,18 +144,29 @@ body.dark-mode {
   --ai-divider: color-mix(
     in srgb,
     hsl(var(--ai-border)) 70%,
-    hsl(var(--ai-text)) 30%
+    var(--ai-text) 30%
   );
   --ai-border-subtle: color-mix(
     in srgb,
     hsl(var(--ai-border)) 80%,
-    hsl(var(--ai-text)) 20%
+    var(--ai-text) 20%
   );
   --ai-border-strong: color-mix(
     in srgb,
     hsl(var(--ai-border)) 90%,
-    hsl(var(--ai-text)) 10%
+    var(--ai-text) 10%
   );
+  
+  /* Solid accent mappings for high-contrast active states */
+  --ai-accent-soft: color-mix(in srgb, var(--ai-accent) 25%, var(--ai-surface));
+  --ai-accent-bg: color-mix(in srgb, var(--ai-accent) 15%, var(--ai-surface));
+
+  /* Dark mode surface elevation depth roles */
+  --ai-role-surface-default: var(--ai-surface-muted); /* 15% */
+  --ai-role-surface-muted: var(--ai-surface);        /* 10% */
+  --ai-role-surface-0: var(--ai-surface);            /* 10% (Inset) */
+  --ai-role-surface-1: var(--ai-surface-muted);      /* 15% (Card) */
+
   --ai-role-surface-1-overlay: color-mix(
     in srgb,
     var(--ai-role-surface-1) 96%,

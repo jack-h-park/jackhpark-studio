@@ -260,7 +260,7 @@ export function DatasetSnapshotSection({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="flex h-6 w-6 items-center justify-center rounded-full text-[color:var(--ai-text-muted)] transition-colors hover:text-[color:var(--ai-text-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ai-border-soft)] focus-visible:ring-offset-2"
+                className="flex h-6 w-6 items-center justify-center rounded-full text-[color:var(--ai-text-muted)] transition-colors hover:text-[color:var(--ai-text-strong)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ai-role-border-subtle)] focus-visible:ring-offset-2"
                 aria-label="Snapshot detail"
               >
                 <FiInfo className="h-4 w-4" aria-hidden="true" />

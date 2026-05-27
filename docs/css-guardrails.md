@@ -29,7 +29,8 @@ This script (`scripts/check-css-guardrails.mjs`) is also called automatically by
 
 ## Adding a new feature CSS file
 
-If you relocate selectors out of `ai-design-system.css`, add the new stylesheet path to `featureCssFiles` inside `scripts/check-css-guardrails.mjs` and import that stylesheet in the owning component. Feature CSS files are checked for **color literals and legacy token usage**, but are allowed to contain feature-specific keywords.
+If you relocate selectors out of `ai-design-system.css` or create feature-scoped styles, add the stylesheet path (including CSS modules `*.module.css`) to `featureCssFiles` inside `scripts/check-css-guardrails.mjs` and import that stylesheet in the owning component. Feature CSS files and feature-scoped CSS modules are automatically checked for **color literals and legacy token usage** (such as raw `--ai-border-*` or `--ai-bg-*` variables) to prevent style fragmentation.
+
 
 ## Sample failure output
 
