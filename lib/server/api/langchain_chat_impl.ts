@@ -20,35 +20,35 @@ const getHeavy = () => {
   return heavyPromise;
 };
 
-const shouldPrewarm =
+const shouldEagerLoadHeavyModule =
   process.env.NODE_ENV !== "production" &&
   process.env.NODE_ENV !== "test" &&
   process.env.NEXT_RUNTIME !== "edge";
 
-if (shouldPrewarm) {
-  const startPrewarm = () => {
-    console.log("[langchain_chat_impl] prewarm:start");
-    const prewarmStart = Date.now();
+if (shouldEagerLoadHeavyModule) {
+  const startEagerHeavyImport = () => {
+    console.log("[langchain_chat_impl] heavy-import:eager:start");
+    const eagerImportStart = Date.now();
     getHeavy()
       .then(() => {
         console.log(
-          "[langchain_chat_impl] prewarm:done",
-          Date.now() - prewarmStart,
+          "[langchain_chat_impl] heavy-import:eager:done",
+          Date.now() - eagerImportStart,
           "ms",
         );
       })
       .catch((err) => {
         console.error(
-          "[langchain_chat_impl] prewarm:error",
+          "[langchain_chat_impl] heavy-import:eager:error",
           err instanceof Error ? err.message : err,
         );
       });
   };
 
   const globalAny = globalThis as unknown as Record<string, unknown>;
-  if (!globalAny.__langchainChatPrewarmDone) {
-    globalAny.__langchainChatPrewarmDone = true;
-    startPrewarm();
+  if (!globalAny.__langchainChatHeavyImportStarted) {
+    globalAny.__langchainChatHeavyImportStarted = true;
+    startEagerHeavyImport();
   }
 }
 
