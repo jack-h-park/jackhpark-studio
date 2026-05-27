@@ -43,6 +43,65 @@ import { DOC_TYPE_OPTIONS, PERSONA_TYPE_OPTIONS } from "@/lib/rag/metadata";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
+function highlightJson(json: string): React.ReactNode[] {
+  // eslint-disable-next-line security/detect-unsafe-regex
+  const regex = /("[^"]*"\s*:?|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?)/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let keyCounter = 0;
+
+  while ((match = regex.exec(json)) !== null) {
+    const matchIndex = match.index;
+    const matchedText = match[0];
+
+    if (matchIndex > lastIndex) {
+      parts.push(json.slice(lastIndex, matchIndex));
+    }
+
+    if (matchedText.endsWith(":")) {
+      parts.push(
+        <span key={`key-${keyCounter++}`} className="ai-json-key">
+          {matchedText.slice(0, -1)}
+        </span>,
+        ":",
+      );
+    } else if (matchedText.startsWith('"')) {
+      parts.push(
+        <span key={`str-${keyCounter++}`} className="ai-json-string">
+          {matchedText}
+        </span>,
+      );
+    } else if (matchedText === "true" || matchedText === "false") {
+      parts.push(
+        <span key={`bool-${keyCounter++}`} className="ai-json-boolean">
+          {matchedText}
+        </span>,
+      );
+    } else if (matchedText === "null") {
+      parts.push(
+        <span key={`null-${keyCounter++}`} className="ai-json-null">
+          {matchedText}
+        </span>,
+      );
+    } else {
+      parts.push(
+        <span key={`num-${keyCounter++}`} className="ai-json-number">
+          {matchedText}
+        </span>,
+      );
+    }
+
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < json.length) {
+    parts.push(json.slice(lastIndex));
+  }
+
+  return parts;
+}
+
 const PAGE_TITLE = "RAG Document Details";
 const PAGE_TAB_TITLE =
   "Admin · Ingestion · RAG Document Details — Jack H. Park";
@@ -422,16 +481,33 @@ export default function AdminDocumentDetailPage({
           <div className="mb-6 space-y-6">
             <IngestionSubNav />
             {toast ? (
-              <div className="flex justify-end">
+              <div
+                className="fixed bottom-6 right-6 z-50 flex max-w-sm animate-in fade-in slide-in-from-bottom-5 duration-200"
+                role="status"
+                aria-live="polite"
+              >
                 <div
                   className={cn(
-                    "rounded-xl border px-4 py-2 text-sm shadow-ai bg-[var(--ai-role-surface-1)]",
-                    toast.variant === "success"
-                      ? "border-[var(--ai-success)] text-[var(--ai-success)]"
-                      : "border-[var(--ai-error)] text-[var(--ai-error)]",
+                    "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm shadow-2xl bg-[var(--ai-role-surface-1)] border-[color:var(--ai-role-border-subtle)] text-[var(--ai-text)]",
                   )}
                 >
-                  {toast.message}
+                  <span
+                    className={cn(
+                      "h-2 w-2 rounded-full",
+                      toast.variant === "success"
+                        ? "bg-[var(--ai-success)]"
+                        : "bg-[var(--ai-error)]",
+                    )}
+                  />
+                  <span className="flex-1 font-medium">{toast.message}</span>
+                  <button
+                    type="button"
+                    onClick={() => setToast(null)}
+                    className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full text-[var(--ai-text-muted)] hover:bg-[color:var(--ai-role-surface-hover)] hover:text-[var(--ai-text-strong)] cursor-pointer"
+                    aria-label="Dismiss toast"
+                  >
+                    ×
+                  </button>
                 </div>
               </div>
             ) : null}
@@ -483,8 +559,16 @@ export default function AdminDocumentDetailPage({
                   <StatusPill variant={getStatusPillVariant(document.status)}>
                     Status: {formatStatusLabel(document.status)}
                   </StatusPill>
-                  <StatusPill variant="muted">{docType || "Unset"}</StatusPill>
-                  <StatusPill variant="muted">
+                  <StatusPill
+                    variant="muted"
+                    className={cn(!docType && "border-dashed bg-transparent text-[color:var(--ai-text-muted)] italic opacity-60")}
+                  >
+                    {docType || "Unset"}
+                  </StatusPill>
+                  <StatusPill
+                    variant="muted"
+                    className={cn(!personaType && "border-dashed bg-transparent text-[color:var(--ai-text-muted)] italic opacity-60")}
+                  >
                     {personaType || "Unset"}
                   </StatusPill>
                   <StatusPill variant={isPublic ? "success" : "muted"}>
@@ -778,12 +862,12 @@ export default function AdminDocumentDetailPage({
                         {wrapJson ? "Disable wrap" : "Wrap lines"}
                       </Button>
                     </div>
-                    <div className="max-h-[320px] overflow-auto rounded border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-1)] p-3 text-xs">
+                    <div className="max-h-[320px] overflow-auto rounded border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-muted)] p-3 text-xs">
                       <pre
                         className="m-0 font-mono text-[var(--ai-text)]"
                         style={{ whiteSpace: wrapJson ? "pre-wrap" : "pre" }}
                       >
-                        {rawMetadataJson}
+                        {highlightJson(rawMetadataJson)}
                       </pre>
                     </div>
                   </div>
@@ -791,6 +875,46 @@ export default function AdminDocumentDetailPage({
               </CardContent>
             </Card>
           </div>
+          {/* Floating Sticky Save Banner */}
+          {isDirty && (
+            <div className="fixed bottom-6 left-1/2 z-40 -translate-x-1/2 w-full max-w-xl px-4 animate-in fade-in slide-in-from-bottom-8 duration-300">
+              <div className="flex items-center justify-between gap-4 rounded-full border border-[var(--ai-role-border-subtle)] bg-[var(--ai-role-surface-1)]/90 px-5 py-3 shadow-2xl backdrop-blur-md">
+                <div className="flex items-center gap-2">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--ai-warning)] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[var(--ai-warning)]"></span>
+                  </span>
+                  <span className="text-sm font-medium text-[var(--ai-text)]">
+                    You have unsaved changes
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (typeof window !== "undefined" && window.confirm("Discard unsaved changes?")) {
+                        router.reload();
+                      }
+                    }}
+                    disabled={saving}
+                    className="rounded-full text-xs text-[var(--ai-text-muted)]"
+                  >
+                    Discard
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    loading={saving}
+                    size="sm"
+                    className="rounded-full text-xs"
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </AdminPageShell>
       </AiPageChrome>
     </>

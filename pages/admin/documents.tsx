@@ -20,7 +20,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CheckboxChoice } from "@/components/ui/checkbox";
 import { ClientSideDate } from "@/components/ui/client-side-date";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { Input } from "@/components/ui/input";
@@ -895,32 +894,46 @@ export default function AdminDocumentsPage({
                     </Select>
                   </div>
                   <div className="md:col-span-2">
-                    <Label>Status</Label>
-                    <div className="mt-2 grid grid-cols-1 gap-2">
+                    <Label id="status-filter-label">Status</Label>
+                    <div
+                      className="mt-2 flex flex-wrap gap-1.5"
+                      role="group"
+                      aria-labelledby="status-filter-label"
+                    >
                       {[
                         { value: "active", label: "Active" },
                         { value: "missing", label: "Missing" },
                         { value: "archived", label: "Archived" },
                         { value: "soft_deleted", label: "Soft deleted" },
-                      ].map((option) => (
-                        <CheckboxChoice
-                          key={option.value}
-                          checked={statusFilter.includes(option.value)}
-                          onCheckedChange={(checked) => {
-                            setStatusFilter((prev) => {
-                              if (checked) {
-                                return Array.from(
-                                  new Set([...prev, option.value]),
-                                );
-                              }
-                              return prev.filter(
-                                (value) => value !== option.value,
-                              );
-                            });
-                          }}
-                          label={option.label}
-                        />
-                      ))}
+                      ].map((option) => {
+                        const isChecked = statusFilter.includes(option.value);
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            aria-pressed={isChecked}
+                            onClick={() => {
+                              setStatusFilter((prev) => {
+                                if (prev.includes(option.value)) {
+                                  if (prev.length <= 1) {
+                                    return prev;
+                                  }
+                                  return prev.filter((v) => v !== option.value);
+                                }
+                                return Array.from(new Set([...prev, option.value]));
+                              });
+                            }}
+                            className={cn(
+                              "ai-selectable rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wider cursor-pointer transition focus-ring",
+                              isChecked
+                                ? "ai-selectable--active text-[color:var(--ai-text-strong)]"
+                                : "ai-selectable--hoverable text-[color:var(--ai-text-muted)]",
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="md:col-span-12 flex justify-end gap-2">

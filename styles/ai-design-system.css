@@ -1176,3 +1176,25 @@ body.dark-mode {
   line-height: 1.5;
   color: var(--ai-text);
 }
+
+/* ------------------------------------------------ */
+/* JSON Syntax Highlighting                         */
+/* ------------------------------------------------ */
+.ai-json-key {
+  color: var(--ai-accent);
+  font-weight: 600;
+}
+.ai-json-string {
+  color: var(--ai-success);
+}
+.ai-json-number {
+  color: var(--ai-warning);
+}
+.ai-json-boolean {
+  color: var(--ai-error);
+}
+.ai-json-null {
+  color: var(--ai-text-muted);
+  font-style: italic;
+}
+
