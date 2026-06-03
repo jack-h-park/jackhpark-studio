@@ -17,7 +17,7 @@
 .notion-polish-balanced .notion-link:focus,
 .notion-polish-balanced .notion-link:hover {
   border-bottom-color: transparent;
-  background-image: linear-gradient(90.68deg, #b439df 0.26%, #e5337e 102.37%);
+  background-image: var(--gradient-mini);
   background-repeat: no-repeat;
   background-position: 0 100%;
   background-size: 100% 0.1rem;
@@ -26,7 +26,7 @@
 }
 
 .notion-polish-balanced .notion-bookmark:hover {
-  border-image: linear-gradient(90.68deg, #b439df 0.26%, #e5337e 102.37%);
+  border-image: var(--gradient-mini);
   border-image-slice: 1;
 }
 
