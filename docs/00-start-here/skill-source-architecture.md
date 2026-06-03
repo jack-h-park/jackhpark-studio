@@ -1,27 +1,27 @@
 # Skill Source Architecture
 
-This document defines how the shared skill-source architecture is applied in this repository.
+This document defines how this repository consumes shared skill-source assets.
 
-The canonical governance document lives in `jackhpark-ai-skills/docs/skill-source-architecture.md`. This file is the repo-local supplement for `nextjs-react-notion-x`: it records the local wrapper path, adapter path, and validation assumptions that make the shared architecture executable here.
+The canonical shared-library document lives in `jackhpark-ai-skills/docs/skill-source-architecture.md`. This file is the repo-local supplement for `nextjs-react-notion-x`: it records the local wrapper path, adapter path, and validation assumptions that make those shared assets executable here.
 
 ## Governing Assumptions
 
-These assumptions are intentional and should be treated as structural invariants unless this document and `scripts/check-ai-docs.mjs` are updated together.
+These assumptions are local integration rules for this repository. Treat them as local invariants unless this document and `scripts/check-ai-docs.mjs` are updated together.
 
-- `jackhpark-ai-skills/playbooks/` is the source of truth for reusable documentation assets.
-- `jackhpark-ai-skills/skills/` is the source of truth for reusable skill assets.
-- Consumer repositories do not expose shared playbooks through a separate local folder.
+- `jackhpark-ai-skills/playbooks/` is the shared library for reusable audit and verification methods consumed here.
+- `jackhpark-ai-skills/skills/` is the shared library for the lightweight canonical skills consumed here.
+- This repository references shared assets rather than copying them into a separate local source folder.
 - This repository's local AI execution layers are `ai/skill-wrappers/` and `docs/...-local-adapter.md`.
 - Local copied source directories are recovery artifacts only. They are not canonical sources and should be removed after their useful content has been promoted or rebound through the canonical layers.
-- Local adapters are required. They connect shared canonical assets to this repository's execution context and must not be removed unless the corresponding wrapper and canonical references are also redesigned.
+- Local adapters are required for the wrappers this repository currently maintains. They connect shared canonical assets to this repository's execution context and should only be removed when the related wrapper and validation rules are redesigned together.
 
 ## Local Binding Model
 
-This repository consumes shared skills through local bindings. It does not copy or expose shared playbooks as repo-local source material.
+This repository consumes selected shared assets through local bindings. It does not copy shared playbooks or canonical skills into repo-local source folders.
 
 ### `ai/skill-wrappers/`
 
-Project wrappers expose canonical skills inside this repository.
+Project wrappers expose selected canonical skills inside this repository.
 
 A wrapper is an execution binding layer, not a source-of-truth documentation layer. Each wrapper should contain only:
 
@@ -35,7 +35,7 @@ Wrappers should stay concise. Full reusable methods belong in canonical playbook
 
 ### `docs/...-local-adapter.md`
 
-Local adapters map canonical skills and playbooks onto this repository.
+Local adapters map the shared playbooks and canonical skills used by this repository onto local terminology and entrypoints.
 
 A local adapter may contain:
 
@@ -56,7 +56,7 @@ A local adapter must not become a reusable methodology document. If another repo
 
 This repository does not maintain a separate repo-local playbook exposure layer.
 
-Shared playbooks are consumed indirectly through:
+In this repository, the maintained wrapper flow is:
 
 1. a canonical skill in `jackhpark-ai-skills/skills/`
 2. a project wrapper in `ai/skill-wrappers/`
@@ -66,7 +66,7 @@ Do not copy canonical playbooks or canonical skills into this repository as loca
 
 ## Local File Contracts
 
-The canonical file contracts are defined in `jackhpark-ai-skills/docs/skill-source-architecture.md`. This repository adds the following local contracts.
+The canonical file contracts are defined in `jackhpark-ai-skills/docs/skill-source-architecture.md`. This repository adds the following local binding contracts.
 
 ### Project Wrapper
 
@@ -100,8 +100,7 @@ Repo-specific mapping only.
 
 Required content:
 
-- canonical playbook reference
-- canonical skill reference
+- at least one canonical shared-asset reference
 - local vocabulary
 - local commands, endpoints, traces, selectors, or primitive names
 - local invariants and exclusions
@@ -111,10 +110,10 @@ The local adapter must not redefine the reusable method owned by the canonical p
 
 ## Validation
 
-`scripts/check-ai-docs.mjs` enforces this repository's local binding assumptions:
+`scripts/check-ai-docs.mjs` validates this repository's configured bindings to the shared library:
 
 - wrapper files under `ai/skill-wrappers/` must include a `Canonical skill:` binding
 - wrapper files under `ai/skill-wrappers/` must include a `Local adapter:` binding
-- local adapters under `docs/` must reference both `jackhpark-ai-skills/playbooks/` and `jackhpark-ai-skills/skills/`
+- local adapters under `docs/` must reference at least one canonical shared asset under `jackhpark-ai-skills/playbooks/` or `jackhpark-ai-skills/skills/`
 - referenced canonical assets must exist in the sibling shared skill repository
 - forbidden legacy local source folders and obsolete document references must not reappear

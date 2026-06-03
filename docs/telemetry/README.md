@@ -23,6 +23,6 @@
 ## Selection Rules
 
 - Start with the canonical contract for signal semantics.
-- Start with the canonical playbook for a telemetry verification run.
+- Start with the canonical playbook for a telemetry verification run. Treat it as a shared reusable checklist, then use local docs for exact field names and ownership hints.
 - Open the local supplement when you need exact field names or ownership hints.
 - Open historical docs only for background or prior rationale.

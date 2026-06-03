@@ -36,6 +36,6 @@ This codebase is part of an interview. Favor clarity, consistency, and explainab
 
 ## Skill-Wrapper Routing
 
-Project skill wrappers live in [ai/skill-wrappers](ai/skill-wrappers). Inspect that directory for repo-local routing.
+This repository consumes selected shared canonical playbooks and skills from the sibling `jackhpark-ai-skills` repository. Project skill wrappers live in [ai/skill-wrappers](ai/skill-wrappers) as a local binding layer for this repo; they are useful here, but not a claim that every repo must adopt the same structure.
 
 When a request matches a wrapper's trigger phrases, read `ai/skill-wrappers/<skill>/SKILL.md` first, then follow its canonical skill reference and repo-local adapter before executing.

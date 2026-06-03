@@ -50,7 +50,7 @@ Core implementation domains are separated across `lib/`:
   - `pnpm qa:notion-polish`
   - `pnpm check:katex` for optional live Notion content audits
   - `pnpm lint:css-guardrails`
-- Repo-local skill bindings live in `ai/skill-wrappers/`. Canonical shared skills and playbooks are referenced through the sibling `jackhpark-ai-skills` path; do not document local copies as source-of-truth skill material.
+- Repo-local skill bindings live in `ai/skill-wrappers/`. Canonical shared skills and playbooks are referenced through the sibling `jackhpark-ai-skills` path as an external shared library; do not document local copies as source-of-truth skill material.
 
 ## Stack Signals
 

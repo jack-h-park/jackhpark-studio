@@ -94,7 +94,7 @@ The `terminology.md` file remains the single authoritative source for shared ter
 
 ## Promotion Candidates For Shared Extraction
 
-The repo now stages generic skill cores separately from repo adapters.
+This repo consumes a small shared library of canonical playbooks and skills from the sibling `jackhpark-ai-skills` repository. Those shared assets are external inputs to this repo, not proof that every project should adopt the same structure.
 
 For the full layer contract, start with `00-start-here/skill-source-architecture.md`.
 
@@ -108,5 +108,6 @@ Promote only material that is reusable across codebases. Keep repo names, file p
 - A checklist can be promoted to a canonical playbook if another repo could reuse the sequence with only local adapter substitutions.
 - Audit results, postmortems, rollout notes, and one-off investigations stay local even when they contain useful examples.
 - Operator guides usually stay local unless they describe a repo-independent verification workflow.
+- Shared canonical skills should stay thin; use them only when a routing boundary or output contract is worth standardizing.
 
 Stay concise, keep cross-links explicit, and avoid mixing implementation details into principle or operations-level narratives.

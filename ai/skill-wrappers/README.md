@@ -2,9 +2,11 @@
 
 This directory contains the project-local wrapper layer for reusable AI skills.
 
+In this repository, wrappers bind local routing cues to selected shared assets in the sibling `jackhpark-ai-skills` repository. That shared repository is treated here as an external library of canonical methods and lightweight contracts, not as a mandatory platform every repository must mirror.
+
 ## Layer Model
 
-The repository now uses three layers:
+This repository currently uses three layers:
 
 - **Canonical playbooks** in `jackhpark-ai-skills/playbooks/`
   - reusable methods
@@ -52,7 +54,7 @@ Each `SKILL.md` should do four jobs:
 - reusable output/reporting contracts
 - reusable pitfalls and routing boundaries
 
-If another repo could reuse the skill entrypoint with only a local adapter change, it belongs in `jackhpark-ai-skills/skills/`.
+If another repo could reuse the skill entrypoint with only a local adapter change, it may be a candidate for `jackhpark-ai-skills/skills/`. That is a shared-library decision, not a requirement that every repo expose the same wrapper stack.
 
 ## What Should Stay in Local Adapters
 
@@ -72,8 +74,8 @@ If the detail depends on this repo's exact terminology or implementation shape, 
    - canonical skill
    - local adapter
    - do not promote
-3. Draft or update the canonical playbook in `jackhpark-ai-skills/playbooks/`.
-4. Draft or update the canonical skill in `jackhpark-ai-skills/skills/`.
+3. Draft or update the canonical playbook in `jackhpark-ai-skills/playbooks/` when the method is worth sharing.
+4. Draft or update the canonical skill in `jackhpark-ai-skills/skills/` only when a shared routing or output contract adds value.
 5. Update or create `ai/skill-wrappers/<skill>/SKILL.md` as the local binding layer.
 6. Keep the wrapper concise and reference-aware.
 

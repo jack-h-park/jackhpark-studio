@@ -32,6 +32,10 @@ const forbiddenPatterns = [
 
 const errors = []
 
+// This script validates this repository's configured bindings to the sibling
+// shared AI docs library. It intentionally checks local integration rules; it
+// does not try to enforce a universal architecture for other repositories.
+
 function listFiles(entry) {
   const absolutePath = path.join(repoRoot, entry)
 
@@ -115,13 +119,11 @@ const adapterFiles = listFiles('docs').filter((filePath) => filePath.endsWith('-
 
 for (const filePath of adapterFiles) {
   const content = read(filePath)
+  const hasCanonicalPlaybook = content.includes('jackhpark-ai-skills/playbooks/')
+  const hasCanonicalSkill = content.includes('jackhpark-ai-skills/skills/')
 
-  if (!content.includes('jackhpark-ai-skills/playbooks/')) {
-    errors.push(`${relative(filePath)} is missing a canonical playbook reference`)
-  }
-
-  if (!content.includes('jackhpark-ai-skills/skills/')) {
-    errors.push(`${relative(filePath)} is missing a canonical skill reference`)
+  if (!hasCanonicalPlaybook && !hasCanonicalSkill) {
+    errors.push(`${relative(filePath)} is missing a canonical shared-asset reference`)
   }
 
   const canonicalReferences = [...content.matchAll(/`(jackhpark-ai-skills\/(?:playbooks|skills)\/[^`]+)`/g)]
@@ -136,11 +138,11 @@ for (const filePath of adapterFiles) {
 }
 
 if (errors.length > 0) {
-  console.error('AI docs integrity check failed:')
+  console.error('AI docs local binding check failed:')
   for (const error of errors) {
     console.error(`- ${error}`)
   }
   process.exit(1)
 }
 
-console.log('AI docs integrity check passed.')
+console.log('AI docs local binding check passed.')

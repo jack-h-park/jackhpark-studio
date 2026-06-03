@@ -8,6 +8,6 @@
 
 ## Related Operational Docs
 
-- `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md`
+- `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md` as the shared reusable checklist
 - `../telemetry/operations/telemetry-operational-verification-local.md`
 - `../telemetry/runbooks/oncall-runbook.md`
