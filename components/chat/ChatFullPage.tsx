@@ -267,7 +267,7 @@ function ChatShellContent() {
   });
 
   return (
-    <div className={styles.shell}>
+    <div data-theme="jp" className={styles.shell}>
       <Card className={styles.panel}>
         <header className={styles.header}>
           <div className="space-y-1">

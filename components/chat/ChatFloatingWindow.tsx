@@ -231,6 +231,7 @@ export function ChatFloatingWindow({
   return (
     <>
       <div
+        data-theme="jp"
         className={`${styles.chatPanel} ${isOpen ? styles.isOpen : ""} ${
           isExpanded ? styles.isLarge : ""
         }`}
