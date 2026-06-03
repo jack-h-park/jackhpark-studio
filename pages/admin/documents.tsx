@@ -924,7 +924,7 @@ export default function AdminDocumentsPage({
                               });
                             }}
                             className={cn(
-                              "ai-selectable rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wider cursor-pointer transition focus-ring",
+                              "ai-selectable rounded-full px-2.5 py-1 t-eyebrow cursor-pointer transition focus-ring",
                               isChecked
                                 ? "ai-selectable--active text-[color:var(--ai-text-strong)]"
                                 : "ai-selectable--hoverable text-[color:var(--ai-text-muted)]",
