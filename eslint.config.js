@@ -3,7 +3,10 @@ import simpleImportSort from "eslint-plugin-simple-import-sort"; // <-- 1. Impor
 
 export default [
   {
-    ignores: ["instrumentation.js"],
+    ignores: [
+      "instrumentation.js",
+      "scratch/**", // one-off capture/debug scripts, not production code
+    ],
   },
   ...config,
   {

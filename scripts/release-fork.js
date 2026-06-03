@@ -42,11 +42,11 @@ function writeJson(filePath, data) {
   fs.writeFileSync(filePath, `${JSON.stringify(data, null, 2)}\n`);
 }
 
-function bold(s)  { return `\x1b[1m${s}\x1b[0m`; }
-function green(s) { return `\x1b[32m${s}\x1b[0m`; }
-function cyan(s)  { return `\x1b[36m${s}\x1b[0m`; }
-function red(s)   { return `\x1b[31m${s}\x1b[0m`; }
-function dim(s)   { return `\x1b[2m${s}\x1b[0m`; }
+function bold(s)  { return `[1m${s}[0m`; }
+function green(s) { return `[32m${s}[0m`; }
+function cyan(s)  { return `[36m${s}[0m`; }
+function red(s)   { return `[31m${s}[0m`; }
+function dim(s)   { return `[2m${s}[0m`; }
 
 // ─── Version helpers ──────────────────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ function dim(s)   { return `\x1b[2m${s}\x1b[0m`; }
 function parseJpVersion(version) {
   const m = version.match(/^(.+)-jp\.(\d+)$/);
   if (!m) throw new Error(`Cannot parse jp version: ${version}`);
-  return { base: m[1], n: parseInt(m[2], 10) };
+  return { base: m[1], n: Number.parseInt(m[2], 10) };
 }
 
 function nextJpVersion(current) {
@@ -169,7 +169,9 @@ async function main() {
   console.log();
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error(red(`\n✗ ${err.message}`));
-  process.exit(1);
-});
+  throw err;
+}

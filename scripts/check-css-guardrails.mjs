@@ -24,9 +24,9 @@ const featureCssFiles = [
 // scoped component overrides. Color literals are expected and correct here,
 // the same as in the :root token block of ai-design-system.css.
 // Do not add feature-specific component rules to these files.
-const themeFiles = [
+const themeFiles = new Set([
   "styles/jp-theme.css", // [data-theme="jp"] — JHP Studio v1.1 Lab surface
-];
+]);
 
 const forbiddenKeywords = [
   "admin",
@@ -146,6 +146,18 @@ async function checkFile(relativePath) {
 }
 
 async function main() {
+  // Guard: catch accidental addition of theme token files to featureCssFiles.
+  for (const f of featureCssFiles) {
+    if (themeFiles.has(f)) {
+      console.error(
+        `check-css-guardrails: "${f}" is a theme token file and must not be in featureCssFiles. ` +
+          "Remove it — color literals are intentional in theme files.",
+      );
+      process.exitCode = 1;
+      return;
+    }
+  }
+
   const allErrors = [];
 
   for (const relativePath of featureCssFiles) {
