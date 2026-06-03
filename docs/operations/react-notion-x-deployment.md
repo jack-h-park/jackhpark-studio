@@ -1,5 +1,9 @@
 # react-notion-x Deployment
 
+> **Updated 2026-06-03** — Added `pnpm deps:release` automation script and
+> pre-push safety hook. The old `deploy:rnx` script is still present for
+> compatibility but `deps:release` is now the preferred path.
+
 This document describes how this repository consumes and deploys the local `react-notion-x` fork.
 
 ## Repository Layout
@@ -51,28 +55,55 @@ After dependencies are linked locally, package relinking usually does not requir
 
 Vercel cannot resolve local `file:` or `link:` dependency paths. Production deployments must use a remote GitHub tag for `react-notion-x`.
 
-Do not commit and push a production deployment while `package.json` or `pnpm-lock.yaml` still points at local fork paths. Local paths can work on the developer machine, but CI, Vercel, and other machines do not have this repository's sibling fork layout.
+Do not commit and push a production deployment while `package.json` or `pnpm-lock.yaml` still points at local fork paths.
 
-Use the deployment script from this repository:
-
-```bash
-pnpm run deploy:rnx <tag>
-```
-
-Example:
+### Preferred: automated release script
 
 ```bash
-pnpm run deploy:rnx 7.7.1-jp.5
+pnpm deps:release            # auto-increments jp.N (e.g. jp.3 → jp.4)
+pnpm deps:release 7.7.1-jp.5 # or explicit tag
 ```
 
-The script performs four steps:
+The script (`scripts/release-fork.js`) performs these steps automatically:
 
-1. Creates and pushes the Git tag in the `react-notion-x` fork.
-2. Rewrites this repository's dependencies to `github:jack-h-park/react-notion-x#<tag>`.
-3. Runs `pnpm install` to regenerate `pnpm-lock.yaml`.
-4. Commits `package.json` and `pnpm-lock.yaml`, then pushes `main` to trigger Vercel.
+1. Reads the current version from the fork's root `package.json`.
+2. Bumps the version field to the new tag (fixes the tag-vs-version mismatch problem).
+3. Commits, tags, and pushes the fork to GitHub.
+4. Runs `switch-rnx-deps.js remote <tag>` to rewrite this repo's dependencies.
+5. Runs `pnpm up react-notion-x` to regenerate `pnpm-lock.yaml`.
+6. Prints the remaining manual steps.
 
-The remote switch applies to the whole Notion package family used by this app:
+After the script completes, commit and push manually:
+
+```bash
+git add package.json pnpm-lock.yaml
+git commit -m "chore(deps): upgrade react-notion-x to <tag>"
+git push
+```
+
+### Legacy: manual steps (still works)
+
+```bash
+# 1. In the fork — bump version, commit, tag, push
+cd ../../forks/react-notion-x
+# edit package.json version → new tag name
+git add package.json && git commit -m "chore: bump version to <tag>"
+git tag <tag> && git push origin HEAD <tag>
+
+# 2. Back in this repo
+cd -
+node scripts/switch-rnx-deps.js remote <tag>
+pnpm up react-notion-x
+git add package.json pnpm-lock.yaml
+git commit -m "chore(deps): upgrade react-notion-x to <tag>"
+git push
+```
+
+> **Important:** Always bump the fork's root `package.json` `version` field to
+> match the tag name before tagging. Mismatches cause the pnpm lockfile to
+> report a different version than the git tag, which creates confusion.
+
+The remote switch applies to the whole Notion package family:
 
 - `react-notion-x` becomes a GitHub tag dependency.
 - `notion-client`, `notion-types`, and `notion-utils` become published `7.7.1` dependencies.
@@ -89,6 +120,29 @@ pnpm run deps:use-local
 pnpm install
 ```
 
+## Pre-push Safety Hook
+
+A git hook blocks pushes when `package.json` still contains local `file:`/`link:`
+references. This prevents accidental Vercel build failures.
+
+**Install once** (after cloning or when the hook is updated):
+
+```bash
+pnpm setup-hooks
+```
+
+The hook source lives at `scripts/hooks/pre-push` (tracked in git).
+The installed hook at `.git/hooks/pre-push` is not tracked (standard git behavior).
+
+If a push is blocked, the hook prints the exact commands to run:
+
+```
+╔═══════════════════════════════════════════════════════════════╗
+║  ❌  Push blocked — react-notion-x is in LOCAL mode           ║
+║  Run: pnpm deps:release  or  switch-rnx-deps.js remote <tag>  ║
+╚═══════════════════════════════════════════════════════════════╝
+```
+
 ## Tag Naming
 
 Use this format:
@@ -101,33 +155,35 @@ Where:
 
 - `7.7.1` is the upstream `react-notion-x` base version.
 - `jp` identifies the personal fork lineage.
-- `<n>` increments by one for each deployment tag.
+- `<n>` increments by one for each release.
 
-Use a new tag for each deployment. Do not force-push over an existing deployment tag; package managers and deployment environments can cache GitHub tarballs or lockfile resolutions for the old tag target.
+`pnpm deps:release` auto-increments `<n>` if no tag is provided.
+Use a new tag for each release. Do not force-push over an existing deployment tag
+unless you also run `pnpm deps:release` (or manually `pnpm up react-notion-x`) to
+refresh the lockfile, as pnpm and Vercel cache GitHub tarballs by commit hash.
 
 ## Dependency States
 
-| Mode                  | `package.json` state                                            |
-| --------------------- | ---------------------------------------------------------------- |
-| Local development     | Local `file:` / `link:` references                               |
-| Production deployment | `github:jack-h-park/react-notion-x#<tag>` for `react-notion-x`   |
+| Mode | `package.json` state | `pnpm.overrides` |
+|---|---|---|
+| Local development | `file:` / `link:` references | local `link:` entries |
+| Production deployment | `github:jack-h-park/react-notion-x#<tag>` | `{}` (empty) |
 
 ## Preconditions
 
-Before running `pnpm run deploy:rnx <tag>`:
+Before running `pnpm deps:release` or pushing manually:
 
 - Confirm the local fork exists at `../../forks/react-notion-x`.
-- Confirm both repositories are on the intended commits.
-- Confirm the tag does not already exist locally or remotely.
-- Confirm this repository is ready to push to `main`.
+- Confirm both repositories are on the intended commits with no uncommitted changes.
 - Confirm unrelated local changes will not be included in the deployment commit.
-- Run any relevant build, smoke, or visual checks manually. The deployment script does not run tests.
+- Run any relevant build, smoke, or visual checks manually. The scripts do not run tests.
 
-Before pushing a production deployment, confirm:
+The pre-push hook automatically enforces the dependency state, but verify manually before significant releases:
 
-- `package.json` does not contain local `file:` or `link:` references for the Notion package family.
-- `pnpm-lock.yaml` does not contain local `link:` entries for `react-notion-x`, `notion-client`, `notion-types`, or `notion-utils`.
+- `package.json` does not contain `file:` or `link:` references.
+- `pnpm-lock.yaml` does not contain local `link:` entries.
 - `react-notion-x` resolves to the intended `github:jack-h-park/react-notion-x#<tag>` value.
+- The fork's root `package.json` `version` field matches the git tag name.
 
 ## Failure And Recovery Notes
 

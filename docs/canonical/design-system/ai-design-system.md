@@ -23,6 +23,118 @@ This document outlines the architecture and principles of the AI Design System, 
 
 ---
 
+## 0. JHP Studio Design System — Dual-Theme Architecture (v1.1)
+
+> **Added 2026-06-03.** This section describes the JHP Studio brand design system
+> layered on top of the existing `--ai-*` token system. The two systems coexist;
+> the brand system augments rather than replaces the base layer.
+>
+> Source of truth: `jhp-studio-design-system` design file (Claude Design export).
+> CSS implementation: `styles/ai-design-system.css`.
+
+### 0-A. Two Surfaces, Two Themes
+
+| Surface | Theme | Applied via | Audience |
+|---|---|---|---|
+| **Studio** — public Notion pages | Notion (no `data-theme`) | `react-notion-x` + `styles/notion-brand.css` | Public visitors |
+| **Lab** — Admin + Chat UI | J·P (`data-theme="jp"`) | `AdminPageShell`, `ChatFullPage`, `ChatFloatingWindow` | Operator (Jack) |
+
+The J·P theme is scoped to `[data-theme="jp"]` in CSS. It never bleeds into
+Notion-rendered content. The floating Chat widget on public pages carries
+`data-theme="jp"` because it is Lab UI embedded in the Studio surface.
+
+### 0-B. Shared Brand Tokens (`:root`, available everywhere)
+
+```css
+--brand-pink:   #f06292;
+--brand-purple: #b439df;
+--brand-blue:   #5b8def;   /* Lab accent color */
+--brand-cyan:   #4dd0e1;
+
+--gradient-full: linear-gradient(90deg, #f06292 0%, #b439df 30%, #5b8def 60%, #4dd0e1 100%);
+--gradient-mini: linear-gradient(90deg, #b439df 0%, #5b8def 50%, #4dd0e1 100%);
+```
+
+**Gradient usage rules (§3.2 of brand guide):**
+- `--gradient-full` — once per surface at first contact: logo, page header stripe, **one** primary CTA button. Never as a card background.
+- `--gradient-mini` — inside interactions only: eyebrow text, active nav pill border, link hover underline, focus rings. May repeat as long as each instance is contained.
+
+### 0-C. J·P Theme Token Overrides (`[data-theme="jp"]`)
+
+Inside the J·P scope, the following `--ai-*` bridge tokens are redeclared so that
+**existing components (`ai-card`, `ai-button`, `ai-table`, etc.) automatically adopt
+J·P values without any JSX changes**:
+
+| Bridge token | J·P value | Effect |
+|---|---|---|
+| `--ai-accent` | `var(--brand-blue)` | Buttons, links, focus rings → brand blue |
+| `--ai-success/warning/error` | Notion-ink palette | Status colors quieter, more editorial |
+| `--ai-radius-sm/md/lg` | 6 / 10 / 14 px | All radii compact (vs 8/12/24 legacy) |
+| `--ai-shadow-soft` | `var(--shadow-popover)` | Drawer-level elevation only |
+
+Full J·P token set (neutrals, elevation, type scale, font families) is declared
+inside `[data-theme="jp"]` in `styles/ai-design-system.css`.
+
+### 0-D. Semantic Type Scale (J·P scope only)
+
+Use these classes inside `[data-theme="jp"]` surfaces instead of Tailwind
+`text-2xl font-semibold` combinations:
+
+| Class | Size | Weight | Usage |
+|---|---|---|---|
+| `.t-display` | 40 px | 500 | Hero blocks only |
+| `.t-h1` | 28 px | 500 | Page title (PageHeaderCard) |
+| `.t-h2` | 22 px | 500 | Section headings |
+| `.t-h3` | 18 px | 500 | Card/subsection headings |
+| `.t-body` | 14 px | 400 | Body copy |
+| `.t-caption` | 12 px | 400 | Secondary text |
+| `.t-eyebrow` | 11 px | 500 | Overlines — renders as `--gradient-mini` text in J·P |
+| `.t-mono` | 12 px | 400 | Data, numbers (Geist Mono, tabular-nums) |
+
+**Weight rule:** 400 body / 500 headings + buttons + nav / 600 logo only.
+`font-semibold` (700) and `font-bold` are not used in J·P surfaces.
+
+### 0-E. Gradient Button Variant
+
+```tsx
+<Button variant="gradient">Run manually</Button>
+```
+
+`variant="gradient"` maps to `.ai-button-gradient`. Applies `--gradient-full`
+in J·P theme; falls back to default accent button in Legacy theme.
+**Use at most once per page** (primary CTA only).
+
+### 0-F. Admin Theme Toggle
+
+Operators can toggle between J·P and Legacy themes from the Admin top nav
+(right side pill button). Preference is persisted in `localStorage('admin-theme')`.
+
+- **Hook:** `hooks/use-admin-theme.ts` — `useAdminTheme()` returns `{ isJpTheme, toggleTheme, mounted }`
+- **Wired in:** `components/admin/layout/AdminPageShell.tsx`
+- **External users** always see J·P theme (no access to admin, no localStorage key)
+- **Chat UI** is always J·P (hardcoded, no toggle)
+
+### 0-G. Application Scope Boundaries
+
+| Component/Area | Theme | Notes |
+|---|---|---|
+| `AdminPageShell` | J·P (toggleable) | All `/admin/*` pages |
+| `ChatFullPage` | J·P (fixed) | `/chat` route |
+| `ChatFloatingWindow` | J·P (fixed) | Widget on public pages |
+| `NotionPage` body | Notion (fixed) | react-notion-x constraint |
+| `Footer`, `NotionPageHeader` | Notion (fixed) | Shown on Notion pages |
+| `AiPageChrome` chrome | `--ai-*` defaults | Wraps `/chat`; minimal visual impact |
+| `Page404` / `ErrorPage` | `--ai-*` defaults | Low priority |
+
+### 0-H. Invariants Added by JHP Studio System
+
+- `.t-eyebrow` in J·P scope always renders as `--gradient-mini` text. Do not apply an explicit `color:` class alongside it — the CSS specificity will fight.
+- `--gradient-full` must not appear on card backgrounds. Cards use `--bg-card` (#FFF / #252525).
+- The gradient never animates (per brand guide §2.8).
+- No bounce, spring, or parallax animations. Motion tokens: `--ease-std`, `--dur-1..4`.
+
+---
+
 ## 1. Guiding Principles (The "Why")
 
 - **Minimalist Hierarchy**: Use typography and subtle borders instead of heavy fills to create separation.

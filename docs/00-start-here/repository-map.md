@@ -16,6 +16,8 @@ This document is a current orientation map for the repository. It is not a canon
 - Shared admin UI components live under `components/admin/`.
 - A representative entry point is [`pages/admin/ingestion.tsx`](../../pages/admin/ingestion.tsx), which assembles manual ingestion, snapshot preview, RAG document overview, lifecycle summary, system health, and recent-run surfaces.
 - Chat configuration admin UI is split between [`pages/admin/chat-config.tsx`](../../pages/admin/chat-config.tsx), `components/admin/chat-config/`, and [`lib/server/admin-chat-config.ts`](../../lib/server/admin-chat-config.ts).
+- All admin pages are wrapped by `components/admin/layout/AdminPageShell.tsx`, which applies the J·P design system theme (`data-theme="jp"`) and loads Geist font via `next/font/google`.
+- The admin top nav includes a theme toggle (J·P ↔ Legacy). Theme preference is managed by `hooks/use-admin-theme.ts` and persisted in `localStorage('admin-theme')`.
 
 ## Chat Settings UX
 
@@ -38,6 +40,31 @@ Core implementation domains are separated across `lib/`:
 - `lib/chat/`: chat UI/runtime helper logic
 - `lib/notion/`: Notion-specific page and property helpers
 - `lib/core/` and `lib/shared/`: provider, model, embedding, and shared configuration primitives
+
+## Design System
+
+Two themes coexist. See [`docs/canonical/design-system/ai-design-system.md`](../canonical/design-system/ai-design-system.md) §0 for full details.
+
+| Theme | Scope | Applied via |
+|---|---|---|
+| **J·P** (JHP Studio v1.1) | Admin + Chat UI | `data-theme="jp"` on root elements |
+| **Notion** (legacy `--ai-*`) | Public Notion pages | default; no attribute needed |
+
+Key design system files:
+- `styles/ai-design-system.css` — all tokens + J·P theme block + semantic type classes
+- `styles/notion-brand.css` — Notion page brand overrides (gradient link hover)
+- `hooks/use-admin-theme.ts` — admin theme toggle hook
+
+## react-notion-x Fork Workflow
+
+See [`docs/operations/react-notion-x-deployment.md`](../operations/react-notion-x-deployment.md) for full details.
+
+Quick reference:
+- **Dev with fork locally:** `pnpm deps:use-local` → `pnpm install`
+- **Release fork + switch to remote:** `pnpm deps:release` (auto-increments `7.7.1-jp.N`)
+- **One-time hook setup:** `pnpm setup-hooks` (installs pre-push guard)
+
+The pre-push hook (`scripts/hooks/pre-push`) blocks accidental pushes while in local-link mode.
 
 ## Operationally Important Areas
 
