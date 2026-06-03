@@ -1,12 +1,20 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Geist, Geist_Mono } from "next/font/google";
 
 import { AdminTopNav } from "@/components/admin/navigation/AdminTopNav";
 import { PageHeaderCard } from "@/components/ui/page-header-card";
+import { useAdminTheme } from "@/hooks/use-admin-theme";
 import { cn } from "@/lib/utils";
 
 import styles from "./admin-ingestion-shell.module.css";
+
+const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
+});
 
 export type AdminPageShellProps = {
   section: "chat" | "ingestion";
@@ -31,9 +39,16 @@ export function AdminPageShell({
   header,
   children,
 }: AdminPageShellProps) {
+  const { isJpTheme, toggleTheme, mounted } = useAdminTheme();
+
   return (
     <div
+      // Only attach data-theme after mount to avoid hydration mismatch.
+      // During SSR / first render the default (jp) styles are applied via CSS fallback.
+      data-theme={mounted ? (isJpTheme ? "jp" : undefined) : "jp"}
       className={cn(
+        geistSans.variable,
+        geistMono.variable,
         "ai-container space-y-6 pb-12",
         section === "ingestion" ? styles.adminIngestionScope : undefined,
       )}
@@ -43,6 +58,8 @@ export function AdminPageShell({
           <div className="pb-1 pt-4">
             <AdminTopNav
               activeSection={section}
+              isJpTheme={isJpTheme}
+              onToggleTheme={toggleTheme}
               className="w-full bg-[color:var(--ai-role-surface-muted)]/80"
             />
           </div>
