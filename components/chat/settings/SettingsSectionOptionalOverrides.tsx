@@ -265,7 +265,7 @@ export function SettingsSectionOptionalOverrides({
             </p>
             <button
               type="button"
-              className="text-xs font-semibold text-[color:var(--ai-accent-strong)] underline underline-offset-2"
+              className="text-xs font-medium text-[color:var(--ai-accent-strong)] underline underline-offset-2"
               onClick={handleResetToPresetDefaults}
             >
               Reset to preset defaults

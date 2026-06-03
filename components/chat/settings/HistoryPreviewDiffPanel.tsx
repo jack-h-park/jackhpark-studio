@@ -115,7 +115,7 @@ function LogItem({ event }: { event: HistoryPreviewDiffEvent }) {
 
       <div className="space-y-0.5">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-[var(--ai-text-default)] uppercase tracking-wider text-[9px] bg-[color:var(--ai-role-surface-1)] px-1 rounded border border-[color:var(--ai-role-border-subtle)]">
+          <span className="t-eyebrow text-[var(--ai-text-default)] bg-[color:var(--ai-role-surface-1)] px-1 rounded border border-[color:var(--ai-role-border-subtle)]">
             {event.reason}
           </span>
           {event.context.syntheticCount && event.context.syntheticCount > 0 && (

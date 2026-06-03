@@ -65,7 +65,7 @@ export function HistoryPreview({
       {/* Header */}
       {showTitle ? (
         <div className="flex items-center justify-between">
-          <span className="font-semibold text-[var(--ai-text-default)]">
+          <span className="font-medium text-[var(--ai-text-default)]">
             History Preview
           </span>
           {hasDiff && diffLabel}
@@ -145,7 +145,7 @@ function PreviewPane({
     return (
       <div className={cn("space-y-2 opacity-50", className)}>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-medium text-[var(--ai-text-muted)] uppercase tracking-wider">
+          <span className="t-eyebrow text-[var(--ai-text-muted)]">
             {label}
           </span>
         </div>
@@ -167,7 +167,7 @@ function PreviewPane({
       ? "text-[11px] text-[color:var(--ai-text-muted)]"
       : includedCount === 0
         ? "text-[var(--ai-text-muted)]"
-        : "font-semibold text-sm text-[var(--ai-text-default)]",
+        : "font-medium text-sm text-[var(--ai-text-default)]",
   );
   const excludedClass = cn(
     "font-mono text-xs",
@@ -223,7 +223,7 @@ function PreviewPane({
                     <span className="text-[var(--ai-text-muted)] font-mono">
                       #{idx + 1}
                     </span>
-                    <span className="uppercase tracking-wide text-[var(--ai-text-muted)] font-semibold shrink-0 truncate">
+                    <span className="t-eyebrow text-[var(--ai-text-muted)] shrink-0 truncate">
                       {msg.role}
                     </span>
                     <span

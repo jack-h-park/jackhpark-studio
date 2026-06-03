@@ -20,7 +20,7 @@ export function HeadingWithIcon<T extends React.ElementType = "h2">({
 
   return (
     <Component
-      className={cn("flex items-center gap-2 font-semibold", className)}
+      className={cn("flex items-center gap-2 font-medium", className)}
       {...props}
     >
       <span className="flex items-center justify-center flex-shrink-0 w-[1.1em] h-[1.1em] ai-text-info">

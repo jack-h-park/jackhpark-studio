@@ -54,7 +54,7 @@ export function PresetSelectorTabs({
       <div className="flex items-start justify-between gap-2 text-xs leading-tight text-[color:var(--ai-text-muted)]">
         {helperText && <p className="m-0">{helperText}</p>}
         {overridesActive && (
-          <span className="ml-auto inline-flex rounded-full border border-[color:var(--ai-border-muted)] bg-[color:var(--ai-accent-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[color:var(--ai-text)]">
+          <span className="ml-auto inline-flex rounded-full border border-[color:var(--ai-border-muted)] bg-[color:var(--ai-accent-soft)] px-2 py-0.5 t-eyebrow text-[color:var(--ai-text)]">
             Custom
           </span>
         )}

@@ -54,7 +54,7 @@ const renderCapabilityState = (enabled: boolean) => (
   <span
     className={
       enabled
-        ? "font-semibold text-[color:var(--ai-text-default)]"
+        ? "font-medium text-[color:var(--ai-text-default)]"
         : "text-[color:var(--ai-text-muted)]"
     }
   >
