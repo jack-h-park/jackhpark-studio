@@ -10,6 +10,8 @@ export const buttonVariantStyles = {
   default: "ai-button-default",
   outline: "ai-button-outline",
   ghost: "ai-button-ghost",
+  // J-P theme: full gradient fill — use once per surface for the primary CTA
+  gradient: "ai-button-gradient",
 } as const;
 
 export const buttonSizeStyles = {
