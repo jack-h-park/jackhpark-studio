@@ -19,6 +19,15 @@ const featureCssFiles = [
   "components/admin/workflow/WorkflowStep.module.css",
 ];
 
+// Theme token files — intentionally excluded from featureCssFiles.
+// These files contain only CSS custom property (token) definitions and their
+// scoped component overrides. Color literals are expected and correct here,
+// the same as in the :root token block of ai-design-system.css.
+// Do not add feature-specific component rules to these files.
+const themeFiles = [
+  "styles/jp-theme.css", // [data-theme="jp"] — JHP Studio v1.1 Lab surface
+];
+
 const forbiddenKeywords = [
   "admin",
   "diagnostics",

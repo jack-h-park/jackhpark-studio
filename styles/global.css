@@ -6,6 +6,7 @@
 @import "./notion-brand.css";
 @import "./notion-legacy.css";
 @import "./prism-theme.css";
+@import "./jp-theme.css";
 
 @tailwind base;
 @tailwind components;
