@@ -1,13 +1,14 @@
+import fs from "node:fs";
+
 import { chromium } from "playwright";
-import fs from "fs";
 
 async function main() {
   const browser = await chromium.launch();
   const page = await browser.newPage();
-  
+
   // Set viewport size
   await page.setViewportSize({ width: 1280, height: 1000 });
-  
+
   const destDir = "/Users/jackpark/.gemini/antigravity/brain/dbd377ad-3d86-4f69-8f71-8dd323765d10";
   if (!fs.existsSync(destDir)) {
     fs.mkdirSync(destDir, { recursive: true });
@@ -50,7 +51,9 @@ async function main() {
   console.log("Done capturing screenshots!");
 }
 
-main().catch(err => {
+try {
+  await main();
+} catch (err) {
   console.error(err);
-  process.exit(1);
-});
+  throw err;
+}
