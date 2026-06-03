@@ -31,6 +31,16 @@ This script (`scripts/check-css-guardrails.mjs`) is also called automatically by
 
 If you relocate selectors out of `ai-design-system.css` or create feature-scoped styles, add the stylesheet path (including CSS modules `*.module.css`) to `featureCssFiles` inside `scripts/check-css-guardrails.mjs` and import that stylesheet in the owning component. Feature CSS files and feature-scoped CSS modules are automatically checked for **color literals and legacy token usage** (such as raw `--ai-border-*` or `--ai-bg-*` variables) to prevent style fragmentation.
 
+## Theme token files (exempt from color-literal rule)
+
+Some CSS files are **theme token definitions** — they declare CSS custom properties (variables) whose values are intentionally color literals, the same as the `:root` token block in `ai-design-system.css`. These files must **not** be added to `featureCssFiles` and are documented in the `themeFiles` comment in `scripts/check-css-guardrails.mjs`.
+
+| File | Scope | Purpose |
+|---|---|---|
+| `styles/jp-theme.css` | `[data-theme="jp"]` | JHP Studio v1.1 Lab surface token definitions and component overrides |
+
+**Rule:** Do not add feature-specific component selectors to theme token files. Token definitions only.
+
 
 ## Sample failure output
 

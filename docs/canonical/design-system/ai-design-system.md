@@ -30,7 +30,9 @@ This document outlines the architecture and principles of the AI Design System, 
 > the brand system augments rather than replaces the base layer.
 >
 > Source of truth: `jhp-studio-design-system` design file (Claude Design export).
-> CSS implementation: `styles/ai-design-system.css`.
+> CSS files:
+> - `styles/jp-theme.css` — `[data-theme="jp"]` token definitions + component overrides (J·P theme)
+> - `styles/ai-design-system.css` — shared `--ai-*` primitives + shared brand tokens in `:root`
 
 ### 0-A. Two Surfaces, Two Themes
 
@@ -73,7 +75,10 @@ J·P values without any JSX changes**:
 | `--ai-shadow-soft` | `var(--shadow-popover)` | Drawer-level elevation only |
 
 Full J·P token set (neutrals, elevation, type scale, font families) is declared
-inside `[data-theme="jp"]` in `styles/ai-design-system.css`.
+inside `[data-theme="jp"]` in `styles/jp-theme.css`.
+This file is imported via `styles/global.css` and is excluded from `featureCssFiles`
+in `scripts/check-css-guardrails.mjs` — color literals are expected here since
+it is a theme token definition file, not a component stylesheet.
 
 ### 0-D. Semantic Type Scale (J·P scope only)
 

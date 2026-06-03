@@ -51,7 +51,8 @@ Two themes coexist. See [`docs/canonical/design-system/ai-design-system.md`](../
 | **Notion** (legacy `--ai-*`) | Public Notion pages | default; no attribute needed |
 
 Key design system files:
-- `styles/ai-design-system.css` — all tokens + J·P theme block + semantic type classes
+- `styles/jp-theme.css` — `[data-theme="jp"]` token definitions + component overrides (J·P Lab surface). This is a theme token file; color literals are intentional and it is excluded from `featureCssFiles` in `scripts/check-css-guardrails.mjs`.
+- `styles/ai-design-system.css` — shared `--ai-*` primitives and shared brand tokens (`--brand-*`, `--gradient-*`) in `:root`. Primitive-only per `css-guardrails` contract.
 - `styles/notion-brand.css` — Notion page brand overrides (gradient link hover)
 - `hooks/use-admin-theme.ts` — admin theme toggle hook
 
