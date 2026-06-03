@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# pre-push hook — blocks pushes when react-notion-x is in local dev mode.
+#
+# Install (one-time): pnpm run setup-hooks
+# Or manually:        cp scripts/hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+
+set -e
+
+PKG="package.json"
+
+# Check for local file: / link: references in dependencies
+if grep -qE '"(file|link):.*forks' "$PKG" 2>/dev/null; then
+  echo ""
+  echo "╔═══════════════════════════════════════════════════════════════╗"
+  echo "║  ❌  Push blocked — react-notion-x is in LOCAL mode           ║"
+  echo "║                                                               ║"
+  echo "║  package.json still has file:/link: references to the fork.  ║"
+  echo "║  Run one of the following before pushing:                     ║"
+  echo "║                                                               ║"
+  echo "║  • To publish a new fork release and switch:                  ║"
+  echo "║      pnpm deps:release                  (auto-increments tag) ║"
+  echo "║      pnpm deps:release 7.7.1-jp.5       (explicit tag)        ║"
+  echo "║                                                               ║"
+  echo "║  • To switch without releasing (reuse existing tag):          ║"
+  echo "║      node scripts/switch-rnx-deps.js remote <tag>             ║"
+  echo "║      pnpm install                                             ║"
+  echo "╚═══════════════════════════════════════════════════════════════╝"
+  echo ""
+  exit 1
+fi
+
+# Check pnpm.overrides for local links
+if node -e "
+  const p = JSON.parse(require('fs').readFileSync('package.json','utf8'));
+  const ov = p?.pnpm?.overrides ?? {};
+  const hasLocal = Object.values(ov).some(v => v.startsWith('file:') || v.startsWith('link:'));
+  process.exit(hasLocal ? 1 : 0);
+" 2>/dev/null; then
+  : # overrides are clean
+else
+  echo ""
+  echo "╔═══════════════════════════════════════════════════════════════╗"
+  echo "║  ❌  Push blocked — pnpm.overrides has local links            ║"
+  echo "║  Run: pnpm deps:release  or  switch-rnx-deps.js remote <tag>  ║"
+  echo "╚═══════════════════════════════════════════════════════════════╝"
+  echo ""
+  exit 1
+fi
+
+exit 0

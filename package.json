@@ -33,6 +33,8 @@
     "deps:unlink": "[ -z $GITHUB_ACTIONS ] && pnpm add notion-client notion-types notion-utils react-notion-x || echo 'Skipping deps:update on CI'",
     "deps:use-local": "node scripts/switch-rnx-deps.js local",
     "deps:use-remote": "node scripts/switch-rnx-deps.js remote",
+    "deps:release": "node scripts/release-fork.js",
+    "setup-hooks": "node scripts/setup-hooks.js",
     "deploy:rnx": "node scripts/deploy-rnx.js",
     "deps:link:notion-types": "pnpm link ../../forks/react-notion-x/packages/notion-types",
     "deps:link:notion-utils": "pnpm link ../../forks/react-notion-x/packages/notion-utils",
