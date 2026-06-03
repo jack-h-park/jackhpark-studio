@@ -45,13 +45,13 @@ export function NumericLimitsCard({
             >
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(0,1fr))]">
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-sm font-semibold leading-snug">
+                  <p className="t-h3 leading-snug">
                     {numericLimitLabels[key]}
                   </p>
                   <p className="ai-field__description">
                     Set guardrails for this value across presets.
                   </p>
-                  <p className="text-[0.62rem] font-semibold uppercase tracking-[0.5em] text-[color:var(--ai-text-muted)]">
+                  <p className="t-eyebrow text-[color:var(--ai-text-muted)]">
                     Min ≤ Default ≤ Max
                   </p>
                 </div>

@@ -29,10 +29,10 @@ export function ChatConfigSection({
       {...props}
     >
       <div className="space-y-1">
-        <p className="ai-label-overline ai-label-overline--muted tracking-[0.4em]">
+        <p className="t-eyebrow text-[color:var(--ai-text-muted)]">
           {label}
         </p>
-        <h2 className="text-2xl font-semibold text-[var(--ai-text-strong)]">
+        <h2 className="t-h2 text-[var(--ai-text-strong)]">
           {title}
         </h2>
         {description && (
@@ -111,7 +111,7 @@ export function ToggleRow({
       {...props}
     >
       <div className="space-y-1 max-w-[min(26rem,100%)]">
-        <p className="text-sm font-semibold text-[var(--ai-text-strong)] leading-snug truncate">
+        <p className="t-h3 text-[var(--ai-text-strong)] leading-snug truncate">
           {label}
         </p>
         {description && (

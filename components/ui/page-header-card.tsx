@@ -52,7 +52,7 @@ export function PageHeaderCard({
       >
         <div className={cn("flex min-w-0 flex-col gap-2", contentClassName)}>
           {overline && (
-            <p className="ai-label-overline tracking-[0.3em] text-[color:var(--ai-text-soft)]">
+            <p className="t-eyebrow text-[color:var(--ai-text-soft)]">
               {overline}
             </p>
           )}
@@ -65,7 +65,7 @@ export function PageHeaderCard({
             )}
             <h1
               className={cn(
-                "truncate text-2xl font-semibold leading-tight text-[color:var(--ai-text-strong)] sm:text-[2.25rem]",
+                "t-h1 truncate leading-tight text-[color:var(--ai-text-strong)] sm:text-[2.25rem]",
                 titleClassName,
               )}
             >

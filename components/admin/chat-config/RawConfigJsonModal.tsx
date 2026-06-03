@@ -33,7 +33,7 @@ export function RawConfigJsonModal({
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-[color:var(--ai-role-border-subtle)] bg-[color:var(--ai-role-surface-1)]">
           <div className="flex flex-col gap-0.5">
-            <h2 className="text-lg font-semibold text-[var(--ai-text-strong)]">
+            <h2 className="t-h3 text-[var(--ai-text-strong)]">
               Admin Chat Configuration Data{" "}
               <span className="text-sm font-normal text-[var(--ai-text-muted)]">
                 (JSON)

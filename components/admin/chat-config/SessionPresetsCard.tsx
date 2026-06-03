@@ -511,7 +511,7 @@ export function SessionPresetsCard({
       />
       <CardContent className="space-y-6 px-5 py-4">
         <GridPanel className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] px-4 py-4 shadow-sm">
-          <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] items-center gap-3 text-[0.625rem] uppercase tracking-[0.4em] text-[var(--ai-text-muted)]">
+          <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] items-center gap-3 t-eyebrow text-[var(--ai-text-muted)]">
             <div className={sessionGridLabelClass}>Setting</div>
             {presetDisplayOrder.map((presetKey) => (
               <div

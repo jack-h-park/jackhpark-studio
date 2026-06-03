@@ -21,7 +21,7 @@ export function SummaryPresetsCard({
   const summaryGridLabelClass =
     "ai-label-overline text-[0.9rem] text-[color:var(--ai-text-muted)]";
   const summaryGridHeaderClass =
-    "ai-label-overline tracking-[0.2em] text-[0.7rem] text-[color:var(--ai-text-strong)]";
+    "t-eyebrow text-[color:var(--ai-text-strong)]";
   const summaryGridValueClass = "flex flex-col gap-1";
   const handleSummaryPresetChange = (
     level: SummaryPresetLevel,

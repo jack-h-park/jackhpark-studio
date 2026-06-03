@@ -37,10 +37,10 @@ export function RagRankingCard({
       <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start px-5 py-4">
         <GridPanel className="gap-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] px-4 py-4">
           <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-start">
-            <div className="ai-label-overline tracking-[0.2em] text-[0.7rem] text-[color:var(--ai-text-strong)]">
+            <div className="t-eyebrow text-[color:var(--ai-text-strong)]">
               Doc type
             </div>
-            <div className="ai-label-overline tracking-[0.2em] text-[0.7rem] text-[color:var(--ai-text-strong)]">
+            <div className="t-eyebrow text-[color:var(--ai-text-strong)]">
               Weight
             </div>
             {DOC_TYPE_OPTIONS.map((docType) => {
@@ -82,10 +82,10 @@ export function RagRankingCard({
 
         <GridPanel className="gap-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] px-4 py-4">
           <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-start">
-            <div className="ai-label-overline tracking-[0.2em] text-[0.7rem] text-[color:var(--ai-text-strong)]">
+            <div className="t-eyebrow text-[color:var(--ai-text-strong)]">
               Persona type
             </div>
-            <div className="ai-label-overline tracking-[0.2em] text-[0.7rem] text-[color:var(--ai-text-strong)]">
+            <div className="t-eyebrow text-[color:var(--ai-text-strong)]">
               Weight
             </div>
             {PERSONA_TYPE_OPTIONS.map((persona) => {

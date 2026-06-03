@@ -396,7 +396,7 @@ export function DatasetSnapshotSection({
                       </span>
                     </div>
                     {percentChange ? (
-                      <span className="text-[0.55rem] tracking-[0.2em] uppercase">
+                      <span className="t-eyebrow">
                         {percentChange} vs prev.
                       </span>
                     ) : null}

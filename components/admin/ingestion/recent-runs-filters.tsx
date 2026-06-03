@@ -216,7 +216,7 @@ export function RecentRunsFilters({
               <Label
                 htmlFor={item.id}
                 size="xs"
-                className="text-[color:var(--ai-text-muted)] tracking-[0.3em]"
+                className="text-[color:var(--ai-text-muted)]"
               >
                 {item.label}
               </Label>

@@ -23,7 +23,7 @@ export function IngestionSubNav() {
       >
         <div
           role="tablist"
-          className="flex items-center gap-8 text-base font-semibold"
+          className="flex items-center gap-8 text-base font-medium"
         >
           {PAGES.map((page) => {
             const active =
