@@ -13,6 +13,7 @@ The `terminology.md` file remains the single authoritative source for shared ter
 1. `00-start-here/terminology.md`
 2. Orientation maps:
    - `00-start-here/repository-map.md`
+   - `00-start-here/documentation-governance.md`
    - `00-start-here/skill-source-architecture.md`
 3. Canonical contracts:
    - `canonical/rag/rag-system.md`
@@ -84,11 +85,13 @@ The `terminology.md` file remains the single authoritative source for shared ter
 
 ## Contribution Guidance
 
+- Review `00-start-here/documentation-governance.md` when changing stack framing, env vars, chat settings, telemetry semantics, or other high-drift surfaces.
 - Keep documents aligned with the canonical model: terminology and contracts first, supporting docs second.
 - No document may redefine terminology outside of `00-start-here/terminology.md`.
 - Supporting documents must explicitly link to their governing canonical contract to maintain traceability and clarity.
 - When changes span multiple areas, link between folders rather than duplicating content.
 - Before editing telemetry or other contract-driven docs, confirm the contract in the canonical files to ensure consistency.
+- Treat `readme.md`, `docs/README.md`, `docs/00-start-here/repository-map.md`, and `contributing.md` as entrypoint docs that must stay aligned with the current implementation.
 - Add new entries to this portal when adding folders, and update the overview table accordingly so readers always know where to look.
 - If a document is primarily a one-off audit, postmortem, plan, or experiment, label it as historical/reference context and avoid presenting it as a default operational input.
 

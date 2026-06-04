@@ -1,53 +1,68 @@
 # Contributing
 
-Suggestions and pull requests are highly encouraged. Have a look at the [open issues](https://github.com/NotionX/react-notion-x/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22+sort%3Areactions-%2B1-desc), especially [the easy ones](https://github.com/NotionX/react-notion-x/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22+sort%3Areactions-%2B1-desc).
+This repository is a specialized personal portfolio and RAG/chat platform, not a stock starter-kit checkout. Contributing work should preserve that reality in both code and documentation.
 
-## Development
+## Development Setup
 
-To develop the project locally, you'll need a recent version of Node.js and `pnpm` installed globally.
+Requirements:
 
-To get started, clone the repo and run `pnpm` from the root directory:
+- recent Node.js
+- `pnpm`
 
-```bash
-git clone https://github.com/transitive-bullshit/nextjs-notion-starter-kit
-cd nextjs-notion-starter-kit
-pnpm
-```
-
-Now that your dependencies are installed, you can run the local Next.js dev server:
+Install and run locally:
 
 ```bash
+pnpm install
+cp .env.example .env.local
 pnpm dev
 ```
 
-You should now be able to open `http://localhost:3000` to view the webapp.
-
-## Production
-
-To build for production, you can run:
+Useful verification commands:
 
 ```bash
-pnpm build
+pnpm test
+pnpm lint
+pnpm typecheck
+pnpm smoke:chat
+pnpm smoke:langchain-chat
+pnpm smoke:admin-ui
+pnpm check:ai-docs
+pnpm check:docs
 ```
 
-Which just runs `next build` under the hood.
+## Before You Change Code
 
-### Local-linked react-notion-x
+- Read [readme.md](./readme.md) for the current repo entrypoint.
+- Read [docs/README.md](./docs/README.md) for the documentation map.
+- Use [docs/00-start-here/repository-map.md](./docs/00-start-here/repository-map.md) when you need codebase orientation.
+- Use [docs/00-start-here/documentation-governance.md](./docs/00-start-here/documentation-governance.md) when your change affects stack framing, env vars, presets, telemetry, or operational behavior.
 
-If you are making changes to `react-notion-x` and want to test them out with `nextjs-notion-starter-kit`, you'll first need to [set up and build `react-notion-x` locally](https://github.com/NotionX/react-notion-x/blob/master/contributing.md).
+## Documentation Expectations
 
-Once you have `react-notion-x` set up and built locally, you can link these local deps into `nextjs-notion-starter-kit`:
+Documentation is part of the implementation surface here.
+
+- If you change a setup step, review `readme.md`, `.env.example`, and relevant `docs/operations/*`.
+- If you change chat presets, models, or guardrail behavior, review `docs/chat/*` and the governing canonical docs.
+- If you change telemetry or logging semantics, review `docs/telemetry/*` and the canonical telemetry contract.
+- If you change stack framing or major routing/runtime shape, review `AGENTS.md`, `CLAUDE.md`, and `docs/00-start-here/repository-map.md`.
+
+Do not leave current behavior documented only in audits, incident reports, or historical plans.
+
+## react-notion-x Fork Workflow
+
+This repo still supports local work against the `react-notion-x` fork.
+
+Common commands:
 
 ```bash
-pnpm deps:link
+pnpm deps:use-local
+pnpm deps:use-remote
+pnpm deps:release
+pnpm setup-hooks
 ```
 
-With this setup, in one tab, you can run `pnpm dev` to keep `react-notion-x` up-to-date, and in another tab, you can run `pnpm dev` to keep `nextjs-notion-starter-kit` up-to-date.
+For the full process, use [docs/operations/react-notion-x-deployment.md](./docs/operations/react-notion-x-deployment.md).
 
-### Gotchas
+## Verification Standard
 
-Whenever you make a change to one of the `react-notion-x` packages, it will automatically be recompiled into its respective `build` folder, and the `pnpm dev` from `nextjs-notion-starter-kit` should hot-reload it in the browser.
-
-Sometimes, this process gets a little out of whack, and if you're not sure what's going on, I usually just quit one or both of the `pnpm dev` commands and restart them.
-
-If you're seeing something unexpected while debugging with Next.js, try running `rm -rf .next` to refresh the Next.js cache before running `pnpm dev` again.
+Before you describe documentation or code work as complete, run the relevant verification commands and inspect the output. At minimum, use the commands that cover the surfaces you changed.
