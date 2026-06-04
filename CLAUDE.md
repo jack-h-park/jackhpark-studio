@@ -9,8 +9,8 @@ This codebase is part of an interview. Favor clarity, consistency, and explainab
 ## Engineering Rules
 
 - Align with the existing stack unless explicitly instructed otherwise:
-  - Next.js App Router
-  - React 18 functional components
+  - Next.js 15 with a primarily Pages Router application and limited App Router API usage
+  - React 19 functional components
   - Tailwind CSS with design tokens
   - Node.js server modules and API routes
   - PostgreSQL via Supabase and pgvector
