@@ -1,126 +1,230 @@
 # Database Schema Documentation
 
-This document describes the database schema defined in `db/schema/schema.latest.sql`.
+This document describes the current RAG-facing schema in [db/schema/schema.latest.sql](/Users/jackpark/workspace/code/core/nextjs-react-notion-x/db/schema/schema.latest.sql:1). It is intended as a human-readable reference; the SQL snapshot remains the executable source of truth for table, view, function, and grant definitions.
 
 ## Overview
 
-The database uses PostgreSQL with `pgvector` for storing and querying vector embeddings. It supports multiple embedding providers (e.g., Gemini, OpenAI) using versioned tables to allow matching logic to evolve.
+The database uses PostgreSQL with `pgvector` for retrieval over multiple embedding spaces. The schema separates:
+
+- Document metadata and lifecycle state in `rag_documents`
+- Versioned vector chunk storage in `rag_chunks_*`
+- Ingestion telemetry in `rag_ingest_runs`
+- Aggregate operational snapshots in `rag_snapshot`
+- Runtime settings in `system_settings`
+
+## Types
+
+### `rag_document_status`
+
+Lifecycle enum for `rag_documents.status`.
+
+- `active`: Eligible for retrieval
+- `archived`: Retained but typically excluded by higher-level flows
+- `missing`: Source is currently unavailable or not found
+- `soft_deleted`: Externally removed and must not be auto-revived
 
 ## Tables
 
-### RAG and Ingestion
+### `rag_documents`
 
-#### `rag_documents`
+Canonical metadata table for ingested source documents.
 
-Tracks the source documents ingested into the system.
+- `doc_id` (`text`, PK): Canonical document identifier used across retrieval tables
+- `source_url` (`text`, not null): Stable source URL
+- `content_hash` (`text`, not null): Full-document content hash for change detection
+- `last_ingested_at` (`timestamptz`, not null): Most recent ingestion timestamp
+- `last_source_update` (`timestamptz`): Latest known upstream modification timestamp
+- `metadata` (`jsonb`, default `{}`): Arbitrary structured metadata used by ranking/admin UIs
+- `chunk_count` (`integer`, default `0`): Number of chunks currently associated with the document
+- `total_characters` (`bigint`, default `0`): Total character count for the canonical source content
+- `raw_doc_id` (`text`): Original external identifier before normalization
+- `status` (`rag_document_status`, default `active`): Lifecycle state used by retrieval and admin tooling
+- `last_sync_attempt_at` (`timestamptz`): Most recent fetch attempt
+- `last_sync_success_at` (`timestamptz`): Most recent successful fetch/parse
+- `missing_detected_at` (`timestamptz`): First timestamp when the document was classified as missing
+- `soft_deleted_at` (`timestamptz`): Timestamp when the document was externally soft-deleted
+- `last_fetch_status` (`integer`): Most recent HTTP/provider status code
+- `last_fetch_error` (`text`): Most recent fetch error detail
 
-- `doc_id` (text, PK): Canonical ID.
-- `source_url` (text): Source URL.
-- `content_hash` (text): Hash of the full content to detect changes.
-- `last_ingested_at` (timestamptz): Last ingestion timestamp.
-- `metadata` (jsonb): Arbitrary metadata.
+Notes:
 
-#### `rag_ingest_runs`
+- `status` is operationally significant. The v2 retrieval RPCs only return chunks for documents with `status = 'active'`.
+- Detailed lifecycle semantics are documented in [docs/architecture/rag/rag-document-lifecycle.md](/Users/jackpark/workspace/code/core/nextjs-react-notion-x/docs/architecture/rag/rag-document-lifecycle.md:1).
 
-Logs details about ingestion jobs.
+### `rag_ingest_runs`
 
-- `id` (uuid, PK)
-- `ingestion_type` (text): `full` or `partial`.
-- `status` (text): `in_progress`, `success`, `completed_with_errors`, `failed`.
-- `documents_processed`, `documents_added`, `chunks_added`, `error_count`, etc.
+Per-run ingestion telemetry for freshness, throughput, and error inspection.
 
-#### `rag_snapshot`
+- `id` (`uuid`, PK)
+- `source` (`text`, not null): Ingestion source identifier
+- `ingestion_type` (`text`, not null): `full` or `partial`
+- `partial_reason` (`text`): Why a partial run was triggered
+- `status` (`text`, not null): `in_progress`, `success`, `completed_with_errors`, or `failed`
+- `started_at` / `ended_at` (`timestamptz`): Run boundaries
+- `duration_ms` (`integer`): Wall-clock duration when captured
+- `documents_processed`, `documents_added`, `documents_updated`, `documents_skipped`
+- `chunks_added`, `chunks_updated`
+- `characters_added`, `characters_updated`
+- `error_count` (`integer`, default `0`)
+- `error_logs` (`jsonb`): Structured error details
+- `metadata` (`jsonb`): Run-scoped metadata
+- `source_url` (`text`): Optional source locator for the run
 
-captures aggregate statistics of the RAG corpus size and the last run status.
+### `rag_snapshot`
 
-- `id` (uuid, PK)
-- `captured_at` (timestamptz)
+Periodic aggregate snapshot used for dashboards and operational monitoring.
+
+- `id` (`uuid`, PK)
+- `captured_at` (`timestamptz`, not null): Snapshot timestamp
+- `schema_version` (`integer`, default `1`): Snapshot payload version
+- `run_id` (`uuid`, FK -> `rag_ingest_runs.id`): Most recent ingestion run summarized by this row
+- `run_status`, `run_started_at`, `run_ended_at`, `run_duration_ms`
+- `run_error_count`, `run_documents_skipped`
+- `embedding_provider` (`text`, not null): Current deployment-level provider mode, currently written as `multi`
+- `ingestion_mode` (`text`): Mirrors the latest run's `ingestion_type` when available
 - `total_documents`, `total_chunks`, `total_characters`
-- `delta_documents`, `delta_chunks` (changes since last snapshot)
+- `delta_documents`, `delta_chunks`, `delta_characters`: Change from the previous snapshot
+- `error_count`, `skipped_documents`
+- `queue_depth`, `retry_count`, `pending_runs`: Reserved operational counters, currently nullable
+- `metadata` (`jsonb`, default `{}`): Snapshot-scoped metadata payload
+- `created_at` (`timestamptz`, not null): Row creation timestamp
 
-#### `system_settings`
+### `system_settings`
 
-Key-value store for runtime configuration.
+Key-value table for runtime configuration.
 
-- `key` (text, PK)
-- `value` (jsonb)
+- `key` (`text`, PK)
+- `value` (`jsonb`, not null)
+- `updated_at` (`timestamptz`, not null)
 
-### Embedding / Chunk Tables
+### `rag_chunks_gemini_te4_v1`
 
-These tables store the actual vector chunks. They are versioned by provider and embedding model generation.
+Gemini `text-embedding-004` chunk storage.
 
-#### `rag_chunks_gemini_te4_v1`
+- `id` (`uuid`, PK)
+- `doc_id` (`text`, not null)
+- `source_url` (`text`)
+- `title` (`text`)
+- `chunk` (`text`, not null)
+- `chunk_hash` (`text`, not null)
+- `embedding` (`vector(768)`, not null)
+- `updated_at`, `ingested_at` (`timestamptz`)
 
-- `id` (uuid, PK)
-- `doc_id` (text): Foreign key reference to document.
-- `chunk` (text): The text content.
-- `embedding` (vector(768)): Gemini text-embedding-004 embedding.
-- `chunk_hash`, `title`, `source_url`, `ingested_at`.
+Important indexes:
 
-#### `rag_chunks_openai_te3s_v1`
+- Unique: `("doc_id", "chunk_hash")`
+- Vector: IVFFlat index on `embedding`
 
-- `id` (uuid, PK)
-- `doc_id` (text)
-- `chunk` (text)
-- `embedding` (vector(1536)): OpenAI text-embedding-3-small embedding.
+### `rag_chunks_openai_te3s_v1`
+
+OpenAI `text-embedding-3-small` chunk storage.
+
+- `id` (`uuid`, PK)
+- `doc_id` (`text`, not null)
+- `source_url` (`text`)
+- `title` (`text`)
+- `chunk` (`text`, not null)
+- `chunk_hash` (`text`, not null)
+- `embedding` (`vector(1536)`, not null)
+- `updated_at`, `ingested_at` (`timestamptz`)
+
+Important indexes:
+
+- Unique: `("doc_id", "chunk_hash")`
+- Vector: IVFFlat index on `embedding`
 
 ## Views
 
-Views are provided to expose a standard interface for LangChain or other consumers, often aliasing the underlying versioned tables.
+### `lc_chunks_gemini_te4_v1`
 
-#### `lc_chunks_gemini_te4_v1`
+LangChain-oriented projection over `rag_chunks_gemini_te4_v1`.
 
-LangChain-compatible view for Gemini chunks.
-
-- `id`: `doc_id:chunk_hash` composite key.
-- `content`: Aliased from `chunk`.
-- `metadata`: JSONB containing `doc_id`, `title`, `source_url`, etc.
+- `id`: `concat(doc_id, ':', chunk_hash)`
+- `content`: Aliased from `chunk`
+- `metadata`: JSONB with `doc_id`, `title`, `source_url`, `chunk_hash`, `ingested_at`
 - `embedding`
 
-#### `lc_chunks_openai_te3s_v1`
+### `lc_chunks_openai_te3s_v1`
 
-LangChain-compatible view for OpenAI chunks.
+LangChain-oriented projection over `rag_chunks_openai_te3s_v1`.
+
+- Same column contract as the Gemini view
 
 ## Functions
 
-### Matching Functions
+### Versioned retrieval functions
 
-#### `match_langchain_chunks_gemini_te4_v1`
+The schema contains two retrieval generations:
 
-Returns chunks similar to a query embedding for LangChain (Gemini).
+- `*_v1`: Original retrieval over chunk tables/views only
+- `*_v2`: Retrieval that joins `rag_documents` and filters to `status = 'active'`
 
-- Inputs: `query_embedding`, `match_count`, `filter`.
+#### LangChain-oriented RPCs
 
-#### `match_langchain_chunks_openai_te3s_v1`
+- `match_langchain_chunks_gemini_te4_v1`
+- `match_langchain_chunks_openai_te3s_v1`
+- `match_langchain_chunks_gemini_te4_v2`
+- `match_langchain_chunks_openai_te3s_v2`
 
-Returns chunks similar to a query embedding for LangChain (OpenAI).
+Contract:
 
-#### `match_native_chunks_gemini_te4_v1`
+- Inputs: `query_embedding`, `match_count`, `filter`
+- Return columns: `id`, `content`, `metadata`, `embedding`, `similarity`
+- Similarity metric: `1 - (embedding <=> query_embedding)`
 
-Standard RAG matching function for Gemini. Returns detailed columns (`chunk`, `doc_id`, `source_url`).
+#### Native RPCs
 
-- Inputs: `query_embedding`, `similarity_threshold`, `match_count`, `filter`.
+- `match_native_chunks_gemini_te4_v1`
+- `match_native_chunks_openai_te3s_v1`
+- `match_native_chunks_gemini_te4_v2`
+- `match_native_chunks_openai_te3s_v2`
 
-#### `match_native_chunks_openai_te3s_v1`
+Contract:
 
-Standard RAG matching function for OpenAI.
+- Inputs: `query_embedding`, `similarity_threshold`, `match_count`, `filter`
+- Return columns: `id`, `doc_id`, `source_url`, `title`, `chunk`, `chunk_hash`, `ingested_at`, `embedding`, `similarity`
+- `filter` is applied against a JSONB object built from chunk metadata
 
-### Wrapper Functions
+### Stable wrapper functions
 
-Convenience wrappers that delegate to the specific versioned functions.
+These wrappers provide provider-stable RPC names for application code:
 
-- `match_rag_chunks_langchain_gemini` -> `match_langchain_chunks_gemini_te4_v1`
-- `match_rag_chunks_langchain_openai` -> `match_langchain_chunks_openai_te3s_v1`
-- `match_rag_chunks_native_gemini` -> `match_native_chunks_gemini_te4_v1`
-- `match_rag_chunks_native_openai` -> `match_native_chunks_openai_te3s_v1`
+- `match_rag_chunks_langchain_gemini`
+- `match_rag_chunks_langchain_openai`
+- `match_rag_chunks_native_gemini`
+- `match_rag_chunks_native_openai`
 
-### Snapshot
+The wrappers currently delegate to versioned retrieval functions defined in the SQL snapshot. Check [db/schema/schema.latest.sql](/Users/jackpark/workspace/code/core/nextjs-react-notion-x/db/schema/schema.latest.sql:278) before changing caller behavior, because wrapper targets may lag behind newer versioned RPCs during migrations.
 
-#### `take_rag_snapshot`
+### `take_rag_snapshot`
 
-Aggregates current `rag_documents` stats, compares with the last `rag_snapshot`, and inserts a new snapshot record. Used for telemetry and monitoring.
+Creates a new `rag_snapshot` row by:
 
-## Row Level Security (RLS)
+- Aggregating current corpus totals from `rag_documents`
+- Looking up the previous snapshot for delta calculation
+- Looking up the most recent `rag_ingest_runs` row for run summary fields
 
-All tables (`rag_documents`, `rag_ingest_runs`, `rag_snapshot`, `system_settings`, chunk tables) have RLS enabled.
-Grant usage policies are applied for `anon`, `authenticated`, and `service_role`.
+## Constraints and indexes
+
+Key constraints and indexes reflected in the snapshot:
+
+- Primary keys on all base tables
+- Foreign key: `rag_snapshot.run_id -> rag_ingest_runs.id`
+- Unique chunk constraints on `("doc_id", "chunk_hash")` for both chunk tables
+- B-tree indexes on:
+  - `rag_documents.last_ingested_at`
+  - `rag_documents.source_url`
+  - `rag_ingest_runs.started_at`
+  - `rag_snapshot.captured_at`
+  - `rag_snapshot.run_id`
+- IVFFlat vector indexes on both embedding columns
+
+## Security model
+
+All base tables have RLS enabled in the schema snapshot.
+
+Important caveat:
+
+- The snapshot currently shows `GRANT` statements for `anon`, `authenticated`, and `service_role`.
+- It does not document explicit `CREATE POLICY` statements in this file.
+- Treat [db/schema/schema.latest.sql](/Users/jackpark/workspace/code/core/nextjs-react-notion-x/db/schema/schema.latest.sql:674) as the source for what is actually exported, and verify live Supabase policies separately when auditing access control.

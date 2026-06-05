@@ -22,6 +22,17 @@ ALTER SCHEMA "public" OWNER TO "pg_database_owner";
 COMMENT ON SCHEMA "public" IS 'standard public schema';
 
 
+CREATE TYPE "public"."rag_document_status" AS ENUM (
+    'active',
+    'archived',
+    'missing',
+    'soft_deleted'
+);
+
+
+ALTER TYPE "public"."rag_document_status" OWNER TO "postgres";
+
+
 
 CREATE OR REPLACE FUNCTION "public"."match_langchain_chunks_gemini_te4_v1"("query_embedding" "extensions"."vector", "match_count" integer DEFAULT 5, "filter" "jsonb" DEFAULT '{}'::"jsonb") RETURNS TABLE("id" "text", "content" "text", "metadata" "jsonb", "embedding" "extensions"."vector", "similarity" double precision)
     LANGUAGE "plpgsql"
@@ -550,7 +561,14 @@ CREATE TABLE IF NOT EXISTS "public"."rag_documents" (
     "metadata" "jsonb" DEFAULT '{}'::"jsonb",
     "chunk_count" integer DEFAULT 0,
     "total_characters" bigint DEFAULT 0,
-    "raw_doc_id" "text"
+    "raw_doc_id" "text",
+    "status" "public"."rag_document_status" DEFAULT 'active'::"public"."rag_document_status" NOT NULL,
+    "last_sync_attempt_at" timestamp with time zone,
+    "last_sync_success_at" timestamp with time zone,
+    "missing_detected_at" timestamp with time zone,
+    "soft_deleted_at" timestamp with time zone,
+    "last_fetch_status" integer,
+    "last_fetch_error" "text"
 );
 
 
@@ -601,17 +619,17 @@ ALTER TABLE "public"."system_settings" OWNER TO "postgres";
 
 
 ALTER TABLE ONLY "public"."system_settings"
-    ADD CONSTRAINT "chat_settings_pkey" PRIMARY KEY ("key");
+    ADD CONSTRAINT "system_settings_pkey" PRIMARY KEY ("key");
 
 
 
 ALTER TABLE ONLY "public"."rag_chunks_gemini_te4_v1"
-    ADD CONSTRAINT "rag_chunks_gemini_pkey" PRIMARY KEY ("id");
+    ADD CONSTRAINT "rag_chunks_gemini_te4_v1_pkey" PRIMARY KEY ("id");
 
 
 
 ALTER TABLE ONLY "public"."rag_chunks_openai_te3s_v1"
-    ADD CONSTRAINT "rag_chunks_openai_pkey" PRIMARY KEY ("id");
+    ADD CONSTRAINT "rag_chunks_openai_te3s_v1_pkey" PRIMARY KEY ("id");
 
 
 
@@ -834,7 +852,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TAB
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
-
 
 
 
