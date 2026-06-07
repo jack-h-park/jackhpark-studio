@@ -70,7 +70,11 @@ export default siteConfig({
   navigationStyle: "custom",
   navigationLinks: [
     {
-      title: "Personal Life",
+      title: "Experience & Background",
+      pageId: "37899029c0b4801b9425fe5857860ca7",
+    },
+    {
+      title: "Personal Craft",
       pageId: "28299029c0b4816e89c0c4f17a39963b",
     },
     {
