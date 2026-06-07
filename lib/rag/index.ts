@@ -372,6 +372,21 @@ export async function finishIngestRun(
   }
 
   tracker.done();
+
+  const snapshotTracker = startDbQuery({
+    action: "takeRagSnapshot",
+    table: "rag_snapshot",
+    operation: "rpc",
+    correlationId: handle.id,
+  });
+  const { error: snapshotError } = await supabaseClient.rpc(
+    "take_rag_snapshot",
+  );
+  if (snapshotError) {
+    snapshotTracker.error(snapshotError);
+  } else {
+    snapshotTracker.done();
+  }
 }
 
 export function chunkByTokens(

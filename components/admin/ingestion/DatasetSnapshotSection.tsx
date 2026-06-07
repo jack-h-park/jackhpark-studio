@@ -460,6 +460,21 @@ export function DatasetSnapshotSection({
                 entry.embeddingSpaceId,
               );
               const rowTitle = `${formatSnapshotRowTitle(entry)} · ${embeddingLabel}`;
+              const deltaParts: Array<{ text: string; positive: boolean }> = [];
+              const docLabel = formatDeltaLabel(entry.deltaDocuments);
+              if (docLabel) {
+                deltaParts.push({
+                  text: `${docLabel} docs`,
+                  positive: (entry.deltaDocuments ?? 0) > 0,
+                });
+              }
+              const chunkLabel = formatDeltaLabel(entry.deltaChunks);
+              if (chunkLabel) {
+                deltaParts.push({
+                  text: `${chunkLabel} chunks`,
+                  positive: (entry.deltaChunks ?? 0) > 0,
+                });
+              }
               const chipClass = cn(
                 "text-[color:var(--ai-text-muted)] border-[color:var(--ai-role-border-muted)] bg-[color:var(--ai-role-surface-0)] px-2 py-0.5 rounded-full",
                 styles.snapshotChip,
@@ -494,7 +509,19 @@ export function DatasetSnapshotSection({
                         )}
                       </span>
                       <span className={styles.snapshotRowSummary}>
-                        {snapshotSummary}
+                        <span>{snapshotSummary}</span>
+                        {deltaParts.map((part) => (
+                          <span
+                            key={part.text}
+                            style={{
+                              color: part.positive
+                                ? "var(--ai-success)"
+                                : "var(--ai-error)",
+                            }}
+                          >
+                            {part.text}
+                          </span>
+                        ))}
                       </span>
                       <span className={chipClass}>
                         {index === 0 ? "LATEST" : `#${index + 1}`}
