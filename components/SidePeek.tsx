@@ -3,8 +3,6 @@ import {
   AnimatePresence,
   motion,
   useDragControls,
-  useMotionValue,
-  useTransform,
 } from "framer-motion";
 import * as React from "react";
 import { createPortal } from "react-dom";
@@ -23,9 +21,6 @@ export function SidePeek({ isOpen, onClose, children }: SidePeekProps) {
   const panelRef = React.useRef<HTMLDivElement | null>(null);
   const scrollRafRef = React.useRef<number | null>(null);
   const dragControls = useDragControls();
-
-  const y = useMotionValue(0);
-  const opacity = useTransform(y, [0, 150], [1, 0.3]);
 
   // detect mount and viewport size changes
   React.useEffect(() => {
@@ -94,7 +89,7 @@ export function SidePeek({ isOpen, onClose, children }: SidePeekProps) {
   if (!mounted || typeof window === "undefined") return null;
 
   // close the panel when the mobile drag exceeds the threshold
-  const handleDragEnd = (_: any, info: any) => {
+  const handleDragEnd = (_: unknown, info: { offset: { y: number } }) => {
     if (info.offset.y > 120) {
       onClose();
     }
@@ -104,10 +99,10 @@ export function SidePeek({ isOpen, onClose, children }: SidePeekProps) {
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Overlay */}
+          {/* Overlay — on mobile the panel is 90vh so the top 10vh of this
+              overlay is always visible. Tapping that area dismisses the peek. */}
           <motion.div
             className={styles.overlay}
-            style={{ opacity }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -128,11 +123,14 @@ export function SidePeek({ isOpen, onClose, children }: SidePeekProps) {
             exit={hiddenPosition}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
+            {/* Full-width 40px touch zone for drag-to-dismiss on mobile */}
             {isMobile && (
               <div
-                className={styles.dragHandle}
+                className={styles.dragHandleArea}
                 onPointerDown={(event) => dragControls.start(event)}
-              />
+              >
+                <div className={styles.dragHandle} />
+              </div>
             )}
 
             {/* Mobile close button */}
@@ -142,7 +140,7 @@ export function SidePeek({ isOpen, onClose, children }: SidePeekProps) {
                 className={styles.closeButton}
                 aria-label="Close side panel"
               >
-                x
+                ✕
               </button>
             )}
 

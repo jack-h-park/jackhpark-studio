@@ -37,7 +37,10 @@
 
 .mobile {
   width: 100vw !important;
-  height: 100vh;
+  /* 90vh instead of 100vh: the remaining 10vh shows the overlay so the user
+     can tap outside to dismiss — this is the primary mobile close affordance. */
+  height: 90vh;
+  top: auto; /* override .panel's top:0 so the sheet is bottom-anchored */
   right: 0;
   left: 0;
   bottom: 0;
@@ -48,12 +51,25 @@
   touch-action: pan-y;
 }
 
+/* Full-width tappable area around the visual drag pill.
+   At 40px tall it meets the minimum touch-target guideline. */
+.dragHandleArea {
+  width: 100%;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none; /* must not be pan-y here so the drag gesture can fire */
+  cursor: grab;
+}
+
 .dragHandle {
-  width: 48px;
-  height: 5px;
-  border-radius: 2.5px;
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
   background: rgba(0, 0, 0, 0.2);
-  margin: 12px auto 0;
+  pointer-events: none; /* clicks pass through to .dragHandleArea */
 }
 
 .closeButton {
