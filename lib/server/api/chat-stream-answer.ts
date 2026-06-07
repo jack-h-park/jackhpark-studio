@@ -54,6 +54,7 @@ function formatChunkPreview(value: string) {
 function sanitizeLoneSurrogates(str: string): string {
   // Match a lone high surrogate (not followed by a low surrogate) OR
   // a lone low surrogate (not preceded by a high surrogate).
+  // eslint-disable-next-line unicorn/prefer-string-replace-all -- regex pattern, not a literal string
   return str.replace(
     /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g,
     "�",
