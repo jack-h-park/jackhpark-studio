@@ -43,6 +43,23 @@ function formatChunkPreview(value: string) {
   return `${collapsed.slice(0, 60)}…`;
 }
 
+/**
+ * Replace lone UTF-16 surrogates (U+D800–U+DFFF without a valid pair) with
+ * the Unicode replacement character (U+FFFD).  JSON.stringify silently
+ * produces invalid JSON when a JS string contains a lone surrogate, which
+ * causes Anthropic's API to return 400 "no low surrogate in string".
+ *
+ * Valid surrogate pairs are left untouched.
+ */
+function sanitizeLoneSurrogates(str: string): string {
+  // Match a lone high surrogate (not followed by a low surrogate) OR
+  // a lone low surrogate (not preceded by a high surrogate).
+  return str.replace(
+    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g,
+    "�",
+  );
+}
+
 const SMOKE_HEADERS_ENABLED =
   process.env.SMOKE_HEADERS === "1" || process.env.NODE_ENV !== "production";
 
@@ -264,10 +281,10 @@ export async function streamAnswerWithPrompt({
           markStage?.("answer-chain-invoked");
           const answerResult = await answerChain.invoke(
             {
-              question,
+              question: sanitizeLoneSurrogates(question),
               guardrailMeta,
-              contextValue,
-              memoryValue,
+              contextValue: sanitizeLoneSurrogates(contextValue),
+              memoryValue: sanitizeLoneSurrogates(memoryValue),
               prompt,
               llmInstance,
             },
