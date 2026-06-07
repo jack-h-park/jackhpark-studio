@@ -20,7 +20,7 @@ export const getStaticProps: GetStaticProps<PageProps, Params> = async (
         ...props,
         canonicalPageMap: siteMap?.canonicalPageMap || null,
       },
-      revalidate: 10,
+      revalidate: 60,
     };
   } catch (err) {
     console.error("page error", domain, rawPageId, err);
@@ -29,7 +29,7 @@ export const getStaticProps: GetStaticProps<PageProps, Params> = async (
     // fall back to 404 to avoid failing the build on transient fetch errors
     return {
       notFound: true,
-      revalidate: 10,
+      revalidate: 60,
     };
   }
 };
