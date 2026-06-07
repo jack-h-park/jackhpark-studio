@@ -87,10 +87,15 @@
 }
 
 /* ── Dark mode ──────────────────────────────────────────────────── */
+/* body.dark / body.dark-mode are set by DarkModeProvider — the jp wrapper
+   is a descendant, so we need these selectors in addition to the self/child
+   variants to correctly inherit the jp dark palette. */
 [data-theme="jp"].dark-mode,
 [data-theme="jp"] .dark-mode,
 [data-theme="jp"].dark,
-[data-theme="jp"] .dark {
+[data-theme="jp"] .dark,
+body.dark [data-theme="jp"],
+body.dark-mode [data-theme="jp"] {
   --bg-page:        #191919;
   --bg-surface:     #252525;
   --bg-card:        #252525;
