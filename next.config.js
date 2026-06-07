@@ -13,6 +13,10 @@ export default withBundleAnalyzer({
   staticPageGenerationTimeout: 300,
   experimental: {
     externalDir: true,
+    // Save and restore scroll position on back/forward navigation (Pages Router).
+    // Without this, Next.js always scrolls to the top on every navigation,
+    // including browser back — making it feel like a hard refresh.
+    scrollRestoration: true,
   },
   images: {
     remotePatterns: [
