@@ -19,6 +19,31 @@
   - Goal: fast rollback for key pre-polish look choices
   - Rule scope: `.notion-polish-legacy`
 
+## Cover Image Treatment
+
+### Problem
+On wide viewports (≥ ~900px), the cover image was full-width (`100vw`) while the page content column is constrained to `--np-page-max-width` (744px, 900px on index). This caused two issues:
+1. Visual discord from the abrupt width transition between the cover and the narrow content below.
+2. Severe image cropping — at 1440px the container aspect ratio becomes ~5:1, causing `object-fit: cover` to zoom into the center and discard most of the image.
+
+### Decision
+**Blur fill (Option C)** — full-bleed cover retained, side regions outside the content column are darkened and blurred with a soft gradient fade at the inner edge.
+
+Implementation in `styles/notion-parity.css` (`.notion-polish-balanced .notion-page-cover-wrapper`):
+- `position: relative` on the wrapper
+- `::before` (left) and `::after` (right) pseudo-elements, each `calc(50% - var(--notion-max-width) / 2)` wide
+- `backdrop-filter: blur(18px) brightness(0.62) saturate(1.3)` — blurs and darkens the cover image behind the overlay
+- `mask-image: linear-gradient(to right/left, black 55%, transparent)` — soft inner edge so the blur fades into the sharp center
+
+### Width resolution
+`--notion-max-width` inherits correctly from `.notion { --notion-max-width: 744px }` and is overridden to `900px` by `.index-page`, so the effect automatically adapts to both page types. On viewports narrower than the content column the `calc()` evaluates to ≤ 0 and the pseudo-elements vanish.
+
+### Alternatives considered
+- `max-width: 744px` on the cover wrapper: clean alignment but loses the cover image feel entirely.
+- `max-width: 1000px`: wider but still creates left/right white margin bands.
+
+---
+
 ## Screenshot Delta (notion.site ref vs react-notion-x render)
 - Delta A: top hero/content rhythm
   - Current: cover-to-title and icon-to-title rhythm feels slightly looser than notion.site
