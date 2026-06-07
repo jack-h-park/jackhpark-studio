@@ -174,6 +174,8 @@ export function ChatMessageItem({
 
   const isStreamingAssistant =
     m.role === "assistant" && isLoading && loadingAssistantId === m.id;
+  const isAbortedAssistant =
+    m.role === "assistant" && m.metrics?.aborted === true && !isStreamingAssistant;
 
   return (
     <div key={m.id} className={styles.messageGroup}>
@@ -196,6 +198,11 @@ export function ChatMessageItem({
             <span />
             <span />
           </div>
+        )}
+        {isAbortedAssistant && (
+          <p className={`${styles.abortedLabel} ai-text-muted`}>
+            — response interrupted
+          </p>
         )}
       </div>
       {m.role === "assistant" && (hasAnyMeta || hasCitations) && (

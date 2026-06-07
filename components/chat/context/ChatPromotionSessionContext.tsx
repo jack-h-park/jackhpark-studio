@@ -5,6 +5,7 @@ import {
   type ReactNode,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -32,6 +33,32 @@ type ChatPromotionSessionContextValue = {
 
 const ChatPromotionSessionContext =
   createContext<ChatPromotionSessionContextValue | null>(null);
+
+const STORAGE_KEY = "jp_chat_promo_sessions";
+const SESSION_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+function loadFromStorage(): Map<string, ChatPromotionSession> {
+  if (typeof window === "undefined") return new Map();
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return new Map();
+    const entries = JSON.parse(raw) as [string, ChatPromotionSession][];
+    const cutoff = Date.now() - SESSION_TTL_MS;
+    const fresh = entries.filter(([, s]) => s.lastUpdatedAt > cutoff);
+    return new Map(fresh);
+  } catch {
+    return new Map();
+  }
+}
+
+function saveToStorage(map: Map<string, ChatPromotionSession>): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...map]));
+  } catch {
+    // sessionStorage may be unavailable (e.g., private browsing quota exceeded)
+  }
+}
 
 const createCid = () => {
   if (typeof window === "undefined") {
@@ -62,7 +89,11 @@ export function ChatPromotionSessionProvider({
   const [activeCid, setActiveCid] = useState<string | null>(null);
   const [sessionsByCid, setSessionsByCid] = useState<
     Map<string, ChatPromotionSession>
-  >(() => new Map());
+  >(loadFromStorage);
+
+  useEffect(() => {
+    saveToStorage(sessionsByCid);
+  }, [sessionsByCid]);
 
   const ensureCid = useCallback((preferredCid?: string | null) => {
     const cid =

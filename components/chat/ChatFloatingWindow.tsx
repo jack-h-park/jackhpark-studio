@@ -58,6 +58,7 @@ export function ChatFloatingWindow({
   const [cid, setCid] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
+  const [isPromoting, setIsPromoting] = useState(false);
   // const messagesEndRef = useRef<HTMLDivElement>(null); // Removed: using useChatScroll
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -189,11 +190,13 @@ export function ChatFloatingWindow({
   };
 
   const handlePromote = () => {
-    if (!CHAT_PROMOTION_MVP_ENABLED) {
+    if (!CHAT_PROMOTION_MVP_ENABLED || isPromoting) {
       return;
     }
+    setIsPromoting(true);
     const resolvedCid = ensureLocalCid();
     if (!resolvedCid) {
+      setIsPromoting(false);
       return;
     }
 
@@ -207,7 +210,6 @@ export function ChatFloatingWindow({
         if (m.id === loadingAssistantId && m.role === "assistant") {
           return {
             ...m,
-            content: m.content + " [Stopped by promotion]",
             isComplete: true,
             metrics: {
               ...m.metrics,
@@ -262,11 +264,19 @@ export function ChatFloatingWindow({
               {CHAT_PROMOTION_MVP_ENABLED && (
                 <button
                   type="button"
-                  className={`${styles.chatConfigToggle} ${styles.primaryActionButton}`}
+                  className={`${styles.chatConfigToggle} ${styles.primaryActionButton} ${isPromoting ? styles.isPromoting : ""}`}
                   onClick={handlePromote}
+                  disabled={isPromoting}
                   title="Open chat in full screen"
                 >
-                  Fullscreen
+                  {isPromoting ? (
+                    <>
+                      <span className={styles.promoteSpinner} aria-hidden="true" />
+                      Opening…
+                    </>
+                  ) : (
+                    "Fullscreen"
+                  )}
                 </button>
               )}
               {headerAction}

@@ -50,6 +50,12 @@
   overflow: hidden;
 }
 
+.abortedLabel {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
 .assistantLoadingIndicator {
   position: absolute;
   inset: 0;

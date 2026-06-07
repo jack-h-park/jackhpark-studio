@@ -1,5 +1,6 @@
 "use client";
 
+import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiMessageCircle } from "@react-icons/all-files/fi/FiMessageCircle";
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import { useRouter } from "next/router";
@@ -61,6 +62,11 @@ function ChatShellContent() {
   const [localCid, setLocalCid] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const routeCid = useMemo(() => {
@@ -113,6 +119,7 @@ function ChatShellContent() {
     isLoading,
     loadingAssistantId,
     sendMessage,
+    retryWithDeepSearch,
     abortActiveRequest,
   } = useChatSession({
     source: "full-page",
@@ -230,6 +237,15 @@ function ChatShellContent() {
     focusInput();
   };
 
+  // isMounted 가드: SSR에서는 sessionStorage가 없어 routeSession이 항상 null이므로
+  // 클라이언트 마운트 후에만 stale 여부를 평가해 hydration mismatch를 방지한다.
+  const isStaleSession =
+    CHAT_PROMOTION_MVP_ENABLED &&
+    isMounted &&
+    router.isReady &&
+    routeCid !== null &&
+    routeSession === null;
+
   const lastAssistantMessage = messages
     .toReversed()
     .find((message) => message.role === "assistant");
@@ -292,6 +308,15 @@ function ChatShellContent() {
           </Button>
         </header>
         <div className={styles.body}>
+          {isStaleSession && (
+            <div className="ai-warning-callout mb-3">
+              <FiAlertCircle aria-hidden="true" className="ai-icon" size={16} />
+              <span>
+                Previous conversation could not be restored — it may have
+                started in a different browser or tab. Start a new chat below.
+              </span>
+            </div>
+          )}
           {pausedByPromotion && (
             <div className="ai-warning-callout mb-3">
               <div className="flex items-center justify-between gap-3">
@@ -322,6 +347,7 @@ function ChatShellContent() {
                 showCitations={showCitations}
                 showPlaceholder={false}
                 citationLinkLength={60}
+                onRetryDeepSearch={retryWithDeepSearch}
               />
             )}
           </div>
