@@ -79,7 +79,7 @@ export function SettingsSectionModelEngine({
           >
             Embedding Model
             {isEmbeddingLocked && (
-              <span className="inline-flex items-center rounded-sm border border-muted-foreground/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <span className="inline-flex items-center rounded-sm border border-ai-fg-muted/30 px-1.5 py-0.5 text-[10px] font-medium text-ai-fg-muted">
                 Managed by Preset
               </span>
             )}

@@ -12,14 +12,14 @@ export function InlineRenderer({ nodes }: { nodes: InlineNode[] }) {
             return (
               <strong
                 key={key}
-                className="ai-strong font-semibold text-ai-foreground"
+                className="ai-strong font-semibold text-ai-fg"
               >
                 <InlineRenderer nodes={node.children} />
               </strong>
             );
           case "em":
             return (
-              <em key={key} className="ai-em italic text-ai-foreground">
+              <em key={key} className="ai-em italic text-ai-fg">
                 <InlineRenderer nodes={node.children} />
               </em>
             );
@@ -27,7 +27,7 @@ export function InlineRenderer({ nodes }: { nodes: InlineNode[] }) {
             return (
               <code
                 key={key}
-                className="ai-inline-code rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold"
+                className="ai-inline-code rounded bg-ai-bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold"
               >
                 {node.code}
               </code>
@@ -39,7 +39,7 @@ export function InlineRenderer({ nodes }: { nodes: InlineNode[] }) {
                 href={node.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ai-link text-primary underline underline-offset-4 hover:no-underline"
+                className="ai-link text-ai-accent underline underline-offset-4 hover:no-underline"
               >
                 {node.label}
               </a>

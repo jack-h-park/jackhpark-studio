@@ -117,7 +117,7 @@ export function SettingsSectionRagRetrieval({
         >
           <span>Retrieval (RAG)</span>
           {isRagLocked && (
-            <span className="ml-2 inline-flex items-center rounded-sm border border-muted-foreground/30 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <span className="ml-2 inline-flex items-center rounded-sm border border-ai-fg-muted/30 px-1.5 py-0.5 text-[10px] font-medium text-ai-fg-muted">
               Managed by Preset
             </span>
           )}
