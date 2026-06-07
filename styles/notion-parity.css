@@ -129,56 +129,71 @@
   object-position: center 50% !important;
 }
 
-/* ─── YouTube-style two-layer cover ─────────────────────────────────────────
-   Background layer  : same image, fills 100 % width, blurred
-   Foreground layer  : same image, constrained to --notion-max-width, sharp,
-                       with a gradient mask that fades its left/right edges so
-                       the transition into the blurred background is seamless.
+/* ─── YouTube-style cover fill — fallback for very wide viewports only ───────
+   Default behavior (all widths): foreground image fills full width, exactly
+   like the original react-notion-x cover — no max-width clamp, no blurred bg.
+   Wide viewport (≥ 1200 px): background layer appears to fill the side bands
+   with a blurred version of the same image; foreground image is clamped to
+   the content column width with a soft gradient fade at its edges.
+   1200 px threshold ≈ content width (744 px) + 228 px per side, a point where
+   the unconstrained aspect ratio becomes noticeably distorted.
    ─────────────────────────────────────────────────────────────────────────── */
 
-/* Background: extend beyond container bounds to hide blur fringe,
-   clipped by overflow: hidden on the wrapper.
-   brightness(0.72) keeps the bg readable without too much contrast vs center. */
+/* bg layer: hidden by default, shown only above the threshold */
 .notion-polish-balanced .notion-yt-cover__bg {
+  display: none;
   position: absolute;
-  inset: -10% -5%;
+  inset: -10% -5%;   /* outset hides blur fringe; wrapper overflow:hidden clips */
   background-size: cover;
-  filter: blur(20px) brightness(0.72) saturate(1.15);
+  filter: blur(18px) brightness(0.75) saturate(1.1);
 }
 
-/* Foreground container: centres the constrained image horizontally.
-   The horizontal mask fades the image edges into the blurred background —
-   the fade zone spans from the viewport edge to 80 px inside the image
-   boundary so there is no visible hard rectangular cutoff. */
+/* fg container: always absolute-fills the wrapper so the img can be centered */
 .notion-polish-balanced .notion-yt-cover__fg {
   position: absolute;
   inset: 0;
   display: flex;
   justify-content: center;
   align-items: stretch;
-  mask-image: linear-gradient(
-    to right,
-    rgb(0 0 0 / 0) 0%,
-    rgb(0 0 0 / 1) calc(50% - var(--notion-max-width, 744px) / 2 + 80px),
-    rgb(0 0 0 / 1) calc(50% + var(--notion-max-width, 744px) / 2 - 80px),
-    rgb(0 0 0 / 0) 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to right,
-    rgb(0 0 0 / 0) 0%,
-    rgb(0 0 0 / 1) calc(50% - var(--notion-max-width, 744px) / 2 + 80px),
-    rgb(0 0 0 / 1) calc(50% + var(--notion-max-width, 744px) / 2 - 80px),
-    rgb(0 0 0 / 0) 100%
-  );
 }
 
-/* Foreground image: sharp, covers its constrained box */
+/* fg image: default = full-width (mirrors original react-notion-x behavior) */
 .notion-polish-balanced .notion-yt-cover__img {
   width: 100% !important;
-  max-width: var(--notion-max-width, 744px) !important;
   height: 100% !important;
   object-fit: cover !important;
   display: block !important;
+  /* object-position comes from inline style (page_cover_position from Notion) */
+}
+
+/* ── Wide-viewport activation ── */
+@media (min-width: 1200px) {
+  /* Show background blur fill */
+  .notion-polish-balanced .notion-yt-cover__bg {
+    display: block;
+  }
+
+  /* Clamp foreground to content width and fade edges into the blurred bg */
+  .notion-polish-balanced .notion-yt-cover__img {
+    max-width: var(--notion-max-width, 744px) !important;
+  }
+
+  .notion-polish-balanced .notion-yt-cover__fg {
+    mask-image: linear-gradient(
+      to right,
+      rgb(0 0 0 / 0) 0%,
+      rgb(0 0 0 / 1) calc(50% - var(--notion-max-width, 744px) / 2 + 80px),
+      rgb(0 0 0 / 1) calc(50% + var(--notion-max-width, 744px) / 2 - 80px),
+      rgb(0 0 0 / 0) 100%
+    );
+    -webkit-mask-image: linear-gradient(
+      to right,
+      rgb(0 0 0 / 0) 0%,
+      rgb(0 0 0 / 1) calc(50% - var(--notion-max-width, 744px) / 2 + 80px),
+      rgb(0 0 0 / 1) calc(50% + var(--notion-max-width, 744px) / 2 - 80px),
+      rgb(0 0 0 / 0) 100%
+    );
+  }
 }
 
 /* Hero icon rules are page-body only. */
