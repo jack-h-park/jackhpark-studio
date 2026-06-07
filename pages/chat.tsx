@@ -35,10 +35,10 @@ export default function ChatPage({
   return (
     <>
       <Head>
-        <title>Jack’s AI Assistant</title>
+        <title>Ask JackGPT</title>
         <meta
           name="description"
-          content="Ask Jack’s AI Assistant everything, now with session-level advanced settings."
+          content="Ask JackGPT everything about Jack H. Park — his work, experience, and more."
         />
       </Head>
       <AiPageChrome

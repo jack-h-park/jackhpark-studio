@@ -74,7 +74,7 @@ export default siteConfig({
       pageId: "28299029c0b4816e89c0c4f17a39963b",
     },
     {
-      title: "Jack's AI Assistant",
+      title: "Ask JackGPT",
       url: "/chat",
     },
   ],

@@ -288,7 +288,7 @@ function ChatShellContent() {
         <header className={styles.header}>
           <div className="space-y-1">
             <CardTitle icon={<FiMessageCircle aria-hidden="true" size={18} />}>
-              Jack’s AI Assistant
+              Ask JackGPT
             </CardTitle>
             {renderPromptSummary && (
               <CardDescription className="text-sm leading-relaxed ai-text-muted">

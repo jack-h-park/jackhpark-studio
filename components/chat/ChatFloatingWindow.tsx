@@ -232,7 +232,7 @@ export function ChatFloatingWindow({
           <div className={styles.chatHeaderTop}>
             <div className={styles.chatHeaderTitle}>
               <GiBrain />
-              <h3>Jack's AI Assistant</h3>
+              <h3>Ask JackGPT</h3>
             </div>
             <div className={styles.chatHeaderActions}>
               {runtimeLlmWasSubstituted && (

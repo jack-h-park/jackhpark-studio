@@ -28,7 +28,7 @@ export function ChatEmptyState({
     >
       <Image
         src="/images/7FAD09AA-76ED-4C18-A8E9-34D81940A59E.png"
-        alt="Jack's AI Assistant"
+        alt="Ask JackGPT"
         width={220}
         height={220}
       />
