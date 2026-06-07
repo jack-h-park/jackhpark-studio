@@ -2,7 +2,7 @@
 import type { CollectionQueryResult, ExtendedRecordMap } from "notion-types";
 import dynamic from "next/dynamic";
 import router from "next/router";
-import { parsePageId } from "notion-utils";
+import { idToUuid, parsePageId } from "notion-utils";
 import * as React from "react";
 import ReactModal from "react-modal";
 import {
@@ -22,6 +22,7 @@ import {
   SIDE_PEEK_DISABLED_COLLECTION_IDS,
 } from "@/lib/side-peek.config";
 
+import { NotionCoverBlurFill } from "./NotionCoverBlurFill";
 import { NotionCode } from "./notion-code";
 
 const NotionRenderer = dynamic(
@@ -242,6 +243,34 @@ export function NotionPageRenderer({
     }
   }, [recordMap]);
 
+  // YouTube-style two-layer cover (blurred background + sharp constrained foreground).
+  // Only renders when the page block has a cover image; falls back to react-notion-x default otherwise.
+  const pageCoverNode = React.useMemo<React.ReactNode>(() => {
+    if (!pageId || !mapImageUrl) return undefined;
+
+    // recordMap.block keys use UUID format (with dashes); pageId from the URL may lack them.
+    const blockId =
+      sanitizedRecordMap.block[pageId] != null ? pageId : idToUuid(pageId);
+    const pageBlock = sanitizedRecordMap.block[blockId]?.value;
+    if (!pageBlock) return undefined;
+
+    const rawCoverUrl = (pageBlock as any).format?.page_cover as
+      | string
+      | undefined;
+    if (!rawCoverUrl) return undefined;
+
+    const coverUrl = mapImageUrl(rawCoverUrl, pageBlock as any);
+    if (!coverUrl) return undefined;
+
+    const coverPosition =
+      ((pageBlock as any).format?.page_cover_position as number | undefined) ??
+      0.5;
+
+    return (
+      <NotionCoverBlurFill coverUrl={coverUrl} coverPosition={coverPosition} />
+    );
+  }, [pageId, sanitizedRecordMap, mapImageUrl]);
+
   // PageLink
   const components = React.useMemo(
     () => ({
@@ -363,6 +392,7 @@ export function NotionPageRenderer({
             pageAside={pageAside as any}
             footer={footer as any}
             components={components}
+            pageCover={pageCoverNode as any}
           />
         ) : null}
       </div>
