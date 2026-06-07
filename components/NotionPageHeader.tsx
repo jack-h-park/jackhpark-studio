@@ -1,6 +1,8 @@
 import type { CollectionViewPageBlock, PageBlock } from "notion-types";
+import { IoCloseOutline } from "@react-icons/all-files/io5/IoCloseOutline";
+import { IoMenuOutline } from "@react-icons/all-files/io5/IoMenuOutline";
 import cs from "classnames";
-import Link from "next/link"; // ✅ Use Next.js router link
+import Link from "next/link";
 import { getBlockTitle, getPageBreadcrumbs } from "notion-utils";
 import * as React from "react";
 import { Header, PageIcon, Search, useNotionContext } from "react-notion-x";
@@ -11,6 +13,7 @@ import {
   navigationStyle,
 } from "@/lib/config";
 
+import headerStyles from "./NotionPageHeader.module.css";
 import styles from "./styles.module.css";
 import { ToggleThemeButton } from "./ToggleThemeButton";
 
@@ -20,6 +23,11 @@ export function NotionPageHeader({
   block: CollectionViewPageBlock | PageBlock;
 }) {
   const { components: _components, mapPageUrl, recordMap } = useNotionContext();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+
+  const closeMobileMenu = React.useCallback(() => {
+    setIsMobileMenuOpen(false);
+  }, []);
 
   const breadcrumbs = React.useMemo(() => {
     if (!block?.id || !recordMap) {
@@ -45,6 +53,7 @@ export function NotionPageHeader({
   }
 
   return (
+    <>
     <header className="notion-header">
       <div className="notion-nav-header">
         {/* New version */}
@@ -101,18 +110,75 @@ export function NotionPageHeader({
         </div> */}
 
         <div className="notion-nav-header-rhs breadcrumbs">
+          <div className={headerStyles.navLinks}>
+            {navigationLinks
+              ?.map((link, index) => {
+                if (!link?.pageId && !link?.url) {
+                  return null;
+                }
+
+                if (link.pageId) {
+                  return (
+                    <Link
+                      href={mapPageUrl(link.pageId)}
+                      key={index}
+                      className={cs(styles.navLink, "breadcrumb", "button")}
+                    >
+                      {link.title}
+                    </Link>
+                  );
+                } else {
+                  return (
+                    <a
+                      href={link.url}
+                      key={index}
+                      className={cs(styles.navLink, "breadcrumb", "button")}
+                      rel="noopener noreferrer"
+                    >
+                      {link.title}
+                    </a>
+                  );
+                }
+              })
+              .filter(Boolean)}
+          </div>
+
+          <ToggleThemeButton />
+
+          {isSearchEnabled && <Search block={block} title={null} />}
+
+          <button
+            className={headerStyles.hamburger}
+            onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+            aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={isMobileMenuOpen}
+          >
+            {isMobileMenuOpen ? <IoCloseOutline /> : <IoMenuOutline />}
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    {isMobileMenuOpen && (
+      <>
+        <div
+          className={headerStyles.backdrop}
+          onClick={closeMobileMenu}
+          aria-hidden="true"
+        />
+        <nav className={headerStyles.mobileMenu}>
           {navigationLinks
             ?.map((link, index) => {
-              if (!link?.pageId && !link?.url) {
-                return null;
-              }
+              if (!link?.pageId && !link?.url) return null;
 
               if (link.pageId) {
                 return (
                   <Link
                     href={mapPageUrl(link.pageId)}
                     key={index}
-                    className={cs(styles.navLink, "breadcrumb", "button")}
+                    className={headerStyles.mobileMenuLink}
+                    onClick={closeMobileMenu}
                   >
                     {link.title}
                   </Link>
@@ -122,8 +188,9 @@ export function NotionPageHeader({
                   <a
                     href={link.url}
                     key={index}
-                    className={cs(styles.navLink, "breadcrumb", "button")}
+                    className={headerStyles.mobileMenuLink}
                     rel="noopener noreferrer"
+                    onClick={closeMobileMenu}
                   >
                     {link.title}
                   </a>
@@ -131,12 +198,9 @@ export function NotionPageHeader({
               }
             })
             .filter(Boolean)}
-
-          <ToggleThemeButton />
-
-          {isSearchEnabled && <Search block={block} title={null} />}
-        </div>
-      </div>
-    </header>
+        </nav>
+      </>
+    )}
+    </>
   );
 }

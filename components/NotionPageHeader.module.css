@@ -1,0 +1,78 @@
+/* Nav links — hide on mobile, show on desktop */
+.navLinks {
+  display: contents;
+}
+
+/* Hamburger button — hide on desktop, show on mobile */
+.hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 1.25rem;
+  border-radius: 6px;
+  transition: background 150ms ease;
+  flex-shrink: 0;
+}
+
+.hamburger:hover {
+  background: var(--ai-role-interaction-muted);
+}
+
+/* Mobile overlay menu */
+.mobileMenu {
+  position: fixed;
+  top: var(--notion-header-height, 45px);
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: rgba(248, 248, 248, 0.97);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+:global(.dark-mode) .mobileMenu {
+  background: rgba(24, 24, 27, 0.97);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.mobileMenuLink {
+  display: block;
+  padding: 0.875rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: inherit;
+  text-decoration: none;
+  transition: background 120ms ease;
+}
+
+.mobileMenuLink:hover {
+  background: var(--ai-role-interaction-muted);
+}
+
+/* Backdrop */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  top: var(--notion-header-height, 45px);
+  z-index: 199;
+}
+
+@media (max-width: 767px) {
+  .navLinks {
+    display: none;
+  }
+
+  .hamburger {
+    display: flex;
+  }
+}
