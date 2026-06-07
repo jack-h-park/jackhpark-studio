@@ -3,7 +3,10 @@
 import { AiOutlineInfoCircle } from "@react-icons/all-files/ai/AiOutlineInfoCircle";
 import { useState } from "react";
 
-import type { ChatMessage } from "@/components/chat/hooks/useChatSession";
+import type {
+  ChatMessage,
+  ChatRetryPreset,
+} from "@/components/chat/hooks/useChatSession";
 import { MetaCard, MetaChip } from "@/components/ui/meta-card";
 import {
   Tooltip,
@@ -54,8 +57,12 @@ export function ChatMessageItem({
   showTelemetry = false,
   showCitations = false,
   citationLinkLength = 24,
-  onRetryDeepSearch,
-}: ChatMessageItemProps & { onRetryDeepSearch?: (messageId: string) => void }) {
+  retryPreset,
+  onRetryWithPreset,
+}: ChatMessageItemProps & {
+  retryPreset?: ChatRetryPreset | null;
+  onRetryWithPreset?: (targetPresetId: string) => Promise<void>;
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const citations = m.citations && m.citations.length > 0 ? m.citations : null;
@@ -157,11 +164,13 @@ export function ChatMessageItem({
   const showExpansionButton =
     (showTelemetry && hasMetadata) || (showCitations && hasCitations);
 
-  // Only offer deep search retry when the knowledge route ran RAG but came up short.
-  // Chitchat and command routes also produce insufficient:true (via buildIntentContextFallback)
-  // but intentionally skip retrieval, so intent must be "knowledge" before offering a retry.
-  const showDeepSearchRetry =
-    !!onRetryDeepSearch &&
+  // Offer a preset-escalation retry only when:
+  // - there is a higher-recall preset to escalate to (retryPreset != null)
+  // - the knowledge route ran RAG but came up short (intent=knowledge + insufficient)
+  // Chitchat and command routes also set insufficient:true but skip retrieval intentionally.
+  const showRetryWithPreset =
+    !!retryPreset &&
+    !!onRetryWithPreset &&
     m.meta?.intent === "knowledge" &&
     contextStats?.insufficient === true;
 
@@ -230,14 +239,16 @@ export function ChatMessageItem({
                     >
                       {isExpanded ? "Hide diagnostics" : "Show diagnostics"}
                     </button>
-                    {showDeepSearchRetry && (
+                    {showRetryWithPreset && (
                       <button
                         type="button"
                         className="ai-meta-collapse-btn ml-2 hover:text-blue-500"
-                        onClick={() => onRetryDeepSearch!(m.id)}
-                        title="Force a deep search retry for this query"
+                        onClick={() =>
+                          onRetryWithPreset!(retryPreset!.presetId)
+                        }
+                        title={`Retry using the ${retryPreset!.label} preset for broader retrieval`}
                       >
-                        Retry with Deep Search
+                        Retry with {retryPreset!.label}
                       </button>
                     )}
                   </div>

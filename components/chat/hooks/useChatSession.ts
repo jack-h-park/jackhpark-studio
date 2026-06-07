@@ -222,6 +222,28 @@ export type UseChatSessionOptions = {
   initialMessages?: ChatMessage[];
 };
 
+// Preset recall escalation: maps current preset to the next higher-recall preset.
+// highRecall has no escalation — the retry button is hidden when already at max recall.
+const PRESET_RECALL_ESCALATION: Partial<Record<string, string>> = {
+  fast: "default",
+  default: "highRecall",
+  precision: "highRecall",
+};
+
+const PRESET_LABELS: Record<string, string> = {
+  fast: "Fast",
+  default: "Balanced",
+  highRecall: "High Recall",
+  precision: "Precision",
+};
+
+export type ChatRetryPreset = {
+  /** Display label for the target preset, e.g. "High Recall". */
+  label: string;
+  /** The preset ID that will be used for the retry request. */
+  presetId: string;
+};
+
 export type UseChatSessionResult = {
   messages: ChatMessage[];
   isLoading: boolean;
@@ -231,7 +253,9 @@ export type UseChatSessionResult = {
     value: string,
     options?: { skipUserInsert?: boolean },
   ) => Promise<void>;
-  retryWithDeepSearch: () => Promise<void>;
+  /** The preset to escalate to on retry, or null if already at max recall. */
+  retryPreset: ChatRetryPreset | null;
+  retryWithPreset: (targetPresetId: string) => Promise<void>;
   abortActiveRequest: () => void;
 };
 
@@ -541,7 +565,13 @@ export function useChatSession(
     [isLoading, messages, runtimeConfig, config],
   );
 
-  const retryWithDeepSearch = useCallback(async () => {
+  const currentPresetId = config?.presetId ?? "default";
+  const nextPresetId = PRESET_RECALL_ESCALATION[currentPresetId] ?? null;
+  const retryPreset: ChatRetryPreset | null = nextPresetId
+    ? { label: PRESET_LABELS[nextPresetId] ?? nextPresetId, presetId: nextPresetId }
+    : null;
+
+  const retryWithPreset = useCallback(async (targetPresetId: string) => {
     if (isLoading || messages.length === 0) return;
 
     // 1. Find last user message
@@ -557,7 +587,7 @@ export function useChatSession(
       const prev = messages.at(-2);
       if (prev?.role === "user") {
         userMessage = prev;
-        newHistory = messages.slice(0, -1); // Remove the assistant failure
+        newHistory = messages.slice(0, -1); // Remove the assistant response to retry
       }
     }
 
@@ -640,14 +670,7 @@ export function useChatSession(
         body: JSON.stringify({
           question: userMessage.content,
           messages: sanitizedHistory,
-          config,
-          ragOverride: {
-            mode: "deep_search",
-            forceStrategies: {
-              hyde: true,
-              reverseRag: true,
-            },
-          },
+          config: { ...config, presetId: targetPresetId },
         }),
         signal: controller.signal,
       });
@@ -767,7 +790,8 @@ export function useChatSession(
     runtimeConfig,
     loadingAssistantId,
     sendMessage,
-    retryWithDeepSearch,
+    retryPreset,
+    retryWithPreset,
     abortActiveRequest,
   };
 }

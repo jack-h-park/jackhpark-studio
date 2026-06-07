@@ -109,6 +109,23 @@ After a preset is applied, the current UI can still override selected fields on 
 
 Because of that, “active preset” and “current effective settings” are not always the same thing. The drawer marks this condition as a custom override state.
 
+## Preset Escalation Retry
+
+When a knowledge-route response returns with insufficient retrieval context (`context.insufficient === true`), the chat UI shows a **"Retry with [Preset]"** button below the last assistant message. This button re-runs the same question using a higher-recall preset for that single request without permanently changing the session preset.
+
+The escalation map is:
+
+| Current preset | Retry preset |
+|---|---|
+| Fast | Balanced |
+| Balanced | High Recall |
+| Precision | High Recall |
+| High Recall | _(button hidden — already at max recall)_ |
+
+The retry sends `config: { ...currentConfig, presetId: targetPresetId }` to the API. Because the full preset config is applied, the retry benefits from all of the target preset's parameters (topK, similarity threshold, ranker, context budget) — not just retrieval strategy overrides.
+
+The button is suppressed for chitchat and command routes even though those also produce `insufficient: true`, because those routes intentionally skip retrieval.
+
 ## Related Docs
 
 - [guardrail-system.md](../canonical/guardrails/guardrail-system.md)

@@ -107,7 +107,7 @@ function resolveAutoMode(mode: RagAutoMode, baseEnabled: boolean): AutoBaseDecis
 - **UI Change:** Remove persistent "[Reverse RAG](../00-start-here/terminology.md#reverse-rag)" and "[HyDE](../00-start-here/terminology.md#hyde)" toggles from the "Settings" drawer.
 - **Replacement:**
   1.  Leave these as **runtime decisions** (System Managed).
-  2.  If manual override is needed, allow it as a **"Retry with Deep Search"** action on a specific message, not a global session setting. This button is shown **only when `intent === "knowledge"` AND `context.insufficient === true`** — i.e., the system attempted RAG but similarity was below threshold. It is suppressed for `chitchat` and `command` routes: those routes also produce `insufficient: true` via `buildIntentContextFallback`, but they intentionally skip retrieval so offering a retry would be misleading.
+  2.  If manual override is needed, allow it as a **"Retry with [Preset]"** action on a specific message, not a global session setting. The button escalates to the next higher-recall preset for that single request (e.g., Balanced → High Recall). It is shown only when `intent === "knowledge"` AND `context.insufficient === true`, and is suppressed for `chitchat` and `command` routes. See [session-presets.md § Preset Escalation Retry](../chat/session-presets.md#preset-escalation-retry) for the full escalation map.
 
 ## 5. Migration & Enforcement Plan
 

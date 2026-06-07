@@ -1,6 +1,9 @@
 "use client";
 
-import type { ChatMessage } from "@/components/chat/hooks/useChatSession";
+import type {
+  ChatMessage,
+  ChatRetryPreset,
+} from "@/components/chat/hooks/useChatSession";
 import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
 import { ChatMessageItem } from "@/components/chat/ChatMessageItem";
 
@@ -15,7 +18,8 @@ export type ChatMessagesPanelProps = {
   showPlaceholder?: boolean;
   citationLinkLength?: number;
   onSelectPrompt?: (prompt: string) => void;
-  onRetryDeepSearch?: (messageId: string) => void;
+  retryPreset?: ChatRetryPreset | null;
+  onRetryWithPreset?: (targetPresetId: string) => Promise<void>;
 };
 
 export function ChatMessagesPanel({
@@ -27,7 +31,8 @@ export function ChatMessagesPanel({
   showPlaceholder = true,
   citationLinkLength = 24,
   onSelectPrompt,
-  onRetryDeepSearch,
+  retryPreset,
+  onRetryWithPreset,
 }: ChatMessagesPanelProps) {
   if (messages.length === 0) {
     if (showPlaceholder) {
@@ -53,8 +58,9 @@ export function ChatMessagesPanel({
           showTelemetry={showTelemetry}
           showCitations={showCitations}
           citationLinkLength={citationLinkLength}
-          onRetryDeepSearch={
-            i === messages.length - 1 ? onRetryDeepSearch : undefined
+          retryPreset={i === messages.length - 1 ? retryPreset : undefined}
+          onRetryWithPreset={
+            i === messages.length - 1 ? onRetryWithPreset : undefined
           }
         />
       ))}

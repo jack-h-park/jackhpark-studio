@@ -1,6 +1,7 @@
 "use client";
 
 import { AiOutlineClose } from "@react-icons/all-files/ai/AiOutlineClose";
+import { AiOutlineFullscreen } from "@react-icons/all-files/ai/AiOutlineFullscreen";
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiChevronRight } from "@react-icons/all-files/fi/FiChevronRight";
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
@@ -64,7 +65,8 @@ export function ChatFloatingWindow({
     runtimeConfig,
     loadingAssistantId,
     sendMessage,
-    retryWithDeepSearch,
+    retryPreset,
+    retryWithPreset,
     abortActiveRequest,
   } = useChatSession({ source: "floating-widget" });
 
@@ -256,18 +258,16 @@ export function ChatFloatingWindow({
               {CHAT_PROMOTION_MVP_ENABLED && (
                 <button
                   type="button"
-                  className={`${styles.chatConfigToggle} ${styles.primaryActionButton} ${isPromoting ? styles.isPromoting : ""}`}
+                  className={`${styles.chatIconButton} ${isPromoting ? styles.isPromoting : ""}`}
                   onClick={handlePromote}
                   disabled={isPromoting}
+                  aria-label="Open chat in full screen"
                   title="Open chat in full screen"
                 >
                   {isPromoting ? (
-                    <>
-                      <span className={styles.promoteSpinner} aria-hidden="true" />
-                      Opening…
-                    </>
+                    <span className={styles.promoteSpinner} aria-hidden="true" />
                   ) : (
-                    "Fullscreen"
+                    <AiOutlineFullscreen size={16} />
                   )}
                 </button>
               )}
@@ -404,7 +404,8 @@ export function ChatFloatingWindow({
               showCitations={showCitations}
               showPlaceholder={false}
               citationLinkLength={24}
-              onRetryDeepSearch={retryWithDeepSearch}
+              retryPreset={retryPreset}
+              onRetryWithPreset={retryWithPreset}
             />
           </div>
         </div>

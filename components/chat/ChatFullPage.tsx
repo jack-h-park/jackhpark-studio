@@ -119,7 +119,8 @@ function ChatShellContent() {
     isLoading,
     loadingAssistantId,
     sendMessage,
-    retryWithDeepSearch,
+    retryPreset,
+    retryWithPreset,
     abortActiveRequest,
   } = useChatSession({
     source: "full-page",
@@ -347,7 +348,8 @@ function ChatShellContent() {
                 showCitations={showCitations}
                 showPlaceholder={false}
                 citationLinkLength={60}
-                onRetryDeepSearch={retryWithDeepSearch}
+                retryPreset={retryPreset}
+                onRetryWithPreset={retryWithPreset}
               />
             )}
           </div>
