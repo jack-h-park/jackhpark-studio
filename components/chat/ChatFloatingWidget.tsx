@@ -19,7 +19,7 @@ export function ChatFloatingWidget() {
         aria-label={isOpen ? "Close chat assistant" : "Open chat assistant"}
       >
         <img
-          src="/android-chrome-512x512.png"
+          src="/assets/avatar-favicon/android-chrome-512x512.png"
           alt="Assistant Icon"
           style={{ width: "100%", height: "100%" }}
         />
