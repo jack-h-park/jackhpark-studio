@@ -728,9 +728,8 @@ svg[data-processed-mermaid] .section-root tspan {
   box-shadow: 2px 2px 8px 4px rgba(15, 15, 15, 0.1);
 }
 
-/* Force left alignment for page icon */
-.notion-page-icon-hero,
-.notion-page-icon-image {
+/* Force left alignment for hero page icon only */
+.notion-page-icon-hero {
   margin-left: 0 !important;
   margin-right: auto !important;
   align-self: flex-start !important;
