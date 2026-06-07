@@ -7,6 +7,11 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 12px;
+  /* The container is sized by its children (panel + button) and can cover
+     most of the viewport on mobile. Set pointer-events:none here and
+     re-enable only on the interactive children so the page beneath stays
+     fully clickable when the chat panel is closed. */
+  pointer-events: none;
 }
 
 .button {
@@ -23,6 +28,7 @@
   transition: transform 0.2s ease-in-out;
   color: hsl(var(--ai-fg));
   overflow: hidden;
+  pointer-events: auto;
 }
 
 .button:hover {

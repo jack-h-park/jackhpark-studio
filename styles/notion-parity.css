@@ -415,6 +415,10 @@
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
+  /* iOS Safari captures touch events on overflow:auto containers to detect
+     horizontal scroll gestures, which prevents taps from registering as clicks.
+     pan-x tells the browser only horizontal panning is expected here. */
+  touch-action: pan-x;
 }
 
 .notion-polish-balanced .notion-page .notion-table-view {
@@ -490,6 +494,8 @@
   font-size: var(--np-table-size);
   line-height: 1.42;
   vertical-align: top;
+  /* Ensure taps fire immediately inside the overflow-x:auto scroll container */
+  touch-action: manipulation;
 }
 
 /* Inline database thinner/fainter borders in dark mode */
@@ -538,6 +544,8 @@
   height: auto !important;
   min-height: 30px;
   align-items: var(--np-table-title-align);
+  /* touch-action does not inherit — set explicitly so iOS taps fire immediately */
+  touch-action: manipulation;
 }
 
 .notion-polish-balanced
