@@ -12,8 +12,10 @@ export const getStaticProps: GetStaticProps<PageProps, Params> = async (
   const rawPageId = context.params?.pageId as string;
 
   try {
-    const props = await resolveNotionPage(domain, rawPageId);
-    const siteMap = await getSiteMap();
+    const [props, siteMap] = await Promise.all([
+      resolveNotionPage(domain, rawPageId),
+      getSiteMap(),
+    ]);
 
     return {
       props: {

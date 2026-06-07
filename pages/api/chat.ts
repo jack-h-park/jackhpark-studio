@@ -19,7 +19,6 @@ export default async function handler(
 
   try {
     const runtime = await loadChatModelSettings({
-      forceRefresh: true,
       sessionConfig: req.body?.config,
     });
     (req as any).chatRuntime = runtime;
