@@ -151,31 +151,26 @@ export function ChatMessageItem({
   const telemetryReady = m.isComplete ?? true;
   const hasAnyMeta = hasRuntime || hasGuardrailMeta || hasEnhancements;
 
-  // Has relevant content check
   const hasMetadata = hasAnyMeta;
   const hasCitations = citations && citations.length > 0;
 
-  // Button visibility logic: Show if either feature is enabled AND there is actual content
-  // However, the requested logic is: "SHOW/HIDE DIAGNOSTICS" button... controls BOTH metadata and citations.
-  // And we should show the button if at least one of these is enabled in settings (AND has content).
   const showExpansionButton =
     (showTelemetry && hasMetadata) || (showCitations && hasCitations);
 
-  // Only offer deep search retry when RAG was attempted but context was insufficient.
-  // Chitchat and other non-RAG routes intentionally skip retrieval, so retrying
-  // with deep search would be misleading and wasteful.
+  // Only offer deep search retry when the knowledge route ran RAG but came up short.
+  // Chitchat and command routes also produce insufficient:true (via buildIntentContextFallback)
+  // but intentionally skip retrieval, so intent must be "knowledge" before offering a retry.
   const showDeepSearchRetry =
-    !!onRetryDeepSearch && contextStats?.insufficient === true;
+    !!onRetryDeepSearch &&
+    m.meta?.intent === "knowledge" &&
+    contextStats?.insufficient === true;
 
   const telemetryActive = showTelemetry && isExpanded && telemetryReady;
 
-  // Update content visibility based on isExpanded
   const showRuntimeCard = telemetryActive && hasRuntime;
   const showGuardrailCards = telemetryActive && contextStats;
   const showEnhancementCard = telemetryActive && hasEnhancements;
 
-  // Citation visibility: check settings and existence
-  // Reverted: Citations are hidden by default and shown only when expanded (User request)
   const showCitationsSection = showCitations && isExpanded && hasCitations;
 
   const isStreamingAssistant =
@@ -183,414 +178,446 @@ export function ChatMessageItem({
   const isAbortedAssistant =
     m.role === "assistant" && m.metrics?.aborted === true && !isStreamingAssistant;
 
-  return (
-    <div key={m.id} className={styles.messageGroup}>
-      <div
-        className={`${styles.message} ${styles[m.role]} ${
-          isStreamingAssistant ? styles.isLoading : ""
-        }`}
-      >
-        {typeof m.content === "string" ? (
-          <ChatMessageRenderer
-            content={m.content}
-            policy={isExpanded ? "diagnostics" : "lite"}
+  const bubble = (
+    <div
+      className={`${styles.message} ${styles[m.role]} ${
+        isStreamingAssistant ? styles.isLoading : ""
+      }`}
+    >
+      {typeof m.content === "string" ? (
+        <ChatMessageRenderer
+          content={m.content}
+          policy={isExpanded ? "diagnostics" : "lite"}
+        />
+      ) : (
+        m.content
+      )}
+      {isStreamingAssistant && (
+        <div className={styles.assistantLoadingIndicator}>
+          <span />
+          <span />
+          <span />
+        </div>
+      )}
+      {isAbortedAssistant && (
+        <p className={`${styles.abortedLabel} ai-text-muted`}>
+          — response interrupted
+        </p>
+      )}
+    </div>
+  );
+
+  if (m.role === "assistant") {
+    return (
+      <div key={m.id} className={styles.messageGroup}>
+        <div className={styles.assistantRow}>
+          <img
+            src="/images/7FAD09AA-76ED-4C18-A8E9-34D81940A59E.png"
+            alt="Jack H. Park"
+            className={styles.assistantAvatar}
+            aria-hidden="true"
           />
-        ) : (
-          m.content
-        )}
-        {isStreamingAssistant && (
-          <div className={styles.assistantLoadingIndicator}>
-            <span />
-            <span />
-            <span />
-          </div>
-        )}
-        {isAbortedAssistant && (
-          <p className={`${styles.abortedLabel} ai-text-muted`}>
-            — response interrupted
-          </p>
-        )}
-      </div>
-      {m.role === "assistant" && (hasAnyMeta || hasCitations) && (
-        <div className={styles.messageMeta}>
-          {showExpansionButton && (
-            <div className={styles.telemetryCollapseRow}>
-              <button
-                type="button"
-                className="ai-meta-collapse-btn"
-                onClick={() => setIsExpanded(!isExpanded)}
-              >
-                {isExpanded ? "Hide diagnostics" : "Show diagnostics"}
-              </button>
-              {showDeepSearchRetry && (
-                <button
-                  type="button"
-                  className="ai-meta-collapse-btn ml-2 hover:text-blue-500"
-                  onClick={() => onRetryDeepSearch!(m.id)}
-                  title="Force a deep search retry for this query"
-                >
-                  Retry with Deep Search
-                </button>
-              )}
-            </div>
-          )}
-          {showRuntimeCard && (
-            <MetaCard
-              title="Performance"
-              variant="default"
-              items={
-                [
-                  m.metrics?.totalMs && {
-                    label: "LATENCY",
-                    value: `${(m.metrics.totalMs / 1000).toFixed(2)}s`,
-                  },
-                  m.metrics?.ttftMs && {
-                    label: "TTFT",
-                    value: `${Math.round(m.metrics.ttftMs)}ms`,
-                  },
-                  (m.meta?.telemetry?.cache?.responseHit !== undefined ||
-                    m.meta?.telemetry?.cache?.retrievalHit !== undefined) && {
-                    label: "CACHE",
-                    value: (
-                      <div className="flex flex-col gap-0.5">
-                        {m.meta?.telemetry?.cache?.responseHit !==
-                          undefined && (
-                          <div>
-                            Resp:{" "}
-                            {m.meta.telemetry.cache.responseHit
-                              ? "HIT"
-                              : "MISS"}
+          <div className={styles.assistantContent}>
+            {bubble}
+            {(hasAnyMeta || hasCitations) && (
+              <div className={styles.messageMeta}>
+                {showExpansionButton && (
+                  <div className={styles.telemetryCollapseRow}>
+                    <button
+                      type="button"
+                      className="ai-meta-collapse-btn"
+                      onClick={() => setIsExpanded(!isExpanded)}
+                    >
+                      {isExpanded ? "Hide diagnostics" : "Show diagnostics"}
+                    </button>
+                    {showDeepSearchRetry && (
+                      <button
+                        type="button"
+                        className="ai-meta-collapse-btn ml-2 hover:text-blue-500"
+                        onClick={() => onRetryDeepSearch!(m.id)}
+                        title="Force a deep search retry for this query"
+                      >
+                        Retry with Deep Search
+                      </button>
+                    )}
+                  </div>
+                )}
+                {showRuntimeCard && (
+                  <MetaCard
+                    title="Performance"
+                    variant="default"
+                    items={
+                      [
+                        m.metrics?.totalMs && {
+                          label: "LATENCY",
+                          value: `${(m.metrics.totalMs / 1000).toFixed(2)}s`,
+                        },
+                        m.metrics?.ttftMs && {
+                          label: "TTFT",
+                          value: `${Math.round(m.metrics.ttftMs)}ms`,
+                        },
+                        (m.meta?.telemetry?.cache?.responseHit !== undefined ||
+                          m.meta?.telemetry?.cache?.retrievalHit !==
+                            undefined) && {
+                          label: "CACHE",
+                          value: (
+                            <div className="flex flex-col gap-0.5">
+                              {m.meta?.telemetry?.cache?.responseHit !==
+                                undefined && (
+                                <div>
+                                  Resp:{" "}
+                                  {m.meta.telemetry.cache.responseHit
+                                    ? "HIT"
+                                    : "MISS"}
+                                </div>
+                              )}
+                              {m.meta?.telemetry?.cache?.retrievalHit !==
+                                undefined && (
+                                <div>
+                                  Retr:{" "}
+                                  {m.meta.telemetry.cache.retrievalHit
+                                    ? "HIT"
+                                    : "MISS"}
+                                </div>
+                              )}
+                            </div>
+                          ),
+                        },
+                      ].filter(Boolean) as any
+                    }
+                  />
+                )}
+                {showRuntimeCard && (
+                  <MetaCard
+                    title="Engine & Model"
+                    variant="runtime"
+                    items={
+                      [
+                        runtimeEngineLabel && {
+                          label: "ENGINE",
+                          value: runtimeEngineLabel,
+                        },
+                        runtimeLlmDisplay && {
+                          label: "LLM",
+                          value: runtimeLlmDisplay,
+                        },
+                        runtimeEmbeddingModelLabel && {
+                          label: "EMBEDDING",
+                          value: runtimeEmbeddingModelLabel,
+                        },
+                      ].filter(Boolean) as any
+                    }
+                  />
+                )}
+                {showGuardrailCards && (
+                  <MetaCard
+                    title="Guardrails"
+                    variant="guardrail"
+                    items={
+                      [
+                        {
+                          label: "ROUTE",
+                          value: m.meta!.reason ?? m.meta!.intent,
+                        },
+                        {
+                          label: "CONTEXT",
+                          value: (
+                            <>
+                              {contextUsageLabel}
+                              {contextTokensLabel
+                                ? ` ${contextTokensLabel}`
+                                : ""}
+                            </>
+                          ),
+                          isWarning: contextStats.insufficient,
+                        },
+                        historyLabel && {
+                          label: "HISTORY",
+                          value: historyLabel,
+                        },
+                        similarityThreshold !== null && {
+                          label: "SIMILARITY",
+                          value: (
+                            <>
+                              {highestSimilarity !== null
+                                ? highestSimilarity.toFixed(3)
+                                : "—"}{" "}
+                              / min {similarityThreshold.toFixed(2)}
+                              {contextStats.insufficient
+                                ? " (Insufficient)"
+                                : ""}
+                            </>
+                          ),
+                          isWarning: contextStats.insufficient,
+                        },
+                      ].filter(Boolean) as any
+                    }
+                    footer={
+                      <>
+                        {showSummaryBlock && (
+                          <div className="flex flex-col gap-0.5 w-full mt-2.5">
+                            <div className="ai-meta-card-label">SUMMARY</div>
+                            <div className="flex items-center gap-1">
+                              <div className="ai-meta-card-value">
+                                {summaryInfo
+                                  ? `History summarized (${summaryInfo.originalTokens} → ${summaryInfo.summaryTokens} tokens)`
+                                  : historySummaryLabel}
+                              </div>
+                              {summaryInfo && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="ai-info-icon">
+                                      <AiOutlineInfoCircle />
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {`${summaryInfo.trimmedTurns} of ${summaryInfo.maxTurns} turns summarized`}
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
                           </div>
                         )}
-                        {m.meta?.telemetry?.cache?.retrievalHit !==
-                          undefined && (
-                          <div>
-                            Retr:{" "}
-                            {m.meta.telemetry.cache.retrievalHit
-                              ? "HIT"
-                              : "MISS"}
+                        {m.meta?.summaryApplied && (
+                          <div className="mt-2 text-right">
+                            <MetaChip>Summary applied</MetaChip>
                           </div>
                         )}
-                      </div>
-                    ),
-                  },
-                ].filter(Boolean) as any
-              }
-            />
-          )}
-          {showRuntimeCard && (
-            <MetaCard
-              title="Engine & Model"
-              variant="runtime"
-              items={
-                [
-                  runtimeEngineLabel && {
-                    label: "ENGINE",
-                    value: runtimeEngineLabel,
-                  },
-                  runtimeLlmDisplay && {
-                    label: "LLM",
-                    value: runtimeLlmDisplay,
-                  },
-                  runtimeEmbeddingModelLabel && {
-                    label: "EMBEDDING",
-                    value: runtimeEmbeddingModelLabel,
-                  },
-                ].filter(Boolean) as any
-              }
-            />
-          )}
-          {showGuardrailCards && (
-            <MetaCard
-              title="Guardrails"
-              variant="guardrail"
-              items={
-                [
-                  {
-                    label: "ROUTE",
-                    value: m.meta!.reason ?? m.meta!.intent,
-                  },
-                  {
-                    label: "CONTEXT",
-                    value: (
-                      <>
-                        {contextUsageLabel}
-                        {contextTokensLabel ? ` ${contextTokensLabel}` : ""}
                       </>
-                    ),
-                    isWarning: contextStats.insufficient,
-                  },
-                  historyLabel && {
-                    label: "HISTORY",
-                    value: historyLabel,
-                  },
-                  similarityThreshold !== null && {
-                    label: "SIMILARITY",
-                    value: (
-                      <>
-                        {highestSimilarity !== null
-                          ? highestSimilarity.toFixed(3)
-                          : "—"}{" "}
-                        / min {similarityThreshold.toFixed(2)}
-                        {contextStats.insufficient ? " (Insufficient)" : ""}
-                      </>
-                    ),
-                    isWarning: contextStats.insufficient,
-                  },
-                ].filter(Boolean) as any
-              }
-              footer={
-                <>
-                  {showSummaryBlock && (
-                    <div className="flex flex-col gap-0.5 w-full mt-2.5">
-                      <div className="ai-meta-card-label">SUMMARY</div>
-                      <div className="flex items-center gap-1">
-                        <div className="ai-meta-card-value">
-                          {summaryInfo
-                            ? `History summarized (${summaryInfo.originalTokens} → ${summaryInfo.summaryTokens} tokens)`
-                            : historySummaryLabel}
-                        </div>
-                        {summaryInfo && (
+                    }
+                  />
+                )}
+                {showEnhancementCard && (
+                  <MetaCard
+                    title="Enhancements"
+                    variant="enhancements"
+                    items={[
+                      {
+                        label: "REVERSE RAG",
+                        value: (
+                          <div className="flex items-center gap-1">
+                            {enhancements?.reverseRag ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="cursor-help">
+                                    {enhancements.reverseRag.enabled
+                                      ? enhancements.reverseRag.mode
+                                      : "off"}
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {`mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              "off"
+                            )}
+                            {enhancements?.reverseRag?.enabled && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="ai-info-icon">
+                                    <AiOutlineInfoCircle />
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {`original: ${truncateText(
+                                    enhancements.reverseRag.original,
+                                    40,
+                                  )}\nrewritten: ${truncateText(
+                                    enhancements.reverseRag.rewritten,
+                                    40,
+                                  )}`}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        ),
+                      },
+                      {
+                        label: "HyDE",
+                        value: enhancements?.hyde?.enabled ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <div className="ai-info-icon">
-                                <AiOutlineInfoCircle />
+                              <div className="cursor-help">
+                                {enhancements.hyde.generated
+                                  ? truncateText(enhancements.hyde.generated, 40)
+                                  : "generated"}
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                              {`${summaryInfo.trimmedTurns} of ${summaryInfo.maxTurns} turns summarized`}
+                              {enhancements.hyde.generated ?? ""}
                             </TooltipContent>
                           </Tooltip>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {m.meta?.summaryApplied && (
-                    <div className="mt-2 text-right">
-                      <MetaChip>Summary applied</MetaChip>
-                    </div>
-                  )}
-                </>
-              }
-            />
-          )}
-          {showEnhancementCard && (
-            <MetaCard
-              title="Enhancements"
-              variant="enhancements"
-              items={[
-                {
-                  label: "REVERSE RAG",
-                  value: (
-                    <div className="flex items-center gap-1">
-                      {enhancements?.reverseRag ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="cursor-help">
-                              {enhancements.reverseRag.enabled
-                                ? enhancements.reverseRag.mode
-                                : "off"}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {`mode: ${enhancements.reverseRag.mode}\noriginal: ${enhancements.reverseRag.original}\nrewritten: ${enhancements.reverseRag.rewritten}`}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        "off"
-                      )}
-                      {enhancements?.reverseRag?.enabled && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="ai-info-icon">
-                              <AiOutlineInfoCircle />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {`original: ${truncateText(
-                              enhancements.reverseRag.original,
-                              40,
-                            )}\nrewritten: ${truncateText(
-                              enhancements.reverseRag.rewritten,
-                              40,
-                            )}`}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                  ),
-                },
-                {
-                  label: "HyDE",
-                  value: enhancements?.hyde?.enabled ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="cursor-help">
-                          {enhancements.hyde.generated
-                            ? truncateText(enhancements.hyde.generated, 40)
-                            : "generated"}
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        {enhancements.hyde.generated ?? ""}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    "off"
-                  ),
-                },
-                {
-                  label: "RANKER",
-                  value: enhancements?.ranker?.mode ?? "none",
-                },
-              ]}
-            />
-          )}
-        </div>
-      )}
-      {m.role === "assistant" && showCitationsSection && (
-        <div className={styles.messageCitationsPanel}>
-          {m.citationMeta && (
-            <div className={styles.citationMetaBanner}>
-              <span>
-                Showing {m.citationMeta.uniqueDocs} document
-                {m.citationMeta.uniqueDocs > 1 ? "s" : ""} (
-                {m.citationMeta.topKChunks
-                  ? `Top ${m.citationMeta.topKChunks} chunks → grouped into ${m.citationMeta.uniqueDocs} documents`
-                  : "Chunks grouped by document"}
-                )
-              </span>
-            </div>
-          )}
-          <ol className={styles.messageCitations}>
-            {citations.map((citation, index) => {
-              const title =
-                (citation.title ?? "").trim() ||
-                (citation.url ?? "").trim() ||
-                `Document ${index + 1}`;
-              const url = (citation.url ?? "").trim();
-              const docMetaDetails = [
-                citation.docType ? `Doc type: ${citation.docType}` : null,
-                citation.personaType
-                  ? `Persona: ${citation.personaType}`
-                  : null,
-              ].filter(Boolean);
-              const relevance = Number.isFinite(citation.normalizedScore)
-                ? citation.normalizedScore
-                : 0;
-              const excerptLabel =
-                citation.excerptCount > 1
-                  ? `${citation.excerptCount} excerpts`
-                  : "1 excerpt";
-              return (
-                <li
-                  key={`${m.id}-citation-${index}`}
-                  className={styles.citationItem}
-                >
-                  <div className={styles.citationHeader}>
-                    <span className={styles.citationIndex}>{index + 1}</span>
-                    <div className={styles.citationTitleBlock}>
-                      <div className={styles.citationTitle}>
-                        {title}
-                        {url && (
-                          <>
-                            {" "}
-                            <a
-                              href={url}
-                              target="_blank"
-                              rel="noreferrer noopener"
-                            >
-                              {formatLinkLabel(url, citationLinkLength)}
-                            </a>
-                          </>
-                        )}
-                      </div>
-                      {docMetaDetails.length > 0 && (
-                        <div className={styles.citationDocMeta}>
-                          {docMetaDetails.join(" · ")}
-                        </div>
-                      )}
-                    </div>
-                    <div className={styles.citationRelevance}>
-                      <span>Relevance: {relevance}/100</span>
-                      <span className={styles.citationSubtext}>
-                        (score {citation.finalScore.toFixed(4)})
-                      </span>
-                    </div>
-                  </div>
-                  <div className={styles.citationBadgeRow}>
-                    <span
-                      className={styles.citationMultiplier}
-                      title="Multiplier applied to similarity score based on document metadata."
-                    >
-                      Persona/type multiplier: {citation.weight.toFixed(2)}
-                    </span>
-                    <span className={styles.citationExcerptCount}>
-                      {excerptLabel}
+                        ) : (
+                          "off"
+                        ),
+                      },
+                      {
+                        label: "RANKER",
+                        value: enhancements?.ranker?.mode ?? "none",
+                      },
+                    ]}
+                  />
+                )}
+              </div>
+            )}
+            {showCitationsSection && (
+              <div className={styles.messageCitationsPanel}>
+                {m.citationMeta && (
+                  <div className={styles.citationMetaBanner}>
+                    <span>
+                      Showing {m.citationMeta.uniqueDocs} document
+                      {m.citationMeta.uniqueDocs > 1 ? "s" : ""} (
+                      {m.citationMeta.topKChunks
+                        ? `Top ${m.citationMeta.topKChunks} chunks → grouped into ${m.citationMeta.uniqueDocs} documents`
+                        : "Chunks grouped by document"}
+                      )
                     </span>
                   </div>
-                  <details className={styles.citationDetails}>
-                    <summary>Details</summary>
-                    <div className={styles.citationDetailGrid}>
-                      <div>
-                        <div className={styles.citationDetailLabel}>
-                          Similarity max
-                        </div>
-                        <div>{citation.similarityMax.toFixed(4)}</div>
-                      </div>
-                      <div>
-                        <div className={styles.citationDetailLabel}>
-                          Similarity avg
-                        </div>
-                        <div>{citation.similarityAvg.toFixed(4)}</div>
-                      </div>
-                      <div>
-                        <div className={styles.citationDetailLabel}>Weight</div>
-                        <div>{citation.weight.toFixed(2)}</div>
-                      </div>
-                      <div>
-                        <div className={styles.citationDetailLabel}>
-                          Final score
-                        </div>
-                        <div>{citation.finalScore.toFixed(4)}</div>
-                      </div>
-                      <div>
-                        <div className={styles.citationDetailLabel}>
-                          Normalized
-                        </div>
-                        <div>{citation.normalizedScore}/100</div>
-                      </div>
-                    </div>
-                    <div className={styles.citationChunkList}>
-                      {citation.chunks.map((chunk) => (
-                        <article
-                          key={`${citation.docId ?? index}-${chunk.chunkIndex}`}
-                          className={styles.citationChunkItem}
-                        >
-                          <p className={styles.citationChunkSnippet}>
-                            {chunk.snippet}
-                          </p>
-                          <div className={styles.citationChunkMeta}>
-                            {`similarity ${chunk.similarity.toFixed(
-                              3,
-                            )} · final ${chunk.finalScore.toFixed(3)}`}
+                )}
+                <ol className={styles.messageCitations}>
+                  {citations.map((citation, index) => {
+                    const title =
+                      (citation.title ?? "").trim() ||
+                      (citation.url ?? "").trim() ||
+                      `Document ${index + 1}`;
+                    const url = (citation.url ?? "").trim();
+                    const docMetaDetails = [
+                      citation.docType ? `Doc type: ${citation.docType}` : null,
+                      citation.personaType
+                        ? `Persona: ${citation.personaType}`
+                        : null,
+                    ].filter(Boolean);
+                    const relevance = Number.isFinite(citation.normalizedScore)
+                      ? citation.normalizedScore
+                      : 0;
+                    const excerptLabel =
+                      citation.excerptCount > 1
+                        ? `${citation.excerptCount} excerpts`
+                        : "1 excerpt";
+                    return (
+                      <li
+                        key={`${m.id}-citation-${index}`}
+                        className={styles.citationItem}
+                      >
+                        <div className={styles.citationHeader}>
+                          <span className={styles.citationIndex}>
+                            {index + 1}
+                          </span>
+                          <div className={styles.citationTitleBlock}>
+                            <div className={styles.citationTitle}>
+                              {title}
+                              {url && (
+                                <>
+                                  {" "}
+                                  <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                  >
+                                    {formatLinkLabel(url, citationLinkLength)}
+                                  </a>
+                                </>
+                              )}
+                            </div>
+                            {docMetaDetails.length > 0 && (
+                              <div className={styles.citationDocMeta}>
+                                {docMetaDetails.join(" · ")}
+                              </div>
+                            )}
                           </div>
-                        </article>
-                      ))}
-                    </div>
-                    <p className={styles.citationChunkNotice}>
-                      This document contributed {citation.excerptCount} of the
-                      top-
-                      {m.citationMeta?.topKChunks ?? citation.excerptCount}{" "}
-                      retrieved chunks.
-                    </p>
-                  </details>
-                </li>
-              );
-            })}
-          </ol>
+                          <div className={styles.citationRelevance}>
+                            <span>Relevance: {relevance}/100</span>
+                            <span className={styles.citationSubtext}>
+                              (score {citation.finalScore.toFixed(4)})
+                            </span>
+                          </div>
+                        </div>
+                        <div className={styles.citationBadgeRow}>
+                          <span
+                            className={styles.citationMultiplier}
+                            title="Multiplier applied to similarity score based on document metadata."
+                          >
+                            Persona/type multiplier: {citation.weight.toFixed(2)}
+                          </span>
+                          <span className={styles.citationExcerptCount}>
+                            {excerptLabel}
+                          </span>
+                        </div>
+                        <details className={styles.citationDetails}>
+                          <summary>Details</summary>
+                          <div className={styles.citationDetailGrid}>
+                            <div>
+                              <div className={styles.citationDetailLabel}>
+                                Similarity max
+                              </div>
+                              <div>{citation.similarityMax.toFixed(4)}</div>
+                            </div>
+                            <div>
+                              <div className={styles.citationDetailLabel}>
+                                Similarity avg
+                              </div>
+                              <div>{citation.similarityAvg.toFixed(4)}</div>
+                            </div>
+                            <div>
+                              <div className={styles.citationDetailLabel}>
+                                Weight
+                              </div>
+                              <div>{citation.weight.toFixed(2)}</div>
+                            </div>
+                            <div>
+                              <div className={styles.citationDetailLabel}>
+                                Final score
+                              </div>
+                              <div>{citation.finalScore.toFixed(4)}</div>
+                            </div>
+                            <div>
+                              <div className={styles.citationDetailLabel}>
+                                Normalized
+                              </div>
+                              <div>{citation.normalizedScore}/100</div>
+                            </div>
+                          </div>
+                          <div className={styles.citationChunkList}>
+                            {citation.chunks.map((chunk) => (
+                              <article
+                                key={`${citation.docId ?? index}-${chunk.chunkIndex}`}
+                                className={styles.citationChunkItem}
+                              >
+                                <p className={styles.citationChunkSnippet}>
+                                  {chunk.snippet}
+                                </p>
+                                <div className={styles.citationChunkMeta}>
+                                  {`similarity ${chunk.similarity.toFixed(
+                                    3,
+                                  )} · final ${chunk.finalScore.toFixed(3)}`}
+                                </div>
+                              </article>
+                            ))}
+                          </div>
+                          <p className={styles.citationChunkNotice}>
+                            This document contributed {citation.excerptCount} of
+                            the top-
+                            {m.citationMeta?.topKChunks ??
+                              citation.excerptCount}{" "}
+                            retrieved chunks.
+                          </p>
+                        </details>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div key={m.id} className={styles.messageGroup}>
+      {bubble}
     </div>
   );
 }

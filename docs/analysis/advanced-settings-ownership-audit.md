@@ -107,7 +107,7 @@ function resolveAutoMode(mode: RagAutoMode, baseEnabled: boolean): AutoBaseDecis
 - **UI Change:** Remove persistent "[Reverse RAG](../00-start-here/terminology.md#reverse-rag)" and "[HyDE](../00-start-here/terminology.md#hyde)" toggles from the "Settings" drawer.
 - **Replacement:**
   1.  Leave these as **runtime decisions** (System Managed).
-  2.  If manual override is needed, allow it as a **"Retry with Deep Search"** action on a specific message, not a global session setting. This button is shown **only when RAG was attempted but context was insufficient** (`context.insufficient === true`). It is suppressed for chitchat and other non-RAG routes where retrieval was intentionally skipped.
+  2.  If manual override is needed, allow it as a **"Retry with Deep Search"** action on a specific message, not a global session setting. This button is shown **only when `intent === "knowledge"` AND `context.insufficient === true`** — i.e., the system attempted RAG but similarity was below threshold. It is suppressed for `chitchat` and `command` routes: those routes also produce `insufficient: true` via `buildIntentContextFallback`, but they intentionally skip retrieval so offering a retry would be misleading.
 
 ## 5. Migration & Enforcement Plan
 
