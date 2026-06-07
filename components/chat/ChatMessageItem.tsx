@@ -161,6 +161,12 @@ export function ChatMessageItem({
   const showExpansionButton =
     (showTelemetry && hasMetadata) || (showCitations && hasCitations);
 
+  // Only offer deep search retry when RAG was attempted but context was insufficient.
+  // Chitchat and other non-RAG routes intentionally skip retrieval, so retrying
+  // with deep search would be misleading and wasteful.
+  const showDeepSearchRetry =
+    !!onRetryDeepSearch && contextStats?.insufficient === true;
+
   const telemetryActive = showTelemetry && isExpanded && telemetryReady;
 
   // Update content visibility based on isExpanded
@@ -216,11 +222,11 @@ export function ChatMessageItem({
               >
                 {isExpanded ? "Hide diagnostics" : "Show diagnostics"}
               </button>
-              {onRetryDeepSearch && (
+              {showDeepSearchRetry && (
                 <button
                   type="button"
                   className="ai-meta-collapse-btn ml-2 hover:text-blue-500"
-                  onClick={() => onRetryDeepSearch(m.id)}
+                  onClick={() => onRetryDeepSearch!(m.id)}
                   title="Force a deep search retry for this query"
                 >
                   Retry with Deep Search
