@@ -11,7 +11,6 @@ import {
   parsePageId,
 } from "notion-utils";
 import * as React from "react";
-import BodyClassName from "react-body-classname";
 import { type NotionComponents, useNotionContext } from "react-notion-x";
 import { EmbeddedTweet, TweetNotFound, TweetSkeleton } from "react-tweet";
 import { useSearchParam } from "react-use";
@@ -727,6 +726,17 @@ export function NotionPage({
   // lite mode is for oembed
   const isLiteMode = lite === "true";
 
+  // notion-lite is page-scoped (only when ?lite=true), so it is safe to
+  // add/remove via a plain effect.  Dark-mode and notion-polish-* classes
+  // are handled at the _app / DarkModeProvider level so they never flash.
+  React.useEffect(() => {
+    if (!isLiteMode) return;
+    document.body.classList.add("notion-lite");
+    return () => {
+      document.body.classList.remove("notion-lite");
+    };
+  }, [isLiteMode]);
+
   const { isDarkMode } = useDarkMode();
 
   const siteMapPageUrl = React.useMemo(() => {
@@ -979,12 +989,6 @@ export function NotionPage({
         enabled={showCustomHeader}
         recordMap={recordMap}
         pageId={pageId}
-      />
-
-      {isLiteMode && <BodyClassName className="notion-lite" />}
-      {isDarkMode && <BodyClassName className="dark dark-mode" />}
-      <BodyClassName
-        className={`notion-polish-${config.notionPolishProfile}`}
       />
 
       {recordMap && (

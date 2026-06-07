@@ -13,7 +13,7 @@ import React, { useEffect } from "react";
 import { ChatPromotionSessionProvider } from "@/components/chat/context/ChatPromotionSessionContext";
 import { DarkModeProvider } from "@/components/DarkModeProvider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { fathomConfig, fathomId, posthogConfig, posthogId } from "@/lib/config";
+import { fathomConfig, fathomId, notionPolishProfile, posthogConfig, posthogId } from "@/lib/config";
 
 // extend window with gtag
 declare global {
@@ -54,6 +54,14 @@ export const event = ({ action, category, label, value }: GTagEvent) => {
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
+
+  // Apply the notion-polish-* body class once for the entire session.
+  // This must live here (not inside NotionPage) so it is never removed
+  // during client-side page transitions — removing it mid-navigation is
+  // what caused the full-screen white flash on back navigation.
+  useEffect(() => {
+    document.body.classList.add(`notion-polish-${notionPolishProfile}`);
+  }, []);
 
   useEffect(() => {
     // Google Analytics

@@ -14,7 +14,12 @@ export function DarkModeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Keep both `dark` (CSS-variable resets) and `dark-mode` (Notion-parity
+    // rules like `.notion-polish-balanced.dark-mode`) in sync.  These are
+    // applied at the provider level so they survive client-side page
+    // transitions without flashing.
     document.body.classList.toggle("dark", darkMode.value);
+    document.body.classList.toggle("dark-mode", darkMode.value);
   }, [darkMode.value]);
 
   return (
