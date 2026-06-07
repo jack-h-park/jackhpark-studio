@@ -12,6 +12,7 @@ import React, { useEffect } from "react";
 
 import { ChatPromotionSessionProvider } from "@/components/chat/context/ChatPromotionSessionContext";
 import { DarkModeProvider } from "@/components/DarkModeProvider";
+import { NavigationProgress } from "@/components/NavigationProgress";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { fathomConfig, fathomId, notionPolishProfile, posthogConfig, posthogId } from "@/lib/config";
 
@@ -102,6 +103,7 @@ export default function App({ Component, pageProps }: AppProps) {
     <DarkModeProvider>
       <ChatPromotionSessionProvider>
         <TooltipProvider>
+          <NavigationProgress />
           <Component {...pageProps} />
         </TooltipProvider>
       </ChatPromotionSessionProvider>

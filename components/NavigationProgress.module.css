@@ -1,0 +1,30 @@
+.bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient-full);
+  z-index: 9999;
+  transform-origin: left center;
+  pointer-events: none;
+}
+
+.loading {
+  animation: nav-fill 3s cubic-bezier(0.1, 0, 0, 1) forwards;
+}
+
+.complete {
+  animation: nav-done 0.45s ease-out forwards;
+}
+
+@keyframes nav-fill {
+  from { transform: scaleX(0); opacity: 1; }
+  to   { transform: scaleX(0.85); opacity: 1; }
+}
+
+@keyframes nav-done {
+  0%   { transform: scaleX(0.85); opacity: 1; }
+  40%  { transform: scaleX(1);    opacity: 1; }
+  100% { transform: scaleX(1);    opacity: 0; }
+}
