@@ -28,11 +28,6 @@
   pointer-events: auto;
 }
 
-.chatPanel.isLarge {
-  width: 600px;
-  height: 640px;
-  max-height: calc(100vh - 100px);
-}
 
 .chatHeader {
   padding: 14px 16px;
@@ -240,7 +235,8 @@
   color: hsl(var(--ai-fg));
 }
 
-/* Existing button styles */
+/* Icon-only header buttons (close, system view, etc.) */
+.chatIconButton,
 .chatCloseButton {
   display: flex;
   align-items: center;
@@ -251,35 +247,42 @@
   padding: 6px;
   border-radius: 8px;
   color: hsl(var(--ai-fg-muted));
+  transition: color 0.2s ease, background 0.2s ease;
+  flex-shrink: 0;
 }
 
-.chatExpandButton {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: hsl(var(--ai-fg-muted));
-  transition: color 0.2s ease;
-}
-
-.chatCloseButton:hover,
-.chatExpandButton:hover {
+.chatIconButton:hover,
+.chatCloseButton:hover {
   color: hsl(var(--ai-fg));
   background: hsl(var(--ai-bg-muted));
 }
 
-@media (max-width: 480px) {
+/* Active state for toggled icon buttons (e.g. system view open) */
+.chatIconButton[aria-pressed="true"] {
+  color: var(--ai-accent);
+  background: hsl(var(--ai-bg-muted));
+}
+
+/* Mobile: bottom sheet anchored to viewport edge */
+@media (max-width: 500px) {
   .chatPanel {
-    width: calc(100vw - 32px);
-    height: 70vh;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 65vh;
+    max-height: 65vh;
+    border-radius: 16px 16px 0 0;
+    /* Slide up from bottom instead of fading from below */
+    transform: translateY(100%);
+    opacity: 1;
   }
-  .chatPanel.isLarge {
-    width: calc(100vw - 32px);
-    height: 72vh;
+
+  .chatPanel.isOpen {
+    transform: translateY(0);
+    opacity: 1;
   }
 }
 

@@ -14,7 +14,7 @@ export function ChatFloatingWidget() {
       <ChatFloatingWindow isOpen={isOpen} onClose={() => setIsOpen(false)} />
       <button
         type="button"
-        className={styles.button}
+        className={`${styles.button} ${isOpen ? styles.buttonHidden : ""}`}
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label={isOpen ? "Close chat assistant" : "Open chat assistant"}
       >

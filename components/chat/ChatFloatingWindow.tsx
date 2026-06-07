@@ -1,10 +1,9 @@
 "use client";
 
-import { AiOutlineArrowsAlt } from "@react-icons/all-files/ai/AiOutlineArrowsAlt";
 import { AiOutlineClose } from "@react-icons/all-files/ai/AiOutlineClose";
-import { AiOutlineCompress } from "@react-icons/all-files/ai/AiOutlineCompress";
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiChevronRight } from "@react-icons/all-files/fi/FiChevronRight";
+import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import { GiBrain } from "@react-icons/all-files/gi/GiBrain";
 import { useRouter } from "next/router";
 import {
@@ -34,7 +33,6 @@ const CHAT_PROMOTION_MVP_ENABLED =
 
 export type ChatFloatingWindowProps = {
   isOpen: boolean;
-  showExpandButton?: boolean;
   showCloseButton?: boolean;
   onClose?: () => void;
   headerAction?: ReactNode;
@@ -43,7 +41,6 @@ export type ChatFloatingWindowProps = {
 export function ChatFloatingWindow({
   isOpen,
   showCloseButton = true,
-  showExpandButton = true,
   onClose,
   headerAction,
 }: ChatFloatingWindowProps) {
@@ -56,7 +53,6 @@ export function ChatFloatingWindow({
   } = useChatPromotionSession();
   const [input, setInput] = useState("");
   const [cid, setCid] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
   const [isPromoting, setIsPromoting] = useState(false);
   // const messagesEndRef = useRef<HTMLDivElement>(null); // Removed: using useChatScroll
@@ -121,10 +117,6 @@ export function ChatFloatingWindow({
       inputRef.current?.focus();
     });
   }, [isOpen]);
-
-  const togglePanelSize = () => {
-    setIsExpanded((prev) => !prev);
-  };
 
   const { scrollRef, onScroll } = useChatScroll({
     messages,
@@ -234,9 +226,7 @@ export function ChatFloatingWindow({
     <>
       <div
         data-theme="jp"
-        className={`${styles.chatPanel} ${isOpen ? styles.isOpen : ""} ${
-          isExpanded ? styles.isLarge : ""
-        }`}
+        className={`${styles.chatPanel} ${isOpen ? styles.isOpen : ""}`}
       >
         <header className={styles.chatHeader}>
           <div className={styles.chatHeaderTop}>
@@ -255,11 +245,13 @@ export function ChatFloatingWindow({
               )}
               <button
                 type="button"
-                className={`${styles.chatConfigToggle} ${styles.primaryActionButton}`}
+                className={styles.chatIconButton}
                 onClick={toggleOptions}
+                aria-label={showOptions ? "Hide system view" : "Show system view"}
                 title="Inspect active model, retrieval (RAG), and system configuration"
+                aria-pressed={showOptions}
               >
-                {showOptions ? "Hide System View" : "System View"}
+                <FiSliders size={15} />
               </button>
               {CHAT_PROMOTION_MVP_ENABLED && (
                 <button
@@ -280,22 +272,6 @@ export function ChatFloatingWindow({
                 </button>
               )}
               {headerAction}
-              {showExpandButton && (
-                <button
-                  type="button"
-                  className={styles.chatExpandButton}
-                  aria-label={
-                    isExpanded ? "Shrink chat panel" : "Expand chat panel"
-                  }
-                  onClick={togglePanelSize}
-                >
-                  {isExpanded ? (
-                    <AiOutlineCompress size={16} />
-                  ) : (
-                    <AiOutlineArrowsAlt size={16} />
-                  )}
-                </button>
-              )}
               {showCloseButton && (
                 <button
                   className={styles.chatCloseButton}

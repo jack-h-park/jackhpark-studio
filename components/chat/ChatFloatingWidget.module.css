@@ -34,3 +34,13 @@
 .button:hover {
   transform: scale(1.1);
 }
+
+/* On mobile the bottom sheet covers the trigger button — hide it while open */
+@media (max-width: 500px) {
+  .buttonHidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.8);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+}
