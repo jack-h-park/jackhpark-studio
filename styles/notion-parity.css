@@ -130,27 +130,46 @@
 }
 
 /* ─── YouTube-style two-layer cover ─────────────────────────────────────────
-   Background layer  : same image, fills 100 % width, heavily blurred
-   Foreground layer  : same image, constrained to --notion-max-width, sharp
-   Eliminates the stretch / crop problem at wide viewports.
+   Background layer  : same image, fills 100 % width, blurred
+   Foreground layer  : same image, constrained to --notion-max-width, sharp,
+                       with a gradient mask that fades its left/right edges so
+                       the transition into the blurred background is seamless.
    ─────────────────────────────────────────────────────────────────────────── */
 
-/* Background: extend slightly beyond container bounds to hide blur fringe,
-   then let overflow: hidden on the wrapper clip it. */
+/* Background: extend beyond container bounds to hide blur fringe,
+   clipped by overflow: hidden on the wrapper.
+   brightness(0.72) keeps the bg readable without too much contrast vs center. */
 .notion-polish-balanced .notion-yt-cover__bg {
   position: absolute;
-  inset: -10% -5%;          /* outset > 0 so blur edge is cropped, not visible */
+  inset: -10% -5%;
   background-size: cover;
-  filter: blur(24px) brightness(0.55) saturate(1.2);
+  filter: blur(20px) brightness(0.72) saturate(1.15);
 }
 
-/* Foreground container: centres the constrained image horizontally */
+/* Foreground container: centres the constrained image horizontally.
+   The horizontal mask fades the image edges into the blurred background —
+   the fade zone spans from the viewport edge to 80 px inside the image
+   boundary so there is no visible hard rectangular cutoff. */
 .notion-polish-balanced .notion-yt-cover__fg {
   position: absolute;
   inset: 0;
   display: flex;
   justify-content: center;
   align-items: stretch;
+  mask-image: linear-gradient(
+    to right,
+    rgb(0 0 0 / 0) 0%,
+    rgb(0 0 0 / 1) calc(50% - var(--notion-max-width, 744px) / 2 + 80px),
+    rgb(0 0 0 / 1) calc(50% + var(--notion-max-width, 744px) / 2 - 80px),
+    rgb(0 0 0 / 0) 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    rgb(0 0 0 / 0) 0%,
+    rgb(0 0 0 / 1) calc(50% - var(--notion-max-width, 744px) / 2 + 80px),
+    rgb(0 0 0 / 1) calc(50% + var(--notion-max-width, 744px) / 2 - 80px),
+    rgb(0 0 0 / 0) 100%
+  );
 }
 
 /* Foreground image: sharp, covers its constrained box */
