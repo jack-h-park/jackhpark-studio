@@ -27,20 +27,30 @@ On wide viewports (≥ ~900px), the cover image was full-width (`100vw`) while t
 2. Severe image cropping — at 1440px the container aspect ratio becomes ~5:1, causing `object-fit: cover` to zoom into the center and discard most of the image.
 
 ### Decision
-**Blur fill (Option C)** — full-bleed cover retained, side regions outside the content column are darkened and blurred with a soft gradient fade at the inner edge.
+**YouTube-style two-layer cover** — background layer fills the full cover band (blurred, darkened); foreground layer is the same image constrained to the content column width (sharp, unclipped).
 
-Implementation in `styles/notion-parity.css` (`.notion-polish-balanced .notion-page-cover-wrapper`):
-- `position: relative` on the wrapper
-- `::before` (left) and `::after` (right) pseudo-elements, each `calc(50% - var(--notion-max-width) / 2)` wide
-- `backdrop-filter: blur(18px) brightness(0.62) saturate(1.3)` — blurs and darkens the cover image behind the overlay
-- `mask-image: linear-gradient(to right/left, black 55%, transparent)` — soft inner edge so the blur fades into the sharp center
+#### Architecture
+Rather than CSS pseudo-elements (which cannot render the image twice), the cover is replaced at the React level via `NotionRenderer`'s `pageCover` prop.
+
+**`components/NotionCoverBlurFill.tsx`** — the two-layer component:
+- Root div keeps class `notion-page-cover-wrapper notion-yt-cover` so height/overflow tokens still apply.
+- `.notion-yt-cover__bg` — `background-image` (same URL), `inset: -10% -5%` to hide blur fringe inside `overflow: hidden`, `filter: blur(24px) brightness(0.55) saturate(1.2)`.
+- `.notion-yt-cover__fg > .notion-yt-cover__img` — `<img>`, `max-width: var(--notion-max-width, 744px)`, `object-fit: cover`, `object-position` set from `page_cover_position`.
+
+**`components/NotionPageRenderer.tsx`** — extracts `page_cover` and `page_cover_position` from the sanitised `recordMap`, maps the URL via `mapImageUrl`, and passes `<NotionCoverBlurFill>` as `pageCover` to `NotionRenderer`. Falls back to react-notion-x default if no cover URL is present.
+
+**`styles/notion-parity.css`** — the old `::before`/`::after` backdrop-filter pseudo-elements have been removed; CSS now only scopes `.notion-yt-cover__*` rules for the new component.
 
 ### Width resolution
-`--notion-max-width` inherits correctly from `.notion { --notion-max-width: 744px }` and is overridden to `900px` by `.index-page`, so the effect automatically adapts to both page types. On viewports narrower than the content column the `calc()` evaluates to ≤ 0 and the pseudo-elements vanish.
+`--notion-max-width` resolves to `744px` for regular pages and `900px` on `.index-page`. The foreground `<img>` respects this automatically via `max-width: var(--notion-max-width, 744px)`.
+
+### Why not CSS-only `backdrop-filter`?
+`backdrop-filter: blur()` on a smooth photographic image produces no visible sharpness change (no sharp detail to blur). The only visible effect was `brightness()` darkening — which doesn't help with the stretch/crop issue in the foreground image. The React two-layer approach renders the background from a separate DOM element so the blur is applied to the image itself via `filter`, which works regardless of image type.
 
 ### Alternatives considered
-- `max-width: 744px` on the cover wrapper: clean alignment but loses the cover image feel entirely.
-- `max-width: 1000px`: wider but still creates left/right white margin bands.
+- `max-width: 744px` on the cover wrapper: eliminates cover feel entirely, white gaps at sides.
+- `max-width: 1000px`: wider but still creates side gaps.
+- CSS `::before`/`::after` with `backdrop-filter`: effective on text/UI but invisible on smooth gradients; doesn't fix foreground stretch.
 
 ---
 
