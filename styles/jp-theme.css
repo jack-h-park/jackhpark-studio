@@ -149,6 +149,7 @@ body.dark-mode [data-theme="jp"] {
 
 /* Active nav pill → gradient border */
 [data-theme="jp"] .ai-selectable--active {
+  border-width: 2px;
   background:
     linear-gradient(
       var(--bg-surface, #F7F6F3),
