@@ -45,6 +45,28 @@
   gap: 4px;
 }
 
+.assistantRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.assistantAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.assistantContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
 .isLoading {
   position: relative;
   overflow: hidden;
