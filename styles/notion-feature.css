@@ -40,15 +40,15 @@
 }
 
 .notion-mermaid {
-  --m-bg: #f9fafb;
-  --m-border: #cbd5e1;
-  --m-fg: #1e293b;
-  --m-root-bg: #9df5db;
-  --m-root-border: var(--m-border);
-  --m-root-fg: var(--m-fg);
-  --m-font-size: 1rem;
+  --m-bg: #f7f6f3;
+  --m-border: #c2bdb0;
+  --m-fg: #191919;
+  --m-root-bg: #eae4f2;
+  --m-root-border: #b439df;
+  --m-root-fg: #191919;
+  --m-font-size: 0.8125rem;
   --m-font-weight: 700;
-  --m-root-font-size: 1.1rem;
+  --m-root-font-size: 0.875rem;
   --m-root-font-weight: 700;
   display: block;
   width: 100%;
@@ -64,15 +64,15 @@
 .notion-dark-theme .notion-mermaid,
 [data-theme="dark"] .notion-mermaid,
 .dark-mode .notion-mermaid {
-  --m-bg: #122d34;
-  --m-border: #475569;
-  --m-fg: #e2e8f0;
-  --m-root-bg: #576422;
-  --m-root-border: var(--m-border);
-  --m-root-fg: var(--m-fg);
-  --m-font-size: 1rem;
+  --m-bg: #252525;
+  --m-border: #4b4842;
+  --m-fg: #f2f0ea;
+  --m-root-bg: #412454;
+  --m-root-border: #b439df;
+  --m-root-fg: #f2f0ea;
+  --m-font-size: 0.8125rem;
   --m-font-weight: 700;
-  --m-root-font-size: 1.1rem;
+  --m-root-font-size: 0.875rem;
   --m-root-font-weight: 700;
   background: rgba(255, 255, 255, 0.04);
   color: var(--m-fg);

@@ -37,8 +37,49 @@ export function MermaidDiagram({ code, blockId }: MermaidDiagramProps) {
       try {
         const mermaid = await loadMermaid();
 
+        const initDark =
+          document.body?.classList.contains("dark-mode") ||
+          document.documentElement?.dataset.theme === "dark" ||
+          !!containerRef.current?.closest(".dark-mode, .notion-dark-theme, [data-theme='dark']");
+
         mermaid.initialize?.({
           startOnLoad: false,
+          theme: "base",
+          mindmap: {
+            padding: 16,
+            useMaxWidth: true,
+          },
+          themeVariables: initDark
+            ? {
+                primaryColor: "#412454",
+                primaryTextColor: "#f2f0ea",
+                primaryBorderColor: "#b439df",
+                secondaryColor: "#252525",
+                secondaryTextColor: "#f2f0ea",
+                secondaryBorderColor: "#5b8def",
+                tertiaryColor: "#252525",
+                tertiaryTextColor: "#b4b2a9",
+                tertiaryBorderColor: "#4b4842",
+                lineColor: "#4b4842",
+                background: "#191919",
+                fontSize: "13px",
+                fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif",
+              }
+            : {
+                primaryColor: "#eae4f2",
+                primaryTextColor: "#191919",
+                primaryBorderColor: "#b439df",
+                secondaryColor: "#ddebf1",
+                secondaryTextColor: "#191919",
+                secondaryBorderColor: "#5b8def",
+                tertiaryColor: "#f7f6f3",
+                tertiaryTextColor: "#191919",
+                tertiaryBorderColor: "#efeeea",
+                lineColor: "#9b9a97",
+                background: "#ffffff",
+                fontSize: "13px",
+                fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif",
+              },
         });
 
         const sanitizedId = `mermaid-${(blockId ?? "unknown").replaceAll("-", "")}`;
@@ -79,19 +120,19 @@ export function MermaidDiagram({ code, blockId }: MermaidDiagramProps) {
               const isDarkMode = Boolean(
                 document.body?.classList.contains("dark-mode") ||
                 document.documentElement?.dataset.theme === "dark" ||
-                svgElement.closest(".notion-dark-theme"),
+                svgElement.closest(".dark-mode, .notion-dark-theme, [data-theme='dark']"),
               );
 
               const defaultPalette = isDarkMode
                 ? {
-                    bg: "#0F172A",
-                    border: "#475569",
-                    fg: "#E2E8F0",
+                    bg: "#252525",
+                    border: "#4b4842",
+                    fg: "#f2f0ea",
                   }
                 : {
-                    bg: "#F9FAFB",
-                    border: "#CBD5E1",
-                    fg: "#1E293B",
+                    bg: "#f7f6f3",
+                    border: "#c2bdb0",
+                    fg: "#191919",
                   };
 
               const getColor = (
@@ -142,13 +183,30 @@ export function MermaidDiagram({ code, blockId }: MermaidDiagramProps) {
               );
 
               const overrideCss = `
+                #${svgId} {
+                  fill: ${colors.bg} !important;
+                }
+
                 #${svgId} rect,
                 #${svgId} circle,
                 #${svgId} ellipse,
-                #${svgId} path,
                 #${svgId} polygon,
                 #${svgId} polyline {
                   fill: ${colors.bg} !important;
+                  stroke: ${colors.border} !important;
+                }
+
+                #${svgId} .node path,
+                #${svgId} .label-container {
+                  fill: ${colors.bg} !important;
+                  stroke: ${colors.border} !important;
+                }
+
+                #${svgId} .flowchart-link,
+                #${svgId} .edgePaths path,
+                #${svgId} .arrowMarkerPath,
+                #${svgId} line {
+                  fill: none !important;
                   stroke: ${colors.border} !important;
                 }
 
@@ -157,6 +215,18 @@ export function MermaidDiagram({ code, blockId }: MermaidDiagramProps) {
                   fill: ${colors.fg} !important;
                   font-size: ${colors.fontSize} !important;
                   font-weight: ${colors.fontWeight} !important;
+                }
+
+                #${svgId} foreignObject .label,
+                #${svgId} foreignObject span,
+                #${svgId} foreignObject p,
+                #${svgId} foreignObject div {
+                  color: ${colors.fg} !important;
+                }
+
+                #${svgId} foreignObject .edgeLabel,
+                #${svgId} foreignObject .labelBkg {
+                  background-color: transparent !important;
                 }
 
                 #${svgId} .section-root rect,
@@ -175,6 +245,13 @@ export function MermaidDiagram({ code, blockId }: MermaidDiagramProps) {
                   font-size: ${colors.rootFontSize} !important;
                   font-weight: ${colors.rootFontWeight} !important;
                 }
+
+                #${svgId} .section-root foreignObject .label,
+                #${svgId} .section-root foreignObject span,
+                #${svgId} .section-root foreignObject p,
+                #${svgId} .section-root foreignObject div {
+                  color: ${colors.rootFg} !important;
+                }
               `;
 
               if (!overrideStyle) {
@@ -187,6 +264,20 @@ export function MermaidDiagram({ code, blockId }: MermaidDiagramProps) {
               }
 
               overrideStyle.textContent = overrideCss;
+
+              // When Mermaid sets a natural max-width (e.g. mindmaps), the CSS
+              // width:100% compresses nodes together causing overlap. Scale to
+              // 72% of the natural width so the diagram fits more compactly;
+              // the container's overflow-x:auto handles any remaining overflow.
+              const naturalMaxWidth = svgElement.style.maxWidth;
+              if (naturalMaxWidth) {
+                const naturalPx = parseFloat(naturalMaxWidth);
+                const containerPx = containerRef.current?.getBoundingClientRect().width ?? 0;
+                if (!Number.isNaN(naturalPx) && naturalPx > containerPx) {
+                  const scaledPx = Math.round(naturalPx * 0.72);
+                  svgElement.style.width = `${scaledPx}px`;
+                }
+              }
             };
 
             sanitizeSvg();
