@@ -744,8 +744,10 @@ export function NotionPage({
     if (lite) params.lite = lite;
 
     const searchParams = new URLSearchParams(params);
-    return site ? mapPageUrl(site, recordMap!, searchParams) : undefined;
-  }, [site, recordMap, lite]);
+    return site
+      ? mapPageUrl(site, recordMap!, searchParams, canonicalPageMap ?? undefined)
+      : undefined;
+  }, [site, recordMap, lite, canonicalPageMap]);
 
   const keys = recordMap?.block ? Object.keys(recordMap.block) : [] // prettier-ignore
   const blockId = keys[0];
