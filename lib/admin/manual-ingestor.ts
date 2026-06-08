@@ -1,6 +1,6 @@
 import { NotionAPI } from "notion-client";
 import { type ExtendedRecordMap } from "notion-types";
-import { getAllPagesInSpace, parsePageId } from "notion-utils";
+import { parsePageId } from "notion-utils";
 
 import type { ModelProvider } from "../shared/model-provider";
 import { resolveEmbeddingSpace } from "../core/embedding-spaces";
@@ -618,14 +618,25 @@ async function runNotionPageIngestion({
       message: `Collecting all pages in the workspace starting from ${rootPageId}...`,
     });
 
-    const pageMap = await getAllPagesInSpace(
-      rootPageId,
-      undefined,
-      async (candidateId) => notion.getPage(candidateId),
-    );
+    let workspacePageIds: string[] = [];
+    try {
+      workspacePageIds = await collectLinkedPagesFromSeeds([rootPageId]);
+      if (workspacePageIds.length === 0) {
+        workspacePageIds = [rootPageId];
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to enumerate workspace pages.";
+      await emit({
+        type: "log",
+        level: "warn",
+        message: `Could not enumerate workspace pages: ${message}. Falling back to the root page only.`,
+      });
+      workspacePageIds = [rootPageId];
+    }
 
-    for (const rawId of Object.keys(pageMap)) {
-      pushCandidate(rawId);
+    for (const pageId of workspacePageIds) {
+      pushCandidate(pageId);
     }
   } else if (includeLinkedPages) {
     const seedList = Array.from(seedCollector);
