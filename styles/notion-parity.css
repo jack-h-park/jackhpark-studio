@@ -117,7 +117,10 @@
   border-radius: 0 !important;
 }
 
-/* Default (non-YouTube) cover: stretch the single image to fill the full band */
+/* Default (non-YouTube) cover: stretch the single image to fill the full band.
+   object-position is intentionally NOT overridden here — react-notion-x reads
+   page_cover_position from the block and applies it as an inline style, which
+   must be allowed to take precedence. */
 .notion-polish-balanced .notion-page-cover-wrapper:not(.notion-yt-cover) img,
 .notion-polish-balanced .notion-page-cover-wrapper:not(.notion-yt-cover) span img {
   width: 100% !important;
@@ -126,7 +129,6 @@
   min-height: 100% !important;
   max-height: 100% !important;
   object-fit: cover !important;
-  object-position: center 50% !important;
 }
 
 /* ─── YouTube-style cover fill — fallback for very wide viewports only ───────
@@ -159,13 +161,13 @@
   align-items: stretch;
 }
 
-/* fg image: always full-width — never clamped — mirrors original behavior */
+/* fg image: full-width by default; clamped to 1200px above the threshold.
+   object-position comes from inline style (page_cover_position from Notion). */
 .notion-polish-balanced .notion-yt-cover__img {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
   display: block !important;
-  /* object-position comes from inline style (page_cover_position from Notion) */
 }
 
 /* ── Wide-viewport activation (≥ 1200 px) ── */
@@ -175,22 +177,31 @@
     display: block;
   }
 
+  /* Clamp the foreground image to 1200 px — the exact threshold width —
+     so the image size at 1199px (full-width) equals the size at 1200px
+     (clamped to 1200px). No visual jump at the breakpoint.
+     Beyond 1200px the image stays at 1200px while blurred sides fill in. */
+  .notion-polish-balanced .notion-yt-cover__img {
+    max-width: 1200px !important;
+  }
+
   /* Fade the foreground image's outer edges so the blurred bg shows through.
-     The image itself remains full-width — only its edge opacity changes.
-     Fade zone: viewport edge → 120 px inside the content column boundary. */
+     Fade zone: viewport edge → 120 px inside the 1200px image boundary. */
+  /* Fade zone: 120px inside the 1200px image boundary (600px from center).
+     At the 1200px threshold: fade zone starts at 600-120=480px from center. */
   .notion-polish-balanced .notion-yt-cover__fg {
     mask-image: linear-gradient(
       to right,
       rgb(0 0 0 / 0) 0%,
-      rgb(0 0 0 / 1) calc(50% - var(--notion-max-width, 744px) / 2 + 120px),
-      rgb(0 0 0 / 1) calc(50% + var(--notion-max-width, 744px) / 2 - 120px),
+      rgb(0 0 0 / 1) calc(50% - 480px),
+      rgb(0 0 0 / 1) calc(50% + 480px),
       rgb(0 0 0 / 0) 100%
     );
     -webkit-mask-image: linear-gradient(
       to right,
       rgb(0 0 0 / 0) 0%,
-      rgb(0 0 0 / 1) calc(50% - var(--notion-max-width, 744px) / 2 + 120px),
-      rgb(0 0 0 / 1) calc(50% + var(--notion-max-width, 744px) / 2 - 120px),
+      rgb(0 0 0 / 1) calc(50% - 480px),
+      rgb(0 0 0 / 1) calc(50% + 480px),
       rgb(0 0 0 / 0) 100%
     );
   }
