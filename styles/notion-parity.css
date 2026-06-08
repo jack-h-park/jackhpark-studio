@@ -130,13 +130,15 @@
 }
 
 /* ─── YouTube-style cover fill — fallback for very wide viewports only ───────
-   Default behavior (all widths): foreground image fills full width, exactly
-   like the original react-notion-x cover — no max-width clamp, no blurred bg.
-   Wide viewport (≥ 1200 px): background layer appears to fill the side bands
-   with a blurred version of the same image; foreground image is clamped to
-   the content column width with a soft gradient fade at its edges.
-   1200 px threshold ≈ content width (744 px) + 228 px per side, a point where
-   the unconstrained aspect ratio becomes noticeably distorted.
+   Default (all widths): foreground image fills full width, exactly like the
+   original react-notion-x cover — no size clamp.
+
+   Wide viewport (≥ 1200 px): a blurred copy of the same image is layered
+   behind the foreground. A gradient mask on the foreground fades its outer
+   edges so the blurred layer shows through at the sides. The foreground image
+   STAYS full-width — there is no size jump at the breakpoint.
+   Visual result: the image extends to the edges as always; at wide viewports
+   the outer bands gain a blurred softness that replaces the harsh crop.
    ─────────────────────────────────────────────────────────────────────────── */
 
 /* bg layer: hidden by default, shown only above the threshold */
@@ -148,7 +150,7 @@
   filter: blur(18px) brightness(0.75) saturate(1.1);
 }
 
-/* fg container: always absolute-fills the wrapper so the img can be centered */
+/* fg container: always absolute-fills the wrapper */
 .notion-polish-balanced .notion-yt-cover__fg {
   position: absolute;
   inset: 0;
@@ -157,7 +159,7 @@
   align-items: stretch;
 }
 
-/* fg image: default = full-width (mirrors original react-notion-x behavior) */
+/* fg image: always full-width — never clamped — mirrors original behavior */
 .notion-polish-balanced .notion-yt-cover__img {
   width: 100% !important;
   height: 100% !important;
@@ -166,31 +168,29 @@
   /* object-position comes from inline style (page_cover_position from Notion) */
 }
 
-/* ── Wide-viewport activation ── */
+/* ── Wide-viewport activation (≥ 1200 px) ── */
 @media (min-width: 1200px) {
-  /* Show background blur fill */
+  /* Show blurred background behind the foreground */
   .notion-polish-balanced .notion-yt-cover__bg {
     display: block;
   }
 
-  /* Clamp foreground to content width and fade edges into the blurred bg */
-  .notion-polish-balanced .notion-yt-cover__img {
-    max-width: var(--notion-max-width, 744px) !important;
-  }
-
+  /* Fade the foreground image's outer edges so the blurred bg shows through.
+     The image itself remains full-width — only its edge opacity changes.
+     Fade zone: viewport edge → 120 px inside the content column boundary. */
   .notion-polish-balanced .notion-yt-cover__fg {
     mask-image: linear-gradient(
       to right,
       rgb(0 0 0 / 0) 0%,
-      rgb(0 0 0 / 1) calc(50% - var(--notion-max-width, 744px) / 2 + 80px),
-      rgb(0 0 0 / 1) calc(50% + var(--notion-max-width, 744px) / 2 - 80px),
+      rgb(0 0 0 / 1) calc(50% - var(--notion-max-width, 744px) / 2 + 120px),
+      rgb(0 0 0 / 1) calc(50% + var(--notion-max-width, 744px) / 2 - 120px),
       rgb(0 0 0 / 0) 100%
     );
     -webkit-mask-image: linear-gradient(
       to right,
       rgb(0 0 0 / 0) 0%,
-      rgb(0 0 0 / 1) calc(50% - var(--notion-max-width, 744px) / 2 + 80px),
-      rgb(0 0 0 / 1) calc(50% + var(--notion-max-width, 744px) / 2 - 80px),
+      rgb(0 0 0 / 1) calc(50% - var(--notion-max-width, 744px) / 2 + 120px),
+      rgb(0 0 0 / 1) calc(50% + var(--notion-max-width, 744px) / 2 - 120px),
       rgb(0 0 0 / 0) 100%
     );
   }
