@@ -595,6 +595,10 @@ svg[data-processed-mermaid] .section-root tspan {
   transform: translateY(-1px);
 }
 
+.notion-gallery-grid {
+  border-top: none;
+}
+
 .notion-gallery-view[data-gallery-preview="1"] .notion-gallery-grid .notion-collection-card-cover .notion-page-icon-wrapper,
 .notion-gallery-view[data-gallery-preview="1"] .notion-gallery-grid .notion-collection-card-cover .notion-page-icon {
   display: none !important;
