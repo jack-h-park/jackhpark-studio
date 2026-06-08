@@ -42,6 +42,7 @@ import { TabPanel } from "@/components/ui/tabs";
 import { cn } from "@/components/ui/utils";
 import { useManualIngestion } from "@/hooks/useManualIngestion";
 import {
+  formatBytesFromCharacters,
   logTimeFormatter,
   numberFormatter,
 } from "@/lib/admin/ingestion-formatters";
@@ -263,7 +264,7 @@ export function ManualIngestionPanel(): JSX.Element {
   const statusLabel = manualStatusLabels[ingestion.status];
   const runLogSubtitle =
     ingestion.logs.length === 0
-      ? "Awaiting events"
+      ? "No logs yet"
       : `${ingestion.logs.length} entr${
           ingestion.logs.length === 1 ? "y" : "ies"
         }`;
@@ -501,7 +502,7 @@ export function ManualIngestionPanel(): JSX.Element {
                 </div>
               </WorkflowStep>
               <WorkflowStep
-                title="Update behavior"
+                title="Sync strategy"
                 hint="Choose how to refresh your content and which embeddings to use."
                 bodyClassName={manualStyles.updateBehaviorBody}
               >
@@ -581,7 +582,7 @@ export function ManualIngestionPanel(): JSX.Element {
                   </PeerRow>
                 </div>
                 {ingestion.errorMessage ? (
-                  <div role="alert">
+                  <div role="alert" className={manualStyles.errorAlert}>
                     <p className="ai-meta-text text-[color:var(--ai-error)]">
                       {ingestion.errorMessage}
                     </p>
@@ -722,7 +723,7 @@ export function ManualIngestionPanel(): JSX.Element {
                           {showOverallProgress &&
                           activePageId &&
                           activePageTitle ? (
-                            <span className="ai-meta-text rounded-full bg-[color:var(--ai-role-border-subtle)] px-2 py-0.5 text-xs font-mono">
+                            <span className={manualStyles.pageIdBadge}>
                               {activePageId}
                             </span>
                           ) : null}
@@ -777,7 +778,7 @@ export function ManualIngestionPanel(): JSX.Element {
                 </div>
               ) : (
                 <div
-                  className="max-h-[260px] overflow-y-auto pr-2"
+                  className={manualStyles.logContainer}
                   ref={ingestion.logsContainerRef}
                   onScroll={ingestion.handleLogsScroll}
                 >
@@ -878,14 +879,14 @@ export function ManualIngestionPanel(): JSX.Element {
                     sectionHint="Run Summary"
                   />
                   <RunSummaryStatTile
-                    label="Characters Added"
-                    value={formatMetricValue(stats.charactersAdded)}
+                    label="Content Added"
+                    value={formatBytesFromCharacters(stats.charactersAdded)}
                     numericValue={stats.charactersAdded}
                     sectionHint="Run Summary"
                   />
                   <RunSummaryStatTile
-                    label="Characters Updated"
-                    value={formatMetricValue(stats.charactersUpdated)}
+                    label="Content Updated"
+                    value={formatBytesFromCharacters(stats.charactersUpdated)}
                     numericValue={stats.charactersUpdated}
                     sectionHint="Run Summary"
                   />

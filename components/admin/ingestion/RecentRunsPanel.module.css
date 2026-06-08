@@ -441,3 +441,27 @@
   justify-content: center;
   color: var(--ai-text-muted);
 }
+
+.deleteButton {
+  color: var(--ai-error);
+  border-color: var(--ai-error);
+}
+
+.deleteButton:hover {
+  background-color: var(--ai-error-muted);
+}
+
+.activeFilterBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--ai-radius-full);
+  background-color: var(--ai-accent-strong);
+  color: var(--ai-text-on-accent);
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0 0.3rem;
+}

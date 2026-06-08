@@ -414,3 +414,25 @@
   justify-content: center;
   width: fit-content;
 }
+
+.errorAlert {
+  border-radius: var(--ai-radius-sm);
+  border: 1px solid color-mix(in srgb, var(--ai-error) 35%, transparent 65%);
+  background-color: color-mix(in srgb, var(--ai-error-muted) 60%, transparent 40%);
+  padding: var(--ai-space-2) var(--ai-space-3);
+}
+
+.logContainer {
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: var(--ai-space-2);
+}
+
+.pageIdBadge {
+  font-family: "JetBrains Mono", "SFMono-Regular", ui-monospace, monospace;
+  font-size: 0.75rem;
+  border-radius: var(--ai-radius-full);
+  background-color: var(--ai-role-border-subtle);
+  padding: 0.125rem 0.5rem;
+  color: var(--ai-text-muted);
+}

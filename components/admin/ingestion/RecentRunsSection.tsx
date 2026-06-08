@@ -177,6 +177,16 @@ export function RecentRunsSection({
     startedToFilter !== "" ||
     hideSkipped;
 
+  const activeFilterCount = [
+    statusFilter !== ALL_FILTER_VALUE,
+    ingestionTypeFilter !== ALL_FILTER_VALUE,
+    sourceFilter !== ALL_FILTER_VALUE,
+    embeddingProviderFilter !== ALL_FILTER_VALUE,
+    startedFromFilter !== "",
+    startedToFilter !== "",
+    hideSkipped,
+  ].filter(Boolean).length;
+
   const sourceOptions = useMemo(() => {
     if (sourceFilter === ALL_FILTER_VALUE) {
       return knownSources;
@@ -862,7 +872,7 @@ export function RecentRunsSection({
             (run.chunks_updated ?? 0) === 0;
           const displayStatus = isFullySkipped ? "skipped" : run.status;
           const displayStatusLabel = isFullySkipped
-            ? "Skipped"
+            ? "No changes"
             : run.status.replaceAll("_", " ");
           const statusVariant =
             runStatusVariantMap[
@@ -935,7 +945,7 @@ export function RecentRunsSection({
         width: "90px",
       },
       {
-        header: "Chunks",
+        header: "Chunks (+ / ~)",
         render: (run) => {
           const added = run.chunks_added ?? 0;
           const updated = run.chunks_updated ?? 0;
@@ -966,7 +976,7 @@ export function RecentRunsSection({
         width: "140px",
       },
       {
-        header: "Docs",
+        header: "Docs (+ / ~ / −)",
         render: (run) => {
           const added = run.documents_added ?? 0;
           const updated = run.documents_updated ?? 0;
@@ -1064,7 +1074,7 @@ export function RecentRunsSection({
                   size="sm"
                   onClick={() => handleDeleteRunClick(run)}
                   disabled={isDeleting}
-                  className="text-[color:var(--ai-error)] border-[color:var(--ai-error)] hover:bg-[color:var(--ai-error-muted)]"
+                  className={recentStyles.deleteButton}
                 >
                   {isDeleting ? "Deleting…" : "Delete"}
                 </Button>
@@ -1273,6 +1283,7 @@ export function RecentRunsSection({
             hideSkipped={hideSkipped}
             isLoading={isLoading}
             canReset={canReset}
+            activeFilterCount={activeFilterCount}
             statusOptions={statusOptions}
             ingestionTypeOptions={ingestionTypeOptions}
             sourceOptions={sourceOptions}
@@ -1300,9 +1311,19 @@ export function RecentRunsSection({
                       <FiLayers aria-hidden="true" />
                     </span>
                     <p className="font-semibold">No runs match your filters.</p>
-                    <p className="ai-meta-text">
-                      Adjust filters or clear them to see recent runs.
-                    </p>
+                    {hasFiltersApplied ? (
+                      <button
+                        type="button"
+                        className="ai-button ai-button-ghost ai-button-size-sm"
+                        onClick={handleResetFilters}
+                      >
+                        Clear filters ({activeFilterCount})
+                      </button>
+                    ) : (
+                      <p className="ai-meta-text">
+                        No ingestion runs recorded yet.
+                      </p>
+                    )}
                   </div>
                 }
                 errorMessage={error}

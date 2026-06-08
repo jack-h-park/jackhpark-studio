@@ -45,6 +45,7 @@ export type RecentRunsFiltersProps = {
   onStartedToChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onHideSkippedChange: (nextHideSkipped: boolean) => void;
   onResetFilters: () => void;
+  activeFilterCount?: number;
   className?: string;
 };
 
@@ -70,6 +71,7 @@ export function RecentRunsFilters({
   onStartedToChange,
   onHideSkippedChange,
   onResetFilters,
+  activeFilterCount,
   className,
 }: RecentRunsFiltersProps): JSX.Element {
   const filterItems = [
@@ -243,6 +245,11 @@ export function RecentRunsFilters({
           disabled={!canReset}
           className={recentStyles.resetButton}
         >
+          {activeFilterCount != null && activeFilterCount > 0 ? (
+            <span className={recentStyles.activeFilterBadge}>
+              {activeFilterCount}
+            </span>
+          ) : null}
           Reset view
         </Button>
       </div>
