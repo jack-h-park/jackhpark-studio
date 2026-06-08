@@ -1,13 +1,5 @@
-import { FiZap } from "@react-icons/all-files/fi/FiZap";
 import { type ReactNode } from "react";
 
-import {
-  Section,
-  SectionContent,
-  SectionDescription,
-  SectionHeader,
-  SectionTitle,
-} from "@/components/ui/section";
 import { cn } from "@/components/ui/utils";
 
 import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
@@ -42,37 +34,27 @@ export function PresetEffectsSummary({
   if (items.length === 0) return null;
 
   return (
-    <Section surface="surface-0" className={cn("gap-2", className)}>
-      <SectionHeader>
-        <SectionTitle
-          as="div"
-          icon={<FiZap aria-hidden="true" />}
-          className="flex-wrap gap-2"
-        >
-          <span>Preset Effects</span>
-        </SectionTitle>
+    <div className={cn(className)}>
+      <div
+        className={cn(
+          drawerStyles.drawerDivider,
+          drawerStyles.drawerDividerSpacing,
+        )}
+      />
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold uppercase tracking-wide opacity-50">
+          Preset Effects
+        </span>
         {actions && <div className={styles.actionsSlot}>{actions}</div>}
-      </SectionHeader>
-
-      <SectionContent className="flex flex-col gap-2">
-        <SectionDescription>
-          These values are enforced by the selected preset.
-        </SectionDescription>
-        <div
-          className={cn(
-            drawerStyles.drawerDivider,
-            drawerStyles.drawerDividerSpacing,
-          )}
-        />
-        <dl className={cn("pt-2", styles.effectsList)}>
-          {items.map((item) => (
-            <div key={item.label} className={styles.effectRow}>
-              <dt className={styles.effectLabel}>{item.label}</dt>
-              <dd className={styles.effectValue}>{item.value}</dd>
-            </div>
-          ))}
-        </dl>
-      </SectionContent>
-    </Section>
+      </div>
+      <dl className={styles.effectsList}>
+        {items.map((item) => (
+          <div key={item.label} className={styles.effectRow}>
+            <dt className={styles.effectLabel}>{item.label}</dt>
+            <dd className={styles.effectValue}>{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
