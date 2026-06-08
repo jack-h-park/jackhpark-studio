@@ -252,7 +252,11 @@ async function collectLinkedPagesFromSeeds(
         candidateId = (
           value.format as { alias_pointer?: { id?: string } } | undefined
         )?.alias_pointer?.id;
-      } else if (type === "child_page" || type === "child_database") {
+      } else if (
+        type === "child_page" ||
+        type === "child_database" ||
+        type === "page"
+      ) {
         if (typeof value.id === "string") {
           candidateId = value.id;
         }
