@@ -1,0 +1,28 @@
+.presetGrid {
+  /* Per-preset accent color tokens — change here to update all tiles */
+  --preset-precision-accent: oklch(58% 0.19 250);
+  --preset-default-accent: var(--ai-text-muted);
+  --preset-recall-accent: oklch(56% 0.20 295);
+  --preset-fast-accent: oklch(62% 0.18 55);
+}
+
+.presetLabel {
+  font-size: 0.7rem;
+  line-height: 1.25;
+}
+
+.presetTile[data-preset="precision"] .presetIcon {
+  color: var(--preset-precision-accent);
+}
+
+.presetTile[data-preset="default"] .presetIcon {
+  color: var(--preset-default-accent);
+}
+
+.presetTile[data-preset="highRecall"] .presetIcon {
+  color: var(--preset-recall-accent);
+}
+
+.presetTile[data-preset="fast"] .presetIcon {
+  color: var(--preset-fast-accent);
+}

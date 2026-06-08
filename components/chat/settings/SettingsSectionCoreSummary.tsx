@@ -10,8 +10,8 @@ export function SettingsSectionCoreSummary({ summary }: Props) {
   return (
     <div className="flex flex-col gap-1.5 px-1">
       <div className="flex items-center gap-1.5">
-        <FiCommand size={11} aria-hidden="true" className="shrink-0 opacity-50" />
-        <span className="text-xs font-semibold uppercase tracking-wide opacity-60">
+        <FiCommand size={11} aria-hidden="true" className="shrink-0 text-[color:var(--ai-text-muted)]" />
+        <span className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ai-text-muted)]">
           Core System Behavior
         </span>
       </div>

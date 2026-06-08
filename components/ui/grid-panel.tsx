@@ -46,6 +46,7 @@ export type SelectableTileProps<T extends React.ElementType = "button"> = {
   className?: string;
   label?: React.ReactNode;
   description?: React.ReactNode;
+  icon?: React.ReactNode;
   contentClassName?: string;
   labelClassName?: string;
   descriptionClassName?: string;
@@ -60,6 +61,7 @@ export function SelectableTile<T extends React.ElementType = "button">(
     className,
     label,
     description,
+    icon,
     contentClassName,
     labelClassName,
     descriptionClassName,
@@ -80,7 +82,8 @@ export function SelectableTile<T extends React.ElementType = "button">(
     }
   }
 
-  const hasTextContent = label !== undefined || description !== undefined;
+  const hasTextContent =
+    label !== undefined || description !== undefined || icon !== undefined;
   const content = hasTextContent ? (
     <div
       className={cn(
@@ -88,6 +91,7 @@ export function SelectableTile<T extends React.ElementType = "button">(
         contentClassName,
       )}
     >
+      {icon}
       {label && (
         <span
           className={cn(

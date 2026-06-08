@@ -42,7 +42,7 @@ export function PresetEffectsSummary({
         )}
       />
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold uppercase tracking-wide opacity-50">
+        <span className="text-xs font-semibold uppercase tracking-wide text-[color:var(--ai-text-muted)]">
           Preset Effects
         </span>
         {actions && <div className={styles.actionsSlot}>{actions}</div>}

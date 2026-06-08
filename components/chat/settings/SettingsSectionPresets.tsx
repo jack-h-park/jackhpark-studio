@@ -1,5 +1,11 @@
 "use client";
 
+import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
+import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
+import { FiTarget } from "@react-icons/all-files/fi/FiTarget";
+import { FiZap } from "@react-icons/all-files/fi/FiZap";
+
+import { cn } from "@/components/ui/utils";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
 import { setLastDiffReason } from "@/lib/chat/historyPreviewDiffTelemetry";
 import {
@@ -9,11 +15,19 @@ import {
 
 import type { ImpactKey } from "./impact";
 import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
+import styles from "./SettingsSectionPresets.module.css";
 import {
   computeOverridesActive,
   PRESET_LABELS,
   type PresetKey,
 } from "./preset-overrides";
+
+const PRESET_ICONS: Record<PresetKey, React.ReactNode> = {
+  precision: <FiTarget size={14} className={styles.presetIcon} aria-hidden="true" />,
+  default: <FiSliders size={14} className={styles.presetIcon} aria-hidden="true" />,
+  highRecall: <FiLayers size={14} className={styles.presetIcon} aria-hidden="true" />,
+  fast: <FiZap size={14} className={styles.presetIcon} aria-hidden="true" />,
+};
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -60,7 +74,11 @@ export function PresetSelectorTabs({
         )}
       </div>
       <GridPanel
-        className={`grid-cols-4 gap-[0.3rem] ${drawerStyles.drawerSelectableScope}`}
+        className={cn(
+          "grid-cols-4 gap-[0.3rem]",
+          drawerStyles.drawerSelectableScope,
+          styles.presetGrid,
+        )}
       >
         {(["precision", "default", "highRecall", "fast"] as PresetKey[]).map(
           (key) => {
@@ -71,9 +89,14 @@ export function PresetSelectorTabs({
                 active={isActive}
                 onClick={() => applyPreset(key)}
                 label={PRESET_LABELS[key]}
-                className="flex flex-col items-center justify-center !text-center h-full w-full"
+                icon={PRESET_ICONS[key]}
+                data-preset={key}
+                className={cn(
+                  styles.presetTile,
+                  "flex flex-col items-center justify-center !text-center h-full w-full",
+                )}
                 contentClassName="ai-choice !gap-1 w-full"
-                labelClassName="ai-choice__label"
+                labelClassName={cn("ai-choice__label", styles.presetLabel)}
               />
             );
           },
