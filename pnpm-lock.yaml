@@ -99,14 +99,14 @@ importers:
         specifier: ^15.5.7
         version: 15.5.14(@babel/core@7.29.0)(@opentelemetry/api@1.9.0)(@playwright/test@1.58.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       notion-client:
-        specifier: 7.10.0
-        version: 7.10.0
+        specifier: 7.7.1
+        version: 7.7.1
       notion-types:
-        specifier: 7.10.0
-        version: 7.10.0
+        specifier: 7.7.1
+        version: 7.7.1
       notion-utils:
-        specifier: 7.10.0
-        version: 7.10.0
+        specifier: 7.7.1
+        version: 7.7.1
       openai:
         specifier: ^6.7.0
         version: 6.32.0(ws@8.21.0)(zod@4.3.6)
@@ -138,8 +138,8 @@ importers:
         specifier: ^3.16.3
         version: 3.16.3(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-notion-x:
-        specifier: github:jack-h-park/react-notion-x#7.10.0-jp.5
-        version: https://codeload.github.com/jack-h-park/react-notion-x/tar.gz/99e423927348355d4a97f97c8752b7371ea75664(@babel/runtime@7.29.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+        specifier: github:jack-h-park/react-notion-x#7.10.0-jp.7
+        version: https://codeload.github.com/jack-h-park/react-notion-x/tar.gz/d304382e2d802636580fea8bb3276ea90418ce1c(@babel/runtime@7.29.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       react-pdf:
         specifier: ^9.2.1
         version: 9.2.1(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -3919,20 +3919,12 @@ packages:
     resolution: {integrity: sha512-JYc0DPlpGWB40kH5g07gGTrYuMqV653k3uBKY6uITPWds3M0ov3GaWGp9lbE3Bzngx8+XkfzgvASb9vk9JDFXQ==}
     engines: {node: '>=14.16'}
 
-  notion-client@7.10.0:
-    resolution: {integrity: sha512-Rb4/nR4vIRwIExvKiVhZKJEpGoE0IRFlHMKbs0tcZcecZaUVRzVAu7PHuaHC5ivSds26z497dxXYF3mnMrMt7g==}
-    engines: {node: '>=18'}
-
-  notion-types@7.10.0:
-    resolution: {integrity: sha512-t57RdnGnup7NcMGJkrlshe3gXaFYOj565NL1Q1l/MrZZ/K2xbHO06PtBXDEFTFYjvxQagU0NzKzaSNKocU9e4Q==}
+  notion-client@7.7.1:
+    resolution: {integrity: sha512-xBz/+Lr7V40TpVpvMYb3Xw9lcxHhN+zvCc0JtNhVICTV5jnuMwIjQkSpaT8+gqlhBif+6DYEnMZptBrONWBPyQ==}
     engines: {node: '>=18'}
 
   notion-types@7.7.1:
     resolution: {integrity: sha512-565D6k9rjRomec063p17iZe93ixhcomoDXy7K/Eq7t5826MUiU+g3IJiykoiDbBgx+cxn/4JHaHZIux+DYv74g==}
-    engines: {node: '>=18'}
-
-  notion-utils@7.10.0:
-    resolution: {integrity: sha512-Z/L+xOzVWM5wBHOqLu3PwCzA/11yzVExMpR8FUcwHbS60DDULSgZgipXQBzKOlbQMnB+04BOkSGDNan+AxfxmA==}
     engines: {node: '>=18'}
 
   notion-utils@7.7.1:
@@ -4303,8 +4295,8 @@ packages:
       react: ^0.14.0 || ^15.0.0 || ^16 || ^17 || ^18 || ^19
       react-dom: ^0.14.0 || ^15.0.0 || ^16 || ^17 || ^18 || ^19
 
-  react-notion-x@https://codeload.github.com/jack-h-park/react-notion-x/tar.gz/99e423927348355d4a97f97c8752b7371ea75664:
-    resolution: {tarball: https://codeload.github.com/jack-h-park/react-notion-x/tar.gz/99e423927348355d4a97f97c8752b7371ea75664}
+  react-notion-x@https://codeload.github.com/jack-h-park/react-notion-x/tar.gz/d304382e2d802636580fea8bb3276ea90418ce1c:
+    resolution: {tarball: https://codeload.github.com/jack-h-park/react-notion-x/tar.gz/d304382e2d802636580fea8bb3276ea90418ce1c}
     version: 7.10.0
     engines: {node: '>=20'}
     peerDependencies:
@@ -7831,7 +7823,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.17.0(debug@4.4.3))
+      retry-axios: 2.6.0(axios@1.17.0)
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -8368,24 +8360,14 @@ snapshots:
 
   normalize-url@8.1.1: {}
 
-  notion-client@7.10.0:
+  notion-client@7.7.1:
     dependencies:
-      notion-types: 7.10.0
-      notion-utils: 7.10.0
+      notion-types: 7.7.1
+      notion-utils: 7.7.1
       ofetch: 1.5.1
       p-map: 7.0.4
 
-  notion-types@7.10.0: {}
-
   notion-types@7.7.1: {}
-
-  notion-utils@7.10.0:
-    dependencies:
-      is-url-superb: 6.1.0
-      memoize: 10.2.0
-      normalize-url: 8.1.1
-      notion-types: 7.10.0
-      p-queue: 8.1.1
 
   notion-utils@7.7.1:
     dependencies:
@@ -8762,7 +8744,7 @@ snapshots:
       react-lifecycles-compat: 3.0.4
       warning: 4.0.3
 
-  react-notion-x@https://codeload.github.com/jack-h-park/react-notion-x/tar.gz/99e423927348355d4a97f97c8752b7371ea75664(@babel/runtime@7.29.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+  react-notion-x@https://codeload.github.com/jack-h-park/react-notion-x/tar.gz/d304382e2d802636580fea8bb3276ea90418ce1c(@babel/runtime@7.29.2)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
       '@fisch0920/medium-zoom': 1.0.7
       '@matejmazur/react-katex': 3.1.3(katex@0.16.47)(react@19.2.4)
@@ -8913,7 +8895,7 @@ snapshots:
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
 
-  retry-axios@2.6.0(axios@1.17.0(debug@4.4.3)):
+  retry-axios@2.6.0(axios@1.17.0):
     dependencies:
       axios: 1.17.0(debug@4.4.3)
 
