@@ -3,9 +3,10 @@ import { type PostgrestError } from "@supabase/supabase-js";
 import { backOff } from "exponential-backoff";
 import { encode } from "gpt-tokenizer";
 import { JSDOM } from "jsdom";
-import { type Decoration, type ExtendedRecordMap } from "notion-types";
+import { type ExtendedRecordMap } from "notion-types";
 import {
   getBlockTitle,
+  getBlockValue,
   getPageContentBlockIds,
   getTextContent,
 } from "notion-utils";
@@ -629,9 +630,7 @@ export function extractPlainText(
   const lines: string[] = [];
 
   for (const blockId of blockIds) {
-    const block = recordMap.block[blockId]?.value as {
-      properties?: { title?: Decoration[] };
-    } | null;
+    const block = getBlockValue(recordMap.block[blockId]);
 
     if (!block?.properties?.title) {
       continue;
@@ -650,8 +649,7 @@ export function getPageTitle(
   recordMap: ExtendedRecordMap,
   pageId: string,
 ): string {
-  const blockWrapper = recordMap.block[pageId];
-  const block = blockWrapper?.value ?? null;
+  const block = getBlockValue(recordMap.block[pageId]);
 
   if (block) {
     const title = getBlockTitle(block, recordMap).trim();
@@ -671,9 +669,7 @@ export function getPageLastEditedTime(
   recordMap: ExtendedRecordMap,
   pageId: string,
 ): string | null {
-  const block = recordMap.block[pageId]?.value as {
-    last_edited_time?: string | number;
-  } | null;
+  const block = getBlockValue(recordMap.block[pageId]);
 
   return normalizeTimestamp(block?.last_edited_time);
 }
