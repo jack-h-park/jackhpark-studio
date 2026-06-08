@@ -1,4 +1,6 @@
+import { FiChevronDown } from "@react-icons/all-files/fi/FiChevronDown";
 import * as React from "react";
+import { useState } from "react";
 
 import {
   CardContent,
@@ -7,6 +9,45 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+export type CollapsibleSectionProps = {
+  label: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+  className?: string;
+};
+
+export function CollapsibleSection({
+  label,
+  defaultOpen = false,
+  children,
+  className,
+}: CollapsibleSectionProps) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className={cn("space-y-3", className)}>
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        className="group flex w-full items-center gap-1.5 text-left"
+        aria-expanded={open}
+      >
+        <span className="t-eyebrow text-[color:var(--ai-text-muted)] opacity-70 transition-opacity group-hover:opacity-100">
+          {label}
+        </span>
+        <FiChevronDown
+          aria-hidden="true"
+          size={11}
+          className={cn(
+            "text-[color:var(--ai-text-muted)] opacity-60 transition-transform group-hover:opacity-100",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+      {open && children}
+    </div>
+  );
+}
 
 export type ConfigBoxProps = {
   className?: string;

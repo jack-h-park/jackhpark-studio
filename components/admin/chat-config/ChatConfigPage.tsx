@@ -1,7 +1,10 @@
 import { AllowlistCard } from "@/components/admin/chat-config/AllowlistCard";
 import { CachingCard } from "@/components/admin/chat-config/CachingCard";
 import styles from "@/components/admin/chat-config/chat-config.module.css";
-import { ChatConfigSection } from "@/components/admin/chat-config/ChatConfigHelpers";
+import {
+  ChatConfigSection,
+  CollapsibleSection,
+} from "@/components/admin/chat-config/ChatConfigHelpers";
 import { CoreBehaviorCard } from "@/components/admin/chat-config/CoreBehaviorCard";
 import { GuardrailCard } from "@/components/admin/chat-config/GuardrailCard";
 import { NumericLimitsCard } from "@/components/admin/chat-config/NumericLimitsCard";
@@ -131,16 +134,18 @@ export function ChatConfigPage({
             description="Select which models, embeddings, and rankers visitors can use."
           >
             <div className="space-y-5">
-              <AllowlistCard
-                allowlist={config.allowlist}
-                llmModelOptions={llmModelOptions}
-                ollamaConfigured={ollamaConfigured}
-                lmstudioConfigured={lmstudioConfigured}
-                localLlmBackendEnv={localLlmBackendEnv}
-                defaultLlmModelId={defaultLlmModelId}
-                toggleAllowlistValue={toggleAllowlistValue}
-                updateConfig={updateConfig}
-              />
+              <CollapsibleSection label="Model &amp; ranker constraints">
+                <AllowlistCard
+                  allowlist={config.allowlist}
+                  llmModelOptions={llmModelOptions}
+                  ollamaConfigured={ollamaConfigured}
+                  lmstudioConfigured={lmstudioConfigured}
+                  localLlmBackendEnv={localLlmBackendEnv}
+                  defaultLlmModelId={defaultLlmModelId}
+                  toggleAllowlistValue={toggleAllowlistValue}
+                  updateConfig={updateConfig}
+                />
+              </CollapsibleSection>
               <RagMetadataInfoCard />
               <RagRankingCard
                 ragRanking={config.ragRanking}
