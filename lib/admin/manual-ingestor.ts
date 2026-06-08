@@ -3,9 +3,9 @@ import { parsePageId } from "notion-utils";
 
 import type { ModelProvider } from "../shared/model-provider";
 import { resolveEmbeddingSpace } from "../core/embedding-spaces";
-import { notion } from "../notion-api";
 import { supabaseClient } from "../core/supabase";
 import { getSiteConfig } from "../get-config-value";
+import { notion } from "../notion-api";
 import { debugIngestionLog } from "../rag/debug";
 import {
   chunkByTokens,
@@ -773,6 +773,18 @@ async function runNotionPageIngestion({
           type: "log",
           level: "warn",
           message: `Unable to load Notion page ${currentPageId}; skipping.`,
+        });
+        continue;
+      }
+
+      if (Object.keys(recordMap.block ?? {}).length === 0) {
+        stats.errorCount += 1;
+        const apiBaseUrl =
+          process.env.NOTION_API_BASE_URL ?? "https://www.notion.so/api/v3";
+        await emit({
+          type: "log",
+          level: "error",
+          message: `Notion API returned no data for page ${currentPageId}. Check that NOTION_API_BASE_URL is correct (currently: ${apiBaseUrl}). The page may be private or the endpoint may be unreachable.`,
         });
         continue;
       }
