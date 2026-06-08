@@ -72,8 +72,8 @@ export const presetDisplayNames: Record<PresetKey, string> = {
 
 export const presetDisplayOrder: PresetKey[] = [
   "fast",
-  "default",
   "precision",
+  "default",
   "highRecall",
 ];
 

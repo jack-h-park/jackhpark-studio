@@ -1,30 +1,13 @@
 .presetGrid {
-  /* Per-preset accent color tokens — change here to update all tiles */
+  /* Per-preset accent color tokens — change here to update all tile icons */
   --preset-precision-accent: oklch(58% 0.19 250);
   --preset-default-accent: var(--ai-text-muted);
   --preset-recall-accent: oklch(56% 0.20 295);
   --preset-fast-accent: oklch(62% 0.18 55);
 }
 
-.presetLabel {
-  font-size: 0.7rem;
-  line-height: 1.25;
-}
-
-/* 2px border on all tiles — keeps layout stable when toggling active state */
-.presetTile {
-  border-width: 2px;
-}
-
-/* Gradient border on active tile — matches admin UI selectable pattern */
-.presetTile.presetTileActive {
-  border-color: transparent;
-  background-color: unset;
-  background:
-    linear-gradient(var(--ai-role-surface-1), var(--ai-role-surface-1)) padding-box,
-    var(--gradient-mini) border-box;
-  box-shadow: var(--ai-shadow-soft);
-}
+/* Active state: delegated to .ai-selectable--active primitive
+   (border-color, background-color, box-shadow all come from the design system token) */
 
 .presetTile[data-preset="precision"] .presetIcon {
   color: var(--preset-precision-accent);
