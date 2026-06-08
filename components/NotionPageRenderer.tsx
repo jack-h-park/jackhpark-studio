@@ -14,7 +14,6 @@ import {
 import { Collection } from "react-notion-x/build/third-party/collection";
 import { Equation } from "react-notion-x/build/third-party/equation";
 import { Modal } from "react-notion-x/build/third-party/modal";
-import { Pdf } from "react-notion-x/build/third-party/pdf";
 
 import { defaultPageIcon } from "@/lib/config";
 import { sanitizeNotionRecordMap } from "@/lib/notion/sanitize-record-map";
@@ -28,6 +27,11 @@ import { NotionCoverBlurFill } from "./NotionCoverBlurFill";
 
 const NotionRenderer = dynamic(
   async () => (await import("react-notion-x")).NotionRenderer,
+  { ssr: false },
+);
+
+const Pdf = dynamic(
+  () => import("react-notion-x/build/third-party/pdf").then((m) => m.Pdf),
   { ssr: false },
 );
 
