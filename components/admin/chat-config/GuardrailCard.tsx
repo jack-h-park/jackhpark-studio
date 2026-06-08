@@ -1,8 +1,12 @@
 import { FiShield } from "@react-icons/all-files/fi/FiShield";
 
 import type { AdminChatConfig } from "@/types/chat-config";
-import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  ChatConfigCardContent,
+  ChatConfigCardHeader,
+  ConfigBox,
+} from "@/components/admin/chat-config/ChatConfigHelpers";
+import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,8 +65,8 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
         title="Guardrail Keywords &amp; Fallbacks"
         description="Define how guardrails recognize chit-chat and how the assistant responds when light conversation or command intents are detected."
       />
-      <CardContent className="space-y-5 px-5 py-4">
-        <div className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4">
+      <ChatConfigCardContent className="space-y-5">
+        <ConfigBox className="space-y-4">
           <p className="ai-label-overline ai-label-overline--muted">
             Behavior detection
           </p>
@@ -81,8 +85,8 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
               className="w-full max-w-[64ch]"
             />
           </Field>
-        </div>
-        <div className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4">
+        </ConfigBox>
+        <ConfigBox className="space-y-4">
           <p className="ai-label-overline ai-label-overline--muted">
             Fallback messaging
           </p>
@@ -136,8 +140,8 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
               assistant to run actions or commands.
             </p>
           </div>
-        </div>
-      </CardContent>
+        </ConfigBox>
+      </ChatConfigCardContent>
     </Card>
   );
 }

@@ -3,12 +3,15 @@ import { FiShield } from "@react-icons/all-files/fi/FiShield";
 
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import type { AdminChatConfig } from "@/types/chat-config";
+import styles from "@/components/admin/chat-config/chat-config.module.css";
 import {
+  ChatConfigCardContent,
   ChatConfigCardHeader,
+  ConfigBox,
   ToggleRow,
 } from "@/components/admin/chat-config/ChatConfigHelpers";
 import { AllowlistTile } from "@/components/ui/allowlist-tile";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { type AdminLlmModelOption } from "@/hooks/use-admin-chat-config";
@@ -83,9 +86,7 @@ export function AllowlistCard({
       <span className="flex items-center gap-1 text-[color:var(--ai-text-muted)] text-xs">
         <span
           className={`h-2.5 w-2.5 rounded-full ${
-            isActive
-              ? "bg-[color:var(--ai-success)]"
-              : "bg-[color:var(--ai-text-muted)]"
+            isActive ? styles.statusDotActive : styles.statusDotInactive
           }`}
         />
         <span>
@@ -162,8 +163,8 @@ export function AllowlistCard({
           </div>
         }
       />
-      <CardContent className="space-y-5 px-5 py-4">
-        <div className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4">
+      <ChatConfigCardContent className="space-y-5">
+        <ConfigBox className="space-y-4">
           <p className="ai-label-overline ai-label-overline--muted">
             LLM models
           </p>
@@ -195,9 +196,9 @@ export function AllowlistCard({
             “gpt-4o-mini” or “mistral-ollama” (legacy “mistral”) are stored and
             used directly.
           </p>
-        </div>
+        </ConfigBox>
 
-        <div className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4">
+        <ConfigBox className="space-y-4">
           <p className="ai-label-overline ai-label-overline--muted">
             Embedding models
           </p>
@@ -229,9 +230,9 @@ export function AllowlistCard({
             Embedding model used for RAG. This is a canonical space ID, such as
             “openai_te3s_v1.”
           </p>
-        </div>
+        </ConfigBox>
 
-        <div className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4">
+        <ConfigBox className="space-y-4">
           <p className="ai-label-overline ai-label-overline--muted">
             Ranker allowlist
           </p>
@@ -261,7 +262,7 @@ export function AllowlistCard({
           <p className="ai-helper-text">
             Reranking strategy. Use “none”, “mmr”, or “cohere-rerank”.
           </p>
-        </div>
+        </ConfigBox>
 
         <div className="space-y-3">
           <ToggleRow
@@ -285,7 +286,7 @@ export function AllowlistCard({
             }
           />
         </div>
-      </CardContent>
+      </ChatConfigCardContent>
     </Card>
   );
 }

@@ -1,8 +1,11 @@
 import { FiBookOpen } from "@react-icons/all-files/fi/FiBookOpen";
 
 import type { AdminChatConfig } from "@/types/chat-config";
-import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  ChatConfigCardContent,
+  ChatConfigCardHeader,
+} from "@/components/admin/chat-config/ChatConfigHelpers";
+import { Card } from "@/components/ui/card";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
 
@@ -47,7 +50,7 @@ export function SummaryPresetsCard({
         title="Summary Presets"
         description="Choose how often summaries run for each level."
       />
-      <CardContent className="space-y-4 px-5 py-4">
+      <ChatConfigCardContent className="space-y-4">
         <GridPanel className="gap-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] px-4 py-4">
           <div className="grid grid-cols-[minmax(150px,1fr)_repeat(3,minmax(0,1fr))] gap-3 items-center">
             <div
@@ -83,7 +86,7 @@ export function SummaryPresetsCard({
             ))}
           </div>
         </GridPanel>
-      </CardContent>
+      </ChatConfigCardContent>
     </Card>
   );
 }

@@ -1,5 +1,6 @@
 import { AllowlistCard } from "@/components/admin/chat-config/AllowlistCard";
 import { CachingCard } from "@/components/admin/chat-config/CachingCard";
+import styles from "@/components/admin/chat-config/chat-config.module.css";
 import { ChatConfigSection } from "@/components/admin/chat-config/ChatConfigHelpers";
 import { CoreBehaviorCard } from "@/components/admin/chat-config/CoreBehaviorCard";
 import { GuardrailCard } from "@/components/admin/chat-config/GuardrailCard";
@@ -12,7 +13,7 @@ import { SummaryPresetsCard } from "@/components/admin/chat-config/SummaryPreset
 import { TelemetryCard } from "@/components/admin/chat-config/TelemetryCard";
 import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { CardContent } from "@/components/ui/card";
 import { useAdminChatConfig } from "@/hooks/use-admin-chat-config";
 import { cn } from "@/lib/utils";
 import {
@@ -44,7 +45,6 @@ export function ChatConfigPage({
     setIsWordWrapEnabled,
     additionalPromptMaxLength,
     numericLimitErrors,
-    hasNumericErrors,
     isFormBusy,
     isSaveDisabled,
     hasUnsavedChanges,
@@ -81,10 +81,8 @@ export function ChatConfigPage({
   );
   const saveButtonDisabled = !hasUnsavedChanges || isSaveDisabled;
   const stickyBarClass = cn(
-    "sticky bottom-0 left-0 right-0 z-20 px-6 py-3 border-t transition-colors backdrop-blur backdrop-saturate-150",
-    hasUnsavedChanges
-      ? "bg-[var(--ai-role-surface-1)]/95 border-[var(--ai-role-border-muted)]"
-      : "bg-[var(--ai-role-surface-0)]/85 border-[var(--ai-role-border-muted)]/40",
+    styles.stickyBar,
+    hasUnsavedChanges ? styles.stickyBarDirty : styles.stickyBarClean,
   );
 
   return (
@@ -101,14 +99,14 @@ export function ChatConfigPage({
     >
       <>
         {errorMessage && (
-          <Card className="border-l-4 border-[color:var(--ai-error)] bg-[color:color-mix(in srgb, var(--ai-bg) 85%, var(--ai-error) 15%)]">
+          <div className={styles.errorCard}>
             <CardContent className="px-4 py-3 text-[color:var(--ai-error)]">
               {errorMessage}
             </CardContent>
-          </Card>
+          </div>
         )}
 
-        <div className="space-y-6 pb-[7.5rem] pt-2">
+        <div className="space-y-6 pb-30 pt-2">
           <ChatConfigSection
             label="PROMPTS"
             title="Instruction hierarchy"
@@ -161,7 +159,6 @@ export function ChatConfigPage({
               <NumericLimitsCard
                 numericLimits={config.numericLimits}
                 numericLimitErrors={numericLimitErrors}
-                hasNumericErrors={hasNumericErrors}
                 updateNumericLimit={updateNumericLimit}
               />
               <SessionPresetsCard

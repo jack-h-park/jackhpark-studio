@@ -2,8 +2,11 @@ import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
-import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  ChatConfigCardContent,
+  ChatConfigCardHeader,
+} from "@/components/admin/chat-config/ChatConfigHelpers";
+import { Card } from "@/components/ui/card";
 import { CheckboxChoice } from "@/components/ui/checkbox";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
@@ -509,7 +512,7 @@ export function SessionPresetsCard({
         title="Session Presets"
         description="Customize each preset so it stays within the allowed limits."
       />
-      <CardContent className="space-y-6 px-5 py-4">
+      <ChatConfigCardContent className="space-y-6">
         <GridPanel className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] px-4 py-4 shadow-sm">
           <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] items-center gap-3 t-eyebrow text-[var(--ai-text-muted)]">
             <div className={sessionGridLabelClass}>Setting</div>
@@ -738,7 +741,7 @@ export function SessionPresetsCard({
             ))}
           </div>
         </GridPanel>
-      </CardContent>
+      </ChatConfigCardContent>
     </Card>
   );
 }

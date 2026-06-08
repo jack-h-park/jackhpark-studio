@@ -1,8 +1,11 @@
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 
 import type { AdminChatConfig, AdminNumericLimit } from "@/types/chat-config";
-import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  ChatConfigCardContent,
+  ChatConfigCardHeader,
+} from "@/components/admin/chat-config/ChatConfigHelpers";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { numericLimitLabels } from "@/hooks/use-admin-chat-config";
@@ -10,7 +13,6 @@ import { numericLimitLabels } from "@/hooks/use-admin-chat-config";
 export type NumericLimitsCardProps = {
   numericLimits: AdminChatConfig["numericLimits"];
   numericLimitErrors: string[];
-  hasNumericErrors: boolean;
   updateNumericLimit: (
     key: keyof AdminChatConfig["numericLimits"],
     field: keyof AdminNumericLimit,
@@ -21,7 +23,6 @@ export type NumericLimitsCardProps = {
 export function NumericLimitsCard({
   numericLimits,
   numericLimitErrors,
-  hasNumericErrors,
   updateNumericLimit,
 }: NumericLimitsCardProps) {
   return (
@@ -31,13 +32,16 @@ export function NumericLimitsCard({
         title="Numeric Limits"
         description="Guardrail the possible values session presets can reach."
       />
-      <CardContent className="space-y-5 px-5 py-4">
+      <ChatConfigCardContent className="space-y-5">
         {(
           Object.keys(numericLimits) as Array<
             keyof AdminChatConfig["numericLimits"]
           >
         ).map((key) => {
           const limit = numericLimits[key];
+          const rowError = numericLimitErrors.find((e) =>
+            e.toLowerCase().startsWith(numericLimitLabels[key].toLowerCase()),
+          );
           return (
             <div
               key={key}
@@ -114,15 +118,15 @@ export function NumericLimitsCard({
                   />
                 </div>
               </div>
+              {rowError && (
+                <p className="mt-3 rounded-xl border border-[var(--ai-error)] bg-[var(--ai-error-muted)] px-4 py-2 text-sm text-[var(--ai-error)]">
+                  {rowError}
+                </p>
+              )}
             </div>
           );
         })}
-        {hasNumericErrors && (
-          <p className="mt-2 rounded-xl border border-[var(--ai-error)] bg-[var(--ai-error-muted)] px-4 py-2 text-sm text-[var(--ai-error)]">
-            {numericLimitErrors[0]}
-          </p>
-        )}
-      </CardContent>
+      </ChatConfigCardContent>
     </Card>
   );
 }

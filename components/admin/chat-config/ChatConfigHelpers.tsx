@@ -1,7 +1,45 @@
 import * as React from "react";
 
-import { CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+export type ConfigBoxProps = {
+  className?: string;
+  children: React.ReactNode;
+} & React.HTMLAttributes<HTMLDivElement>;
+
+export function ConfigBox({ className, children, ...props }: ConfigBoxProps) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4",
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export type ChatConfigCardContentProps = React.HTMLAttributes<HTMLDivElement>;
+
+export function ChatConfigCardContent({
+  className,
+  children,
+  ...props
+}: ChatConfigCardContentProps) {
+  return (
+    <CardContent className={cn("px-5 py-4", className)} {...props}>
+      {children}
+    </CardContent>
+  );
+}
 
 export type ChatConfigSectionProps = {
   label: string;
@@ -36,7 +74,7 @@ export function ChatConfigSection({
           {title}
         </h2>
         {description && (
-          <p className="text-sm text-[var(--ai-text-muted)] leading-snug truncate">
+          <p className="text-sm text-[var(--ai-text-muted)] leading-snug">
             {description}
           </p>
         )}

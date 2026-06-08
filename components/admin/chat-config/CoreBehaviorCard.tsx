@@ -1,8 +1,12 @@
 import { FiSettings } from "@react-icons/all-files/fi/FiSettings";
 
 import type { AdminChatConfig } from "@/types/chat-config";
-import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  ChatConfigCardContent,
+  ChatConfigCardHeader,
+  ConfigBox,
+} from "@/components/admin/chat-config/ChatConfigHelpers";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,8 +50,8 @@ export function CoreBehaviorCard({
         title="Core Behavior &amp; Base Prompt"
         description="Define the base system prompt plus the user-facing summary shown in the chat settings drawer."
       />
-      <CardContent className="space-y-5 px-5 py-4">
-        <div className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4">
+      <ChatConfigCardContent className="space-y-5">
+        <ConfigBox className="space-y-4">
           <p className="ai-label-overline ai-label-overline--muted">
             Behavior rules
           </p>
@@ -89,8 +93,8 @@ export function CoreBehaviorCard({
               />
             </div>
           </div>
-        </div>
-        <div className="space-y-3 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-4">
+        </ConfigBox>
+        <ConfigBox className="space-y-3">
           <p className="ai-label-overline ai-label-overline--muted">
             Length limits
           </p>
@@ -112,8 +116,8 @@ export function CoreBehaviorCard({
               className="w-full max-w-[12rem]"
             />
           </div>
-        </div>
-      </CardContent>
+        </ConfigBox>
+      </ChatConfigCardContent>
     </Card>
   );
 }

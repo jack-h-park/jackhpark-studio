@@ -1,9 +1,12 @@
 import { FiBookOpen } from "@react-icons/all-files/fi/FiBookOpen";
 import Link from "next/link";
 
-import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
+import {
+  ChatConfigCardContent,
+  ChatConfigCardHeader,
+} from "@/components/admin/chat-config/ChatConfigHelpers";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 
 export function RagMetadataInfoCard() {
   return (
@@ -14,7 +17,7 @@ export function RagMetadataInfoCard() {
         description="Review and adjust document-level metadata used during RAG retrieval (doc_type, persona_type, visibility, tags). Use the dedicated manager for fine-grained edits."
       />
 
-      <CardContent className="space-y-4 px-5 py-4">
+      <ChatConfigCardContent className="space-y-4">
         <div className="space-y-1 max-w-xl">
           <p className="ai-meta-text">
             Metadata such as <code>doc_type</code>, <code>persona_type</code>,{" "}
@@ -37,7 +40,7 @@ export function RagMetadataInfoCard() {
             project article) or adjust visibility without changing content.
           </p>
         </div>
-      </CardContent>
+      </ChatConfigCardContent>
     </Card>
   );
 }

@@ -2,8 +2,11 @@ import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
 import { Fragment } from "react";
 
 import type { AdminChatConfig } from "@/types/chat-config";
-import { ChatConfigCardHeader } from "@/components/admin/chat-config/ChatConfigHelpers";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  ChatConfigCardContent,
+  ChatConfigCardHeader,
+} from "@/components/admin/chat-config/ChatConfigHelpers";
+import { Card } from "@/components/ui/card";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { Input } from "@/components/ui/input";
 import { RAG_WEIGHT_MAX, RAG_WEIGHT_MIN } from "@/hooks/use-admin-chat-config";
@@ -34,7 +37,7 @@ export function RagRankingCard({
         title="RAG Document Ranking"
         description="Adjust how strongly different document and persona types influence retrieval. Values multiply the base similarity score before rerankers (MMR, Cohere, etc.)."
       />
-      <CardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start px-5 py-4">
+      <ChatConfigCardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start">
         <GridPanel className="gap-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] px-4 py-4">
           <div className="grid grid-cols-[minmax(180px,1fr)_minmax(0,1fr)] gap-3 items-start">
             <div className="t-eyebrow text-[color:var(--ai-text-strong)]">
@@ -124,7 +127,7 @@ export function RagRankingCard({
             or de-emphasize purely personal content. 1.0 = neutral.
           </p>
         </GridPanel>
-      </CardContent>
+      </ChatConfigCardContent>
     </Card>
   );
 }
