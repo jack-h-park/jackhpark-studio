@@ -271,7 +271,7 @@ export function MermaidDiagram({ code, blockId }: MermaidDiagramProps) {
               // the container's overflow-x:auto handles any remaining overflow.
               const naturalMaxWidth = svgElement.style.maxWidth;
               if (naturalMaxWidth) {
-                const naturalPx = parseFloat(naturalMaxWidth);
+                const naturalPx = Number.parseFloat(naturalMaxWidth);
                 const containerPx = containerRef.current?.getBoundingClientRect().width ?? 0;
                 if (!Number.isNaN(naturalPx) && naturalPx > containerPx) {
                   const scaledPx = Math.round(naturalPx * 0.72);
