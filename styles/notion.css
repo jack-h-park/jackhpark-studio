@@ -336,14 +336,14 @@ svg[data-processed-mermaid] .section-root tspan {
   width: min(100%, 1000px) !important;
 }
 
-/* full width + 인라인 테이블에서 컬럼 폭을 컨텐츠에 맞춰 놓기 */
+/* full width + 인라인 테이블: Notion에서 설정한 컬럼 폭(p.width)을 인라인 스타일로 존중하고,
+   줄바꿈/최소폭만 보정. width: auto !important 는 인라인 스타일을 덮어씌우므로 제거. */
 .notion-polish-legacy .notion-full-width .notion-collection-inline .notion-table-th,
 .notion-polish-legacy .notion-full-width .notion-collection-inline .notion-table-view-header-cell,
 .notion-polish-legacy .notion-full-width .notion-collection-inline .notion-table-cell {
-  width: auto !important;
-  flex: 0 0 auto !important;
-  min-width: 140px; /* 너무 좁아지지 않도록 안전장치 */
-  white-space: normal; /* 줄바꿈 허용 */
+  flex: 0 0 auto;
+  min-width: 120px;
+  white-space: normal;
   word-break: break-word;
 }
 
@@ -352,9 +352,8 @@ svg[data-processed-mermaid] .section-root tspan {
   .notion-collection
   .notion-table-row
   > .notion-table-cell:last-child {
-  width: auto !important;
-  flex: 1 1 auto !important;
-  min-width: 140px;
+  flex: 0 0 auto;
+  min-width: 120px;
   white-space: normal !important;
   word-break: break-word;
 }

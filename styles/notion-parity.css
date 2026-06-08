@@ -6,7 +6,7 @@
 .notion-polish-balanced {
   --np-page-max-width: 744px;
   --np-page-padding-bottom: calc(max(5vh, 32px));
-  --np-cover-height: clamp(232px, 26vw, 300px);
+  --np-cover-height: 280px;
   --np-hero-left: clamp(18px, 2vw, 28px);
   --np-hero-overlap: -10px;
   --np-hero-gap-after: 14px;
@@ -521,9 +521,9 @@
   .notion-table-header-inner
   > .notion-table-th
   > .notion-table-view-header-cell {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: none !important;
+  /* width은 react-notion-x의 인라인 style.width(Notion table_properties.width)를 따름.
+     max-width만 제한 해제하여 오버플로우 방지. */
+  max-width: none;
 }
 
 .notion-polish-balanced .notion-page .notion-table-view-header-cell-inner {
@@ -752,90 +752,9 @@
 }
 
 /* Column sizing strategy for common inline database layouts. */
-.notion-polish-balanced
-  .notion-page
-  .notion-table-view:has(
-    .notion-table-header-inner > .notion-table-th:nth-child(4)
-  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
-  .notion-table-header-inner
-  > .notion-table-th:nth-child(1),
-.notion-polish-balanced
-  .notion-page
-  .notion-table-view:has(
-    .notion-table-header-inner > .notion-table-th:nth-child(4)
-  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
-  .notion-table-body
-  > .notion-table-row
-  > .notion-table-cell:nth-child(1) {
-  width: 30%;
-  flex: 0 0 30%;
-  min-width: 0;
-  max-width: 30%;
-}
-
-.notion-polish-balanced
-  .notion-page
-  .notion-table-view:has(
-    .notion-table-header-inner > .notion-table-th:nth-child(4)
-  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
-  .notion-table-header-inner
-  > .notion-table-th:nth-child(2),
-.notion-polish-balanced
-  .notion-page
-  .notion-table-view:has(
-    .notion-table-header-inner > .notion-table-th:nth-child(4)
-  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
-  .notion-table-body
-  > .notion-table-row
-  > .notion-table-cell:nth-child(2) {
-  width: 13%;
-  flex: 0 0 13%;
-  min-width: 0;
-  max-width: 13%;
-}
-
-.notion-polish-balanced
-  .notion-page
-  .notion-table-view:has(
-    .notion-table-header-inner > .notion-table-th:nth-child(4)
-  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
-  .notion-table-header-inner
-  > .notion-table-th:nth-child(3),
-.notion-polish-balanced
-  .notion-page
-  .notion-table-view:has(
-    .notion-table-header-inner > .notion-table-th:nth-child(4)
-  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
-  .notion-table-body
-  > .notion-table-row
-  > .notion-table-cell:nth-child(3) {
-  width: 14%;
-  flex: 0 0 14%;
-  min-width: 0;
-  max-width: 14%;
-}
-
-.notion-polish-balanced
-  .notion-page
-  .notion-table-view:has(
-    .notion-table-header-inner > .notion-table-th:nth-child(4)
-  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
-  .notion-table-header-inner
-  > .notion-table-th:nth-child(4),
-.notion-polish-balanced
-  .notion-page
-  .notion-table-view:has(
-    .notion-table-header-inner > .notion-table-th:nth-child(4)
-  ):not(:has(.notion-table-header-inner > .notion-table-th:nth-child(5)))
-  .notion-table-body
-  > .notion-table-row
-  > .notion-table-cell:nth-child(4) {
-  width: 43%;
-  flex: 0 0 43%;
-  min-width: 0;
-  max-width: 43%;
-}
-
+/* NOTE: Per-column percentage overrides for 4-column tables were removed.
+   react-notion-x sets inline style.width from Notion's table_properties[].width,
+   and the notion-table-th flex default (flex-basis: auto) correctly sizes to that. */
 .notion-polish-balanced
   .notion-page
   .notion-table-view:has(
