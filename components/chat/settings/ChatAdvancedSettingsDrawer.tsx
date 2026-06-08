@@ -20,6 +20,7 @@ import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 import { AdvancedSettingsPresetEffects } from "./AdvancedSettingsPresetEffects";
 import styles from "./ChatAdvancedSettingsDrawer.module.css";
 import { DrawerInlineWarning } from "./DrawerInlineWarning";
+import { computeOverridesActive } from "./preset-overrides";
 import { SettingsSectionContextHistory } from "./SettingsSectionContextHistory";
 import { SettingsSectionCoreSummary } from "./SettingsSectionCoreSummary";
 import { SettingsSectionDisplay } from "./SettingsSectionDisplay";
@@ -153,10 +154,6 @@ export function ChatAdvancedSettingsDrawer({
               </div>
 
               <div className={styles.drawerSection}>
-                <SettingsSectionDisplay />
-              </div>
-
-              <div className={styles.drawerSection}>
                 <Section className={styles.presetScope}>
                   <div className={styles.presetScopeHeader}>
                     <div className={styles.presetScopeTop}>
@@ -244,18 +241,24 @@ export function ChatAdvancedSettingsDrawer({
                 )}
               </div>
 
-              <div className="pt-4">
-                <div
-                  className={`${styles.drawerDivider} ${styles.drawerDividerSpacing}`}
-                />
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={resetToDefault}
-                >
-                  Reset to Preset Defaults
-                </Button>
+              <div className={styles.drawerSection}>
+                <SettingsSectionDisplay />
               </div>
+
+              {computeOverridesActive({ adminConfig, sessionConfig }) && (
+                <div className="pt-4">
+                  <div
+                    className={`${styles.drawerDivider} ${styles.drawerDividerSpacing}`}
+                  />
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={resetToDefault}
+                  >
+                    Reset to Preset Defaults
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,21 +1,12 @@
-import "@/styles/diagnostics-display-card.css";
-
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { SwitchField } from "@/components/ui/field";
-import { cn } from "@/components/ui/utils";
 
-type DiagnosticsDisplayControlsProps = {
-  className?: string;
-};
-
-export function DiagnosticsDisplayControls({
-  className,
-}: DiagnosticsDisplayControlsProps) {
+export function DiagnosticsDisplayControls() {
   const { showTelemetry, showCitations, setShowTelemetry, setShowCitations } =
     useChatDisplaySettings();
 
   return (
-    <div className={cn("ai-diagnostics-display-card", className)}>
+    <div className="flex flex-col gap-4">
       <SwitchField
         id="telemetry-badges"
         label="Telemetry badges"
@@ -23,7 +14,6 @@ export function DiagnosticsDisplayControls({
         checked={showTelemetry}
         onCheckedChange={setShowTelemetry}
         variant="plain"
-        className="ai-diagnostics-display-field"
       />
       <SwitchField
         id="citations"
@@ -32,7 +22,6 @@ export function DiagnosticsDisplayControls({
         checked={showCitations}
         onCheckedChange={setShowCitations}
         variant="plain"
-        className="ai-diagnostics-display-field"
       />
     </div>
   );

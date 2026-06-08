@@ -2,26 +2,20 @@
 
 import { FiCommand } from "@react-icons/all-files/fi/FiCommand";
 
-import {
-  Section,
-  SectionDescription,
-  SectionHeader,
-  SectionTitle,
-} from "@/components/ui/section";
-
 type Props = {
   summary: string;
 };
 
 export function SettingsSectionCoreSummary({ summary }: Props) {
   return (
-    <Section>
-      <SectionHeader>
-        <SectionTitle as="p" icon={<FiCommand aria-hidden="true" />}>
+    <div className="flex flex-col gap-1.5 px-1">
+      <div className="flex items-center gap-1.5">
+        <FiCommand size={11} aria-hidden="true" className="shrink-0 opacity-50" />
+        <span className="text-xs font-semibold uppercase tracking-wide opacity-60">
           Core System Behavior
-        </SectionTitle>
-      </SectionHeader>
-      <SectionDescription>{summary}</SectionDescription>
-    </Section>
+        </span>
+      </div>
+      <p className="ai-setting-section-description">{summary}</p>
+    </div>
   );
 }

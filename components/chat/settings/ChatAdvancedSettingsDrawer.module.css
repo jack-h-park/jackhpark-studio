@@ -233,13 +233,6 @@
   margin-block: 0.75rem;
 }
 
-.drawerDiagnosticsCard {
-  border-color: var(--ai-role-border-subtle);
-}
-
-:global(.dark) .drawerDiagnosticsCard {
-  border-color: var(--ai-role-border-base);
-}
 
 .drawerCloseButton {
   min-width: 40px;

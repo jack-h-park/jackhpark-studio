@@ -10,8 +10,6 @@ import {
   SectionTitle,
 } from "@/components/ui/section";
 
-import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
-
 export function SettingsSectionDisplay() {
   return (
     <Section>
@@ -21,9 +19,7 @@ export function SettingsSectionDisplay() {
         </SectionTitle>
       </SectionHeader>
       <SectionContent className="grid gap-3">
-        <DiagnosticsDisplayControls
-          className={drawerStyles.drawerDiagnosticsCard}
-        />
+        <DiagnosticsDisplayControls />
       </SectionContent>
     </Section>
   );
