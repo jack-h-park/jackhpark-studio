@@ -11,6 +11,11 @@
   line-height: 1.25;
 }
 
+/* 2px border on all tiles — keeps layout stable when toggling active state */
+.presetTile {
+  border-width: 2px;
+}
+
 /* Gradient border on active tile — matches admin UI selectable pattern */
 .presetTile.presetTileActive {
   border-color: transparent;

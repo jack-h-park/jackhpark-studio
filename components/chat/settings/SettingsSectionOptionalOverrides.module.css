@@ -52,6 +52,21 @@
   gap: 0.75rem;
 }
 
+/* 2px border on all summary tiles for layout stability */
+.summaryTile {
+  border-width: 2px;
+}
+
+/* Gradient border on active summary tile — same pattern as preset tiles */
+.summaryTile.summaryTileActive {
+  border-color: transparent;
+  background-color: unset;
+  background:
+    linear-gradient(var(--ai-role-surface-1), var(--ai-role-surface-1)) padding-box,
+    var(--gradient-mini) border-box;
+  box-shadow: var(--ai-shadow-soft);
+}
+
 .promptPreviewSurface {
   border-radius: var(--ai-radius-lg);
   border: 1px solid var(--ai-border-subtle);

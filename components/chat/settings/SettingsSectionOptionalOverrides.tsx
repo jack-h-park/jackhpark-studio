@@ -225,6 +225,8 @@ export function SettingsSectionOptionalOverrides({
                     label={option.label}
                     description={option.description}
                     className={cn(
+                      styles.summaryTile,
+                      isActive && styles.summaryTileActive,
                       "flex flex-col items-center justify-center text-center h-full w-full max-w-full",
                     )}
                     contentClassName="ai-choice !gap-1 w-full"
