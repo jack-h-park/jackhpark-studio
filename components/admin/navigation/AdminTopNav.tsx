@@ -73,7 +73,7 @@ export function AdminTopNav({
             "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] transition-all duration-150 focus-ring select-none",
             isJpTheme
               ? // J-P active: gradient border + gradient text
-                "border border-transparent [background:linear-gradient(var(--ai-role-surface-muted,#f7f6f3),var(--ai-role-surface-muted,#f7f6f3))_padding-box,linear-gradient(90deg,#b439df,#5b8def,#4dd0e1)_border-box]"
+                "border border-transparent [background:linear-gradient(var(--ai-role-surface-muted),var(--ai-role-surface-muted))_padding-box,var(--gradient-mini)_border-box]"
               : // Legacy active: subtle neutral pill
                 "border border-[color:var(--ai-role-border-subtle)] text-[color:var(--ai-text-muted)]",
           )}
@@ -82,7 +82,7 @@ export function AdminTopNav({
             // Gradient text for "J·P" label when theme is active
             <span
               style={{
-                background: "linear-gradient(90deg,#b439df,#5b8def,#4dd0e1)",
+                background: "var(--gradient-mini)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -103,7 +103,7 @@ export function AdminTopNav({
             style={
               isJpTheme
                 ? {
-                    stroke: "#5b8def",
+                    stroke: "var(--brand-blue)",
                   }
                 : { stroke: "currentColor", opacity: 0.5 }
             }

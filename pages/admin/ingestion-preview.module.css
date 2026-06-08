@@ -122,17 +122,20 @@
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: var(--ai-accent-strong);
-  text-decoration: none;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--ai-accent-strong) 35%, transparent);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s ease, color 0.15s ease;
 }
 
-.previewRelatedRunLink:hover,
-.previewRelatedRunLink:focus-visible {
-  text-decoration: underline;
+.previewRelatedRunLink:hover {
+  text-decoration-color: var(--ai-accent-strong);
 }
 
 .previewRelatedRunLink:focus-visible {
   outline: 2px solid var(--ai-accent-strong);
   outline-offset: 2px;
+  text-decoration-color: var(--ai-accent-strong);
 }
 
 @media (min-width: 1024px) {

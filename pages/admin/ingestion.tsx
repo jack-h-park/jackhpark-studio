@@ -96,7 +96,7 @@ function IngestionDashboard({
             <IngestionSubNav />
 
             <div className="space-y-3">
-              <p className="pl-1 text-[0.6rem] uppercase tracking-[0.35em] text-[color:var(--ai-text-muted)] opacity-70">
+              <p className="ai-label-overline ai-label-overline--small ai-label-overline--muted pl-1 opacity-70">
                 Pipeline Health
               </p>
               <SystemHealthSection health={systemHealth} />
@@ -109,7 +109,7 @@ function IngestionDashboard({
             </div>
 
             <div className="space-y-3">
-              <p className="pl-1 text-[0.6rem] uppercase tracking-[0.35em] text-[color:var(--ai-text-muted)] opacity-70">
+              <p className="ai-label-overline ai-label-overline--small ai-label-overline--muted pl-1 opacity-70">
                 Dataset
               </p>
               <SnapshotPreviewPanel overview={datasetSnapshot} />

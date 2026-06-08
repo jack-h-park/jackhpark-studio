@@ -514,7 +514,7 @@ export function SessionPresetsCard({
       />
       <ChatConfigCardContent className="space-y-6">
         <GridPanel className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] px-4 py-4 shadow-sm">
-          <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] items-center gap-3 t-eyebrow text-[var(--ai-text-muted)]">
+          <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] items-center gap-4 t-eyebrow text-[var(--ai-text-muted)]">
             <div className={sessionGridLabelClass}>Setting</div>
             {presetDisplayOrder.map((presetKey) => (
               <div
@@ -729,7 +729,7 @@ export function SessionPresetsCard({
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] gap-4 items-start rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-2)]/40 px-4 py-3">
+          <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] gap-4 items-start rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-2)]/50 px-4 py-3">
             <div className={sessionGridLabelClass}>Context & History</div>
             {presetDisplayOrder.map((presetKey) => (
               <div
