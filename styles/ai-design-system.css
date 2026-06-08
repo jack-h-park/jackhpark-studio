@@ -996,6 +996,7 @@ body.dark-mode {
   border: 1px solid var(--ai-role-border-subtle);
   background-color: var(--ai-role-surface-1);
   transition:
+    background 0.15s ease,
     background-color 0.15s ease,
     border-color 0.15s ease,
     box-shadow 0.15s ease,
@@ -1012,13 +1013,18 @@ body.dark-mode {
 }
 
 .ai-selectable--active {
-  border-color: var(--ai-role-border-selected);
-  background-color: var(--ai-role-surface-selected);
+  border-color: transparent;
+  background:
+    linear-gradient(
+        var(--ai-role-surface-selected),
+        var(--ai-role-surface-selected)
+      )
+      padding-box,
+    var(--gradient-mini) border-box;
   box-shadow:
     var(--ai-shadow-soft),
-    inset 0 0 0 1px var(--ai-role-border-selected),
-    inset 0 0 0 2px
-      color-mix(in srgb, var(--ai-role-border-selected) 60%, transparent);
+    inset 0 0 0 1px
+      color-mix(in srgb, var(--ai-role-border-selected) 30%, transparent);
 }
 
 .ai-selectable--disabled {
