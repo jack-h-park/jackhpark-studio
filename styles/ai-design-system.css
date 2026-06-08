@@ -43,6 +43,8 @@
   --ai-radius-pill: 999px;
   --ai-shadow-soft: 0 18px 35px rgba(15, 15, 15, 0.08);
   --ai-shadow-elevated: 0 10px 20px rgba(15, 15, 15, 0.05);
+  --ai-shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --ai-shadow-overlay-panel: 0 20px 40px -8px rgba(0, 0, 0, 0.18), 0 8px 16px -4px rgba(0, 0, 0, 0.1);
   --ai-surface: hsl(var(--ai-bg));
   --ai-surface-muted: hsl(var(--ai-bg-muted));
   --ai-bg-subtle: hsl(var(--ai-bg-muted));
@@ -149,6 +151,8 @@ body.dark-mode {
   --ai-fg-muted: 0 0% 70%;
   --ai-border: 204 3% 36%;
   --ai-shadow-soft: 0 18px 35px rgba(0, 0, 0, 0.45);
+  --ai-shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --ai-shadow-overlay-panel: 0 20px 40px -8px rgba(0, 0, 0, 0.5), 0 8px 16px -4px rgba(0, 0, 0, 0.35);
   --ai-accent: var(--notion-blue);
   --ai-success: #34d399;
   --ai-success-muted: color-mix(in srgb, var(--ai-success) 20%, transparent);
@@ -777,8 +781,8 @@ body.dark-mode {
 
 .ai-switch-thumb[data-state="checked"] {
   transform: translateX(18px);
-  background-color: #fff;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
+  background-color: white;
+  box-shadow: var(--ai-shadow-thumb);
 }
 
 .ai-switch-thumb[data-state="unchecked"] {
