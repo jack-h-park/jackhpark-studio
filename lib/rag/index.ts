@@ -6,7 +6,6 @@ import { JSDOM } from "jsdom";
 import { type ExtendedRecordMap } from "notion-types";
 import {
   getBlockTitle,
-  getBlockValue,
   getPageContentBlockIds,
   getTextContent,
 } from "notion-utils";
@@ -23,6 +22,21 @@ import { getRagChunksTable } from "../core/rag-tables";
 import { supabaseClient } from "../core/supabase";
 import { normalizeMetadata, type RagDocumentMetadata } from "./metadata";
 import { normalizeTimestamp } from "./timestamp";
+
+// Notion sometimes returns doubly-nested blocks: recordMap.block[id].value = { role, value: Block }
+// instead of the expected { role, value: Block } where value IS the Block.
+// This helper unwraps until it finds an object with an `id` field.
+// https://github.com/NotionX/react-notion-x/issues/682
+function getBlockValue(
+  blockEntry: ExtendedRecordMap["block"][string] | undefined,
+): ExtendedRecordMap["block"][string]["value"] | undefined {
+  if (!blockEntry) return undefined;
+  let v: unknown = blockEntry.value;
+  while (v && typeof v === "object" && !(v as Record<string, unknown>).id) {
+    v = (v as Record<string, unknown>).value;
+  }
+  return v as ExtendedRecordMap["block"][string]["value"] | undefined;
+}
 
 const DOCUMENTS_TABLE = "rag_documents";
 let documentStateTableStatus: "unknown" | "available" | "missing" = "unknown";
