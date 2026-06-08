@@ -176,3 +176,108 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Document preview thumbnail */
+.thumbnailGroup {
+  position: relative;
+  display: flex;
+}
+
+.thumbnailBox {
+  display: flex;
+  height: 3rem;
+  width: 3rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: var(--ai-radius-xl);
+  border: 1px solid var(--ai-role-border-subtle);
+  background-color: var(--ai-role-surface-1);
+  color: var(--ai-text-muted);
+}
+
+/* Document preview overlay (hover) */
+.previewOverlay {
+  pointer-events: none;
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  margin-left: 0.75rem;
+  display: none;
+  width: 320px;
+  transform: translateY(-50%);
+  flex-direction: column;
+  gap: var(--ai-space-2);
+  border-radius: var(--ai-radius-xl);
+  border: 1px solid var(--ai-role-border-subtle);
+  background-color: var(--ai-role-surface-0);
+  padding: var(--ai-space-3);
+  box-shadow: 0 20px 40px -8px rgb(0 0 0 / 0.18), 0 8px 16px -4px rgb(0 0 0 / 0.1);
+  opacity: 0;
+  transition: opacity 0.15s ease-out;
+  z-index: 50;
+}
+
+.thumbnailGroup:hover .previewOverlay {
+  display: flex;
+  opacity: 1;
+}
+
+.previewImageWrap {
+  overflow: hidden;
+  border-radius: var(--ai-radius-md);
+  border: 1px solid var(--ai-role-border-muted);
+  background-color: var(--ai-role-surface-1);
+}
+
+.previewImageFull {
+  height: 10rem;
+  width: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.previewTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ai-text-strong);
+  margin: 0;
+}
+
+.previewSubtitle {
+  font-size: 0.75rem;
+  color: var(--ai-text-muted);
+  margin: 0;
+}
+
+/* Status column */
+.statusCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.statusMetaText {
+  font-size: 0.6875rem;
+  color: var(--ai-text-muted);
+  white-space: nowrap;
+}
+
+/* Error state */
+.errorState {
+  border-radius: var(--ai-radius-md);
+  border: 1px solid var(--ai-role-border-muted);
+  background-color: var(--ai-role-surface-muted);
+  padding: var(--ai-space-4);
+  text-align: center;
+}
+
+.errorStateText {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ai-text-muted);
+}

@@ -2,7 +2,9 @@ import "@/styles/admin-doc-preview.css";
 
 import type { GetServerSideProps } from "next";
 import { FiChevronRight } from "@react-icons/all-files/fi/FiChevronRight";
+import { FiDatabase } from "@react-icons/all-files/fi/FiDatabase";
 import { FiFileText } from "@react-icons/all-files/fi/FiFileText";
+import { FiSearch } from "@react-icons/all-files/fi/FiSearch";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -14,7 +16,6 @@ import { DocumentIdCell } from "@/components/admin/rag/DocumentIdCell";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
   CardContent,
   CardDescription,
   CardHeader,
@@ -115,9 +116,10 @@ function getStatusPillVariant(
 
 function formatStatusLabel(status: RagDocumentRecord["status"]): string {
   if (!status) {
-    return "unknown";
+    return "Unknown";
   }
-  return status.replaceAll("_", " ");
+  const label = status.replaceAll("_", " ");
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 function isRetrievalEligible(status: RagDocumentRecord["status"]): boolean {
@@ -199,47 +201,37 @@ function DocumentPreviewOverlay({ doc, info }: DocumentPreviewOverlayProps) {
   const snippet = buildPreviewSnippet(info.teaserText);
   const hasImagePreview = Boolean(info.previewImageUrl);
   const hasSnippet = Boolean(snippet);
-  const overlayClassName =
-    "pointer-events-none absolute left-full top-1/2 ml-3 hidden w-[320px] -translate-y-1/2 flex-col rounded-xl border border-[color:var(--ai-border-soft)] bg-[color:var(--ai-surface-elevated)] p-3 shadow-2xl opacity-0 transition duration-150 ease-out group-hover:flex group-hover:opacity-100 z-50";
 
   if (!hasImagePreview && !hasSnippet) {
     return (
-      <div className={overlayClassName}>
-        <p className="text-xs text-[color:var(--ai-text-muted)]">
-          No preview available.
-        </p>
+      <div className={styles.previewOverlay}>
+        <p className={styles.previewSubtitle}>No preview available.</p>
       </div>
     );
   }
 
   return (
-    <div className={overlayClassName}>
+    <div className={styles.previewOverlay}>
       {hasImagePreview ? (
         <>
-          <div className="overflow-hidden rounded-lg border border-[color:var(--ai-border)] bg-[color:var(--ai-surface)]">
+          <div className={styles.previewImageWrap}>
             <img
               src={info.previewImageUrl}
               alt={doc.displayTitle}
-              className="h-40 w-full object-cover"
+              className={styles.previewImageFull}
               loading="lazy"
             />
           </div>
           <div className="space-y-1">
-            <p className="truncate text-sm font-semibold text-[color:var(--ai-text)]">
-              {doc.displayTitle}
-            </p>
+            <p className={styles.previewTitle}>{doc.displayTitle}</p>
             {info.subtitle ? (
-              <p className="text-xs text-[color:var(--ai-text-muted)]">
-                {info.subtitle}
-              </p>
+              <p className={styles.previewSubtitle}>{info.subtitle}</p>
             ) : null}
           </div>
         </>
       ) : (
         <div className="space-y-2">
-          <p className="truncate text-sm font-semibold text-[color:var(--ai-text)]">
-            {doc.displayTitle}
-          </p>
+          <p className={styles.previewTitle}>{doc.displayTitle}</p>
           <p className="admin-doc-preview-overlay-body">{snippet}</p>
         </div>
       )}
@@ -320,10 +312,8 @@ function DocumentPreviewThumbnail({
 
   return (
     <div className="flex justify-center">
-      <div className="group relative flex">
-        <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border border-[color:var(--ai-border-soft)] bg-[color:var(--ai-surface-muted)] text-[color:var(--ai-text-muted)]">
-          {renderSlot()}
-        </div>
+      <div className={styles.thumbnailGroup}>
+        <div className={styles.thumbnailBox}>{renderSlot()}</div>
         <DocumentPreviewOverlay doc={doc} info={info} />
       </div>
     </div>
@@ -574,53 +564,54 @@ export default function AdminDocumentsPage({
           doc.status ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex flex-col items-start gap-1">
-                  <div className="flex items-center gap-2">
-                    <StatusPill variant={getStatusPillVariant(doc.status)}>
-                      {formatStatusLabel(doc.status)}
-                    </StatusPill>
-                    <StatusPill variant="muted">
-                      {(doc.raw_doc_id ?? doc.metadata?.raw_doc_id)
-                        ? "RAW OK"
-                        : "RAW N/A"}
-                    </StatusPill>
-                  </div>
-                  <span className="text-[11px] text-[color:var(--ai-text-muted)]">
-                    {isRetrievalEligible(doc.status) ? "Eligible" : "Excluded"}
-                  </span>
-                  <span className="text-[11px] text-[color:var(--ai-text-muted)]">
+                <div className={styles.statusCell}>
+                  <StatusPill variant={getStatusPillVariant(doc.status)}>
+                    {formatStatusLabel(doc.status)}
+                  </StatusPill>
+                  <span className={styles.statusMetaText}>
                     {doc.status === "missing" && doc.missing_detected_at
-                      ? `Missing: ${new Date(
-                          doc.missing_detected_at,
-                        ).toLocaleDateString()}`
-                      : `Fetch: ${doc.last_fetch_status ?? "—"} · Sync: ${
-                          doc.last_sync_success_at
-                            ? new Date(
-                                doc.last_sync_success_at,
-                              ).toLocaleDateString()
-                            : "Never"
-                        }`}
+                      ? `Since ${new Date(doc.missing_detected_at).toLocaleDateString()}`
+                      : `Fetch: ${doc.last_fetch_status ?? "—"}`}
                   </span>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="top">
-                {doc.status === "active"
-                  ? "Included in retrieval"
-                  : doc.status === "missing"
-                    ? "Excluded (status must be active)"
-                    : doc.status === "soft_deleted"
-                      ? "Excluded (soft-deleted)"
-                      : "Excluded (status must be active)"}
+                <div className="space-y-1 text-xs">
+                  <p>
+                    {isRetrievalEligible(doc.status)
+                      ? "Included in retrieval"
+                      : "Excluded from retrieval"}
+                  </p>
+                  <p className="opacity-70">
+                    {(doc.raw_doc_id ?? doc.metadata?.raw_doc_id)
+                      ? "Raw ID available"
+                      : "No raw ID"}
+                  </p>
+                </div>
               </TooltipContent>
             </Tooltip>
           ) : (
             "—"
           ),
-        align: "center",
-        width: "180px",
+        align: "left",
+        width: "140px",
         size: "xs",
-        className: "min-w-[180px] text-[color:var(--ai-text-muted)]",
+        className: "min-w-[140px]",
         skeletonWidth: "35%",
+      },
+      {
+        header: "Last Sync",
+        render: (doc) =>
+          doc.last_sync_success_at ? (
+            <ClientSideDate value={doc.last_sync_success_at} />
+          ) : (
+            <span className={styles.statusMetaText}>Never</span>
+          ),
+        variant: "muted",
+        size: "xs",
+        width: "130px",
+        className: "min-w-[130px]",
+        skeletonWidth: "50%",
       },
       {
         header: "Last Ingested",
@@ -794,14 +785,12 @@ export default function AdminDocumentsPage({
         >
           <div className={cn("mb-6", styles.pageFlow)}>
             <IngestionSubNav />
-            <Card>
-              <CardHeader>
-                <CardTitle className={styles.sectionTitleLevelTwo}>
+            <section className="ai-card space-y-4 p-5">
+              <CardHeader className="gap-1">
+                <CardTitle icon={<FiSearch aria-hidden="true" />}>
                   Search & Filters
                 </CardTitle>
-                <CardDescription
-                  className={styles.sectionDescriptionLevelThree}
-                >
+                <CardDescription>
                   Find documents by ID, type, persona, visibility, source, or
                   status.
                 </CardDescription>
@@ -878,7 +867,7 @@ export default function AdminDocumentsPage({
                     </Select>
                   </div>
                   <div className="md:col-span-1">
-                    <Label>Public</Label>
+                    <Label>Visibility</Label>
                     <Select
                       value={isPublic}
                       onValueChange={(value) => setIsPublic(value)}
@@ -900,12 +889,10 @@ export default function AdminDocumentsPage({
                       role="group"
                       aria-labelledby="status-filter-label"
                     >
-                      {[
-                        { value: "active", label: "Active" },
-                        { value: "missing", label: "Missing" },
-                        { value: "archived", label: "Archived" },
-                        { value: "soft_deleted", label: "Soft deleted" },
-                      ].map((option) => {
+                      {(
+                        ["active", "missing", "archived", "soft_deleted"] as const
+                      ).map((value) => {
+                        const option = { value, label: formatStatusLabel(value) };
                         const isChecked = statusFilter.includes(option.value);
                         return (
                           <button
@@ -1000,25 +987,21 @@ export default function AdminDocumentsPage({
                   </div>
                 ) : null}
               </CardContent>
-            </Card>
+            </section>
 
-            <Card className={styles.documentsCard}>
-              <CardHeader>
-                <CardTitle className={styles.sectionTitleLevelTwo}>
+            <section className="ai-card space-y-4 p-5">
+              <CardHeader className="gap-1">
+                <CardTitle icon={<FiDatabase aria-hidden="true" />}>
                   Documents
                 </CardTitle>
-                <CardDescription
-                  className={styles.sectionDescriptionLevelThree}
-                >
-                  Browse all ingested text chunks and their associated metadata.
+                <CardDescription>
+                  Browse all ingested documents and their associated metadata.
                 </CardDescription>
               </CardHeader>
               <CardContent className="px-5 pb-5 pt-4">
                 {navigationError ? (
-                  <div className="rounded border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-muted)] p-4 text-center">
-                    <p className="text-sm font-semibold text-[color:var(--ai-text-muted)]">
-                      {navigationError}
-                    </p>
+                  <div className={styles.errorState}>
+                    <p className={styles.errorStateText}>{navigationError}</p>
                     <div className="mt-3 flex justify-center">
                       <Button
                         variant="ghost"
@@ -1054,7 +1037,7 @@ export default function AdminDocumentsPage({
                   emptyStatePanel
                 )}
               </CardContent>
-            </Card>
+            </section>
           </div>
         </AdminPageShell>
       </AiPageChrome>
