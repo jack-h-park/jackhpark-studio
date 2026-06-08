@@ -1,3 +1,4 @@
+import { type ExtendedRecordMap } from "notion-types";
 import { getAllPagesInSpace, getPageProperty } from "notion-utils";
 import pMemoize from "p-memoize";
 
@@ -25,14 +26,38 @@ const getAllPages = pMemoize(getAllPagesImpl, {
   cacheKey: (...args) => JSON.stringify(args),
 });
 
+// notion-utils' getAllPagesInSpace reads block[id].value.type to find sub-pages,
+// but this project's Notion API returns a double-nested structure:
+//   block[id] = { spaceId, value: { value: { id, type, ... } } }
+// Normalize blocks to the standard single-nested format so traversal works.
+function normalizeBlocksForTraversal(
+  recordMap: ExtendedRecordMap,
+): ExtendedRecordMap {
+  const normalizedBlocks: ExtendedRecordMap["block"] = {};
+  for (const [id, raw] of Object.entries(recordMap.block ?? {})) {
+    const outer = (raw as any)?.value;
+    const isDoubleNested =
+      outer &&
+      typeof outer === "object" &&
+      "value" in outer &&
+      outer.value &&
+      typeof outer.value === "object" &&
+      (outer.value.id || outer.value.type || outer.value.parent_id);
+    normalizedBlocks[id] = isDoubleNested
+      ? ({ value: outer.value } as any)
+      : raw;
+  }
+  return { ...recordMap, block: normalizedBlocks };
+}
+
 const getPage = async (pageId: string, opts?: any) => {
-  // console.log('\nnotion getPage', pageId)
-  return notion.getPage(pageId, {
+  const recordMap = await notion.getPage(pageId, {
     kyOptions: {
       timeout: 30_000,
     },
     ...opts,
   });
+  return normalizeBlocksForTraversal(recordMap);
 };
 
 async function getAllPagesImpl(
