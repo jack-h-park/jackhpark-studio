@@ -18,7 +18,6 @@ import { SystemHealthSection } from "@/components/admin/ingestion/SystemHealthSe
 import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
 import { IngestionSubNav } from "@/components/admin/navigation/IngestionSubNav";
 import { AiPageChrome } from "@/components/AiPageChrome";
-import { LinkButton } from "@/components/ui/link-button";
 import {
   SNAPSHOT_HISTORY_LIMIT,
   toSnapshotSummary,
@@ -91,16 +90,6 @@ function IngestionDashboard({
             title: PAGE_TITLE,
             description:
               "Monitor ingestion health, trigger manual runs, and review the latest dataset snapshot.",
-            actions: (
-              <div className="flex flex-wrap items-center gap-2">
-                <LinkButton href="/admin/documents" variant="outline">
-                  Manage RAG Documents
-                </LinkButton>
-                <LinkButton href="/admin/chat-config" variant="outline">
-                  Chat Configuration
-                </LinkButton>
-              </div>
-            ),
           }}
         >
           <div className="mb-6 space-y-8">

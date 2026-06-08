@@ -675,7 +675,7 @@ export function SessionPresetsCard({
                   : null;
               return (
                 <CheckboxChoice
-                  label="Require local backend"
+                  label={<span className="sr-only">Require local backend</span>}
                   description={
                     <span className="flex flex-col gap-1">
                       <span className="ai-helper-text">{baseDescription}</span>
@@ -704,7 +704,7 @@ export function SessionPresetsCard({
               const preset = presets[presetKey];
               return (
                 <CheckboxChoice
-                  label="Safe Mode"
+                  label={<span className="sr-only">Safe Mode</span>}
                   description="Turn on conservative LangChain defaults (no retrieval or enhancements) to keep the runtime responsive when dependencies are unstable."
                   layout="stacked"
                   checked={Boolean(preset.safeMode)}

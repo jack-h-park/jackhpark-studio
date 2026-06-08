@@ -1,3 +1,5 @@
+import { FiSettings } from "@react-icons/all-files/fi/FiSettings";
+
 import { AllowlistCard } from "@/components/admin/chat-config/AllowlistCard";
 import { CachingCard } from "@/components/admin/chat-config/CachingCard";
 import styles from "@/components/admin/chat-config/chat-config.module.css";
@@ -75,7 +77,7 @@ export function ChatConfigPage({
     : undefined;
   const headerActions = (
     <Button
-      variant="ghost"
+      variant="outline"
       type="button"
       onClick={() => setIsRawModalOpen(true)}
     >
@@ -92,6 +94,7 @@ export function ChatConfigPage({
     <AdminPageShell
       section="chat"
       header={{
+        icon: <FiSettings aria-hidden="true" />,
         overline: "ADMIN",
         title: pageTitle,
         description:

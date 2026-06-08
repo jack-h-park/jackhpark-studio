@@ -740,8 +740,8 @@ body.dark-mode {
 }
 
 .ai-switch[data-state="checked"] {
-  border-color: var(--ai-accent-strong);
-  background-color: var(--ai-accent-soft);
+  border-color: transparent;
+  background: var(--gradient-mini);
 }
 
 .ai-switch[data-state="unchecked"] {
@@ -777,7 +777,8 @@ body.dark-mode {
 
 .ai-switch-thumb[data-state="checked"] {
   transform: translateX(18px);
-  background-color: var(--ai-accent);
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.25);
 }
 
 .ai-switch-thumb[data-state="unchecked"] {
@@ -813,8 +814,8 @@ body.dark-mode {
 }
 
 .ai-checkbox[data-state="checked"] {
-  background-color: var(--ai-accent);
-  border-color: var(--ai-accent);
+  background: var(--gradient-mini);
+  border-color: transparent;
 }
 
 .ai-checkbox:not([data-disabled="true"]):hover:not([data-state="checked"]) {
