@@ -69,9 +69,13 @@ type ManualNotionScope = "workspace" | "selected";
 const LINKED_PAGE_MAX_PAGES = 250;
 const LINKED_PAGE_MAX_DEPTH = 4;
 
-const WORKSPACE_ROOT_PAGE_ID = resolveWorkspaceRootPageId();
+let _workspaceRootPageId: string | undefined;
 
-function resolveWorkspaceRootPageId(): string {
+function getWorkspaceRootPageId(): string {
+  if (_workspaceRootPageId) {
+    return _workspaceRootPageId;
+  }
+
   const candidate =
     process.env.NOTION_ROOT_PAGE_ID ?? getSiteConfig("rootNotionPageId");
   const normalized =
@@ -85,6 +89,7 @@ function resolveWorkspaceRootPageId(): string {
     );
   }
 
+  _workspaceRootPageId = normalized;
   return normalized;
 }
 
@@ -521,7 +526,7 @@ async function runNotionPageIngestion({
   let rootPageId = normalizeNotionPageId(candidateRoot);
 
   if (!rootPageId && isWorkspace) {
-    rootPageId = WORKSPACE_ROOT_PAGE_ID;
+    rootPageId = getWorkspaceRootPageId();
   }
 
   if (!rootPageId) {

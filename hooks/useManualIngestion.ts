@@ -442,8 +442,16 @@ export function useManualIngestion(): ManualIngestionHookState {
         } else {
           try {
             const text = await response.text();
-            if (text.trim()) {
-              message = text.trim();
+            const trimmed = text.trim();
+            if (trimmed) {
+              const isHtml =
+                trimmed.startsWith("<!DOCTYPE") ||
+                trimmed.startsWith("<html");
+              if (isHtml) {
+                message = `Server error (${response.status}): the API route failed to initialize. Check server logs for details.`;
+              } else {
+                message = trimmed;
+              }
             }
           } catch {
             // ignore
