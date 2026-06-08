@@ -167,24 +167,6 @@
   color: hsl(var(--ai-fg));
 }
 
-.compactSwitches {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 4px;
-}
-
-.compactSwitchRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: hsl(var(--ai-bg));
-  border: 1px solid hsl(var(--ai-border));
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
 
 .detailsSection {
   margin-top: 8px;

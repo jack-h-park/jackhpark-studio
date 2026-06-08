@@ -2,46 +2,17 @@ import "@/styles/diagnostics-display-card.css";
 
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { SwitchField } from "@/components/ui/field";
-import { Switch } from "@/components/ui/switch";
 import { cn } from "@/components/ui/utils";
 
 type DiagnosticsDisplayControlsProps = {
-  compact?: boolean;
   className?: string;
-  rowClassName?: string;
 };
 
 export function DiagnosticsDisplayControls({
-  compact = false,
   className,
-  rowClassName,
 }: DiagnosticsDisplayControlsProps) {
   const { showTelemetry, showCitations, setShowTelemetry, setShowCitations } =
     useChatDisplaySettings();
-
-  if (compact) {
-    const rowClass = rowClassName ?? "flex items-center justify-between gap-3";
-    return (
-      <div className={className}>
-        <div className={rowClass}>
-          <span>Telemetry</span>
-          <Switch
-            checked={showTelemetry}
-            onCheckedChange={setShowTelemetry}
-            aria-label="Toggle telemetry"
-          />
-        </div>
-        <div className={rowClass}>
-          <span>Citations</span>
-          <Switch
-            checked={showCitations}
-            onCheckedChange={setShowCitations}
-            aria-label="Toggle citations"
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={cn("ai-diagnostics-display-card", className)}>

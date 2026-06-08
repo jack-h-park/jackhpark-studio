@@ -21,7 +21,6 @@ import { useChatPromotionSession } from "@/components/chat/context/ChatPromotion
 import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { useChatScroll } from "@/components/chat/hooks/useChatScroll";
 import { useChatSession } from "@/components/chat/hooks/useChatSession";
-import { DiagnosticsDisplayControls } from "@/components/chat/settings/DiagnosticsDisplayControls";
 import {
   MODEL_PROVIDER_LABELS,
   type ModelProvider,
@@ -70,8 +69,7 @@ export function ChatFloatingWindow({
     abortActiveRequest,
   } = useChatSession({ source: "floating-widget" });
 
-  const { showTelemetry, showCitations, detailsExpanded, setDetailsExpanded } =
-    useChatDisplaySettings();
+  const { detailsExpanded, setDetailsExpanded } = useChatDisplaySettings();
 
   const toggleDetails = () => {
     setDetailsExpanded(!detailsExpanded);
@@ -335,14 +333,7 @@ export function ChatFloatingWindow({
                 </div>
               )}
 
-              {/* 2. Compact Switches */}
-              <DiagnosticsDisplayControls
-                compact
-                className={styles.compactSwitches}
-                rowClassName={styles.compactSwitchRow}
-              />
-
-              {/* 3. Details Section */}
+              {/* 2. Details Section */}
               {detailsExpanded && (
                 <div className={styles.detailsSection}>
                   <div className={styles.detailsRow}>
@@ -400,8 +391,6 @@ export function ChatFloatingWindow({
               messages={messages}
               isLoading={isLoading}
               loadingAssistantId={loadingAssistantId}
-              showTelemetry={showTelemetry}
-              showCitations={showCitations}
               showPlaceholder={false}
               citationLinkLength={24}
               retryPreset={retryPreset}
