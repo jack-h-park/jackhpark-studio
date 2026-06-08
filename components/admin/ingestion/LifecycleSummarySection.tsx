@@ -48,7 +48,7 @@ export function LifecycleSummarySection({
           Lifecycle Summary
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-3">
+      <CardContent className="space-y-4 p-3">
         <GridPanel className="grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3">
           {tiles.map((tile) => {
             const isZero = tile.count === 0;

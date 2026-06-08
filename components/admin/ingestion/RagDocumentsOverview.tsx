@@ -230,7 +230,7 @@ export function RagDocumentsOverview({
           Breakdown by persona, source, and visibility.
         </p>
       </CardHeader>
-      <CardContent className="space-y-3 p-3">
+      <CardContent className="space-y-4 p-3">
         {stats ? (
           <>
             <GridPanel className={styles.kpiGrid}>

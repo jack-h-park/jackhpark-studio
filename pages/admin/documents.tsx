@@ -516,9 +516,9 @@ export default function AdminDocumentsPage({
           return (
             <div className="flex flex-col items-start gap-1 text-xs">
               {info.metadata.source_type ? (
-                <StatusPill variant="muted">
+                <span className="inline-flex items-center rounded-full border border-[color:var(--ai-role-border-subtle)] bg-[var(--ai-role-surface-1)] px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-[0.08em] text-[color:var(--ai-text-muted)]">
                   {info.metadata.source_type}
-                </StatusPill>
+                </span>
               ) : (
                 <span className="text-[color:var(--ai-text-muted)]">—</span>
               )}

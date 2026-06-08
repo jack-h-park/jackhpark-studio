@@ -381,7 +381,7 @@ export function SessionPresetsCard({
   ) => {
     const tone =
       rowIndex % 2 === 0
-        ? "bg-[var(--ai-role-surface-1)]"
+        ? ""
         : "bg-[var(--ai-role-surface-0)]";
     return (
       <div
