@@ -103,18 +103,31 @@ function IngestionDashboard({
             ),
           }}
         >
-          <div className="mb-6 space-y-6">
+          <div className="mb-6 space-y-8">
             <IngestionSubNav />
+
+            <div className="space-y-3">
+              <p className="pl-1 text-[0.6rem] uppercase tracking-[0.35em] text-[color:var(--ai-text-muted)] opacity-70">
+                Pipeline Health
+              </p>
+              <SystemHealthSection health={systemHealth} />
+              <LifecycleSummarySection
+                recentMissingCount={lifecycleSummary.recentMissingCount}
+                softDeletedCount={lifecycleSummary.softDeletedCount}
+                recentAuthErrorCount={lifecycleSummary.recentAuthErrorCount}
+                recentWindowLabel={lifecycleSummary.recentWindowLabel}
+              />
+            </div>
+
+            <div className="space-y-3">
+              <p className="pl-1 text-[0.6rem] uppercase tracking-[0.35em] text-[color:var(--ai-text-muted)] opacity-70">
+                Dataset
+              </p>
+              <SnapshotPreviewPanel overview={datasetSnapshot} />
+              <RagDocumentsOverview stats={documentsStats} />
+            </div>
+
             <ManualIngestionPanel />
-            <SnapshotPreviewPanel overview={datasetSnapshot} />
-            <RagDocumentsOverview stats={documentsStats} />
-            <LifecycleSummarySection
-              recentMissingCount={lifecycleSummary.recentMissingCount}
-              softDeletedCount={lifecycleSummary.softDeletedCount}
-              recentAuthErrorCount={lifecycleSummary.recentAuthErrorCount}
-              recentWindowLabel={lifecycleSummary.recentWindowLabel}
-            />
-            <SystemHealthSection health={systemHealth} />
             <RecentRunsSection initial={recentRuns} />
           </div>
         </AdminPageShell>
