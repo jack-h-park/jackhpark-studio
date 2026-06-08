@@ -50,6 +50,10 @@ export default withBundleAnalyzer({
       dirname,
       "node_modules/react-dom",
     );
+    config.resolve.alias["react-pdf"] = path.resolve(
+      dirname,
+      "node_modules/react-pdf",
+    );
 
     return config;
   },
