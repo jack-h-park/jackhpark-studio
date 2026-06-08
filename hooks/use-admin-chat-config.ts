@@ -71,10 +71,10 @@ export const presetDisplayNames: Record<PresetKey, string> = {
 };
 
 export const presetDisplayOrder: PresetKey[] = [
-  "precision",
-  "default",
-  "highRecall",
   "fast",
+  "default",
+  "precision",
+  "highRecall",
 ];
 
 export type AdminLlmModelOption = {

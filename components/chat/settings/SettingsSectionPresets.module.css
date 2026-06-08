@@ -11,6 +11,16 @@
   line-height: 1.25;
 }
 
+/* Gradient border on active tile — matches admin UI selectable pattern */
+.presetTile.presetTileActive {
+  border-color: transparent;
+  background-color: unset;
+  background:
+    linear-gradient(var(--ai-role-surface-1), var(--ai-role-surface-1)) padding-box,
+    var(--gradient-mini) border-box;
+  box-shadow: var(--ai-shadow-soft);
+}
+
 .presetTile[data-preset="precision"] .presetIcon {
   color: var(--preset-precision-accent);
 }

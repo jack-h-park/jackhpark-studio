@@ -29,8 +29,11 @@ void test("Fast and Precision presets respect their token budgets", () => {
   assert.strictEqual(fast.context.enabled, true);
   assert.strictEqual(fast.context.tokenBudget, 1536);
   assert.strictEqual(fast.context.historyBudget, 512);
-  assert.strictEqual(fast.context.clipTokens, 64);
+  assert.strictEqual(fast.context.clipTokens, 128);
+  assert.strictEqual(fast.rag.topK, 4);
+  assert.strictEqual(fast.summaryLevel, "off");
   assert.strictEqual(precision.context.tokenBudget, 2048);
-  assert.strictEqual(precision.context.historyBudget, 768);
+  assert.strictEqual(precision.context.historyBudget, 1024);
+  assert.strictEqual(precision.rag.similarity, 0.5);
   assert.strictEqual(precision.summaryLevel, "off");
 });

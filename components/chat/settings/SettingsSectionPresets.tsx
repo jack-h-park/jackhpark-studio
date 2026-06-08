@@ -80,7 +80,7 @@ export function PresetSelectorTabs({
           styles.presetGrid,
         )}
       >
-        {(["precision", "default", "highRecall", "fast"] as PresetKey[]).map(
+        {(["fast", "default", "precision", "highRecall"] as PresetKey[]).map(
           (key) => {
             const isActive = sessionConfig.appliedPreset === key;
             return (
@@ -93,6 +93,7 @@ export function PresetSelectorTabs({
                 data-preset={key}
                 className={cn(
                   styles.presetTile,
+                  isActive && styles.presetTileActive,
                   "flex flex-col items-center justify-center !text-center h-full w-full",
                 )}
                 contentClassName="ai-choice !gap-1 w-full"
