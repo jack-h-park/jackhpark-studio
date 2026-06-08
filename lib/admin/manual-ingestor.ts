@@ -195,30 +195,22 @@ function toEmbeddingOptions(
 
 async function collectLinkedPagesFromSeeds(
   seedPageIds: string[],
+  emit: EmitFn,
 ): Promise<string[]> {
   const seen = new Set<string>();
   const queue: Array<{ pageId: string; depth: number }> = [];
 
   for (const pageId of seedPageIds) {
     const normalized = normalizeNotionPageId(pageId);
-    if (!normalized) {
-      continue;
-    }
-    if (seen.has(normalized)) {
-      continue;
-    }
+    if (!normalized || seen.has(normalized)) continue;
     seen.add(normalized);
     queue.push({ pageId: normalized, depth: 0 });
-    if (seen.size >= LINKED_PAGE_MAX_PAGES) {
-      break;
-    }
+    if (seen.size >= LINKED_PAGE_MAX_PAGES) break;
   }
 
   while (queue.length > 0 && seen.size < LINKED_PAGE_MAX_PAGES) {
     const { pageId, depth } = queue.shift()!;
-    if (depth >= LINKED_PAGE_MAX_DEPTH) {
-      continue;
-    }
+    if (depth >= LINKED_PAGE_MAX_DEPTH) continue;
 
     let recordMap: ExtendedRecordMap | null = null;
     try {
@@ -226,21 +218,14 @@ async function collectLinkedPagesFromSeeds(
     } catch {
       continue;
     }
+    if (!recordMap) continue;
 
-    if (!recordMap) {
-      continue;
-    }
+    // Collect collection_view blocks to fetch in parallel after sync block scan
+    const collectionViews: Array<{ collectionId: string; viewId: string }> = [];
 
     for (const block of Object.values(recordMap.block ?? {})) {
       const value = unwrapBlock(block);
-
-      if (!value) {
-        continue;
-      }
-
-      if (value.alive === false) {
-        continue;
-      }
+      if (!value || value.alive === false) continue;
 
       const type = value.type as string | undefined;
       let candidateId: string | undefined;
@@ -257,13 +242,35 @@ async function collectLinkedPagesFromSeeds(
         type === "child_database" ||
         type === "page"
       ) {
-        if (typeof value.id === "string") {
-          candidateId = value.id;
-        }
-      } else if (type === "collection_view" || type === "collection_view_page") {
+        if (typeof value.id === "string") candidateId = value.id;
+      } else if (
+        type === "collection_view" ||
+        type === "collection_view_page"
+      ) {
         const collectionId = value.collection_id as string | undefined;
         const viewId = (value.view_ids as string[] | undefined)?.[0];
-        if (collectionId && viewId && seen.size < LINKED_PAGE_MAX_PAGES) {
+        if (collectionId && viewId) collectionViews.push({ collectionId, viewId });
+        continue;
+      }
+
+      if (!candidateId) continue;
+      const normalizedCandidate = normalizeNotionPageId(candidateId);
+      if (!normalizedCandidate || seen.has(normalizedCandidate)) continue;
+      seen.add(normalizedCandidate);
+      if (seen.size >= LINKED_PAGE_MAX_PAGES) break;
+      queue.push({ pageId: normalizedCandidate, depth: depth + 1 });
+    }
+
+    // Fetch all databases on this page in parallel
+    if (collectionViews.length > 0 && seen.size < LINKED_PAGE_MAX_PAGES) {
+      await emit({
+        type: "log",
+        level: "info",
+        message: `Scanning ${collectionViews.length} database(s) on page ${pageId}...`,
+      });
+      await Promise.all(
+        collectionViews.map(async ({ collectionId, viewId }) => {
+          if (seen.size >= LINKED_PAGE_MAX_PAGES) return;
           try {
             const collData = await notion.getCollectionData(
               collectionId,
@@ -274,33 +281,22 @@ async function collectLinkedPagesFromSeeds(
               (collData as unknown as { allBlockIds?: string[] })
                 .allBlockIds ?? collData.result.blockIds ?? [];
             for (const rowId of rowIds) {
+              if (seen.size >= LINKED_PAGE_MAX_PAGES) break;
               const normalizedRow = normalizeNotionPageId(rowId);
               if (!normalizedRow || seen.has(normalizedRow)) continue;
               seen.add(normalizedRow);
-              if (seen.size >= LINKED_PAGE_MAX_PAGES) break;
-              queue.push({ pageId: normalizedRow, depth: depth + 1 });
+              // Database rows are leaf pages — add to seen but skip BFS expansion
             }
           } catch {
-            // ignore collection fetch errors — page-level errors are caught per-page
+            // ignore individual collection errors
           }
-        }
-        continue;
-      }
-
-      if (!candidateId) {
-        continue;
-      }
-
-      const normalizedCandidate = normalizeNotionPageId(candidateId);
-      if (!normalizedCandidate || seen.has(normalizedCandidate)) {
-        continue;
-      }
-
-      seen.add(normalizedCandidate);
-      if (seen.size >= LINKED_PAGE_MAX_PAGES) {
-        break;
-      }
-      queue.push({ pageId: normalizedCandidate, depth: depth + 1 });
+        }),
+      );
+      await emit({
+        type: "log",
+        level: "info",
+        message: `${seen.size} pages discovered so far.`,
+      });
     }
   }
 
@@ -658,7 +654,7 @@ async function runNotionPageIngestion({
 
     let workspacePageIds: string[] = [];
     try {
-      workspacePageIds = await collectLinkedPagesFromSeeds([rootPageId]);
+      workspacePageIds = await collectLinkedPagesFromSeeds([rootPageId], emit);
       if (workspacePageIds.length === 0) {
         workspacePageIds = [rootPageId];
       }
@@ -672,6 +668,7 @@ async function runNotionPageIngestion({
       });
       workspacePageIds = [rootPageId];
     }
+    await emit({ type: "progress", step: "collected", percent: 15 });
 
     for (const pageId of workspacePageIds) {
       pushCandidate(pageId);
@@ -688,6 +685,7 @@ async function runNotionPageIngestion({
     try {
       linkedPageIds = await collectLinkedPagesFromSeeds(
         seedList.length > 0 ? seedList : [rootPageId],
+        emit,
       );
       if (linkedPageIds.length === 0) {
         linkedPageIds = seedList.length > 0 ? seedList : [rootPageId];
