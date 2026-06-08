@@ -4,7 +4,11 @@ import { backOff } from "exponential-backoff";
 import { encode } from "gpt-tokenizer";
 import { JSDOM } from "jsdom";
 import { type Decoration, type ExtendedRecordMap } from "notion-types";
-import { getPageContentBlockIds, getTextContent } from "notion-utils";
+import {
+  getBlockTitle,
+  getPageContentBlockIds,
+  getTextContent,
+} from "notion-utils";
 
 import { startDbQuery } from "@/lib/logging/db-logger";
 
@@ -646,12 +650,11 @@ export function getPageTitle(
   recordMap: ExtendedRecordMap,
   pageId: string,
 ): string {
-  const block = recordMap.block[pageId]?.value as {
-    properties?: { title?: Decoration[] };
-  } | null;
+  const blockWrapper = recordMap.block[pageId];
+  const block = blockWrapper?.value ?? null;
 
-  if (block?.properties?.title) {
-    const title = getTextContent(block.properties.title).trim();
+  if (block) {
+    const title = getBlockTitle(block, recordMap).trim();
     if (title) {
       return title;
     }
