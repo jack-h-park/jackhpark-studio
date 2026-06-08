@@ -1,13 +1,34 @@
 .trendPanel {
   border-radius: 14px;
   background-color: transparent;
-  min-height: 160px;
+  min-height: 140px;
   padding: 0.75rem 0.9rem;
 }
 
 .trendSparklineWrap {
   margin-top: var(--ai-space-1);
   height: 70px;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.sparklineYAxis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-block: 2px;
+  min-width: 28px;
+  flex-shrink: 0;
+}
+
+.sparklineYLabel {
+  font-size: 0.6rem;
+  color: var(--ai-text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: right;
 }
 
 .trendHeader {
@@ -17,6 +38,29 @@
   gap: var(--ai-space-1);
 }
 
+.trendSummary {
+  margin-top: var(--ai-space-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ai-space-2);
+  flex-wrap: wrap;
+}
+
+.percentChange {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.percentChangePositive {
+  color: var(--ai-success);
+}
+
+.percentChangeNegative {
+  color: var(--ai-error);
+}
+
 .kpiTile {
   height: 100%;
   padding: 0.75rem 1rem;
@@ -24,23 +68,6 @@
   flex-direction: column;
   gap: 0.35rem;
   justify-content: flex-start;
-}
-
-.trendFooter {
-  margin-top: var(--ai-space-1);
-  grid-template-columns: repeat(3, minmax(110px, 1fr));
-}
-
-.trendMinMax {
-  margin-top: var(--ai-space-1);
-  grid-template-columns: repeat(2, minmax(110px, 1fr));
-}
-
-.miniMetric {
-  display: flex;
-  flex-direction: column;
-  gap: 0.175rem;
-  align-items: flex-start;
 }
 
 .kpiTileTitle {
@@ -87,13 +114,6 @@
   text-transform: none;
 }
 
-.miniMetricGrid {
-  width: 100%;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
-  gap: var(--ai-space-2);
-}
-
 .truncate {
   min-width: 0;
   overflow: hidden;
@@ -110,6 +130,60 @@
   justify-content: flex-start;
 }
 
+/* Secondary metadata row (Source Run + Schema Version) */
+.secondaryMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ai-space-6);
+  padding: 0.5rem 0.9rem;
+  border-radius: 10px;
+  background-color: var(--ai-role-surface-0);
+  border: 1px solid var(--ai-role-border-subtle);
+  margin: 0;
+}
+
+.secondaryMetaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.secondaryMetaValue {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--ai-text-strong);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.copyButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: transparent;
+  color: var(--ai-text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.copyButton:hover {
+  color: var(--ai-text-strong);
+}
+
+.copyButton:focus-visible {
+  outline: 2px solid var(--ai-accent-strong);
+  outline-offset: 2px;
+}
+
+/* Recent Snapshots */
 .recentRow {
   border-bottom: 1px solid var(--ai-role-border-subtle);
   padding-block: 0.45rem;
@@ -158,6 +232,15 @@
   gap: 0.75rem;
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.noChangeBadge {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
+  opacity: 0.6;
+  font-weight: 500;
 }
 
 .snapshotChip {

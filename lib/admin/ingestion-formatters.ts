@@ -184,3 +184,18 @@ export const runStatusVariantMap: Record<
 };
 
 export const SNAPSHOT_HISTORY_LIMIT = 8;
+
+export function formatIngestionModeLabel(
+  mode: string | null | undefined,
+): string {
+  switch (mode) {
+    case "full":
+      return "Full sync";
+    case "partial":
+      return "Partial sync";
+    case "incremental":
+      return "Incremental";
+    default:
+      return mode ?? "—";
+  }
+}

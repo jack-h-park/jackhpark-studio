@@ -9,6 +9,7 @@ import type {
   RecentRunsSnapshot,
   SystemHealthOverview,
 } from "@/lib/admin/ingestion-types";
+import { LifecycleSummarySection } from "@/components/admin/ingestion/LifecycleSummarySection";
 import { ManualIngestionPanel } from "@/components/admin/ingestion/ManualIngestionPanel";
 import { RagDocumentsOverview } from "@/components/admin/ingestion/RagDocumentsOverview";
 import { RecentRunsSection } from "@/components/admin/ingestion/RecentRunsSection";
@@ -17,13 +18,6 @@ import { SystemHealthSection } from "@/components/admin/ingestion/SystemHealthSe
 import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
 import { IngestionSubNav } from "@/components/admin/navigation/IngestionSubNav";
 import { AiPageChrome } from "@/components/AiPageChrome";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { LinkButton } from "@/components/ui/link-button";
 import {
   SNAPSHOT_HISTORY_LIMIT,
@@ -114,40 +108,12 @@ function IngestionDashboard({
             <ManualIngestionPanel />
             <SnapshotPreviewPanel overview={datasetSnapshot} />
             <RagDocumentsOverview stats={documentsStats} />
-            <Card>
-              <CardHeader>
-                <CardTitle>Lifecycle Summary</CardTitle>
-                <CardDescription>
-                  Signals from recent document sync attempts.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="rounded-md border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-muted)] p-3">
-                  <p className="text-xs text-[var(--ai-text-muted)]">
-                    Missing (recent {lifecycleSummary.recentWindowLabel})
-                  </p>
-                  <p className="text-lg font-semibold">
-                    {lifecycleSummary.recentMissingCount.toLocaleString()}
-                  </p>
-                </div>
-                <div className="rounded-md border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-muted)] p-3">
-                  <p className="text-xs text-[var(--ai-text-muted)]">
-                    Soft-deleted
-                  </p>
-                  <p className="text-lg font-semibold">
-                    {lifecycleSummary.softDeletedCount.toLocaleString()}
-                  </p>
-                </div>
-                <div className="rounded-md border border-[var(--ai-border-muted)] bg-[var(--ai-role-surface-muted)] p-3">
-                  <p className="text-xs text-[var(--ai-text-muted)]">
-                    401/403 (recent {lifecycleSummary.recentWindowLabel})
-                  </p>
-                  <p className="text-lg font-semibold">
-                    {lifecycleSummary.recentAuthErrorCount.toLocaleString()}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <LifecycleSummarySection
+              recentMissingCount={lifecycleSummary.recentMissingCount}
+              softDeletedCount={lifecycleSummary.softDeletedCount}
+              recentAuthErrorCount={lifecycleSummary.recentAuthErrorCount}
+              recentWindowLabel={lifecycleSummary.recentWindowLabel}
+            />
             <SystemHealthSection health={systemHealth} />
             <RecentRunsSection initial={recentRuns} />
           </div>

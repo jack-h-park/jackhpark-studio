@@ -119,10 +119,11 @@
 }
 
 .docTypeLabel {
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.35em;
   color: var(--ai-text-muted);
+  opacity: 0.8;
 }
 
 .docTypeGrid {

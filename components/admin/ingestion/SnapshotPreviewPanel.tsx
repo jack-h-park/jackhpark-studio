@@ -7,6 +7,7 @@ import { ClientSideDate } from "@/components/ui/client-side-date";
 import {
   formatBytesFromCharacters,
   formatCharacterCountLabel,
+  formatIngestionModeLabel,
   formatKpiValue,
 } from "@/lib/admin/ingestion-formatters";
 import { formatEmbeddingSpaceLabel } from "@/lib/admin/recent-runs-filters";
@@ -28,9 +29,9 @@ type SnapshotPreviewPanelProps = {
 };
 
 const deltaItems = [
-  { label: "Δ Docs", key: "deltaDocuments" as const },
-  { label: "Δ Chunks", key: "deltaChunks" as const },
-  { label: "Δ Size", key: "deltaCharacters" as const },
+  { label: "Docs change", key: "deltaDocuments" as const },
+  { label: "Chunks change", key: "deltaChunks" as const },
+  { label: "Size change", key: "deltaCharacters" as const },
 ];
 
 function DeltaGrid({ snapshot }: { snapshot: SnapshotEntry }) {
@@ -143,7 +144,7 @@ function SnapshotDetails({ snapshot }: { snapshot: SnapshotEntry }) {
       <div className={previewStyles.previewField}>
         <span className={previewStyles.previewFieldLabel}>Ingestion mode</span>
         <span className={previewStyles.previewFieldValue}>
-          {snapshot.ingestionMode ?? "—"}
+          {formatIngestionModeLabel(snapshot.ingestionMode)}
         </span>
       </div>
       <div className={previewStyles.previewField}>

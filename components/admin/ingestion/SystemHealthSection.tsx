@@ -224,8 +224,6 @@ export function SystemHealthSection({
     },
   ];
 
-  const kpiTiles = [...coreKpis, ...secondaryKpis];
-
   return (
     <section className="ai-card space-y-6 p-5">
       <CardHeader className="gap-1">
@@ -251,7 +249,7 @@ export function SystemHealthSection({
       </CardHeader>
       <CardContent className="space-y-4 p-3">
         <GridPanel className={styles.kpiGrid}>
-          {kpiTiles.map((tile) => (
+          {coreKpis.map((tile) => (
             <SystemHealthStatTile
               key={tile.key}
               label={tile.label}
@@ -262,6 +260,21 @@ export function SystemHealthSection({
             />
           ))}
         </GridPanel>
+        <div className={styles.queueStateSection}>
+          <span className={styles.queueStateSectionLabel}>Queue state</span>
+          <GridPanel className={styles.kpiGrid}>
+            {secondaryKpis.map((tile) => (
+              <SystemHealthStatTile
+                key={tile.key}
+                label={tile.label}
+                value={tile.value}
+                tooltip={tile.tooltip}
+                isValueMuted={tile.isValueMuted}
+                valueClassName={tile.valueClassName}
+              />
+            ))}
+          </GridPanel>
+        </div>
       </CardContent>
     </section>
   );

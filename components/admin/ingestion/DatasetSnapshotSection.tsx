@@ -1,9 +1,10 @@
 "use client";
 
-import type { JSX, ReactNode } from "react";
 import { FiClock } from "@react-icons/all-files/fi/FiClock";
+import { FiCopy } from "@react-icons/all-files/fi/FiCopy";
 import { FiDatabase } from "@react-icons/all-files/fi/FiDatabase";
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
+import { type JSX, type ReactNode,useState } from "react";
 
 import type { DatasetSnapshotOverview } from "@/lib/admin/ingestion-types";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,7 @@ import {
   formatBytesFromCharacters,
   formatCharacterCountLabel,
   formatDeltaLabel,
+  formatIngestionModeLabel,
   formatKpiValue,
   formatPercentChange,
   numberFormatter,
@@ -108,6 +110,15 @@ const formatSnapshotRowTitle = (entry: SnapshotEntry) => {
   return `Docs ${docs} (Δ ${docDelta}) · Chunks ${chunks} (Δ ${chunkDelta}) · Size ${size} (Δ ${sizeDelta})`;
 };
 
+const combineDeltaAndPct = (
+  delta: string | null,
+  pct: string | null,
+): string | null => {
+  if (!delta) return null;
+  if (pct) return `${delta} (${pct})`;
+  return delta;
+};
+
 type DatasetMetricDelta = {
   text: string;
   tone?: DashboardStatTone;
@@ -140,6 +151,32 @@ function DatasetMetricTile({
   );
 }
 
+function CopyButton({ text }: { text: string }): JSX.Element {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard API unavailable
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      aria-label={copied ? "Copied" : "Copy to clipboard"}
+      title={copied ? "Copied!" : "Copy run ID"}
+      className={styles.copyButton}
+    >
+      <FiCopy className="h-3 w-3" aria-hidden="true" />
+    </button>
+  );
+}
+
 export function DatasetSnapshotSection({
   overview,
   selectedSnapshotId,
@@ -154,6 +191,7 @@ export function DatasetSnapshotSection({
     latest && previous
       ? formatPercentChange(latest.totalDocuments, previous.totalDocuments)
       : null;
+  const isPositiveChange = percentChange?.startsWith("+") ?? false;
   const sparklineData = buildSparklineData(
     history.toReversed().map((entry) => entry.totalDocuments),
   );
@@ -194,38 +232,54 @@ export function DatasetSnapshotSection({
   );
   const displayEmbeddingLabel = formatEmbeddingDisplayLabel(embeddingLabel);
 
+  const rawCharDelta = formatSignedBytesDelta(latest.deltaCharacters);
+  const docDeltaText = combineDeltaAndPct(
+    formatDeltaLabel(latest.deltaDocuments),
+    previous
+      ? formatPercentChange(latest.totalDocuments, previous.totalDocuments)
+      : null,
+  );
+  const chunkDeltaText = combineDeltaAndPct(
+    formatDeltaLabel(latest.deltaChunks),
+    previous
+      ? formatPercentChange(latest.totalChunks, previous.totalChunks)
+      : null,
+  );
+  const charDeltaText = combineDeltaAndPct(
+    rawCharDelta === "—" ? null : rawCharDelta,
+    previous
+      ? formatPercentChange(latest.totalCharacters, previous.totalCharacters)
+      : null,
+  );
+
   const metrics = [
     {
       key: "documents",
       label: "Documents",
       value: documentValue,
+      deltaText: docDeltaText,
       delta: latest.deltaDocuments,
     },
     {
       key: "chunks",
       label: "Chunks",
       value: chunkValue,
+      deltaText: chunkDeltaText,
       delta: latest.deltaChunks,
     },
     {
       key: "characters",
-      label: "Characters",
+      label: "Content Size",
       value: characterPrimaryValue,
+      deltaText: charDeltaText,
       delta: latest.deltaCharacters,
     },
   ];
 
   const shortSourceRun = shortenId(latest.runId);
-  const metadataItems = [
-    {
-      label: "Embedding Model",
-      value: displayEmbeddingLabel,
-      title: embeddingLabel,
-    },
-    {
-      label: "Ingestion Mode",
-      value: latest.ingestionMode ?? "—",
-    },
+  const ingestionModeLabel = formatIngestionModeLabel(latest.ingestionMode);
+
+  const primaryMetaItems = [
     {
       label: "Captured",
       value: latest.capturedAt ? (
@@ -233,21 +287,19 @@ export function DatasetSnapshotSection({
       ) : (
         "—"
       ),
+      title: undefined as string | undefined,
     },
     {
-      label: "Source Run",
-      value: shortSourceRun,
-      title: latest.runId ?? undefined,
+      label: "Ingestion Mode",
+      value: ingestionModeLabel,
+      title: undefined as string | undefined,
     },
     {
-      label: "Schema Version",
-      value: latest.schemaVersion ?? "—",
+      label: "Embedding Model",
+      value: displayEmbeddingLabel,
+      title: embeddingLabel,
     },
   ];
-
-  const docDeltaValue = formatDeltaOrDash(latest.deltaDocuments);
-  const chunkDeltaValue = formatDeltaOrDash(latest.deltaChunks);
-  const sizeDeltaValue = formatSignedBytesDelta(latest.deltaCharacters);
 
   return (
     <section className="ai-card space-y-4 p-5">
@@ -272,10 +324,10 @@ export function DatasetSnapshotSection({
           </Tooltip>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6 p-3">
+      <CardContent className="space-y-4 p-3">
+        {/* KPI tiles + trend sparkline */}
         <GridPanel className="grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
           {metrics.map((metric) => {
-            const deltaLabel = formatDeltaLabel(metric.delta);
             const tone =
               metric.delta === null || metric.delta === undefined
                 ? undefined
@@ -294,27 +346,36 @@ export function DatasetSnapshotSection({
                 label={metric.label}
                 value={valueNode}
                 delta={
-                  deltaLabel
-                    ? { text: deltaLabel, tone: tone ?? "muted" }
+                  metric.deltaText
+                    ? { text: metric.deltaText, tone: tone ?? "muted" }
                     : undefined
                 }
               />
             );
           })}
           <div className="ai-panel shadow-none rounded-[14px] px-3 py-2 md:col-span-2">
-            <div className={`${styles.trendPanel}`}>
+            <div className={styles.trendPanel}>
               <div className={styles.trendHeader}>
-                <span className={styles.kpiTileTitle}>Trend</span>
+                <span className={styles.kpiTileTitle}>Document Trend</span>
                 <span className={styles.kpiHelperText}>
-                  {`LAST ${historyList.length} CAPTURES`}
+                  {`Last ${historyList.length} captures`}
                 </span>
               </div>
               {sparklineData ? (
                 <>
                   <div className={styles.trendSparklineWrap}>
+                    <div className={styles.sparklineYAxis}>
+                      <span className={styles.sparklineYLabel}>
+                        {numberFormatter.format(sparklineData.max)}
+                      </span>
+                      <span className={styles.sparklineYLabel}>
+                        {numberFormatter.format(sparklineData.min)}
+                      </span>
+                    </div>
                     <svg
                       className="w-full h-full"
                       viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
                       role="img"
                       aria-label="Snapshot trend sparkline"
                     >
@@ -324,79 +385,21 @@ export function DatasetSnapshotSection({
                       />
                     </svg>
                   </div>
-                  <div
-                    className={`${styles.miniMetricGrid} ${styles.trendMinMax}`}
-                  >
-                    <div className={styles.miniMetric}>
-                      <span className={styles.kpiMetricLabel}>MIN</span>
-                      <span
-                        className={styles.kpiMetricValue}
-                        title={`Min ${numberFormatter.format(
-                          sparklineData.min,
-                        )}`}
-                      >
-                        {numberFormatter.format(sparklineData.min)}
-                      </span>
-                    </div>
-                    <div className={styles.miniMetric}>
-                      <span className={styles.kpiMetricLabel}>MAX</span>
-                      <span
-                        className={styles.kpiMetricValue}
-                        title={`Max ${numberFormatter.format(
-                          sparklineData.max,
-                        )}`}
-                      >
-                        {numberFormatter.format(sparklineData.max)}
-                      </span>
-                    </div>
-                  </div>
-                  <div
-                    className={`${styles.miniMetricGrid} ${styles.trendFooter}`}
-                  >
-                    <div className={styles.miniMetric}>
-                      <span className={styles.kpiMetricLabel}>Δ DOCS</span>
-                      <span
-                        className={cn(
-                          styles.kpiMetricValue,
-                          docDeltaValue === "—" && styles.kpiMetricValueZero,
-                        )}
-                        title={`Δ Docs ${formatDeltaTitleValue(
-                          latest.deltaDocuments,
-                        )} documents`}
-                      >
-                        {docDeltaValue}
-                      </span>
-                    </div>
-                    <div className={styles.miniMetric}>
-                      <span className={styles.kpiMetricLabel}>Δ CHUNKS</span>
-                      <span
-                        className={cn(
-                          styles.kpiMetricValue,
-                          chunkDeltaValue === "—" && styles.kpiMetricValueZero,
-                        )}
-                        title={`Δ Chunks ${formatDeltaTitleValue(
-                          latest.deltaChunks,
-                        )} documents`}
-                      >
-                        {chunkDeltaValue}
-                      </span>
-                    </div>
-                    <div className={styles.miniMetric}>
-                      <span className={styles.kpiMetricLabel}>Δ SIZE</span>
-                      <span
-                        className={cn(
-                          styles.kpiMetricValue,
-                          sizeDeltaValue === "—" && styles.kpiMetricValueZero,
-                        )}
-                        title={`Δ Size ${formatBytesDeltaTitleValue(
-                          latest.deltaCharacters,
-                        )}`}
-                      >
-                        {sizeDeltaValue}
-                      </span>
-                    </div>
+                  <div className={styles.trendSummary}>
+                    <span className={styles.kpiMetricLabel}>
+                      Range:{" "}
+                      {numberFormatter.format(sparklineData.min)}–
+                      {numberFormatter.format(sparklineData.max)} docs
+                    </span>
                     {percentChange ? (
-                      <span className="t-eyebrow">
+                      <span
+                        className={cn(
+                          styles.percentChange,
+                          isPositiveChange
+                            ? styles.percentChangePositive
+                            : styles.percentChangeNegative,
+                        )}
+                      >
                         {percentChange} vs prev.
                       </span>
                     ) : null}
@@ -410,8 +413,10 @@ export function DatasetSnapshotSection({
             </div>
           </div>
         </GridPanel>
+
+        {/* Primary metadata tiles */}
         <GridPanel className="grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-3">
-          {metadataItems.map((item) => {
+          {primaryMetaItems.map((item) => {
             const isZeroValue =
               typeof item.value === "string" && item.value === "—";
             return (
@@ -437,6 +442,25 @@ export function DatasetSnapshotSection({
             );
           })}
         </GridPanel>
+
+        {/* Secondary metadata row */}
+        <dl className={styles.secondaryMetaRow}>
+          <div className={styles.secondaryMetaItem}>
+            <dt className={styles.kpiTileTitle}>Source Run</dt>
+            <dd className={cn(styles.secondaryMetaValue, "font-mono")}>
+              <span title={latest.runId ?? undefined}>{shortSourceRun}</span>
+              {latest.runId ? <CopyButton text={latest.runId} /> : null}
+            </dd>
+          </div>
+          <div className={styles.secondaryMetaItem}>
+            <dt className={styles.kpiTileTitle}>Schema Version</dt>
+            <dd className={styles.secondaryMetaValue}>
+              {latest.schemaVersion ?? "—"}
+            </dd>
+          </div>
+        </dl>
+
+        {/* Recent snapshots */}
         <section className="ai-panel mt-2 space-y-3 shadow-none rounded-[14px] px-5 py-4">
           <header className="flex flex-col gap-1 mb-3">
             <HeadingWithIcon
@@ -456,10 +480,10 @@ export function DatasetSnapshotSection({
           <ul className="list-none p-0 m-0">
             {historyList.map((entry, index) => {
               const snapshotSummary = formatSnapshotRowSummary(entry);
-              const embeddingLabel = formatEmbeddingSpaceLabel(
+              const rowEmbeddingLabel = formatEmbeddingSpaceLabel(
                 entry.embeddingSpaceId,
               );
-              const rowTitle = `${formatSnapshotRowTitle(entry)} · ${embeddingLabel}`;
+              const rowTitle = `${formatSnapshotRowTitle(entry)} · ${rowEmbeddingLabel}`;
               const deltaParts: Array<{ text: string; positive: boolean }> = [];
               const docLabel = formatDeltaLabel(entry.deltaDocuments);
               if (docLabel) {
@@ -475,6 +499,9 @@ export function DatasetSnapshotSection({
                   positive: (entry.deltaChunks ?? 0) > 0,
                 });
               }
+              const hasChange =
+                (entry.deltaDocuments ?? 0) !== 0 ||
+                (entry.deltaChunks ?? 0) !== 0;
               const chipClass = cn(
                 "text-[color:var(--ai-text-muted)] border-[color:var(--ai-role-border-muted)] bg-[color:var(--ai-role-surface-0)] px-2 py-0.5 rounded-full",
                 styles.snapshotChip,
@@ -510,18 +537,24 @@ export function DatasetSnapshotSection({
                       </span>
                       <span className={styles.snapshotRowSummary}>
                         <span>{snapshotSummary}</span>
-                        {deltaParts.map((part) => (
-                          <span
-                            key={part.text}
-                            style={{
-                              color: part.positive
-                                ? "var(--ai-success)"
-                                : "var(--ai-error)",
-                            }}
-                          >
-                            {part.text}
+                        {hasChange ? (
+                          deltaParts.map((part) => (
+                            <span
+                              key={part.text}
+                              style={{
+                                color: part.positive
+                                  ? "var(--ai-success)"
+                                  : "var(--ai-error)",
+                              }}
+                            >
+                              {part.text}
+                            </span>
+                          ))
+                        ) : (
+                          <span className={styles.noChangeBadge}>
+                            No change
                           </span>
-                        ))}
+                        )}
                       </span>
                       <span className={chipClass}>
                         {index === 0 ? "LATEST" : `#${index + 1}`}

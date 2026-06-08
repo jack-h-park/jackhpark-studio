@@ -227,7 +227,7 @@ export function RagDocumentsOverview({
           </LinkButton>
         </div>
         <p className="ai-card-description">
-          Quick summary of stored documents and metadata.
+          Breakdown by persona, source, and visibility.
         </p>
       </CardHeader>
       <CardContent className="space-y-3 p-3">
