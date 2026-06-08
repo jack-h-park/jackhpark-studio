@@ -270,7 +270,10 @@ async function collectLinkedPagesFromSeeds(
               viewId,
               { limit: LINKED_PAGE_MAX_PAGES },
             );
-            for (const rowId of collData.allBlockIds ?? []) {
+            const rowIds =
+              (collData as unknown as { allBlockIds?: string[] })
+                .allBlockIds ?? collData.result.blockIds ?? [];
+            for (const rowId of rowIds) {
               const normalizedRow = normalizeNotionPageId(rowId);
               if (!normalizedRow || seen.has(normalizedRow)) continue;
               seen.add(normalizedRow);
