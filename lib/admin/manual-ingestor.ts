@@ -260,6 +260,28 @@ async function collectLinkedPagesFromSeeds(
         if (typeof value.id === "string") {
           candidateId = value.id;
         }
+      } else if (type === "collection_view" || type === "collection_view_page") {
+        const collectionId = value.collection_id as string | undefined;
+        const viewId = (value.view_ids as string[] | undefined)?.[0];
+        if (collectionId && viewId && seen.size < LINKED_PAGE_MAX_PAGES) {
+          try {
+            const collData = await notion.getCollectionData(
+              collectionId,
+              viewId,
+              { limit: LINKED_PAGE_MAX_PAGES },
+            );
+            for (const rowId of collData.allBlockIds ?? []) {
+              const normalizedRow = normalizeNotionPageId(rowId);
+              if (!normalizedRow || seen.has(normalizedRow)) continue;
+              seen.add(normalizedRow);
+              if (seen.size >= LINKED_PAGE_MAX_PAGES) break;
+              queue.push({ pageId: normalizedRow, depth: depth + 1 });
+            }
+          } catch {
+            // ignore collection fetch errors — page-level errors are caught per-page
+          }
+        }
+        continue;
       }
 
       if (!candidateId) {
