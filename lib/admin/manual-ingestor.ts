@@ -1,9 +1,9 @@
-import { NotionAPI } from "notion-client";
 import { type ExtendedRecordMap } from "notion-types";
 import { parsePageId } from "notion-utils";
 
 import type { ModelProvider } from "../shared/model-provider";
 import { resolveEmbeddingSpace } from "../core/embedding-spaces";
+import { notion } from "../notion-api";
 import { supabaseClient } from "../core/supabase";
 import { getSiteConfig } from "../get-config-value";
 import { debugIngestionLog } from "../rag/debug";
@@ -61,8 +61,6 @@ import {
 import { buildUrlRagDocumentMetadata } from "../rag/url-metadata";
 import { deriveDocIdentifiers } from "../server/doc-identifiers";
 import { formatNotionPageId } from "../server/page-url";
-
-const notion = new NotionAPI();
 
 type ManualNotionScope = "workspace" | "selected";
 
