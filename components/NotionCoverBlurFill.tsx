@@ -41,7 +41,7 @@ export function NotionCoverBlurFill({ coverUrl, coverPosition = 0.5 }: Props) {
         <img
           src={coverUrl}
           alt=""
-          className="notion-yt-cover__img notion-page-cover"
+          className="notion-yt-cover__img"
           style={{ objectPosition }}
           loading="eager"
           decoding="async"

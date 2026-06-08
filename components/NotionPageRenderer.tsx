@@ -6,6 +6,7 @@ import { idToUuid, parsePageId } from "notion-utils";
 import * as React from "react";
 import ReactModal from "react-modal";
 import {
+  Text,
   type MapImageUrlFn,
   type NotionComponents,
   useNotionContext,
@@ -272,6 +273,42 @@ export function NotionPageRenderer({
   }, [pageId, sanitizedRecordMap, mapImageUrl]);
 
   // PageLink
+  // Notion select/multi_select values that don't match any schema option are stray
+  // data that Notion silently hides. Skip rendering them to match Notion's behavior.
+  const propertySelectValue = React.useCallback(
+    (props: any, defaultRenderer: () => React.ReactNode) => {
+      if (!props?.option) return null;
+      return defaultRenderer();
+    },
+    [],
+  );
+
+  // Notion relation fields can contain stray plain-text segments that the Notion
+  // app silently hides but react-notion-x renders verbatim. This override keeps
+  // only the page-reference (‣) segments so only the actual linked entries show.
+  const propertyRelationValue = React.useCallback(
+    (props: any, defaultRenderer: () => React.ReactNode) => {
+      const data: unknown = props?.data;
+      if (!Array.isArray(data)) return defaultRenderer();
+
+      const pageRefOnly = data.filter((segment: unknown) => {
+        if (!Array.isArray(segment) || segment[0] !== "‣") return false;
+        const decorators = segment[1];
+        return (
+          Array.isArray(decorators) &&
+          decorators.some(
+            (d: unknown) =>
+              Array.isArray(d) && (d[0] === "r" || d[0] === "p"),
+          )
+        );
+      });
+
+      if (pageRefOnly.length === 0) return defaultRenderer();
+      return <Text value={pageRefOnly as any} block={props.block} />;
+    },
+    [],
+  );
+
   const components = React.useMemo(
     () => ({
       ...parentComponents,
@@ -280,6 +317,8 @@ export function NotionPageRenderer({
       Equation,
       Pdf,
       Modal,
+      propertySelectValue,
+      propertyRelationValue,
       PageLink: ({ href, children, className, ...props }: any) => {
         if (!href) {
           return (
@@ -370,7 +409,7 @@ export function NotionPageRenderer({
         );
       },
     }),
-    [canonicalPageMap, onOpenPeek, parentComponents, sanitizedRecordMap],
+    [canonicalPageMap, onOpenPeek, parentComponents, propertyRelationValue, propertySelectValue, sanitizedRecordMap],
   );
 
   //NotionRendereer

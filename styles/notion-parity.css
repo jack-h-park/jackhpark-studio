@@ -6,7 +6,7 @@
 .notion-polish-balanced {
   --np-page-max-width: 744px;
   --np-page-padding-bottom: calc(max(5vh, 32px));
-  --np-cover-height: 280px;
+  --np-cover-height: 30vh;
   --np-hero-left: clamp(18px, 2vw, 28px);
   --np-hero-overlap: -10px;
   --np-hero-gap-after: 14px;
@@ -147,9 +147,9 @@
 .notion-polish-balanced .notion-yt-cover__bg {
   display: none;
   position: absolute;
-  inset: -10% -5%;   /* outset hides blur fringe; wrapper overflow:hidden clips */
+  inset: -12% -6%;   /* outset hides blur fringe; wrapper overflow:hidden clips */
   background-size: cover;
-  filter: blur(18px) brightness(0.75) saturate(1.1);
+  filter: blur(32px) brightness(0.85) saturate(1.2);
 }
 
 /* fg container: always absolute-fills the wrapper */
@@ -161,7 +161,7 @@
   align-items: stretch;
 }
 
-/* fg image: full-width by default; clamped to 1200px above the threshold.
+/* fg image: full-width by default; clamped to 1500px above the threshold.
    object-position comes from inline style (page_cover_position from Notion). */
 .notion-polish-balanced .notion-yt-cover__img {
   width: 100% !important;
@@ -170,38 +170,43 @@
   display: block !important;
 }
 
-/* ── Wide-viewport activation (≥ 1200 px) ── */
-@media (min-width: 1200px) {
+/* ── Wide-viewport activation (≥ 1500 px) ── */
+@media (min-width: 1500px) {
   /* Show blurred background behind the foreground */
   .notion-polish-balanced .notion-yt-cover__bg {
     display: block;
   }
 
-  /* Clamp the foreground image to 1200 px — the exact threshold width —
-     so the image size at 1199px (full-width) equals the size at 1200px
-     (clamped to 1200px). No visual jump at the breakpoint.
-     Beyond 1200px the image stays at 1200px while blurred sides fill in. */
+  /* Clamp the foreground image to 1500 px — the exact threshold width —
+     so the image size at 1499px (full-width) equals the size at 1500px
+     (clamped to 1500px). No visual jump at the breakpoint.
+     Beyond 1500px the image stays at 1500px while blurred sides fill in. */
   .notion-polish-balanced .notion-yt-cover__img {
-    max-width: 1200px !important;
+    max-width: 1500px !important;
   }
 
-  /* Fade the foreground image's outer edges so the blurred bg shows through.
-     Fade zone: viewport edge → 120 px inside the 1200px image boundary. */
-  /* Fade zone: 120px inside the 1200px image boundary (600px from center).
-     At the 1200px threshold: fade zone starts at 600-120=480px from center. */
+  /* Fade the foreground image's outer edges into the blurred bg.
+     4-stop gradient: stay transparent until the image boundary (calc(50% ± 750px)),
+     then ramp to fully opaque 250px inside the image (calc(50% ± 500px)).
+     This gives a wide, smooth 250px blend zone anchored exactly to the image edge,
+     regardless of how wide the viewport grows. */
   .notion-polish-balanced .notion-yt-cover__fg {
     mask-image: linear-gradient(
       to right,
       rgb(0 0 0 / 0) 0%,
-      rgb(0 0 0 / 1) calc(50% - 480px),
-      rgb(0 0 0 / 1) calc(50% + 480px),
+      rgb(0 0 0 / 0) calc(50% - 750px),
+      rgb(0 0 0 / 1) calc(50% - 500px),
+      rgb(0 0 0 / 1) calc(50% + 500px),
+      rgb(0 0 0 / 0) calc(50% + 750px),
       rgb(0 0 0 / 0) 100%
     );
     -webkit-mask-image: linear-gradient(
       to right,
       rgb(0 0 0 / 0) 0%,
-      rgb(0 0 0 / 1) calc(50% - 480px),
-      rgb(0 0 0 / 1) calc(50% + 480px),
+      rgb(0 0 0 / 0) calc(50% - 750px),
+      rgb(0 0 0 / 1) calc(50% - 500px),
+      rgb(0 0 0 / 1) calc(50% + 500px),
+      rgb(0 0 0 / 0) calc(50% + 750px),
       rgb(0 0 0 / 0) 100%
     );
   }
