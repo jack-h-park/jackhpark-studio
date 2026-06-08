@@ -41,7 +41,7 @@ export default siteConfig({
   // default TTL (in seconds) for cached Notion pages; can be overridden via env
   notionPageCacheTTLSeconds: 60,
 
-  includeNotionIdInUrls: true,
+  includeNotionIdInUrls: false,
 
   // whether or not redis is enabled for caching generated preview images (optional)
   // NOTE: if you enable redis, you need to set the `REDIS_HOST` and `REDIS_PASSWORD`
