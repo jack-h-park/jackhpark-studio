@@ -6,9 +6,9 @@ import { idToUuid, parsePageId } from "notion-utils";
 import * as React from "react";
 import ReactModal from "react-modal";
 import {
-  Text,
   type MapImageUrlFn,
   type NotionComponents,
+  Text,
   useNotionContext,
 } from "react-notion-x";
 import { Collection } from "react-notion-x/build/third-party/collection";
@@ -23,8 +23,8 @@ import {
   SIDE_PEEK_DISABLED_COLLECTION_IDS,
 } from "@/lib/side-peek.config";
 
-import { NotionCoverBlurFill } from "./NotionCoverBlurFill";
 import { NotionCode } from "./notion-code";
+import { NotionCoverBlurFill } from "./NotionCoverBlurFill";
 
 const NotionRenderer = dynamic(
   async () => (await import("react-notion-x")).NotionRenderer,
