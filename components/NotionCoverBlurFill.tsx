@@ -3,8 +3,10 @@ import * as React from "react";
 interface Props {
   coverUrl: string;
   /**
-   * Vertical focal point from 0 (top) to 1 (bottom).
-   * Notion stores this as page_cover_position. Default is 0.5 (center).
+   * Raw Notion page_cover_position value (0–1).
+   * react-notion-x converts this as (1 - value) * 100 for CSS object-position.
+   * 0 → shows bottom (CSS 100%), 1 → shows top (CSS 0%), 0.5 → center.
+   * Default matches react-notion-x's defaultPageCoverPosition = 0.5.
    */
   coverPosition?: number;
 }
@@ -18,7 +20,9 @@ interface Props {
  * from a single React component instead of relying on CSS pseudo-elements.
  */
 export function NotionCoverBlurFill({ coverUrl, coverPosition = 0.5 }: Props) {
-  const objectPosition = `center ${coverPosition * 100}%`;
+  // Match react-notion-x formula exactly: (1 - page_cover_position) * 100
+  // page_cover_position=0 → 100% (bottom), =1 → 0% (top), =0.5 → 50% (center)
+  const objectPosition = `center ${(1 - coverPosition) * 100}%`;
 
   return (
     <div className="notion-page-cover-wrapper notion-yt-cover">
