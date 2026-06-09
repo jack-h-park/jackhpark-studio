@@ -13,14 +13,14 @@ import {
   type SessionChatConfig,
 } from "@/types/chat-config";
 
-import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
 import type { ImpactKey } from "./impact";
-import styles from "./SettingsSectionPresets.module.css";
+import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
 import {
   computeOverridesActive,
   PRESET_LABELS,
   type PresetKey,
 } from "./preset-overrides";
+import styles from "./SettingsSectionPresets.module.css";
 
 const PRESET_ICONS: Record<PresetKey, React.ReactNode> = {
   precision: <FiTarget size={14} className={styles.presetIcon} aria-hidden="true" />,
