@@ -44,11 +44,23 @@ export default withBundleAnalyzer({
     // Workaround for ensuring that `react` and `react-dom` resolve correctly
     // when using a locally-linked version of `react-notion-x`.
     // @see https://github.com/vercel/next.js/issues/50391
+    //
+    // Also aliasing `react/jsx-runtime` and `react/jsx-dev-runtime` to prevent
+    // the Next.js 15 DevTools from picking up a separate React instance, which
+    // manifests as: "Cannot read properties of null (reading 'useContext')".
     const dirname = path.dirname(fileURLToPath(import.meta.url));
     config.resolve.alias.react = path.resolve(dirname, "node_modules/react");
     config.resolve.alias["react-dom"] = path.resolve(
       dirname,
       "node_modules/react-dom",
+    );
+    config.resolve.alias["react/jsx-runtime"] = path.resolve(
+      dirname,
+      "node_modules/react/jsx-runtime",
+    );
+    config.resolve.alias["react/jsx-dev-runtime"] = path.resolve(
+      dirname,
+      "node_modules/react/jsx-dev-runtime",
     );
     config.resolve.alias["react-pdf"] = path.resolve(
       dirname,

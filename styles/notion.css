@@ -424,12 +424,14 @@ svg[data-processed-mermaid] .section-root tspan {
 
 .notion-collection-card-cover {
   border-bottom: 0 none;
-  transition: filter 150ms linear;
+  transition: filter 150ms linear, transform 200ms ease-out;
   filter: none;
+  overflow: hidden;
 }
 
 .notion-collection-card:hover .notion-collection-card-cover {
-  filter: brightness(120%);
+  filter: brightness(105%);
+  transform: scale(1.02);
 }
 
 .notion-collection-card-body {
@@ -597,6 +599,8 @@ svg[data-processed-mermaid] .section-root tspan {
 
 .notion-gallery-grid {
   border-top: none;
+  grid-auto-rows: auto;
+  align-items: start;
 }
 
 .notion-gallery-view[data-gallery-preview="1"] .notion-gallery-grid .notion-collection-card-cover .notion-page-icon-wrapper,
