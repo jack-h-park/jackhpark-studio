@@ -144,21 +144,9 @@ export function ChatConfigPage({
           </ChatConfigSection>
 
           <ChatConfigSection
-            label="RETRIEVAL"
-            title="Data access & ranking"
-            description="Select which models, embeddings, and rankers visitors can use."
-          >
-            <RagRankingCard
-              ragRanking={config.ragRanking}
-              updateDocTypeWeight={updateDocTypeWeight}
-              updatePersonaWeight={updatePersonaWeight}
-            />
-          </ChatConfigSection>
-
-          <ChatConfigSection
             label="MODEL & LIMITS"
-            title="Preset controls"
-            description="Define the settings and safety limits for each session preset."
+            title="Preset controls & retrieval tuning"
+            description="Define the settings and safety limits for each session preset, and tune RAG document ranking weights."
           >
             <div className="space-y-5">
               <NumericLimitsCard
@@ -167,6 +155,11 @@ export function ChatConfigPage({
                 additionalPromptMaxLength={additionalPromptMaxLength}
                 updateNumericLimit={updateNumericLimit}
                 updateConfig={updateConfig}
+              />
+              <RagRankingCard
+                ragRanking={config.ragRanking}
+                updateDocTypeWeight={updateDocTypeWeight}
+                updatePersonaWeight={updatePersonaWeight}
               />
               <SessionPresetsCard
                 config={config}
