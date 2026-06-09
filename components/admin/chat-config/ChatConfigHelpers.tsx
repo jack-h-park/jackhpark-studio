@@ -86,6 +86,7 @@ export type ChatConfigSectionProps = {
   label: string;
   title: string;
   description?: React.ReactNode;
+  advancedContent?: React.ReactNode;
   divider?: boolean;
 } & React.HTMLAttributes<HTMLElement>;
 
@@ -93,6 +94,7 @@ export function ChatConfigSection({
   label,
   title,
   description,
+  advancedContent,
   divider = false,
   className,
   children,
@@ -120,6 +122,12 @@ export function ChatConfigSection({
           </p>
         )}
       </div>
+      {advancedContent && (
+        <>
+          <div className="border-t border-[var(--ai-role-border-muted)]" />
+          <div>{advancedContent}</div>
+        </>
+      )}
       {divider && (
         <div className="border-b border-[var(--ai-role-border-muted)]" />
       )}
@@ -160,7 +168,7 @@ export function ChatConfigCardHeader({
         </div>
       </div>
       {description && (
-        <CardDescription className="text-sm text-[var(--ai-text-muted)]">
+        <CardDescription>
           {description}
         </CardDescription>
       )}

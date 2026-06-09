@@ -133,8 +133,7 @@ export function ChatConfigPage({
             label="RETRIEVAL"
             title="Data access & ranking"
             description="Select which models, embeddings, and rankers visitors can use."
-          >
-            <div className="space-y-5">
+            advancedContent={
               <CollapsibleSection label="Model &amp; ranker constraints">
                 <AllowlistCard
                   allowlist={config.allowlist}
@@ -147,12 +146,13 @@ export function ChatConfigPage({
                   updateConfig={updateConfig}
                 />
               </CollapsibleSection>
-              <RagRankingCard
-                ragRanking={config.ragRanking}
-                updateDocTypeWeight={updateDocTypeWeight}
-                updatePersonaWeight={updatePersonaWeight}
-              />
-            </div>
+            }
+          >
+            <RagRankingCard
+              ragRanking={config.ragRanking}
+              updateDocTypeWeight={updateDocTypeWeight}
+              updatePersonaWeight={updatePersonaWeight}
+            />
           </ChatConfigSection>
 
           <ChatConfigSection
