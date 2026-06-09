@@ -2,11 +2,10 @@
 
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import type { LlmModelId } from "@/lib/shared/models";
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
-import { InlineAlert } from "@/components/ui/alert";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
 import { ImpactTooltip } from "@/components/ui/impact-tooltip";
 import { Label } from "@/components/ui/label";
@@ -31,7 +30,7 @@ import {
 } from "@/types/chat-config";
 
 import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
-import { computeOverridesActive } from "./preset-overrides";
+import { getPresetDefaults, resolvePresetKey } from "./preset-overrides";
 import styles from "./SettingsSectionOptionalOverrides.module.css";
 
 type Props = {
@@ -40,7 +39,6 @@ type Props = {
   setSessionConfig: (
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
   ) => void;
-  onResetToPresetDefaults: () => void;
 };
 
 const SUMMARY_LEVELS: Record<SummaryLevel, string> = {
@@ -54,9 +52,13 @@ export function SettingsSectionOptionalOverrides({
   adminConfig,
   sessionConfig,
   setSessionConfig,
-  onResetToPresetDefaults,
 }: Props) {
   const { runtimeMeta } = useChatConfig();
+
+  const presetDefaults = useMemo(
+    () => getPresetDefaults(adminConfig, resolvePresetKey(sessionConfig)),
+    [adminConfig, sessionConfig],
+  );
 
   const updateSession = (
     updater: (next: SessionChatConfig) => SessionChatConfig,
@@ -85,6 +87,14 @@ export function SettingsSectionOptionalOverrides({
     runtimeMeta.ollamaConfigured,
     runtimeMeta.lmstudioConfigured,
   ]);
+
+  const llmDiffLabel = useMemo(() => {
+    if (sessionConfig.llmModel === presetDefaults.llmModel) return null;
+    return (
+      llmOptions.find((o) => o.id === presetDefaults.llmModel)?.label ??
+      presetDefaults.llmModel
+    );
+  }, [sessionConfig.llmModel, presetDefaults.llmModel, llmOptions]);
 
   const summaryOptions = [
     {
@@ -123,23 +133,6 @@ export function SettingsSectionOptionalOverrides({
     }));
   };
 
-  const overridesActive = computeOverridesActive({
-    adminConfig,
-    sessionConfig,
-  });
-  const [warningDismissed, setWarningDismissed] = useState(false);
-  const showOverridesWarning = overridesActive && !warningDismissed;
-
-  useEffect(() => {
-    if (!overridesActive) {
-      setWarningDismissed(false);
-    }
-  }, [overridesActive]);
-
-  const handleResetToPresetDefaults = () => {
-    setWarningDismissed(false);
-    onResetToPresetDefaults();
-  };
 
   return (
     <Section>
@@ -165,13 +158,18 @@ export function SettingsSectionOptionalOverrides({
 
         <div className={styles.overrideBlocks}>
           <div className={cn(styles.overrideBlock, "space-y-2")}>
-            <div className="flex items-center">
+            <div className="flex items-center justify-between gap-2">
               <Label
                 htmlFor="optional-llm-model"
                 className={cn("ai-field__label", styles.overlineLabel)}
               >
                 LLM Model
               </Label>
+              {llmDiffLabel && (
+                <span className={styles.diffPill}>
+                  Preset: {llmDiffLabel}
+                </span>
+              )}
             </div>
             <Select
               value={sessionConfig.llmModel}
@@ -207,6 +205,8 @@ export function SettingsSectionOptionalOverrides({
             >
               {summaryOptions.map((option) => {
                 const isActive = sessionConfig.summaryLevel === option.value;
+                const isPresetDefault =
+                  presetDefaults.summaryLevel === option.value;
                 return (
                   <SelectableTile
                     key={option.value}
@@ -215,7 +215,10 @@ export function SettingsSectionOptionalOverrides({
                     onClick={() => handleSummaryLevelChange(option.value)}
                     label={option.label}
                     description={option.description}
-                    className="flex flex-col items-center justify-center text-center h-full w-full max-w-full"
+                    className={cn(
+                      "flex flex-col items-center justify-center text-center h-full w-full max-w-full",
+                      isPresetDefault && styles.summaryTileDefault,
+                    )}
                     contentClassName="ai-choice !gap-1 w-full"
                     labelClassName="ai-choice__label"
                     descriptionClassName="ai-choice__description tracking-normal"
@@ -226,27 +229,6 @@ export function SettingsSectionOptionalOverrides({
           </div>
 
         </div>
-        {showOverridesWarning && (
-          <InlineAlert
-            severity="warning"
-            title="Overrides active"
-            className="mt-4"
-            onDismiss={() => setWarningDismissed(true)}
-            bodyClassName="ai-helper-text pt-1 space-y-1"
-          >
-            <p>
-              These changes may affect cost, speed, or memory. Use the reset
-              action to revert.
-            </p>
-            <button
-              type="button"
-              className="text-xs font-medium text-[color:var(--ai-accent-strong)] underline underline-offset-2"
-              onClick={handleResetToPresetDefaults}
-            >
-              Reset to preset defaults
-            </button>
-          </InlineAlert>
-        )}
       </SectionContent>
     </Section>
   );

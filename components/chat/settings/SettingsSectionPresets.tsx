@@ -13,7 +13,6 @@ import {
   type SessionChatConfig,
 } from "@/types/chat-config";
 
-import type { ImpactKey } from "./impact";
 import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
 import {
   computeOverridesActive,
@@ -36,7 +35,6 @@ type Props = {
   setSessionConfig: (
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
   ) => void;
-  onDisruptiveChange?: (key: ImpactKey) => void;
 };
 
 export function PresetSelectorTabs({
@@ -44,7 +42,6 @@ export function PresetSelectorTabs({
   sessionConfig,
   helperText,
   setSessionConfig,
-  onDisruptiveChange,
 }: Props) {
   const overridesActive = computeOverridesActive({
     adminConfig,
@@ -59,7 +56,6 @@ export function PresetSelectorTabs({
         adminConfig.presets[presetKey].additionalSystemPrompt ?? "",
       appliedPreset: presetKey,
     }));
-    onDisruptiveChange?.("preset");
     setLastDiffReason("preset");
   };
 

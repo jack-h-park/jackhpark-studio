@@ -6,10 +6,6 @@ import { createPortal } from "react-dom";
 
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
 import { type ChatMessage } from "@/components/chat/hooks/useChatSession";
-import {
-  getImpactWarningMessage,
-  type ImpactKey,
-} from "@/components/chat/settings/impact";
 import { Button } from "@/components/ui/button";
 import { HeadingWithIcon } from "@/components/ui/heading-with-icon";
 import { ImpactTooltip } from "@/components/ui/impact-tooltip";
@@ -19,15 +15,16 @@ import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
 import { AdvancedSettingsPresetEffects } from "./AdvancedSettingsPresetEffects";
 import styles from "./ChatAdvancedSettingsDrawer.module.css";
-import { DrawerInlineWarning } from "./DrawerInlineWarning";
 import { computeOverridesActive } from "./preset-overrides";
 import { SettingsSectionContextHistory } from "./SettingsSectionContextHistory";
-import { SettingsSectionCoreSummary } from "./SettingsSectionCoreSummary";
 import { SettingsSectionDisplay } from "./SettingsSectionDisplay";
 import { SettingsSectionModelEngine } from "./SettingsSectionModelEngine";
 import { SettingsSectionOptionalOverrides } from "./SettingsSectionOptionalOverrides";
 import { PresetSelectorTabs } from "./SettingsSectionPresets";
 import { SettingsSectionRagRetrieval } from "./SettingsSectionRagRetrieval";
+
+const hasCascadeChildren =
+  !isSettingLocked("embeddingModel") || !isSettingLocked("rag");
 
 type DrawerProps = {
   open: boolean;
@@ -42,10 +39,6 @@ export function ChatAdvancedSettingsDrawer({
 }: DrawerProps) {
   const { adminConfig, sessionConfig, setSessionConfig } = useChatConfig();
   const [mounted, setMounted] = useState(false);
-  const [warningState, setWarningState] = useState<{
-    visible: boolean;
-    message: string;
-  }>({ visible: false, message: "" });
 
   useEffect(() => {
     setMounted(true);
@@ -53,8 +46,6 @@ export function ChatAdvancedSettingsDrawer({
 
   useEffect(() => {
     if (!open) {
-      // Reset warning when drawer closes
-      setWarningState({ visible: false, message: "" });
       return;
     }
 
@@ -84,13 +75,6 @@ export function ChatAdvancedSettingsDrawer({
     };
   }, [open, onClose]);
 
-  const triggerImpactWarning = (key: ImpactKey) => {
-    const message = getImpactWarningMessage(key);
-    // Only update if not already visible or if message is different (optional enhancement)
-    // Detailed requirement: "Avoid spamming: if banner is already visible, don’t re-add multiple banners; optionally update the message"
-    setWarningState({ visible: true, message });
-  };
-
   const resetToDefault = () => {
     setSessionConfig(() => ({
       ...adminConfig.presets.default,
@@ -99,7 +83,6 @@ export function ChatAdvancedSettingsDrawer({
         adminConfig.presets.default.additionalSystemPrompt ?? "",
       appliedPreset: "default",
     }));
-    triggerImpactWarning("reset");
   };
 
   if (!mounted) return null;
@@ -120,13 +103,16 @@ export function ChatAdvancedSettingsDrawer({
         <div className={styles.panel}>
           <div className={styles.inner}>
             <div className={styles.header}>
-              <HeadingWithIcon
-                as="h2"
-                icon={<FiSettings aria-hidden="true" />}
-                className={styles.drawerTitle}
-              >
-                Advanced Settings
-              </HeadingWithIcon>
+              <div className="flex items-center gap-2">
+                <HeadingWithIcon
+                  as="h2"
+                  icon={<FiSettings aria-hidden="true" />}
+                  className={styles.drawerTitle}
+                >
+                  Advanced Settings
+                </HeadingWithIcon>
+                <StatusPill variant="muted">SESSION-WIDE</StatusPill>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
@@ -138,21 +124,6 @@ export function ChatAdvancedSettingsDrawer({
               </Button>
             </div>
             <div className={`${styles.content} gap-4`}>
-              {warningState.visible && (
-                <DrawerInlineWarning
-                  message={warningState.message}
-                  onDismiss={() =>
-                    setWarningState((prev) => ({ ...prev, visible: false }))
-                  }
-                />
-              )}
-
-              <div className={styles.drawerSection}>
-                <SettingsSectionCoreSummary
-                  summary={adminConfig.baseSystemPromptSummary ?? ""}
-                />
-              </div>
-
               <div className={styles.drawerSection}>
                 <Section className={styles.presetScope}>
                   <div className={styles.presetScopeHeader}>
@@ -162,12 +133,7 @@ export function ChatAdvancedSettingsDrawer({
                         icon={<FiLayers aria-hidden="true" />}
                       >
                         <span className="flex items-center gap-2">
-                          <span className="flex items-center gap-2">
-                            AI Orchestration Preset
-                            <StatusPill variant="muted">
-                              SESSION-WIDE
-                            </StatusPill>
-                          </span>
+                          AI Orchestration Preset
                           <ImpactTooltip text="Changing presets can affect retrieval, memory budgets, and response behavior for this session.">
                             <FiInfo aria-hidden="true" />
                           </ImpactTooltip>
@@ -183,7 +149,6 @@ export function ChatAdvancedSettingsDrawer({
                         adminConfig={adminConfig}
                         sessionConfig={sessionConfig}
                         setSessionConfig={setSessionConfig}
-                        onDisruptiveChange={(key) => triggerImpactWarning(key)}
                       />
                     </div>
                   </div>
@@ -203,7 +168,6 @@ export function ChatAdvancedSettingsDrawer({
                         sessionConfig={sessionConfig}
                         setSessionConfig={setSessionConfig}
                         messages={messages}
-                        onDisruptiveChange={(key) => triggerImpactWarning(key)}
                       />
                     </div>
 
@@ -212,14 +176,13 @@ export function ChatAdvancedSettingsDrawer({
                         adminConfig={adminConfig}
                         sessionConfig={sessionConfig}
                         setSessionConfig={setSessionConfig}
-                        onResetToPresetDefaults={resetToDefault}
                       />
                     </div>
                   </div>
                 </Section>
               </div>
 
-              <div className={`${styles.cascade}`}>
+              {hasCascadeChildren && <div className={`${styles.cascade}`}>
                 {!isSettingLocked("embeddingModel") && (
                   <div className={styles.drawerSection}>
                     <SettingsSectionModelEngine
@@ -239,7 +202,7 @@ export function ChatAdvancedSettingsDrawer({
                     />
                   </div>
                 )}
-              </div>
+              </div>}
 
               <div className={styles.drawerSection}>
                 <SettingsSectionDisplay />
