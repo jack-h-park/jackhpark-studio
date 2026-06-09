@@ -233,6 +233,27 @@
   margin-block: 0.75rem;
 }
 
+.devBadge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  vertical-align: middle;
+  border-radius: var(--ai-radius-sm);
+  background-color: var(--ai-role-surface-accent, #e8f0fe);
+  color: var(--ai-text-accent, #1a56db);
+  border: 1px solid var(--ai-role-border-accent, #93c5fd);
+}
+
+:global(.dark) .devBadge,
+:global(.dark-mode) .devBadge {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.3);
+}
 
 .drawerCloseButton {
   min-width: 40px;

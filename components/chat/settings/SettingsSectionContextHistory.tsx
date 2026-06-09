@@ -24,7 +24,6 @@ import {
 } from "@/lib/chat/historyWindowPreview";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
-import type { ImpactKey } from "./impact";
 import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
 import { HistoryPreview } from "./HistoryPreview";
 
@@ -36,7 +35,6 @@ type Props = {
   setSessionConfig: (
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
   ) => void;
-  onDisruptiveChange?: (key: ImpactKey) => void;
   messages: ChatMessage[];
 };
 
@@ -44,7 +42,6 @@ export function SettingsSectionContextHistory({
   adminConfig,
   sessionConfig,
   setSessionConfig,
-  onDisruptiveChange,
   messages,
 }: Props) {
   const isContextLocked = isSettingLocked("context");
@@ -217,13 +214,6 @@ export function SettingsSectionContextHistory({
       Math.min(limit.max, Math.round(value)),
     );
 
-    // Check for disruptive decrease
-    if (key === "historyBudget") {
-      const currentVal = sessionConfig.context.historyBudget;
-      if (sanitized < currentVal) {
-        onDisruptiveChange?.("historyBudget");
-      }
-    }
     setLastDiffReason(key === "historyBudget" ? "historyBudget" : "unknown");
 
     updateSession((prev) => ({
@@ -287,13 +277,12 @@ export function SettingsSectionContextHistory({
 
         {isDev && (
           <>
-            <div
-              className={`${drawerStyles.drawerDivider} ${drawerStyles.drawerDividerSpacing}`}
-            />
+            <div className={drawerStyles.drawerDivider} />
             <div className={drawerStyles.drawerRow}>
               <div className={drawerStyles.drawerRowText}>
                 <span className={drawerStyles.drawerRowLabel}>
                   Exact preview (server)
+                  <span className={drawerStyles.devBadge}>DEV</span>
                 </span>
                 <span className={drawerStyles.drawerRowHint}>
                   Updates as the conversation grows.
