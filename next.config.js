@@ -11,6 +11,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 export default withBundleAnalyzer({
   compress: false,
   staticPageGenerationTimeout: 300,
+  devIndicators: false,
   experimental: {
     externalDir: true,
     // Save and restore scroll position on back/forward navigation (Pages Router).

@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import { type ExtendedRecordMap } from "notion-types";
 import { getAllPagesInSpace, getPageProperty } from "notion-utils";
 import pMemoize from "p-memoize";
@@ -6,7 +9,51 @@ import type * as types from "./types";
 import * as config from "./config";
 import { includeNotionIdInUrls } from "./config";
 import { getCanonicalPageId } from "./get-canonical-page-id";
-import { getPage as getFullPage } from "./notion";
+import { notion } from "./notion-api";
+
+// ---------------------------------------------------------------------------
+// Disk-based sitemap cache
+// Persists the sitemap across dev-server restarts so every restart does not
+// hammer the Notion API and exhaust its rate limits.
+// Cache is stored in .next/cache/notion-sitemap.json.
+// TTL: 5 minutes in development, 60 minutes in production.
+// ---------------------------------------------------------------------------
+const SITEMAP_CACHE_PATH = path.join(
+  process.cwd(),
+  ".next",
+  "cache",
+  "notion-sitemap.json",
+);
+const SITEMAP_TTL_MS =
+  process.env.NODE_ENV === "production" ? 60 * 60 * 1000 : 5 * 60 * 1000;
+
+function readSitemapCache(): Partial<types.SiteMap> | null {
+  try {
+    const raw = fs.readFileSync(SITEMAP_CACHE_PATH, "utf-8");
+    const { ts, data } = JSON.parse(raw) as {
+      ts: number;
+      data: Partial<types.SiteMap>;
+    };
+    if (Date.now() - ts < SITEMAP_TTL_MS) {
+      return data;
+    }
+  } catch {
+    // cache miss or parse error — fall through
+  }
+  return null;
+}
+
+function writeSitemapCache(data: Partial<types.SiteMap>): void {
+  try {
+    fs.mkdirSync(path.dirname(SITEMAP_CACHE_PATH), { recursive: true });
+    fs.writeFileSync(
+      SITEMAP_CACHE_PATH,
+      JSON.stringify({ ts: Date.now(), data }),
+    );
+  } catch (err) {
+    console.warn("[sitemap cache] write failed", err);
+  }
+}
 
 const uuid = !!includeNotionIdInUrls;
 
@@ -50,11 +97,25 @@ function normalizeBlocksForTraversal(
   return { ...recordMap, block: normalizedBlocks };
 }
 
-// Use the full getPage from lib/notion.ts so collection_query is hydrated
-// (via hydrateGroupedCollectionData), which is required for getAllPagesInSpace
-// to discover collection items. Blocks are still normalized for traversal.
+// Lightweight page fetch for sitemap traversal only.
+//
+// bdb1b51 switched this to the full lib/notion.ts getPage so that
+// hydrateGroupedCollectionData would run and populate collection_query,
+// which is required for getAllPagesInSpace to discover collection items.
+// However, the full getPage also fetches preview images, tweets, navigation
+// links, relation pages, etc. — multiplying API calls 5-10× per page and
+// reliably triggering Notion's 429 rate limit.
+//
+// Fix: use notion.getPage() with fetchCollections:true (enough to populate
+// collection_query for traversal) and skip every extra step that is only
+// needed for page rendering, not for sitemap discovery.
 const getPage = async (pageId: string) => {
-  const recordMap = await getFullPage(pageId);
+  const recordMap = await notion.getPage(pageId, {
+    fetchCollections: true,
+    fetchMissingBlocks: false,
+    fetchRelationPages: false,
+    ofetchOptions: { timeout: 30_000 },
+  });
   return normalizeBlocksForTraversal(recordMap);
 };
 
@@ -62,17 +123,29 @@ async function getAllPagesImpl(
   rootNotionPageId: string,
   rootNotionSpaceId?: string,
 ): Promise<Partial<types.SiteMap>> {
+  const cached = readSitemapCache();
+  if (cached) {
+    console.log("[sitemap cache] hit — skipping Notion API fetch");
+    return cached;
+  }
+
+  // concurrency: 1 to avoid hammering the unofficial Notion API with parallel
+  // requests and triggering 429 rate limits.
   const pageMap = await getAllPagesInSpace(
     rootNotionPageId,
     rootNotionSpaceId,
     getPage,
+    { concurrency: 1 },
   );
 
   const canonicalPageMap = Object.keys(pageMap).reduce(
     (map: Record<string, string>, pageId: string) => {
       const recordMap = pageMap[pageId];
       if (!recordMap) {
-        throw new Error(`Error loading page "${pageId}"`);
+        // Page failed to load (e.g. Notion API 429 rate limit). Skip rather
+        // than aborting sitemap generation entirely.
+        console.warn(`Skipping page "${pageId}" — recordMap unavailable`);
+        return map;
       }
 
       const block = recordMap.block[pageId]?.value;
@@ -106,8 +179,7 @@ async function getAllPagesImpl(
     {},
   );
 
-  return {
-    pageMap,
-    canonicalPageMap,
-  };
+  const result = { pageMap, canonicalPageMap };
+  writeSitemapCache(result);
+  return result;
 }

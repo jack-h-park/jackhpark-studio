@@ -67,6 +67,13 @@ Quick reference:
 
 The pre-push hook (`scripts/hooks/pre-push`) blocks accidental pushes while in local-link mode.
 
+## Notion API & Sitemap
+
+- Sitemap generation lives in `lib/get-site-map.ts`. It uses `getAllPagesInSpace` from `notion-utils` to walk the workspace.
+- The `getPage` callback passed to `getAllPagesInSpace` **must stay lightweight** — `fetchCollections: true` only. Do **not** substitute the full `loadPageFromNotion` from `lib/notion.ts`; doing so multiplies API calls 5–10× per page and exhausts the unofficial Notion API rate limit on every server start. See [`docs/incidents/notion-429-sitemap-rate-limit-2026-06.md`](../incidents/notion-429-sitemap-rate-limit-2026-06.md).
+- Sitemap results are disk-cached in `.next/cache/notion-sitemap.json` (5 min TTL in dev, 60 min in prod) to survive server restarts without re-fetching.
+- Full page loads (`lib/notion.ts → loadPageFromNotion`) include a 429 retry with exponential backoff (2 s, 4 s).
+
 ## Operationally Important Areas
 
 - Docs under `docs/` are used as repo policy and operational guidance, not just notes. Start with [`docs/README.md`](../README.md) for the role of each folder.
