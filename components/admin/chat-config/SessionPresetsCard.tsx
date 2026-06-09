@@ -210,7 +210,6 @@ export type SessionPresetsCardProps = {
     ) => AdminChatConfig["presets"][PresetKey],
   ) => void;
   llmModelOptions: AdminLlmModelOption[];
-  additionalPromptMaxLength: number;
   presetResolutions: AdminChatRuntimeMeta["presetResolutions"];
   ollamaConfigured: boolean;
   lmstudioConfigured: boolean;
@@ -224,7 +223,6 @@ export function SessionPresetsCard({
   presets,
   updatePreset,
   llmModelOptions,
-  additionalPromptMaxLength,
   presetResolutions,
   ollamaConfigured,
   lmstudioConfigured,
@@ -236,6 +234,8 @@ export function SessionPresetsCard({
     .filter((id): id is string => typeof id === "string" && id.length > 0);
   const normalizedAllowlistSet = new Set(normalizedAllowlistIds);
   const sessionGridLabelClass =
+    "flex items-center gap-2 ai-label-emphasis text-left";
+  const sessionGridSectionLabelClass =
     "flex items-center gap-2 ai-label-overline ai-label-overline--muted text-left";
   const sessionGridValueClass = "flex min-w-0 flex-col gap-2";
   const sessionGridPresetHeaderClass =
@@ -524,7 +524,7 @@ export function SessionPresetsCard({
       <ChatConfigCardContent className="space-y-6">
         <GridPanel className="space-y-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] px-4 py-4 shadow-sm">
           <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] items-center gap-4 t-eyebrow text-[var(--ai-text-muted)]">
-            <div className={sessionGridLabelClass}>Setting</div>
+            <div className={sessionGridSectionLabelClass}>Setting</div>
             {presetDisplayOrder.map((presetKey) => (
               <div
                 key={`session-preset-header-${presetKey}`}
@@ -542,8 +542,8 @@ export function SessionPresetsCard({
                   label="Additional user system prompt"
                   labelClassName="sr-only"
                   value={preset.additionalSystemPrompt ?? ""}
-                  maxLength={additionalPromptMaxLength}
-                  helperText={`User system prompt for this preset to be added to the base system prompt. Up to ${additionalPromptMaxLength} characters.`}
+                  maxLength={2000}
+                  helperText="System prompt appended on top of the base prompt for this preset. Up to 2000 characters."
                   onChange={(value) =>
                     handleAdditionalSystemPromptChange(presetKey, value)
                   }
@@ -589,30 +589,20 @@ export function SessionPresetsCard({
                         const optionTooltip = disabledByEnv
                           ? `${backendLabel ?? "Local backend"} is unavailable in this environment. Using ${defaultLlmModelId} instead.`
                           : undefined;
-                        const label = (
-                          <span className="inline-flex items-center gap-1">
-                            {option.label}
-                            {optionTooltip && (
-                              <FiAlertCircle
-                                aria-hidden="true"
-                                className="text-[color:var(--ai-text-muted)]"
-                                size={14}
-                                title={optionTooltip}
-                              />
-                            )}
-                          </span>
-                        );
                         const optionAllowed = normalizedAllowlistSet.has(
                           option.id,
                         );
+                        const optionTitle = optionTooltip
+                          ? optionTooltip
+                          : (option.subtitle ?? option.id);
                         return (
                           <SelectItem
                             key={option.id}
                             value={option.id}
-                            title={option.subtitle ?? option.id}
+                            title={optionTitle}
                             disabled={!optionAllowed || disabledByEnv}
                           >
-                            {label}
+                            {option.label}
                           </SelectItem>
                         );
                       })}
@@ -728,7 +718,7 @@ export function SessionPresetsCard({
             })}
           </div>
           <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] gap-4 items-start rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-2)]/50 px-4 py-3">
-            <div className={sessionGridLabelClass}>Retrieval (RAG)</div>
+            <div className={sessionGridSectionLabelClass}>Retrieval (RAG)</div>
             {presetDisplayOrder.map((presetKey) => (
               <div
                 key={`retrieval-section-${presetKey}`}
@@ -739,7 +729,7 @@ export function SessionPresetsCard({
             ))}
           </div>
           <div className="grid grid-cols-[minmax(200px,1fr)_repeat(4,minmax(0,1fr))] gap-4 items-start rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-2)]/50 px-4 py-3">
-            <div className={sessionGridLabelClass}>Context & History</div>
+            <div className={sessionGridSectionLabelClass}>Context & History</div>
             {presetDisplayOrder.map((presetKey) => (
               <div
                 key={`context-section-${presetKey}`}
