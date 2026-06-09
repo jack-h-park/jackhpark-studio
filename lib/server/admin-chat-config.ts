@@ -12,7 +12,6 @@ import { supabaseClient } from "@/lib/core/supabase";
 import { startDbQuery } from "@/lib/logging/db-logger";
 import {
   type AdminChatConfig,
-  DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH,
   type RagAutoMode,
   type RagMultiQueryMode,
 } from "@/types/chat-config";
@@ -376,10 +375,6 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     "local-required": localRequiredPreset,
   };
 
-  const additionalPromptMaxLength =
-    typeof mergedConfig.additionalPromptMaxLength === "number"
-      ? mergedConfig.additionalPromptMaxLength
-      : DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH;
   const hydeMode = normalizeRagAutoMode(
     mergedConfig.hydeMode,
     DEFAULT_HYDE_MODE,
@@ -400,7 +395,6 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
   return {
     ...mergedConfig,
     baseSystemPromptSummary: mergedConfig.baseSystemPromptSummary ?? "",
-    additionalPromptMaxLength,
     hydeMode,
     rewriteMode,
     ragMultiQueryMode,

@@ -18,7 +18,6 @@ import {
   type AdminChatConfig,
   type AdminChatRuntimeMeta,
   type AdminNumericLimit,
-  getAdditionalPromptMaxLength,
   type SessionChatConfigPreset,
 } from "@/types/chat-config";
 
@@ -107,8 +106,6 @@ export function useAdminChatConfig({
     setConfig(adminConfig);
     setSavedSnapshot(adminConfig);
   }, [adminConfig]);
-
-  const additionalPromptMaxLength = getAdditionalPromptMaxLength(config);
 
   const updateConfig = useCallback(
     (updater: (prev: AdminChatConfig) => AdminChatConfig) => {
@@ -369,7 +366,6 @@ export function useAdminChatConfig({
     setIsRawModalOpen,
     isWordWrapEnabled,
     setIsWordWrapEnabled,
-    additionalPromptMaxLength,
     numericLimitErrors,
     hasNumericErrors,
     isFormBusy,

@@ -10,7 +10,6 @@ import { InlineAlert } from "@/components/ui/alert";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
 import { ImpactTooltip } from "@/components/ui/impact-tooltip";
 import { Label } from "@/components/ui/label";
-import { PromptWithCounter } from "@/components/ui/prompt-with-counter";
 import {
   Section,
   SectionContent,
@@ -27,7 +26,6 @@ import { cn } from "@/components/ui/utils";
 import { listAllLlmModelOptions } from "@/lib/core/llm-registry";
 import {
   type AdminChatConfig,
-  getAdditionalPromptMaxLength,
   type SessionChatConfig,
   type SummaryLevel,
 } from "@/types/chat-config";
@@ -124,13 +122,6 @@ export function SettingsSectionOptionalOverrides({
       llmModel: value as LlmModelId,
     }));
   };
-
-  const maxLength = getAdditionalPromptMaxLength(adminConfig);
-  const helperText = [
-    "Optional prompt applied only to this chat session.",
-    "Based on the preset default and added on top of the base system prompt.",
-    `Up to ${maxLength} characters.`,
-  ].join(" ");
 
   const overridesActive = computeOverridesActive({
     adminConfig,
@@ -234,20 +225,6 @@ export function SettingsSectionOptionalOverrides({
             </GridPanel>
           </div>
 
-          <div className={cn(styles.overrideBlock, "space-y-2")}>
-            <UserPromptEditor
-              value={sessionConfig.additionalSystemPrompt ?? ""}
-              maxLength={maxLength}
-              helperText={helperText}
-              helperClassName="ai-setting-section-description"
-              onChange={(value) =>
-                updateSession((prev) => ({
-                  ...prev,
-                  additionalSystemPrompt: value,
-                }))
-              }
-            />
-          </div>
         </div>
         {showOverridesWarning && (
           <InlineAlert
@@ -275,31 +252,3 @@ export function SettingsSectionOptionalOverrides({
   );
 }
 
-type UserPromptEditorProps = {
-  value: string;
-  maxLength: number;
-  helperText: string;
-  helperClassName?: string;
-  onChange: (value: string) => void;
-};
-
-function UserPromptEditor({
-  value,
-  maxLength,
-  helperText,
-  helperClassName,
-  onChange,
-}: UserPromptEditorProps) {
-  return (
-    <PromptWithCounter
-      label="User system prompt"
-      helperText={helperText}
-      helperClassName={helperClassName}
-      value={value}
-      maxLength={maxLength}
-      labelClassName={styles.overlineLabel}
-      onChange={onChange}
-      textareaClassName="min-h-[110px]"
-    />
-  );
-}

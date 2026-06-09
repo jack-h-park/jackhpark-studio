@@ -71,7 +71,6 @@ const createAdminConfig = (): AdminChatConfig => {
   const config: AdminChatConfig = {
     baseSystemPrompt: "",
     baseSystemPromptSummary: "",
-    additionalPromptMaxLength: 500,
     hydeMode: "off",
     rewriteMode: "off",
     ragMultiQueryMode: "off",

@@ -114,7 +114,6 @@ export type AdminChatRuntimeMeta = {
 export interface AdminChatConfig {
   baseSystemPrompt?: string;
   baseSystemPromptSummary?: string;
-  additionalPromptMaxLength?: number;
   hydeMode?: RagAutoMode;
   rewriteMode?: RagAutoMode;
   ragMultiQueryMode?: RagMultiQueryMode;
@@ -174,13 +173,6 @@ export type ChatEngineType =
   | "local-lmstudio"
   | "unknown";
 
-export const DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH = 500;
-
-export function getAdditionalPromptMaxLength(config: AdminChatConfig): number {
-  return (
-    config.additionalPromptMaxLength ?? DEFAULT_ADDITIONAL_PROMPT_MAX_LENGTH
-  );
-}
 
 export { type TelemetryDetailLevel } from "@/lib/logging/types";
 export {

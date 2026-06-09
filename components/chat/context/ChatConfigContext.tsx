@@ -17,7 +17,6 @@ import {
   type AdminChatConfig,
   type AdminChatRuntimeMeta,
   type AdminNumericLimit,
-  getAdditionalPromptMaxLength,
   type ModelResolution,
   type SessionChatConfig,
   type SessionChatConfigPreset,
@@ -69,7 +68,6 @@ const sanitizeNumericConfig = (
   },
 ): SessionChatConfig => {
   const { numericLimits, allowlist } = adminConfig;
-  const additionalPromptLimit = getAdditionalPromptMaxLength(adminConfig);
 
   const topK = isFiniteNumber(candidate.rag.topK)
     ? clampValue(candidate.rag.topK, numericLimits.ragTopK)
@@ -92,10 +90,7 @@ const sanitizeNumericConfig = (
     ? candidate.summaryLevel
     : "off";
 
-  const additionalPrompt =
-    typeof candidate.additionalSystemPrompt === "string"
-      ? candidate.additionalSystemPrompt.slice(0, additionalPromptLimit)
-      : "";
+  const additionalPrompt = candidate.additionalSystemPrompt ?? "";
 
   const ranker = sanitizeModel(
     candidate.features.ranker,

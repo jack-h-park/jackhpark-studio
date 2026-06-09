@@ -49,9 +49,10 @@ import {
   type AdminPresetConfig,
   type ChatEngineType,
   type EmbeddingSpaceWarning,
-  getAdditionalPromptMaxLength,
   type SessionChatConfig,
 } from "@/types/chat-config";
+
+const ADDITIONAL_PROMPT_MAX_LENGTH = 2000;
 
 const GUARDRAIL_SETTINGS_CACHE_TTL_MS = 60_000;
 const CHAT_MODEL_SETTINGS_CACHE_TTL_MS = 60_000;
@@ -456,7 +457,6 @@ function resolvePromptParts({
   adminConfig: AdminChatConfig;
   sessionConfig?: SessionChatConfig;
 }) {
-  const maxLength = getAdditionalPromptMaxLength(adminConfig);
   const requestedPreset =
     sessionConfig?.presetId ?? sessionConfig?.appliedPreset ?? "default";
   const presetKey =
@@ -474,11 +474,11 @@ function resolvePromptParts({
 
   const presetAdditional = normalizeAdditionalPrompt(
     adminConfig.presets?.[presetKey]?.additionalSystemPrompt,
-    maxLength,
+    ADDITIONAL_PROMPT_MAX_LENGTH,
   );
   const sessionAdditional = normalizeAdditionalPrompt(
     sessionConfig?.additionalSystemPrompt,
-    maxLength,
+    ADDITIONAL_PROMPT_MAX_LENGTH,
   );
 
   return { basePrompt, presetAdditional, sessionAdditional };
