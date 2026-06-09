@@ -75,14 +75,13 @@ export default withBundleAnalyzer({
   transpilePackages: ["react-tweet"],
 
   // Exclude large native binaries and dev-only cache files from serverless function bundles.
-  // canvas is an optional jsdom dep we don't use; webpack cache files should never ship.
+  // canvas is an optional jsdom dep we no longer use (see lib/rag/fetch-favicon.ts).
+  // webpack cache files should never ship to Lambda.
+  // NOTE: sharp linux binaries must NOT be excluded — lqip-modern (via lib/notion.ts) depends on
+  // sharp at runtime and excluding its native module causes a Lambda crash.
   outputFileTracingExcludes: {
     "*": [
       "node_modules/canvas/**",
-      "node_modules/@img/sharp-linux-x64/**",
-      "node_modules/@img/sharp-linux-arm64/**",
-      "node_modules/@img/sharp-libvips-linux-x64/**",
-      "node_modules/@img/sharp-libvips-linux-arm64/**",
       ".next/cache/webpack/**",
     ],
   },
