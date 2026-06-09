@@ -47,13 +47,26 @@ else
   exit 1
 fi
 
-# Auto-fix ESLint issues on .ts/.tsx files in commits about to be pushed.
+# ESLint: autofix then verify on .ts/.tsx files in commits about to be pushed.
 # Uses @{push}..HEAD to scope to only new commits; falls back to HEAD~1..HEAD.
 CHANGED_TS=$(git diff --name-only "@{push}..HEAD" 2>/dev/null | grep -E '\.(ts|tsx)$' || git diff --name-only HEAD~1..HEAD 2>/dev/null | grep -E '\.(ts|tsx)$' || true)
 if [ -n "$CHANGED_TS" ]; then
   echo "Running ESLint autofix on changed .ts/.tsx files..."
   # shellcheck disable=SC2086
   pnpm eslint --fix $CHANGED_TS 2>&1 || true
+
+  echo "Verifying no remaining ESLint errors..."
+  # shellcheck disable=SC2086
+  if ! pnpm eslint $CHANGED_TS 2>&1; then
+    echo ""
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    echo "║  ❌  Push blocked — ESLint errors remain after autofix        ║"
+    echo "║                                                               ║"
+    echo "║  Fix the errors above, then re-run git push.                  ║"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
+    echo ""
+    exit 1
+  fi
 fi
 
 exit 0

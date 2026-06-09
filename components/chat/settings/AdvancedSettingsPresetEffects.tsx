@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
-
 import { FiCopy } from "@react-icons/all-files/fi/FiCopy";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { RankerId } from "@/lib/shared/models";
 import type {
