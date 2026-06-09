@@ -147,19 +147,6 @@ body.dark-mode [data-theme="jp"] {
   color: transparent;
 }
 
-/* Active nav pill → gradient border */
-[data-theme="jp"] .ai-selectable--active {
-  border-width: 2px;
-  background:
-    linear-gradient(
-      var(--bg-surface, #F7F6F3),
-      var(--bg-surface, #F7F6F3)
-    ) padding-box,
-    var(--gradient-mini) border-box;
-  border-color: transparent;
-  color: var(--text-primary, #37352F);
-  box-shadow: none;
-}
 
 /* Page header card — gradient top stripe */
 [data-theme="jp"] .ai-page-header-card {

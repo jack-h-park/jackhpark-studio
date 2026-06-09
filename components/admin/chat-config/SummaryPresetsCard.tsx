@@ -22,7 +22,7 @@ export function SummaryPresetsCard({
   updateConfig,
 }: SummaryPresetsCardProps) {
   const summaryGridLabelClass =
-    "ai-label-overline text-[0.9rem] text-[color:var(--ai-text-muted)]";
+    "ai-label-overline ai-label-overline--muted";
   const summaryGridHeaderClass =
     "t-eyebrow text-[color:var(--ai-text-strong)]";
   const summaryGridValueClass = "flex flex-col gap-1";
@@ -79,7 +79,7 @@ export function SummaryPresetsCard({
                     handleSummaryPresetChange(level, Number(event.target.value))
                   }
                 />
-                <span className="text-xs text-[var(--ai-text-muted)]">
+                <span className="ai-helper-text">
                   turn(s)
                 </span>
               </div>

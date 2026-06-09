@@ -102,7 +102,7 @@ function RetrievalSection({
       data-disabled={ragDisabled}
     >
       <SectionHeader className="items-center justify-between">
-        <SectionTitle as="h3" className="text-sm">
+        <SectionTitle as="h3">
           Enabled
         </SectionTitle>
         <Switch
@@ -179,7 +179,7 @@ function RetrievalSection({
         </div>
         <div className="flex flex-col gap-2">
           <span className={SECTION_FIELD_LABEL_CLASS}>Summary Level</span>
-          <div className="flex flex-wrap gap-2 text-sm">
+          <div className="flex flex-wrap gap-2">
             {summaryLevelOptions.map((level) => (
               <Radiobutton
                 key={level}

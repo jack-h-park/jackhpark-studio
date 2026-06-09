@@ -89,7 +89,7 @@ export function AllowlistCard({
   const renderBackendStatus = (label: string, backend: LocalLlmBackend) => {
     const isActive = localLlmBackendEnv === backend;
     return (
-      <span className="flex items-center gap-1 text-[color:var(--ai-text-muted)] text-xs">
+      <span className="flex items-center gap-1 ai-helper-text">
         <span
           className={`h-2.5 w-2.5 rounded-full ${
             isActive ? styles.statusDotActive : styles.statusDotInactive
@@ -163,7 +163,7 @@ export function AllowlistCard({
         title="Allowlist"
         description="Control which models and rankers visitors can pick."
         status={
-          <div className="flex max-w-xs flex-wrap gap-3 text-xs text-[var(--ai-text-muted)]">
+          <div className="flex max-w-xs flex-wrap gap-3 ai-helper-text">
             {renderBackendStatus("Ollama", "ollama")}
             {renderBackendStatus("LM Studio", "lmstudio")}
           </div>

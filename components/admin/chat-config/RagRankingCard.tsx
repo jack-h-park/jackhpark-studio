@@ -67,7 +67,7 @@ export function RagRankingCard({
                 1;
               return (
                 <Fragment key={docType}>
-                  <div className="ai-label-emphasis text-sm text-[color:var(--ai-text-muted)] capitalize">
+                  <div className="ai-label-emphasis text-[color:var(--ai-text-muted)] capitalize">
                     {label}
                   </div>
                   <div>
@@ -112,7 +112,7 @@ export function RagRankingCard({
                 1;
               return (
                 <Fragment key={persona}>
-                  <div className="ai-label-emphasis text-sm text-[color:var(--ai-text-muted)] capitalize">
+                  <div className="ai-label-emphasis text-[color:var(--ai-text-muted)] capitalize">
                     {label}
                   </div>
                   <div>
