@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
+import { FiCopy } from "@react-icons/all-files/fi/FiCopy";
+
 import type { RankerId } from "@/lib/shared/models";
 import type {
   AdminChatConfig,
@@ -98,8 +100,6 @@ export function AdvancedSettingsPresetEffects({
     sessionConfig,
   });
   const [copyMessage, setCopyMessage] = useState<string | null>(null);
-  const [copyMenuOpen, setCopyMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
 
   if (!isPresetActive) return null;
 
@@ -162,17 +162,14 @@ export function AdvancedSettingsPresetEffects({
 
   if (items.length === 0) return null;
 
-  const handleCopy = async (mode: "json" | "summary") => {
+  const handleCopy = async () => {
     const payload = buildEffectiveSettingsPayload({
       adminConfig,
       sessionConfig,
       overridesActive,
       effectiveEmbeddingLabel: activeEmbeddingLabel,
     });
-    const text =
-      mode === "json"
-        ? JSON.stringify(payload, null, 2)
-        : buildEffectiveSettingsSupportLine(payload);
+    const text = buildEffectiveSettingsSupportLine(payload);
     try {
       if (
         typeof navigator === "undefined" ||
@@ -181,10 +178,10 @@ export function AdvancedSettingsPresetEffects({
         throw new Error("Clipboard API unavailable");
       }
       await navigator.clipboard.writeText(text);
-      setCopyMessage(mode === "json" ? "Copied JSON" : "Copied summary");
+      setCopyMessage("Copied");
     } catch (err) {
       console.error("Failed to copy effective settings", err);
-      setCopyMessage("Copy failed");
+      setCopyMessage("Failed");
     }
   };
 
@@ -194,73 +191,29 @@ export function AdvancedSettingsPresetEffects({
     return () => clearTimeout(timer);
   }, [copyMessage]);
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setCopyMenuOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setCopyMenuOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
-  const handleMenuAction = (mode: "json" | "summary") => {
-    setCopyMenuOpen(false);
-    void handleCopy(mode);
-  };
-
   const actions = (
     <div className={styles.actionGroup}>
-      <div ref={menuRef} className="relative">
-        <button
-          type="button"
-          onClick={() => setCopyMenuOpen((prev) => !prev)}
-          className={styles.copyTrigger}
-          aria-haspopup="true"
-          aria-expanded={copyMenuOpen}
-        >
-          Copy
-          <span aria-hidden="true">▾</span>
-        </button>
-        {copyMenuOpen && (
-          <div className={cn(styles.copyMenu, insetPanelStyles.insetPanel)}>
-            <button
-              type="button"
-              onClick={() => handleMenuAction("json")}
-              className={styles.copyMenuItem}
-            >
-              Copy JSON
-            </button>
-            <button
-              type="button"
-              onClick={() => handleMenuAction("summary")}
-              className={styles.copyMenuItem}
-            >
-              Copy summary
-            </button>
-          </div>
-        )}
-      </div>
-      {copyMessage && (
+      {copyMessage ? (
         <span
           className={cn(
             styles.copyMessage,
-            copyMessage === "Copy failed"
+            copyMessage === "Failed"
               ? styles.copyMessageError
               : styles.copyMessageSuccess,
           )}
         >
           {copyMessage}
         </span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => void handleCopy()}
+          className={styles.copyIconButton}
+          aria-label="Copy preset effects summary"
+          title="Copy preset effects summary"
+        >
+          <FiCopy aria-hidden="true" />
+        </button>
       )}
     </div>
   );

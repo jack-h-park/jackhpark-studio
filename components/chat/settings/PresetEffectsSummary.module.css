@@ -55,66 +55,28 @@
   color: var(--ai-text-muted);
 }
 
-.copyTrigger {
-  font-size: 0.65rem;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  font-weight: 600;
-  border-radius: 999px;
-  border: 1px solid transparent;
-  padding: 0.2rem 0.8rem;
-  background: transparent;
-  color: inherit;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  transition:
-    border-color 0.2s ease,
-    color 0.2s ease,
-    text-decoration-color 0.2s ease;
-}
-
-.copyTrigger:hover {
-  border-color: var(--ai-border-muted);
-  color: var(--ai-text);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.copyTrigger:focus-visible {
-  outline: none;
-  border-color: var(--ai-border-subtle);
-  box-shadow: 0 0 0 1px var(--ai-border-subtle);
-  color: var(--ai-text);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.copyMenu {
-  position: absolute;
-  right: 0;
-  z-index: 20;
-  margin-top: 0.35rem;
-  min-width: 150px;
-  padding: 0.25rem;
-}
-
-.copyMenuItem {
-  width: 100%;
-  border-radius: var(--ai-radius-sm);
-  padding: 0.2rem 0.75rem;
-  font-size: 0.65rem;
-  letter-spacing: 0.35em;
-  text-transform: uppercase;
-  text-align: left;
-  color: var(--ai-text-muted);
+.copyIconButton {
   background: transparent;
   border: none;
+  padding: 0.2rem;
+  color: var(--ai-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  border-radius: var(--ai-radius-sm);
+  cursor: pointer;
   transition: color 0.2s ease;
 }
 
-.copyMenuItem:hover {
-  color: var(--ai-text-default);
+.copyIconButton:hover {
+  color: var(--ai-text);
+}
+
+.copyIconButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1px var(--ai-border-subtle);
+  color: var(--ai-text);
 }
 
 .copyMessage {
