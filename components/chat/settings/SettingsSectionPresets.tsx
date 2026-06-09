@@ -5,16 +5,16 @@ import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import { FiTarget } from "@react-icons/all-files/fi/FiTarget";
 import { FiZap } from "@react-icons/all-files/fi/FiZap";
 
-import { cn } from "@/components/ui/utils";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
+import { cn } from "@/components/ui/utils";
 import { setLastDiffReason } from "@/lib/chat/historyPreviewDiffTelemetry";
 import {
   type AdminChatConfig,
   type SessionChatConfig,
 } from "@/types/chat-config";
 
-import type { ImpactKey } from "./impact";
 import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
+import type { ImpactKey } from "./impact";
 import styles from "./SettingsSectionPresets.module.css";
 import {
   computeOverridesActive,

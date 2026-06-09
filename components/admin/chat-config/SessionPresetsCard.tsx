@@ -592,9 +592,8 @@ export function SessionPresetsCard({
                         const optionAllowed = normalizedAllowlistSet.has(
                           option.id,
                         );
-                        const optionTitle = optionTooltip
-                          ? optionTooltip
-                          : (option.subtitle ?? option.id);
+                        const optionTitle =
+                          optionTooltip ?? option.subtitle ?? option.id;
                         return (
                           <SelectItem
                             key={option.id}
