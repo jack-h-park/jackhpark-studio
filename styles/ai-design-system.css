@@ -1013,11 +1013,12 @@ body.dark-mode {
 }
 
 .ai-selectable--active {
+  border-width: 2px;
   border-color: transparent;
   background:
     linear-gradient(
-        var(--ai-role-surface-selected),
-        var(--ai-role-surface-selected)
+        var(--ai-role-surface-1),
+        var(--ai-role-surface-1)
       )
       padding-box,
     var(--gradient-mini) border-box;
@@ -1044,12 +1045,10 @@ body.dark-mode {
     align-items: center;
     justify-content: center;
     font-size: 0.8rem;
-    background: var(--ai-accent);
-    color: var(--ai-accent-contrast);
-    border: 1px solid
-      color-mix(in srgb, var(--ai-accent) 70%, var(--ai-role-border-muted) 30%);
-    box-shadow: 0 0 0 1px
-      color-mix(in srgb, var(--ai-accent) 80%, var(--ai-role-surface-1) 20%);
+    background: var(--gradient-mini);
+    color: #fff;
+    border: none;
+    box-shadow: 0 0 0 1px color-mix(in srgb, #5b8def 60%, transparent);
   }
 }
 
