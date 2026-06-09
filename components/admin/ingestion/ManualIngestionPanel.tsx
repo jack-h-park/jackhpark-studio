@@ -509,6 +509,8 @@ export function ManualIngestionPanel(): JSX.Element {
                 <div className={manualStyles.updateBehaviorGroup}>
                   <PeerRow
                     dataRailId="update-strategy-row"
+                    label="Sync method"
+                    hint="Choose which pages to include in this run."
                     className={manualStyles.updateBehaviorRow}
                   >
                     <GridPanel

@@ -186,8 +186,11 @@ export function SnapshotPreviewPanel({ overview }: SnapshotPreviewPanelProps) {
   const previewBody = useMemo(() => {
     if (!selectedSnapshot) {
       return (
-        <div className={previewStyles.previewContent}>
-          <SnapshotPreviewHeader snapshot={null} />
+        <div className={previewStyles.previewEmptyState}>
+          <p className={previewStyles.previewEmptyTitle}>Snapshot preview</p>
+          <p className={previewStyles.previewEmptyHint}>
+            Select a snapshot to preview details
+          </p>
         </div>
       );
     }

@@ -1,4 +1,4 @@
-import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
+import { FiGrid } from "@react-icons/all-files/fi/FiGrid";
 import { type ReactNode, useMemo } from "react";
 
 import type { RagDocumentStats } from "@/lib/admin/rag-documents";
@@ -9,6 +9,12 @@ import { cn } from "@/components/ui/utils";
 import { numberFormatter } from "@/lib/admin/ingestion-formatters";
 
 import styles from "./RagDocumentsOverview.module.css";
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  kb_article: "KB Article",
+  insight_note: "Insight Note",
+  project_article: "Project Article",
+};
 
 type PersonaMetricType = "personal" | "professional" | "hybrid" | "unknown";
 type SourceMetricType = "notion" | "url" | "unknown";
@@ -71,11 +77,8 @@ export function RagDocumentsOverview({
     const nonZero = filtered
       .filter(([, count]) => count > 0)
       .toSorted(([, aCount], [, bCount]) => bCount - aCount);
-    const zero = filtered
-      .filter(([, count]) => count === 0)
-      .toSorted(([a], [b]) => a.localeCompare(b));
 
-    return [...nonZero, ...zero, ...(unknownEntry ? [unknownEntry] : [])];
+    return [...nonZero, ...(unknownEntry ? [unknownEntry] : [])];
   }, [stats]);
 
   const statTiles = stats
@@ -215,7 +218,7 @@ export function RagDocumentsOverview({
     <section className="ai-card space-y-4 p-5">
       <CardHeader className="gap-2">
         <div className="flex flex-wrap items-center justify-between gap-3 w-full">
-          <CardTitle icon={<FiLayers aria-hidden="true" />}>
+          <CardTitle icon={<FiGrid aria-hidden="true" />}>
             RAG Documents Overview
           </CardTitle>
           <LinkButton
@@ -266,7 +269,9 @@ export function RagDocumentsOverview({
                       )}
                       title={title}
                     >
-                      <span className={styles.docTypeChipLabel}>{type}</span>
+                      <span className={styles.docTypeChipLabel}>
+                        {DOC_TYPE_LABELS[type] ?? type}
+                      </span>
                       {!isZero && (
                         <span
                           className={cn(

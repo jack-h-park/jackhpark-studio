@@ -1,5 +1,5 @@
 import type { JSX, ReactNode } from "react";
-import { FiActivity } from "@react-icons/all-files/fi/FiActivity";
+import { FiCpu } from "@react-icons/all-files/fi/FiCpu";
 import { FiInfo } from "@react-icons/all-files/fi/FiInfo";
 
 import type { SystemHealthOverview } from "@/lib/admin/ingestion-types";
@@ -228,7 +228,7 @@ export function SystemHealthSection({
     <section className="ai-card space-y-6 p-5">
       <CardHeader className="gap-1">
         <div className="flex items-center gap-2">
-          <CardTitle icon={<FiActivity aria-hidden="true" />}>
+          <CardTitle icon={<FiCpu aria-hidden="true" />}>
             System Health
           </CardTitle>
           <Tooltip>
