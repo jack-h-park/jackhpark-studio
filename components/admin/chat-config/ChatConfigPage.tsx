@@ -70,17 +70,21 @@ export function ChatConfigPage({
   const formattedSavedAt = lastSavedAt
     ? new Date(lastSavedAt).toLocaleString()
     : null;
-  const headerMeta = formattedSavedAt
-    ? `Last saved ${formattedSavedAt}`
-    : undefined;
   const headerActions = (
-    <Button
-      variant="outline"
-      type="button"
-      onClick={() => setIsRawModalOpen(true)}
-    >
-      View raw JSON
-    </Button>
+    <div className="flex flex-col items-end gap-1.5">
+      {formattedSavedAt && (
+        <span className="text-[0.7rem] leading-none text-[color:var(--ai-text-soft)] opacity-60">
+          Last saved {formattedSavedAt}
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={() => setIsRawModalOpen(true)}
+        className="text-[0.7rem] leading-none text-[color:var(--ai-text-soft)] opacity-60 underline underline-offset-2 hover:opacity-90 transition-opacity cursor-pointer bg-transparent border-0 p-0"
+      >
+        View raw JSON
+      </button>
+    </div>
   );
   const saveButtonDisabled = !hasUnsavedChanges || isSaveDisabled;
   const stickyBarClass = cn(
@@ -97,8 +101,8 @@ export function ChatConfigPage({
         title: pageTitle,
         description:
           "Configure chat behavior, guardrails, and session presets.",
-        meta: headerMeta,
         actions: headerActions,
+        headerClassName: "px-6 py-4 sm:px-8 sm:py-4",
       }}
       headerExtension={
         <CollapsibleSection label="Model &amp; ranker constraints">
