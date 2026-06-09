@@ -101,6 +101,20 @@ export function ChatConfigPage({
         meta: headerMeta,
         actions: headerActions,
       }}
+      headerExtension={
+        <CollapsibleSection label="Model &amp; ranker constraints">
+          <AllowlistCard
+            allowlist={config.allowlist}
+            llmModelOptions={llmModelOptions}
+            ollamaConfigured={ollamaConfigured}
+            lmstudioConfigured={lmstudioConfigured}
+            localLlmBackendEnv={localLlmBackendEnv}
+            defaultLlmModelId={defaultLlmModelId}
+            toggleAllowlistValue={toggleAllowlistValue}
+            updateConfig={updateConfig}
+          />
+        </CollapsibleSection>
+      }
     >
       <>
         {errorMessage && (
@@ -133,20 +147,6 @@ export function ChatConfigPage({
             label="RETRIEVAL"
             title="Data access & ranking"
             description="Select which models, embeddings, and rankers visitors can use."
-            advancedContent={
-              <CollapsibleSection label="Model &amp; ranker constraints">
-                <AllowlistCard
-                  allowlist={config.allowlist}
-                  llmModelOptions={llmModelOptions}
-                  ollamaConfigured={ollamaConfigured}
-                  lmstudioConfigured={lmstudioConfigured}
-                  localLlmBackendEnv={localLlmBackendEnv}
-                  defaultLlmModelId={defaultLlmModelId}
-                  toggleAllowlistValue={toggleAllowlistValue}
-                  updateConfig={updateConfig}
-                />
-              </CollapsibleSection>
-            }
           >
             <RagRankingCard
               ragRanking={config.ragRanking}

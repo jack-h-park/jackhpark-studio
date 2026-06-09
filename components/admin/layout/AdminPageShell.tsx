@@ -31,12 +31,14 @@ export type AdminPageShellProps = {
     titleClassName?: string;
     descriptionClassName?: string;
   };
+  headerExtension?: ReactNode;
   children: ReactNode;
 };
 
 export function AdminPageShell({
   section,
   header,
+  headerExtension,
   children,
 }: AdminPageShellProps) {
   const { isJpTheme, toggleTheme, mounted } = useAdminTheme();
@@ -63,7 +65,7 @@ export function AdminPageShell({
               className="w-full bg-[color:var(--ai-role-surface-muted)]/80"
             />
           </div>
-          <div className="pb-4">
+          <div className={headerExtension ? "pb-2" : "pb-4"}>
             <PageHeaderCard
               variant="default"
               icon={header.icon}
@@ -79,6 +81,9 @@ export function AdminPageShell({
               descriptionClassName={header.descriptionClassName}
             />
           </div>
+          {headerExtension && (
+            <div className="pb-4 px-1">{headerExtension}</div>
+          )}
         </div>
       </section>
       <div className="space-y-2">{children}</div>
