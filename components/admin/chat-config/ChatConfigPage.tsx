@@ -10,7 +10,6 @@ import {
 import { CoreBehaviorCard } from "@/components/admin/chat-config/CoreBehaviorCard";
 import { GuardrailCard } from "@/components/admin/chat-config/GuardrailCard";
 import { NumericLimitsCard } from "@/components/admin/chat-config/NumericLimitsCard";
-import { RagMetadataInfoCard } from "@/components/admin/chat-config/RagMetadataInfoCard";
 import { RagRankingCard } from "@/components/admin/chat-config/RagRankingCard";
 import { RawConfigJsonModal } from "@/components/admin/chat-config/RawConfigJsonModal";
 import { SessionPresetsCard } from "@/components/admin/chat-config/SessionPresetsCard";
@@ -122,7 +121,6 @@ export function ChatConfigPage({
               <CoreBehaviorCard
                 config={config}
                 updateConfig={updateConfig}
-                additionalPromptMaxLength={additionalPromptMaxLength}
               />
               <SummaryPresetsCard
                 summaryPresets={config.summaryPresets}
@@ -149,7 +147,6 @@ export function ChatConfigPage({
                   updateConfig={updateConfig}
                 />
               </CollapsibleSection>
-              <RagMetadataInfoCard />
               <RagRankingCard
                 ragRanking={config.ragRanking}
                 updateDocTypeWeight={updateDocTypeWeight}
@@ -161,13 +158,15 @@ export function ChatConfigPage({
           <ChatConfigSection
             label="MODEL & LIMITS"
             title="Preset controls"
-            description="Keep each session preset within safe numerical boundaries."
+            description="Define the settings and safety limits for each session preset."
           >
             <div className="space-y-5">
               <NumericLimitsCard
                 numericLimits={config.numericLimits}
                 numericLimitErrors={numericLimitErrors}
+                additionalPromptMaxLength={additionalPromptMaxLength}
                 updateNumericLimit={updateNumericLimit}
+                updateConfig={updateConfig}
               />
               <SessionPresetsCard
                 config={config}

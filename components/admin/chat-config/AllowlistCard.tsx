@@ -25,6 +25,12 @@ import {
   type RankerId,
 } from "@/lib/shared/models";
 
+const RANKER_LABELS: Record<RankerId, string> = {
+  none: "None",
+  mmr: "MMR",
+  "cohere-rerank": "Cohere Rerank",
+};
+
 const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
 
 type AllowedAllowlistKey = "llmModels" | "embeddingModels" | "rankers";
@@ -244,7 +250,7 @@ export function AllowlistCard({
                 <AllowlistTile
                   key={ranker}
                   id={ranker}
-                  label={ranker}
+                  label={RANKER_LABELS[ranker]}
                   subtitle={description}
                   description={description}
                   selected={isSelected}
@@ -259,9 +265,6 @@ export function AllowlistCard({
               );
             })}
           </div>
-          <p className="ai-helper-text">
-            Reranking strategy. Use “none”, “mmr”, or “cohere-rerank”.
-          </p>
         </ConfigBox>
 
         <div className="space-y-3">

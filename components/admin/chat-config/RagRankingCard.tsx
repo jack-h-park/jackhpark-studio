@@ -1,4 +1,5 @@
-import { FiLayers } from "@react-icons/all-files/fi/FiLayers";
+import { FiBarChart2 } from "@react-icons/all-files/fi/FiBarChart2";
+import Link from "next/link";
 import { Fragment } from "react";
 
 import type { AdminChatConfig } from "@/types/chat-config";
@@ -33,9 +34,21 @@ export function RagRankingCard({
   return (
     <Card>
       <ChatConfigCardHeader
-        icon={<FiLayers aria-hidden="true" />}
+        icon={<FiBarChart2 aria-hidden="true" />}
         title="RAG Document Ranking"
-        description="Adjust how strongly different document and persona types influence retrieval. Values multiply the base similarity score before rerankers (MMR, Cohere, etc.)."
+        description={
+          <>
+            Adjust how strongly different document and persona types influence
+            retrieval. Values multiply the base similarity score before
+            rerankers (MMR, Cohere, etc.).{" "}
+            <Link
+              href="/admin/documents"
+              className="underline underline-offset-2 hover:text-[color:var(--ai-text-strong)]"
+            >
+              Edit per-document metadata →
+            </Link>
+          </>
+        }
       />
       <ChatConfigCardContent className="grid grid-cols-1 gap-4 lg:grid-cols-2 items-start">
         <GridPanel className="gap-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] px-4 py-4">

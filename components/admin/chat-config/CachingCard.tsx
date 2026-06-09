@@ -1,3 +1,5 @@
+import { FiClock } from "@react-icons/all-files/fi/FiClock";
+
 import type { AdminChatConfig } from "@/types/chat-config";
 import {
   ChatConfigCardContent,
@@ -39,14 +41,15 @@ export function CachingCard({
   };
 
   return (
-    <Card className="mb-6">
+    <Card>
       <ChatConfigCardHeader
+        icon={<FiClock aria-hidden="true" />}
         title="Caching"
         description="Tune simple TTLs for chat responses and retrieval results."
       />
       <ChatConfigCardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="cache-response-ttl">
+        <div className="ai-field">
+          <Label htmlFor="cache-response-ttl" className="ai-field__label">
             Response cache TTL (seconds)
           </Label>
           <Input
@@ -59,13 +62,13 @@ export function CachingCard({
             }
             disabled={isFormBusy}
           />
-          <p className="ai-meta-text">
+          <p className="ai-field__description">
             Cache time for full chat responses. 0 disables response caching.
           </p>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="cache-retrieval-ttl">
+        <div className="ai-field">
+          <Label htmlFor="cache-retrieval-ttl" className="ai-field__label">
             Retrieval cache TTL (seconds)
           </Label>
           <Input
@@ -78,7 +81,7 @@ export function CachingCard({
             }
             disabled={isFormBusy}
           />
-          <p className="ai-meta-text">
+          <p className="ai-field__description">
             Cache time for retrieval results. 0 disables retrieval caching.
           </p>
         </div>

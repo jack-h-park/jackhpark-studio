@@ -7,20 +7,17 @@ import {
   ConfigBox,
 } from "@/components/admin/chat-config/ChatConfigHelpers";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
 export type CoreBehaviorCardProps = {
   config: AdminChatConfig;
   updateConfig: (updater: (prev: AdminChatConfig) => AdminChatConfig) => void;
-  additionalPromptMaxLength: number;
 };
 
 export function CoreBehaviorCard({
   config,
   updateConfig,
-  additionalPromptMaxLength,
 }: CoreBehaviorCardProps) {
   const handleBaseSummaryChange = (nextValue: string) => {
     updateConfig((prev) => ({
@@ -33,13 +30,6 @@ export function CoreBehaviorCard({
     updateConfig((prev) => ({
       ...prev,
       baseSystemPrompt: nextValue,
-    }));
-  };
-
-  const handleAdditionalPromptMaxLengthChange = (nextValue: string) => {
-    updateConfig((prev) => ({
-      ...prev,
-      additionalPromptMaxLength: Number(nextValue) || 0,
     }));
   };
 
@@ -92,29 +82,6 @@ export function CoreBehaviorCard({
                 className="w-full max-w-none"
               />
             </div>
-          </div>
-        </ConfigBox>
-        <ConfigBox className="space-y-3">
-          <p className="ai-label-overline ai-label-overline--muted">
-            Length limits
-          </p>
-          <div className="ai-field">
-            <Label
-              htmlFor="additionalPromptMaxLength"
-              className="ai-field__label"
-            >
-              Additional prompt max length
-            </Label>
-            <Input
-              id="additionalPromptMaxLength"
-              type="number"
-              min={0}
-              value={additionalPromptMaxLength}
-              onChange={(event) =>
-                handleAdditionalPromptMaxLengthChange(event.target.value)
-              }
-              className="w-full max-w-[12rem]"
-            />
           </div>
         </ConfigBox>
       </ChatConfigCardContent>

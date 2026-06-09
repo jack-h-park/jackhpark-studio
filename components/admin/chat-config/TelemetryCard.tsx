@@ -1,3 +1,5 @@
+import { FiActivity } from "@react-icons/all-files/fi/FiActivity";
+
 import type {
   AdminChatConfig,
   TelemetryDetailLevel,
@@ -45,14 +47,17 @@ export function TelemetryCard({
   };
 
   return (
-    <Card className="mb-6">
+    <Card>
       <ChatConfigCardHeader
+        icon={<FiActivity aria-hidden="true" />}
         title="Telemetry &amp; Tracing"
         description="Control how much data is sent to Langfuse for analysis."
       />
       <ChatConfigCardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="telemetry-sample-rate">Sample rate</Label>
+        <div className="ai-field">
+          <Label htmlFor="telemetry-sample-rate" className="ai-field__label">
+            Sample rate
+          </Label>
           <Input
             id="telemetry-sample-rate"
             type="number"
@@ -65,13 +70,13 @@ export function TelemetryCard({
             }
             disabled={isFormBusy}
           />
-          <p className="ai-meta-text">
+          <p className="ai-field__description">
             0 = no traces, 1 = all traces, 0.1 = ~10% sampling.
           </p>
         </div>
 
-        <div className="space-y-2">
-          <Label>Detail level</Label>
+        <div className="ai-field">
+          <Label className="ai-field__label">Detail level</Label>
           <div className="space-y-1">
             <Radiobutton
               name="telemetry-detail"

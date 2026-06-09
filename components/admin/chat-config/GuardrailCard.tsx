@@ -1,4 +1,4 @@
-import { FiShield } from "@react-icons/all-files/fi/FiShield";
+import { FiAlertTriangle } from "@react-icons/all-files/fi/FiAlertTriangle";
 
 import type { AdminChatConfig } from "@/types/chat-config";
 import {
@@ -61,7 +61,7 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
   return (
     <Card>
       <ChatConfigCardHeader
-        icon={<FiShield aria-hidden="true" />}
+        icon={<FiAlertTriangle aria-hidden="true" />}
         title="Guardrail Keywords &amp; Fallbacks"
         description="Define how guardrails recognize chit-chat and how the assistant responds when light conversation or command intents are detected."
       />
