@@ -1,5 +1,10 @@
 import type { EmbeddingSpace } from "@/lib/core/embedding-spaces";
 import type { ModelProvider } from "@/lib/shared/model-provider";
+import {
+  COHERE_RERANK_MODEL,
+  getCohereApiKey,
+  getCohereClient,
+} from "@/lib/core/cohere";
 import { embedTexts } from "@/lib/core/embeddings";
 import { generateText } from "@/lib/server/text-generation";
 import {
@@ -112,6 +117,7 @@ export type RankerOptions = {
   embeddingSelection: EmbeddingSpace;
   queryEmbedding?: number[];
   mmrLambda?: number;
+  query?: string;
 };
 
 function getDocumentText(doc: RankerInputDoc): string | null {
@@ -226,6 +232,43 @@ async function runMmr<T extends RankerInputDoc>(
   return finalDocs;
 }
 
+async function runCohereRerank<T extends RankerInputDoc>(
+  docs: T[],
+  options: RankerOptions,
+): Promise<T[]> {
+  const { query, maxResults } = options;
+
+  if (!query?.trim()) {
+    console.warn(
+      "[rag-enhancements] cohere-rerank: no query text provided, falling back to vector order.",
+    );
+    return docs.slice(0, maxResults);
+  }
+
+  if (!getCohereApiKey()) {
+    console.warn(
+      "[rag-enhancements] cohere-rerank: COHERE_API_KEY not set, falling back to vector order.",
+    );
+    return docs.slice(0, maxResults);
+  }
+
+  const texts = docs.map((doc) => getDocumentText(doc) ?? "");
+  const nonEmptyCount = texts.filter((t) => t.length > 0).length;
+  if (nonEmptyCount === 0) {
+    return docs.slice(0, maxResults);
+  }
+
+  const client = getCohereClient();
+  const response = await client.v2.rerank({
+    model: COHERE_RERANK_MODEL,
+    query,
+    documents: texts,
+    topN: maxResults,
+  });
+
+  return response.results.map((result) => docs[result.index]);
+}
+
 export async function applyRanker<T extends RankerInputDoc>(
   docs: T[],
   options: RankerOptions,
@@ -245,10 +288,12 @@ export async function applyRanker<T extends RankerInputDoc>(
         return docs.slice(0, trimmedMax);
       }
     case "cohere-rerank":
-      console.warn(
-        "[rag-enhancements] cohere-rerank reranker requested but not implemented. Falling back to vector order.",
-      );
-      return docs.slice(0, trimmedMax);
+      try {
+        return await runCohereRerank(docs, { ...options, maxResults: trimmedMax });
+      } catch (err) {
+        console.warn("[rag-enhancements] Cohere rerank failed", err);
+        return docs.slice(0, trimmedMax);
+      }
     default:
       return docs.slice(0, trimmedMax);
   }

@@ -614,6 +614,7 @@ export function buildRagRetrievalChain() {
         maxResults: rerankEnabled ? (rerankK ?? finalK) : finalK,
         embeddingSelection: input.embeddingSelection,
         queryEmbedding: input.queryEmbedding,
+        query: input.rewrittenQuery ?? input.question,
       });
       const rerankerInputTelemetry = emitRerankerSpan
         ? buildRetrievalTelemetryEntries(

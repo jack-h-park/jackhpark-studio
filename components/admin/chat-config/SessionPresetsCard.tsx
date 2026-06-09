@@ -24,6 +24,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -44,6 +45,12 @@ import {
   type AdminChatRuntimeMeta,
   type SummaryLevel,
 } from "@/types/chat-config";
+
+const RANKER_LABELS: Record<RankerId, string> = {
+  none: "None",
+  mmr: "MMR",
+  "cohere-rerank": "Cohere Rerank",
+};
 
 const summaryLevelOptions: SummaryLevel[] = ["off", "low", "medium", "high"];
 const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
@@ -158,11 +165,13 @@ function RetrievalSection({
             disabled={ragDisabled}
             onValueChange={onRankerChange}
           >
-            <SelectTrigger aria-label={`Ranker for ${displayName}`} />
+            <SelectTrigger aria-label={`Ranker for ${displayName}`}>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {allowlist.rankers.map((ranker) => (
                 <SelectItem key={ranker} value={ranker}>
-                  {ranker}
+                  {RANKER_LABELS[ranker]}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -17,10 +17,17 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { SliderNumberField } from "@/components/ui/slider-number-field";
 import { Switch } from "@/components/ui/switch";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
+
+const RANKER_LABELS: Record<RankerId, string> = {
+  none: "None",
+  mmr: "MMR",
+  "cohere-rerank": "Cohere Rerank",
+};
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -208,11 +215,13 @@ export function SettingsSectionRagRetrieval({
                   id="settings-ranker"
                   aria-label="Ranker selection"
                   className="ai-field-sm w-full"
-                />
+                >
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {adminConfig.allowlist.rankers.map((ranker) => (
                     <SelectItem key={ranker} value={ranker}>
-                      {ranker.toUpperCase()}
+                      {RANKER_LABELS[ranker]}
                     </SelectItem>
                   ))}
                 </SelectContent>
