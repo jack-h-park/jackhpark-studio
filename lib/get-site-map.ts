@@ -29,7 +29,7 @@ const SITEMAP_TTL_MS =
 
 function readSitemapCache(): Partial<types.SiteMap> | null {
   try {
-    const raw = fs.readFileSync(SITEMAP_CACHE_PATH, "utf-8");
+    const raw = fs.readFileSync(SITEMAP_CACHE_PATH, "utf8");
     const { ts, data } = JSON.parse(raw) as {
       ts: number;
       data: Partial<types.SiteMap>;
