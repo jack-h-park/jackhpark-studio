@@ -32,21 +32,25 @@ export const mapPageUrl =
   ) =>
   (pageId = "") => {
     const pageUuid = parsePageId(pageId, { uuid: true })!;
+    const rawId = uuidToId(pageUuid);
 
-    if (uuidToId(pageUuid) === site.rootNotionPageId) {
+    if (rawId === site.rootNotionPageId) {
       return createUrl("/", searchParams);
     }
 
-    let canonical = getCanonicalPageId(pageUuid, recordMap, { uuid });
-
-    // If getCanonicalPageId fell back to a raw 32-char hex ID (no block data in
-    // the current recordMap), resolve via the site-wide canonicalPageMap instead.
-    if (canonical && !uuid && /^[0-9a-f]{32}$/i.test(canonical)) {
+    if (!uuid) {
+      // Only use a slug if the page is resolvable via canonicalPageMap.
+      // Pages absent from canonicalPageMap (e.g. deep collection items not yet
+      // traversed) fall back to raw UUID, which always resolves via parsePageId.
       const inverted = buildInvertedMap(canonicalPageMap);
-      canonical = inverted[canonical] ?? canonical;
+      const slug = inverted[rawId];
+      return createUrl(`/${slug ?? rawId}`, searchParams);
     }
 
-    return createUrl(`/${canonical}`, searchParams);
+    return createUrl(
+      `/${getCanonicalPageId(pageUuid, recordMap, { uuid })}`,
+      searchParams,
+    );
   };
 
 export const getCanonicalPageUrl =
