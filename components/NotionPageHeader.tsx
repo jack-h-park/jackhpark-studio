@@ -74,7 +74,7 @@ export function NotionPageHeader({
             return (
               <div className="breadcrumb active">
                 <Link
-                  href={`/${root.pageId}`}
+                  href={mapPageUrl(root.pageId)}
                   className="breadcrumb-link"
                   style={{
                     display: "flex",
