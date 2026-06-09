@@ -158,6 +158,8 @@ const sanitizeNumericConfig = (
     appliedPreset: candidate.appliedPreset,
     safeMode: Boolean(candidate.safeMode),
     requireLocal: Boolean(candidate.requireLocal),
+    showTelemetry: Boolean(candidate.showTelemetry),
+    showCitations: Boolean(candidate.showCitations),
   };
 
   if (candidate.llmModel !== result.llmModel) {

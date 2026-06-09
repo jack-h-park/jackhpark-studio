@@ -59,6 +59,8 @@ const createAdminConfig = (): AdminChatConfig => {
     summaryLevel: "off",
     safeMode: false,
     requireLocal: false,
+    showTelemetry: false,
+    showCitations: false,
   };
 
   const presets = {
@@ -137,6 +139,8 @@ const createSessionConfig = (): SessionChatConfig => ({
   additionalSystemPrompt: "",
   safeMode: false,
   requireLocal: false,
+  showTelemetry: false,
+  showCitations: false,
 });
 
 const createRuntimeMeta = (

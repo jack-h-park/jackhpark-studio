@@ -41,6 +41,8 @@ const buildSessionConfig = (
   appliedPreset: overrides.appliedPreset,
   safeMode: overrides.safeMode,
   requireLocal: overrides.requireLocal,
+  showTelemetry: overrides.showTelemetry ?? false,
+  showCitations: overrides.showCitations ?? false,
 });
 
 void test("enforceEmbeddingProviderAvailability flags provider_disabled instead of fallback", () => {

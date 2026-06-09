@@ -39,6 +39,10 @@ export function computeOverridesActive({
     (sessionConfig.additionalSystemPrompt ?? "") ===
     (presetDefaults.additionalSystemPrompt ?? "");
   const llmMatches = sessionConfig.llmModel === presetDefaults.llmModel;
+  const telemetryMatches =
+    sessionConfig.showTelemetry === (presetDefaults.showTelemetry ?? false);
+  const citationsMatches =
+    sessionConfig.showCitations === (presetDefaults.showCitations ?? false);
 
   const resolvedPresetExists = Boolean(adminConfig.presets[presetKey]);
 
@@ -46,6 +50,8 @@ export function computeOverridesActive({
     !llmMatches ||
     !summaryMatches ||
     !promptMatches ||
+    !telemetryMatches ||
+    !citationsMatches ||
     (sessionConfig.appliedPreset === undefined && !resolvedPresetExists)
   );
 }

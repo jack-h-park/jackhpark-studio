@@ -103,6 +103,8 @@ export type AdminChatPreset = {
   summaryLevel: SummaryLevel;
   safeMode?: boolean;
   requireLocal?: boolean;
+  showTelemetry: boolean;
+  showCitations: boolean;
 };
 
 export type AdminChatPresetsConfig = Record<string, AdminChatPreset> & {
@@ -146,6 +148,8 @@ export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
     summaryLevel: "low",
     safeMode: false,
     requireLocal: false,
+    showTelemetry: false,
+    showCitations: false,
   },
   fast: {
     additionalSystemPrompt: SPEED_PROMPT,
@@ -170,6 +174,8 @@ export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
     summaryLevel: "off",
     safeMode: false,
     requireLocal: false,
+    showTelemetry: false,
+    showCitations: false,
   },
   highRecall: {
     additionalSystemPrompt: COMPLETE_PROMPT,
@@ -194,6 +200,8 @@ export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
     summaryLevel: "high",
     safeMode: false,
     requireLocal: false,
+    showTelemetry: false,
+    showCitations: false,
   },
   precision: {
     additionalSystemPrompt: CONCISE_PROMPT,
@@ -218,6 +226,8 @@ export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
     summaryLevel: "off",
     safeMode: false,
     requireLocal: false,
+    showTelemetry: false,
+    showCitations: false,
   },
 };
 

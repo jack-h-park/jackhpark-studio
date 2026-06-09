@@ -49,6 +49,8 @@ export interface SessionChatConfig {
   appliedPreset?: "precision" | "default" | "fast" | "highRecall";
   safeMode?: boolean;
   requireLocal?: boolean;
+  showTelemetry: boolean;
+  showCitations: boolean;
 }
 
 export type EmbeddingSpaceWarning = {

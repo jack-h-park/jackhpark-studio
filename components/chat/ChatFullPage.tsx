@@ -18,7 +18,6 @@ import {
   useChatConfig,
 } from "@/components/chat/context/ChatConfigContext";
 import { useChatPromotionSession } from "@/components/chat/context/ChatPromotionSessionContext";
-import { useChatDisplaySettings } from "@/components/chat/hooks/useChatDisplaySettings";
 import { useChatScroll } from "@/components/chat/hooks/useChatScroll";
 import {
   type ChatMessage,
@@ -134,7 +133,7 @@ function ChatShellContent() {
   });
 
   const hasMessages = messages.length > 0;
-  const { showTelemetry, showCitations } = useChatDisplaySettings();
+  const { showTelemetry, showCitations } = sessionConfig;
   const renderPromptSummary = useMemo(
     () => adminConfig.baseSystemPromptSummary ?? "",
     [adminConfig.baseSystemPromptSummary],
