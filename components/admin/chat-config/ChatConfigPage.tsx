@@ -47,7 +47,6 @@ export function ChatConfigPage({
     setIsRawModalOpen,
     isWordWrapEnabled,
     setIsWordWrapEnabled,
-    additionalPromptMaxLength,
     numericLimitErrors,
     isFormBusy,
     isSaveDisabled,
@@ -129,7 +128,7 @@ export function ChatConfigPage({
           <ChatConfigSection
             label="PROMPTS"
             title="Instruction hierarchy"
-            description="Define the base system prompt, summaries, and cadence for responses."
+            description="Define the base system prompt, summaries, cadence for responses, and guardrail fallback messaging."
           >
             <div className="space-y-5">
               <CoreBehaviorCard
@@ -140,6 +139,7 @@ export function ChatConfigPage({
                 summaryPresets={config.summaryPresets}
                 updateConfig={updateConfig}
               />
+              <GuardrailCard config={config} updateConfig={updateConfig} />
             </div>
           </ChatConfigSection>
 
@@ -152,9 +152,7 @@ export function ChatConfigPage({
               <NumericLimitsCard
                 numericLimits={config.numericLimits}
                 numericLimitErrors={numericLimitErrors}
-                additionalPromptMaxLength={additionalPromptMaxLength}
                 updateNumericLimit={updateNumericLimit}
-                updateConfig={updateConfig}
               />
               <RagRankingCard
                 ragRanking={config.ragRanking}
@@ -167,7 +165,6 @@ export function ChatConfigPage({
                 presets={config.presets}
                 updatePreset={updatePreset}
                 llmModelOptions={llmModelOptions}
-                additionalPromptMaxLength={additionalPromptMaxLength}
                 presetResolutions={presetResolutions}
                 ollamaConfigured={ollamaConfigured}
                 lmstudioConfigured={lmstudioConfigured}
@@ -175,14 +172,6 @@ export function ChatConfigPage({
                 defaultLlmModelId={defaultLlmModelId}
               />
             </div>
-          </ChatConfigSection>
-
-          <ChatConfigSection
-            label="SAFETY / MODERATION"
-            title="Guardrails"
-            description="Tune guardrail keywords and fallback messaging."
-          >
-            <GuardrailCard config={config} updateConfig={updateConfig} />
           </ChatConfigSection>
 
           <ChatConfigSection

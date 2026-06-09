@@ -310,6 +310,9 @@ body.dark-mode {
 /* ------------------------------------------------ */
 /* Label Utilities                                  */
 /* ------------------------------------------------ */
+/* Admin settings text roles:
+   ai-label-overline  → column/field/section-divider headers (uppercase, 12px)
+   ai-label-emphasis  → primary content label for a data row in a settings grid (14px, semi-bold) */
 .ai-label-overline {
   font-size: 0.75rem;
   font-weight: 500;

@@ -74,7 +74,6 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
             id="guardrailKeywords"
             label="Chit-chat keywords"
             description="Add keywords or phrases treated as lightweight chit-chat instead of knowledge base queries."
-            className="max-w-[64ch]"
           >
             <Textarea
               rows={3}
@@ -82,7 +81,7 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
               onChange={(event) =>
                 handleChitchatKeywordsChange(event.target.value)
               }
-              className="w-full max-w-[64ch]"
+              className="w-full max-w-none"
             />
           </Field>
         </ConfigBox>
@@ -90,7 +89,7 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
           <p className="ai-label-overline ai-label-overline--muted">
             Fallback messaging
           </p>
-          <div className="ai-field max-w-[64ch]">
+          <div className="ai-field">
             <Label
               htmlFor="guardrailFallbackChitchat"
               className="ai-field__label"
@@ -105,7 +104,7 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
                 handleFallbackChitchatChange(event.target.value)
               }
               rows={3}
-              className="w-full max-w-[64ch]"
+              className="w-full max-w-none"
             />
             <p
               id="guardrail-fallback-chitchat-description"
@@ -115,7 +114,7 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
               detected.
             </p>
           </div>
-          <div className="ai-field max-w-[64ch]">
+          <div className="ai-field">
             <Label
               htmlFor="guardrailFallbackCommand"
               className="ai-field__label"
@@ -130,7 +129,7 @@ export function GuardrailCard({ config, updateConfig }: GuardrailCardProps) {
                 handleFallbackCommandChange(event.target.value)
               }
               rows={3}
-              className="w-full max-w-[64ch]"
+              className="w-full max-w-none"
             />
             <p
               id="guardrail-fallback-command-description"

@@ -21,9 +21,7 @@ export function SummaryPresetsCard({
   summaryPresets,
   updateConfig,
 }: SummaryPresetsCardProps) {
-  const summaryGridLabelClass =
-    "ai-label-overline ai-label-overline--muted";
-  const summaryGridHeaderClass =
+  const summaryGridColumnHeaderClass =
     "t-eyebrow text-[color:var(--ai-text-strong)]";
   const summaryGridValueClass = "flex flex-col gap-1";
   const handleSummaryPresetChange = (
@@ -53,20 +51,18 @@ export function SummaryPresetsCard({
       <ChatConfigCardContent className="space-y-4">
         <GridPanel className="gap-4 rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] px-4 py-4">
           <div className="grid grid-cols-[minmax(150px,1fr)_repeat(3,minmax(0,1fr))] gap-3 items-center">
-            <div
-              className={`${summaryGridLabelClass} ${summaryGridHeaderClass}`}
-            >
+            <div className={summaryGridColumnHeaderClass}>
               Summary level
             </div>
             {summaryLevelOptions.map((level) => (
               <div
                 key={`summary-header-${level}`}
-                className={summaryGridHeaderClass}
+                className={summaryGridColumnHeaderClass}
               >
                 {level.charAt(0).toUpperCase() + level.slice(1)}
               </div>
             ))}
-            <div className={summaryGridLabelClass}>Every n turns</div>
+            <div className="ai-label-emphasis">Every n turns</div>
             {summaryLevelOptions.map((level) => (
               <div key={`summary-${level}`} className={summaryGridValueClass}>
                 <Input

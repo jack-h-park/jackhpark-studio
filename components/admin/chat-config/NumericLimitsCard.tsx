@@ -13,21 +13,17 @@ import { numericLimitLabels } from "@/hooks/use-admin-chat-config";
 export type NumericLimitsCardProps = {
   numericLimits: AdminChatConfig["numericLimits"];
   numericLimitErrors: string[];
-  additionalPromptMaxLength: number;
   updateNumericLimit: (
     key: keyof AdminChatConfig["numericLimits"],
     field: keyof AdminNumericLimit,
     value: number,
   ) => void;
-  updateConfig: (updater: (prev: AdminChatConfig) => AdminChatConfig) => void;
 };
 
 export function NumericLimitsCard({
   numericLimits,
   numericLimitErrors,
-  additionalPromptMaxLength,
   updateNumericLimit,
-  updateConfig,
 }: NumericLimitsCardProps) {
   return (
     <Card>
@@ -52,12 +48,9 @@ export function NumericLimitsCard({
               className="rounded-2xl border border-[var(--ai-role-border-muted)] p-4 shadow-sm sm:p-5"
             >
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(0,1fr))]">
-                <div className="flex flex-col gap-1.5">
-                  <p className="t-h3 leading-snug">
+                <div className="flex flex-col justify-center">
+                  <p className="ai-label-emphasis leading-snug">
                     {numericLimitLabels[key]}
-                  </p>
-                  <p className="t-eyebrow text-[color:var(--ai-text-muted)]">
-                    Min ≤ Default ≤ Max
                   </p>
                 </div>
                 <div className="ai-field min-w-0">
@@ -127,31 +120,6 @@ export function NumericLimitsCard({
             </div>
           );
         })}
-        <div className="rounded-2xl border border-[var(--ai-role-border-muted)] p-4 shadow-sm sm:p-5">
-          <div className="flex items-center justify-between gap-4">
-            <p className="t-h3 leading-snug">Additional prompt max length</p>
-            <div className="ai-field min-w-0 w-32 shrink-0">
-              <Label
-                htmlFor="additionalPromptMaxLength"
-                className="ai-field__label"
-              >
-                Max (chars)
-              </Label>
-              <Input
-                id="additionalPromptMaxLength"
-                type="number"
-                min={0}
-                value={additionalPromptMaxLength}
-                onChange={(event) =>
-                  updateConfig((prev) => ({
-                    ...prev,
-                    additionalPromptMaxLength: Number(event.target.value) || 0,
-                  }))
-                }
-              />
-            </div>
-          </div>
-        </div>
       </ChatConfigCardContent>
     </Card>
   );
