@@ -6,7 +6,7 @@ import type * as types from "./types";
 import * as config from "./config";
 import { includeNotionIdInUrls } from "./config";
 import { getCanonicalPageId } from "./get-canonical-page-id";
-import { notion } from "./notion-api";
+import { getPage as getFullPage } from "./notion";
 
 const uuid = !!includeNotionIdInUrls;
 
@@ -50,13 +50,11 @@ function normalizeBlocksForTraversal(
   return { ...recordMap, block: normalizedBlocks };
 }
 
-const getPage = async (pageId: string, opts?: any) => {
-  const recordMap = await notion.getPage(pageId, {
-    kyOptions: {
-      timeout: 30_000,
-    },
-    ...opts,
-  });
+// Use the full getPage from lib/notion.ts so collection_query is hydrated
+// (via hydrateGroupedCollectionData), which is required for getAllPagesInSpace
+// to discover collection items. Blocks are still normalized for traversal.
+const getPage = async (pageId: string) => {
+  const recordMap = await getFullPage(pageId);
   return normalizeBlocksForTraversal(recordMap);
 };
 
