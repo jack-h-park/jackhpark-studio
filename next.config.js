@@ -73,5 +73,18 @@ export default withBundleAnalyzer({
 
   // See https://react-tweet.vercel.app/next#troubleshooting
   transpilePackages: ["react-tweet"],
+
+  // Exclude large native binaries and dev-only cache files from serverless function bundles.
+  // canvas is an optional jsdom dep we don't use; webpack cache files should never ship.
+  outputFileTracingExcludes: {
+    "*": [
+      "node_modules/canvas/**",
+      "node_modules/@img/sharp-linux-x64/**",
+      "node_modules/@img/sharp-linux-arm64/**",
+      "node_modules/@img/sharp-libvips-linux-x64/**",
+      "node_modules/@img/sharp-libvips-linux-arm64/**",
+      ".next/cache/webpack/**",
+    ],
+  },
 });
 /* eslint-enable no-process-env */

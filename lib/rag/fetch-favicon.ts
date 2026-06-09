@@ -1,7 +1,5 @@
 import net from "node:net";
 
-import { JSDOM } from "jsdom";
-
 import { ingestionLogger } from "@/lib/logging/logger";
 
 const DEFAULT_TIMEOUT_MS = 2500;
@@ -289,37 +287,24 @@ async function fetchHtmlWithRedirects(
 }
 
 function extractIconLinkFromHtml(html: string, baseUrl: string): string | null {
-  try {
-    const dom = new JSDOM(html);
-    const links = Array.from(
-      dom.window.document.querySelectorAll("link[rel][href]"),
-    ) as Element[];
-    for (const link of links) {
-      const rel = link.getAttribute("rel");
-      if (!rel) {
-        continue;
-      }
-
-      const tokens = rel.toLowerCase().split(/\s+/).filter(Boolean);
-      if (!tokens.includes("icon")) {
-        continue;
-      }
-
-      const href = link.getAttribute("href");
-      if (!href) {
-        continue;
-      }
-
-      try {
-        return new URL(href, baseUrl).toString();
-      } catch {
-        continue;
-      }
+  // Regex-based extraction avoids pulling in jsdom + canvas native binaries (~200MB on Linux).
+  // Matches <link ... rel="...icon..." ... href="..." ...> in any attribute order.
+  const linkTagRe = /<link\b([^>]*?)>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = linkTagRe.exec(html)) !== null) {
+    const attrs = match[1];
+    const relMatch = /\brel\s*=\s*["']([^"']*)["']/i.exec(attrs);
+    if (!relMatch) continue;
+    const tokens = relMatch[1].toLowerCase().split(/\s+/).filter(Boolean);
+    if (!tokens.includes("icon")) continue;
+    const hrefMatch = /\bhref\s*=\s*["']([^"']*)["']/i.exec(attrs);
+    if (!hrefMatch || !hrefMatch[1]) continue;
+    try {
+      return new URL(hrefMatch[1], baseUrl).toString();
+    } catch {
+      continue;
     }
-  } catch {
-    return null;
   }
-
   return null;
 }
 
