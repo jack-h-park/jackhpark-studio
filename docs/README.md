@@ -76,6 +76,7 @@ The `terminology.md` file remains the single authoritative source for shared ter
 - **Advanced settings / guardrails**
   - Start: `canonical/guardrails/guardrail-system.md`
   - Then: `chat/settings-ownership-audit-local-adapter.md` for repo-specific mappings and UX wording
+  - Then: `chat/chat-config-allowlist.md` for where the allowlist is stored and how it gates each UI surface
 - **RAG retrieval behavior**
   - Start: `canonical/rag/rag-system.md`
   - Then: `architecture/rag/rag-retrieval-engine.md`
