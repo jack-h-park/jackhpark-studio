@@ -10,6 +10,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { numericLimitLabels } from "@/hooks/use-admin-chat-config";
 
+const numericLimitDescriptions: Record<
+  keyof AdminChatConfig["numericLimits"],
+  string
+> = {
+  ragTopK: "How many knowledge-base passages can be retrieved per answer.",
+  similarityThreshold:
+    "Minimum similarity (0–1) a passage needs to be used. Higher is stricter.",
+  contextBudget:
+    "Token budget for retrieved context included in each prompt.",
+  historyBudget:
+    "Token budget for prior conversation turns included in each prompt.",
+  clipTokens: "Maximum tokens kept per message before clipping.",
+};
+
 export type NumericLimitsCardProps = {
   numericLimits: AdminChatConfig["numericLimits"];
   numericLimitErrors: string[];
@@ -48,9 +62,12 @@ export function NumericLimitsCard({
               className="rounded-2xl border border-[var(--ai-role-border-muted)] p-4 shadow-sm sm:p-5"
             >
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_repeat(3,minmax(0,1fr))]">
-                <div className="flex flex-col justify-center">
+                <div className="flex flex-col justify-center gap-1">
                   <p className="ai-label-emphasis leading-snug">
                     {numericLimitLabels[key]}
+                  </p>
+                  <p className="ai-helper-text">
+                    {numericLimitDescriptions[key]}
                   </p>
                 </div>
                 <div className="ai-field min-w-0">

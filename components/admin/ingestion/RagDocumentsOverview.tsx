@@ -189,7 +189,7 @@ export function RagDocumentsOverview({
                   const count = stats.sourceCounts[type];
                   const isUnknown = type === "unknown";
                   const title = isUnknown
-                    ? "Missing source metadata"
+                    ? `Source not identified: ${count} documents`
                     : `${label}: ${count} documents`;
                   return (
                     <div key={type} className={styles.miniMetric} title={title}>

@@ -319,7 +319,7 @@ export function DatasetSnapshotSection({
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              Latest captured totals from the <code>rag_snapshot</code> rollup.
+              Latest captured totals from the most recent dataset snapshot.
             </TooltipContent>
           </Tooltip>
         </div>
@@ -454,7 +454,10 @@ export function DatasetSnapshotSection({
           </div>
           <div className={styles.secondaryMetaItem}>
             <dt className={styles.kpiTileTitle}>Schema Version</dt>
-            <dd className={styles.secondaryMetaValue}>
+            <dd
+              className={styles.secondaryMetaValue}
+              title="Internal format version of snapshot records; it only changes when the ingestion pipeline's data shape changes."
+            >
               {latest.schemaVersion ?? "—"}
             </dd>
           </div>
