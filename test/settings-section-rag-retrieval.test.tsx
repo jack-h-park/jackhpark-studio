@@ -2,9 +2,9 @@ import assert from "node:assert";
 import { test } from "node:test";
 
 import { JSDOM } from "jsdom";
+import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { act } from "react-dom/test-utils";
 
 import type {
   AdminChatConfig,
@@ -22,11 +22,13 @@ import {
 import { computeOverridesActive } from "@/components/chat/settings/preset-overrides";
 import { SettingsSectionOptionalOverrides } from "@/components/chat/settings/SettingsSectionOptionalOverrides";
 import { SettingsSectionRagRetrieval } from "@/components/chat/settings/SettingsSectionRagRetrieval";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>");
 const globalAny = globalThis as Record<string, any>;
 globalAny.window = dom.window;
 globalAny.document = dom.window.document;
+globalAny.IS_REACT_ACT_ENVIRONMENT = true;
 
 const createModelResolution = (modelId: string): ModelResolution => ({
   requestedModelId: modelId,
@@ -189,7 +191,7 @@ void test("locked retrieval hides sliders and shows preset note", () => {
 
 void test("unlocked retrieval shows sliders and hides summary", () => {
   const markup = renderRagContent(false);
-  assert.ok(!markup.includes("Preset Effects (Managed by Preset)"));
+  assert.ok(!markup.includes("Preset Effects"));
   assert.ok(markup.includes('id="settings-top-k"'));
 });
 
@@ -202,11 +204,12 @@ void test("preset effects card surfaces managed values once", () => {
       sessionConfig={sessionConfig}
     />,
   );
-  assert.ok(markup.includes("Preset Effects (Managed by Preset)"));
-  assert.ok(markup.includes("Retrieval: enabled"));
-  assert.ok(markup.includes("Ranker: None"));
-  assert.ok(markup.includes("Memory: context"));
-  assert.ok(markup.includes("Summaries: Low"));
+  assert.ok(markup.includes("Preset Effects"));
+  assert.ok(markup.includes("Enabled (Top-K 6 · similarity ≥ 0.4)"));
+  assert.ok(markup.includes("Capabilities / Ranker"));
+  assert.ok(markup.includes(">None</span>"));
+  assert.ok(markup.includes("context 2,048, history 1,024, clip 128"));
+  assert.ok(markup.includes("<dt>Summaries</dt><dd>Low</dd>"));
 });
 
 void test("effective settings payload includes key fields", () => {
@@ -259,7 +262,7 @@ void test("support line contains summary keys", () => {
       "Memory budgets (tokens): context 2048 · history 1024 · clip 128",
     ),
   );
-  assert.ok(supportLine.includes("Summaries: preset Low · current Low"));
+  assert.ok(supportLine.includes("Summaries: preset Off · current Low"));
   assert.ok(supportLine.includes("Custom prompt: absent"));
 });
 
@@ -294,11 +297,13 @@ void test("optional overrides clear appliedPreset on change", () => {
           setSessionConfig,
         }}
       >
-        <SettingsSectionOptionalOverrides
-          adminConfig={adminConfig}
-          sessionConfig={sessionConfig}
-          setSessionConfig={setSessionConfig}
-        />
+        <TooltipProvider>
+          <SettingsSectionOptionalOverrides
+            adminConfig={adminConfig}
+            sessionConfig={sessionConfig}
+            setSessionConfig={setSessionConfig}
+          />
+        </TooltipProvider>
       </ChatConfigContext.Provider>,
     );
   });
@@ -312,7 +317,7 @@ void test("optional overrides clear appliedPreset on change", () => {
 
   act(() => {
     select.value = adminConfig.allowlist.llmModels[0];
-    select.dispatchEvent(new Event("change", { bubbles: true }));
+    select.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
   });
 
   assert.strictEqual(updates.length, 1);
