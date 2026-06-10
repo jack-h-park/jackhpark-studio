@@ -110,7 +110,12 @@ function RetrievalSection({
       </SectionHeader>
       <SectionContent className="flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <span className={SECTION_FIELD_LABEL_CLASS}>RAG Top K</span>
+          <span
+            className={SECTION_FIELD_LABEL_CLASS}
+            title="How many knowledge-base passages are retrieved per answer."
+          >
+            RAG Top K
+          </span>
           <Input
             type="number"
             min={numericLimits.ragTopK.min}
@@ -122,7 +127,12 @@ function RetrievalSection({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <span className={SECTION_FIELD_LABEL_CLASS}>Similarity</span>
+          <span
+            className={SECTION_FIELD_LABEL_CLASS}
+            title="Minimum similarity (0–1) a passage needs to be used. Higher is stricter."
+          >
+            Similarity
+          </span>
           <Input
             type="number"
             step={0.01}
@@ -134,7 +144,10 @@ function RetrievalSection({
             onChange={(event) => onSimilarityChange(Number(event.target.value))}
           />
         </div>
-        <div className="flex flex-col gap-1">
+        <div
+          className="flex flex-col gap-1"
+          title="Rewrites the question before searching to recall more relevant sources."
+        >
           <CheckboxChoice
             label="Reverse RAG"
             layout="inline"
@@ -145,7 +158,10 @@ function RetrievalSection({
             onCheckedChange={onReverseChange}
           />
         </div>
-        <div className="flex flex-col gap-1">
+        <div
+          className="flex flex-col gap-1"
+          title="Searches with a hypothetical answer to find better-matching sources."
+        >
           <CheckboxChoice
             label="HyDE"
             layout="inline"
@@ -174,7 +190,12 @@ function RetrievalSection({
           </Select>
         </div>
         <div className="flex flex-col gap-2">
-          <span className={SECTION_FIELD_LABEL_CLASS}>Summary Level</span>
+          <span
+            className={SECTION_FIELD_LABEL_CLASS}
+            title="How often conversation summaries run; each level maps to a turn interval in Summary Presets."
+          >
+            Summary Level
+          </span>
           <div className="flex flex-wrap gap-2">
             {summaryLevelOptions.map((level) => (
               <Radiobutton

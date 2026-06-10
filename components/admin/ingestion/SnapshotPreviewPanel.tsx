@@ -149,7 +149,10 @@ function SnapshotDetails({ snapshot }: { snapshot: SnapshotEntry }) {
       </div>
       <div className={previewStyles.previewField}>
         <span className={previewStyles.previewFieldLabel}>Schema version</span>
-        <span className={previewStyles.previewFieldValue}>
+        <span
+          className={previewStyles.previewFieldValue}
+          title="Internal format version of snapshot records; it only changes when the ingestion pipeline's data shape changes."
+        >
           {snapshot.schemaVersion ?? "—"}
         </span>
       </div>
