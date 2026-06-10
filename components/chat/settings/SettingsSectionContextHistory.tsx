@@ -181,17 +181,17 @@ export function SettingsSectionContextHistory({
   }> = [
     {
       key: "tokenBudget",
-      label: "Context Token Budget",
+      label: "Context budget (tokens)",
       limit: contextBudget,
     },
     {
       key: "historyBudget",
-      label: "History Token Budget",
+      label: "History budget (tokens)",
       limit: historyBudget,
     },
     {
       key: "clipTokens",
-      label: "Clip Tokens",
+      label: "Per-message clip (tokens)",
       limit: clipTokens,
     },
   ];

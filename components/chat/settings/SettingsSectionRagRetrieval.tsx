@@ -130,7 +130,8 @@ export function SettingsSectionRagRetrieval({
           <>
             <SliderField
               id="settings-top-k"
-              label="Top K"
+              label="Sources retrieved"
+              description="How many knowledge-base passages feed each answer (Top K)."
               value={sessionConfig.rag.topK}
               min={ragTopK.min}
               max={ragTopK.max}
@@ -141,7 +142,8 @@ export function SettingsSectionRagRetrieval({
 
             <SliderField
               id="settings-similarity-threshold"
-              label="Similarity Threshold"
+              label="Match strictness"
+              description="Minimum similarity (0–1) a passage needs to be used. Higher is stricter."
               value={sessionConfig.rag.similarity}
               min={similarityThreshold.min}
               max={similarityThreshold.max}
@@ -158,6 +160,7 @@ export function SettingsSectionRagRetrieval({
                 {adminConfig.allowlist.allowReverseRAG && (
                   <CheckboxChoice
                     label="Reverse RAG"
+                    description="Rewrites your question before searching to recall more relevant sources."
                     checked={sessionConfig.features.reverseRAG}
                     disabled={!isRagEnabled || isFeaturesLocked}
                     onCheckedChange={(checked) =>
@@ -169,6 +172,7 @@ export function SettingsSectionRagRetrieval({
                 {adminConfig.allowlist.allowHyde && (
                   <CheckboxChoice
                     label="HyDE"
+                    description="Searches with a hypothetical answer to find better-matching sources."
                     checked={sessionConfig.features.hyde}
                     disabled={!isRagEnabled || isFeaturesLocked}
                     onCheckedChange={(checked) =>
@@ -182,6 +186,7 @@ export function SettingsSectionRagRetrieval({
             <SelectField
               id="settings-ranker"
               label="Ranker"
+              description="How retrieved passages are re-ordered before they are used."
               ariaLabel="Ranker selection"
               className="pt-2"
               value={sessionConfig.features.ranker}

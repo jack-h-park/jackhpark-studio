@@ -15,6 +15,7 @@ import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
 import { AdvancedSettingsPresetEffects } from "./AdvancedSettingsPresetEffects";
 import styles from "./ChatAdvancedSettingsDrawer.module.css";
+import { DrawerDisclosure } from "./DrawerDisclosure";
 import { computeOverridesActive } from "./preset-overrides";
 import { SettingsSectionContextHistory } from "./SettingsSectionContextHistory";
 import { SettingsSectionDisplay } from "./SettingsSectionDisplay";
@@ -22,9 +23,6 @@ import { SettingsSectionModelEngine } from "./SettingsSectionModelEngine";
 import { SettingsSectionOptionalOverrides } from "./SettingsSectionOptionalOverrides";
 import { PresetSelectorTabs } from "./SettingsSectionPresets";
 import { SettingsSectionRagRetrieval } from "./SettingsSectionRagRetrieval";
-
-const hasCascadeChildren =
-  !isSettingLocked("embeddingModel") || !isSettingLocked("rag");
 
 type DrawerProps = {
   open: boolean;
@@ -39,6 +37,9 @@ export function ChatAdvancedSettingsDrawer({
 }: DrawerProps) {
   const { adminConfig, sessionConfig, setSessionConfig } = useChatConfig();
   const [mounted, setMounted] = useState(false);
+  const isPresetActive = Boolean(
+    sessionConfig.appliedPreset ?? sessionConfig.presetId,
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -98,7 +99,7 @@ export function ChatAdvancedSettingsDrawer({
         className={`${styles.drawer} ${open ? styles.drawerVisible : ""}`}
         role="dialog"
         aria-modal="true"
-        aria-label="Advanced chat settings"
+        aria-label="Chat settings"
       >
         <div className={styles.panel}>
           <div className={styles.inner}>
@@ -109,7 +110,7 @@ export function ChatAdvancedSettingsDrawer({
                   icon={<FiSettings aria-hidden="true" />}
                   className={styles.drawerTitle}
                 >
-                  Advanced Settings
+                  Chat Settings
                 </HeadingWithIcon>
                 <StatusPill variant="muted">SESSION-WIDE</StatusPill>
               </div>
@@ -117,7 +118,7 @@ export function ChatAdvancedSettingsDrawer({
                 variant="ghost"
                 size="icon"
                 onClick={onClose}
-                aria-label="Close advanced settings"
+                aria-label="Close chat settings"
                 className={styles.drawerCloseButton}
               >
                 ✕
@@ -133,7 +134,7 @@ export function ChatAdvancedSettingsDrawer({
                         icon={<FiLayers aria-hidden="true" />}
                       >
                         <span className="flex items-center gap-2">
-                          AI Orchestration Preset
+                          Preset
                           <ImpactTooltip text="Changing presets can affect retrieval, memory budgets, and response behavior for this session.">
                             <FiInfo aria-hidden="true" />
                           </ImpactTooltip>
@@ -141,8 +142,8 @@ export function ChatAdvancedSettingsDrawer({
                       </SectionTitle>
                     </div>
                     <p className="ai-setting-section-description">
-                      Preset controls retrieval, memory, and prompt behavior for
-                      this session.
+                      Choose how answers balance speed, precision, and recall
+                      for this session.
                     </p>
                     <div className={styles.presetSelector}>
                       <PresetSelectorTabs
@@ -152,61 +153,57 @@ export function ChatAdvancedSettingsDrawer({
                       />
                     </div>
                   </div>
-                  <div className={styles.presetScopeChildren}>
-                    <div
-                      className={`${styles.presetScopeSection} ${styles.presetEffectsWrapper}`}
+                  {isPresetActive && (
+                    <DrawerDisclosure
+                      title="Preset effects"
+                      hint="What this preset configures behind the scenes"
                     >
                       <AdvancedSettingsPresetEffects
                         adminConfig={adminConfig}
                         sessionConfig={sessionConfig}
                       />
-                    </div>
-
-                    <div className={styles.presetScopeSection}>
-                      <SettingsSectionContextHistory
-                        adminConfig={adminConfig}
-                        sessionConfig={sessionConfig}
-                        setSessionConfig={setSessionConfig}
-                        messages={messages}
-                      />
-                    </div>
-
-                    <div className={styles.presetScopeSection}>
-                      <SettingsSectionOptionalOverrides
-                        adminConfig={adminConfig}
-                        sessionConfig={sessionConfig}
-                        setSessionConfig={setSessionConfig}
-                      />
-                    </div>
-                  </div>
+                    </DrawerDisclosure>
+                  )}
                 </Section>
               </div>
-
-              {hasCascadeChildren && <div className={`${styles.cascade}`}>
-                {!isSettingLocked("embeddingModel") && (
-                  <div className={styles.drawerSection}>
-                    <SettingsSectionModelEngine
-                      adminConfig={adminConfig}
-                      sessionConfig={sessionConfig}
-                      setSessionConfig={setSessionConfig}
-                    />
-                  </div>
-                )}
-
-                {!isSettingLocked("rag") && (
-                  <div className={styles.drawerSection}>
-                    <SettingsSectionRagRetrieval
-                      adminConfig={adminConfig}
-                      sessionConfig={sessionConfig}
-                      setSessionConfig={setSessionConfig}
-                    />
-                  </div>
-                )}
-              </div>}
 
               <div className={styles.drawerSection}>
                 <SettingsSectionDisplay />
               </div>
+
+              <DrawerDisclosure
+                title="Advanced"
+                hint="Model, retrieval, and memory details"
+              >
+                <SettingsSectionOptionalOverrides
+                  adminConfig={adminConfig}
+                  sessionConfig={sessionConfig}
+                  setSessionConfig={setSessionConfig}
+                />
+
+                {!isSettingLocked("embeddingModel") && (
+                  <SettingsSectionModelEngine
+                    adminConfig={adminConfig}
+                    sessionConfig={sessionConfig}
+                    setSessionConfig={setSessionConfig}
+                  />
+                )}
+
+                {!isSettingLocked("rag") && (
+                  <SettingsSectionRagRetrieval
+                    adminConfig={adminConfig}
+                    sessionConfig={sessionConfig}
+                    setSessionConfig={setSessionConfig}
+                  />
+                )}
+
+                <SettingsSectionContextHistory
+                  adminConfig={adminConfig}
+                  sessionConfig={sessionConfig}
+                  setSessionConfig={setSessionConfig}
+                  messages={messages}
+                />
+              </DrawerDisclosure>
 
               {computeOverridesActive({ adminConfig, sessionConfig }) && (
                 <div className="pt-4">

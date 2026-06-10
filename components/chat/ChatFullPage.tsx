@@ -304,7 +304,7 @@ function ChatShellContent() {
             className="gap-2"
           >
             <FiSliders aria-hidden="true" />
-            Advanced Settings
+            Chat Settings
           </Button>
         </header>
         <div className={styles.body}>

@@ -251,12 +251,16 @@ void test("support line contains summary keys", () => {
   });
 
   const supportLine = buildEffectiveSettingsSupportLine(payload);
-  assert.ok(supportLine.includes("Preset=Balanced (Default)"));
-  assert.ok(supportLine.includes("LLM=gpt-4o-mini"));
-  assert.ok(supportLine.includes("Retrieval=on topK=6 sim>=0.40"));
-  assert.ok(supportLine.includes("Budgets=ctx2048 hist1024 clip128"));
-  assert.ok(supportLine.includes("Summaries=preset:Low current:Low"));
-  assert.ok(supportLine.includes("Prompt=absent"));
+  assert.ok(supportLine.includes("Preset: Balanced (Default)"));
+  assert.ok(supportLine.includes("Model: gpt-4o-mini"));
+  assert.ok(supportLine.includes("Retrieval: on · sources 6 · match ≥ 0.40"));
+  assert.ok(
+    supportLine.includes(
+      "Memory budgets (tokens): context 2048 · history 1024 · clip 128",
+    ),
+  );
+  assert.ok(supportLine.includes("Summaries: preset Low · current Low"));
+  assert.ok(supportLine.includes("Custom prompt: absent"));
 });
 
 void test("optional overrides clear appliedPreset on change", () => {

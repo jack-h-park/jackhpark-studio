@@ -115,19 +115,18 @@ export function buildEffectiveSettingsSupportLine(
   const budgets = payload.budgets;
   const summaries = payload.summaries;
   const promptDescriptor = payload.userPrompt.present
-    ? `present(len=${payload.userPrompt.length})`
+    ? `present (${payload.userPrompt.length} chars)`
     : "absent";
   const presetLabel = payload.presetName ?? payload.presetId ?? "Unknown";
 
-  return `Preset=${presetLabel}; OverridesActive=${
-    payload.overridesActive ? "true" : "false"
-  }; LLM=${payload.effectiveLLMModel}; Embeddings=${
-    payload.effectiveEmbeddingsLabel
-  }; Retrieval=${retrieval.enabled ? "on" : "off"} topK=${
-    retrieval.topK
-  } sim>=${retrieval.similarityThreshold.toFixed(2)}; Capabilities=reverseRag:${
-    retrieval.reverseRag ? "ON" : "off"
-  } hyde:${retrieval.hyde ? "ON" : "off"}; Ranker=${retrieval.ranker.friendly}; Budgets=ctx${budgets.tokenBudget} hist${budgets.historyBudget} clip${budgets.clipTokens}; Summaries=preset:${
-    summaries.presetDefault ?? "n/a"
-  } current:${summaries.current}; Prompt=${promptDescriptor}`;
+  return [
+    `Preset: ${presetLabel} (overrides active: ${payload.overridesActive ? "yes" : "no"})`,
+    `Model: ${payload.effectiveLLMModel}`,
+    `Embeddings: ${payload.effectiveEmbeddingsLabel}`,
+    `Retrieval: ${retrieval.enabled ? "on" : "off"} · sources ${retrieval.topK} · match ≥ ${retrieval.similarityThreshold.toFixed(2)}`,
+    `Capabilities: Reverse RAG ${retrieval.reverseRag ? "on" : "off"} · HyDE ${retrieval.hyde ? "on" : "off"} · Ranker ${retrieval.ranker.friendly}`,
+    `Memory budgets (tokens): context ${budgets.tokenBudget} · history ${budgets.historyBudget} · clip ${budgets.clipTokens}`,
+    `Summaries: preset ${summaries.presetDefault ?? "n/a"} · current ${summaries.current}`,
+    `Custom prompt: ${promptDescriptor}`,
+  ].join("\n");
 }
