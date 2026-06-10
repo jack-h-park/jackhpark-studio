@@ -3,6 +3,7 @@ import { FiShield } from "@react-icons/all-files/fi/FiShield";
 
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import type { AdminChatConfig } from "@/types/chat-config";
+import { AllowlistTile } from "@/components/admin/chat-config/AllowlistTile";
 import styles from "@/components/admin/chat-config/chat-config.module.css";
 import {
   ChatConfigCardContent,
@@ -10,7 +11,6 @@ import {
   ConfigBox,
   ToggleRow,
 } from "@/components/admin/chat-config/ChatConfigHelpers";
-import { AllowlistTile } from "@/components/ui/allowlist-tile";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
