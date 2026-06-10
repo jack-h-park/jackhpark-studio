@@ -5,6 +5,7 @@ import { FiTarget } from "@react-icons/all-files/fi/FiTarget";
 import type { RankerId } from "@/lib/shared/models";
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 import { CheckboxChoice } from "@/components/ui/checkbox";
+import { SelectField, SliderField } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import {
   Section,
@@ -12,18 +13,11 @@ import {
   SectionHeader,
   SectionTitle,
 } from "@/components/ui/section";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { SliderNumberField } from "@/components/ui/slider-number-field";
 import { Switch } from "@/components/ui/switch";
 import { RANKER_LABELS } from "@/lib/shared/chat-labels";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
+import { LockedByPresetNotice, ManagedByPresetBadge } from "./LockedByPreset";
 import { createSessionOverrideUpdater } from "./preset-overrides";
 
 
@@ -114,11 +108,7 @@ export function SettingsSectionRagRetrieval({
           icon={<FiTarget aria-hidden="true" />}
         >
           <span>Retrieval (RAG)</span>
-          {isRagLocked && (
-            <span className="ml-2 inline-flex items-center rounded-sm border border-ai-fg-muted/30 px-1.5 py-0.5 text-[10px] font-medium text-ai-fg-muted">
-              Managed by Preset
-            </span>
-          )}
+          {isRagLocked && <ManagedByPresetBadge />}
         </SectionTitle>
         {!isRagLocked && (
           <Switch
@@ -132,37 +122,33 @@ export function SettingsSectionRagRetrieval({
 
       <SectionContent className="flex flex-col gap-3">
         {isRagLocked ? (
-          <p className="text-xs text-[color:var(--ai-text-muted)]">
+          <LockedByPresetNotice>
             Retrieval settings are managed by the selected preset (see Preset
             Effects summary above).
-          </p>
+          </LockedByPresetNotice>
         ) : (
           <>
-            <div className="flex flex-col gap-3">
-              <SliderNumberField
-                id="settings-top-k"
-                label="Top K"
-                value={sessionConfig.rag.topK}
-                min={ragTopK.min}
-                max={ragTopK.max}
-                step={1}
-                disabled={!isRagEnabled}
-                onChange={handleTopKChange}
-              />
-            </div>
+            <SliderField
+              id="settings-top-k"
+              label="Top K"
+              value={sessionConfig.rag.topK}
+              min={ragTopK.min}
+              max={ragTopK.max}
+              step={1}
+              disabled={!isRagEnabled}
+              onChange={handleTopKChange}
+            />
 
-            <div className="flex flex-col gap-3">
-              <SliderNumberField
-                id="settings-similarity-threshold"
-                label="Similarity Threshold"
-                value={sessionConfig.rag.similarity}
-                min={similarityThreshold.min}
-                max={similarityThreshold.max}
-                step={0.01}
-                disabled={!isRagEnabled}
-                onChange={handleSimilarityChange}
-              />
-            </div>
+            <SliderField
+              id="settings-similarity-threshold"
+              label="Similarity Threshold"
+              value={sessionConfig.rag.similarity}
+              min={similarityThreshold.min}
+              max={similarityThreshold.max}
+              step={0.01}
+              disabled={!isRagEnabled}
+              onChange={handleSimilarityChange}
+            />
 
             <div className="ai-field pt-2">
               <Label className="ai-field__label">
@@ -193,31 +179,19 @@ export function SettingsSectionRagRetrieval({
               </div>
             </div>
 
-            <div className="ai-field pt-2">
-              <Label htmlFor="settings-ranker" className="ai-field__label">
-                Ranker
-              </Label>
-              <Select
-                value={sessionConfig.features.ranker}
-                onValueChange={handleRankerChange}
-                disabled={!isRagEnabled || isFeaturesLocked}
-              >
-                <SelectTrigger
-                  id="settings-ranker"
-                  aria-label="Ranker selection"
-                  className="ai-field-sm w-full"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {adminConfig.allowlist.rankers.map((ranker) => (
-                    <SelectItem key={ranker} value={ranker}>
-                      {RANKER_LABELS[ranker]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <SelectField
+              id="settings-ranker"
+              label="Ranker"
+              ariaLabel="Ranker selection"
+              className="pt-2"
+              value={sessionConfig.features.ranker}
+              onValueChange={handleRankerChange}
+              disabled={!isRagEnabled || isFeaturesLocked}
+              options={adminConfig.allowlist.rankers.map((ranker) => ({
+                value: ranker,
+                label: RANKER_LABELS[ranker],
+              }))}
+            />
           </>
         )}
       </SectionContent>

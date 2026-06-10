@@ -17,6 +17,8 @@ export type SliderNumberFieldProps = {
   description?: string;
   /** Optional container className */
   className?: string;
+  /** Accessible name for the inputs when no visible label is rendered (e.g. inside SliderField). */
+  ariaLabel?: string;
 };
 
 export function SliderNumberField({
@@ -30,13 +32,16 @@ export function SliderNumberField({
   onChange,
   description,
   className,
+  ariaLabel,
 }: SliderNumberFieldProps) {
   const stepValue = step ?? 1;
   const descriptionId = description ? `${id}-description` : undefined;
-  const labelText = label ?? id;
+  const labelText = label ?? ariaLabel ?? id;
 
   return (
-    <div className={cn("ai-field", className)}>
+    // Only act as a field container when rendering its own label/description;
+    // when composed inside Field this avoids double .ai-field indentation.
+    <div className={cn(label || description ? "ai-field" : null, className)}>
       {label ? (
         <Label htmlFor={id} className="ai-field__label">
           {label}

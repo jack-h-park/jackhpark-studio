@@ -7,6 +7,12 @@ import {
 
 import { Checkbox } from "./checkbox";
 import { Label } from "./label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "./select";
 import { SliderNumberField } from "./slider-number-field";
 import { Switch } from "./switch";
 import { cn } from "./utils";
@@ -198,7 +204,78 @@ export function SliderField({
       className={className}
       variant={variant}
     >
-      <SliderNumberField id={id} {...sliderProps} />
+      <SliderNumberField
+        id={id}
+        ariaLabel={typeof label === "string" ? label : undefined}
+        {...sliderProps}
+      />
     </Field>
+  );
+}
+
+export type SelectFieldOption = {
+  value: string;
+  label: string;
+  disabled?: boolean;
+};
+
+export type SelectFieldProps = {
+  id: string;
+  /** Visible label; omit when a parent renders the label (avoids double .ai-field wrapping). */
+  label?: React.ReactNode;
+  description?: React.ReactNode;
+  className?: string;
+  /** Accessible name for the select, required when no visible label is rendered. */
+  ariaLabel?: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  options: ReadonlyArray<SelectFieldOption>;
+  disabled?: boolean;
+};
+
+export function SelectField({
+  id,
+  label,
+  description,
+  className,
+  ariaLabel,
+  value,
+  onValueChange,
+  options,
+  disabled,
+}: SelectFieldProps) {
+  const descriptionId = description ? `${id}-description` : undefined;
+  return (
+    <div className={cn(label || description ? "ai-field" : null, className)}>
+      {label ? (
+        <Label htmlFor={id} className="ai-field__label">
+          {label}
+        </Label>
+      ) : null}
+      <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+        <SelectTrigger
+          id={id}
+          aria-label={ariaLabel}
+          aria-describedby={descriptionId}
+          className="ai-field-sm w-full"
+        />
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem
+              key={option.value}
+              value={option.value}
+              disabled={option.disabled}
+            >
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {description && descriptionId ? (
+        <p id={descriptionId} className="ai-field__description">
+          {description}
+        </p>
+      ) : null}
+    </div>
   );
 }
