@@ -1,11 +1,10 @@
+/* `.tile` is module-scoped, but the state classes (ai-selectable--active/
+   --disabled) are GLOBAL — Radiobutton applies them as plain strings. They must
+   be wrapped in :global(), otherwise CSS Modules rewrites them to hashed names
+   that never match the element and the guards silently fail. */
+
 .tile {
   border-radius: var(--ai-radius-md);
-  border: 1px solid var(--ai-role-border-base);
-  background-color: color-mix(
-    in sRGB,
-    var(--ai-role-surface-1) 96%,
-    var(--ai-role-surface-0) 4%
-  );
   min-height: 3rem;
   cursor: pointer;
   transition:
@@ -13,7 +12,19 @@
     background-color 0.2s ease;
 }
 
-.tile:not(.ai-selectable--active):hover {
+/* Resting border/background. Guarded against the active state so the canonical
+   .ai-selectable--active primitive (gradient border) shows through unchanged —
+   selected tiles must match every other selection surface. */
+.tile:not(:global(.ai-selectable--active)) {
+  border: 1px solid var(--ai-role-border-base);
+  background-color: color-mix(
+    in sRGB,
+    var(--ai-role-surface-1) 96%,
+    var(--ai-role-surface-0) 4%
+  );
+}
+
+.tile:not(:global(.ai-selectable--active)):hover {
   border-color: var(--ai-role-border-selected, var(--ai-role-border-base));
   background-color: color-mix(
     in sRGB,
@@ -22,7 +33,7 @@
   );
 }
 
-.tile:not(.ai-selectable--active):active {
+.tile:not(:global(.ai-selectable--active)):active {
   border-color: var(--ai-role-border-selected, var(--ai-role-border-base));
   background-color: color-mix(
     in sRGB,
@@ -31,14 +42,10 @@
   );
 }
 
-.tile.ai-selectable--active {
-  border-color: var(--ai-role-border-selected, var(--ai-role-border-base));
-  background-color: var(--ai-role-surface-selected);
-  box-shadow: inset 0 0 0 1px
-    var(--ai-role-border-selected, var(--ai-role-border-base));
-}
+/* Active state intentionally not redefined here — it is owned by the
+   .ai-selectable--active primitive (gradient border + elevation). */
 
-.tile.ai-selectable--disabled {
+.tile:global(.ai-selectable--disabled) {
   border-color: var(--ai-role-border-muted);
   opacity: 0.7;
   cursor: not-allowed;

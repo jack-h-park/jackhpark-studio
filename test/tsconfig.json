@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // The root config uses "preserve" for Next.js; tsx (esbuild) needs an
+    // explicit transform so .test.tsx files run under `node --test`.
+    "jsx": "react-jsx"
+  }
+}

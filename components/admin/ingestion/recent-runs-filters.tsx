@@ -1,25 +1,21 @@
 import type { ChangeEvent, JSX } from "react";
 
 import type { IngestionType, RunStatus } from "@/lib/admin/ingestion-runs";
-import { Button } from "@/components/ui/button";
 import { CheckboxChoice } from "@/components/ui/checkbox";
+import { FilterBar, type FilterBarItem } from "@/components/ui/filter-bar";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { cn } from "@/components/ui/utils";
 import {
   ALL_FILTER_VALUE,
   getEmbeddingFilterLabel,
   getIngestionTypeLabel,
   getStatusLabel,
 } from "@/lib/admin/recent-runs-filters";
-
-import recentStyles from "./RecentRunsPanel.module.css";
 
 export type RecentRunsFiltersProps = {
   statusFilter: RunStatus | typeof ALL_FILTER_VALUE;
@@ -74,9 +70,10 @@ export function RecentRunsFilters({
   activeFilterCount,
   className,
 }: RecentRunsFiltersProps): JSX.Element {
-  const filterItems = [
+  const filterItems: FilterBarItem[] = [
     {
       id: "recent-status-filter",
+      htmlFor: "recent-status-filter",
       label: "Status",
       control: (
         <Select
@@ -102,6 +99,7 @@ export function RecentRunsFilters({
     },
     {
       id: "recent-type-filter",
+      htmlFor: "recent-type-filter",
       label: "Type",
       control: (
         <Select
@@ -129,6 +127,7 @@ export function RecentRunsFilters({
     },
     {
       id: "recent-source-filter",
+      htmlFor: "recent-source-filter",
       label: "Source",
       control: (
         <Select
@@ -152,6 +151,7 @@ export function RecentRunsFilters({
     },
     {
       id: "recent-embedding-filter",
+      htmlFor: "recent-embedding-filter",
       label: "Embedding model",
       control: (
         <Select
@@ -175,6 +175,7 @@ export function RecentRunsFilters({
     },
     {
       id: "recent-started-from",
+      htmlFor: "recent-started-from",
       label: "Started After",
       control: (
         <Input
@@ -192,6 +193,7 @@ export function RecentRunsFilters({
     },
     {
       id: "recent-started-to",
+      htmlFor: "recent-started-to",
       label: "Started Before",
       control: (
         <Input
@@ -210,26 +212,18 @@ export function RecentRunsFilters({
   ];
 
   return (
-    <div className={cn(recentStyles.filtersToolbar, className)}>
-      <div className={recentStyles.filtersGridArea}>
-        <div className={recentStyles.filtersGrid}>
-          {filterItems.map((item) => (
-            <div key={item.id} className="flex flex-col gap-1">
-              <Label
-                htmlFor={item.id}
-                size="xs"
-                className="text-[color:var(--ai-text-muted)]"
-              >
-                {item.label}
-              </Label>
-              {item.control}
-            </div>
-          ))}
-        </div>
-      </div>
-      <div
-        className={cn(recentStyles.filtersActionsArea, "flex flex-shrink-0")}
-      >
+    <FilterBar
+      items={filterItems}
+      layout="toolbar"
+      className={className}
+      itemClassName="flex flex-col gap-1"
+      labelSize="xs"
+      labelClassName="text-[color:var(--ai-text-muted)]"
+      onReset={onResetFilters}
+      canReset={canReset}
+      resetLabel="Reset view"
+      activeFilterCount={activeFilterCount}
+      actions={
         <CheckboxChoice
           className="select-none"
           label="Hide skipped runs"
@@ -237,22 +231,7 @@ export function RecentRunsFilters({
           onCheckedChange={onHideSkippedChange}
           disabled={isLoading}
         />
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onResetFilters}
-          disabled={!canReset}
-          className={recentStyles.resetButton}
-        >
-          {activeFilterCount != null && activeFilterCount > 0 ? (
-            <span className={recentStyles.activeFilterBadge}>
-              {activeFilterCount}
-            </span>
-          ) : null}
-          Reset view
-        </Button>
-      </div>
-    </div>
+      }
+    />
   );
 }

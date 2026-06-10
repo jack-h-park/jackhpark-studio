@@ -1,18 +1,16 @@
 import "@/styles/admin-doc-preview.css";
 
 import type { GetServerSideProps } from "next";
-import { FiChevronRight } from "@react-icons/all-files/fi/FiChevronRight";
 import { FiDatabase } from "@react-icons/all-files/fi/FiDatabase";
-import { FiFileText } from "@react-icons/all-files/fi/FiFileText";
-import { FiSearch } from "@react-icons/all-files/fi/FiSearch";
 import Head from "next/head";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import type { DocumentRow } from "@/lib/admin/rag-document-display";
 import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
 import { IngestionSubNav } from "@/components/admin/navigation/IngestionSubNav";
-import { DocumentIdCell } from "@/components/admin/rag/DocumentIdCell";
+import { DocumentsFilterPanel } from "@/components/admin/rag/documents-filter-panel";
+import { DocumentsTable } from "@/components/admin/rag/documents-table";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,35 +19,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ClientSideDate } from "@/components/ui/client-side-date";
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { StatusPill } from "@/components/ui/status-pill";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { pickDocumentPreviewSlot } from "@/lib/admin/document-preview";
 import {
   normalizeRagDocument,
   type RagDocumentRecord,
 } from "@/lib/admin/rag-documents";
-import {
-  DOC_TYPE_OPTIONS,
-  parseRagDocumentMetadata,
-  PERSONA_TYPE_OPTIONS,
-  type RagDocumentMetadata,
-  SOURCE_TYPE_OPTIONS,
-} from "@/lib/rag/metadata";
+import { parseRagDocumentMetadata } from "@/lib/rag/metadata";
 import { deriveTitleFromUrl } from "@/lib/rag/url-title";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
@@ -59,10 +33,6 @@ import styles from "./documents.module.css";
 
 const PAGE_TITLE = "RAG Documents";
 const PAGE_TAB_TITLE = "Admin · Ingestion · RAG Documents — Jack H. Park";
-
-type DocumentRow = RagDocumentRecord & {
-  displayTitle: string;
-};
 
 type PageProps = {
   documents: DocumentRow[];
@@ -83,60 +53,6 @@ type PageProps = {
 
 const PAGE_SIZE = 20;
 
-type DocumentDisplayInfo = {
-  metadata: RagDocumentMetadata;
-  subtitle?: string;
-  previewImageUrl?: string;
-  iconEmoji?: string;
-  iconImageUrl?: string;
-  teaserText?: string;
-};
-
-type ActiveFilterDescriptor = {
-  display: string;
-  full: string;
-};
-
-function getStatusPillVariant(
-  status: RagDocumentRecord["status"],
-): "success" | "warning" | "error" | "info" | "muted" {
-  switch (status) {
-    case "active":
-      return "success";
-    case "missing":
-      return "warning";
-    case "archived":
-      return "info";
-    case "soft_deleted":
-      return "muted";
-    default:
-      return "muted";
-  }
-}
-
-function formatStatusLabel(status: RagDocumentRecord["status"]): string {
-  if (!status) {
-    return "Unknown";
-  }
-  const label = status.replaceAll("_", " ");
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}
-
-function isRetrievalEligible(status: RagDocumentRecord["status"]): boolean {
-  return status === "active";
-}
-
-function formatSourceUrlForDisplay(sourceUrl: string): string {
-  try {
-    const parsed = new URL(sourceUrl);
-    const segments = parsed.pathname.split("/").filter(Boolean);
-    const tail = segments.slice(-1).join(" / ");
-    return tail ? `${parsed.hostname}/${tail}` : parsed.hostname;
-  } catch {
-    return sourceUrl;
-  }
-}
-
 function toDisplayTitle(doc: RagDocumentRecord): string {
   const metadata = parseRagDocumentMetadata(doc.metadata);
   const trimmedTitle = metadata.title?.trim();
@@ -150,174 +66,6 @@ function toDisplayTitle(doc: RagDocumentRecord): string {
   }
 
   return doc.doc_id;
-}
-
-function buildDocumentDisplayInfo(doc: DocumentRow): DocumentDisplayInfo {
-  const metadata = parseRagDocumentMetadata(doc.metadata);
-  const breadcrumbSubtitle =
-    metadata.breadcrumb && metadata.breadcrumb.length > 0
-      ? metadata.breadcrumb.join(" / ")
-      : undefined;
-  const trimmedSubtitle = metadata.subtitle?.trim();
-  const subtitle = trimmedSubtitle || breadcrumbSubtitle;
-  const previewImageUrl = metadata.preview_image_url?.trim() || undefined;
-  const teaserText = metadata.teaser_text?.trim() || undefined;
-  const iconEmoji = metadata.icon_emoji?.trim() || undefined;
-  const iconImageUrl = metadata.icon_image_url?.trim() || undefined;
-
-  return {
-    metadata,
-    subtitle,
-    previewImageUrl,
-    iconEmoji,
-    iconImageUrl,
-    teaserText,
-  };
-}
-
-const PREVIEW_TEXT_LIMIT = 420;
-
-function buildPreviewSnippet(text?: string): string | undefined {
-  if (!text) {
-    return undefined;
-  }
-
-  const normalized = text.replaceAll(/\s+/g, " ").trim();
-  if (!normalized) {
-    return undefined;
-  }
-
-  return normalized.length <= PREVIEW_TEXT_LIMIT
-    ? normalized
-    : `${normalized.slice(0, PREVIEW_TEXT_LIMIT).trim()}…`;
-}
-
-type DocumentPreviewOverlayProps = {
-  doc: DocumentRow;
-  info: DocumentDisplayInfo;
-};
-
-function DocumentPreviewOverlay({ doc, info }: DocumentPreviewOverlayProps) {
-  const snippet = buildPreviewSnippet(info.teaserText);
-  const hasImagePreview = Boolean(info.previewImageUrl);
-  const hasSnippet = Boolean(snippet);
-
-  if (!hasImagePreview && !hasSnippet) {
-    return (
-      <div className={styles.previewOverlay}>
-        <p className={styles.previewSubtitle}>No preview available.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className={styles.previewOverlay}>
-      {hasImagePreview ? (
-        <>
-          <div className={styles.previewImageWrap}>
-            <img
-              src={info.previewImageUrl}
-              alt={doc.displayTitle}
-              className={styles.previewImageFull}
-              loading="lazy"
-            />
-          </div>
-          <div className="space-y-1">
-            <p className={styles.previewTitle}>{doc.displayTitle}</p>
-            {info.subtitle ? (
-              <p className={styles.previewSubtitle}>{info.subtitle}</p>
-            ) : null}
-          </div>
-        </>
-      ) : (
-        <div className="space-y-2">
-          <p className={styles.previewTitle}>{doc.displayTitle}</p>
-          <p className="admin-doc-preview-overlay-body">{snippet}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-type DocumentPreviewThumbnailProps = {
-  doc: DocumentRow;
-  info: DocumentDisplayInfo;
-};
-
-function DocumentPreviewThumbnail({
-  doc,
-  info,
-}: DocumentPreviewThumbnailProps) {
-  const [coverFailed, setCoverFailed] = useState(false);
-  const [iconFailed, setIconFailed] = useState(false);
-  const slot = pickDocumentPreviewSlot({
-    previewImageUrl: coverFailed ? undefined : info.previewImageUrl,
-    iconEmoji: info.iconEmoji,
-    iconImageUrl: iconFailed ? undefined : info.iconImageUrl,
-  });
-
-  useEffect(() => {
-    setCoverFailed(false);
-  }, [doc.doc_id, info.previewImageUrl]);
-
-  useEffect(() => {
-    setIconFailed(false);
-  }, [doc.doc_id, info.iconImageUrl]);
-
-  const placeholderIcon = (
-    <FiFileText
-      aria-hidden="true"
-      className="text-lg text-[color:var(--ai-text-muted)]"
-    />
-  );
-
-  const renderSlot = () => {
-    switch (slot.type) {
-      case "previewImage":
-        if (!slot.value) {
-          break;
-        }
-        return (
-          <img
-            src={slot.value}
-            alt={doc.displayTitle}
-            className="h-full w-full object-cover"
-            loading="lazy"
-            onError={() => setCoverFailed(true)}
-          />
-        );
-      case "notionEmoji":
-        return (
-          <span className="text-2xl leading-tight">{slot.value ?? ""}</span>
-        );
-      case "iconImage":
-        if (!slot.value) {
-          break;
-        }
-        return (
-          <img
-            src={slot.value}
-            alt={`${doc.displayTitle} icon`}
-            className="h-full w-full object-contain"
-            loading="lazy"
-            onError={() => setIconFailed(true)}
-          />
-        );
-      default:
-        return placeholderIcon;
-    }
-
-    return placeholderIcon;
-  };
-
-  return (
-    <div className="flex justify-center">
-      <div className={styles.thumbnailGroup}>
-        <div className={styles.thumbnailBox}>{renderSlot()}</div>
-        <DocumentPreviewOverlay doc={doc} info={info} />
-      </div>
-    </div>
-  );
 }
 
 export default function AdminDocumentsPage({
@@ -372,49 +120,6 @@ export default function AdminDocumentsPage({
     };
   }, [router.events]);
 
-  const activeFilters = useMemo(() => {
-    const filtersList: ActiveFilterDescriptor[] = [];
-    const pushFilter = (
-      label: string,
-      value: string,
-      displayOverride?: string,
-      fullOverride?: string,
-    ) => {
-      const trimmed = value.trim();
-      if (!trimmed) {
-        return;
-      }
-      const displayValue = displayOverride ?? trimmed;
-      const fullValue = fullOverride ?? trimmed;
-      filtersList.push({
-        display: `${label}=${displayValue}`,
-        full: `${label}=${fullValue}`,
-      });
-    };
-
-    if (trimmedQuery) {
-      pushFilter("Search", trimmedQuery, `"${trimmedQuery}"`, trimmedQuery);
-    }
-    if (docType) {
-      pushFilter("Doc Type", docType);
-    }
-    if (personaType) {
-      pushFilter("Persona", personaType);
-    }
-    if (sourceType) {
-      pushFilter("Source", sourceType);
-    }
-    if (isPublic) {
-      const visibility = isPublic === "true" ? "Public" : "Private";
-      pushFilter("Visibility", visibility, visibility);
-    }
-    if (statusFilter.length > 0) {
-      pushFilter("Status", statusFilter.join(", "));
-    }
-
-    return filtersList;
-  }, [docType, isPublic, personaType, sourceType, statusFilter, trimmedQuery]);
-
   const isFilterDirty = useMemo(
     () =>
       trimmedQuery !== search ||
@@ -438,219 +143,6 @@ export default function AdminDocumentsPage({
       defaultStatus,
     ],
   );
-
-  const FILTER_TOKEN_LIMIT = 3;
-  const visibleFilters = activeFilters.slice(0, FILTER_TOKEN_LIMIT);
-  const overflowFilters = activeFilters.slice(FILTER_TOKEN_LIMIT);
-  const overflowCount = overflowFilters.length;
-  const overflowTitle = overflowFilters
-    .map((filter) => filter.full)
-    .join(" · ");
-
-  const columns = useMemo<DataTableColumn<DocumentRow>[]>(() => {
-    return [
-      {
-        header: <span className="sr-only">Preview</span>,
-        render: (doc) => {
-          const info = buildDocumentDisplayInfo(doc);
-          return <DocumentPreviewThumbnail doc={doc} info={info} />;
-        },
-        size: "xs",
-        width: "56px",
-        className: "px-2",
-        skeletonWidth: "32px",
-      },
-      {
-        header: "Title",
-        render: (doc) => {
-          const info = buildDocumentDisplayInfo(doc);
-          const docType = doc.metadata?.doc_type;
-          const persona = doc.metadata?.persona_type;
-          const visibility =
-            typeof doc.metadata?.is_public === "boolean"
-              ? doc.metadata.is_public
-                ? "Public"
-                : "Private"
-              : null;
-          const metaBits = [docType, persona, visibility].filter(Boolean);
-          return (
-            <div className="flex flex-col gap-1 min-w-0">
-              <div className="flex items-center gap-1 min-w-0 group">
-                <Link
-                  href={`/admin/documents/${encodeURIComponent(doc.doc_id)}`}
-                  className={cn(
-                    "font-semibold text-[color:var(--ai-text)] transition hover:underline focus-visible:underline",
-                    styles.titlePrimary,
-                  )}
-                  title={doc.displayTitle}
-                >
-                  {doc.displayTitle}
-                </Link>
-                <FiChevronRight
-                  aria-hidden="true"
-                  className="text-[color:var(--ai-text-muted)] opacity-0 transition duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-                />
-              </div>
-              <p
-                className={styles.titleSecondary}
-                title={info.subtitle ?? doc.doc_id}
-              >
-                {info.subtitle ?? ""}
-              </p>
-              {metaBits.length > 0 ? (
-                <p className="text-xs text-[color:var(--ai-text-muted)]">
-                  {metaBits.join(" · ")}
-                </p>
-              ) : null}
-            </div>
-          );
-        },
-        className: "min-w-[340px] text-[color:var(--ai-text-muted)]",
-        size: "sm",
-        skeletonWidth: "70%",
-      },
-      {
-        header: "Source",
-        render: (doc) => {
-          const info = buildDocumentDisplayInfo(doc);
-          return (
-            <div className="flex flex-col items-start gap-1 text-xs">
-              {info.metadata.source_type ? (
-                <span className="inline-flex items-center rounded-full border border-[color:var(--ai-role-border-subtle)] bg-[var(--ai-role-surface-1)] px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-[0.08em] text-[color:var(--ai-text-muted)]">
-                  {info.metadata.source_type}
-                </span>
-              ) : (
-                <span className="text-[color:var(--ai-text-muted)]">—</span>
-              )}
-              {doc.source_url ? (
-                <a
-                  href={doc.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block w-full max-w-full truncate text-xs text-[color:var(--ai-text-muted)] hover:underline"
-                  title={doc.source_url}
-                >
-                  {formatSourceUrlForDisplay(doc.source_url)}
-                </a>
-              ) : (
-                <span className="text-[color:var(--ai-text-muted)]">—</span>
-              )}
-            </div>
-          );
-        },
-        size: "xs",
-        className: "text-[color:var(--ai-text-muted)]",
-        skeletonWidth: "45%",
-      },
-      {
-        header: "Identifiers",
-        render: (doc) => (
-          <DocumentIdCell
-            canonicalId={doc.doc_id}
-            rawId={doc.raw_doc_id ?? doc.metadata?.raw_doc_id ?? null}
-            compact
-            hideLabel
-            hideRawStatusIcon
-          />
-        ),
-        size: "xs",
-        width: "140px",
-        className: "max-w-[160px] min-w-[120px]",
-        skeletonWidth: "40%",
-      },
-      {
-        header: "Status",
-        render: (doc) =>
-          doc.status ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className={styles.statusCell}>
-                  <StatusPill variant={getStatusPillVariant(doc.status)}>
-                    {formatStatusLabel(doc.status)}
-                  </StatusPill>
-                  <span className={styles.statusMetaText}>
-                    {doc.status === "missing" && doc.missing_detected_at
-                      ? `Since ${new Date(doc.missing_detected_at).toLocaleDateString()}`
-                      : `Fetch: ${doc.last_fetch_status ?? "—"}`}
-                  </span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <div className="space-y-1 text-xs">
-                  <p>
-                    {isRetrievalEligible(doc.status)
-                      ? "Included in retrieval"
-                      : "Excluded from retrieval"}
-                  </p>
-                  <p className="opacity-70">
-                    {(doc.raw_doc_id ?? doc.metadata?.raw_doc_id)
-                      ? "Raw ID available"
-                      : "No raw ID"}
-                  </p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            "—"
-          ),
-        align: "left",
-        width: "140px",
-        size: "xs",
-        className: "min-w-[140px]",
-        skeletonWidth: "35%",
-      },
-      {
-        header: "Last Sync",
-        render: (doc) =>
-          doc.last_sync_success_at ? (
-            <ClientSideDate value={doc.last_sync_success_at} />
-          ) : (
-            <span className={styles.statusMetaText}>Never</span>
-          ),
-        variant: "muted",
-        size: "xs",
-        width: "130px",
-        className: "min-w-[130px]",
-        skeletonWidth: "50%",
-      },
-      {
-        header: "Last Ingested",
-        render: (doc) =>
-          doc.last_ingested_at ? (
-            <ClientSideDate value={doc.last_ingested_at} />
-          ) : (
-            "—"
-          ),
-        variant: "muted",
-        size: "xs",
-        width: "140px",
-        className: "min-w-[140px] text-[color:var(--ai-text-muted)]",
-        skeletonWidth: "55%",
-      },
-      {
-        header: "Chunks",
-        render: (doc) => {
-          const rawValue = doc.chunk_count ?? 0;
-          const hasChunks =
-            typeof doc.chunk_count === "number" && doc.chunk_count > 0;
-          return (
-            <span
-              title={`Chunks: ${doc.chunk_count ?? 0}`}
-              className="inline-flex min-w-[40px] justify-end"
-            >
-              {hasChunks ? rawValue.toLocaleString() : "—"}
-            </span>
-          );
-        },
-        variant: "numeric",
-        align: "right",
-        width: "90px",
-        size: "xs",
-        className: `text-[color:var(--ai-text-muted)] ${styles.cellNumeric}`,
-        skeletonWidth: "25%",
-      },
-    ];
-  }, []);
 
   const totalPages =
     pageSize > 0 ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
@@ -785,209 +277,23 @@ export default function AdminDocumentsPage({
         >
           <div className={cn("mb-6", styles.pageFlow)}>
             <IngestionSubNav />
-            <section className="ai-card space-y-4 p-5">
-              <CardHeader className="gap-1">
-                <CardTitle icon={<FiSearch aria-hidden="true" />}>
-                  Search & Filters
-                </CardTitle>
-                <CardDescription>
-                  Find documents by ID, type, persona, visibility, source, or
-                  status.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3 px-5 py-4">
-                <form
-                  className="grid grid-cols-1 gap-3 md:grid-cols-12 md:gap-4"
-                  onSubmit={handleSearchSubmit}
-                >
-                  <div className="md:col-span-3">
-                    <Label htmlFor="search">Search</Label>
-                    <Input
-                      id="search"
-                      placeholder="Title or doc_id"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label>Doc Type</Label>
-                    <Select
-                      value={docType}
-                      onValueChange={(value) => setDocType(value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Any" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Any</SelectItem>
-                        {DOC_TYPE_OPTIONS.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label>Persona</Label>
-                    <Select
-                      value={personaType}
-                      onValueChange={(value) => setPersonaType(value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Any" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Any</SelectItem>
-                        {PERSONA_TYPE_OPTIONS.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label>Source</Label>
-                    <Select
-                      value={sourceType}
-                      onValueChange={(value) => setSourceType(value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Any" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Any</SelectItem>
-                        {SOURCE_TYPE_OPTIONS.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="md:col-span-1">
-                    <Label>Visibility</Label>
-                    <Select
-                      value={isPublic}
-                      onValueChange={(value) => setIsPublic(value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Any" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Any</SelectItem>
-                        <SelectItem value="true">Public</SelectItem>
-                        <SelectItem value="false">Private</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label id="status-filter-label">Status</Label>
-                    <div
-                      className="mt-2 flex flex-wrap gap-1.5"
-                      role="group"
-                      aria-labelledby="status-filter-label"
-                    >
-                      {(
-                        ["active", "missing", "archived", "soft_deleted"] as const
-                      ).map((value) => {
-                        const option = { value, label: formatStatusLabel(value) };
-                        const isChecked = statusFilter.includes(option.value);
-                        return (
-                          <button
-                            key={option.value}
-                            type="button"
-                            aria-pressed={isChecked}
-                            onClick={() => {
-                              setStatusFilter((prev) => {
-                                if (prev.includes(option.value)) {
-                                  if (prev.length <= 1) {
-                                    return prev;
-                                  }
-                                  return prev.filter((v) => v !== option.value);
-                                }
-                                return Array.from(new Set([...prev, option.value]));
-                              });
-                            }}
-                            className={cn(
-                              "ai-selectable rounded-full px-2.5 py-1 t-eyebrow cursor-pointer transition focus-ring",
-                              isChecked
-                                ? "ai-selectable--active text-[color:var(--ai-text-strong)]"
-                                : "ai-selectable--hoverable text-[color:var(--ai-text-muted)]",
-                            )}
-                          >
-                            {option.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div className="md:col-span-12 flex justify-end gap-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={resetFilters}
-                    >
-                      Reset
-                    </Button>
-                    <Button type="submit" disabled={!isFilterDirty}>
-                      Apply
-                    </Button>
-                  </div>
-                </form>
-                {activeFilters.length > 0 ? (
-                  <div
-                    className={cn(
-                      "flex flex-wrap items-center gap-2 text-xs text-[color:var(--ai-text-muted)]",
-                      styles.activeFilters,
-                    )}
-                    aria-live="polite"
-                  >
-                    <span className="font-semibold text-[color:var(--ai-text-muted)]">
-                      Active filters:
-                    </span>
-                    <div className={styles.activeFiltersTokens}>
-                      {visibleFilters.map((filter, index) => (
-                        <span
-                          key={`${filter.display}-${index}`}
-                          className={styles.activeFilterToken}
-                        >
-                          {index > 0 ? (
-                            <span className="text-[color:var(--ai-text-muted)]">
-                              ·
-                            </span>
-                          ) : null}
-                          <span
-                            className={styles.activeFilterLabel}
-                            title={filter.full}
-                          >
-                            {filter.display}
-                          </span>
-                        </span>
-                      ))}
-                      {overflowCount > 0 ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="flex items-center gap-1">
-                              <span className="text-[color:var(--ai-text-muted)]">
-                                ·
-                              </span>
-                              <span className="max-w-[8ch] truncate">
-                                +{overflowCount} more
-                              </span>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top">
-                            {overflowTitle}
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : null}
-              </CardContent>
-            </section>
+            <DocumentsFilterPanel
+              query={query}
+              onQueryChange={setQuery}
+              docType={docType}
+              onDocTypeChange={setDocType}
+              personaType={personaType}
+              onPersonaTypeChange={setPersonaType}
+              sourceType={sourceType}
+              onSourceTypeChange={setSourceType}
+              isPublic={isPublic}
+              onIsPublicChange={setIsPublic}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              isFilterDirty={isFilterDirty}
+              onSubmit={handleSearchSubmit}
+              onReset={resetFilters}
+            />
 
             <section className="ai-card space-y-4 p-5">
               <CardHeader className="gap-1">
@@ -1013,25 +319,13 @@ export default function AdminDocumentsPage({
                     </div>
                   </div>
                 ) : hasDocuments ? (
-                  <DataTable
-                    className={styles.tableShell}
-                    columns={columns}
-                    data={documents}
-                    rowKey={(doc) => doc.doc_id}
-                    stickyHeader
-                    rowClassName={cn(
-                      styles.rowInteractive,
-                      styles.rowHover,
-                      styles.rowFocusVisible,
-                    )}
-                    pagination={{
-                      currentPage: page,
-                      totalPages,
-                      onPageChange: handlePageChange,
-                      summaryText,
-                    }}
-                    paginationClassName={styles.tableFooter}
+                  <DocumentsTable
+                    documents={documents}
+                    page={page}
+                    totalPages={totalPages}
+                    summaryText={summaryText}
                     isLoading={isNavigating}
+                    onPageChange={handlePageChange}
                   />
                 ) : (
                   emptyStatePanel

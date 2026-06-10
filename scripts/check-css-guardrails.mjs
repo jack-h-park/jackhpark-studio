@@ -16,6 +16,7 @@ const featureCssFiles = [
   "components/admin/ingestion/SystemHealthSection.module.css",
   "components/admin/layout/admin-ingestion-shell.module.css",
   "components/admin/workflow/WorkflowStep.module.css",
+  "components/ui/filter-bar.module.css",
   "components/chat/settings/ChatAdvancedSettingsDrawer.module.css",
   "components/chat/settings/PresetEffectsSummary.module.css",
   "components/chat/settings/SettingsSectionOptionalOverrides.module.css",
