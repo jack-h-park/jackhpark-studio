@@ -24,7 +24,7 @@ import {
   type RagDocumentMetadata,
   stripDocIdentifierFields,
 } from "./metadata";
-import { markSuccess } from "./ragDocumentLifecycle";
+import { markSuccess } from "./rag-document-lifecycle";
 
 const CHUNK_MAX_TOKENS = 450;
 const CHUNK_OVERLAP_TOKENS = 75;

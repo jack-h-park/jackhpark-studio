@@ -23,7 +23,7 @@ import {
   type IngestProgressStep,
   type IngestReporter,
 } from "../rag/pipeline";
-import { markAttempt, markFetchFailure } from "../rag/ragDocumentLifecycle";
+import { markAttempt, markFetchFailure } from "../rag/rag-document-lifecycle";
 import {
   deriveNotionDocIdentifiers,
   prepareNotionPageDocument,

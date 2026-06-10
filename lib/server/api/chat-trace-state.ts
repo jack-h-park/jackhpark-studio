@@ -3,7 +3,7 @@ import type {
   ChatGuardrailConfig,
   RoutedQuestion,
 } from "@/lib/server/chat-guardrails";
-import type { ChainRunContext } from "@/lib/server/langchain/runnableConfig";
+import type { ChainRunContext } from "@/lib/server/langchain/runnable-config";
 import type { buildTelemetryConfigSnapshot } from "@/lib/server/telemetry/telemetry-config-snapshot";
 import { emitAnswerGeneration } from "@/lib/server/telemetry/langfuse-generations";
 import {

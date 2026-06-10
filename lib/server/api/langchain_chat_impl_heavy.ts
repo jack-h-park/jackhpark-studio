@@ -66,7 +66,7 @@ import {
   loadChatModelSettings,
 } from "@/lib/server/chat-settings";
 import { createRequestAbortSignal } from "@/lib/server/langchain/abort";
-import { type ChainRunContext } from "@/lib/server/langchain/runnableConfig";
+import { type ChainRunContext } from "@/lib/server/langchain/runnable-config";
 import { escapeForPromptTemplate } from "@/lib/server/langchain/stream-chunk";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";

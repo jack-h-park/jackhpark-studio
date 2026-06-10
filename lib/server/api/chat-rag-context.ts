@@ -38,14 +38,10 @@ import {
   pickAltQueryType,
 } from "@/lib/server/langchain/multi-query";
 import {
-  buildRagRetrievalChain,
   type RagChainOutput,
-} from "@/lib/server/langchain/ragRetrievalChain";
-import {
-  buildChainRunnableConfig,
-  type ChainRunContext,
-  makeRunName,
-} from "@/lib/server/langchain/runnableConfig";
+  runRagRetrieval,
+} from "@/lib/server/langchain/rag-retrieval-chain";
+import { type ChainRunContext } from "@/lib/server/langchain/runnable-config";
 import {
   type AutoDecisionMetrics,
   AutoPassTimeoutError,
@@ -616,12 +612,7 @@ export async function computeRagContextAndCitations({
       try {
         const runRetrieval: RunRetrievalPass = async (flags, stageLabel) => {
           markStage?.(stageLabel);
-          const ragChain = buildRagRetrievalChain();
-          const ragChainRunnableConfig = buildChainRunnableConfig({
-            ...chainRunContext,
-            stage: "rag",
-          });
-          return ragChain.invoke(
+          return runRagRetrieval(
             {
               guardrails,
               question: normalizedQuestion.normalized,
@@ -650,11 +641,7 @@ export async function computeRagContextAndCitations({
               candidateK,
               updateTrace: updateTrace ?? undefined,
             },
-            {
-              ...ragChainRunnableConfig,
-              runName: makeRunName("rag", "root"),
-              signal: abortSignal ?? undefined,
-            },
+            { signal: abortSignal },
           );
         };
 

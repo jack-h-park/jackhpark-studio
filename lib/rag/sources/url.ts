@@ -8,7 +8,7 @@ import {
   DEFAULT_INGEST_PERSONA_TYPE,
   mergeRagDocumentMetadata,
 } from "../metadata";
-import { markAttempt, markFetchFailure } from "../ragDocumentLifecycle";
+import { markAttempt, markFetchFailure } from "../rag-document-lifecycle";
 import { buildUrlRagDocumentMetadata } from "../url-metadata";
 
 /**

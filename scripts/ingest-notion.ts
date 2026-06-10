@@ -22,7 +22,7 @@ import {
 import {
   markAttempt,
   markFetchFailure,
-} from "../lib/rag/ragDocumentLifecycle";
+} from "../lib/rag/rag-document-lifecycle";
 import {
   deriveNotionDocIdentifiers,
   prepareNotionPageDocument,
