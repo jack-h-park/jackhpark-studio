@@ -37,7 +37,10 @@ import {
   mergeCandidates,
   pickAltQueryType,
 } from "@/lib/server/langchain/multi-query";
-import { buildRagRetrievalChain } from "@/lib/server/langchain/ragRetrievalChain";
+import {
+  buildRagRetrievalChain,
+  type RagChainOutput,
+} from "@/lib/server/langchain/ragRetrievalChain";
 import {
   buildChainRunnableConfig,
   type ChainRunContext,
@@ -50,6 +53,7 @@ import {
   buildPassMetrics,
   evaluateAutoTrigger,
   isWeakRetrieval,
+  type MultiQuerySkipReason,
   type RagDecisionTelemetry,
   resolveAutoCapability,
   selectBetterRetrieval,
@@ -105,6 +109,15 @@ export interface RagTelemetryCallbacks {
   cacheMeta: ResponseCacheMeta;
 }
 
+/**
+ * Caller-provided hooks. Both are optional so the pipeline stays usable
+ * outside an HTTP request (batch jobs, tests).
+ */
+export interface RagPipelineHooks {
+  markStage?: (stage: string, extra?: Record<string, unknown>) => void;
+  abortSignal?: AbortSignal | null;
+}
+
 export interface ComputeRagContextParams {
   request: {
     guardrails: ChatGuardrailConfig;
@@ -122,15 +135,14 @@ export interface ComputeRagContextParams {
     includeVerboseDetails: boolean;
     includeSelectionTelemetry: boolean;
     env: AppEnv;
-    abortSignal?: AbortSignal | null;
     chainRunContext: ChainRunContext;
-    markStage: (stage: string, extra?: Record<string, unknown>) => void;
     safeMode: boolean;
     forcedFlags?: { reverseRag?: boolean; hyde?: boolean };
     ragFlags: RagExecutionFlags;
   };
   infra: RagInfrastructure;
   telemetry: RagTelemetryCallbacks;
+  hooks?: RagPipelineHooks;
 }
 
 export interface ComputeRagContextResult {
@@ -141,6 +153,308 @@ export interface ComputeRagContextResult {
   decisionSignature?: RagDecisionSignature;
   decisionTelemetry?: RagDecisionTelemetry;
   retrievalLatencyMs: number | null;
+}
+
+type RetrievalPassFlags = {
+  reverseRagEnabled: boolean;
+  hydeEnabled: boolean;
+};
+
+type RunRetrievalPass = (
+  flags: RetrievalPassFlags,
+  stageLabel: string,
+) => Promise<RagChainOutput>;
+
+async function raceWithAutoTimeout(
+  run: () => Promise<RagChainOutput>,
+  timeoutMs: number,
+): Promise<RagChainOutput> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new AutoPassTimeoutError()), timeoutMs);
+    });
+    return await Promise.race([run(), timeoutPromise]);
+  } finally {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+type BaseAndAutoPassesResult = {
+  baseResult: RagChainOutput;
+  autoResult: RagChainOutput | null;
+  selectedResult: RagChainOutput;
+  autoDecisionMetrics: AutoDecisionMetrics;
+  autoFailureReason: "timeout" | "error" | null;
+  baseWeak: boolean;
+  firedRewrite: boolean;
+  firedHyde: boolean;
+};
+
+/**
+ * Base retrieval pass, plus the time-boxed auto pass (rewrite/HyDE) when the
+ * base result looks weak. Auto failures fall back to the base result; only an
+ * external abort propagates.
+ */
+async function runBaseAndAutoPasses({
+  runRetrieval,
+  forcedFlags,
+  guardrails,
+  finalK,
+  reverseRagDecision,
+  hydeDecision,
+  hydeMode,
+  rewriteMode,
+  ragMultiQueryMode,
+  multiQueryEnabled,
+  abortSignal,
+}: {
+  runRetrieval: RunRetrievalPass;
+  forcedFlags?: { reverseRag?: boolean; hyde?: boolean };
+  guardrails: ChatGuardrailConfig;
+  finalK: number;
+  reverseRagDecision: ReturnType<typeof resolveAutoCapability>;
+  hydeDecision: ReturnType<typeof resolveAutoCapability>;
+  hydeMode: RagAutoMode;
+  rewriteMode: RagAutoMode;
+  ragMultiQueryMode: RagMultiQueryMode;
+  multiQueryEnabled: boolean;
+  abortSignal?: AbortSignal | null;
+}): Promise<BaseAndAutoPassesResult> {
+  const baseFlags = {
+    reverseRagEnabled: forcedFlags?.reverseRag ?? false,
+    hydeEnabled: forcedFlags?.hyde ?? false,
+  };
+  const baseStart = Date.now();
+  const baseResult = await runRetrieval(baseFlags, "before-rag-retrieve");
+  const baseMetrics = buildPassMetrics(
+    "base",
+    baseResult.contextResult,
+    baseFlags.hydeEnabled,
+    baseFlags.reverseRagEnabled,
+    Date.now() - baseStart,
+  );
+  // The auto pass shares the multi-query latency budget when both are enabled.
+  const autoPassTimeoutMs = multiQueryEnabled
+    ? Math.min(AUTO_PASS_TIMEOUT_MS, MULTI_QUERY_TIMEOUT_MS)
+    : AUTO_PASS_TIMEOUT_MS;
+  const autoDecisionMetrics: AutoDecisionMetrics = {
+    enabledHydeMode: hydeMode,
+    enabledRewriteMode: rewriteMode,
+    enabledMultiQueryMode: ragMultiQueryMode,
+    autoTriggered: false,
+    winner: "base",
+    base: baseMetrics,
+  };
+  let selectedResult = baseResult;
+  let autoWinner: "base" | "auto" = "base";
+  let autoResult: RagChainOutput | null = null;
+  let autoFailureReason: "timeout" | "error" | null = null;
+  const baseWeak = isWeakRetrieval(
+    baseResult.contextResult,
+    guardrails.similarityThreshold,
+    finalK,
+  );
+  const suppressAuto = shouldSuppressAuto(guardrails);
+  const { shouldAutoRewrite, shouldAutoHyde } = evaluateAutoTrigger({
+    forcedFlags,
+    reverseRagDecision,
+    hydeDecision,
+    baseWeak,
+    suppressAuto,
+  });
+
+  if ((shouldAutoRewrite || shouldAutoHyde) && !abortSignal?.aborted) {
+    const autoFlags = {
+      reverseRagEnabled: shouldAutoRewrite ? true : baseFlags.reverseRagEnabled,
+      hydeEnabled: shouldAutoHyde ? true : baseFlags.hydeEnabled,
+    };
+    autoDecisionMetrics.autoTriggered = true;
+    const autoStart = Date.now();
+    try {
+      autoResult = await raceWithAutoTimeout(
+        () => runRetrieval(autoFlags, "auto-rag-retrieve"),
+        autoPassTimeoutMs,
+      );
+      autoDecisionMetrics.auto = buildPassMetrics(
+        "auto",
+        autoResult.contextResult,
+        autoFlags.hydeEnabled,
+        autoFlags.reverseRagEnabled,
+        Date.now() - autoStart,
+      );
+      autoWinner = selectBetterRetrieval(
+        baseResult.contextResult,
+        autoResult.contextResult,
+      );
+      selectedResult = autoWinner === "auto" ? autoResult : baseResult;
+    } catch (err) {
+      if (err instanceof AutoPassTimeoutError) {
+        autoFailureReason = "timeout";
+      } else if (abortSignal?.aborted) {
+        throw err;
+      } else {
+        autoFailureReason = "error";
+      }
+      autoDecisionMetrics.auto = buildFailedAutoMetrics(
+        autoFlags.hydeEnabled,
+        autoFlags.reverseRagEnabled,
+        Date.now() - autoStart,
+      );
+      autoWinner = "base";
+      selectedResult = baseResult;
+    }
+    autoDecisionMetrics.winner = autoWinner;
+  }
+
+  return {
+    baseResult,
+    autoResult,
+    selectedResult,
+    autoDecisionMetrics,
+    autoFailureReason,
+    baseWeak,
+    firedRewrite: shouldAutoRewrite,
+    firedHyde: shouldAutoHyde,
+  };
+}
+
+type MultiQueryOutcome = {
+  contextResult: ContextWindowResult;
+  altQueryType: ReturnType<typeof pickAltQueryType>;
+};
+
+/**
+ * Merge base and auto candidates into a fresh context window when multi-query
+ * applies; otherwise keep the winning pass's context. Records the multi-query
+ * decision on the auto metrics.
+ */
+function applyMultiQuery({
+  passes,
+  multiQueryEnabled,
+  guardrails,
+  includeVerboseDetails,
+  includeSelectionTelemetry,
+  abortSignal,
+}: {
+  passes: BaseAndAutoPassesResult;
+  multiQueryEnabled: boolean;
+  guardrails: ChatGuardrailConfig;
+  includeVerboseDetails: boolean;
+  includeSelectionTelemetry: boolean;
+  abortSignal?: AbortSignal | null;
+}): MultiQueryOutcome {
+  const { baseResult, autoResult, selectedResult, autoDecisionMetrics } = passes;
+  const altQueryType = pickAltQueryType({
+    firedRewrite: passes.firedRewrite,
+    firedHyde: passes.firedHyde,
+    rewriteQuery: autoResult?.preRetrieval?.rewrittenQuery,
+    hydeQuery: autoResult?.preRetrieval?.embeddingTarget,
+  });
+  let skippedReason: MultiQuerySkipReason | undefined;
+  if (!multiQueryEnabled) {
+    skippedReason = "not_enabled";
+  } else if (!passes.baseWeak) {
+    skippedReason = "not_weak";
+  } else if (altQueryType === "none") {
+    skippedReason = "no_alt";
+  } else if (abortSignal?.aborted) {
+    skippedReason = "aborted";
+  } else if (!autoResult) {
+    skippedReason = passes.autoFailureReason ?? "error";
+  }
+  let altQueryHash: string | null = null;
+  const shouldRunMultiQuery =
+    multiQueryEnabled &&
+    passes.baseWeak &&
+    altQueryType !== "none" &&
+    autoResult &&
+    !abortSignal?.aborted;
+
+  autoDecisionMetrics.multiQuery = {
+    enabled: multiQueryEnabled,
+    ran: false,
+    altType: altQueryType,
+    altQueryHash,
+    mergedCandidates: baseResult.rankedDocs.length,
+    baseCandidates: baseResult.rankedDocs.length,
+    altCandidates: autoResult?.rankedDocs?.length ?? 0,
+    tookMsAlt: autoDecisionMetrics.auto?.tookMs,
+    skippedReason,
+  };
+
+  if (shouldRunMultiQuery && autoResult) {
+    altQueryHash = hashPayload({
+      altType: altQueryType,
+      query: autoResult.preRetrieval.embeddingTarget,
+    });
+    const mergedCandidates = mergeCandidates(
+      baseResult.rankedDocs,
+      autoResult.rankedDocs,
+    );
+    const mergedContext = buildContextWindow(mergedCandidates, guardrails, {
+      includeVerboseDetails,
+      includeSelectionMetadata: includeSelectionTelemetry,
+    });
+    autoDecisionMetrics.multiQuery = {
+      ...autoDecisionMetrics.multiQuery,
+      ran: true,
+      mergedCandidates: mergedCandidates.length,
+      baseCandidates: baseResult.rankedDocs.length,
+      altCandidates: autoResult.rankedDocs.length,
+      altQueryHash,
+    };
+    return { contextResult: mergedContext, altQueryType };
+  }
+
+  return { contextResult: selectedResult.contextResult, altQueryType };
+}
+
+function buildDecisionOutputs({
+  autoOrMultiEnabled,
+  altQueryType,
+  autoResult,
+  autoDecisionMetrics,
+  forcedFlags,
+}: {
+  autoOrMultiEnabled: boolean;
+  altQueryType: ReturnType<typeof pickAltQueryType>;
+  autoResult: RagChainOutput | null;
+  autoDecisionMetrics: AutoDecisionMetrics;
+  forcedFlags?: { reverseRag?: boolean; hyde?: boolean };
+}): {
+  decisionSignature?: RagDecisionSignature;
+  decisionTelemetry: RagDecisionTelemetry;
+} {
+  let altQueryHashForDecision: string | null = null;
+  if (autoOrMultiEnabled && altQueryType !== "none" && autoResult) {
+    const altQuery =
+      altQueryType === "rewrite"
+        ? autoResult.preRetrieval.rewrittenQuery
+        : autoResult.preRetrieval.embeddingTarget;
+    altQueryHashForDecision = altQuery ? hashPayload({ q: altQuery }) : null;
+  }
+  const decisionSignature = autoOrMultiEnabled
+    ? {
+        autoTriggered: autoDecisionMetrics.autoTriggered,
+        winner: autoDecisionMetrics.winner,
+        altType: autoDecisionMetrics.multiQuery?.altType ?? "none",
+        multiQueryRan: autoDecisionMetrics.multiQuery?.ran ?? false,
+        altQueryHash: altQueryHashForDecision,
+      }
+    : undefined;
+  const decisionTelemetry: RagDecisionTelemetry = {
+    autoTriggered: autoDecisionMetrics.autoTriggered,
+    winner: autoDecisionMetrics.winner,
+    altType: autoDecisionMetrics.multiQuery?.altType ?? "none",
+    multiQueryRan: autoDecisionMetrics.multiQuery?.ran ?? false,
+    skippedReason: autoDecisionMetrics.multiQuery?.skippedReason,
+    reason:
+      forcedFlags?.reverseRag || forcedFlags?.hyde ? "forced" : "weak_signal",
+  };
+  return { decisionSignature, decisionTelemetry };
 }
 
 export async function computeRagContextAndCitations({
@@ -160,9 +474,7 @@ export async function computeRagContextAndCitations({
     includeVerboseDetails,
     includeSelectionTelemetry,
     env,
-    abortSignal,
     chainRunContext,
-    markStage,
     safeMode = false,
     forcedFlags,
     ragFlags: {
@@ -194,12 +506,17 @@ export async function computeRagContextAndCitations({
     traceMetadata: _traceMetadata,
     cacheMeta,
   },
+  hooks: { markStage, abortSignal } = {},
 }: ComputeRagContextParams): Promise<ComputeRagContextResult> {
   const normalizedQuestion = normalizeQuestion(
     typeof routingDecision.question === "string"
       ? routingDecision.question
       : initialNormalizedQuestion.normalized,
   );
+  const autoOrMultiEnabled =
+    hydeMode === "auto" ||
+    rewriteMode === "auto" ||
+    ragMultiQueryMode === "auto";
   let contextResult = buildIntentContextFallback(
     routingDecision.intent,
     guardrails,
@@ -297,10 +614,7 @@ export async function computeRagContextAndCitations({
       const ragRootStartMs = Date.now();
       let ragRootMetadata: Record<string, unknown> | null = null;
       try {
-        const runRetrieval = async (
-          flags: { reverseRagEnabled: boolean; hydeEnabled: boolean },
-          stageLabel: string,
-        ) => {
+        const runRetrieval: RunRetrievalPass = async (flags, stageLabel) => {
           markStage?.(stageLabel);
           const ragChain = buildRagRetrievalChain();
           const ragChainRunnableConfig = buildChainRunnableConfig({
@@ -344,240 +658,52 @@ export async function computeRagContextAndCitations({
           );
         };
 
-        const baseFlags = {
-          reverseRagEnabled: forcedFlags?.reverseRag ?? false,
-          hydeEnabled: forcedFlags?.hyde ?? false,
-        };
-        const baseStart = Date.now();
-        const baseResult = await runRetrieval(baseFlags, "before-rag-retrieve");
-        const baseMetrics = buildPassMetrics(
-          "base",
-          baseResult.contextResult,
-          baseFlags.hydeEnabled,
-          baseFlags.reverseRagEnabled,
-          Date.now() - baseStart,
-        );
         const multiQueryEnabled =
           ragMultiQueryMode === "auto" && ragMultiQueryMaxQueries >= 2;
-        const autoPassTimeoutMs = multiQueryEnabled
-          ? Math.min(AUTO_PASS_TIMEOUT_MS, MULTI_QUERY_TIMEOUT_MS)
-          : AUTO_PASS_TIMEOUT_MS;
-        autoDecisionMetrics = {
-          enabledHydeMode: hydeMode,
-          enabledRewriteMode: rewriteMode,
-          enabledMultiQueryMode: ragMultiQueryMode,
-          autoTriggered: false,
-          winner: "base",
-          base: baseMetrics,
-        };
-        let selectedResult = baseResult;
-        let autoWinner: "base" | "auto" = "base";
-        let autoResult: typeof baseResult | null = null;
-        let autoFailureReason: "timeout" | "error" | null = null;
-        const baseWeak = isWeakRetrieval(
-          baseResult.contextResult,
-          guardrails.similarityThreshold,
-          finalK,
-        );
-        const suppressAuto = shouldSuppressAuto(guardrails);
-        // Auto Trigger Logic
-        const { shouldAutoRewrite, shouldAutoHyde } = evaluateAutoTrigger({
+
+        const passes = await runBaseAndAutoPasses({
+          runRetrieval,
           forcedFlags,
+          guardrails,
+          finalK,
           reverseRagDecision,
           hydeDecision,
-          baseWeak,
-          suppressAuto,
+          hydeMode,
+          rewriteMode,
+          ragMultiQueryMode,
+          multiQueryEnabled,
+          abortSignal,
         });
+        autoDecisionMetrics = passes.autoDecisionMetrics;
 
-        if ((shouldAutoRewrite || shouldAutoHyde) && !abortSignal?.aborted) {
-          const autoFlags = {
-            reverseRagEnabled: shouldAutoRewrite
-              ? true
-              : baseFlags.reverseRagEnabled,
-            hydeEnabled: shouldAutoHyde ? true : baseFlags.hydeEnabled,
-          };
-          autoDecisionMetrics.autoTriggered = true;
-          const autoStart = Date.now();
-          autoResult = null;
-          let timeoutId: ReturnType<typeof setTimeout> | null = null;
-          try {
-            const timeoutPromise = new Promise<never>((_, reject) => {
-              timeoutId = setTimeout(
-                () => reject(new AutoPassTimeoutError()),
-                autoPassTimeoutMs,
-              );
-            });
-            autoResult = await Promise.race([
-              runRetrieval(autoFlags, "auto-rag-retrieve"),
-              timeoutPromise,
-            ]);
-            if (timeoutId) {
-              clearTimeout(timeoutId);
-            }
-            const autoMetrics = buildPassMetrics(
-              "auto",
-              autoResult.contextResult,
-              autoFlags.hydeEnabled,
-              autoFlags.reverseRagEnabled,
-              Date.now() - autoStart,
-            );
-            autoDecisionMetrics.auto = autoMetrics;
-            autoWinner = selectBetterRetrieval(
-              baseResult.contextResult,
-              autoResult.contextResult,
-            );
-            selectedResult = autoWinner === "auto" ? autoResult : baseResult;
-          } catch (err) {
-            if (timeoutId) {
-              clearTimeout(timeoutId);
-            }
-            if (err instanceof AutoPassTimeoutError) {
-              autoFailureReason = "timeout";
-              autoDecisionMetrics.auto = buildFailedAutoMetrics(
-                autoFlags.hydeEnabled,
-                autoFlags.reverseRagEnabled,
-                Date.now() - autoStart,
-              );
-            } else if (abortSignal?.aborted) {
-              throw err;
-            } else {
-              autoFailureReason = "error";
-              autoDecisionMetrics.auto = buildFailedAutoMetrics(
-                autoFlags.hydeEnabled,
-                autoFlags.reverseRagEnabled,
-                Date.now() - autoStart,
-              );
-            }
-            autoWinner = "base";
-            selectedResult = baseResult;
-          }
-          autoDecisionMetrics.winner = autoWinner;
-        }
-
-        const altQueryType = pickAltQueryType({
-          firedRewrite: shouldAutoRewrite,
-          firedHyde: shouldAutoHyde,
-          rewriteQuery: autoResult?.preRetrieval?.rewrittenQuery,
-          hydeQuery: autoResult?.preRetrieval?.embeddingTarget,
+        const multiQuery = applyMultiQuery({
+          passes,
+          multiQueryEnabled,
+          guardrails,
+          includeVerboseDetails,
+          includeSelectionTelemetry,
+          abortSignal,
         });
-        let skippedReason:
-          | "not_enabled"
-          | "not_weak"
-          | "no_alt"
-          | "aborted"
-          | "timeout"
-          | "error"
-          | undefined;
-        if (!multiQueryEnabled) {
-          skippedReason = "not_enabled";
-        } else if (!baseWeak) {
-          skippedReason = "not_weak";
-        } else if (altQueryType === "none") {
-          skippedReason = "no_alt";
-        } else if (abortSignal?.aborted) {
-          skippedReason = "aborted";
-        } else if (!autoResult) {
-          skippedReason = autoFailureReason ?? "error";
-        }
-        let altQueryHash: string | null = null;
-        const shouldRunMultiQuery =
-          multiQueryEnabled &&
-          baseWeak &&
-          altQueryType !== "none" &&
-          autoResult &&
-          !abortSignal?.aborted;
+        contextResult = multiQuery.contextResult;
 
-        if (autoDecisionMetrics) {
-          autoDecisionMetrics.multiQuery = {
-            enabled: multiQueryEnabled,
-            ran: false,
-            altType: altQueryType,
-            altQueryHash,
-            mergedCandidates: baseResult.rankedDocs.length,
-            baseCandidates: baseResult.rankedDocs.length,
-            altCandidates: autoResult?.rankedDocs?.length ?? 0,
-            tookMsAlt: autoDecisionMetrics.auto?.tookMs,
-            skippedReason,
-          };
-        }
+        const decisions = buildDecisionOutputs({
+          autoOrMultiEnabled,
+          altQueryType: multiQuery.altQueryType,
+          autoResult: passes.autoResult,
+          autoDecisionMetrics,
+          forcedFlags,
+        });
+        decisionSignature = decisions.decisionSignature;
+        decisionTelemetry = decisions.decisionTelemetry;
 
-        if (shouldRunMultiQuery && autoResult) {
-          altQueryHash = hashPayload({
-            altType: altQueryType,
-            query: autoResult.preRetrieval.embeddingTarget,
-          });
-          const mergedCandidates = mergeCandidates(
-            baseResult.rankedDocs,
-            autoResult.rankedDocs,
-          );
-          const mergedContext = buildContextWindow(
-            mergedCandidates,
-            guardrails,
-            {
-              includeVerboseDetails,
-              includeSelectionMetadata: includeSelectionTelemetry,
-            },
-          );
-          contextResult = mergedContext;
-          if (autoDecisionMetrics?.multiQuery) {
-            autoDecisionMetrics.multiQuery = {
-              ...autoDecisionMetrics.multiQuery,
-              ran: true,
-              mergedCandidates: mergedCandidates.length,
-              baseCandidates: baseResult.rankedDocs.length,
-              altCandidates: autoResult.rankedDocs.length,
-              altQueryHash,
-            };
-          }
-        } else {
-          contextResult = selectedResult.contextResult;
-        }
-
-        const autoOrMultiEnabled =
-          hydeMode === "auto" ||
-          rewriteMode === "auto" ||
-          ragMultiQueryMode === "auto";
-        let altQueryHashForDecision: string | null = null;
-        if (autoOrMultiEnabled && altQueryType !== "none" && autoResult) {
-          const altQuery =
-            altQueryType === "rewrite"
-              ? autoResult.preRetrieval.rewrittenQuery
-              : autoResult.preRetrieval.embeddingTarget;
-          altQueryHashForDecision = altQuery
-            ? hashPayload({ q: altQuery })
-            : null;
-        }
-        if (autoOrMultiEnabled && autoDecisionMetrics) {
-          decisionSignature = {
-            autoTriggered: autoDecisionMetrics.autoTriggered,
-            winner: autoDecisionMetrics.winner,
-            altType: autoDecisionMetrics.multiQuery?.altType ?? "none",
-            multiQueryRan: autoDecisionMetrics.multiQuery?.ran ?? false,
-            altQueryHash: altQueryHashForDecision,
-          };
-        }
-        decisionTelemetry = autoDecisionMetrics
-          ? {
-              autoTriggered: autoDecisionMetrics.autoTriggered,
-              winner: autoDecisionMetrics.winner,
-              altType: autoDecisionMetrics.multiQuery?.altType ?? "none",
-              multiQueryRan: autoDecisionMetrics.multiQuery?.ran ?? false,
-              skippedReason: autoDecisionMetrics.multiQuery?.skippedReason,
-              reason:
-                forcedFlags?.reverseRag || forcedFlags?.hyde
-                  ? "forced"
-                  : "weak_signal",
-            }
-          : undefined;
-
-        if (autoDecisionMetrics && includeVerboseDetails) {
+        if (includeVerboseDetails) {
           ragLogger.debug(
             "[langchain_chat] rag auto decision",
             autoDecisionMetrics,
           );
         }
 
-        enhancementSummary = selectedResult.preRetrieval.enhancementSummary;
+        enhancementSummary = passes.selectedResult.preRetrieval.enhancementSummary;
         const droppedCount = contextResult.dropped ?? 0;
         const retrievedCount = contextResult.included.length + droppedCount;
         const retrievalUsed =
@@ -769,10 +895,6 @@ export async function computeRagContextAndCitations({
       ragRanking,
     });
 
-  const autoOrMultiEnabled =
-    hydeMode === "auto" ||
-    rewriteMode === "auto" ||
-    ragMultiQueryMode === "auto";
   if (autoOrMultiEnabled && !decisionSignature) {
     decisionSignature = {
       autoTriggered: false,

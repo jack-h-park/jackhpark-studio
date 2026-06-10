@@ -179,7 +179,7 @@ type RagChainState = RagChainInput & {
   contextResult?: ContextWindowResult;
 };
 
-type RagChainOutput = RagChainState & {
+export type RagChainOutput = RagChainState & {
   contextResult: ContextWindowResult;
   preRetrieval: PreRetrievalResult;
   rankedDocs: EnrichedRetrievalItem<BaseRetrievalItem>[];
