@@ -317,7 +317,7 @@ void test("optional overrides clear appliedPreset on change", () => {
 
   act(() => {
     select.value = adminConfig.allowlist.llmModels[0];
-    select.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    select.dispatchEvent(new globalAny.window.Event("change", { bubbles: true }));
   });
 
   assert.strictEqual(updates.length, 1);
