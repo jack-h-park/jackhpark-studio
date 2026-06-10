@@ -18,27 +18,23 @@ import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 export async function createEmbeddingsInstance(
   selection: EmbeddingSpace,
 ): Promise<EmbeddingsInterface> {
-  switch (selection.provider) {
-    case "openai": {
-      const { OpenAIEmbeddings } = await import("@langchain/openai");
-      const apiKey = requireProviderApiKey("openai");
-      return new OpenAIEmbeddings({
-        model: selection.model,
-        apiKey,
-      });
-    }
-    case "gemini": {
-      const { GoogleGenerativeAIEmbeddings } =
-        await import("@langchain/google-genai");
-      const apiKey = requireProviderApiKey("gemini");
-      return new GoogleGenerativeAIEmbeddings({
-        model: selection.model,
-        apiKey,
-      });
-    }
-    default:
-      throw new Error(`Unsupported embedding provider: ${selection.provider}`);
-  }
+  // Adapter over lib/core/embeddings so query-time vectors come from the
+  // exact same provider calls as ingestion-time vectors. The LangChain
+  // provider wrappers used previously preprocess text differently (e.g.
+  // OpenAIEmbeddings strips newlines), which silently skews similarity
+  // against an index built by embedTexts.
+  const { embedTexts } = await import("@/lib/core/embeddings");
+  const embedOptions = {
+    provider: selection.provider,
+    model: selection.model,
+    embeddingModelId: selection.embeddingModelId,
+    embeddingSpaceId: selection.embeddingSpaceId,
+  };
+  return {
+    embedDocuments: (texts: string[]) => embedTexts(texts, embedOptions),
+    embedQuery: async (text: string) =>
+      (await embedTexts([text], embedOptions))[0] ?? [],
+  };
 }
 
 export async function createChatModel(
