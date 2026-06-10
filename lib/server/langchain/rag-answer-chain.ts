@@ -2,7 +2,7 @@ import type { BaseLanguageModelInterface } from "@langchain/core/language_models
 import type { PromptTemplate } from "@langchain/core/prompts";
 import { RunnableLambda, RunnableSequence } from "@langchain/core/runnables";
 
-import { makeRunName } from "@/lib/server/langchain/runnableConfig";
+import { makeRunName } from "@/lib/server/langchain/runnable-config";
 
 type RagAnswerChainInput = {
   question: string;
