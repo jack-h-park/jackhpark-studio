@@ -1,0 +1,72 @@
+.filtersToolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ai-space-4);
+  flex-wrap: wrap;
+}
+
+.filtersGridArea {
+  flex: 1;
+  min-width: 0;
+}
+
+.filtersActionsArea {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ai-space-3);
+  white-space: nowrap;
+  min-height: calc(var(--ai-space-6) + var(--ai-space-2));
+}
+
+.filtersGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-auto-rows: minmax(auto, auto);
+  gap: var(--ai-space-2) var(--ai-space-3);
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .filtersToolbar {
+    flex-direction: column;
+    gap: var(--ai-space-3);
+  }
+
+  .filtersActionsArea {
+    margin-left: 0;
+    align-self: flex-end;
+  }
+
+  .filtersGrid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .filtersGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.resetButton {
+  padding-inline: calc(var(--ai-space-3) * 1.5);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.activeFilterBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--ai-radius-full);
+  background-color: var(--ai-accent-strong);
+  color: var(--ai-text-on-accent);
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 0 0.3rem;
+}
