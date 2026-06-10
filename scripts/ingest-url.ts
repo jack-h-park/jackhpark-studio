@@ -2,45 +2,18 @@
 import pMap from "p-map";
 
 import { resolveEmbeddingSpace } from "../lib/core/embedding-spaces";
-import { supabaseClient } from "../lib/core/supabase";
 import { ingestionLogger } from "../lib/logging/logger";
 import {
-  chunkByTokens,
-  type ChunkInsert,
-  createEmptyRunStats,
-  embedBatch,
-  type ExtractedArticle,
-  extractMainContent,
-  finishIngestRun,
-  getDocumentState,
-  hasChunksForProvider,
-  hashChunk,
-  type IngestRunErrorLog,
-  type IngestRunHandle,
+  type EmbedBatchOptions,
   type IngestRunStats,
-  replaceChunks,
-  startIngestRun,
-  upsertDocumentState,
 } from "../lib/rag";
-import { isUnchanged, shouldSkipIngest } from "../lib/rag/ingest-helpers";
 import {
-  applyDefaultDocMetadata,
-  DEFAULT_INGEST_DOC_TYPE,
-  DEFAULT_INGEST_PERSONA_TYPE,
-  mergeRagDocumentMetadata,
-  normalizeMetadata,
-  stripDocIdentifierFields,
-} from "../lib/rag/metadata";
-import {
-  markAttempt,
-  markAuthError,
-  markFetchError,
-  markMissing,
-  markSuccess,
-  normalizeFetchOutcome,
-} from "../lib/rag/ragDocumentLifecycle";
-import { buildUrlRagDocumentMetadata } from "../lib/rag/url-metadata";
-import { deriveDocIdentifiers } from "../lib/server/doc-identifiers";
+  formatRunSummary,
+  ingestPreparedDocument,
+  type IngestReporter,
+  withIngestRun,
+} from "../lib/rag/pipeline";
+import { fetchUrlDocument } from "../lib/rag/sources/url";
 
 const INGEST_CONCURRENCY = Math.max(
   1,
@@ -53,6 +26,22 @@ const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
   provider: process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
   version: process.env.EMBEDDING_VERSION ?? null,
 });
+const EMBEDDING_OPTIONS: EmbedBatchOptions = {
+  provider: DEFAULT_EMBEDDING_SELECTION.provider,
+  embeddingModelId: DEFAULT_EMBEDDING_SELECTION.embeddingModelId,
+  embeddingSpaceId: DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
+  version: DEFAULT_EMBEDDING_SELECTION.version,
+};
+
+const loggerReporter: IngestReporter = {
+  log: (level, message) => {
+    if (level === "info") {
+      ingestionLogger.info(`[ingest-url] ${message}`);
+    } else {
+      ingestionLogger.error(`[ingest-url] ${message}`);
+    }
+  },
+};
 
 type RunMode = {
   type: "full" | "partial";
@@ -100,177 +89,24 @@ async function ingestUrl(
   stats: IngestRunStats,
   ingestionType: RunMode["type"],
 ): Promise<void> {
-  stats.documentsProcessed += 1;
   const normalizedUrl = url.trim();
   if (!normalizedUrl) {
+    stats.documentsProcessed += 1;
+    stats.documentsSkipped += 1;
     ingestionLogger.error(
       "[ingest-url] Empty URL provided; skipping ingestion.",
     );
-    stats.documentsSkipped += 1;
-    return;
-  }
-  const { canonicalId, rawId } = deriveDocIdentifiers(normalizedUrl);
-  // NOTE: ID-sensitive ingestion path: must use deriveDocIdentifiers for doc_id/raw_doc_id.
-
-  await markAttempt(supabaseClient, canonicalId);
-
-  let article: ExtractedArticle;
-  try {
-    article = await extractMainContent(normalizedUrl);
-  } catch (err) {
-    const outcome = normalizeFetchOutcome({ error: err });
-    if (outcome.classification === "missing") {
-      await markMissing(
-        supabaseClient,
-        canonicalId,
-        outcome.statusCode,
-        outcome.shortError,
-      );
-    } else if (outcome.classification === "auth") {
-      await markAuthError(
-        supabaseClient,
-        canonicalId,
-        outcome.statusCode,
-        outcome.shortError,
-      );
-    } else {
-      await markFetchError(
-        supabaseClient,
-        canonicalId,
-        outcome.statusCode,
-        outcome.shortError,
-      );
-    }
-    throw err;
-  }
-
-  const { title, text, lastModified, statusCode } = article;
-
-  if (!text) {
-    await markSuccess(supabaseClient, canonicalId, statusCode);
-    ingestionLogger.error(
-      `[ingest-url] No text content extracted for ${normalizedUrl}; skipping`,
-    );
-    stats.documentsSkipped += 1;
     return;
   }
 
-  const contentHash = hashChunk(`${canonicalId}:${text}`);
-  const existingState = await getDocumentState(canonicalId);
-  if (existingState?.raw_doc_id && existingState.raw_doc_id !== rawId) {
-    ingestionLogger.error("[doc-id] raw_doc_id drift detected", {
-      canonicalId,
-      previous: existingState.raw_doc_id,
-      incoming: rawId,
-    });
-  }
-  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
-  const unchanged = isUnchanged(existingState, {
-    contentHash,
-    lastSourceUpdate: lastModified ?? null,
-  });
-
-  const existingMetadata = stripDocIdentifierFields(
-    existingState?.metadata ?? null,
-  );
-  const sourceMetadata = await buildUrlRagDocumentMetadata({
-    sourceUrl: normalizedUrl,
-    htmlTitle: title,
-  });
-  const mergedMetadata = mergeRagDocumentMetadata(
-    existingMetadata,
-    sourceMetadata,
-  );
-  const nextMetadata = applyDefaultDocMetadata(mergedMetadata, {
-    doc_type: DEFAULT_INGEST_DOC_TYPE,
-    persona_type: DEFAULT_INGEST_PERSONA_TYPE,
-  });
-  const metadataWithIds = normalizeMetadata({
-    ...nextMetadata,
-    doc_id: canonicalId,
-    raw_doc_id: rawId,
-  });
-
-  const providerHasChunks =
-    unchanged && (await hasChunksForProvider(canonicalId, embeddingSpace));
-  const shouldSkip = shouldSkipIngest({
-    unchanged,
+  const doc = await fetchUrlDocument(normalizedUrl);
+  await ingestPreparedDocument({
+    doc,
     ingestionType,
-    providerHasChunks: !!providerHasChunks,
+    embedding: EMBEDDING_OPTIONS,
+    stats,
+    reporter: loggerReporter,
   });
-
-  if (shouldSkip) {
-    await markSuccess(supabaseClient, canonicalId, statusCode);
-    ingestionLogger.info(`[ingest-url] Skipping unchanged URL: ${title}`);
-    stats.documentsSkipped += 1;
-    return;
-  }
-
-  const chunks = chunkByTokens(text, 450, 75);
-
-  if (chunks.length === 0) {
-    await markSuccess(supabaseClient, canonicalId, statusCode);
-    ingestionLogger.error(
-      `[ingest-url] Extracted content for ${normalizedUrl} produced no chunks; skipping`,
-    );
-    stats.documentsSkipped += 1;
-    return;
-  }
-
-  const embeddings = await embedBatch(chunks, {
-    provider: embeddingSpace.provider,
-    embeddingModelId: embeddingSpace.embeddingModelId,
-    embeddingSpaceId: embeddingSpace.embeddingSpaceId,
-    version: embeddingSpace.version,
-  });
-  const ingestedAt = new Date().toISOString();
-
-  const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
-    doc_id: canonicalId,
-    source_url: normalizedUrl,
-    title,
-    chunk,
-    chunk_hash: hashChunk(`${canonicalId}:${chunk}`),
-    embedding: embeddings[index]!,
-    ingested_at: ingestedAt,
-  }));
-
-  const chunkCount = rows.length;
-  const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0);
-
-  await replaceChunks(canonicalId, rows, {
-    provider: embeddingSpace.provider,
-    embeddingModelId: embeddingSpace.embeddingModelId,
-    embeddingSpaceId: embeddingSpace.embeddingSpaceId,
-    version: embeddingSpace.version,
-  });
-  await upsertDocumentState({
-    doc_id: canonicalId,
-    raw_doc_id: rawId,
-    source_url: normalizedUrl,
-    content_hash: contentHash,
-    last_source_update: lastModified ?? null,
-    chunk_count: chunkCount,
-    total_characters: totalCharacters,
-    metadata: metadataWithIds,
-  });
-  await markSuccess(supabaseClient, canonicalId, statusCode);
-
-  if (existingState) {
-    stats.documentsUpdated += 1;
-    stats.chunksUpdated += chunkCount;
-    stats.charactersUpdated += totalCharacters;
-  } else {
-    stats.documentsAdded += 1;
-    stats.chunksAdded += chunkCount;
-    stats.charactersAdded += totalCharacters;
-  }
-
-  console.log(
-    `Ingested URL: ${title} (${chunkCount} chunks) [${
-      existingState ? "updated" : "new"
-    }]`,
-  );
 }
 
 async function main(): Promise<void> {
@@ -289,85 +125,46 @@ async function main(): Promise<void> {
 
   console.log(`Ingesting ${targets.length} URL(s)...`);
 
-  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
-
-  const runHandle: IngestRunHandle = await startIngestRun({
-    source: "web",
-    ingestion_type: mode.type,
-    metadata: {
-      urlCount: targets.length,
-      embeddingProvider: embeddingSpace.provider,
-      embeddingSpaceId: embeddingSpace.embeddingSpaceId,
-      embeddingModelId: embeddingSpace.embeddingModelId,
-      embeddingVersion: embeddingSpace.version,
-    },
-  });
-
-  const stats = createEmptyRunStats();
-  const errorLogs: IngestRunErrorLog[] = [];
-  const started = Date.now();
-
   try {
-    await pMap(
-      targets,
-      async (url) => {
-        try {
-          await ingestUrl(url, stats, mode.type);
-        } catch (err) {
-          stats.errorCount += 1;
-          const message =
-            err instanceof Error ? err.message : JSON.stringify(err);
-          errorLogs.push({ context: url, message });
-          ingestionLogger.error(
-            `[ingest-url] Failed to ingest ${url}: ${message}`,
-          );
-        }
+    const result = await withIngestRun(
+      {
+        source: "web",
+        ingestion_type: mode.type,
+        metadata: {
+          urlCount: targets.length,
+          embeddingProvider: DEFAULT_EMBEDDING_SELECTION.provider,
+          embeddingSpaceId: DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
+          embeddingModelId: DEFAULT_EMBEDDING_SELECTION.embeddingModelId,
+          embeddingVersion: DEFAULT_EMBEDDING_SELECTION.version,
+        },
       },
-      { concurrency: INGEST_CONCURRENCY },
+      async ({ stats, errorLogs }) => {
+        await pMap(
+          targets,
+          async (url) => {
+            try {
+              await ingestUrl(url, stats, mode.type);
+            } catch (err) {
+              stats.errorCount += 1;
+              const message =
+                err instanceof Error ? err.message : JSON.stringify(err);
+              errorLogs.push({ context: url, message });
+              ingestionLogger.error(
+                `[ingest-url] Failed to ingest ${url}: ${message}`,
+              );
+            }
+          },
+          { concurrency: INGEST_CONCURRENCY },
+        );
+      },
     );
 
-    const durationMs = Date.now() - started;
-    const status = stats.errorCount > 0 ? "completed_with_errors" : "success";
+    console.log(formatRunSummary(result));
 
-    await finishIngestRun(runHandle, {
-      status,
-      durationMs,
-      totals: stats,
-      errorLogs,
-    });
-
-    console.log("\n--- Ingestion Complete ---");
-    console.log(`Duration: ${(durationMs / 1000).toFixed(2)}s`);
-    console.log(`Status: ${status}`);
-    console.log("Documents:");
-    console.log(`  - Processed: ${stats.documentsProcessed}`);
-    console.log(`  - Added:     ${stats.documentsAdded}`);
-    console.log(`  - Updated:   ${stats.documentsUpdated}`);
-    console.log(`  - Skipped:   ${stats.documentsSkipped}`);
-    console.log("Chunks:");
-    console.log(`  - Added:     ${stats.chunksAdded}`);
-    console.log(`  - Updated:   ${stats.chunksUpdated}`);
-    console.log("Characters:");
-    console.log(`  - Added:     ${stats.charactersAdded}`);
-    console.log(`  - Updated:   ${stats.charactersUpdated}`);
-    console.log(`Errors: ${stats.errorCount}`);
-
-    if (stats.errorCount > 0) {
+    if (result.stats.errorCount > 0) {
       process.exitCode = 1;
     }
   } catch (err) {
-    const durationMs = Date.now() - started;
-    const message = err instanceof Error ? err.message : String(err);
-    errorLogs.push({ context: "fatal", message });
-    stats.errorCount += 1;
-
-    await finishIngestRun(runHandle, {
-      status: "failed",
-      durationMs,
-      totals: stats,
-      errorLogs,
-    });
-
     console.error("\n--- Ingestion Failed ---");
     console.error(err);
     throw err;

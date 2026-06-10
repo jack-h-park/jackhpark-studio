@@ -306,6 +306,36 @@ export async function markMissing(
   }
 }
 
+/**
+ * Classify a fetch error and record it on the document lifecycle row.
+ * Consolidates the markMissing/markAuthError/markFetchError branching that
+ * every ingestion entry point previously duplicated.
+ */
+export async function markFetchFailure(
+  supabase: SupabaseClient,
+  docId: string,
+  error: unknown,
+): Promise<void> {
+  const outcome = normalizeFetchOutcome({ error });
+  if (outcome.classification === "missing") {
+    await markMissing(supabase, docId, outcome.statusCode, outcome.shortError);
+  } else if (outcome.classification === "auth") {
+    await markAuthError(
+      supabase,
+      docId,
+      outcome.statusCode,
+      outcome.shortError,
+    );
+  } else {
+    await markFetchError(
+      supabase,
+      docId,
+      outcome.statusCode,
+      outcome.shortError,
+    );
+  }
+}
+
 export async function markAuthError(
   supabase: SupabaseClient,
   docId: string,
