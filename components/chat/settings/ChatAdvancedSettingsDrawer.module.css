@@ -1,16 +1,11 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 15, 15, 0.3);
+  background: var(--ai-overlay-scrim);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s ease;
   z-index: 90;
-}
-
-:global(.dark) .overlay,
-:global(.dark-mode) .overlay {
-  background: rgba(0, 0, 0, 0.5);
 }
 
 .overlayVisible {
@@ -243,16 +238,9 @@
   line-height: 1.4;
   vertical-align: middle;
   border-radius: var(--ai-radius-sm);
-  background-color: var(--ai-role-surface-accent, #e8f0fe);
-  color: var(--ai-text-accent, #1a56db);
-  border: 1px solid var(--ai-role-border-accent, #93c5fd);
-}
-
-:global(.dark) .devBadge,
-:global(.dark-mode) .devBadge {
-  background-color: rgba(59, 130, 246, 0.15);
-  color: #93c5fd;
-  border-color: rgba(59, 130, 246, 0.3);
+  background-color: var(--ai-accent-bg);
+  color: var(--ai-accent);
+  border: 1px solid var(--ai-accent-soft);
 }
 
 .drawerCloseButton {

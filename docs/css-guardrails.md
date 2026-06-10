@@ -12,6 +12,14 @@ This repository enforces lightweight CSS guardrails to keep `styles/ai-design-sy
    - **Disallowed outside the token block:** legacy/raw tokens such as `--ai-bg*`, `--ai-fg*`, `--ai-border*`, `--ai-surface*`, or `hsl(var(--ai-*)))`.
    - **Allowed:** `--ai-role-*`, `--ai-text*`, `--ai-accent*`, `--ai-accent-contrast`, and `--ai-shadow*`.
 
+## Styling Layers (which tool for which job)
+
+Components mix three styling mechanisms. Each has one job — do not solve the same problem in two layers:
+
+1. **Tailwind utilities** — layout, spacing, and responsive behavior only (`flex`, `grid`, `gap-*`, breakpoints). No colors, shadows, or typography roles via arbitrary values.
+2. **Global `ai-*` classes** (from `styles/ai-design-system.css`) — component primitives and text roles (`ai-button`, `ai-field`, `ai-label-emphasis`). This is the default for anything visual.
+3. **CSS modules** — scope-limited corrections only: drawer contracts (see `docs/ui/drawer-ui-contract.md`), feature-specific layout that utilities cannot express, and per-feature composition of role tokens. Never re-implement a primitive in a module.
+
 ## Design Principles (Why these rules exist)
 
 - **Single source of truth:** All color and interaction semantics live in tokens and shared primitives, not in per-component overrides.

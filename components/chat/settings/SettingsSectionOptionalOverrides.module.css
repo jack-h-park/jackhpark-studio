@@ -45,7 +45,7 @@
 
 .inlineUtilityAction:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 1px var(--ai-border-subtle);
+  box-shadow: 0 0 0 1px var(--ai-role-border-subtle);
 }
 
 .summaryGrid {
@@ -56,8 +56,8 @@
 
 .promptPreviewSurface {
   border-radius: var(--ai-radius-lg);
-  border: 1px solid var(--ai-border-subtle);
-  background: hsl(var(--ai-bg-muted));
+  border: 1px solid var(--ai-role-border-subtle);
+  background: var(--ai-role-surface-0);
   color: var(--ai-text-default);
   min-height: 110px;
   padding: 0.75rem;
@@ -70,14 +70,14 @@
 }
 
 .promptPreviewSurface:hover {
-  border-color: var(--ai-border-strong);
+  border-color: var(--ai-role-border-strong);
 }
 
 .promptPreviewSurface:focus-visible {
   outline: none;
   border-color: var(--ai-accent);
   box-shadow:
-    0 0 0 2px hsl(var(--ai-bg)),
+    0 0 0 2px var(--ai-role-surface-1),
     0 0 0 4px var(--ai-ring),
     0 0 8px 1px var(--ai-ring);
 }
@@ -102,7 +102,7 @@
   border-radius: var(--ai-radius-pill);
   background: var(--ai-accent-bg);
   color: var(--ai-accent-strong);
-  border: 1px solid var(--ai-border-muted);
+  border: 1px solid var(--ai-role-border-muted);
   white-space: nowrap;
   flex-shrink: 0;
 }

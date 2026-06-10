@@ -1,26 +1,21 @@
-.presetGrid {
-  /* Per-preset accent color tokens — change here to update all tile icons */
-  --preset-precision-accent: oklch(58% 0.19 250);
-  --preset-default-accent: var(--ai-text-muted);
-  --preset-recall-accent: oklch(56% 0.20 295);
-  --preset-fast-accent: oklch(62% 0.18 55);
-}
+/* Per-preset accent colors come from the shared design-system tokens
+   (--ai-preset-accent-*) so the chat drawer and admin preset cards stay in sync. */
 
 /* Active state: delegated to .ai-selectable--active primitive
    (border-color, background-color, box-shadow all come from the design system token) */
 
 .presetTile[data-preset="precision"] .presetIcon {
-  color: var(--preset-precision-accent);
+  color: var(--ai-preset-accent-precision);
 }
 
 .presetTile[data-preset="default"] .presetIcon {
-  color: var(--preset-default-accent);
+  color: var(--ai-preset-accent-default);
 }
 
 .presetTile[data-preset="highRecall"] .presetIcon {
-  color: var(--preset-recall-accent);
+  color: var(--ai-preset-accent-recall);
 }
 
 .presetTile[data-preset="fast"] .presetIcon {
-  color: var(--preset-fast-accent);
+  color: var(--ai-preset-accent-fast);
 }

@@ -7,7 +7,6 @@ const featureCssFiles = [
   aiDesignSystem,
   "styles/admin-doc-preview.css",
   "styles/meta-card.css",
-  "styles/diagnostics-display-card.css",
   "pages/admin/documents.module.css",
   "pages/admin/ingestion-preview.module.css",
   "components/admin/ingestion/DatasetSnapshotSection.module.css",
@@ -17,6 +16,10 @@ const featureCssFiles = [
   "components/admin/ingestion/SystemHealthSection.module.css",
   "components/admin/layout/admin-ingestion-shell.module.css",
   "components/admin/workflow/WorkflowStep.module.css",
+  "components/chat/settings/ChatAdvancedSettingsDrawer.module.css",
+  "components/chat/settings/PresetEffectsSummary.module.css",
+  "components/chat/settings/SettingsSectionOptionalOverrides.module.css",
+  "components/chat/settings/SettingsSectionPresets.module.css",
 ];
 
 // Theme token files — intentionally excluded from featureCssFiles.
