@@ -294,7 +294,6 @@ void test("optional overrides clear appliedPreset on change", () => {
           adminConfig={adminConfig}
           sessionConfig={sessionConfig}
           setSessionConfig={setSessionConfig}
-          onResetToPresetDefaults={() => undefined}
         />
       </ChatConfigContext.Provider>,
     );
