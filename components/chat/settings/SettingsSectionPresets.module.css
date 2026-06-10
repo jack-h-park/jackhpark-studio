@@ -4,18 +4,18 @@
 /* Active state: delegated to .ai-selectable--active primitive
    (border-color, background-color, box-shadow all come from the design system token) */
 
-.presetTile[data-preset="precision"] .presetIcon {
+.presetTilePrecision .presetIcon {
   color: var(--ai-preset-accent-precision);
 }
 
-.presetTile[data-preset="default"] .presetIcon {
+.presetTileDefault .presetIcon {
   color: var(--ai-preset-accent-default);
 }
 
-.presetTile[data-preset="highRecall"] .presetIcon {
+.presetTileRecall .presetIcon {
   color: var(--ai-preset-accent-recall);
 }
 
-.presetTile[data-preset="fast"] .presetIcon {
+.presetTileFast .presetIcon {
   color: var(--ai-preset-accent-fast);
 }

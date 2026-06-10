@@ -5,7 +5,8 @@ import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import { FiTarget } from "@react-icons/all-files/fi/FiTarget";
 import { FiZap } from "@react-icons/all-files/fi/FiZap";
 
-import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
+import { SelectableTile } from "@/components/shared/selectable-tile";
+import { GridPanel } from "@/components/ui/grid-panel";
 import { cn } from "@/components/ui/utils";
 import { setLastDiffReason } from "@/lib/chat/historyPreviewDiffTelemetry";
 import { PRESET_DISPLAY_ORDER } from "@/lib/shared/chat-labels";
@@ -21,6 +22,13 @@ import {
   type PresetKey,
 } from "./preset-overrides";
 import styles from "./SettingsSectionPresets.module.css";
+
+const PRESET_TILE_CLASSES: Record<PresetKey, string> = {
+  precision: styles.presetTilePrecision,
+  default: styles.presetTileDefault,
+  highRecall: styles.presetTileRecall,
+  fast: styles.presetTileFast,
+};
 
 const PRESET_ICONS: Record<PresetKey, React.ReactNode> = {
   precision: <FiTarget size={14} className={styles.presetIcon} aria-hidden="true" />,
@@ -76,27 +84,19 @@ export function PresetSelectorTabs({
           drawerStyles.drawerSelectableScope,
         )}
       >
-        {PRESET_DISPLAY_ORDER.map(
-          (key) => {
-            const isActive = sessionConfig.appliedPreset === key;
-            return (
-              <SelectableTile
-                key={key}
-                active={isActive}
-                onClick={() => applyPreset(key)}
-                label={PRESET_LABELS[key]}
-                icon={PRESET_ICONS[key]}
-                data-preset={key}
-                className={cn(
-                  styles.presetTile,
-                  "flex flex-col items-center justify-center !text-center h-full w-full",
-                )}
-                contentClassName="ai-choice !gap-1 w-full"
-                labelClassName="ai-choice__label"
-              />
-            );
-          },
-        )}
+        {PRESET_DISPLAY_ORDER.map((key) => (
+          <SelectableTile
+            key={key}
+            name="chat-preset"
+            value={key}
+            checked={sessionConfig.appliedPreset === key}
+            onChange={applyPreset}
+            label={PRESET_LABELS[key]}
+            icon={PRESET_ICONS[key]}
+            align="center"
+            className={cn(PRESET_TILE_CLASSES[key], "h-full w-full")}
+          />
+        ))}
       </GridPanel>
     </div>
   );

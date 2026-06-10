@@ -6,8 +6,9 @@ import { useMemo } from "react";
 
 import type { LlmModelId } from "@/lib/shared/models";
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
+import { SelectableTile } from "@/components/shared/selectable-tile";
 import { SelectField } from "@/components/ui/field";
-import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
+import { GridPanel } from "@/components/ui/grid-panel";
 import { ImpactTooltip } from "@/components/ui/impact-tooltip";
 import { Label } from "@/components/ui/label";
 import {
@@ -183,24 +184,24 @@ export function SettingsSectionOptionalOverrides({
               )}
             >
               {summaryOptions.map((option) => {
-                const isActive = sessionConfig.summaryLevel === option.value;
                 const isPresetDefault =
                   presetDefaults.summaryLevel === option.value;
                 return (
                   <SelectableTile
                     key={option.value}
-                    active={isActive}
+                    name="chat-summary-level"
+                    value={option.value}
+                    checked={sessionConfig.summaryLevel === option.value}
                     disabled={!sessionConfig.rag.enabled}
-                    onClick={() => handleSummaryLevelChange(option.value)}
+                    onChange={handleSummaryLevelChange}
                     label={option.label}
                     description={option.description}
+                    align="center"
                     className={cn(
-                      "flex flex-col items-center justify-center text-center h-full w-full max-w-full",
+                      "h-full w-full max-w-full",
                       isPresetDefault && styles.summaryTileDefault,
                     )}
-                    contentClassName="ai-choice !gap-1 w-full"
-                    labelClassName="ai-choice__label"
-                    descriptionClassName="ai-choice__description tracking-normal"
+                    descriptionClassName="tracking-normal"
                   />
                 );
               })}
