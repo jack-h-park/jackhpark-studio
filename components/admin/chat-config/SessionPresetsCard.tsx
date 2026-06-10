@@ -35,7 +35,10 @@ import {
 } from "@/hooks/use-admin-chat-config";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { normalizeLlmModelId } from "@/lib/core/llm-registry";
-import { RANKER_LABELS } from "@/lib/shared/chat-labels";
+import {
+  RANKER_LABELS,
+  SUMMARY_LEVEL_LABELS,
+} from "@/lib/shared/chat-labels";
 import {
   type EmbeddingModelId,
   type LlmModelId,
@@ -203,7 +206,7 @@ function RetrievalSection({
                 variant="chip"
                 name={`${presetKey}-summary`}
                 value={level}
-                label={level}
+                label={SUMMARY_LEVEL_LABELS[level]}
                 checked={preset.summaryLevel === level}
                 disabled={ragDisabled}
                 onChange={() => onSummaryLevelChange(level)}

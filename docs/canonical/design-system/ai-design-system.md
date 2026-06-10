@@ -285,6 +285,15 @@ This ensures that improving or fixing interaction clarity happens in one place a
 - **[meta-card.tsx](file:///Users/jackpark/workspace/code/core/nextjs-react-notion-x/components/ui/meta-card.tsx)**: **[NEW]** Diagnostic display for telemetry and guardrail data.
 - **[field.tsx](file:///Users/jackpark/workspace/code/core/nextjs-react-notion-x/components/ui/field.tsx)**: Combines Label + Control + Helper text.
 
+### C. Selection Controls (Canonical Pairing)
+
+Every "pick one or more options" surface uses exactly one of two components, chosen by selection semantics — never by visual preference:
+
+1. **Single choice → `SelectableTile`** (`components/shared/selectable-tile`, a `Radiobutton` wrapper). Native radio semantics: screen readers announce the group, arrow keys move between options. Density is a prop, not a different component — `variant="chip"` (compact, label-only; admin grids) or `variant="tile"` + `align="center"` (icon/description tiles; visitor-facing drawer).
+2. **Multiple choice → `AllowlistTile`** (`components/admin/chat-config/AllowlistTile.tsx`). Button + `aria-pressed` with a **check-circle marker**. The check-circle is the exclusive signal for "more than one can be on"; do not add it to single-choice tiles.
+
+Both consume the `.ai-selectable` contract (§3.D) for border/hover/active states, so the chrome stays identical across surfaces. Do not hand-roll new selection controls; extend these two.
+
 ---
 
 ## 5. Naming & Engineering Conventions

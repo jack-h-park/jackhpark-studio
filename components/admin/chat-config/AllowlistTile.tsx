@@ -13,6 +13,12 @@ type AllowlistTileProps = {
   className?: string;
 };
 
+/**
+ * Multi-select tile: button + aria-pressed with a check-circle marker.
+ * The check-circle is reserved for multi-select groups — single-choice groups
+ * must use the radio-based SelectableTile (components/shared/selectable-tile).
+ * See "Selection Controls" in docs/canonical/design-system/ai-design-system.md.
+ */
 export function AllowlistTile({
   id,
   label,
