@@ -8,6 +8,7 @@ import type {
   CitationPayload,
 } from "@/lib/types/citation";
 import { isClientLogLevelEnabled } from "@/lib/logging/client";
+import { PRESET_LABELS_SHORT } from "@/lib/shared/chat-labels";
 import {
   deserializeGuardrailMeta,
   type GuardrailMeta,
@@ -230,12 +231,7 @@ const PRESET_RECALL_ESCALATION: Partial<Record<string, string>> = {
   precision: "highRecall",
 };
 
-const PRESET_LABELS: Record<string, string> = {
-  fast: "Fast",
-  default: "Balanced",
-  highRecall: "High Recall",
-  precision: "Precision",
-};
+const PRESET_LABELS: Record<string, string> = PRESET_LABELS_SHORT;
 
 export type ChatRetryPreset = {
   /** Display label for the target preset, e.g. "High Recall". */

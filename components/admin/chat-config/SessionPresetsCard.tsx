@@ -35,6 +35,7 @@ import {
 } from "@/hooks/use-admin-chat-config";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { normalizeLlmModelId } from "@/lib/core/llm-registry";
+import { RANKER_LABELS } from "@/lib/shared/chat-labels";
 import {
   type EmbeddingModelId,
   type LlmModelId,
@@ -46,11 +47,6 @@ import {
   type SummaryLevel,
 } from "@/types/chat-config";
 
-const RANKER_LABELS: Record<RankerId, string> = {
-  none: "None",
-  mmr: "MMR",
-  "cohere-rerank": "Cohere Rerank",
-};
 
 const summaryLevelOptions: SummaryLevel[] = ["off", "low", "medium", "high"];
 const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();

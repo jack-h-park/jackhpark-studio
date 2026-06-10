@@ -6,6 +6,10 @@ import type {
   PERSONA_TYPE_OPTIONS,
 } from "@/lib/rag/metadata";
 import { normalizeLlmModelId } from "@/lib/core/llm-registry";
+import {
+  PRESET_DISPLAY_ORDER,
+  PRESET_LABELS,
+} from "@/lib/shared/chat-labels";
 import { type ModelProvider } from "@/lib/shared/model-provider";
 import {
   type EmbeddingModelId,
@@ -62,19 +66,9 @@ export const numericLimitLabels: Record<
   clipTokens: "Clip Tokens",
 };
 
-export const presetDisplayNames: Record<PresetKey, string> = {
-  default: "Balanced (Default)",
-  fast: "Fast",
-  highRecall: "High Recall",
-  precision: "Precision",
-};
+export const presetDisplayNames: Record<PresetKey, string> = PRESET_LABELS;
 
-export const presetDisplayOrder: PresetKey[] = [
-  "fast",
-  "precision",
-  "default",
-  "highRecall",
-];
+export const presetDisplayOrder: PresetKey[] = PRESET_DISPLAY_ORDER;
 
 export type AdminLlmModelOption = {
   id: LlmModelId;

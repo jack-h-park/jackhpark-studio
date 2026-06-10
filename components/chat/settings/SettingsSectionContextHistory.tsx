@@ -26,6 +26,7 @@ import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
 import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
 import { HistoryPreview } from "./HistoryPreview";
+import { createSessionOverrideUpdater } from "./preset-overrides";
 
 type ContextBudgetKey = "tokenBudget" | "historyBudget" | "clipTokens";
 
@@ -46,14 +47,7 @@ export function SettingsSectionContextHistory({
 }: Props) {
   const isContextLocked = isSettingLocked("context");
 
-  const updateSession = (
-    updater: (next: SessionChatConfig) => SessionChatConfig,
-  ) => {
-    setSessionConfig((prev) => ({
-      ...updater(prev),
-      appliedPreset: undefined,
-    }));
-  };
+  const updateSession = createSessionOverrideUpdater(setSessionConfig);
 
   const { contextBudget, historyBudget, clipTokens } =
     adminConfig.numericLimits;

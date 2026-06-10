@@ -21,13 +21,11 @@ import {
 } from "@/components/ui/select";
 import { SliderNumberField } from "@/components/ui/slider-number-field";
 import { Switch } from "@/components/ui/switch";
+import { RANKER_LABELS } from "@/lib/shared/chat-labels";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
-const RANKER_LABELS: Record<RankerId, string> = {
-  none: "None",
-  mmr: "MMR",
-  "cohere-rerank": "Cohere Rerank",
-};
+import { createSessionOverrideUpdater } from "./preset-overrides";
+
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -47,14 +45,7 @@ export function SettingsSectionRagRetrieval({
   const isRagLocked = isRagLockedOverride ?? isSettingLocked("rag");
   const isFeaturesLocked = isSettingLocked("features");
 
-  const updateSession = (
-    updater: (next: SessionChatConfig) => SessionChatConfig,
-  ) => {
-    setSessionConfig((prev) => ({
-      ...updater(prev),
-      appliedPreset: undefined,
-    }));
-  };
+  const updateSession = createSessionOverrideUpdater(setSessionConfig);
 
   const { ragTopK, similarityThreshold } = adminConfig.numericLimits;
   const isRagEnabled = sessionConfig.rag.enabled;

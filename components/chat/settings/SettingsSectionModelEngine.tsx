@@ -22,6 +22,8 @@ import {
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
+import { createSessionOverrideUpdater } from "./preset-overrides";
+
 type Props = {
   adminConfig: AdminChatConfig;
   sessionConfig: SessionChatConfig;
@@ -52,17 +54,7 @@ export function SettingsSectionModelEngine({
     return filtered.length > 0 ? filtered : availableSpaces;
   }, [adminConfig.allowlist.embeddingModels]);
 
-  const handleFieldChange = (
-    updater: (next: SessionChatConfig) => SessionChatConfig,
-  ) => {
-    setSessionConfig((prev) => {
-      const next = updater(prev);
-      return {
-        ...next,
-        appliedPreset: undefined,
-      };
-    });
-  };
+  const handleFieldChange = createSessionOverrideUpdater(setSessionConfig);
 
   return (
     <Section>

@@ -30,7 +30,11 @@ import {
 } from "@/types/chat-config";
 
 import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
-import { getPresetDefaults, resolvePresetKey } from "./preset-overrides";
+import {
+  createSessionOverrideUpdater,
+  getPresetDefaults,
+  resolvePresetKey,
+} from "./preset-overrides";
 import styles from "./SettingsSectionOptionalOverrides.module.css";
 
 type Props = {
@@ -60,14 +64,7 @@ export function SettingsSectionOptionalOverrides({
     [adminConfig, sessionConfig],
   );
 
-  const updateSession = (
-    updater: (next: SessionChatConfig) => SessionChatConfig,
-  ) => {
-    setSessionConfig((prev) => ({
-      ...updater(prev),
-      appliedPreset: undefined,
-    }));
-  };
+  const updateSession = createSessionOverrideUpdater(setSessionConfig);
 
   const llmOptions = useMemo(() => {
     const allowlist = new Set(adminConfig.allowlist.llmModels);

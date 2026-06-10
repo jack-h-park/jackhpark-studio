@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { type AdminLlmModelOption } from "@/hooks/use-admin-chat-config";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { normalizeLlmModelId } from "@/lib/core/llm-registry";
+import { RANKER_LABELS } from "@/lib/shared/chat-labels";
 import {
   type EmbeddingModelId,
   type LlmModelId,
@@ -25,11 +26,6 @@ import {
   type RankerId,
 } from "@/lib/shared/models";
 
-const RANKER_LABELS: Record<RankerId, string> = {
-  none: "None",
-  mmr: "MMR",
-  "cohere-rerank": "Cohere Rerank",
-};
 
 const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
 

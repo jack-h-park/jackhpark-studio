@@ -1,40 +1,16 @@
 import type { RankerId } from "@/lib/shared/models";
-import type {
-  AdminChatConfig,
-  SessionChatConfig,
-  SummaryLevel,
-} from "@/types/chat-config";
+import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import {
+  formatRankerLabel as formatRankerLabelShared,
+  PRESET_LABELS,
+  SUMMARY_LEVEL_LABELS,
+} from "@/lib/shared/chat-labels";
 
 import packageJson from "../../../package.json";
-import {
-  getPresetDefaults,
-  PRESET_LABELS,
-  resolvePresetKey,
-} from "./preset-overrides";
+import { getPresetDefaults, resolvePresetKey } from "./preset-overrides";
 
-const SUMMARY_LEVEL_LABELS: Record<SummaryLevel, string> = {
-  off: "Off",
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-};
-
-const RANKER_LABELS: Record<RankerId, string> = {
-  none: "None",
-  mmr: "MMR (diversity)",
-  "cohere-rerank": "Cohere rerank",
-};
-
-const formatRankerLabel = (ranker: RankerId) => {
-  if (RANKER_LABELS[ranker]) return RANKER_LABELS[ranker];
-  return ranker
-    .split(/[-_]/)
-    .map(
-      (segment) =>
-        segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase(),
-    )
-    .join(" ");
-};
+const formatRankerLabel = (ranker: RankerId) =>
+  formatRankerLabelShared(ranker, { verbose: true });
 
 const APP_VERSION = packageJson?.version;
 
