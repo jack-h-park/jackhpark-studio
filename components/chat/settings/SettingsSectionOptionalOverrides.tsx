@@ -6,6 +6,7 @@ import { useMemo } from "react";
 
 import type { LlmModelId } from "@/lib/shared/models";
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
+import { SelectField } from "@/components/ui/field";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
 import { ImpactTooltip } from "@/components/ui/impact-tooltip";
 import { Label } from "@/components/ui/label";
@@ -15,14 +16,9 @@ import {
   SectionHeader,
   SectionTitle,
 } from "@/components/ui/section";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
 import { cn } from "@/components/ui/utils";
 import { listAllLlmModelOptions } from "@/lib/core/llm-registry";
+import { SUMMARY_LEVEL_LABELS } from "@/lib/shared/chat-labels";
 import {
   type AdminChatConfig,
   type SessionChatConfig,
@@ -30,7 +26,11 @@ import {
 } from "@/types/chat-config";
 
 import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
-import { getPresetDefaults, resolvePresetKey } from "./preset-overrides";
+import {
+  createSessionOverrideUpdater,
+  getPresetDefaults,
+  resolvePresetKey,
+} from "./preset-overrides";
 import styles from "./SettingsSectionOptionalOverrides.module.css";
 
 type Props = {
@@ -39,13 +39,6 @@ type Props = {
   setSessionConfig: (
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
   ) => void;
-};
-
-const SUMMARY_LEVELS: Record<SummaryLevel, string> = {
-  off: "Off",
-  low: "Low",
-  medium: "Medium",
-  high: "High",
 };
 
 export function SettingsSectionOptionalOverrides({
@@ -60,14 +53,7 @@ export function SettingsSectionOptionalOverrides({
     [adminConfig, sessionConfig],
   );
 
-  const updateSession = (
-    updater: (next: SessionChatConfig) => SessionChatConfig,
-  ) => {
-    setSessionConfig((prev) => ({
-      ...updater(prev),
-      appliedPreset: undefined,
-    }));
-  };
+  const updateSession = createSessionOverrideUpdater(setSessionConfig);
 
   const llmOptions = useMemo(() => {
     const allowlist = new Set(adminConfig.allowlist.llmModels);
@@ -99,22 +85,22 @@ export function SettingsSectionOptionalOverrides({
   const summaryOptions = [
     {
       value: "off" as const,
-      label: SUMMARY_LEVELS.off,
+      label: SUMMARY_LEVEL_LABELS.off,
       description: "No summaries",
     },
     {
       value: "low" as const,
-      label: SUMMARY_LEVELS.low,
+      label: SUMMARY_LEVEL_LABELS.low,
       description: `Run every ${adminConfig.summaryPresets.low.every_n_turns} turns`,
     },
     {
       value: "medium" as const,
-      label: SUMMARY_LEVELS.medium,
+      label: SUMMARY_LEVEL_LABELS.medium,
       description: `Run every ${adminConfig.summaryPresets.medium.every_n_turns} turns`,
     },
     {
       value: "high" as const,
-      label: SUMMARY_LEVELS.high,
+      label: SUMMARY_LEVEL_LABELS.high,
       description: `Run every ${adminConfig.summaryPresets.high.every_n_turns} turns`,
     },
   ];
@@ -171,23 +157,16 @@ export function SettingsSectionOptionalOverrides({
                 </span>
               )}
             </div>
-            <Select
+            <SelectField
+              id="optional-llm-model"
+              ariaLabel="LLM model selection"
               value={sessionConfig.llmModel}
               onValueChange={handleLlModelChange}
-            >
-              <SelectTrigger
-                id="optional-llm-model"
-                aria-label="LLM model selection"
-                className="ai-field-sm w-full"
-              />
-              <SelectContent>
-                {llmOptions.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={llmOptions.map((option) => ({
+                value: option.id,
+                label: option.label,
+              }))}
+            />
           </div>
 
           <div className={cn(styles.overrideBlock, "space-y-2")}>

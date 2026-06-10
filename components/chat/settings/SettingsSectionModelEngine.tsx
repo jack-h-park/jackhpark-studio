@@ -6,6 +6,7 @@ import { useMemo } from "react";
 
 import type { EmbeddingModelId } from "@/lib/shared/models";
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import { SelectField } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import {
   Section,
@@ -13,14 +14,11 @@ import {
   SectionHeader,
   SectionTitle,
 } from "@/components/ui/section";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
+
+import { LockedByPresetNotice, ManagedByPresetBadge } from "./LockedByPreset";
+import { createSessionOverrideUpdater } from "./preset-overrides";
 
 type Props = {
   adminConfig: AdminChatConfig;
@@ -52,17 +50,7 @@ export function SettingsSectionModelEngine({
     return filtered.length > 0 ? filtered : availableSpaces;
   }, [adminConfig.allowlist.embeddingModels]);
 
-  const handleFieldChange = (
-    updater: (next: SessionChatConfig) => SessionChatConfig,
-  ) => {
-    setSessionConfig((prev) => {
-      const next = updater(prev);
-      return {
-        ...next,
-        appliedPreset: undefined,
-      };
-    });
-  };
+  const handleFieldChange = createSessionOverrideUpdater(setSessionConfig);
 
   return (
     <Section>
@@ -78,19 +66,17 @@ export function SettingsSectionModelEngine({
             className="ai-field__label flex items-center gap-2"
           >
             Embedding Model
-            {isEmbeddingLocked && (
-              <span className="inline-flex items-center rounded-sm border border-ai-fg-muted/30 px-1.5 py-0.5 text-[10px] font-medium text-ai-fg-muted">
-                Managed by Preset
-              </span>
-            )}
+            {isEmbeddingLocked && <ManagedByPresetBadge />}
           </Label>
           {isEmbeddingLocked ? (
-            <p className="text-xs text-[color:var(--ai-text-muted)]">
+            <LockedByPresetNotice>
               Embedding model selection is managed by the preset (see Preset
               Effects summary above).
-            </p>
+            </LockedByPresetNotice>
           ) : (
-            <Select
+            <SelectField
+              id="settings-embedding-model"
+              ariaLabel="Embedding model selection"
               value={sessionConfig.embeddingModel}
               onValueChange={(value) => {
                 const selectedSpace = embeddingOptions.find(
@@ -106,23 +92,11 @@ export function SettingsSectionModelEngine({
                     selectedSpace?.embeddingModelId ?? prev.embeddingModelId,
                 }));
               }}
-            >
-              <SelectTrigger
-                id="settings-embedding-model"
-                aria-label="Embedding model selection"
-                className="ai-field-sm w-full"
-              />
-              <SelectContent>
-                {embeddingOptions.map((space) => (
-                  <SelectItem
-                    key={space.embeddingSpaceId}
-                    value={space.embeddingSpaceId}
-                  >
-                    {space.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={embeddingOptions.map((space) => ({
+                value: space.embeddingSpaceId,
+                label: space.label,
+              }))}
+            />
           )}
           {sessionConfig.embeddingSpaceId &&
             EMBEDDING_SPACE_WARNINGS[sessionConfig.embeddingSpaceId] && (

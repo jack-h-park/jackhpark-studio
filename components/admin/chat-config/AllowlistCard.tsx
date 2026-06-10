@@ -3,6 +3,7 @@ import { FiShield } from "@react-icons/all-files/fi/FiShield";
 
 import type { LocalLlmBackend } from "@/lib/local-llm/client";
 import type { AdminChatConfig } from "@/types/chat-config";
+import { AllowlistTile } from "@/components/admin/chat-config/AllowlistTile";
 import styles from "@/components/admin/chat-config/chat-config.module.css";
 import {
   ChatConfigCardContent,
@@ -10,13 +11,13 @@ import {
   ConfigBox,
   ToggleRow,
 } from "@/components/admin/chat-config/ChatConfigHelpers";
-import { AllowlistTile } from "@/components/ui/allowlist-tile";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { type AdminLlmModelOption } from "@/hooks/use-admin-chat-config";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
 import { normalizeLlmModelId } from "@/lib/core/llm-registry";
+import { RANKER_LABELS } from "@/lib/shared/chat-labels";
 import {
   type EmbeddingModelId,
   type LlmModelId,
@@ -25,11 +26,6 @@ import {
   type RankerId,
 } from "@/lib/shared/models";
 
-const RANKER_LABELS: Record<RankerId, string> = {
-  none: "None",
-  mmr: "MMR",
-  "cohere-rerank": "Cohere Rerank",
-};
 
 const EMBEDDING_MODEL_OPTIONS = listEmbeddingModelOptions();
 

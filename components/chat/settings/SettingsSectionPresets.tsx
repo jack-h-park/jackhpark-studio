@@ -8,6 +8,7 @@ import { FiZap } from "@react-icons/all-files/fi/FiZap";
 import { GridPanel, SelectableTile } from "@/components/ui/grid-panel";
 import { cn } from "@/components/ui/utils";
 import { setLastDiffReason } from "@/lib/chat/historyPreviewDiffTelemetry";
+import { PRESET_DISPLAY_ORDER } from "@/lib/shared/chat-labels";
 import {
   type AdminChatConfig,
   type SessionChatConfig,
@@ -73,10 +74,9 @@ export function PresetSelectorTabs({
         className={cn(
           "grid-cols-4 gap-[0.3rem]",
           drawerStyles.drawerSelectableScope,
-          styles.presetGrid,
         )}
       >
-        {(["fast", "precision", "default", "highRecall"] as PresetKey[]).map(
+        {PRESET_DISPLAY_ORDER.map(
           (key) => {
             const isActive = sessionConfig.appliedPreset === key;
             return (

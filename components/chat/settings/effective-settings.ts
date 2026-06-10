@@ -1,40 +1,16 @@
 import type { RankerId } from "@/lib/shared/models";
-import type {
-  AdminChatConfig,
-  SessionChatConfig,
-  SummaryLevel,
-} from "@/types/chat-config";
+import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import {
+  formatRankerLabel as formatRankerLabelShared,
+  PRESET_LABELS,
+  SUMMARY_LEVEL_LABELS,
+} from "@/lib/shared/chat-labels";
 
 import packageJson from "../../../package.json";
-import {
-  getPresetDefaults,
-  PRESET_LABELS,
-  resolvePresetKey,
-} from "./preset-overrides";
+import { getPresetDefaults, resolvePresetKey } from "./preset-overrides";
 
-const SUMMARY_LEVEL_LABELS: Record<SummaryLevel, string> = {
-  off: "Off",
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-};
-
-const RANKER_LABELS: Record<RankerId, string> = {
-  none: "None",
-  mmr: "MMR (diversity)",
-  "cohere-rerank": "Cohere rerank",
-};
-
-const formatRankerLabel = (ranker: RankerId) => {
-  if (RANKER_LABELS[ranker]) return RANKER_LABELS[ranker];
-  return ranker
-    .split(/[-_]/)
-    .map(
-      (segment) =>
-        segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase(),
-    )
-    .join(" ");
-};
+const formatRankerLabel = (ranker: RankerId) =>
+  formatRankerLabelShared(ranker, { verbose: true });
 
 const APP_VERSION = packageJson?.version;
 
@@ -139,19 +115,18 @@ export function buildEffectiveSettingsSupportLine(
   const budgets = payload.budgets;
   const summaries = payload.summaries;
   const promptDescriptor = payload.userPrompt.present
-    ? `present(len=${payload.userPrompt.length})`
+    ? `present (${payload.userPrompt.length} chars)`
     : "absent";
   const presetLabel = payload.presetName ?? payload.presetId ?? "Unknown";
 
-  return `Preset=${presetLabel}; OverridesActive=${
-    payload.overridesActive ? "true" : "false"
-  }; LLM=${payload.effectiveLLMModel}; Embeddings=${
-    payload.effectiveEmbeddingsLabel
-  }; Retrieval=${retrieval.enabled ? "on" : "off"} topK=${
-    retrieval.topK
-  } sim>=${retrieval.similarityThreshold.toFixed(2)}; Capabilities=reverseRag:${
-    retrieval.reverseRag ? "ON" : "off"
-  } hyde:${retrieval.hyde ? "ON" : "off"}; Ranker=${retrieval.ranker.friendly}; Budgets=ctx${budgets.tokenBudget} hist${budgets.historyBudget} clip${budgets.clipTokens}; Summaries=preset:${
-    summaries.presetDefault ?? "n/a"
-  } current:${summaries.current}; Prompt=${promptDescriptor}`;
+  return [
+    `Preset: ${presetLabel} (overrides active: ${payload.overridesActive ? "yes" : "no"})`,
+    `Model: ${payload.effectiveLLMModel}`,
+    `Embeddings: ${payload.effectiveEmbeddingsLabel}`,
+    `Retrieval: ${retrieval.enabled ? "on" : "off"} · sources ${retrieval.topK} · match ≥ ${retrieval.similarityThreshold.toFixed(2)}`,
+    `Capabilities: Reverse RAG ${retrieval.reverseRag ? "on" : "off"} · HyDE ${retrieval.hyde ? "on" : "off"} · Ranker ${retrieval.ranker.friendly}`,
+    `Memory budgets (tokens): context ${budgets.tokenBudget} · history ${budgets.historyBudget} · clip ${budgets.clipTokens}`,
+    `Summaries: preset ${summaries.presetDefault ?? "n/a"} · current ${summaries.current}`,
+    `Custom prompt: ${promptDescriptor}`,
+  ].join("\n");
 }

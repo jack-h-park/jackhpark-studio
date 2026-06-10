@@ -15,7 +15,7 @@ export function SettingsSectionDisplay() {
     <Section>
       <SectionHeader>
         <SectionTitle as="p" icon={<FiMonitor aria-hidden="true" />}>
-          Diagnostics Display
+          Display
         </SectionTitle>
       </SectionHeader>
       <SectionContent className="grid gap-3">

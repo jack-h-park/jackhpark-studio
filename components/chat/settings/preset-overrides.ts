@@ -1,13 +1,25 @@
+import type { PresetKey } from "@/lib/shared/chat-labels";
 import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
 
-export const PRESET_LABELS = {
-  precision: "Precision",
-  default: "Balanced (Default)",
-  fast: "Fast",
-  highRecall: "High Recall",
-} as const;
+export { PRESET_LABELS, type PresetKey } from "@/lib/shared/chat-labels";
 
-export type PresetKey = keyof typeof PRESET_LABELS;
+export type SetSessionConfig = (
+  value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
+) => void;
+
+/**
+ * Wraps setSessionConfig so every manual override also clears `appliedPreset`
+ * — the signal that the session has diverged from its preset. All settings
+ * sections must mutate session config through this wrapper.
+ */
+export const createSessionOverrideUpdater =
+  (setSessionConfig: SetSessionConfig) =>
+  (updater: (next: SessionChatConfig) => SessionChatConfig) => {
+    setSessionConfig((prev) => ({
+      ...updater(prev),
+      appliedPreset: undefined,
+    }));
+  };
 
 export function resolvePresetKey(sessionConfig: SessionChatConfig): PresetKey {
   return (

@@ -8,8 +8,8 @@ export function DiagnosticsDisplayControls() {
     <div className="flex flex-col gap-4">
       <SwitchField
         id="telemetry-badges"
-        label="Telemetry badges"
-        description="Show engine, guardrail, and enhancement insights."
+        label="Response insights"
+        description="Show engine, guardrail, and enhancement details on each answer."
         checked={sessionConfig.showTelemetry}
         onCheckedChange={(value) =>
           setSessionConfig((prev) => ({ ...prev, showTelemetry: value }))

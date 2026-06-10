@@ -86,6 +86,21 @@
   --ai-space-7: 2rem;
   --ai-space-8: 2.5rem;
 
+  /* Typography — shared mono stack for data/code surfaces.
+     Geist Mono is only loaded on some surfaces; others use the fallbacks. */
+  --ai-font-mono: var(--font-geist-mono, "JetBrains Mono"), "SFMono-Regular",
+    ui-monospace, Menlo, Consolas, monospace;
+
+  /* Overlay scrim — drawer/modal backdrops */
+  --ai-overlay-scrim: rgba(15, 15, 15, 0.3);
+
+  /* Session preset accents — shared by every surface that renders preset
+     tiles so they all stay in sync. */
+  --ai-preset-accent-precision: oklch(58% 0.19 250);
+  --ai-preset-accent-default: var(--ai-text-muted);
+  --ai-preset-accent-recall: oklch(56% 0.2 295);
+  --ai-preset-accent-fast: oklch(62% 0.18 55);
+
   /* Role aliases */
   --ai-role-surface-default: var(--ai-surface);
   --ai-role-surface-muted: var(--ai-surface-muted);
@@ -160,6 +175,7 @@ body.dark-mode {
   --ai-warning-muted: color-mix(in srgb, var(--ai-warning) 20%, transparent);
   --ai-error: #f87171;
   --ai-error-muted: color-mix(in srgb, var(--ai-error) 20%, transparent);
+  --ai-overlay-scrim: rgba(0, 0, 0, 0.5);
   --ai-text: hsl(var(--ai-fg));
   --ai-text-strong: color-mix(in srgb, var(--ai-text) 96%, transparent);
   --ai-text-soft: color-mix(in srgb, var(--ai-text) 72%, transparent);
@@ -310,7 +326,7 @@ body.dark-mode {
 /* ------------------------------------------------ */
 /* Label Utilities                                  */
 /* ------------------------------------------------ */
-/* Admin settings text roles:
+/* Settings text roles:
    ai-label-overline  → column/field/section-divider headers (uppercase, 12px)
    ai-label-emphasis  → primary content label for a data row in a settings grid (14px, semi-bold) */
 .ai-label-overline {
@@ -1049,9 +1065,9 @@ body.dark-mode {
     justify-content: center;
     font-size: 0.8rem;
     background: var(--gradient-mini);
-    color: #fff;
+    color: var(--ai-accent-contrast);
     border: none;
-    box-shadow: 0 0 0 1px color-mix(in srgb, #5b8def 60%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-blue) 60%, transparent);
   }
 }
 

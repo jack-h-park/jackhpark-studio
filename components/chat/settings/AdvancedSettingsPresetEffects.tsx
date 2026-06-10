@@ -7,11 +7,14 @@ import type { RankerId } from "@/lib/shared/models";
 import type {
   AdminChatConfig,
   SessionChatConfig,
-  SummaryLevel,
 } from "@/types/chat-config";
 import insetPanelStyles from "@/components/ui/inset-panel.module.css";
 import { cn } from "@/components/ui/utils";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
+import {
+  formatRankerLabel as formatRankerLabelShared,
+  SUMMARY_LEVEL_LABELS,
+} from "@/lib/shared/chat-labels";
 import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 
 import {
@@ -27,29 +30,8 @@ import {
 } from "./PresetEffectsSummary";
 import styles from "./PresetEffectsSummary.module.css";
 
-const SUMMARY_LEVEL_LABELS: Record<SummaryLevel, string> = {
-  off: "Off",
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-};
-
-const RANKER_LABELS: Record<RankerId, string> = {
-  none: "None",
-  mmr: "MMR (diversity)",
-  "cohere-rerank": "Cohere rerank",
-};
-
-const formatRankerLabel = (ranker: RankerId) => {
-  if (RANKER_LABELS[ranker]) return RANKER_LABELS[ranker];
-  return ranker
-    .split(/[-_]/)
-    .map(
-      (segment) =>
-        segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase(),
-    )
-    .join(" ");
-};
+const formatRankerLabel = (ranker: RankerId) =>
+  formatRankerLabelShared(ranker, { verbose: true });
 
 const renderCapabilityState = (enabled: boolean) => (
   <span
