@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import type { EmbeddingResolutionSnapshot } from "@/lib/server/telemetry/embedding-trace";
 import type {
   ChatEngineType,
   EmbeddingSpaceWarning,
@@ -30,6 +29,7 @@ import {
   type ReverseRagMode,
 } from "@/lib/shared/rag-config";
 
+import type { EmbeddingResolutionSnapshot } from "./embedding-availability";
 import { resolveEmbeddingSettings } from "./embedding-settings";
 import { resolvePresetKey } from "./preset-resolution";
 import { TtlCache } from "./ttl-cache";

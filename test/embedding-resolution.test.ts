@@ -12,7 +12,7 @@ import {
 import {
   type EmbeddingProviderAvailability,
   enforceEmbeddingProviderAvailability,
-} from "@/lib/server/telemetry/embedding-trace";
+} from "@/lib/server/settings/embedding-availability";
 
 const buildSessionConfig = (
   defaults: ChatModelSettings,

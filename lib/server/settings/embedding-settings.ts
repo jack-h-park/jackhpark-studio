@@ -6,6 +6,7 @@ import type {
 } from "@/types/chat-config";
 import { resolveEmbeddingSpace } from "@/lib/core/model-provider";
 import { ragLogger } from "@/lib/logging/logger";
+
 import {
   type EmbeddingLegacyMapping,
   type EmbeddingResolutionReason,
@@ -13,7 +14,7 @@ import {
   type EmbeddingSessionOverrideTrace,
   enforceEmbeddingProviderAvailability,
   getEmbeddingProviderAvailability,
-} from "@/lib/server/telemetry/embedding-trace";
+} from "./embedding-availability";
 
 const LEGACY_EMBEDDING_SPACE_PATTERN = /^(openai|gemini)_[a-z0-9]+_v\d+$/i;
 
