@@ -809,10 +809,19 @@ export async function runRagRetrieval(
   // CallbackHandler creates a linked-by-correlation Langfuse trace for the
   // LangGraph node spans. It cannot attach to our custom LangfuseTrace directly
   // (which isn't a LangfuseTraceClient), so we correlate via sessionId and
-  // metadata instead. Keys are read from LANGFUSE_* env vars automatically.
+  // metadata instead.
+  //
+  // Host/keys are passed explicitly rather than left to env autodiscovery:
+  // langfuse-langchain (langfuse v3) reads the host from LANGFUSE_BASEURL and
+  // otherwise defaults to the EU cloud, but the rest of the app configures
+  // Langfuse via LANGFUSE_BASE_URL (us.cloud). Relying on env alone ships these
+  // spans to the wrong region, where they silently 401 and are dropped.
   const callbacks = input.trace
     ? [
         new CallbackHandler({
+          baseUrl: process.env.LANGFUSE_BASE_URL,
+          publicKey: process.env.LANGFUSE_PUBLIC_KEY,
+          secretKey: process.env.LANGFUSE_SECRET_KEY,
           sessionId: input.requestId ?? undefined,
           tags: ["rag:retrieval-graph"],
           metadata: { linkedTraceId: input.trace.traceId },
