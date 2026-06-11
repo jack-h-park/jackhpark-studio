@@ -1,3 +1,5 @@
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+
 import type { EmbeddingSpace } from "@/lib/core/embedding-spaces";
 import type { ModelProvider } from "@/lib/shared/model-provider";
 import {
@@ -6,12 +8,42 @@ import {
   getCohereClient,
 } from "@/lib/core/cohere";
 import { embedTexts } from "@/lib/core/embeddings";
-import { generateText } from "@/lib/server/text-generation";
+import { createChatModel } from "@/lib/server/api/llm-provider-factory";
+import { messageContentToString } from "@/lib/server/langchain/stream-chunk";
 import {
   DEFAULT_REVERSE_RAG_MODE,
   type RankerMode,
   type ReverseRagMode,
 } from "@/lib/shared/rag-config";
+
+/**
+ * Single-shot completion via the shared LangChain chat-model factory — the same
+ * provider path the answer stream uses (createChatModel). Keeps reverse-RAG and
+ * HyDE off the old raw-SDK text-generation layer so there is one provider
+ * dispatch, not two.
+ */
+async function generateOnce(opts: {
+  provider: ModelProvider;
+  model: string;
+  systemPrompt: string;
+  userPrompt: string;
+  temperature: number;
+  maxTokens: number;
+}): Promise<string> {
+  const llm = await createChatModel(
+    opts.provider,
+    opts.model,
+    opts.temperature,
+    opts.maxTokens,
+  );
+  const response = await llm.invoke([
+    new SystemMessage(opts.systemPrompt),
+    new HumanMessage(opts.userPrompt),
+  ]);
+  return messageContentToString(
+    (response as { content?: unknown }).content,
+  ).trim();
+}
 
 const REVERSE_RAG_MAX_TOKENS = 64;
 const REVERSE_RAG_TEMPERATURE = 0.2;
@@ -54,7 +86,7 @@ export async function rewriteQuery(
   ].join("\n");
 
   try {
-    const rewritten = await generateText({
+    const rewritten = await generateOnce({
       provider: options.provider,
       model: options.model,
       systemPrompt,
@@ -88,7 +120,7 @@ export async function generateHydeDocument(
   const userPrompt = ["Question:", query].join("\n");
 
   try {
-    const hyde = await generateText({
+    const hyde = await generateOnce({
       provider: options.provider,
       model: options.model,
       systemPrompt,
