@@ -16,6 +16,11 @@ const posthogClient =
   telemetryEnabled && posthogApiKey
     ? new PostHog(posthogApiKey, {
         host: posthogHost,
+        // flushAt: 1 ensures events are sent immediately — required in
+        // serverless environments where the process exits before the
+        // default batch window closes.
+        flushAt: 1,
+        flushInterval: 0,
       })
     : null;
 
