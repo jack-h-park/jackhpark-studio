@@ -42,6 +42,56 @@ This design explicitly separates **initialization**, **loading**, and **executio
     - **Problem:** Smoke tests often checked functionality based on the _local shell environment_ (e.g., "I set `DEBUG_SURFACES=1` locally, so I expect debug output"). However, the _server_ might be running with different env vars.
 - **Solution:** This layer encapsulates all logic that depends on server-side environment variables (like `DEBUG_SURFACES_ENABLED`). Tests now verify the _result_ of the server's state, rather than assuming the server matches the client's shell state.
 
+## LangChain Usage Rationale
+
+LangChain is used in targeted, bounded roles rather than as an end-to-end framework. The principle is: use it where it provides a concrete structural benefit, and keep domain logic (guardrails, telemetry, caching, abort handling) in plain TypeScript.
+
+### Where LangChain adds value
+
+#### `StateGraph` — sequential RAG pipeline (`lib/server/langchain/rag-retrieval-chain.ts`)
+
+The five-stage retrieval pipeline (rewrite → HyDE → retrieve → rerank → context) is implemented as a LangGraph `StateGraph` rather than a manual chain of async function calls. The key benefits:
+
+- **Named nodes → automatic observability.** Each node becomes a named span in Langfuse (via `CallbackHandler`) and a named run in LangSmith with no extra instrumentation code. This is non-trivial to replicate with plain functions.
+- **`AbortSignal` between nodes.** `graph.invoke({ signal })` honors cancellation between node boundaries. Implementing this correctly in a manual pipeline requires propagating the signal through every function signature.
+- **Serializable state channels.** `RagGraphAnnotation` channels hold only plain serializable step outputs. Non-serializable objects (Supabase client, `LangfuseTrace`, embeddings instance) are captured by closure in `buildRetrievalGraph()` rather than living in graph state — this prevents circular-reference errors in LangSmith/Langfuse trace payloads. The graph is constructed per-request precisely to enable this pattern.
+
+#### `RunnableSequence` — answer streaming chain (`lib/server/langchain/rag-answer-chain.ts`)
+
+The two-stage answer chain (prompt format → LLM stream) uses `RunnableSequence` with explicit `runName` labels. This gives LangSmith a clean named run tree for the answer generation step, and `RunnableLambda.withConfig({ runName })` lets the same names appear in both Langfuse (via `CallbackHandler`) and LangSmith without duplicating label logic. The chain is intentionally minimal: sanitization, caching, abort handling, and PostHog capture live outside it in plain TypeScript.
+
+#### `BaseLanguageModelInterface` — provider abstraction (`lib/server/api/llm-provider-factory.ts`)
+
+A single interface covers OpenAI, Gemini, Anthropic, LM Studio, and Ollama. The factory uses **dynamic imports** (`await import("@langchain/openai")` etc.) so provider SDKs are loaded on demand — providers not configured in a deployment don't contribute to the cold-start bundle. Without this abstraction, every call site would need a provider switch and each answer-chain and enhancement helper (`generateOnce`, `streamAnswerWithPrompt`) would carry its own dispatch table.
+
+One provider-specific invariant: Claude Opus 4.8 and Fable reject `temperature` with HTTP 400 when their model catalog marks `supportsSampling: false`. The factory checks this flag and omits `temperature` accordingly — `@langchain/anthropic` handles this automatically only for older opus-4-7, so the factory handles newer models explicitly.
+
+#### `ChatPromptTemplate` / `BaseMessage` — role-aware prompt assembly
+
+Using `ChatPromptTemplate.formatMessages()` produces a proper `[SystemMessage, HumanMessage]` message pair. The alternative — a single `PromptTemplate` string with everything concatenated — folds the system prompt into the `user` turn, which causes providers (especially Anthropic) to misinterpret the instruction structure. The role separation is a correctness requirement, not a style preference.
+
+#### `SupabaseVectorStore` — vector search abstraction
+
+`SupabaseVectorStore.similaritySearchVectorWithScore()` issues the `match_documents` RPC call and unmarshals results into `Document` objects. The alternative is writing raw `pgvector` SQL and mapping results manually. The abstraction also keeps the retrieval logic consistent with the `EmbeddingsInterface` adapter (see below).
+
+#### `EmbeddingsInterface` adapter — ingestion/query preprocessing consistency
+
+`createEmbeddingsInstance()` wraps the project's own `embedTexts()` behind the `EmbeddingsInterface` shape expected by `SupabaseVectorStore`. Using `OpenAIEmbeddings` directly would apply its own preprocessing (e.g., stripping newlines), which differs from what `embedTexts` does at ingestion time. If query vectors and index vectors are generated with different preprocessing, similarity scores are silently skewed. Routing both through `embedTexts()` ensures they sit in the same embedding space.
+
+---
+
+### Where LangChain is deliberately not used
+
+| Area | Why not |
+|---|---|
+| Higher-level chains (`RetrievalQA`, `ConversationalRetrievalChain`) | Each RAG stage needs custom telemetry, per-stage K normalization, and reranker hooks that higher-level chains hide or make awkward to override |
+| Guardrail logic (`sanitizeMessages`, `buildContextWindow`, routing) | Plain async functions are simpler, easier to unit-test, and don't benefit from callback chains |
+| Abort handling in the answer stream | `streamAnswerWithPrompt` handles `AbortError` with Next.js-specific response lifecycle logic; LangChain's callback-based cancellation doesn't integrate cleanly here |
+| Error classification and telemetry hooks | Explicit `try/catch` at the call site keeps error types under our control and makes the Langfuse span metadata predictable |
+| `OpenAIEmbeddings` directly | Would bypass the `embedTexts` preprocessing path used at ingestion time (see EmbeddingsInterface adapter above) |
+
+---
+
 ## LangChain Execution Surface
 
 ### Entrypoint responsibilities
