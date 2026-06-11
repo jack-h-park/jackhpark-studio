@@ -1,5 +1,5 @@
-import type { BaseMessage } from "@langchain/core/messages";
 import type { BaseLanguageModelInterface } from "@langchain/core/language_models/base";
+import type { BaseMessage } from "@langchain/core/messages";
 import type { ChatPromptTemplate } from "@langchain/core/prompts";
 import { RunnableLambda, RunnableSequence } from "@langchain/core/runnables";
 

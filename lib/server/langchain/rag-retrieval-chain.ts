@@ -2,6 +2,8 @@ import type { Document } from "@langchain/core/documents";
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SupabaseVectorStore } from "@langchain/community/vectorstores/supabase";
+import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
+import { CallbackHandler } from "langfuse-langchain";
 
 import type { EmbeddingSpace } from "@/lib/core/embedding-spaces";
 import type { AppEnv, LangfuseTrace } from "@/lib/langfuse";
@@ -725,43 +727,114 @@ function contextStage(
   return contextResult;
 }
 
+// ---------------------------------------------------------------------------
+// LangGraph state + per-request graph
+//
+// Each node name becomes a span in Langfuse (via langfuse-langchain
+// CallbackHandler) and a run in LangSmith. The existing withSpan() calls inside
+// each stage remain as child spans, giving a two-level trace tree:
+//   node span (LangGraph)
+//     └─ detail span (withSpan)
+//
+// State channels hold ONLY serializable step outputs. The heavy, non-
+// serializable RagRetrievalInput (Supabase client, embeddings instance,
+// LangfuseTrace carrying functions) is captured by closure in
+// buildRetrievalGraph() rather than living in a channel — otherwise the
+// LangSmith/Langfuse tracers serialize it as node I/O and hit circular
+// references ("LangSmith received circular JSON" warnings, degraded traces).
+// ---------------------------------------------------------------------------
+
+type HydeStageOutput = Awaited<ReturnType<typeof hydeStage>>;
+
+const RagGraphAnnotation = Annotation.Root({
+  rewrittenQuery: Annotation<string>(),
+  hydeResult: Annotation<HydeStageOutput | null>(),
+  retrievalResult: Annotation<RetrievalStageResult | null>(),
+  rankingResult: Annotation<RankStageResult | null>(),
+  contextResult: Annotation<ContextWindowResult | null>(),
+});
+
+type RagGraphState = typeof RagGraphAnnotation.State;
+
+function buildRetrievalGraph(input: RagRetrievalInput, allowPii: boolean) {
+  return new StateGraph(RagGraphAnnotation)
+    .addNode("rewrite", async () => ({
+      rewrittenQuery: await rewriteStage(input, allowPii),
+    }))
+    .addNode("hyde", async (s: RagGraphState) => ({
+      hydeResult: await hydeStage(input, s.rewrittenQuery, allowPii),
+    }))
+    .addNode("retrieve", async (s: RagGraphState) => ({
+      retrievalResult: await retrieveStage(
+        input,
+        s.hydeResult!.embeddingTarget,
+        allowPii,
+      ),
+    }))
+    .addNode("rerank", async (s: RagGraphState) => ({
+      rankingResult: await rankStage(input, s.retrievalResult!, s.rewrittenQuery),
+    }))
+    .addNode("context", (s: RagGraphState) => ({
+      contextResult: contextStage(input, s.retrievalResult!, s.rankingResult!),
+    }))
+    .addEdge(START, "rewrite")
+    .addEdge("rewrite", "hyde")
+    .addEdge("hyde", "retrieve")
+    .addEdge("retrieve", "rerank")
+    .addEdge("rerank", "context")
+    .addEdge("context", END)
+    .compile();
+}
+
 /**
- * Sequential retrieval pipeline: reverse-RAG rewrite → HyDE → vector search +
- * metadata enrichment → rerank → context window. Plain async functions; the
- * previous RunnableLambda wrapping fed no callbacks (buildChainRunnableConfig
- * always attached `callbacks: []`), so all observability lives in the manual
- * Langfuse spans. Aborts are honored at stage boundaries.
+ * Sequential retrieval pipeline: rewrite → HyDE → vector search → rerank →
+ * context window, orchestrated as a LangGraph state machine.
+ *
+ * Node-level spans are emitted via langfuse-langchain CallbackHandler into a
+ * SEPARATE Langfuse trace (the handler cannot attach to our custom
+ * LangfuseTrace, which is not a LangfuseTraceClient). That trace is correlated
+ * to the primary one by sessionId (requestId) and a linkedTraceId metadata
+ * field. The withSpan() calls inside each stage still emit their detail spans
+ * onto the primary trace. Abort is honored between nodes via the graph signal.
  */
 export async function runRagRetrieval(
   input: RagRetrievalInput,
   options?: { signal?: AbortSignal | null },
 ): Promise<RagChainOutput> {
   const signal = options?.signal ?? null;
-  const throwIfAborted = () => {
-    if (signal?.aborted) {
-      throw signal.reason instanceof Error
-        ? signal.reason
-        : new Error("Aborted");
-    }
-  };
   const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
 
   input.updateTrace?.({ metadata: { rag: { retrieval_attempted: true } } });
 
-  throwIfAborted();
-  const rewrittenQuery = await rewriteStage(input, allowPii);
-  throwIfAborted();
-  const hyde = await hydeStage(input, rewrittenQuery, allowPii);
-  throwIfAborted();
-  const retrieval = await retrieveStage(input, hyde.embeddingTarget, allowPii);
-  throwIfAborted();
-  const ranking = await rankStage(input, retrieval, rewrittenQuery);
-  throwIfAborted();
-  const contextResult = contextStage(input, retrieval, ranking);
+  // CallbackHandler creates a linked-by-correlation Langfuse trace for the
+  // LangGraph node spans. It cannot attach to our custom LangfuseTrace directly
+  // (which isn't a LangfuseTraceClient), so we correlate via sessionId and
+  // metadata instead. Keys are read from LANGFUSE_* env vars automatically.
+  const callbacks = input.trace
+    ? [
+        new CallbackHandler({
+          sessionId: input.requestId ?? undefined,
+          tags: ["rag:retrieval-graph"],
+          metadata: { linkedTraceId: input.trace.traceId },
+        }),
+      ]
+    : [];
+
+  // runName labels the run in LangSmith (auto-traced via LANGSMITH_* env vars,
+  // independent of the Langfuse callback above — both observe the same graph).
+  const graph = buildRetrievalGraph(input, allowPii);
+  const result = await graph.invoke(
+    {},
+    { signal: signal ?? undefined, callbacks, runName: "rag-retrieval-graph" },
+  );
+
+  const hyde = result.hydeResult!;
+  const retrieval = result.retrievalResult!;
+  const ranking = result.rankingResult!;
 
   return {
     ...input,
-    rewrittenQuery,
+    rewrittenQuery: result.rewrittenQuery,
     hydeDocument: hyde.hydeDocument,
     embeddingTarget: hyde.embeddingTarget,
     preRetrieval: hyde.preRetrieval,
@@ -771,6 +844,6 @@ export async function runRagRetrieval(
     candidatesRetrieved: retrieval.candidatesRetrieved,
     enrichedDocs: retrieval.enrichedDocs,
     rankedDocs: ranking.rankedDocs,
-    contextResult,
+    contextResult: result.contextResult!,
   };
 }

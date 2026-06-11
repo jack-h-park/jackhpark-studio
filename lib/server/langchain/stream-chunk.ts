@@ -5,7 +5,7 @@
  * into plain strings for downstream streaming logic.
  */
 
-function messageContentToString(content: unknown): string {
+export function messageContentToString(content: unknown): string {
   if (typeof content === "string") {
     return content;
   }
