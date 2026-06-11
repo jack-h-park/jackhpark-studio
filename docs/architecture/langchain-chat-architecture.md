@@ -52,16 +52,17 @@ This design explicitly separates **initialization**, **loading**, and **executio
   - Cache metadata helpers for response / retrieval hits (`buildCacheMetadata`, `updateTraceCacheMetadata`, `updateRetrievalMetadata`).
   - Guardrail meta snapshots sent to telemetry headers whenever summaries or context change (`serializeGuardrailMeta`).
 
-### RAG retrieval chain (`lib/server/langchain/ragRetrievalChain.ts`)
+### RAG retrieval chain (`lib/server/langchain/rag-retrieval-chain.ts`)
 
-- Triggered via `computeRagContextAndCitations` using `buildRagRetrievalChain()` (implemented as a `RunnableSequence` of reverse-RAG → HyDE → vector retrieval → reranker → context window) so each stage can emit Langfuse spans (`reverse_rag`, `hyde`, `retrieval`, `reranker`, `context:selection`).
-- Retrieval runs within LangChain’s `RunnableLambda` hooks, allowing:
-  - Automatic telemetry metadata creation (`buildTelemetryMetadata`) per span.
+- Triggered via `computeRagContextAndCitations` using `runRagRetrieval()` — a plain async pipeline of reverse-RAG → HyDE → vector retrieval → reranker → context window. Each stage still emits Langfuse spans (`reverse_rag`, `hyde`, `retrieval`, `reranker`, `context:selection`) via the shared `maybeSpan` helper. (Prior versions wrapped each stage in a `RunnableLambda`/`RunnableSequence`, but the runnable config attached no callbacks, so the runnable layer added no observability — all spans come from explicit `withSpan` calls.)
+- Each stage receives explicit per-stage inputs (rather than a single accumulating state object), allowing:
+  - Telemetry metadata creation (`buildTelemetryMetadata`) per span.
   - Supabase similarity search along with canonicalization/reranking hooks (`rewriteLangchainDocument`, `applyRanker`, `enrichAndFilterDocs`).
   - Guardrail-friendly context selection (`buildContextWindow`) plus telemetry reporting (selection quotas, deduplication stats).
+- Aborts are honored at stage boundaries via the `signal` option.
 - The heavy handler merges auto/multi query candidates (`mergeCandidates`) and decision telemetry (`decisionSignature`) before building the final context block and citations.
 
-### Answer streaming chain (`lib/server/langchain/ragAnswerChain.ts`)
+### Answer streaming chain (`lib/server/langchain/rag-answer-chain.ts`)
 
 - Once the context is ready, LangChain builds a short `RunnableSequence`:
   1. `promptRunnable`: formats the guardrail prompt via `PromptTemplate` (`buildFinalSystemPrompt`, guardrail meta, memory/context sections).

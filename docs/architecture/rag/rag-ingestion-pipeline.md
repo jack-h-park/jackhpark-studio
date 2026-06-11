@@ -5,7 +5,7 @@
 > If behavior changes, update the canonical doc first, then reflect here.
 
 **Status:** authoritative
-**Implementations:** `lib/admin/manual-ingestor.ts`, `lib/rag/index.ts`
+**Implementations:** `lib/rag/pipeline.ts` (shared core), `lib/rag/sources/{notion,url}.ts` (source adapters), `lib/rag/index.ts` (chunking/persistence primitives), `lib/admin/manual-ingestor.ts` + `scripts/ingest-{notion,url}.ts` (thin callers)
 
 Related: [RAG Document Lifecycle](./rag-document-lifecycle.md)
 
@@ -21,24 +21,34 @@ The ingestion system follows a "push" model triggered via the Admin UI or script
 1.  **Atomic Document Updates:** Replaces all chunks for a document if its content hash changes.
 2.  **Versioning:** Supports multiple embedding providers (OpenAI, Gemini) concurrently via isolated tables.
 
+### Architecture: shared core + source adapters
+
+Source-specific fetch/parse/metadata logic lives in **adapters** (`lib/rag/sources/`); everything downstream of a parsed document — change detection, the skip/metadata-only/full decision, chunking, embedding, persistence, and lifecycle marking — runs in the **shared core** (`ingestPreparedDocument` in `lib/rag/pipeline.ts`).
+
+- An adapter produces a `PreparedDocument` (canonical/raw IDs, title, text, `lastSourceUpdate`, a `changeDetection` strategy, and a `buildMetadata` callback).
+- The CLI scripts (`scripts/ingest-{notion,url}.ts`) and the admin manual ingestor (`lib/admin/manual-ingestor.ts`) are thin callers over the core; they share `withIngestRun` for run-level bookkeeping and an `IngestReporter` for progress (console vs. SSE).
+- **Adding a new source type (e.g. PDF) means writing one adapter** — the chunk/embed/store path is reused unchanged.
+
 ---
 
 ## 2. Ingestion Sources
 
 ### Notion Pages
 
-- **Source:** `lib/admin/manual-ingestor.ts`
+- **Adapter:** `lib/rag/sources/notion.ts` (`prepareNotionPageDocument`)
 - **Tool:** `notion-client` (private API) to fetch `ExtendedRecordMap`.
-- **Extraction:** Uses `notion-utils` to convert blocks to plain text.
-- **Crawling:** Supports recursive ingestion of linked pages.
+- **Extraction:** Uses `notion-utils` to convert blocks to plain text (`extractPlainText` in `lib/rag/index.ts`).
+- **Crawling:** Linked-page discovery lives in `lib/admin/manual-ingestor.ts`.
   - **Depth Control:** `LINKED_PAGE_MAX_DEPTH` (default: 4)
   - **Breadth Control:** `LINKED_PAGE_MAX_PAGES` (default: 250)
+- **Change detection:** `hash` (Notion `last_edited_time` moves on any page touch, so content hash alone is authoritative).
 
 ### URLs
 
-- **Source:** `lib/rag/index.ts` -> `extractMainContent`
+- **Adapter:** `lib/rag/sources/url.ts` (`fetchUrlDocument`) -> `extractMainContent` in `lib/rag/index.ts`
 - **Tool:** `jsdom` + `@mozilla/readability`.
 - **Extraction:** Scrapes HTML and isolates main article content, removing navigation/ads.
+- **Change detection:** `hash-and-timestamp` (also compares `Last-Modified`).
 
 ---
 
@@ -46,10 +56,10 @@ The ingestion system follows a "push" model triggered via the Admin UI or script
 
 To strictly minimize unnecessary embedding costs, the system checks for changes _before_ processing content.
 
-**Logic:** `lib/rag/ingest-helpers.ts`
+**Logic:** `decideIngestAction` in `lib/rag/ingest-helpers.ts`, invoked by the shared core (`ingestPreparedDocument`).
 
 1.  **Content Hash:** Calculates `stableHash(canonicalId + plainText)`.
-2.  **Last Modified:** Compares semantic `last_source_update` timestamps.
+2.  **Last Modified:** Compares semantic `last_source_update` timestamps (only for the `hash-and-timestamp` strategy; see the per-source change-detection mode above).
 3.  **Decision Tree:**
     - If **Content Hash Changed** → `full` ingest (delete old chunks, embed new).
     - If **Content Unchanged** BUT **Metadata Changed** → `metadata-only` update (update `rag_documents` table only).

@@ -6,7 +6,7 @@
 - **Non-LLM teams need context**: These observations let dashboard owners and engineers gauge RAG health without storing prompts or chunk text.
 
 ## Pipeline overview
-1. **Retrieval** runs via `lib/server/api/langchain_chat_impl_heavy.ts` → `lib/server/langchain/ragRetrievalChain.ts`, emitting `rag:root` once the context window completes.
+1. **Retrieval** runs via `lib/server/api/chat-rag-context.ts` → `lib/server/langchain/rag-retrieval-chain.ts`, emitting `rag:root` once the context window completes.
 2. **Filtering & dedupe** happen inside `buildContextWindow` (`lib/server/chat-guardrails.ts`); it sorts, fingerprints, and clamps documents before quota-aware selection.
 3. **Selection + quotas** retains the best `finalK` chunks while keeping per-document quotas, mmr-lite adjustments, and token budgets in check.
 4. **LLM context** uses the selected chunks for generation. `context:selection` closes after selection metadata is captured and the final chunk list is handed to the model.
@@ -95,12 +95,12 @@
 4. **`droppedByQuota` dominating selection**: A large majority of candidate drops came from per-document quotas (`quotaEndUsed > quotaStart`). It means a single document had many eligible chunks, forcing the selection loop to skip extras even if they had good relevance.
 
 ## Implementation references
-- `lib/server/api/langchain_chat_impl_heavy.ts` (lines ~705‑1115): builds `ragRootMetadata`, gathers scores, and emits the `rag:root` observation once the context window finishes.
-- `lib/server/langchain/ragRetrievalChain.ts` (lines ~584‑650): calls `buildContextWindow`, emits `context:selection`, and surfaces the computed metadata when `includeSelectionMetadata` is true.
-- `lib/server/chat-guardrails.ts` (lines ~609‑790): implements `buildContextWindow`, chunk/doc dedup, quota loop, `insufficient` flag, and `mmrLite` adjustment that populate the observation fields.
+- `lib/server/api/chat-rag-context.ts`: builds `ragRootMetadata`, gathers scores, and emits the `rag:root` observation once the context window finishes (the orchestration moved out of `langchain_chat_impl_heavy.ts` during the RAG pipeline refactor).
+- `lib/server/langchain/rag-retrieval-chain.ts` (`contextStage`): calls `buildContextWindow`, emits `context:selection`, and surfaces the computed metadata when `includeSelectionMetadata` is true.
+- `lib/server/guardrails/context-window.ts`: implements `buildContextWindow`, chunk/doc dedup, quota loop, `insufficient` flag, and `mmrLite` adjustment that populate the observation fields.
 - Observation name strings: `rag:root`, `context:selection`.
 
 ## Stability & evolution notes
-- When retrieval or quota logic changes, update `rag:root` field descriptions by re-reading `lib/server/api/langchain_chat_impl_heavy.ts` near the `ragRootMetadata` assignment and the `autoDecisionMetrics` block.
-- Changes to selection metrics require editing `lib/server/chat-guardrails.ts` (especially the quota loop and dedupe helpers) and `lib/server/langchain/ragRetrievalChain.ts` where metadata is emitted.
+- When retrieval or quota logic changes, update `rag:root` field descriptions by re-reading `lib/server/api/chat-rag-context.ts` near the `ragRootMetadata` assignment and the `autoDecisionMetrics` block.
+- Changes to selection metrics require editing `lib/server/guardrails/context-window.ts` (especially the quota loop and dedupe helpers) and `lib/server/langchain/rag-retrieval-chain.ts` where metadata is emitted.
 - Dashboards should treat these fields as the source of truth, not the older `rag_retrieval_stage` spans, so any field additions go through this canonical doc first.

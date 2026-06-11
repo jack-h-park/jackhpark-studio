@@ -80,7 +80,7 @@ Key field names to recognize when reading traces:
 
 - `lib/server/api/langchain_chat_impl_heavy.ts`
   - request-level retrieval orchestration and `rag:root` assembly
-- `lib/server/langchain/ragRetrievalChain.ts`
+- `lib/server/langchain/rag-retrieval-chain.ts`
   - retrieval execution flow and `context:selection` emission
 - `lib/server/chat-guardrails.ts`
   - context-window construction, dedupe logic, quota loop, and local `insufficient` semantics
