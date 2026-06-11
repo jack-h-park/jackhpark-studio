@@ -1,5 +1,6 @@
+import type { BaseMessage } from "@langchain/core/messages";
 import type { BaseLanguageModelInterface } from "@langchain/core/language_models/base";
-import type { PromptTemplate } from "@langchain/core/prompts";
+import type { ChatPromptTemplate } from "@langchain/core/prompts";
 import { RunnableLambda, RunnableSequence } from "@langchain/core/runnables";
 
 import { makeRunName } from "@/lib/server/langchain/runnable-config";
@@ -9,25 +10,25 @@ type RagAnswerChainInput = {
   guardrailMeta: string;
   contextValue: string;
   memoryValue: string;
-  prompt: PromptTemplate;
+  prompt: ChatPromptTemplate;
   llmInstance: BaseLanguageModelInterface;
 };
 
 type RagAnswerChainState = RagAnswerChainInput & {
-  promptInput?: string;
+  promptInput?: BaseMessage[];
 };
 
 type RagAnswerChainOutput = RagAnswerChainState & {
-  promptInput: string;
+  promptInput: BaseMessage[];
   stream: AsyncIterable<string>;
 };
 
 export function buildRagAnswerChain() {
   const promptRunnable = RunnableLambda.from<
     RagAnswerChainInput,
-    RagAnswerChainState & { promptInput: string }
+    RagAnswerChainState & { promptInput: BaseMessage[] }
   >(async (input) => {
-    const promptInput = await input.prompt.format({
+    const promptInput = await input.prompt.formatMessages({
       question: input.question,
       context: input.contextValue,
       memory: input.memoryValue,
