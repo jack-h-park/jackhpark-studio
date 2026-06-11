@@ -95,6 +95,9 @@ export type ChatMessage = {
   runtime?: ChatRuntimeConfig | null;
   metrics?: ChatMessageMetrics;
   isComplete?: boolean;
+  // Langfuse traceId for this response, surfaced via the X-Trace-Id header.
+  // Used to attach user feedback (👍/👎) to the originating trace.
+  traceId?: string | null;
 };
 
 type ChatResponse = {
@@ -446,6 +449,17 @@ export function useChatSession(
           );
           if (guardrailMeta) {
             updateAssistant(undefined, guardrailMeta);
+          }
+
+          const traceId = response.headers.get("x-trace-id");
+          if (traceId) {
+            setMessages((prev) =>
+              prev.map((message) =>
+                message.id === assistantMessageId
+                  ? { ...message, traceId }
+                  : message,
+              ),
+            );
           }
 
           const reader = response.body.getReader();

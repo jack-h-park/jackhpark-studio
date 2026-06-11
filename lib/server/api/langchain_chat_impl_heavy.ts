@@ -384,6 +384,12 @@ export async function handleLangchainChat(
       ? getRequestTrace(traceState.requestId)
       : null;
     traceState.trace = trace;
+    // Surface the Langfuse traceId to the client so it can attach user
+    // feedback (👍/👎) to this exact trace. Set early (before any response
+    // body) so it covers every exit path: cached, blocked, streamed, error.
+    if (trace?.traceId && !res.headersSent) {
+      res.setHeader("X-Trace-Id", trace.traceId);
+    }
     if (process.env.NODE_ENV !== "production") {
       console.debug("[telemetry] langfuse trace", {
         requestId: traceState.requestId,
@@ -638,8 +644,10 @@ export async function handleLangchainChat(
       presetId,
       embeddingSelection,
       telemetryDecision,
-      traceId: null,
-      langfuseTraceId: null,
+      // Langfuse traceId (when a trace was emitted) so the LangSmith run
+      // metadata carries it too, enabling cross-system trace correlation.
+      traceId: traceState.trace?.traceId ?? null,
+      langfuseTraceId: traceState.trace?.traceId ?? null,
     };
     traceState.chainRunContext = chainRunContext;
     const resolvePosthogDistinctId = () => {
@@ -684,7 +692,10 @@ export async function handleLangchainChat(
           distinctId,
           properties: {
             env,
-            trace_id: null,
+            // Langfuse traceId of this request (null when no trace was
+            // emitted), so PostHog events can be joined back to the Langfuse
+            // trace for cross-system correlation.
+            trace_id: traceState.trace?.traceId ?? null,
             chat_session_id: sessionId ?? null,
             preset_key: chatConfigSnapshot?.presetKey ?? presetId ?? "unknown",
             chat_engine: "langchain",

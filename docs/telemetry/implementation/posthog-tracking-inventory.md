@@ -127,7 +127,7 @@ The server-side client is instantiated once as a module-level singleton. If `TEL
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `trace_id` | `null` | **Always `null`** — Langfuse trace correlation is not yet wired. See [known gaps](#known-gaps). |
+| `trace_id` | `string \| null` | Langfuse `traceId` of this request, sourced from `traceState.trace?.traceId`. `null` when no trace was emitted (telemetry disabled or sampled out). Enables joining PostHog events back to the Langfuse trace. |
 
 ---
 
@@ -160,10 +160,6 @@ Resolution logic lives in `resolvePosthogDistinctId()` in `langchain_chat_impl_h
 ---
 
 ## Known gaps
-
-### `trace_id` is always `null`
-
-`chat_completion` events carry `trace_id: null`. PostHog events cannot currently be joined to Langfuse traces for cross-system correlation. To fix this, pass the Langfuse `traceId` through `RuntimeTelemetryProps` and set it before calling `captureChatCompletion()`.
 
 ### No identity stitching
 

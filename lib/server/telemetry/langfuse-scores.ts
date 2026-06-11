@@ -1,4 +1,8 @@
-import { langfuse, type LangfuseTrace } from "@/lib/langfuse";
+import {
+  ensureLangfuseClient,
+  langfuse,
+  type LangfuseTrace,
+} from "@/lib/langfuse";
 import { telemetryLogger } from "@/lib/logging/logger";
 
 type ScoreEmitter = {
@@ -104,5 +108,54 @@ export function emitRagScores(options: EmitRagScoresOptions): void {
 
   if (isFiniteNumber(uniqueDocs)) {
     emitScore(client, traceId, SCORE_NAMES.uniqueDocs, uniqueDocs, requestId);
+  }
+}
+
+export const USER_FEEDBACK_SCORE_NAME = "user_feedback" as const;
+
+export type UserFeedbackValue = "up" | "down";
+
+export type EmitUserFeedbackScoreOptions = {
+  traceId: string;
+  value: UserFeedbackValue;
+  comment?: string | null;
+  /** Low-cardinality context for filtering in the Scores view (no PII). */
+  metadata?: Record<string, unknown> | null;
+};
+
+/**
+ * Emits a binary `user_feedback` Langfuse score (👍=1 / 👎=0) against an
+ * existing trace. Unlike {@link emitRagScores}, this runs from a separate
+ * request (the feedback API route) after the original trace has closed, so it
+ * ensures the client and flushes the score before returning. Resolves to
+ * `true` on success, `false` when telemetry is unavailable or emission fails.
+ */
+export async function emitUserFeedbackScore(
+  options: EmitUserFeedbackScoreOptions,
+): Promise<boolean> {
+  const { traceId, value, comment, metadata } = options;
+  if (!traceId) {
+    return false;
+  }
+
+  const client = await ensureLangfuseClient();
+  if (!client) {
+    return false;
+  }
+
+  try {
+    client.score.create({
+      traceId,
+      name: USER_FEEDBACK_SCORE_NAME,
+      value: value === "up" ? 1 : 0,
+      dataType: "BOOLEAN",
+      comment: comment?.trim() ? comment.trim() : undefined,
+      metadata: metadata ?? undefined,
+    });
+    await client.score.flush();
+    return true;
+  } catch (err) {
+    logScoreError(traceId, USER_FEEDBACK_SCORE_NAME, err);
+    return false;
   }
 }

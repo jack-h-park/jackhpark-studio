@@ -11,20 +11,27 @@ The system uses a **Dual-Telemetry Strategy** to separate engineering debug data
 ### A. Langfuse (LLM Engineering Observability)
 
 - **Purpose:** Deep tracing of the LLM chain of thought, latency waterfalls, and cost tracking.
-- **Implementation:** `lib/server/telemetry/telemetry-buffer.ts`
+- **Implementation:** `lib/server/telemetry/telemetry-buffer.ts` (trace buffer); spans are emitted via `withSpan()` in `lib/server/telemetry/withSpan.ts`.
 - **Data Model:**
   - **Trace:** Maps 1:1 with a Chat Request (`requestId`).
-  - **Span:** Tracks individual stages (e.g., `rag-retrieval`, `llm-generation`).
+  - **Span / Observation:** Tracks individual stages. Actual names include `rag:root`, `context:selection`, `answer:llm`, and (verbose-only) `rag_retrieval_stage`. See [langfuse-guide.md](../langfuse-guide.md) for the full emission matrix.
   - **Tags:** Standardized via `langfuse-tags.ts` to include `intent`, `preset`, and `env`.
 - **Privacy:** PII (Personally Identifiable Information) in prompts is masked by default unless `LANGFUSE_INCLUDE_PII=true` is set.
 
 ### B. PostHog (Product Analytics)
 
 - **Purpose:** User behavior tracking, retention cohorts, and high-level feature usage.
-- **Implementation:** `lib/logging/client.ts`
+- **Implementation:** Client init in `pages/_app.tsx` (`$pageview`); server-side capture in `lib/analytics/posthog.ts` (`chat_completion`).
 - **Integration:**
-  - Client-side events (clicks, page views) used for funnel analysis.
-  - Server-side events logged via shared loggers when critical business logic executes (e.g., "Ingestion Started").
+  - Client-side `$pageview` events on route change, used for funnel analysis.
+  - One server-side event today — `chat_completion`, emitted at the end of every LangChain chat request from `lib/server/api/langchain_chat_impl_heavy.ts`.
+  - Ingestion lifecycle events are **not** currently tracked. See [posthog-tracking-inventory.md](./posthog-tracking-inventory.md) for the authoritative list of what is and isn't instrumented.
+
+### C. LangSmith (LangGraph Graph-Level Observability)
+
+- **Purpose:** Auto-traced, fully-nested view of the RAG retrieval graph run for visual debugging.
+- **Implementation:** No bespoke code — enabled purely via `LANGSMITH_*` env vars; LangChain auto-traces the graph run (`runName: "rag-retrieval-graph"`) in parallel with Langfuse. See [Trace topology](../../architecture/langchain-chat-architecture.md#trace-topology-langfuse--langsmith).
+- **Where to look:** Runs land in the `LANGSMITH_PROJECT` project (currently `jackgpt-rag`), **not** the `default` project.
 
 ### C. Unified Logging Layer
 

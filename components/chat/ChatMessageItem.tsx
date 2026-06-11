@@ -18,6 +18,7 @@ import {
   type ModelProvider,
 } from "@/lib/shared/model-provider";
 
+import { ChatMessageFeedback } from "./ChatMessageFeedback";
 import styles from "./ChatMessagesPanel.module.css";
 import { ChatMessageRenderer } from "./rendering/ChatMessageRenderer";
 
@@ -228,6 +229,9 @@ export function ChatMessageItem({
           />
           <div className={styles.assistantContent}>
             {bubble}
+            {m.isComplete && m.traceId && (
+              <ChatMessageFeedback traceId={m.traceId} messageId={m.id} />
+            )}
             {(hasAnyMeta || hasCitations) && (
               <div className={styles.messageMeta}>
                 {showExpansionButton && (
