@@ -39,7 +39,7 @@ Use the canonical playbook for the reusable verification flow. Use this local su
 | Symptom | First place to inspect |
 | --- | --- |
 | `insufficient` spikes on cache hits | `lib/server/api/langchain_chat_impl_heavy.ts` |
-| `retrieval_attempted=true` on non-retrieval requests | `lib/server/langchain/ragRetrievalChain.ts` |
+| `retrieval_attempted=true` on non-retrieval requests | `lib/server/langchain/rag-retrieval-chain.ts` |
 | Missing output summary | `lib/server/api/langchain_chat_impl_heavy.ts` |
 | Cache flags flipping | `lib/server/api/langchain_chat_impl_heavy.ts` |
 

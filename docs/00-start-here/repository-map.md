@@ -8,7 +8,7 @@ This document is a current orientation map for the repository. It is not a canon
 - Main operational API and admin paths live under `pages/api/` and `pages/admin/`.
 - Chat requests enter through [`pages/api/chat.ts`](../../pages/api/chat.ts), which resolves runtime settings and delegates to [`pages/api/langchain_chat.ts`](../../pages/api/langchain_chat.ts).
 - `langchain_chat.ts` is a lightweight wrapper. The heavier LangChain/RAG runtime is loaded through `lib/server/api/langchain_chat_entry.ts`, `langchain_chat_impl.ts`, and `langchain_chat_impl_heavy.ts`. See [`docs/architecture/langchain-chat-architecture.md`](../architecture/langchain-chat-architecture.md).
-- Most chat policy and runtime setting resolution lives in [`lib/server/chat-settings.ts`](../../lib/server/chat-settings.ts).
+- Most chat policy and runtime setting resolution lives under `lib/server/settings/` (system-prompt, model, embedding, guardrail, and langfuse loaders), re-exported through the [`lib/server/chat-settings.ts`](../../lib/server/chat-settings.ts) barrel for the historical import path.
 
 ## Admin Surface
 
@@ -29,8 +29,10 @@ This document is a current orientation map for the repository. It is not a canon
 
 Core implementation domains are separated across `lib/`:
 
-- `lib/rag/`: ingestion, metadata, retrieval helpers, and document lifecycle
-- `lib/server/`: server-side chat, guardrails, model resolution, telemetry, and API internals
+- `lib/rag/`: ingestion core (`pipeline.ts`), source adapters (`sources/`), metadata, retrieval helpers, and document lifecycle
+- `lib/server/`: server-side chat and API internals
+- `lib/server/settings/`: chat model, embedding, guardrail-numeric, system-prompt, and langfuse settings loaders (barrel: `chat-settings.ts`)
+- `lib/server/guardrails/`: question routing, history window, context-window selection, and guardrail config/sanitization (barrel: `chat-guardrails.ts`)
 - `lib/server/langchain/`: LangChain retrieval and answer chains
 - `lib/server/api/`: lightweight-to-heavy chat API loading layers
 - `lib/telemetry/` and `lib/server/telemetry/`: Langfuse/PostHog metadata and trace helpers

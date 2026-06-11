@@ -1,5 +1,5 @@
 import type { BaseLanguageModelInterface } from "@langchain/core/language_models/base";
-import type { PromptTemplate } from "@langchain/core/prompts";
+import type { ChatPromptTemplate } from "@langchain/core/prompts";
 import type { NextApiResponse } from "next";
 
 import type { LangfuseTrace } from "@/lib/langfuse";
@@ -74,7 +74,7 @@ function setSmokeHeaders(res: NextApiResponse, cacheHit: boolean | null) {
 export interface StreamAnswerParams {
   promptInput: {
     llmInstance: BaseLanguageModelInterface;
-    prompt: PromptTemplate;
+    prompt: ChatPromptTemplate;
     question: string;
     historyWindow: HistoryWindowResult;
   };
@@ -309,10 +309,14 @@ export async function streamAnswerWithPrompt({
             preview: contextValue.slice(0, 100).replaceAll("\n", "\\n"),
             insufficient: contextResult.insufficient,
           });
-          ragLogger.trace(
-            "[langchain_chat] prompt input preview",
-            promptInput.slice(0, 500).replaceAll("\n", "\\n"),
-          );
+          ragLogger.trace("[langchain_chat] prompt input preview", {
+            messages: promptInput.map((m) => ({
+              role: m._getType(),
+              preview: (typeof m.content === "string" ? m.content : JSON.stringify(m.content))
+                .slice(0, 500)
+                .replaceAll("\n", "\\n"),
+            })),
+          });
 
           for await (const chunk of stream) {
             if (abortSignal?.aborted) {

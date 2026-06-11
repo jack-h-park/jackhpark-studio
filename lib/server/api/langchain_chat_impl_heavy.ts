@@ -774,7 +774,7 @@ export async function handleLangchainChat(
       });
     }
 
-    const [{ createClient }, { PromptTemplate }] = await Promise.all([
+    const [{ createClient }, { ChatPromptTemplate }] = await Promise.all([
       import("@supabase/supabase-js"),
       import("@langchain/core/prompts"),
     ]);
@@ -839,7 +839,7 @@ export async function handleLangchainChat(
       adminConfig,
       sessionConfig,
     });
-    const promptTemplate = [
+    const systemTemplate = [
       escapeForPromptTemplate(basePrompt),
       "",
       "Guardrails:",
@@ -850,11 +850,11 @@ export async function handleLangchainChat(
       "",
       "Relevant excerpts:",
       "{context}",
-      "",
-      "Question:",
-      "{question}",
     ].join("\n");
-    const prompt = PromptTemplate.fromTemplate(promptTemplate);
+    const prompt = ChatPromptTemplate.fromMessages([
+      ["system", systemTemplate],
+      ["human", "{question}"],
+    ]);
     // We also use getSupabaseAdminClient for metadata fetching now to align
     const supabaseAdmin = await runStage("supabase-admin", () =>
       Promise.resolve(getSupabaseAdminClient()),

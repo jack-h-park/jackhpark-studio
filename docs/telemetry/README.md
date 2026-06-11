@@ -9,6 +9,7 @@
 ## Operational References
 
 - [implementation/telemetry-logging.md](implementation/telemetry-logging.md)
+- [implementation/posthog-tracking-inventory.md](implementation/posthog-tracking-inventory.md)
 - [implementation/rag-observations.md](implementation/rag-observations.md)
 - [langfuse-guide.md](langfuse-guide.md)
 - [posthog-ops.md](posthog-ops.md)

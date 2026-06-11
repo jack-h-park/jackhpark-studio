@@ -5,7 +5,7 @@
 > This document is role-specific; it must not redefine the canonical invariants.
 > If behavior changes, update the canonical doc first, then reflect here.
 
-**Last verified:** Unknown — verify `lib/server/chat-guardrails.ts` and `lib/server/langchain/ragAnswerChain.ts` still match the implementation described here before acting on recommendations.
+**Last verified:** Unknown — verify `lib/server/guardrails/history-window.ts` and `lib/server/langchain/rag-answer-chain.ts` still match the implementation described here before acting on recommendations.
 
 This analysis assumes the canonical guardrail contracts for context budgeting described in `../canonical/rag/rag-system.md`; the focus here is the decision to stay with a stateless, functional memory implementation.
 
@@ -15,29 +15,29 @@ Currently, the codebase **does not use** LangChain's built-in Memory modules (e.
 
 ### How it works
 
-The logic is centralized in `lib/server/chat-guardrails.ts` and injected in `lib/server/langchain/ragAnswerChain.ts`.
+The logic is centralized in `lib/server/guardrails/history-window.ts` (re-exported via the `lib/server/chat-guardrails.ts` barrel) and injected in `lib/server/langchain/rag-answer-chain.ts`.
 
 1.  **Stateless Input**: Every request receives the full raw `messages` array from the client. The server does not maintain a persistent `Memory` object across requests.
 2.  **Manual Token Budgeting (`applyHistoryWindow`)**:
-    - Located in `lib/server/chat-guardrails.ts`.
+    - Located in `lib/server/guardrails/history-window.ts`.
     - Iterates backwards through the message list.
     - Calculates token counts using `gpt-tokenizer`.
     - Keeps messages only until `guardrails.historyTokenBudget` is reached.
     - **Critical Difference**: LangChain's `ConversationBufferWindowMemory` usually counts _turns_ (k=5), whereas your implementation counts _tokens_, which is more precise for LLM context window management.
 3.  **Custom Summarization (`buildSummaryMemory`)**:
-    - Also in `lib/server/chat-guardrails.ts`.
+    - Also in `lib/server/guardrails/history-window.ts`.
     - Instead of making an LLM call to summarize the conversation (which adds latency and cost), it uses a **heuristic approach**:
       - Extracts the last $N$ turns.
       - Truncates each message to a fixed character width.
       - Concatenates them into a compact string.
 4.  **Prompt Injection**:
-    - In `lib/server/langchain/ragAnswerChain.ts`, the `memory` variable is passed directly to the `PromptTemplate`.
+    - In `lib/server/langchain/rag-answer-chain.ts`, the `memory` variable is passed directly to the `PromptTemplate`.
     - It is treated as just another string variable, not a dynamic class that loads/saves state.
 
 ### Code Trace
 
 ```typescript
-// lib/server/chat-guardrails.ts
+// lib/server/guardrails/history-window.ts
 
 export function applyHistoryWindow(...) {
   // ... iterates backwards ...
