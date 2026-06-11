@@ -54,18 +54,31 @@ This design explicitly separates **initialization**, **loading**, and **executio
 
 ### RAG retrieval chain (`lib/server/langchain/rag-retrieval-chain.ts`)
 
-- Triggered via `computeRagContextAndCitations` using `runRagRetrieval()` — a plain async pipeline of reverse-RAG → HyDE → vector retrieval → reranker → context window. Each stage still emits Langfuse spans (`reverse_rag`, `hyde`, `retrieval`, `reranker`, `context:selection`) via the shared `maybeSpan` helper. (Prior versions wrapped each stage in a `RunnableLambda`/`RunnableSequence`, but the runnable config attached no callbacks, so the runnable layer added no observability — all spans come from explicit `withSpan` calls.)
-- Each stage receives explicit per-stage inputs (rather than a single accumulating state object), allowing:
+- Triggered via `computeRagContextAndCitations` using `runRagRetrieval()` — a **LangGraph `StateGraph`** that sequences reverse-RAG → HyDE → vector retrieval → reranker → context window as five named nodes. The graph is built per request (`buildRetrievalGraph`) so nodes can close over the request's clients/trace; state channels hold only serializable step outputs (keeping tracer payloads free of circular references).
+
+```mermaid
+flowchart LR
+    START((START)) --> rewrite[rewrite<br/>reverse-RAG query rewrite]
+    rewrite --> hyde[hyde<br/>HyDE doc generation]
+    hyde --> retrieve[retrieve<br/>Supabase vector search]
+    retrieve --> rerank[rerank<br/>reranker / MMR]
+    rerank --> context[context<br/>context-window build]
+    context --> END((END))
+```
+
+- **Observability (two-level tree).** Each LangGraph node emits a span via the `langfuse-langchain` `CallbackHandler`, and the `withSpan()` calls inside each stage emit detail spans (`reverse_rag`, `hyde`, `retrieval`, `reranker`, `context:selection`). Because our custom `LangfuseTrace` is not a `LangfuseTraceClient`, the node spans land in a **separate** Langfuse trace correlated to the primary one by `sessionId` (requestId) and a `linkedTraceId` metadata field — not a single nested tree. See [Trace topology](#trace-topology-langfuse--langsmith) for the trade-off.
+- **LangSmith.** When `LANGSMITH_TRACING=true`, the same graph run is auto-traced to LangSmith (runName `rag-retrieval-graph`) with no extra code; Langfuse and LangSmith observe the run in parallel.
+- Graph state is a single accumulating object (`RagGraphAnnotation`); each node reads prior results and returns its slice. Per-node work still includes:
   - Telemetry metadata creation (`buildTelemetryMetadata`) per span.
   - Supabase similarity search along with canonicalization/reranking hooks (`rewriteLangchainDocument`, `applyRanker`, `enrichAndFilterDocs`).
   - Guardrail-friendly context selection (`buildContextWindow`) plus telemetry reporting (selection quotas, deduplication stats).
-- Aborts are honored at stage boundaries via the `signal` option.
+- Aborts are honored between nodes via the `signal` passed to `graph.invoke`.
 - The heavy handler merges auto/multi query candidates (`mergeCandidates`) and decision telemetry (`decisionSignature`) before building the final context block and citations.
 
 ### Answer streaming chain (`lib/server/langchain/rag-answer-chain.ts`)
 
 - Once the context is ready, LangChain builds a short `RunnableSequence`:
-  1. `promptRunnable`: formats the guardrail prompt via `PromptTemplate` (`buildFinalSystemPrompt`, guardrail meta, memory/context sections).
+  1. `promptRunnable`: formats the guardrail prompt via `ChatPromptTemplate.formatMessages()` into a `[SystemMessage, HumanMessage]` pair (`buildFinalSystemPrompt`, guardrail meta, memory/context in the system message; the question as the human message). This replaced a single-string `PromptTemplate`, so the system prompt now reaches providers as a `system` role instead of being folded into a `user` turn.
   2. `llmRunnable`: streams the LLM response (`llmInstance.stream`) through `BaseLanguageModelInterface` implementations (Gemini/OpenAI/LM Studio/Ollama via `createChatModel`).
 - Streaming chunks are rendered through `renderStreamChunk`, traced via `withSpan`/`buildTelemetryMetadata`, and cached (`memoryCacheClient.set`) once the stream completes.
   - `streamAnswerWithPrompt` also handles aborts, `OllamaUnavailableError`, PostHog capture, `responseCache` writes, and trace summaries (`buildSafeTraceOutputSummary`).
@@ -75,6 +88,32 @@ This design explicitly separates **initialization**, **loading**, and **executio
 - Input sanitization (`sanitizeMessages`, `applyHistoryWindow`) keeps history tokens within budgets and optionally builds `summaryMemory`, which is hashed via `computeHistorySummaryHash` to scope caching (summary changes invalidate response cache entries).
 - Routing (`routeQuestion`) determines the intent (`knowledge`, `chitchat`, `command`) that gates retrieval vs fallback context, and this intent flows into Langfuse metadata, PostHog event properties, and guardrail tags.
 - Guardrail meta headers (`X-Guardrail-Meta`) still include the latest context counts, dropped tokens, and enhancement summaries so UI clients can surface them without recomputing.
+
+## Trace topology (Langfuse + LangSmith)
+
+The RAG retrieval graph is observed by three layers at once:
+
+| Layer | Mechanism | Where it lands |
+| --- | --- | --- |
+| Node-level (LangGraph) | `langfuse-langchain` `CallbackHandler` | A **separate** Langfuse trace, correlated via `sessionId` + `linkedTraceId` |
+| Stage-detail | explicit `withSpan()` inside each stage | The **primary** Langfuse trace |
+| Full graph | LangChain auto-tracer (`LANGSMITH_TRACING`) | LangSmith run `rag-retrieval-graph` |
+
+### Why node spans are a separate Langfuse trace
+
+`CallbackHandler` can only nest under a Langfuse `root` of type `LangfuseTraceClient`/`LangfuseSpanClient`. This project uses a thin custom `LangfuseTrace` (see `lib/langfuse.node.ts`) that is **not** that client type, so the handler opens its own trace instead of nesting. The two traces are joined by correlation fields, not by parent/child edges.
+
+### Decision: unify into one tree vs. keep correlated-but-separate
+
+| | **Unify (single nested tree)** | **Keep separate (current)** |
+| --- | --- | --- |
+| Langfuse UX | One trace; node → detail spans nested | Two traces; jump via `linkedTraceId`/`sessionId` |
+| Work required | Wrap our trace in a `LangfuseTraceClient` adapter **or** migrate the custom `LangfuseTrace` to the `@langfuse/client` v4 OTEL span API | None — already working |
+| SDK risk | Forces reconciling `@langfuse/client@4.x` (primary spans) with the `langfuse@3.x` bundled by `langfuse-langchain` | Each SDK stays in its lane; no version reconciliation |
+| Blast radius | Touches every existing `withSpan()` call site | Isolated to `runRagRetrieval` |
+| LangSmith | Unaffected — LangSmith already shows the full nested graph | Unaffected |
+
+**Recommendation: keep separate for now.** LangSmith already provides the single, fully-nested view of the graph (which is the primary "see the whole structure" need), so the Langfuse-side unification buys mostly cosmetic consolidation at the cost of an SDK-version reconciliation that would ripple through every `withSpan()` call. Revisit unification only if/when the primary trace migrates to the `@langfuse/client` v4 OTEL span API, at which point `CallbackHandler` can nest under a real span `root` cheaply.
 
 ## Caching & Observability Notes
 
