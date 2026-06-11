@@ -26,6 +26,7 @@ import recentStyles from "./RecentRunsPanel.module.css";
 const EMBEDDING_PROVIDER_BADGES: Record<ModelProvider, string> = {
   openai: "OpenAI",
   gemini: "Gemini",
+  anthropic: "Anthropic",
   ollama: "Ollama",
   lmstudio: "LM Studio",
 };

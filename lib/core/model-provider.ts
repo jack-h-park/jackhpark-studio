@@ -22,6 +22,11 @@ const PROVIDER_KEY_CONFIG: Record<ModelProvider, ProviderKeyConfig> = {
     missingMessage:
       "Missing Gemini API key. Set GOOGLE_API_KEY or GEMINI_API_KEY environment variable.",
   },
+  anthropic: {
+    envKeys: ["ANTHROPIC_API_KEY"],
+    missingMessage:
+      "Missing Anthropic API key. Set the ANTHROPIC_API_KEY environment variable.",
+  },
   ollama: {
     envKeys: [],
     missingMessage: "Ollama runs locally and does not require an API key.",

@@ -11,7 +11,7 @@ import type { BaseLanguageModelInterface } from "@langchain/core/language_models
 import type { EmbeddingSpace } from "@/lib/core/embedding-spaces";
 import type { ModelProvider } from "@/lib/shared/model-provider";
 import { getLmStudioRuntimeConfig } from "@/lib/core/lmstudio";
-import { requireProviderApiKey } from "@/lib/core/model-provider";
+import { requireProviderApiKey, resolveLlmModel } from "@/lib/core/model-provider";
 import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 
@@ -65,6 +65,24 @@ export async function createChatModel(
         temperature,
         streaming: true,
         maxOutputTokens: maxTokens,
+      });
+    }
+    case "anthropic": {
+      const { ChatAnthropic } = await import("@langchain/anthropic");
+      const apiKey = requireProviderApiKey("anthropic");
+      // Opus 4.8/4.7 (and Fable) reject sampling params with HTTP 400. The
+      // catalog marks them supportsSampling=false; omit temperature so the
+      // LangChain client does not forward it. @langchain/anthropic only
+      // auto-strips for opus-4-7, so 4.8 must be handled here explicitly.
+      const supportsSampling =
+        resolveLlmModel({ modelId: modelName, model: modelName })
+          .supportsSampling !== false;
+      return new ChatAnthropic({
+        model: modelName,
+        apiKey,
+        ...(supportsSampling ? { temperature } : {}),
+        streaming: true,
+        maxTokens,
       });
     }
     case "lmstudio": {

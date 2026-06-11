@@ -123,6 +123,11 @@ export function AllowlistCard({
         const label = (
           <span className="inline-flex items-center gap-1">
             {option.label}
+            {option.deprecated && (
+              <span className="ai-label-overline ai-label-overline--small text-[color:var(--ai-text-muted)]">
+                Legacy
+              </span>
+            )}
             {tooltip && (
               <FiAlertCircle
                 aria-hidden="true"
@@ -140,9 +145,14 @@ export function AllowlistCard({
             id={option.id}
             label={label}
             subtitle={option.subtitle ?? option.id}
-            description={tooltip}
+            description={
+              option.deprecated
+                ? (tooltip ?? `${option.id} is a legacy model — prefer a newer model.`)
+                : tooltip
+            }
             selected={isSelected}
             disabled={disabledByEnv}
+            className={option.deprecated ? "opacity-70" : undefined}
             onClick={() =>
               toggleAllowlistValue("llmModels", option.id, !isSelected)
             }
