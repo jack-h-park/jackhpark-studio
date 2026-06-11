@@ -328,7 +328,9 @@ export async function loadChatModelSettings(options?: {
             ? "gemini"
             : llmSelection.provider === "openai"
               ? "openai"
-              : "unknown";
+              : llmSelection.provider === "anthropic"
+                ? "anthropic"
+                : "unknown";
         localBackendAvailable = false;
       }
     }

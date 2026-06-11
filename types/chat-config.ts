@@ -171,6 +171,7 @@ export type AdminChatPresetsConfig = Record<string, AdminPresetConfig> & {
 export type ChatEngineType =
   | "openai"
   | "gemini"
+  | "anthropic"
   | "local-ollama"
   | "local-lmstudio"
   | "unknown";

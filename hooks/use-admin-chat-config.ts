@@ -78,6 +78,7 @@ export type AdminLlmModelOption = {
   isLocal: boolean;
   localBackend?: LocalLlmBackend;
   subtitle?: string;
+  deprecated?: boolean;
 };
 
 export function useAdminChatConfig({
@@ -344,6 +345,7 @@ export function useAdminChatConfig({
           isLocal: definition?.isLocal ?? Boolean(definition?.localBackend),
           localBackend: definition?.localBackend,
           subtitle: definition?.subtitle,
+          deprecated: definition?.deprecated,
         };
       }),
     [llmModelUnionIds],

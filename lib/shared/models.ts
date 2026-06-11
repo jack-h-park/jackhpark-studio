@@ -13,6 +13,13 @@ export interface LlmModelDefinition {
   subtitle?: string;
   ollamaModel?: string;
   lmstudioModel?: string;
+  // Anthropic thinking-only models (Opus 4.8/4.7, Fable) reject sampling
+  // parameters (temperature/top_p/top_k) with HTTP 400. Set false on those so
+  // the provider factory omits temperature. Defaults to true when unset.
+  supportsSampling?: boolean;
+  // Superseded models kept resolvable for back-compat but de-emphasized in the
+  // admin allowlist UI. Defaults to false (active) when unset.
+  deprecated?: boolean;
 }
 
 export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
@@ -73,11 +80,72 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
     isLocal: false,
   },
   {
+    id: "gpt-4.1",
+    label: "OpenAI gpt-4.1",
+    displayName: "OpenAI gpt-4.1",
+    provider: "openai",
+    model: "gpt-4.1",
+    aliases: ["gpt-4.1", "gpt4.1", "openai gpt-4.1", "openai_gpt-4.1"],
+    location: "cloud",
+    isLocal: false,
+  },
+  {
+    id: "gpt-4.1-mini",
+    label: "OpenAI gpt-4.1-mini",
+    displayName: "OpenAI gpt-4.1-mini",
+    provider: "openai",
+    model: "gpt-4.1-mini",
+    aliases: [
+      "gpt-4.1-mini",
+      "gpt4.1-mini",
+      "openai gpt-4.1-mini",
+      "openai_gpt-4.1-mini",
+    ],
+    location: "cloud",
+    isLocal: false,
+  },
+  {
+    id: "gpt-5-4-mini",
+    label: "OpenAI gpt-5-4-mini",
+    displayName: "OpenAI gpt-5-4-mini",
+    provider: "openai",
+    model: "gpt-5-4-mini",
+    aliases: [
+      "gpt-5-4-mini",
+      "gpt5-4-mini",
+      "openai gpt-5-4-mini",
+      "openai_gpt-5-4-mini",
+    ],
+    location: "cloud",
+    isLocal: false,
+  },
+  {
+    id: "gpt-5-4",
+    label: "OpenAI gpt-5-4",
+    displayName: "OpenAI gpt-5-4",
+    provider: "openai",
+    model: "gpt-5-4",
+    aliases: ["gpt-5-4", "gpt5-4", "openai gpt-5-4", "openai_gpt-5-4"],
+    location: "cloud",
+    isLocal: false,
+  },
+  {
+    id: "gpt-5-5",
+    label: "OpenAI gpt-5-5",
+    displayName: "OpenAI gpt-5-5",
+    provider: "openai",
+    model: "gpt-5-5",
+    aliases: ["gpt-5-5", "gpt5-5", "openai gpt-5-5", "openai_gpt-5-5"],
+    location: "cloud",
+    isLocal: false,
+  },
+  {
     id: "gpt-3.5-turbo",
     label: "OpenAI gpt-3.5-turbo",
     displayName: "OpenAI gpt-3.5-turbo",
     provider: "openai",
     model: "gpt-3.5-turbo",
+    deprecated: true,
     aliases: ["gpt-3.5-turbo", "gpt3.5-turbo", "openai gpt-3.5-turbo"],
     location: "cloud",
     isLocal: false,
@@ -88,6 +156,7 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
     displayName: "Gemini 1.5 Flash Lite",
     provider: "gemini",
     model: "gemini-1.5-flash-lite",
+    deprecated: true,
     aliases: [
       "gemini-1.5-flash-lite",
       "gemini 1.5 flash lite",
@@ -103,6 +172,7 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
     displayName: "Gemini 1.5 Flash",
     provider: "gemini",
     model: "gemini-1.5-flash",
+    deprecated: true,
     aliases: [
       "gemini-1.5-flash",
       "gemini flash",
@@ -118,6 +188,7 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
     displayName: "Gemini 1.5 Pro",
     provider: "gemini",
     model: "gemini-1.5-pro",
+    deprecated: true,
     aliases: [
       "gemini-1.5-pro",
       "gemini pro",
@@ -133,6 +204,7 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
     displayName: "Gemini 2.0 Flash",
     provider: "gemini",
     model: "gemini-2.0-flash",
+    deprecated: true,
     aliases: [
       "gemini-2.0-flash",
       "gemini flash",
@@ -149,6 +221,7 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
     displayName: "Gemini 2.0 Pro",
     provider: "gemini",
     model: "gemini-2.0-pro",
+    deprecated: true,
     aliases: [
       "gemini-2.0-pro",
       "gemini pro",
@@ -170,6 +243,81 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
       "gemini 2.5 flash lite",
       "gemini flash lite",
       "gemini_2.5-flash-lite",
+    ],
+    location: "cloud",
+    isLocal: false,
+  },
+  {
+    id: "gemini-2.5-flash",
+    label: "Gemini 2.5 Flash",
+    displayName: "Gemini 2.5 Flash",
+    provider: "gemini",
+    model: "gemini-2.5-flash",
+    aliases: [
+      "gemini-2.5-flash",
+      "gemini 2.5 flash",
+      "gemini_2.5-flash",
+    ],
+    location: "cloud",
+    isLocal: false,
+  },
+  {
+    id: "gemini-3.5-flash",
+    label: "Gemini 3.5 Flash",
+    displayName: "Gemini 3.5 Flash",
+    provider: "gemini",
+    model: "gemini-3.5-flash",
+    aliases: [
+      "gemini-3.5-flash",
+      "gemini 3.5 flash",
+      "gemini_3.5-flash",
+    ],
+    location: "cloud",
+    isLocal: false,
+  },
+  {
+    id: "claude-opus-4-8",
+    label: "Anthropic Claude Opus 4.8",
+    displayName: "Anthropic Claude Opus 4.8",
+    provider: "anthropic",
+    model: "claude-opus-4-8",
+    aliases: [
+      "claude-opus-4-8",
+      "claude opus 4.8",
+      "opus-4-8",
+      "anthropic_claude-opus-4-8",
+    ],
+    location: "cloud",
+    isLocal: false,
+    // Opus 4.8 rejects sampling params (temperature/top_p/top_k) with HTTP 400.
+    supportsSampling: false,
+  },
+  {
+    id: "claude-sonnet-4-6",
+    label: "Anthropic Claude Sonnet 4.6",
+    displayName: "Anthropic Claude Sonnet 4.6",
+    provider: "anthropic",
+    model: "claude-sonnet-4-6",
+    aliases: [
+      "claude-sonnet-4-6",
+      "claude sonnet 4.6",
+      "sonnet-4-6",
+      "anthropic_claude-sonnet-4-6",
+    ],
+    location: "cloud",
+    isLocal: false,
+  },
+  {
+    id: "claude-haiku-4-5",
+    label: "Anthropic Claude Haiku 4.5",
+    displayName: "Anthropic Claude Haiku 4.5",
+    provider: "anthropic",
+    model: "claude-haiku-4-5",
+    aliases: [
+      "claude-haiku-4-5",
+      "claude haiku 4.5",
+      "haiku-4-5",
+      "anthropic_claude-haiku-4-5",
     ],
     location: "cloud",
     isLocal: false,

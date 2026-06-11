@@ -1,9 +1,14 @@
 import { isLmStudioConfigured } from "@/lib/core/lmstudio";
 import { isOllamaConfigured } from "@/lib/core/ollama";
 
-export type ModelProvider = "openai" | "gemini" | "ollama" | "lmstudio";
+export type ModelProvider =
+  | "openai"
+  | "gemini"
+  | "anthropic"
+  | "ollama"
+  | "lmstudio";
 
-const BASE_MODEL_PROVIDERS: ModelProvider[] = ["openai", "gemini"];
+const BASE_MODEL_PROVIDERS: ModelProvider[] = ["openai", "gemini", "anthropic"];
 const LOCAL_MODEL_PROVIDERS: ModelProvider[] = [
   ...(isOllamaConfigured() ? ["ollama" as const] : []),
   ...(isLmStudioConfigured() ? ["lmstudio" as const] : []),
@@ -17,6 +22,7 @@ export const MODEL_PROVIDERS: readonly ModelProvider[] = [
 export const MODEL_PROVIDER_LABELS: Record<ModelProvider, string> = {
   openai: "OpenAI",
   gemini: "Gemini (Google)",
+  anthropic: "Anthropic (Claude)",
   ollama: "Ollama (local)",
   lmstudio: "LM Studio (local)",
 };
@@ -32,6 +38,10 @@ const PROVIDER_ALIASES: Record<string, ModelProvider> = {
   google: "gemini",
   "google-ai": "gemini",
   "google-ai-studio": "gemini",
+
+  anthropic: "anthropic",
+  claude: "anthropic",
+  "anthropic-api": "anthropic",
 
   ollama: "ollama",
   local: "ollama",
