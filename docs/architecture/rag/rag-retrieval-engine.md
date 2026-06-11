@@ -33,7 +33,7 @@ The canonical [Auto-RAG](../00-start-here/terminology.md#auto-rag) decision tree
 
 - **Base pass:** `match_*` RPCs execute a similarity search and `isWeakRetrieval` validates `similarityThreshold`, match count, and density. The resulting candidates flow into `buildContextWindow`.
 - **Auto correction:** When `isWeakRetrieval` is true, the handler invokes `generateHydeDocument` and `rewriteQuery` before re-running the retrieval pass; `scoreDecision` compares base vs auto sets and decides which list to keep.
-- **Multi-query fusion:** When `ragMultiQueryMode` is enabled, `mergeCandidates` runs parallel queries with alternative rewrites and performs Reciprocal Rank Fusion before selection.
+- **Multi-query fusion:** When `ragMultiQueryMode` is enabled, `mergeCandidates` runs parallel queries with alternative rewrites and performs max-score fusion before selection — it deduplicates candidates by `doc_id`, keeps each document's highest similarity score, then sorts by score (ties broken by original retrieval order). This is score-based (CombMAX) fusion, not rank-based Reciprocal Rank Fusion.
 - **Telemetry hooks:** `rag:root`, `context:selection`, and Langfuse `rag_retrieval_stage` spans annotate every pass (`autoTriggered`, `winner`, `multiQueryRan`, `insufficient`) and expose `decisionSignature`/score metrics for dashboards.
 
 Implementation respects guardrail flags: when guardrails or presets set `reverseRAG` or `hyde`, `resolveAutoMode` forcibly routes requests down the requested path before `isWeakRetrieval` runs. See `guardrail-system.md` for the policy semantics that govern those overrides.

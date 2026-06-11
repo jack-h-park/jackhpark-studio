@@ -107,7 +107,7 @@ Every retrieval request flows through a multi-pass evaluation logic:
 3.  **Self-Correction:** If weak, the system automatically escalates:
     - **HyDE (Hypothetical Document Embedding):** The LLM hallucinates a theoretical answer, which is then embedded to find semantically similar real chunks.
     - **Query Rewriting:** The LLM simplifies or expands the user's query to target better search terms.
-4.  **Multi-Query Fusion:** In high-ambiguity modes, the system runs parallel searches for multiple query variations and merges the results using Reciprocal Rank Fusion.
+4.  **Multi-Query Fusion:** In high-ambiguity modes, the system runs parallel searches for multiple query variations and merges the results by deduplicating per document and keeping each document's highest similarity score (max-score fusion), then ordering by that score.
 
 This "Loop" ensures that the RAG system fights hard to find relevant context before giving up.
 
