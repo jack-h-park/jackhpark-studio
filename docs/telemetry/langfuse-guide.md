@@ -201,6 +201,16 @@ Langfuse cannot average arbitrary observation metadata, so we emit dedicated Sco
 
 Each score reuses the existing trace and carries only numeric data; no raw questions, prompts, or retrieved chunks are emitted.
 
+### User feedback score (`user_feedback`)
+
+A binary `BOOLEAN` score capturing the reader's 👍/👎 on an answer (👍=1, 👎=0). Unlike the retrieval scores above — which are emitted inline while the request trace is open — `user_feedback` arrives later, from a **separate request**:
+
+1. The chat handler surfaces the Langfuse `traceId` to the browser via the `X-Trace-Id` response header (`lib/server/api/langchain_chat_impl_heavy.ts`).
+2. The client stores it on the assistant `ChatMessage` and renders the 👍/👎 control (`components/chat/ChatMessageFeedback.tsx`).
+3. On click it POSTs `{ traceId, value }` to `POST /api/chat-feedback`, which calls `emitUserFeedbackScore()` (`lib/server/telemetry/langfuse-scores.ts`). Because the original trace has already closed, the helper ensures the Langfuse client and **flushes** the score before responding.
+
+The score carries an optional `comment` (free text, capped at 1000 chars) and PII-safe `metadata` (`{ source: "chat-ui", messageId, sessionId }`). Use it to find divergence between proxy signals and real satisfaction — e.g. traces where `retrieval_insufficient=1` but `user_feedback=1`, or vice versa — and to compare satisfaction across `preset` / `model` via the Scores view.
+
 ## Response Summary (Request-Level)
 
 - **Observation Name**: `response-summary`
