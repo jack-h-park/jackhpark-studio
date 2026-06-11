@@ -13,6 +13,7 @@ declare module "jsdom" {
     constructor(html: string, options?: { url?: string });
     window: {
       document: any;
+      Event: typeof Event;
       close(): void;
     };
   }

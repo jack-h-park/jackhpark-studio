@@ -8,51 +8,25 @@ import { rootNotionPageId as configRootNotionPageId } from "../lib/config";
 import { resolveEmbeddingSpace } from "../lib/core/embedding-spaces";
 import { supabaseClient } from "../lib/core/supabase";
 import {
-  chunkByTokens,
-  type ChunkInsert,
-  createEmptyRunStats,
-  embedBatch,
-  extractPlainText,
-  finishIngestRun,
-  getDocumentState,
-  getPageLastEditedTime,
-  getPageTitle,
-  getPageUrl,
-  hasChunksForProvider,
-  hashChunk,
+  type EmbedBatchOptions,
   type IngestRunErrorLog,
-  type IngestRunHandle,
   type IngestRunStats,
-  replaceChunks,
-  startIngestRun,
-  upsertDocumentState,
 } from "../lib/rag";
 import { debugIngestionLog } from "../lib/rag/debug";
-import { decideIngestAction } from "../lib/rag/ingest-helpers";
 import {
-  applyDefaultDocMetadata,
-  DEFAULT_INGEST_DOC_TYPE,
-  DEFAULT_INGEST_PERSONA_TYPE,
-  mergeMetadata,
-  mergeRagDocumentMetadata,
-  metadataEquals,
-  normalizeMetadata,
-  stripDocIdentifierFields,
-} from "../lib/rag/metadata";
-import {
-  buildNotionSourceMetadata,
-  extractNotionMetadata,
-} from "../lib/rag/notion-metadata";
+  formatRunSummary,
+  ingestPreparedDocument,
+  type IngestReporter,
+  withIngestRun,
+} from "../lib/rag/pipeline";
 import {
   markAttempt,
-  markAuthError,
-  markFetchError,
-  markMissing,
-  markSuccess,
-  normalizeFetchOutcome,
-} from "../lib/rag/ragDocumentLifecycle";
-import { deriveDocIdentifiers } from "../lib/server/doc-identifiers";
-import { formatNotionPageId } from "../lib/server/page-url";
+  markFetchFailure,
+} from "../lib/rag/rag-document-lifecycle";
+import {
+  deriveNotionDocIdentifiers,
+  prepareNotionPageDocument,
+} from "../lib/rag/sources/notion";
 
 const notion = new NotionAPI();
 const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
@@ -61,7 +35,25 @@ const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
   provider: process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
   version: process.env.EMBEDDING_VERSION ?? null,
 });
+const EMBEDDING_OPTIONS: EmbedBatchOptions = {
+  provider: DEFAULT_EMBEDDING_SELECTION.provider,
+  embeddingModelId: DEFAULT_EMBEDDING_SELECTION.embeddingModelId,
+  embeddingSpaceId: DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
+  version: DEFAULT_EMBEDDING_SELECTION.version,
+};
 const DEFAULT_ROOT_PAGE_ID = configRootNotionPageId;
+
+const consoleReporter: IngestReporter = {
+  log: (level, message) => {
+    if (level === "info") {
+      console.log(message);
+    } else if (level === "warn") {
+      console.warn(message);
+    } else {
+      console.error(message);
+    }
+  },
+};
 
 type RunMode = {
   type: "full" | "partial";
@@ -136,178 +128,14 @@ async function ingestPage(
   stats: IngestRunStats,
   ingestionType: RunMode["type"],
 ): Promise<void> {
-  stats.documentsProcessed += 1;
-  const rawNotionId = formatNotionPageId(pageId) ?? pageId;
-  const { canonicalId, rawId } = deriveDocIdentifiers(rawNotionId);
-  // NOTE: ID-sensitive ingestion path: must use deriveDocIdentifiers for doc_id/raw_doc_id.
-
-  const title = getPageTitle(recordMap, pageId);
-  const plainText = extractPlainText(recordMap, pageId);
-
-  if (!plainText) {
-    await markSuccess(supabaseClient, canonicalId, 200);
-    console.warn(`No readable content for Notion page ${pageId}; skipping`);
-    stats.documentsSkipped += 1;
-    return;
-  }
-
-  const lastEditedTime = getPageLastEditedTime(recordMap, pageId);
-  const pageHash = hashChunk(`${canonicalId}:${plainText}`);
-  const sourceUrl = getPageUrl(pageId);
-
-  const existingState = await getDocumentState(canonicalId);
-  if (existingState?.raw_doc_id && existingState.raw_doc_id !== rawId) {
-    console.warn("[doc-id] raw_doc_id drift detected", {
-      canonicalId,
-      previous: existingState.raw_doc_id,
-      incoming: rawId,
-    });
-  }
-  const contentUnchanged =
-    !!existingState && existingState.content_hash === pageHash;
-  const existingMetadata = stripDocIdentifierFields(
-    existingState?.metadata ?? null,
-  );
-  const incomingMetadata = extractNotionMetadata(recordMap, pageId);
-  const sourceMetadata = buildNotionSourceMetadata(recordMap, pageId);
-  const adminMetadata =
-    mergeMetadata(existingMetadata, incomingMetadata) ??
-    existingMetadata ??
-    null;
-  const mergedMetadata = mergeRagDocumentMetadata(
-    adminMetadata ?? existingMetadata ?? undefined,
-    sourceMetadata,
-  );
-  const nextMetadata = applyDefaultDocMetadata(mergedMetadata, {
-    doc_type: DEFAULT_INGEST_DOC_TYPE,
-    persona_type: DEFAULT_INGEST_PERSONA_TYPE,
-  });
-  const metadataWithIds = normalizeMetadata({
-    ...nextMetadata,
-    doc_id: canonicalId,
-    raw_doc_id: rawId,
-  });
-  debugIngestionLog("final-document-metadata", {
-    docId: canonicalId,
-    rawId,
-    title: nextMetadata?.title,
-    teaser_text: nextMetadata?.teaser_text,
-    preview_image_url: nextMetadata?.preview_image_url,
-  });
-  const metadataUnchanged = metadataEquals(existingMetadata, nextMetadata);
-
-  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
-  const providerHasChunks =
-    contentUnchanged &&
-    (await hasChunksForProvider(canonicalId, embeddingSpace));
-  const decision = decideIngestAction({
-    contentUnchanged,
-    metadataUnchanged,
+  const doc = prepareNotionPageDocument(recordMap, pageId);
+  await ingestPreparedDocument({
+    doc,
     ingestionType,
-    providerHasChunks: !!providerHasChunks,
+    embedding: EMBEDDING_OPTIONS,
+    stats,
+    reporter: consoleReporter,
   });
-
-  if (decision === "skip") {
-    await markSuccess(supabaseClient, canonicalId, 200);
-    console.log(
-      `Skipping unchanged Notion page: ${title} (content and metadata unchanged)`,
-    );
-    stats.documentsSkipped += 1;
-    return;
-  }
-
-  if (decision === "metadata-only") {
-    await upsertDocumentState({
-      doc_id: canonicalId,
-      raw_doc_id: rawId,
-      source_url: sourceUrl,
-      content_hash: pageHash,
-      last_source_update: lastEditedTime ?? null,
-      metadata: metadataWithIds,
-      chunk_count: existingState?.chunk_count ?? undefined,
-      total_characters: existingState?.total_characters ?? undefined,
-    });
-    await markSuccess(supabaseClient, canonicalId, 200);
-
-    stats.documentsUpdated += 1;
-    console.log(
-      `Metadata-only update applied for Notion page: ${title}; skipped chunking and embeddings.`,
-    );
-    return;
-  }
-
-  const fullReason =
-    ingestionType === "full"
-      ? "Full ingestion requested"
-      : contentUnchanged
-        ? "Embedding refresh required for this provider"
-        : "Content hash changed";
-  console.log(
-    `${fullReason}; performing full content ingest for Notion page: ${title}.`,
-  );
-
-  const chunks = chunkByTokens(plainText, 450, 75);
-  if (chunks.length === 0) {
-    await markSuccess(supabaseClient, canonicalId, 200);
-    console.warn(`Chunking produced no content for ${pageId}; skipping`);
-    stats.documentsSkipped += 1;
-    return;
-  }
-
-  const embeddings = await embedBatch(chunks, {
-    provider: embeddingSpace.provider,
-    embeddingModelId: embeddingSpace.embeddingModelId,
-    embeddingSpaceId: embeddingSpace.embeddingSpaceId,
-    version: embeddingSpace.version,
-  });
-  const ingestedAt = new Date().toISOString();
-
-  const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
-    doc_id: canonicalId,
-    source_url: sourceUrl,
-    title,
-    chunk,
-    chunk_hash: hashChunk(`${canonicalId}:${chunk}`),
-    embedding: embeddings[index]!,
-    ingested_at: ingestedAt,
-  }));
-
-  const chunkCount = rows.length;
-  const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0);
-
-  await replaceChunks(canonicalId, rows, {
-    provider: embeddingSpace.provider,
-    embeddingModelId: embeddingSpace.embeddingModelId,
-    embeddingSpaceId: embeddingSpace.embeddingSpaceId,
-    version: embeddingSpace.version,
-  });
-  await upsertDocumentState({
-    doc_id: canonicalId,
-    raw_doc_id: rawId,
-    source_url: sourceUrl,
-    content_hash: pageHash,
-    last_source_update: lastEditedTime ?? null,
-    chunk_count: chunkCount,
-    total_characters: totalCharacters,
-    metadata: metadataWithIds,
-  });
-  await markSuccess(supabaseClient, canonicalId, 200);
-
-  if (existingState) {
-    stats.documentsUpdated += 1;
-    stats.chunksUpdated += chunkCount;
-    stats.charactersUpdated += totalCharacters;
-  } else {
-    stats.documentsAdded += 1;
-    stats.chunksAdded += chunkCount;
-    stats.charactersAdded += totalCharacters;
-  }
-
-  console.log(
-    `Ingested Notion page: ${title} (${chunkCount} chunks) [${
-      existingState ? "updated" : "new"
-    }]`,
-  );
 }
 
 async function ingestWorkspace(
@@ -321,35 +149,12 @@ async function ingestWorkspace(
     rootPageId,
     undefined,
     async (pageId) => {
-      const rawNotionId = formatNotionPageId(pageId) ?? pageId;
-      const { canonicalId } = deriveDocIdentifiers(rawNotionId);
+      const { canonicalId } = deriveNotionDocIdentifiers(pageId);
       await markAttempt(supabaseClient, canonicalId);
       try {
         return await notion.getPage(pageId);
       } catch (err) {
-        const outcome = normalizeFetchOutcome({ error: err });
-        if (outcome.classification === "missing") {
-          await markMissing(
-            supabaseClient,
-            canonicalId,
-            outcome.statusCode,
-            outcome.shortError,
-          );
-        } else if (outcome.classification === "auth") {
-          await markAuthError(
-            supabaseClient,
-            canonicalId,
-            outcome.statusCode,
-            outcome.shortError,
-          );
-        } else {
-          await markFetchError(
-            supabaseClient,
-            canonicalId,
-            outcome.statusCode,
-            outcome.shortError,
-          );
-        }
+        await markFetchFailure(supabaseClient, canonicalId, err);
         throw err;
       }
     },
@@ -393,9 +198,8 @@ async function ingestSinglePage(
   ingestionType: RunMode["type"],
 ) {
   debugIngestionLog("single-page-mode", { pageId });
+  const { canonicalId } = deriveNotionDocIdentifiers(pageId);
   try {
-    const rawNotionId = formatNotionPageId(pageId) ?? pageId;
-    const { canonicalId } = deriveDocIdentifiers(rawNotionId);
     await markAttempt(supabaseClient, canonicalId);
     const recordMap = await notion.getPage(pageId);
     await ingestPage(pageId, recordMap, stats, ingestionType);
@@ -406,31 +210,7 @@ async function ingestSinglePage(
       doc_id: pageId,
       message,
     });
-    const rawNotionId = formatNotionPageId(pageId) ?? pageId;
-    const { canonicalId } = deriveDocIdentifiers(rawNotionId);
-    const outcome = normalizeFetchOutcome({ error: err });
-    if (outcome.classification === "missing") {
-      await markMissing(
-        supabaseClient,
-        canonicalId,
-        outcome.statusCode,
-        outcome.shortError,
-      );
-    } else if (outcome.classification === "auth") {
-      await markAuthError(
-        supabaseClient,
-        canonicalId,
-        outcome.statusCode,
-        outcome.shortError,
-      );
-    } else {
-      await markFetchError(
-        supabaseClient,
-        canonicalId,
-        outcome.statusCode,
-        outcome.shortError,
-      );
-    }
+    await markFetchFailure(supabaseClient, canonicalId, err);
     console.error(`Failed to ingest Notion page ${pageId}: ${message}`);
   }
 }
@@ -446,75 +226,39 @@ async function main() {
   console.log("Starting Notion ingestion...");
 
   const mode = parseRunMode("full");
-
-  const embeddingSpace = DEFAULT_EMBEDDING_SELECTION;
-
-  const runHandle: IngestRunHandle = await startIngestRun({
-    source: "notion",
-    ingestion_type: mode.type,
-    metadata: {
-      rootPageId,
-      embeddingProvider: embeddingSpace.provider,
-      embeddingSpaceId: embeddingSpace.embeddingSpaceId,
-      embeddingModelId: embeddingSpace.embeddingModelId,
-      embeddingVersion: embeddingSpace.version,
-    },
-  });
-
-  const stats = createEmptyRunStats();
-  const errorLogs: IngestRunErrorLog[] = [];
-  const started = Date.now();
   const targetPageId = parseTargetPageId();
 
   try {
-    if (targetPageId) {
-      console.log("[ingest-notion] ingesting single page", { targetPageId });
-      await ingestSinglePage(targetPageId, stats, errorLogs, mode.type);
-    } else {
-      await ingestWorkspace(rootPageId, stats, errorLogs, mode.type);
-    }
-    const durationMs = Date.now() - started;
-    const status = stats.errorCount > 0 ? "completed_with_errors" : "success";
+    const result = await withIngestRun(
+      {
+        source: "notion",
+        ingestion_type: mode.type,
+        metadata: {
+          rootPageId,
+          embeddingProvider: DEFAULT_EMBEDDING_SELECTION.provider,
+          embeddingSpaceId: DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
+          embeddingModelId: DEFAULT_EMBEDDING_SELECTION.embeddingModelId,
+          embeddingVersion: DEFAULT_EMBEDDING_SELECTION.version,
+        },
+      },
+      async ({ stats, errorLogs }) => {
+        if (targetPageId) {
+          console.log("[ingest-notion] ingesting single page", {
+            targetPageId,
+          });
+          await ingestSinglePage(targetPageId, stats, errorLogs, mode.type);
+        } else {
+          await ingestWorkspace(rootPageId, stats, errorLogs, mode.type);
+        }
+      },
+    );
 
-    await finishIngestRun(runHandle, {
-      status,
-      durationMs,
-      totals: stats,
-      errorLogs,
-    });
+    console.log(formatRunSummary(result));
 
-    console.log("\n--- Ingestion Complete ---");
-    console.log(`Duration: ${(durationMs / 1000).toFixed(2)}s`);
-    console.log(`Status: ${status}`);
-    console.log("Documents:");
-    console.log(`  - Processed: ${stats.documentsProcessed}`);
-    console.log(`  - Added:     ${stats.documentsAdded}`);
-    console.log(`  - Updated:   ${stats.documentsUpdated}`);
-    console.log(`  - Skipped:   ${stats.documentsSkipped}`);
-    console.log("Chunks:");
-    console.log(`  - Added:     ${stats.chunksAdded}`);
-    console.log(`  - Updated:   ${stats.chunksUpdated}`);
-    console.log("Characters:");
-    console.log(`  - Added:     ${stats.charactersAdded}`);
-    console.log(`  - Updated:   ${stats.charactersUpdated}`);
-    console.log(`Errors: ${stats.errorCount}`);
-
-    if (stats.errorCount > 0) {
+    if (result.stats.errorCount > 0) {
       process.exitCode = 1;
     }
   } catch (err) {
-    const durationMs = Date.now() - started;
-    const message = err instanceof Error ? err.message : String(err);
-    errorLogs.push({ context: "fatal", message });
-    stats.errorCount += 1;
-
-    await finishIngestRun(runHandle, {
-      status: "failed",
-      durationMs,
-      totals: stats,
-      errorLogs,
-    });
-
     console.error("\n--- Ingestion Failed ---");
     console.error(err);
     throw err;

@@ -17,12 +17,12 @@ import type { CitationPayload } from "@/lib/types/citation";
 import { llmLogger, ragLogger } from "@/lib/logging/logger";
 import { memoryCacheClient } from "@/lib/server/chat-cache";
 import { CITATIONS_SEPARATOR } from "@/lib/server/chat-common";
-import { buildRagAnswerChain } from "@/lib/server/langchain/ragAnswerChain";
+import { buildRagAnswerChain } from "@/lib/server/langchain/rag-answer-chain";
 import {
   buildChainRunnableConfig,
   type ChainRunContext,
   makeRunName,
-} from "@/lib/server/langchain/runnableConfig";
+} from "@/lib/server/langchain/runnable-config";
 import { renderStreamChunk } from "@/lib/server/langchain/stream-chunk";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";

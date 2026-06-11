@@ -6,61 +6,29 @@ import { resolveEmbeddingSpace } from "../core/embedding-spaces";
 import { supabaseClient } from "../core/supabase";
 import { getSiteConfig } from "../get-config-value";
 import { notion } from "../notion-api";
-import { debugIngestionLog } from "../rag/debug";
 import {
-  chunkByTokens,
-  type ChunkInsert,
   createEmptyRunStats,
-  embedBatch,
   type EmbedBatchOptions,
-  type ExtractedArticle,
-  extractMainContent,
-  extractPlainText,
   finishIngestRun,
-  getDocumentState,
-  getPageLastEditedTime,
   getPageTitle,
   getPageUrl,
-  hasChunksForProvider,
-  hashChunk,
   type IngestRunErrorLog,
   type IngestRunHandle,
   type IngestRunStats,
-  replaceChunks,
   startIngestRun,
-  upsertDocumentState,
 } from "../rag/index";
 import {
-  decideIngestAction,
-  isUnchanged,
-  shouldSkipIngest,
-} from "../rag/ingest-helpers";
+  type IngestDocumentOutcome,
+  ingestPreparedDocument,
+  type IngestProgressStep,
+  type IngestReporter,
+} from "../rag/pipeline";
+import { markAttempt, markFetchFailure } from "../rag/rag-document-lifecycle";
 import {
-  applyDefaultDocMetadata,
-  DEFAULT_INGEST_DOC_TYPE,
-  DEFAULT_INGEST_PERSONA_TYPE,
-  mergeMetadata,
-  mergeRagDocumentMetadata,
-  metadataEquals,
-  normalizeMetadata,
-  parseRagDocumentMetadata,
-  stripDocIdentifierFields,
-} from "../rag/metadata";
-import {
-  buildNotionSourceMetadata,
-  extractNotionMetadata,
-} from "../rag/notion-metadata";
-import {
-  markAttempt,
-  markAuthError,
-  markFetchError,
-  markMissing,
-  markSuccess,
-  normalizeFetchOutcome,
-} from "../rag/ragDocumentLifecycle";
-import { buildUrlRagDocumentMetadata } from "../rag/url-metadata";
-import { deriveDocIdentifiers } from "../server/doc-identifiers";
-import { formatNotionPageId } from "../server/page-url";
+  deriveNotionDocIdentifiers,
+  prepareNotionPageDocument,
+} from "../rag/sources/notion";
+import { fetchUrlDocument } from "../rag/sources/url";
 
 type ManualNotionScope = "workspace" | "selected";
 
@@ -303,6 +271,29 @@ async function collectLinkedPagesFromSeeds(
   return Array.from(seen);
 }
 
+function buildReporter(
+  emit: EmitFn,
+  progressPercent: Record<IngestProgressStep, number>,
+): IngestReporter {
+  return {
+    log: (level, message) => emit({ type: "log", level, message }),
+    progress: (step) =>
+      emit({ type: "progress", step, percent: progressPercent[step] }),
+  };
+}
+
+const NOTION_PROGRESS_PERCENT: Record<IngestProgressStep, number> = {
+  processing: 35,
+  embedding: 60,
+  saving: 85,
+};
+
+const URL_PROGRESS_PERCENT: Record<IngestProgressStep, number> = {
+  processing: 45,
+  embedding: 65,
+  saving: 85,
+};
+
 async function ingestNotionPage({
   pageId,
   recordMap,
@@ -318,15 +309,11 @@ async function ingestNotionPage({
   emit: EmitFn;
   embeddingOptions: EmbedBatchOptions;
 }): Promise<void> {
-  const rawNotionId = formatNotionPageId(pageId) ?? pageId;
-  const { canonicalId, rawId } = deriveDocIdentifiers(rawNotionId);
-  // NOTE: ID-sensitive ingestion path: must use deriveDocIdentifiers for doc_id/raw_doc_id.
-  stats.documentsProcessed += 1;
-  const title = getPageTitle(recordMap, pageId);
+  const doc = prepareNotionPageDocument(recordMap, pageId);
   await emit({
     type: "log",
     level: "info",
-    message: `Fetched Notion page "${title}" (${pageId}).`,
+    message: `Fetched Notion page "${doc.title}" (${pageId}).`,
   });
   await emit({
     type: "progress",
@@ -334,204 +321,13 @@ async function ingestNotionPage({
     percent: 20,
   });
 
-  const plainText = extractPlainText(recordMap, pageId);
-
-  if (!plainText) {
-    await markSuccess(supabaseClient, canonicalId, 200);
-    stats.documentsSkipped += 1;
-    await emit({
-      type: "log",
-      level: "warn",
-      message: `No readable content found for Notion page "${title}" (${pageId}); nothing ingested.`,
-    });
-    return;
-  }
-
-  await emit({
-    type: "log",
-    level: "info",
-    message: `Preparing ${title} for ingest...`,
-  });
-  await emit({
-    type: "progress",
-    step: "processing",
-    percent: 35,
-  });
-
-  const lastEditedTime = getPageLastEditedTime(recordMap, pageId);
-  const contentHash = hashChunk(`${canonicalId}:${plainText}`);
-  const sourceUrl = getPageUrl(pageId);
-
-  const existingState = await getDocumentState(canonicalId);
-  if (existingState?.raw_doc_id && existingState.raw_doc_id !== rawId) {
-    console.warn("[doc-id] raw_doc_id drift detected", {
-      canonicalId,
-      previous: existingState.raw_doc_id,
-      incoming: rawId,
-    });
-  }
-  const contentUnchanged =
-    !!existingState && existingState.content_hash === contentHash;
-  const existingMetadata = stripDocIdentifierFields(
-    existingState?.metadata ?? null,
-  );
-  const incomingMetadata = extractNotionMetadata(recordMap, pageId);
-  const adminMetadata =
-    mergeMetadata(existingMetadata, incomingMetadata) ??
-    existingMetadata ??
-    null;
-  const sourceMetadata = buildNotionSourceMetadata(recordMap, pageId);
-  const mergedMetadata = mergeRagDocumentMetadata(
-    adminMetadata ?? existingMetadata ?? undefined,
-    sourceMetadata,
-  );
-  const nextMetadata = applyDefaultDocMetadata(mergedMetadata, {
-    doc_type: DEFAULT_INGEST_DOC_TYPE,
-    persona_type: DEFAULT_INGEST_PERSONA_TYPE,
-  });
-  const metadataWithIds = normalizeMetadata({
-    ...nextMetadata,
-    doc_id: canonicalId,
-    raw_doc_id: rawId,
-  });
-  debugIngestionLog("final-document-metadata", {
-    docId: canonicalId,
-    rawId,
-    title: nextMetadata?.title,
-    teaser_text: nextMetadata?.teaser_text,
-    preview_image_url: nextMetadata?.preview_image_url,
-  });
-  const metadataUnchanged = metadataEquals(existingMetadata, nextMetadata);
-
-  const providerHasChunks =
-    contentUnchanged &&
-    (await hasChunksForProvider(canonicalId, embeddingOptions));
-
-  const decision = decideIngestAction({
-    contentUnchanged,
-    metadataUnchanged,
+  await ingestPreparedDocument({
+    doc,
     ingestionType,
-    providerHasChunks: !!providerHasChunks,
+    embedding: embeddingOptions,
+    stats,
+    reporter: buildReporter(emit, NOTION_PROGRESS_PERCENT),
   });
-
-  if (decision === "skip") {
-    await markSuccess(supabaseClient, canonicalId, 200);
-    stats.documentsSkipped += 1;
-    await emit({
-      type: "log",
-      level: "info",
-      message: `No content or metadata changes detected for Notion page "${title}" (${pageId}); skipping ingest.`,
-    });
-    return;
-  }
-
-  if (decision === "metadata-only") {
-    await upsertDocumentState({
-      doc_id: canonicalId,
-      raw_doc_id: rawId,
-      source_url: sourceUrl,
-      content_hash: contentHash,
-      last_source_update: lastEditedTime ?? null,
-      metadata: metadataWithIds,
-      chunk_count: existingState?.chunk_count ?? undefined,
-      total_characters: existingState?.total_characters ?? undefined,
-    });
-    await markSuccess(supabaseClient, canonicalId, 200);
-
-    stats.documentsUpdated += 1;
-    await emit({
-      type: "log",
-      level: "info",
-      message: `Metadata-only update applied for Notion page "${title}" (${pageId}); no chunking or embedding needed.`,
-    });
-    return;
-  }
-
-  const fullReason =
-    ingestionType === "full"
-      ? "Full ingestion requested"
-      : contentUnchanged
-        ? "Embedding refresh required for this provider"
-        : "Content hash changed";
-  await emit({
-    type: "log",
-    level: "info",
-    message: `${fullReason}; performing full content ingest for Notion page "${title}" (${pageId}).`,
-  });
-
-  const chunks = chunkByTokens(plainText, 450, 75);
-  if (chunks.length === 0) {
-    await markSuccess(supabaseClient, canonicalId, 200);
-    stats.documentsSkipped += 1;
-    await emit({
-      type: "log",
-      level: "warn",
-      message: `Chunking produced no content for Notion page ${title}; nothing stored.`,
-    });
-    return;
-  }
-
-  await emit({
-    type: "progress",
-    step: "embedding",
-    percent: 60,
-  });
-  await emit({
-    type: "log",
-    level: "info",
-    message: `Embedding ${chunks.length} chunk(s)...`,
-  });
-  const embeddings = await embedBatch(chunks, embeddingOptions);
-  const ingestedAt = new Date().toISOString();
-
-  const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
-    doc_id: canonicalId,
-    source_url: sourceUrl,
-    title,
-    chunk,
-    chunk_hash: hashChunk(`${canonicalId}:${chunk}`),
-    embedding: embeddings[index]!,
-    ingested_at: ingestedAt,
-  }));
-
-  const chunkCount = rows.length;
-  const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0);
-
-  await emit({
-    type: "progress",
-    step: "saving",
-    percent: 85,
-  });
-  await replaceChunks(canonicalId, rows, embeddingOptions);
-  await upsertDocumentState({
-    doc_id: canonicalId,
-    raw_doc_id: rawId,
-    source_url: sourceUrl,
-    content_hash: contentHash,
-    last_source_update: lastEditedTime ?? null,
-    chunk_count: chunkCount,
-    total_characters: totalCharacters,
-    metadata: metadataWithIds,
-  });
-  await markSuccess(supabaseClient, canonicalId, 200);
-
-  if (existingState) {
-    stats.documentsUpdated += 1;
-    stats.chunksUpdated += chunkCount;
-    stats.charactersUpdated += totalCharacters;
-  } else {
-    stats.documentsAdded += 1;
-    stats.chunksAdded += chunkCount;
-    stats.charactersAdded += totalCharacters;
-  }
-
-  await emit({
-    type: "log",
-    level: "info",
-    message: `Stored ${chunkCount} chunk(s) for ${title}.`,
-  });
-
-  return;
 }
 
 async function runNotionPageIngestion({
@@ -753,9 +549,9 @@ async function runNotionPageIngestion({
 
       let recordMap: ExtendedRecordMap | null = null;
 
+      const { canonicalId } = deriveNotionDocIdentifiers(currentPageId);
+
       try {
-        const rawNotionId = formatNotionPageId(currentPageId) ?? currentPageId;
-        const { canonicalId } = deriveDocIdentifiers(rawNotionId);
         await markAttempt(supabaseClient, canonicalId);
         await emit({
           type: "log",
@@ -772,31 +568,7 @@ async function runNotionPageIngestion({
           doc_id: currentPageId,
           message,
         });
-        const rawNotionId = formatNotionPageId(currentPageId) ?? currentPageId;
-        const { canonicalId } = deriveDocIdentifiers(rawNotionId);
-        const outcome = normalizeFetchOutcome({ error: err });
-        if (outcome.classification === "missing") {
-          await markMissing(
-            supabaseClient,
-            canonicalId,
-            outcome.statusCode,
-            outcome.shortError,
-          );
-        } else if (outcome.classification === "auth") {
-          await markAuthError(
-            supabaseClient,
-            canonicalId,
-            outcome.statusCode,
-            outcome.shortError,
-          );
-        } else {
-          await markFetchError(
-            supabaseClient,
-            canonicalId,
-            outcome.statusCode,
-            outcome.shortError,
-          );
-        }
+        await markFetchFailure(supabaseClient, canonicalId, err);
         await emit({
           type: "log",
           level: "error",
@@ -987,182 +759,34 @@ async function runUrlIngestion(
       : "Manual URL ingestion finished.";
 
   try {
-    stats.documentsProcessed += 1;
     await emit({
       type: "log",
       level: "info",
       message: `Fetching ${url}...`,
     });
-    await markAttempt(supabaseClient, url);
-    let article: ExtractedArticle;
-    try {
-      article = await extractMainContent(url);
-    } catch (err) {
-      const outcome = normalizeFetchOutcome({ error: err });
-      if (outcome.classification === "missing") {
-        await markMissing(
-          supabaseClient,
-          url,
-          outcome.statusCode,
-          outcome.shortError,
-        );
-      } else if (outcome.classification === "auth") {
-        await markAuthError(
-          supabaseClient,
-          url,
-          outcome.statusCode,
-          outcome.shortError,
-        );
-      } else {
-        await markFetchError(
-          supabaseClient,
-          url,
-          outcome.statusCode,
-          outcome.shortError,
-        );
-      }
-      throw err;
-    }
-    const { title, text, lastModified, statusCode } = article;
+    const doc = await fetchUrlDocument(url);
     await emit({
       type: "progress",
       step: "fetched",
       percent: 25,
     });
 
-    if (!text) {
-      await markSuccess(supabaseClient, url, statusCode);
-      stats.documentsSkipped += 1;
-      finalMessage = `No readable text extracted from ${url}; nothing ingested.`;
-      await emit({
-        type: "log",
-        level: "warn",
-        message: finalMessage,
-      });
-      return;
-    }
-
-    const contentHash = hashChunk(`${url}:${text}`);
-    const existingState = await getDocumentState(url);
-    const unchanged = isUnchanged(existingState, {
-      contentHash,
-      lastSourceUpdate: lastModified ?? null,
-    });
-
-    const providerHasChunks =
-      unchanged && (await hasChunksForProvider(url, embeddingOptions));
-    const skip = shouldSkipIngest({
-      unchanged,
+    const outcome: IngestDocumentOutcome = await ingestPreparedDocument({
+      doc,
       ingestionType,
-      providerHasChunks: !!providerHasChunks,
+      embedding: embeddingOptions,
+      stats,
+      reporter: buildReporter(emit, URL_PROGRESS_PERCENT),
     });
 
-    if (skip) {
-      await markSuccess(supabaseClient, url, statusCode);
-      stats.documentsSkipped += 1;
-      finalMessage = `No changes detected for ${title} (${url}); skipping ingest.`;
-      await emit({
-        type: "log",
-        level: "info",
-        message: finalMessage,
-      });
-      return;
+    if (outcome.action === "skipped") {
+      finalMessage =
+        outcome.reason === "empty-content"
+          ? `No readable text extracted from ${url}; nothing ingested.`
+          : outcome.reason === "unchanged"
+            ? `No changes detected for ${doc.title} (${url}); skipping ingest.`
+            : `Extracted content produced no chunks for ${url}; nothing stored.`;
     }
-
-    await emit({
-      type: "progress",
-      step: "processing",
-      percent: 45,
-    });
-    const chunks = chunkByTokens(text, 450, 75);
-
-    if (chunks.length === 0) {
-      await markSuccess(supabaseClient, url, statusCode);
-      stats.documentsSkipped += 1;
-      finalMessage = `Extracted content produced no chunks for ${url}; nothing stored.`;
-      await emit({
-        type: "log",
-        level: "warn",
-        message: finalMessage,
-      });
-      return;
-    }
-
-    await emit({
-      type: "log",
-      level: "info",
-      message: `Embedding ${chunks.length} chunk(s)...`,
-    });
-    await emit({
-      type: "progress",
-      step: "embedding",
-      percent: 65,
-    });
-    const embeddings = await embedBatch(chunks, embeddingOptions);
-    const ingestedAt = new Date().toISOString();
-
-    const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
-      doc_id: url,
-      source_url: url,
-      title,
-      chunk,
-      chunk_hash: hashChunk(`${url}:${chunk}`),
-      embedding: embeddings[index]!,
-      ingested_at: ingestedAt,
-    }));
-
-    const chunkCount = rows.length;
-    const totalCharacters = rows.reduce(
-      (sum, row) => sum + row.chunk.length,
-      0,
-    );
-
-    await emit({
-      type: "progress",
-      step: "saving",
-      percent: 85,
-    });
-    await replaceChunks(url, rows, {
-      provider: embeddingOptions.provider ?? null,
-      embeddingModelId: embeddingOptions.embeddingModelId,
-      embeddingSpaceId: embeddingOptions.embeddingSpaceId,
-    });
-    const existingMetadata = parseRagDocumentMetadata(existingState?.metadata);
-    const sourceMetadata = await buildUrlRagDocumentMetadata({
-      sourceUrl: url,
-      htmlTitle: title,
-    });
-    const nextMetadata = mergeRagDocumentMetadata(
-      existingMetadata,
-      sourceMetadata,
-    );
-
-    await upsertDocumentState({
-      doc_id: url,
-      source_url: url,
-      content_hash: contentHash,
-      last_source_update: lastModified ?? null,
-      chunk_count: chunkCount,
-      total_characters: totalCharacters,
-      metadata: nextMetadata,
-    });
-    await markSuccess(supabaseClient, url, statusCode);
-
-    if (existingState) {
-      stats.documentsUpdated += 1;
-      stats.chunksUpdated += chunkCount;
-      stats.charactersUpdated += totalCharacters;
-    } else {
-      stats.documentsAdded += 1;
-      stats.chunksAdded += chunkCount;
-      stats.charactersAdded += totalCharacters;
-    }
-
-    await emit({
-      type: "log",
-      level: "info",
-      message: `Stored ${chunkCount} chunk(s) for ${title}.`,
-    });
   } catch (err) {
     status = "failed";
     stats.errorCount += 1;

@@ -12,13 +12,6 @@ export type ExistingState = {
   last_source_update?: string | number | Date | null;
 } | null;
 
-export type SkipPolicyInput = {
-  unchanged: boolean;
-  ingestionType: IngestionType;
-  providerHasChunks: boolean;
-  metadataUnchanged?: boolean;
-};
-
 /**
  * Determine whether the fetched content is unchanged compared to stored state.
  * Compares hash and normalized last update timestamps if provided.
@@ -43,28 +36,6 @@ export function isUnchanged(
     !normalizedLast || normalizedExisting === normalizedLast;
 
   return sameHash && sameTimestamp;
-}
-
-/**
- * Decide whether to skip ingesting based on change status, mode, and provider state.
- *
- * - partial: skip if unchanged AND chunks already exist for provider
- * - full: never skip (re-ingest even if unchanged)
- */
-export function shouldSkipIngest({
-  unchanged,
-  ingestionType,
-  providerHasChunks,
-  metadataUnchanged = true,
-}: SkipPolicyInput): boolean {
-  return (
-    decideIngestAction({
-      contentUnchanged: unchanged,
-      metadataUnchanged,
-      ingestionType,
-      providerHasChunks,
-    }) === "skip"
-  );
 }
 
 export type IngestDecision = "skip" | "metadata-only" | "full";

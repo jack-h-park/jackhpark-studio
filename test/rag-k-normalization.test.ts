@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { normalizeRagK } from "@/lib/server/langchain/ragRetrievalChain";
+import { normalizeRagK } from "@/lib/server/langchain/rag-retrieval-chain";
 
 void test("normalizeRagK adjusts retrieve/final when rerank disabled", () => {
   const result = normalizeRagK({
