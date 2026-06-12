@@ -58,12 +58,9 @@ The local analytics contract treats the following as shared context across emitt
 ### Canonical PostHog Events
 
 - `chat_completion`
-  - primary lifecycle event for each knowledge completion
-  - includes latency, status, cache, abort, token, model, preset, and error fields
-- `cache_decision`
-  - local cache-effectiveness event for hit/miss monitoring
-- `latency_breakdown`
-  - local attribution event for total vs retrieval vs LLM latency
+  - the single lifecycle event for each completion; all alert signals source from it
+  - includes latency (`latency_ms`/`latency_retrieval_ms`/`latency_llm_ms`), status, cache (`response_cache_hit`/`retrieval_cache_hit`/`cache_strategy`), abort, token, model, preset, and error fields
+  - latency and cache attribution ride on this event — there are no separate `cache_decision` or `latency_breakdown` events
 
 ### Canonical Local Properties
 
