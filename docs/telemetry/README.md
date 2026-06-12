@@ -20,6 +20,7 @@
 ## Analysis
 
 - [weekly-digest.md](weekly-digest.md) — `pnpm telemetry:digest` turns Langfuse scores into an actionable digest (satisfaction, retrieval quality, proxy-vs-human divergence, rule-based takeaways)
+- [analytics-as-code.md](analytics-as-code.md) — `pnpm telemetry:sync` provisions PostHog insights + Langfuse score configs from version-controlled definitions
 
 ## Operational References
 
