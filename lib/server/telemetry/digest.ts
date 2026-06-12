@@ -78,6 +78,19 @@ export type PostHogMetrics = {
   avgTokens: number | null;
 };
 
+/**
+ * Engineering-side metrics from the Langfuse metrics API. These complement the
+ * PostHog product metrics: trace/observation volume and — uniquely — model
+ * **cost** in dollars (PostHog tracks tokens, not cost). Optional; null when
+ * Langfuse credentials are absent.
+ */
+export type LangfuseEngineeringMetrics = {
+  traceCount: number;
+  observationCount: number;
+  totalCostUsd: number | null;
+  generationLatencyP95Ms: number | null;
+};
+
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
@@ -259,9 +272,14 @@ function posthogFlags(p: PostHogMetrics): string[] {
   return flags;
 }
 
+function fmtUsd(value: number | null): string {
+  return value === null ? "—" : `$${value.toFixed(4)}`;
+}
+
 export function renderWeeklyDigestMarkdown(
   d: WeeklyDigest,
   posthog?: PostHogMetrics | null,
+  langfuse?: LangfuseEngineeringMetrics | null,
 ): string {
   const fb = d.userFeedback;
   const div = d.divergence;
@@ -279,6 +297,25 @@ export function renderWeeklyDigestMarkdown(
         `| Abort rate | ${fmtRate(posthog.abortRate)} |`,
         `| Response cache hit rate | ${fmtRate(posthog.responseCacheHitRate)} |`,
         `| Avg tokens / request | ${fmtNum(posthog.avgTokens, 0)} |`,
+        "",
+      ]
+    : [];
+
+  const costPerTrace =
+    langfuse && langfuse.totalCostUsd !== null && langfuse.traceCount > 0
+      ? langfuse.totalCostUsd / langfuse.traceCount
+      : null;
+  const langfuseSection: string[] = langfuse
+    ? [
+        `## Engineering metrics (Langfuse)`,
+        "",
+        `| Metric | Value |`,
+        `| --- | --- |`,
+        `| Traces | ${langfuse.traceCount} |`,
+        `| Observations | ${langfuse.observationCount} |`,
+        `| Total model cost | ${fmtUsd(langfuse.totalCostUsd)} |`,
+        `| Cost / trace | ${fmtUsd(costPerTrace)} |`,
+        `| Generation latency p95 | ${fmtMs(langfuse.generationLatencyP95Ms)} |`,
         "",
       ]
     : [];
@@ -323,6 +360,7 @@ export function renderWeeklyDigestMarkdown(
     `**Volume:** ${d.distinctTraces} traces scored, ${d.totalScores} scores total`,
     "",
     ...posthogSection,
+    ...langfuseSection,
     `## User satisfaction (👍/👎)`,
     "",
     `| Metric | Value |`,
