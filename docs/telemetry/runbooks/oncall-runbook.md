@@ -63,9 +63,7 @@ For product-level interpretation and decision-making context (e.g., how alerts m
     - `retrieval` (for knowledge)
 - In PostHog:
   - Incoming events in the last 15 minutes:
-    - `chat_completion`
-    - `cache_decision`
-    - `latency_breakdown`
+    - `chat_completion` (carries latency/cache attribution properties — no separate `cache_decision`/`latency_breakdown` events)
 
 **If broken**
 
@@ -115,9 +113,9 @@ Use whichever is available:
 
 **PostHog**
 
-- Use `latency_breakdown`:
+- On `chat_completion`, compare attribution properties:
   - `latency_retrieval_ms` vs `latency_llm_ms`
-- Compare to end-to-end `duration_ms`
+- Compare to end-to-end `latency_ms`
 
 ### A-2. Fast mitigations (choose the smallest effective lever)
 

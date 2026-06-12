@@ -28,11 +28,11 @@
 - **Implementation** → `posthog-ops.md` is the PostHog-specific realization (Step 3). It must never invent telemetry outside the signals defined in this file.
 
 ## Observability prerequisites
-1. Langfuse exports the following PostHog events for knowledge (`intent=knowledge`) traffic:
+1. The app emits a single PostHog event per request via `captureChatCompletion` (`lib/analytics/posthog.ts`); all alert signals are sourced from its properties. Latency and cache attribution live on the same event rather than as separate event types:
    - `chat_completion` with `latency_ms`, `aborted`, `response_cache_hit`, `retrieval_cache_hit`, `status`, `total_tokens`, `error_type`, `preset_key`, and the shared context fields listed below.
-   - `cache_decision` with `response_cache_hit`, `retrieval_cache_hit`, and `cache_strategy`.
-   - `latency_breakdown` with `latency_total_ms`, `latency_retrieval_ms`, and `latency_llm_ms` for attribution.
-2. All events carry `env`, `intent`, `request_id`, `timestamp`, and `preset_key`; `intent=knowledge` is enforced at the exporter even though PostHog currently lacks a built-in `intent` filter. Use `rag_enabled=true` as the production proxy whenever you build insights or alerts inside PostHog.
+   - **Latency attribution** — `latency_retrieval_ms` and `latency_llm_ms` (the retrieval-vs-LLM split) ride on `chat_completion`; there is no separate `latency_breakdown` event.
+   - **Cache attribution** — `response_cache_hit`, `retrieval_cache_hit`, and `cache_strategy` (`early`/`late`/null) ride on `chat_completion`; there is no separate `cache_decision` event.
+2. All `chat_completion` events carry `env`, `request_id`, and `preset_key`. `intent` is not emitted as a property — PostHog lacks an `intent` filter, so use `rag_enabled=true` as the production proxy for `intent=knowledge` whenever you build insights or alerts.
 3. Volume gates are required before paging: latency alerts need ≥ 30 requests per 5m, aborts ≥ 100 requests per 10m, and cache diagnostics ≥ 100 cache decisions per 30m.
 4. Langfuse sampling/drop filters keep chitchat out of these signals, so the alerts only fire on knowledge traffic.
 
@@ -50,7 +50,7 @@
 
 **Intent**  Capture degradations of the worst-case knowledge request experience.
 
-**Signal source**  `chat_completion.latency_ms` aggregated to the tail and `latency_breakdown` for attribution (`latency_retrieval_ms` vs `latency_llm_ms`).
+**Signal source**  `chat_completion.latency_ms` aggregated to the tail, with `chat_completion.latency_retrieval_ms` vs `latency_llm_ms` for attribution.
 
 **Trigger condition**  Knowledge traffic where p99 ≥ 2× the expected baseline for 5m **OR** absolute p99 exceeds the environment threshold (prod > 24s, staging > 30s) while the volume gate is satisfied.
 
@@ -66,16 +66,16 @@
 **Dependency & correlation rules**
 - If Alert B (abort spike) fires simultaneously, latency is almost always the root cause; prioritize the A playbook.
 - If Abort B is quiet, suspect provider throttling, OOMs, or network noise.
-- Use `latency_breakdown` to split retrieval vs LLM to guide mitigations and seed Alert C diagnostics.
+- Use `chat_completion.latency_retrieval_ms` vs `latency_llm_ms` to split retrieval vs LLM, guiding mitigations and seeding Alert C diagnostics.
 
 **Prerequisites**
 - `chat_completion` events emitted at least once per minute with `latency_ms`, `env`, `intent`, and request metadata.
 - Volume gate: ≥ 30 knowledge requests in the 5m evaluation window (adjust upward for low-volume envs).
-- `latency_breakdown` data must cover the same window to exclude cache effects.
+- `latency_retrieval_ms` / `latency_llm_ms` must cover the same window to exclude cache effects.
 
 **Immediate actions**
 1. Confirm the regression window against recent deployments or LLM provider changes.
-2. Compare retrieval (`latency_breakdown.latency_retrieval_ms`) vs LLM (`latency_breakdown.latency_llm_ms`) tails to isolate the feeder.
+2. Compare retrieval (`latency_retrieval_ms`) vs LLM (`latency_llm_ms`) tails to isolate the feeder.
 3. Verify the baseline in play (static SLO vs rolling median) and refresh if stale.
 
 **Common causes**
@@ -128,7 +128,7 @@
 **Intent**  Detect when caches no longer provide benefit—either hit rate collapses (C-1) or hit latency matches misses (C-2).
 
 #### C-1. Cache hit rate collapse
-**Signal source**  `cache_decision.response_cache_hit` (and `retrieval_cache_hit`) aggregated for `intent=knowledge`, grouped by `preset_key`.
+**Signal source**  `chat_completion.response_cache_hit` (and `retrieval_cache_hit`) aggregated for `rag_enabled=true`, grouped by `preset_key`.
 
 **Trigger condition**  Hit rate < 20% for ≥ 30m **OR** ≥20% drop vs trailing 7d median with ≥ 100 cache decisions in 30m.
 
@@ -139,7 +139,7 @@
 | P3 | Hit rate dip < 20% or window < 30m | Monitor and document root causes |
 
 **Prerequisites**
-- `cache_decision` includes `response_cache_hit`, `retrieval_cache_hit`, `cache_strategy` and `env`.
+- `chat_completion` includes `response_cache_hit`, `retrieval_cache_hit`, `cache_strategy` and `env`.
 - Volume gate: ≥ 100 cache decisions per 30m.
 - `intent=knowledge` filter ensures chitchat is excluded.
 
@@ -154,7 +154,7 @@
 - Metadata mismatches (intent/preset) causing lookup misses.
 
 #### C-2. Cache hit latency parity
-**Signal source**  `chat_completion.latency_ms` grouped by `response_cache_hit` plus `latency_breakdown` for attribution.
+**Signal source**  `chat_completion.latency_ms` grouped by `response_cache_hit`, plus `latency_retrieval_ms`/`latency_llm_ms` for attribution.
 
 **Trigger condition**  p50 latency for hits ≥ 0.9 × misses for ≥ 15m with ≥ 50 hits and misses each.
 
@@ -169,10 +169,10 @@
 **Prerequisites**
 - `response_cache_hit` present on every knowledge `chat_completion` event.
 - Volume gate: ≥ 50 hits and misses in a 15m window.
-- `cache_decision` + `chat_completion` timestamps aligned or cross-referenced for accurate grouping.
+- Cache and latency properties ride on the same `chat_completion` event, so no cross-event timestamp alignment is needed.
 
 **Immediate actions**
-1. Use `latency_breakdown` to split retrieval vs LLM for both hit/miss cohorts.
+1. Use `latency_retrieval_ms`/`latency_llm_ms` to split retrieval vs LLM for both hit/miss cohorts.
 2. Cross-check Alert C-1 to ensure hit-rate collapse isn’t the driver.
 3. Tag the alert with `model`/`preset_key` when a single config drives the regression.
 
@@ -186,7 +186,7 @@
 ## Additional guidance
 - Tag every alert with `env`, `intent`, and `preset_key` so dashboards can auto-scope.
 - Document every baseline change (static → rolling) and the data source for the new threshold.
-- If any required signal (e.g., `latency_breakdown`) disappears, pause the alert and raise an observability ticket.
+- If any required signal (e.g., `latency_retrieval_ms`) disappears, pause the alert and raise an observability ticket.
 - PostHog currently does not expose `intent` as a filter; rely on `rag_enabled=true` inside the platform until the filter exists.
 
 ---
@@ -213,7 +213,7 @@
 | --- | --- |
 | `latency_ms` | Handler entry → response completion latency (canonical p99 signal for Alert A). |
 | `latency_llm_ms` | `answer:llm` observation |
-| `latency_retrieval_ms` | Retrieval portion of `latency_breakdown` |
+| `latency_retrieval_ms` | Retrieval-stage latency on `chat_completion` |
 | `aborted` | Completion flag |
 | `response_cache_hit` | Cache metadata |
 | `retrieval_cache_hit` | Cache metadata |
@@ -227,29 +227,22 @@
 
 **Used by** Alerts A/B/C for latency, abort, and hit/miss comparisons. PostHog dashboards rely on these properties for gating, filters, and dedup keys.
 
-### `latency_breakdown`
-**Purpose** Attribution of latency across retrieval and LLM.
+### Latency & cache attribution (on `chat_completion`)
+There are **no separate `latency_breakdown` or `cache_decision` events**. Attribution rides on `chat_completion` so alerts need no cross-event joins. The properties below are part of the `chat_completion` payload above.
 
-**Key properties**
+**Latency attribution** — for Alert A investigations and Alert C latency parity:
 | Property | Source |
 | --- | --- |
-| `latency_total_ms` | Trace duration |
-| `latency_retrieval_ms` | Retrieval observation |
-| `latency_llm_ms` | LLM observation |
+| `latency_ms` | Handler entry → completion (total) |
+| `latency_retrieval_ms` | Retrieval-stage latency |
+| `latency_llm_ms` | LLM generation latency (`answer:llm`) |
 
-**Used by** Alert A investigations and Alert C latency parity checks.
-
-### `cache_decision`
-**Purpose** Cache effectiveness signal for hit-rate monitoring.
-
-**Key properties**
+**Cache attribution** — for Alert C hit-rate diagnostics and cost dashboards:
 | Property | Source |
 | --- | --- |
 | `response_cache_hit` | Cache metadata |
 | `retrieval_cache_hit` | Cache metadata |
-| `cache_strategy` | Cache strategy identifier |
-
-**Used by** Alert C hit-rate diagnostics and cost dashboards.
+| `cache_strategy` | `early` / `late` / null (response-cache coordinator) |
 
 ### Field normalization rules
 - Booleans remain booleans.

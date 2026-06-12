@@ -99,6 +99,7 @@ The server-side client is instantiated once as a module-level singleton. If `TEL
 |----------|------|-------------|
 | `response_cache_hit` | `boolean` | `true` when a cached response was served without invoking the LLM |
 | `response_cache_enabled` | `boolean` | Whether response caching was configured for this request |
+| `cache_strategy` | `"early" \| "late" \| null` | Response-cache coordinator strategy; `null` when no cache decision was made. Provides Alert C cache attribution without a separate `cache_decision` event |
 
 #### Guardrails / routing
 
@@ -159,7 +160,6 @@ Resolution logic lives in `resolvePosthogDistinctId()` in `langchain_chat_impl_h
 | Feature flags | Not used | Internal feature config uses `sessionConfig.features` (reverseRAG, hyde, ranker); these are not PostHog feature flags |
 | UI interaction events | Not captured | Button clicks, RAG feedback, error modal interactions, settings changes are not tracked |
 | Ingestion lifecycle events | Not captured | No events for Notion sync start/end, embedding run, or document upsert |
-| `latency_breakdown` / `cache_decision` | Specified in contract, not emitted | `alerting-contract.md` defines these event types, but no `captureChatCompletion`-equivalent call exists for them yet |
 
 ---
 
@@ -169,9 +169,9 @@ Resolution logic lives in `resolvePosthogDistinctId()` in `langchain_chat_impl_h
 
 Client-side `$pageview` events and server-side `chat_completion` events share no common identity because `posthog.identify()` is never called. This means funnel analysis (e.g. "what pages did this user visit before their first chat?") is not possible with current instrumentation.
 
-### `cache_decision` and `latency_breakdown` events are unimplemented
+### Latency & cache attribution live on `chat_completion` (by design)
 
-The alerting contract specifies `cache_decision` and `latency_breakdown` as distinct PostHog event types for Alert C and attribution analysis. Neither is emitted today. All cache and latency signals are piggybacked on `chat_completion` properties, which limits granularity.
+Earlier contract drafts specified separate `cache_decision` and `latency_breakdown` event types. These were never emitted, and the data fully duplicates `chat_completion` properties (`latency_retrieval_ms`, `latency_llm_ms`, `response_cache_hit`, `retrieval_cache_hit`, `cache_strategy`). The contract was reconciled to source Alert A/B/C from `chat_completion` directly — no separate events, no cross-event joins. This is intentional, not a gap.
 
 ---
 

@@ -436,6 +436,10 @@ export async function handleLangchainChat(
       responseHit: responseCacheEnabled ? false : null,
       retrievalHit: retrievalCacheEnabled ? false : null,
     };
+    // Response-cache strategy ("early"/"late") for the chat_completion event.
+    // Populated once the cache coordinator is built below; null when no cache
+    // decision was made (e.g. blocked require-local early return).
+    let responseCacheStrategy: "early" | "late" | null = null;
     function updateTraceCacheMetadata(): void {
       if (!traceState.metadata) {
         return;
@@ -715,6 +719,7 @@ export async function handleLangchainChat(
             retrieval_cache_hit: retrievalCacheHit,
             response_cache_enabled: responseCacheEnabled,
             retrieval_cache_enabled: retrievalCacheEnabled,
+            cache_strategy: responseCacheStrategy,
             status,
             error_type: errorType,
             error_category: errorType ?? undefined,
@@ -769,6 +774,7 @@ export async function handleLangchainChat(
       capturePosthog: (status, errorType) =>
         capturePosthogEvent?.(status, errorType),
     });
+    responseCacheStrategy = responseCache.strategy;
 
     updateTrace?.({
       metadata: {
