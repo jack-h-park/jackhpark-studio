@@ -17,6 +17,8 @@ import {
   MANAGED_DASHBOARDS,
   MANAGED_INSIGHT_PREFIX,
   MANAGED_INSIGHT_TAG,
+  RETIRED_DASHBOARD_NAMES,
+  RETIRED_INSIGHT_NAMES,
 } from "@/lib/server/telemetry/analytics-definitions";
 
 function readOptionalEnv(name: string): string | undefined {
@@ -146,6 +148,64 @@ async function syncPostHogInsights(): Promise<void> {
       process.stdout.write(
         `PostHog: ${shortId ? "updated" : "created"} "${name}" → ${dashboard.name}\n`,
       );
+    }
+  }
+
+  await retirePostHog(projectBase, base, headers, existing);
+}
+
+/** Soft-delete superseded dashboards + insights so consolidation is reproducible. */
+async function retirePostHog(
+  projectBase: string,
+  base: string,
+  headers: Headers,
+  existingInsights: Map<string, string>,
+): Promise<void> {
+  for (const insightName of RETIRED_INSIGHT_NAMES) {
+    const fullName = `${MANAGED_INSIGHT_PREFIX} ${insightName}`;
+    const shortId = existingInsights.get(fullName);
+    if (!shortId) {
+      continue;
+    }
+    const res = await fetch(`${base}/${shortId}/`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ deleted: true }),
+    });
+    if (res.ok) {
+      process.stdout.write(`PostHog: retired insight "${fullName}"\n`);
+    }
+  }
+
+  if (RETIRED_DASHBOARD_NAMES.length === 0) {
+    return;
+  }
+  let next: string | null = `${projectBase}/dashboards/?limit=100`;
+  const toRetire: Array<{ id: number; name: string }> = [];
+  while (next) {
+    const res = await fetch(next, { headers });
+    if (!res.ok) {
+      break;
+    }
+    const body = (await res.json()) as {
+      results: Array<{ id: number; name: string | null; deleted?: boolean }>;
+      next: string | null;
+    };
+    for (const d of body.results) {
+      if (d.name && !d.deleted && RETIRED_DASHBOARD_NAMES.includes(d.name)) {
+        toRetire.push({ id: d.id, name: d.name });
+      }
+    }
+    next = body.next;
+  }
+  for (const d of toRetire) {
+    const res = await fetch(`${projectBase}/dashboards/${d.id}/`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({ deleted: true }),
+    });
+    if (res.ok) {
+      process.stdout.write(`PostHog: retired dashboard "${d.name}"\n`);
     }
   }
 }

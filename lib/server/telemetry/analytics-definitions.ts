@@ -35,24 +35,6 @@ const SYNC_NOTE =
 
 // Knowledge traffic is identified by rag_enabled (PostHog has no `intent`
 // filter) — see docs/canonical/telemetry/alerting-contract.md.
-const KNOWLEDGE = "event = 'chat_completion' AND properties.rag_enabled";
-const WINDOW = "timestamp > now() - toIntervalDay(30)";
-
-function hogqlInsight(
-  name: string,
-  description: string,
-  hogql: string,
-): ManagedInsight {
-  return {
-    name,
-    description,
-    query: {
-      kind: "DataVisualizationNode",
-      source: { kind: "HogQLQuery", query: hogql.trim() },
-    },
-  };
-}
-
 // Reusable property-filter fragments for TrendsQuery insights.
 const F = {
   knowledge: { key: "rag_enabled", type: "event", value: ["true"], operator: "exact" },
@@ -66,71 +48,7 @@ const andProps = (values: unknown[]): InsightQuery => ({
   values: [{ type: "AND", values }],
 });
 
-// ── Dashboard 1: HogQL daily overview ────────────────────────────────────────
-
-const TELEMETRY_OVERVIEW: ManagedDashboard = {
-  name: `${MANAGED_INSIGHT_PREFIX} Chat telemetry`,
-  description: `Daily HogQL overview of chat telemetry. ${SYNC_NOTE}`,
-  insights: [
-    hogqlInsight(
-      "Chat latency p50/p95/p99 (knowledge)",
-      "Daily latency percentiles for knowledge chat completions. Alert A (latency) source.",
-      `SELECT toStartOfDay(timestamp) AS day,
-         round(quantile(0.50)(toFloat(properties.latency_ms))) AS p50,
-         round(quantile(0.95)(toFloat(properties.latency_ms))) AS p95,
-         round(quantile(0.99)(toFloat(properties.latency_ms))) AS p99
-       FROM events WHERE ${KNOWLEDGE} AND ${WINDOW}
-       GROUP BY day ORDER BY day`,
-    ),
-    hogqlInsight(
-      "Latency attribution: retrieval vs LLM (knowledge)",
-      "Daily p95 of retrieval vs LLM latency, to attribute Alert A regressions.",
-      `SELECT toStartOfDay(timestamp) AS day,
-         round(quantile(0.95)(toFloat(properties.latency_retrieval_ms))) AS retrieval_p95,
-         round(quantile(0.95)(toFloat(properties.latency_llm_ms))) AS llm_p95
-       FROM events WHERE ${KNOWLEDGE} AND ${WINDOW}
-       GROUP BY day ORDER BY day`,
-    ),
-    hogqlInsight(
-      "Chat error rate",
-      "Daily error rate across all chat completions. Reliability signal.",
-      `SELECT toStartOfDay(timestamp) AS day,
-         round(avg(if(properties.status = 'error', 1, 0)), 4) AS error_rate,
-         count() AS requests
-       FROM events WHERE event = 'chat_completion' AND ${WINDOW}
-       GROUP BY day ORDER BY day`,
-    ),
-    hogqlInsight(
-      "Chat abort rate",
-      "Daily client-abort rate. Alert B (abort spike) source.",
-      `SELECT toStartOfDay(timestamp) AS day,
-         round(avg(if(properties.aborted, 1, 0)), 4) AS abort_rate,
-         count() AS requests
-       FROM events WHERE event = 'chat_completion' AND ${WINDOW}
-       GROUP BY day ORDER BY day`,
-    ),
-    hogqlInsight(
-      "Response cache hit rate (knowledge)",
-      "Daily response-cache hit rate for knowledge traffic. Alert C (cache) source.",
-      `SELECT toStartOfDay(timestamp) AS day,
-         round(avg(if(properties.response_cache_hit, 1, 0)), 4) AS hit_rate,
-         count() AS requests
-       FROM events WHERE ${KNOWLEDGE} AND ${WINDOW}
-       GROUP BY day ORDER BY day`,
-    ),
-    hogqlInsight(
-      "Chat volume & distinct users",
-      "Daily chat request count and distinct users. Volume-gate context for alerts.",
-      `SELECT toStartOfDay(timestamp) AS day,
-         count() AS requests,
-         uniq(person_id) AS distinct_users
-       FROM events WHERE event = 'chat_completion' AND ${WINDOW}
-       GROUP BY day ORDER BY day`,
-    ),
-  ],
-};
-
-// ── Dashboard 2: operational alerts (TrendsQuery) ────────────────────────────
+// ── Dashboard 1: operational alerts (TrendsQuery) ────────────────────────────
 // Adopted from the hand-built "Chat - Alerts" dashboard, definitions corrected.
 
 const trends = (source: InsightQuery): InsightQuery => ({
@@ -309,14 +227,71 @@ const CHAT_CORE_HEALTH: ManagedDashboard = {
         },
       }),
     },
+    // Folded in from the retired "Chat telemetry" dashboard. Reusing the prior
+    // names migrates those insights in place (HogQL → TrendsQuery, re-homed here).
+    {
+      name: "Chat latency p50/p95/p99 (knowledge)",
+      description: "Latency percentiles for successful knowledge requests, daily trend.",
+      query: trends({
+        series: [
+          { kind: "EventsNode", event: "chat_completion", name: "p50", math: "median", math_property: "latency_ms", math_property_type: "numerical_event_properties" },
+          { kind: "EventsNode", event: "chat_completion", name: "p95", math: "p95", math_property: "latency_ms", math_property_type: "numerical_event_properties" },
+          { kind: "EventsNode", event: "chat_completion", name: "p99", math: "p99", math_property: "latency_ms", math_property_type: "numerical_event_properties" },
+        ],
+        interval: "day",
+        dateRange: { date_from: "-30d" },
+        properties: andProps([F.success, F.knowledge]),
+        trendsFilter: { display: "ActionsLineGraph", aggregationAxisFormat: "duration_ms" },
+      }),
+    },
+    {
+      name: "Latency attribution: retrieval vs LLM (knowledge)",
+      description: "p95 of retrieval vs LLM latency, to attribute Alert A regressions.",
+      query: trends({
+        series: [
+          { kind: "EventsNode", event: "chat_completion", name: "retrieval p95", math: "p95", math_property: "latency_retrieval_ms", math_property_type: "numerical_event_properties" },
+          { kind: "EventsNode", event: "chat_completion", name: "llm p95", math: "p95", math_property: "latency_llm_ms", math_property_type: "numerical_event_properties" },
+        ],
+        interval: "day",
+        dateRange: { date_from: "-30d" },
+        properties: andProps([F.success, F.knowledge]),
+        trendsFilter: { display: "ActionsLineGraph", aggregationAxisFormat: "duration_ms" },
+      }),
+    },
+    {
+      name: "Chat volume & distinct users",
+      description: "Daily chat request count and distinct users. Volume-gate context.",
+      query: trends({
+        series: [
+          { kind: "EventsNode", event: "chat_completion", name: "requests", math: "total" },
+          { kind: "EventsNode", event: "chat_completion", name: "distinct users", math: "dau" },
+        ],
+        interval: "day",
+        dateRange: { date_from: "-30d" },
+        trendsFilter: { display: "ActionsLineGraph" },
+      }),
+    },
   ],
 };
 
 export const MANAGED_DASHBOARDS: ManagedDashboard[] = [
-  TELEMETRY_OVERVIEW,
   CHAT_ALERTS,
   CHAT_CORE_HEALTH,
 ];
+
+/**
+ * Insights from the retired "[as-code] Chat telemetry" dashboard that are NOT
+ * carried over (fully redundant with Alerts/Core Health). The sync soft-deletes
+ * these by name so the consolidation is reproducible, not a one-off manual edit.
+ */
+export const RETIRED_INSIGHT_NAMES = [
+  "Chat error rate",
+  "Chat abort rate",
+  "Response cache hit rate (knowledge)",
+];
+
+/** Dashboards the sync soft-deletes (by name) — superseded by consolidation. */
+export const RETIRED_DASHBOARD_NAMES = [`${MANAGED_INSIGHT_PREFIX} Chat telemetry`];
 
 export type LangfuseScoreDataType = "NUMERIC" | "BOOLEAN" | "CATEGORICAL";
 
