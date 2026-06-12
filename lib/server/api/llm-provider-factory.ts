@@ -83,6 +83,10 @@ export async function createChatModel(
         ...(supportsSampling ? { temperature } : {}),
         streaming: true,
         maxTokens,
+        // The Anthropic SDK already retries 429/5xx with exponential backoff and
+        // honors Retry-After (default 2 attempts). Raise it so short bursts on a
+        // low usage tier ride out the rate limit instead of surfacing as errors.
+        maxRetries: 5,
       });
     }
     case "lmstudio": {
