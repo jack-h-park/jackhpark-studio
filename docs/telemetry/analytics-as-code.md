@@ -14,13 +14,17 @@ diff to catch it.
 pnpm telemetry:sync
 ```
 
-Idempotent: PostHog insights are matched by name and **updated in place**;
-Langfuse score configs are **created only when missing**. Each backend is
-skipped (not failed) when its credentials are absent.
+Idempotent: the managed dashboard and insights are matched by name and **reused/
+updated in place** (no duplicates on re-run); Langfuse score configs are
+**created only when missing**. Each backend is skipped (not failed) when its
+credentials are absent.
 
 ## What it manages
 
 Definitions: [`lib/server/telemetry/analytics-definitions.ts`](../../lib/server/telemetry/analytics-definitions.ts) · Runner: [`scripts/telemetry/sync-analytics.ts`](../../scripts/telemetry/sync-analytics.ts)
+
+All six insights are attached as tiles to a single managed dashboard,
+**`[as-code] Chat telemetry`** (created on first sync, reused thereafter).
 
 ### PostHog insights (HogQL, tagged `as-code`, name-prefixed `[as-code]`)
 

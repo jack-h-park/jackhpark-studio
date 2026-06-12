@@ -13,6 +13,13 @@ export const MANAGED_INSIGHT_TAG = "as-code";
 /** Prefix on managed insight names so the sync can match them unambiguously. */
 export const MANAGED_INSIGHT_PREFIX = "[as-code]";
 
+/** The managed dashboard all insights are attached to (matched by name). */
+export const MANAGED_DASHBOARD = {
+  name: `${MANAGED_INSIGHT_PREFIX} Chat telemetry`,
+  description:
+    "Managed by `pnpm telemetry:sync`. Edit definitions in lib/server/telemetry/analytics-definitions.ts — UI edits are overwritten on next sync.",
+} as const;
+
 export type PostHogInsightDef = {
   /** Stable name (without prefix); the sync prepends MANAGED_INSIGHT_PREFIX. */
   name: string;

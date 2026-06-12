@@ -14,6 +14,7 @@
  */
 import {
   LANGFUSE_SCORE_CONFIGS,
+  MANAGED_DASHBOARD,
   MANAGED_INSIGHT_PREFIX,
   MANAGED_INSIGHT_TAG,
   POSTHOG_INSIGHTS,
@@ -28,6 +29,50 @@ function readOptionalEnv(name: string): string | undefined {
 
 type PostHogInsight = { short_id: string; name: string | null };
 
+/** Find the managed dashboard by name, creating it if absent. Returns its id. */
+async function ensureDashboard(
+  projectBase: string,
+  headers: Record<string, string>,
+): Promise<number> {
+  let next: string | null = `${projectBase}/dashboards/?limit=100`;
+  while (next) {
+    const res = await fetch(next, { headers });
+    if (!res.ok) {
+      throw new Error(`PostHog dashboards list failed: ${res.status}`);
+    }
+    const body = (await res.json()) as {
+      results: Array<{ id: number; name: string | null; deleted?: boolean }>;
+      next: string | null;
+    };
+    const found = body.results.find(
+      (d) => d.name === MANAGED_DASHBOARD.name && !d.deleted,
+    );
+    if (found) {
+      return found.id;
+    }
+    next = body.next;
+  }
+  const res = await fetch(`${projectBase}/dashboards/`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      name: MANAGED_DASHBOARD.name,
+      description: MANAGED_DASHBOARD.description,
+      tags: [MANAGED_INSIGHT_TAG],
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `PostHog dashboard create failed: ${res.status} — ${await res.text()}`,
+    );
+  }
+  const created = (await res.json()) as { id: number };
+  process.stdout.write(
+    `PostHog: created dashboard "${MANAGED_DASHBOARD.name}"\n`,
+  );
+  return created.id;
+}
+
 async function syncPostHogInsights(): Promise<void> {
   const key = readOptionalEnv("POSTHOG_PERSONAL_API_KEY");
   if (!key) {
@@ -36,11 +81,14 @@ async function syncPostHogInsights(): Promise<void> {
   }
   const projectId = readOptionalEnv("POSTHOG_PROJECT_ID") ?? "@current";
   const host = readOptionalEnv("POSTHOG_API_HOST") ?? "https://us.posthog.com";
-  const base = `${host}/api/projects/${projectId}/insights`;
+  const projectBase = `${host}/api/projects/${projectId}`;
+  const base = `${projectBase}/insights`;
   const headers = {
     Authorization: `Bearer ${key}`,
     "Content-Type": "application/json",
   };
+
+  const dashboardId = await ensureDashboard(projectBase, headers);
 
   // Build name → short_id for existing managed insights (paginate).
   const existing = new Map<string, string>();
@@ -69,6 +117,7 @@ async function syncPostHogInsights(): Promise<void> {
       description: def.description,
       tags: [MANAGED_INSIGHT_TAG],
       saved: true,
+      dashboards: [dashboardId],
       query: {
         kind: "DataVisualizationNode",
         source: { kind: "HogQLQuery", query: def.hogql.trim() },
