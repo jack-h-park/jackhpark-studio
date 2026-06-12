@@ -54,6 +54,7 @@
     "build:instrumentation": "esbuild instrumentation.ts --platform=node --format=esm --outfile=instrumentation.js",
     "check:katex": "node --import=tsx scripts/check-katex-usage.ts",
     "telemetry:digest": "node --import=tsx --env-file=.env.local scripts/telemetry/weekly-digest.ts",
+    "telemetry:sync": "node --import=tsx --env-file=.env.local scripts/telemetry/sync-analytics.ts",
     "dev:trace": "REQUIRE_TRACE=1 NODE_OPTIONS=\"--require ./scripts/require-trace.cjs\" pnpm next dev",
     "dev:trace:turbo": "REQUIRE_TRACE=1 NODE_OPTIONS=\"--require ./scripts/require-trace.cjs\" pnpm next dev --turbo",
     "smoke:admin-ui": "node scripts/smoke/admin-pages-smoke.mjs",
