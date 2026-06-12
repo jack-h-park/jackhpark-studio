@@ -23,10 +23,10 @@ credentials are absent.
 
 Definitions: [`lib/server/telemetry/analytics-definitions.ts`](../../lib/server/telemetry/analytics-definitions.ts) · Runner: [`scripts/telemetry/sync-analytics.ts`](../../scripts/telemetry/sync-analytics.ts)
 
-All six insights are attached as tiles to a single managed dashboard,
-**`[as-code] Chat telemetry`** (created on first sync, reused thereafter).
+Insights are grouped into three managed dashboards (all name-prefixed
+`[as-code]`, tagged `as-code`, created on first sync and reused thereafter):
 
-### PostHog insights (HogQL, tagged `as-code`, name-prefixed `[as-code]`)
+**`[as-code] Chat telemetry`** — HogQL daily overview:
 
 | Insight | Maps to |
 | --- | --- |
@@ -37,8 +37,24 @@ All six insights are attached as tiles to a single managed dashboard,
 | Response cache hit rate (knowledge) | Alert C (cache) |
 | Chat volume & distinct users | Volume gate context |
 
+**`[as-code] Chat - Alerts`** — operational TrendsQuery signals (adopted from the
+hand-built "Chat - Alerts" dashboard, definitions corrected): Alert A p99 latency,
+Alert B abort count, Alert C cache **hit rate** (the old tile measured median
+latency of cache hits only — no cache dimension — so it never measured the signal
+its name claimed; replaced with hits/total).
+
+**`[as-code] Chat - Core Health`** — MVP health (adopted from "Chat – Core Health
+(MVP)", corrected): completion outcomes, cache latency impact, **token consumption**
+(the old tile used request count, not `sum(total_tokens)` — fixed), avg latency by
+preset.
+
 Knowledge traffic is filtered by `rag_enabled` (PostHog has no `intent` filter —
 see [alerting-contract.md](../canonical/telemetry/alerting-contract.md)).
+
+> Insight definitions can be either HogQL (`DataVisualizationNode`) or native
+> `TrendsQuery` (`InsightVizNode`) — the latter is alertable and used for the
+> adopted dashboards. The hand-built (non-`[as-code]`) originals can be retired
+> once the managed versions are verified.
 
 ### Langfuse score configs
 

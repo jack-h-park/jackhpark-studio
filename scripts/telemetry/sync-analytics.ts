@@ -14,10 +14,9 @@
  */
 import {
   LANGFUSE_SCORE_CONFIGS,
-  MANAGED_DASHBOARD,
+  MANAGED_DASHBOARDS,
   MANAGED_INSIGHT_PREFIX,
   MANAGED_INSIGHT_TAG,
-  POSTHOG_INSIGHTS,
 } from "@/lib/server/telemetry/analytics-definitions";
 
 function readOptionalEnv(name: string): string | undefined {
@@ -25,14 +24,16 @@ function readOptionalEnv(name: string): string | undefined {
   return raw ? raw.trim().replaceAll(/^["']|["']$/g, "") : undefined;
 }
 
-// ── PostHog insights ────────────────────────────────────────────────────────
+// ── PostHog dashboards + insights ────────────────────────────────────────────
 
-type PostHogInsight = { short_id: string; name: string | null };
+type Headers = Record<string, string>;
 
-/** Find the managed dashboard by name, creating it if absent. Returns its id. */
+/** Find a managed dashboard by name, creating it if absent. Returns its id. */
 async function ensureDashboard(
   projectBase: string,
-  headers: Record<string, string>,
+  headers: Headers,
+  name: string,
+  description: string,
 ): Promise<number> {
   let next: string | null = `${projectBase}/dashboards/?limit=100`;
   while (next) {
@@ -44,9 +45,7 @@ async function ensureDashboard(
       results: Array<{ id: number; name: string | null; deleted?: boolean }>;
       next: string | null;
     };
-    const found = body.results.find(
-      (d) => d.name === MANAGED_DASHBOARD.name && !d.deleted,
-    );
+    const found = body.results.find((d) => d.name === name && !d.deleted);
     if (found) {
       return found.id;
     }
@@ -55,11 +54,7 @@ async function ensureDashboard(
   const res = await fetch(`${projectBase}/dashboards/`, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      name: MANAGED_DASHBOARD.name,
-      description: MANAGED_DASHBOARD.description,
-      tags: [MANAGED_INSIGHT_TAG],
-    }),
+    body: JSON.stringify({ name, description, tags: [MANAGED_INSIGHT_TAG] }),
   });
   if (!res.ok) {
     throw new Error(
@@ -67,10 +62,34 @@ async function ensureDashboard(
     );
   }
   const created = (await res.json()) as { id: number };
-  process.stdout.write(
-    `PostHog: created dashboard "${MANAGED_DASHBOARD.name}"\n`,
-  );
+  process.stdout.write(`PostHog: created dashboard "${name}"\n`);
   return created.id;
+}
+
+/** Map of existing managed insight name → short_id (paginated). */
+async function listManagedInsights(
+  base: string,
+  headers: Headers,
+): Promise<Map<string, string>> {
+  const existing = new Map<string, string>();
+  let next: string | null = `${base}/?limit=100`;
+  while (next) {
+    const res = await fetch(next, { headers });
+    if (!res.ok) {
+      throw new Error(`PostHog insights list failed: ${res.status}`);
+    }
+    const body = (await res.json()) as {
+      results: Array<{ short_id: string; name: string | null }>;
+      next: string | null;
+    };
+    for (const i of body.results) {
+      if (i.name?.startsWith(MANAGED_INSIGHT_PREFIX)) {
+        existing.set(i.name, i.short_id);
+      }
+    }
+    next = body.next;
+  }
+  return existing;
 }
 
 async function syncPostHogInsights(): Promise<void> {
@@ -83,66 +102,51 @@ async function syncPostHogInsights(): Promise<void> {
   const host = readOptionalEnv("POSTHOG_API_HOST") ?? "https://us.posthog.com";
   const projectBase = `${host}/api/projects/${projectId}`;
   const base = `${projectBase}/insights`;
-  const headers = {
+  const headers: Headers = {
     Authorization: `Bearer ${key}`,
     "Content-Type": "application/json",
   };
 
-  const dashboardId = await ensureDashboard(projectBase, headers);
+  const existing = await listManagedInsights(base, headers);
 
-  // Build name → short_id for existing managed insights (paginate).
-  const existing = new Map<string, string>();
-  let next: string | null = `${base}/?limit=100`;
-  while (next) {
-    const res = await fetch(next, { headers });
-    if (!res.ok) {
-      throw new Error(`PostHog insights list failed: ${res.status}`);
-    }
-    const body = (await res.json()) as {
-      results: PostHogInsight[];
-      next: string | null;
-    };
-    for (const i of body.results) {
-      if (i.name?.startsWith(MANAGED_INSIGHT_PREFIX)) {
-        existing.set(i.name, i.short_id);
+  for (const dashboard of MANAGED_DASHBOARDS) {
+    const dashboardId = await ensureDashboard(
+      projectBase,
+      headers,
+      dashboard.name,
+      dashboard.description,
+    );
+    for (const def of dashboard.insights) {
+      const name = `${MANAGED_INSIGHT_PREFIX} ${def.name}`;
+      const payload = {
+        name,
+        description: def.description,
+        tags: [MANAGED_INSIGHT_TAG],
+        saved: true,
+        dashboards: [dashboardId],
+        query: def.query,
+      };
+      const shortId = existing.get(name);
+      const res = shortId
+        ? await fetch(`${base}/${shortId}/`, {
+            method: "PATCH",
+            headers,
+            body: JSON.stringify(payload),
+          })
+        : await fetch(`${base}/`, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload),
+          });
+      if (!res.ok) {
+        throw new Error(
+          `PostHog insight "${name}" ${shortId ? "update" : "create"} failed: ${res.status} — ${await res.text()}`,
+        );
       }
-    }
-    next = body.next;
-  }
-
-  for (const def of POSTHOG_INSIGHTS) {
-    const name = `${MANAGED_INSIGHT_PREFIX} ${def.name}`;
-    const payload = {
-      name,
-      description: def.description,
-      tags: [MANAGED_INSIGHT_TAG],
-      saved: true,
-      dashboards: [dashboardId],
-      query: {
-        kind: "DataVisualizationNode",
-        source: { kind: "HogQLQuery", query: def.hogql.trim() },
-      },
-    };
-    const shortId = existing.get(name);
-    const res = shortId
-      ? await fetch(`${base}/${shortId}/`, {
-          method: "PATCH",
-          headers,
-          body: JSON.stringify(payload),
-        })
-      : await fetch(`${base}/`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload),
-        });
-    if (!res.ok) {
-      throw new Error(
-        `PostHog insight "${name}" ${shortId ? "update" : "create"} failed: ${res.status} — ${await res.text()}`,
+      process.stdout.write(
+        `PostHog: ${shortId ? "updated" : "created"} "${name}" → ${dashboard.name}\n`,
       );
     }
-    process.stdout.write(
-      `PostHog: ${shortId ? "updated" : "created"} "${name}"\n`,
-    );
   }
 }
 
