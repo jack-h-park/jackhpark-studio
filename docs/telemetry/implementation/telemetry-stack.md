@@ -33,7 +33,7 @@ The system uses a **Dual-Telemetry Strategy** to separate engineering debug data
 - **Implementation:** No bespoke code — enabled purely via `LANGSMITH_*` env vars; LangChain auto-traces the graph run (`runName: "rag-retrieval-graph"`) in parallel with Langfuse. See [Trace topology](../../architecture/langchain-chat-architecture.md#trace-topology-langfuse--langsmith).
 - **Where to look:** Runs land in the `LANGSMITH_PROJECT` project (currently `jackgpt-rag`), **not** the `default` project.
 
-### C. Unified Logging Layer
+### D. Unified Logging Layer
 
 - **Implementation:** `lib/logging/logger.ts`
 - **Design:** A hierarchical logger that routes messages based on domain (`rag`, `ingestion`, `notion`, `externalLLM`).

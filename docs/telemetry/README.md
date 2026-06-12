@@ -12,6 +12,7 @@
 
 ## Read First
 
+- Setup & env reference: [setup.md](setup.md) — every telemetry env var, what it's for, and which environment (prod app / build / digest) needs it
 - Canonical contract: [alerting-contract.md](../canonical/telemetry/alerting-contract.md)
 - Canonical playbook: `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md`
 - Local supplement: [operations/telemetry-operational-verification-local.md](operations/telemetry-operational-verification-local.md)

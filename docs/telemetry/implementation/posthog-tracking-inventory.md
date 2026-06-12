@@ -19,14 +19,18 @@ PostHog is wired up on two sides: a client-side instance (browser) and a server-
 
 ### Environment variables
 
+This table covers the **capture** (write) side used by the app. The digest's **read** side (`POSTHOG_PERSONAL_API_KEY`, `POSTHOG_PROJECT_ID`, `POSTHOG_API_HOST`) and the full cross-tool matrix live in [setup.md](../setup.md) — the authoritative env reference.
+
 | Variable | Side | Notes |
 |----------|------|-------|
-| `NEXT_PUBLIC_POSTHOG_ID` | Client | Public project key for browser-side init |
-| `POSTHOG_API_KEY` | Server | Private key for server-side PostHog client |
-| `POSTHOG_HOST` | Server | Optional; defaults to `https://app.posthog.com` |
+| `NEXT_PUBLIC_POSTHOG_ID` | Client (build) | Capture key (`phc_…`) for browser-side init |
+| `POSTHOG_API_KEY` | Server | Capture key (`phc_…`) for server-side PostHog client |
+| `POSTHOG_HOST` | Server | Optional capture host; defaults to `https://app.posthog.com` |
 | `TELEMETRY_ENABLED` | Server | Global kill switch; defaults to `true` |
 
 The server-side client is instantiated once as a module-level singleton. If `TELEMETRY_ENABLED=false` or `POSTHOG_API_KEY` is missing, the client is `null` and all capture calls are no-ops. See `lib/server/telemetry/telemetry-enabled.ts` for the guard.
+
+> Querying product analytics (the weekly digest) needs a **personal** API key (`phx_…`), not the capture key above — see [setup.md](../setup.md#posthog-product-analytics).
 
 ---
 
