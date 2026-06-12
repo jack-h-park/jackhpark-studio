@@ -19,6 +19,8 @@ Loads Langfuse credentials from `.env.local` (`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_S
 | User satisfaction | `user_feedback` scores (👍/👎) | Ground truth for answer quality — see [langfuse-guide.md](langfuse-guide.md#user-feedback-score-user_feedback) |
 | Retrieval quality | `retrieval_highest_score`, `retrieval_insufficient`, `context_unique_docs` | Proxy signals for how well retrieval did |
 | **Proxy vs. human** | join of `user_feedback` ↔ `retrieval_insufficient` by `traceId` | The payoff of P1: a 2×2 cross-tab showing where the proxy and the human **disagree** |
+| Product metrics (PostHog) | HogQL over `chat_completion` | Volume, latency, error/abort/cache rates (when a PostHog personal key is set) |
+| Engineering metrics (Langfuse) | Langfuse metrics API (`/api/public/metrics`) | Trace/observation volume and — uniquely — model **cost** in $ (PostHog tracks tokens, not cost) |
 | Takeaways | deterministic rule-based flags | Reproducible, no LLM, no hallucinated numbers |
 
 The divergence cross-tab is the point. The off-diagonal cells are leads:

@@ -21,6 +21,7 @@ import { dirname } from "node:path";
 import {
   computeWeeklyDigest,
   type DigestScore,
+  type LangfuseEngineeringMetrics,
   type PostHogMetrics,
   renderWeeklyDigestMarkdown,
 } from "@/lib/server/telemetry/digest";
@@ -50,6 +51,12 @@ function parseFlag(name: string): string | undefined {
 
 function asFiniteNumber(v: number | null | undefined): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+// Langfuse metrics return counts as strings (e.g. "45"); coerce safely.
+function coerceNumber(v: unknown): number | null {
+  const n = typeof v === "string" ? Number(v) : (v as number);
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
 }
 
 type LangfuseScoresPage = {
@@ -98,6 +105,53 @@ async function fetchScores(
     page += 1;
   } while (page <= totalPages);
   return scores;
+}
+
+/**
+ * Pulls engineering metrics from the Langfuse metrics API — trace/observation
+ * volume, model cost (unique to Langfuse), and generation latency. Uses the same
+ * Langfuse credentials as the scores fetch, so it's always available here.
+ */
+async function fetchLangfuseMetrics(
+  baseUrl: string,
+  auth: string,
+  fromTimestamp: string,
+  toTimestamp: string,
+): Promise<LangfuseEngineeringMetrics | null> {
+  const query = (view: string, metrics: unknown[]) => {
+    const url = new URL("/api/public/metrics", baseUrl);
+    url.searchParams.set(
+      "query",
+      JSON.stringify({ view, metrics, fromTimestamp, toTimestamp }),
+    );
+    return url;
+  };
+  const run = async (view: string, metrics: unknown[]) => {
+    const res = await fetch(query(view, metrics), {
+      headers: { Authorization: `Basic ${auth}` },
+    });
+    if (!res.ok) {
+      throw new Error(`Langfuse metrics fetch failed: ${res.status}`);
+    }
+    const body = (await res.json()) as { data: Array<Record<string, unknown>> };
+    return body.data[0] ?? {};
+  };
+
+  const traces = await run("traces", [
+    { measure: "count", aggregation: "count" },
+  ]);
+  const obs = await run("observations", [
+    { measure: "count", aggregation: "count" },
+    { measure: "totalCost", aggregation: "sum" },
+    { measure: "latency", aggregation: "p95" },
+  ]);
+
+  return {
+    traceCount: coerceNumber(traces.count_count) ?? 0,
+    observationCount: coerceNumber(obs.count_count) ?? 0,
+    totalCostUsd: coerceNumber(obs.sum_totalCost),
+    generationLatencyP95Ms: coerceNumber(obs.p95_latency),
+  };
 }
 
 /**
@@ -179,9 +233,15 @@ try {
   };
 
   const scores = await fetchScores(baseUrl, auth, from.toISOString());
+  const langfuseMetrics = await fetchLangfuseMetrics(
+    baseUrl,
+    auth,
+    from.toISOString(),
+    now.toISOString(),
+  );
   const posthog = await fetchPostHogMetrics(days);
   const digest = computeWeeklyDigest(scores, window);
-  const markdown = renderWeeklyDigestMarkdown(digest, posthog);
+  const markdown = renderWeeklyDigestMarkdown(digest, posthog, langfuseMetrics);
 
   process.stdout.write(`${markdown}\n`);
 
