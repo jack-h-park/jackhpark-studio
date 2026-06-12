@@ -21,6 +21,7 @@ const featureCssFiles = [
   "components/chat/settings/PresetEffectsSummary.module.css",
   "components/chat/settings/SettingsSectionOptionalOverrides.module.css",
   "components/chat/settings/SettingsSectionPresets.module.css",
+  "components/landing/landing.module.css",
 ];
 
 // Theme token files — intentionally excluded from featureCssFiles.

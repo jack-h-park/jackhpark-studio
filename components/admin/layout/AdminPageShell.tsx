@@ -1,20 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Geist, Geist_Mono } from "next/font/google";
 
 import { AdminTopNav } from "@/components/admin/navigation/AdminTopNav";
 import { PageHeaderCard } from "@/components/ui/page-header-card";
 import { useAdminTheme } from "@/hooks/use-admin-theme";
+import { geistMono, geistSans } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 
 import styles from "./admin-ingestion-shell.module.css";
-
-const geistSans = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-});
 
 export type AdminPageShellProps = {
   section: "chat" | "ingestion";

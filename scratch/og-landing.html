@@ -1,0 +1,79 @@
+<!doctype html>
+<!-- OG image source per brand guidelines §7.3 (1200×630, type-led). -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&display=block"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-page: #ffffff;
+        --text-primary: #37352f;
+        --text-secondary: #6b6a65;
+        --gradient-full: linear-gradient(
+          90deg,
+          #f06292 0%,
+          #b439df 30%,
+          #5b8def 60%,
+          #4dd0e1 100%
+        );
+      }
+      * {
+        margin: 0;
+        box-sizing: border-box;
+      }
+      body {
+        width: 1200px;
+        height: 630px;
+        background: var(--bg-page);
+        font-family: "Geist", ui-sans-serif, sans-serif;
+        padding: 72px 80px;
+        display: flex;
+        flex-direction: column;
+      }
+      .mark {
+        width: 96px;
+        height: 96px;
+        border-radius: 19px;
+      }
+      .spacer {
+        flex: 1;
+      }
+      .bar {
+        width: 120px;
+        height: 4px;
+        background: var(--gradient-full);
+        margin-bottom: 28px;
+      }
+      h1 {
+        font-size: 56px;
+        font-weight: 500;
+        letter-spacing: -0.025em;
+        line-height: 1.12;
+        color: var(--text-primary);
+        max-width: 480px;
+        margin-bottom: 20px;
+      }
+      p {
+        font-size: 18px;
+        font-weight: 400;
+        line-height: 1.5;
+        color: var(--text-secondary);
+        max-width: 560px;
+      }
+    </style>
+  </head>
+  <body>
+    <img class="mark" src="../public/android-chrome-512x512.png" alt="" />
+    <div class="spacer"></div>
+    <div class="bar"></div>
+    <h1>Structure before execution.</h1>
+    <p>
+      I build enterprise security platforms from 0 to 1 — and the discipline to
+      refuse what doesn’t belong.
+    </p>
+  </body>
+</html>
