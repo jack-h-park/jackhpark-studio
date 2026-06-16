@@ -473,7 +473,7 @@ const NotionImage = React.forwardRef<HTMLImageElement, NotionImageProps>(
           }
         : style;
 
-    if (useFallback && src) {
+    if (useFallback && src && typeof src === "string") {
       const hasDimensions = width && height;
       return (
         <NextImage
