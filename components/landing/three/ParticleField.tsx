@@ -206,13 +206,19 @@ export function ParticleField() {
     let inView = true;
     const start = performance.now();
 
+    // Reduced motion keeps a slow ambient drift but drops the two motions that
+    // can trigger vestibular discomfort: the scroll-coupled converge and the
+    // pointer parallax. The drift clock is slowed so it reads as calm, not idle.
+    const driftScale = reducedMotion ? 0.4 : 1;
+
     const loop = () => {
       const uniforms = material.uniforms;
       if (uniforms.uTime) {
-        uniforms.uTime.value = (performance.now() - start) / 1000;
+        uniforms.uTime.value = ((performance.now() - start) / 1000) * driftScale;
       }
       // Structure forms as the hero scrolls away (lerped for inertia).
-      if (uniforms.uConverge) {
+      // Skipped under reduced motion — particles rest in the scattered cloud.
+      if (!reducedMotion && uniforms.uConverge) {
         const target = Math.min(window.scrollY / window.innerHeight, 1);
         const current = uniforms.uConverge.value as number;
         uniforms.uConverge.value = current + (target - current) * 0.08;
@@ -227,7 +233,10 @@ export function ParticleField() {
     };
 
     const syncLoop = () => {
-      const shouldRun = inView && !document.hidden && !reducedMotion;
+      // Note: reducedMotion no longer gates the loop — it runs a calm drift.
+      // The IntersectionObserver + visibilitychange still pause it off-screen
+      // and in background tabs, so the GPU cost stays bounded.
+      const shouldRun = inView && !document.hidden;
       if (shouldRun && !running) {
         running = true;
         rafId = requestAnimationFrame(loop);

@@ -141,7 +141,7 @@ Source: `closing`.
 | Entrance distance | 16–24px translate-y, never more |
 | Durations | 0.4–0.9s entrances; scrubbed sections have no duration (scroll-linked) |
 | Triggers | Scenes 1, 3 (statement), 5 = scrubbed; Scenes 2, 4, 6 = play-once on enter |
-| Reduced motion | `gsap.matchMedia('(prefers-reduced-motion: reduce)')`: all tweens jump to end state, count-ups render final values, Three.js renders a single static frame (no rAF loop), scroll hint hidden |
+| Reduced motion | `gsap.matchMedia('(prefers-reduced-motion: reduce)')`: all tweens jump to end state, count-ups render final values, scroll hint hidden. The Three.js field keeps a **slow ambient drift** (0.4× clock) but drops the scroll-coupled converge and the pointer parallax — the two motions that can trigger vestibular discomfort. The rAF loop still pauses off-screen (IntersectionObserver) and in background tabs (visibilitychange). |
 | Performance | Single rAF (GSAP ticker drives Three.js camera too); hero rAF stops via IntersectionObserver when canvas <1% visible; `will-change` only during active tweens |
 | CLS guard | SplitText runs after `document.fonts.ready`; split targets reserve their final box (`visibility` not `display` toggling) |
 
