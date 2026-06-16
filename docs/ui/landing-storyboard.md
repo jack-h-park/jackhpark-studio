@@ -3,7 +3,7 @@
 **Status:** approved-pending-review · 2026-06-12
 **Copy source of truth:** [`content/landing.ts`](../../content/landing.ts) — this document describes how that copy is *staged*; it never duplicates it as authority. If they diverge, `content/landing.ts` wins.
 **Design authority:** `jack-h-park-studio-brand-guidelines.md` (workspace root), `styles/jp-theme.css`, `styles/ai-design-system.css`.
-**Route:** built at `/landing` first; swaps to `/` after owner confirmation (Notion root → `/work`).
+**Route:** lives at `/` (promoted 2026-06-16). The Notion studio home is at `/studio`; `/landing` 301-redirects to `/`.
 
 ---
 
@@ -162,5 +162,5 @@ Source: `closing`.
 ## 7 · Open Items
 
 1. **Full-gradient double-spend ruling** (§2): hero particle tint + closing CTA. Recommended reading: canvas background ≠ UI surface, so both stand. If rejected → particle field falls back to Mini gradient.
-2. `/landing` → `/` swap timing (owner deferred; includes sitemap + `work`-slug collision check).
+2. ~~`/landing` → `/` swap timing~~ **Done (2026-06-16):** the landing owns `/`; the Notion studio home moved to `/studio` (`pages/studio.tsx`, root URL re-homed in `lib/map-page-url.ts`); `/landing` 301-redirects to `/`; `noindex` removed; `/studio` added to the sitemap.
 3. OG image per brand §7.3 — after visual lock (Phase 5).

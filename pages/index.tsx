@@ -1,28 +1,27 @@
-import type { PageProps } from "@/lib/types";
-import { NotionPage } from "@/components/NotionPage";
-import { domain } from "@/lib/config";
-import { logPagePropsSize } from "@/lib/diagnostics/measurePageProps";
-import { resolveNotionPage } from "@/lib/resolve-notion-page";
+import Head from "next/head";
 
-export const getStaticProps = async () => {
-  try {
-    const props = await resolveNotionPage(domain);
+import { LandingPage } from "@/components/landing/LandingPage";
+import { hero } from "@/content/landing";
+import * as config from "@/lib/config";
 
-    logPagePropsSize("/", props);
-
-    return { props, revalidate: 60 };
-  } catch (err) {
-    console.error("page error", domain, err);
-
-    // we don't want to publish the error version of this page, so
-    // fall back to 404 to avoid failing the build on transient fetch errors
-    return {
-      notFound: true,
-      revalidate: 10,
-    };
-  }
-};
-
-export default function NotionDomainPage(props: PageProps) {
-  return <NotionPage {...props} />;
+// The studio landing page now owns `/` (the Notion studio home moved to
+// /studio — see pages/studio.tsx and lib/map-page-url.ts).
+export default function Home() {
+  return (
+    <>
+      <Head>
+        <title>{`${config.name} — ${hero.headline}`}</title>
+        <meta name="description" content={hero.positioning} />
+        <link rel="canonical" href={`${config.host}/`} />
+        <meta property="og:title" content={config.name} />
+        <meta property="og:description" content={hero.positioning} />
+        <meta property="og:url" content={`${config.host}/`} />
+        <meta property="og:image" content={`${config.host}/og/landing.png`} />
+        <meta property="og:image:width" content="2400" />
+        <meta property="og:image:height" content="1260" />
+        <meta name="twitter:card" content="summary_large_image" />
+      </Head>
+      <LandingPage />
+    </>
+  );
 }
