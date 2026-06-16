@@ -1,9 +1,24 @@
 # Landing Page — Lighthouse Audit
 
-**Date:** 2026-06-15
-**URL measured:** `https://www.jackhpark.com/landing` (production, canonical — the apex `jackhpark.com` 307-redirects to `www`)
+**Date:** 2026-06-15 (baseline at `/landing`) · **2026-06-16 update** below (after promotion to `/`)
+**URL measured:** `https://www.jackhpark.com/landing` (baseline) → `https://www.jackhpark.com/` (post-promotion). The apex `jackhpark.com` 307-redirects to `www`.
 **Tool:** Lighthouse 12.8.2 (local CLI via `npx lighthouse`, headless Chrome)
 **Why production:** Lighthouse numbers are only meaningful against a deployed production build; local `next dev` figures are not comparable (no minification, dev-only overhead, HMR).
+
+---
+
+## 0 · Post-promotion result (2026-06-16, `/`)
+
+The landing was promoted to `/` and the `noindex` removed (see `landing-storyboard.md` §7). Re-measured at `https://www.jackhpark.com/`:
+
+| Category | Mobile | Desktop |
+|----------|:------:|:-------:|
+| Performance | 92 | 99 |
+| Accessibility | 91 | 95 |
+| Best Practices | 100 | 100 |
+| **SEO** | **100** | **100** |
+
+**SEO 63 → 100** as predicted (the `noindex` gate is gone). Mobile Performance settled at 92 across repeat runs (LCP 3.2s · TBT ~85ms · CLS 0.003) — a first post-deploy run read 64 from cold-start + local CPU contention, not a regression. Accessibility unchanged (the §3 contrast fixes shipped; the remaining deductions are the documented SplitText/animation items). The baseline detail below is retained for history.
 
 ---
 
@@ -32,8 +47,7 @@ The only SEO failure is **"Page is blocked from indexing"**, caused by the tempo
 `<meta name="robots" content="noindex">` on `pages/landing.tsx`. `/landing` is a staging
 route; the tag is deliberate until the page is promoted to `/`.
 
-**Resolution:** removing `noindex` at promotion time lifts SEO to ~100. No action now.
-Tracked with the route-promotion checklist (`docs/ui/landing-storyboard.md` §7).
+**Resolution:** ✓ **Done (2026-06-16)** — promoted to `/`, `noindex` removed, SEO now 100 (see §0).
 
 ---
 
@@ -79,7 +93,7 @@ anonymous quota is shared/exhausted; the local CLI above is the reliable path.
 
 ## 5 · Re-measure after these milestones
 
-- **Route promotion** (`/landing` → `/`, remove `noindex`): re-run to confirm SEO → ~100.
+- ~~**Route promotion** (`/landing` → `/`, remove `noindex`)~~ ✓ Done 2026-06-16 — SEO 100 (§0).
 - **Any Three.js / GSAP change**: re-check mobile Performance and TBT.
 - Targets to hold: Performance ≥ 90 (both), Accessibility ≥ 95, Best Practices 100,
   SEO ≥ 95 (post-promotion).
