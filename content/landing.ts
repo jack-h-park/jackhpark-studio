@@ -37,9 +37,9 @@ export interface WorkCard {
   href: string;
 }
 
-// The Notion studio home currently lives at the root; flip this to "/work"
-// when the deferred root swap lands (docs/ui/landing-storyboard.md §7).
-const studioHref = "/";
+// The landing owns `/`; the Notion studio home lives at /studio
+// (see pages/studio.tsx and lib/map-page-url.ts).
+const studioHref = "/studio";
 
 export const hero = {
   eyebrow: "JACK H. PARK · PRINCIPAL PRODUCT LEADER",

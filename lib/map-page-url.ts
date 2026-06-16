@@ -35,7 +35,8 @@ export const mapPageUrl =
     const rawId = uuidToId(pageUuid);
 
     if (rawId === site.rootNotionPageId) {
-      return createUrl("/", searchParams);
+      // The studio home lives at /studio; / is the landing page.
+      return createUrl("/studio", searchParams);
     }
 
     if (!uuid) {
@@ -59,7 +60,8 @@ export const getCanonicalPageUrl =
     const pageUuid = parsePageId(pageId, { uuid: true })!;
 
     if (uuidToId(pageId) === site.rootNotionPageId) {
-      return `https://${site.domain}`;
+      // The studio home lives at /studio; / is the landing page.
+      return `https://${site.domain}/studio`;
     } else {
       return `https://${site.domain}/${getCanonicalPageId(pageUuid, recordMap, {
         uuid,
