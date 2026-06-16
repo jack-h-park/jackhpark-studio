@@ -1,6 +1,7 @@
 import type { ExtendedRecordMap, PageBlock } from "notion-types";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { uuidToId } from "notion-utils";
 import { NotionContextProvider } from "react-notion-x";
 
 import { Footer } from "@/components/Footer";
@@ -69,7 +70,11 @@ export function AiPageChrome({
             minTableOfContentsItems={0}
             linkTableTitleProperties={false}
             isLinkCollectionToUrlProperty={false}
-            mapPageUrl={(pageId: string) => `/${pageId}`}
+            mapPageUrl={(pageId: string) =>
+              uuidToId(pageId) === site.rootNotionPageId
+                ? "/studio"
+                : `/${pageId}`
+            }
             mapImageUrl={mapImageUrl}
           >
             <NotionPageHeader block={headerBlock} />
@@ -79,7 +84,7 @@ export function AiPageChrome({
             <div className="notion-nav-header">
               <div className="breadcrumbs">
                 <div className="breadcrumb active">
-                  <Link href="/" className="breadcrumb-link">
+                  <Link href="/studio" className="breadcrumb-link">
                     {site.name}
                   </Link>
                 </div>
