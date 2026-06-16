@@ -43,7 +43,7 @@ The `terminology.md` file remains the single authoritative source for shared ter
 | ----------------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
 | `00-start-here/`  | Canonical terminology plus repository and skill-source orientation                                                | Canonical/supporting                      |
 | `canonical/`      | Stable contracts and invariants                                                                                  | Canonical                                 |
-| `architecture/`   | Runtime/system realization of canonical contracts                                                                | Supporting reference                      |
+| `architecture/`   | Runtime/system realization of canonical contracts (e.g. [`notion-image-loading.md`](architecture/notion-image-loading.md)) | Supporting reference          |
 | `chat/`           | Current UX and preset behavior grounded in canonical guardrails                                                  | Operational/default                       |
 | `analysis/`       | Audits and implementation assessments                                                                            | Historical/reference unless task-specific |
 | `implementation/` | Historic migrations and executable plans                                                                         | Historical/reference unless task-specific |
