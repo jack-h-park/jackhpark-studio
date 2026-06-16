@@ -436,6 +436,7 @@ export function NotionPageRenderer({
             footer={footer as any}
             components={components}
             pageCover={pageCoverNode as any}
+            forceCustomImages={true}
           />
         ) : null}
       </div>
