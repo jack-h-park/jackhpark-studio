@@ -13,6 +13,21 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* ScrollSmoother pins the wrapper to the viewport, so .page only paints one
+   screen tall. The page background must live on the smooth content — which
+   spans the full scroll height — or dark mode shows the white body below the
+   fold. min-height keeps it covering even when content is short. */
+.smoothContent {
+  background: var(--bg-page);
+  min-height: 100svh;
+}
+
+/* The fixed wrapper is the backdrop behind the translated content — tint it
+   too so no white body shows through on over-scroll or sub-pixel gaps. */
+.smoothWrapper {
+  background: var(--bg-page);
+}
+
 /* Landing-scale fluid type. The jp-theme --t-* tokens are dashboard-scale;
    a marketing surface needs display sizes well past them. Sizes are local
    to this file; colors still come exclusively from tokens. */

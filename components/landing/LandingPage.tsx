@@ -23,8 +23,8 @@ export function LandingPage() {
       className={cn(geistSans.variable, geistMono.variable, styles.page)}
     >
       {/* ScrollSmoother structure — wrapper/content pair (storyboard §4). */}
-      <div data-smooth-wrapper>
-        <div data-smooth-content>
+      <div data-smooth-wrapper className={styles.smoothWrapper}>
+        <div data-smooth-content className={styles.smoothContent}>
           <Hero />
           <main>
             <ChainSection />
