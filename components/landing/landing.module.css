@@ -43,7 +43,8 @@
   font-size: var(--t-eyebrow);
   letter-spacing: var(--tr-eyebrow);
   text-transform: uppercase;
-  color: var(--text-tertiary);
+  /* secondary (not tertiary): 11px tertiary on white is 2.81:1, below AA. */
+  color: var(--text-secondary);
 }
 
 .sectionTitle {
@@ -499,7 +500,8 @@ a:focus-visible .miniUnderline {
   font-family: var(--font-mono);
   font-size: var(--t-caption);
   line-height: var(--lh-caption);
-  color: var(--text-tertiary);
+  /* secondary for AA: caption-size tertiary on a light card is below 4.5:1. */
+  color: var(--text-secondary);
   display: block;
   margin: 8px 0 16px;
 }
@@ -588,7 +590,8 @@ a:focus-visible .miniUnderline {
 .timelinePeriod {
   font-family: var(--font-mono);
   font-size: var(--t-caption);
-  color: var(--text-tertiary);
+  /* secondary for AA: caption-size tertiary on the light page is below 4.5:1. */
+  color: var(--text-secondary);
   display: block;
   margin-bottom: 4px;
 }
@@ -667,7 +670,8 @@ a:focus-visible .miniUnderline {
   font-weight: 400;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--text-tertiary);
+  /* secondary for AA: 11px tertiary on white is 2.81:1, below AA. */
+  color: var(--text-secondary);
 }
 
 .socials {
