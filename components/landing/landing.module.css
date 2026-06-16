@@ -117,6 +117,22 @@ a:focus-visible .miniUnderline {
   opacity: 1;
 }
 
+/* Full-bleed contrast scrim — sits between the particle field and the text.
+   A viewport-spanning radial fade keeps the text above WCAG AA in the centre
+   while the field stays vivid at the edges. Full-bleed (not box-bound) so the
+   gradient resolves to transparent inside the viewport with no hard edge. */
+.heroScrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    64% 56% at 50% 52%,
+    color-mix(in srgb, var(--bg-page) 76%, transparent) 0%,
+    color-mix(in srgb, var(--bg-page) 34%, transparent) 50%,
+    transparent 80%
+  );
+}
+
 .heroInner {
   position: relative;
   max-width: 960px;
@@ -156,7 +172,7 @@ a:focus-visible .miniUnderline {
 
 .heroPositioning {
   font-size: var(--t-body);
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   margin: 0;
 }
 

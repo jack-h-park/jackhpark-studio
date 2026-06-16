@@ -71,6 +71,8 @@ export function Hero() {
       {/* Static wash — the permanent fallback under the Three.js field. */}
       <div className={styles.heroWash} aria-hidden="true" />
       {fieldMounted && <ParticleField />}
+      {/* Contrast scrim — above the field, below the text (storyboard §0). */}
+      <div className={styles.heroScrim} aria-hidden="true" />
       <div className={styles.heroInner} data-speed="0.92">
         <p className={styles.eyebrow} data-anim="hero-eyebrow">
           {hero.eyebrow}
