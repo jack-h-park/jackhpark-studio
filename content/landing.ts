@@ -139,8 +139,7 @@ export const scopeDiscipline = {
     },
     {
       name: "Workflow mismatch",
-      mechanism:
-        "Features built for one persona create confusion for another.",
+      mechanism: "Features built for one persona create confusion for another.",
     },
   ],
   closing:
@@ -149,28 +148,61 @@ export const scopeDiscipline = {
 
 export const selectedWork = {
   title: "Selected Work",
-  intro: "Three platforms, each taken from zero to one.",
+  intro:
+    "Three chapters of enterprise product leadership — zero-to-one, portfolio scale, and personal craft.",
   cards: [
     {
       index: "01",
-      title: "Knox Suite",
-      role: "Lead Product Manager · Samsung MX, 2018–2024",
+      title: "Samsung Knox Enterprise Security — AI & Zero Trust",
+      role: "Director, Strategic Product Management · Samsung Research America, 2024–present",
+      description:
+        "Directing Samsung Knox’s enterprise security portfolio — Zero Trust architecture, on-device AI governance, and FedRAMP readiness — across engineering, business, and regulatory domains.",
+      stats: [
+        // Resume (latest): "150M+ Galaxy device users" under Zero Trust coverage (knox-overall).
+        {
+          value: 150,
+          suffix: "M+",
+          label: "Galaxy devices under Samsung Knox platform coverage",
+          scope: "knox-overall",
+        },
+        // Resume (latest): "15% increase in Knox solution MAU" (personal-impact).
+        {
+          value: 15,
+          suffix: "%",
+          label: "Knox solution MAU increase",
+          scope: "personal-impact",
+        },
+      ],
+      href: studioHref,
+    },
+    {
+      index: "02",
+      title: "Samsung Knox Suite",
+      role: "Global Lead Product Manager · Samsung MX, 2018–2024",
       description:
         "Took Samsung’s enterprise mobility SaaS bundle from 0 to 1 across 30+ markets — EMM/UEM on a platform that secures over two billion devices worldwide.",
       stats: [
         // b2b-solution-service internal KPI slide, 2018→2025 (owner-approved).
         {
-          value: 227,
+          value: 200,
           prefix: "$",
-          suffix: "M",
-          label: "B2B revenue, from $42M",
+          suffix: "M+",
+          label: "enterprise SaaS & services ARR",
           scope: "b2b-solution-service",
         },
+        // 2025 annual figure; Knox enterprise SaaS contribution to B2B device sales.
         {
           value: 11.5,
           suffix: "M",
-          label: "B2B device sales, from 2.1M",
+          label: "annual enterprise device sales",
           scope: "b2b-solution-service",
+        },
+        // 2025 figure (owner-approved).
+        {
+          value: 55,
+          suffix: "K",
+          label: "business customers",
+          scope: "knox-suite",
         },
         {
           value: 30,
@@ -182,47 +214,29 @@ export const selectedWork = {
       href: studioHref,
     },
     {
-      index: "02",
-      title: "Knox Customization SDK & Configure",
-      role: "Solution Sales Engineering Manager · Samsung MX, 2014–2018",
-      description:
-        "Developer-facing 0 to 1: the SDK and cloud service that let partners turn Samsung devices into purpose-built appliances — with pre-sales enablement across EMEA and Korea.",
-      stats: [
-        // pm-persona.md Domain Expertise: "0→1 + $2B sales growth".
-        {
-          value: 2,
-          prefix: "$",
-          suffix: "B",
-          label: "device sales growth enabled",
-          scope: "personal-impact",
-        },
-        {
-          value: 2,
-          suffix: "",
-          label: "products taken 0→1",
-          scope: "personal-impact",
-        },
-      ],
-      href: studioHref,
-    },
-    {
       index: "03",
-      title: "Personal AI Assistant & RAG Backbone",
-      role: "Design, engineering, and operations · 2025–present",
+      title: "PM Intelligence System",
+      role: "Independent project · 2024–present",
       description:
-        "The platform serving this page: a production RAG pipeline over my own knowledge base — ingestion, retrieval, evaluation, and full LLM observability. The proof is the site itself.",
+        "A production-grade AI operating system for PM workflow — multi-agent orchestration, RAG-based knowledge retrieval, and human-in-the-loop decision gates. The proof is the site itself.",
       stats: [
+        // The lone "1" is the point: one person owning the full stack end-to-end.
         {
           value: 1,
           suffix: "",
-          label: "person: PM, architect, and engineer",
+          label:
+            "person, end-to-end — product, architecture, design, engineering, and operations",
           scope: "personal-impact",
         },
       ],
       href: "/chat",
     },
   ],
-} as const satisfies { title: string; intro: string; cards: readonly WorkCard[] };
+} as const satisfies {
+  title: string;
+  intro: string;
+  cards: readonly WorkCard[];
+};
 
 // Source: pm-persona.md — career arc + education.
 export const trajectory = {
@@ -232,32 +246,38 @@ export const trajectory = {
     {
       period: "2008–2011",
       org: "POSCO DX",
-      role: "Associate Software Architect, Robotics Software",
+      role: "Software Architect, Platform R&D Center",
     },
     {
-      period: "2012–2014",
-      org: "Samsung MX",
+      period: "2011–2014",
+      org: "Samsung Mobile eXperience (MX)",
       role: "Software Architect & Technical Partnership, Samsung Smart School",
     },
     {
       period: "2014–2018",
-      org: "Samsung MX",
-      role: "Solution Sales Engineering Manager, Knox Customization",
+      org: "Samsung Mobile eXperience (MX)",
+      role: "Product Strategy & Technical GTM Manager, Device Software Customization",
     },
     {
       period: "2018–2024",
-      org: "Samsung MX",
-      role: "Lead Product Manager, Knox Suite (Enterprise Mobility SaaS)",
+      org: "Samsung Mobile eXperience (MX)",
+      role: "Global Lead Product Manager, Enterprise Mobility Platform & SaaS",
     },
     {
       period: "2024–present",
       org: "Samsung Research America",
-      role: "Strategic Product Manager, Enterprise Mobile Security",
+      role: "Director, Strategic Product Management, Enterprise Mobile & AI Security",
     },
   ],
   education: [
-    { school: "Carnegie Mellon University", degree: "MSIT, Software Engineering" },
-    { school: "KAIST", degree: "MS, Software Technology" },
+    {
+      school: "Carnegie Mellon University",
+      degree: "MSIT, Software Engineering",
+    },
+    {
+      school: "Korea Advanced Institute of Science and Technology (KAIST)",
+      degree: "MS, Software Technology",
+    },
   ],
 } as const;
 
