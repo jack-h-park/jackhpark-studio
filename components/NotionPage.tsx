@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import NextImage from "next/image";
 import Link from "next/link";
 //import { useRouter } from 'next/router'
 import { type PageBlock } from "notion-types";
@@ -438,20 +439,30 @@ type NotionImageProps = Omit<React.ComponentPropsWithoutRef<"img">, "ref"> & {
   priority?: boolean;
   placeholder?: "blur" | string;
   blurDataURL?: string;
+  fill?: boolean;
 };
 
 const NotionImage = React.forwardRef<HTMLImageElement, NotionImageProps>(
   (
     {
-      priority: _priority,
+      priority,
       placeholder: _placeholder,
       blurDataURL,
       loading,
       style,
+      fill,
+      width,
+      height,
+      src,
+      alt,
+      className,
+      onError: _onError,
       ...rest
     },
     ref,
   ) => {
+    const [useFallback, setUseFallback] = React.useState(false);
+
     const mergedStyle =
       _placeholder === "blur" && blurDataURL
         ? {
@@ -462,12 +473,34 @@ const NotionImage = React.forwardRef<HTMLImageElement, NotionImageProps>(
           }
         : style;
 
+    if (useFallback && src) {
+      const hasDimensions = width && height;
+      return (
+        <NextImage
+          src={src}
+          alt={alt ?? ""}
+          width={!fill && hasDimensions ? Number(width) : undefined}
+          height={!fill && hasDimensions ? Number(height) : undefined}
+          fill={fill || !hasDimensions}
+          className={className}
+          style={mergedStyle}
+          priority={priority}
+        />
+      );
+    }
+
     return (
       <img
         {...rest}
         ref={ref}
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        className={className}
         loading={loading ?? "lazy"}
         style={mergedStyle}
+        onError={() => setUseFallback(true)}
       />
     );
   },
