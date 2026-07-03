@@ -13,19 +13,16 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* ScrollSmoother pins the wrapper to the viewport, so .page only paints one
-   screen tall. The page background must live on the smooth content — which
-   spans the full scroll height — or dark mode shows the white body below the
-   fold. min-height keeps it covering even when content is short. */
+/* Page paint moved to .vibeBackdrop (fixed, always covers the viewport, so
+   dark mode below the fold and over-scroll stay covered). Wrapper/content
+   must stay transparent so the ambient backdrop shows through. */
 .smoothContent {
-  background: var(--bg-page);
+  background: transparent;
   min-height: 100svh;
 }
 
-/* The fixed wrapper is the backdrop behind the translated content — tint it
-   too so no white body shows through on over-scroll or sub-pixel gaps. */
 .smoothWrapper {
-  background: var(--bg-page);
+  background: transparent;
 }
 
 /* Landing-scale fluid type. The jp-theme --t-* tokens are dashboard-scale;
@@ -276,7 +273,9 @@ a:focus-visible .miniUnderline {
   padding-top: 20px;
 }
 
-/* Connector tick above each node. */
+/* Connector tick above each node. --tick is tweened by the pinned Chain
+   timeline (useLandingMotion) so each tick draws in before its node rises;
+   it defaults to 1 so no-JS/reduced-motion render the finished state. */
 .chainNode::before {
   content: "";
   position: absolute;
@@ -285,6 +284,8 @@ a:focus-visible .miniUnderline {
   width: 32px;
   height: 1px;
   background: var(--border-default);
+  transform: scaleX(var(--tick, 1));
+  transform-origin: left center;
 }
 
 /* Oversized ghost numeral — compositional, not informational. */
@@ -379,7 +380,10 @@ a:focus-visible .miniUnderline {
 /* Full-bleed inversion band — token values flip via the global .dark-mode
    scope defined in styles/jp-theme.css. */
 .scopeBand {
-  background: var(--bg-page);
+  /* Transparent: the ambient mesh/particles flow through this section
+     unbroken (storyboard §8). Text uses the normal (light-mode) tokens —
+     dark type over the light atmosphere. */
+  background: transparent;
   color: var(--text-primary);
 }
 
@@ -629,7 +633,15 @@ a:focus-visible .miniUnderline {
 .closing {
   composes: section;
   text-align: center;
-  padding-top: 160px;
+  /* Full-height outro: the invitation fills its own screen (a proper
+     final beat), and the closing's top can scroll up so the Contact
+     chapter activates by the normal line rule (the footer strip sits
+     below). */
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .closingHeadline {
@@ -759,4 +771,312 @@ a:focus-visible .miniUnderline {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* ── Vibe modes (storyboard §8) ─────────────────────────────────────
+   Live A/B layer between the two visual directions. "atmospheric" is the
+   default; "maximal" arrives in phase 2. All colors remain token-derived
+   (color-mix over brand/theme tokens — guardrail-compliant). The losing
+   direction is deleted at the decision gate. */
+
+/* Paint layer: base page color + ambient brand mesh + film grain.
+   Fixed and outside the smoother, so it also guarantees dark-mode
+   coverage below the fold and on over-scroll. */
+.vibeBackdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-page);
+  overflow: hidden;
+}
+
+/* Ambient mesh — four brand-hued blobs in slow counter-drift. transform/
+   opacity only (compositor-friendly); inset overscan hides the edges. */
+.vibeBackdrop::before {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  background:
+    radial-gradient(
+      42% 34% at 18% 20%,
+      color-mix(in srgb, var(--brand-pink) 12%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      46% 38% at 84% 16%,
+      color-mix(in srgb, var(--brand-cyan) 11%, transparent),
+      transparent 72%
+    ),
+    radial-gradient(
+      40% 36% at 78% 80%,
+      color-mix(in srgb, var(--brand-blue) 12%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      38% 32% at 20% 84%,
+      color-mix(in srgb, var(--brand-purple) 13%, transparent),
+      transparent 70%
+    );
+  animation: vibeMeshDrift 26s ease-in-out infinite alternate;
+}
+
+/* Film grain — colorless SVG turbulence, so no color literals. Kills the
+   "flat vector" feel that reads as plain. */
+.vibeBackdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+}
+
+@keyframes vibeMeshDrift {
+  from {
+    transform: translate3d(-2%, -1.5%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(2%, 2.5%, 0) scale(1.07);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vibeBackdrop::before {
+    animation: none;
+  }
+}
+
+/* Per-section atmosphere tint (storyboard §8). A soft fixed glow whose hue
+   crossfades by chapter — the ambient temperature shifts so sections read
+   as movements without hard boundaries. data-atmo on the root (set by
+   useLandingMotion on scroll) selects the hue; base = hero (pink). Sits
+   over the mesh + particles, behind content. Colours are token-derived. */
+.vibeAtmoTint {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-color: color-mix(in srgb, var(--brand-pink) 12%, transparent);
+  transition: background-color 1s ease;
+  -webkit-mask-image: radial-gradient(
+    82% 72% at 50% 38%,
+    black 12%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(82% 72% at 50% 38%, black 12%, transparent 100%);
+}
+
+[data-atmo="chain"] .vibeAtmoTint {
+  background-color: color-mix(in srgb, var(--brand-purple) 12%, transparent);
+}
+
+[data-atmo="pillars"] .vibeAtmoTint {
+  background-color: color-mix(in srgb, var(--brand-blue) 12%, transparent);
+}
+
+/* Discipline: the quiet beat — cooler and fainter. Paired with a calmed
+   particle field below so the section breathes without a dark block. */
+[data-atmo="discipline"] .vibeAtmoTint {
+  background-color: color-mix(in srgb, var(--brand-blue) 5%, transparent);
+}
+
+[data-atmo="discipline"] .morphCanvas {
+  opacity: 0.4;
+}
+
+[data-atmo="work"] .vibeAtmoTint {
+  background-color: color-mix(in srgb, var(--brand-cyan) 12%, transparent);
+}
+
+[data-atmo="trajectory"] .vibeAtmoTint {
+  background-color: color-mix(in srgb, var(--brand-purple) 11%, transparent);
+}
+
+[data-atmo="closing"] .vibeAtmoTint {
+  background-color: color-mix(in srgb, var(--brand-pink) 12%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vibeAtmoTint {
+    transition: none;
+  }
+}
+
+/* Section progress rail (storyboard §8) — explicit wayfinding: current
+   chapter + jump nav. Desktop only; active state driven by data-atmo. */
+.sectionNav {
+  position: fixed;
+  top: 50%;
+  right: 22px;
+  transform: translateY(-50%);
+  z-index: 55;
+}
+
+.sectionNav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Labels are revealed on hover/focus and for the active chapter, so the
+   rail stays quiet dots until you engage or need orientation. */
+.navLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  /* Every chapter stays faintly legible so the rail reads as a set; the
+     active one and hover lift to full. */
+  opacity: 0.4;
+  transition:
+    opacity 0.25s ease,
+    color 0.25s ease;
+}
+
+.navItem:hover .navLabel,
+.navItem:focus-visible .navLabel,
+.navItemActive .navLabel {
+  opacity: 1;
+}
+
+.navItemActive .navLabel {
+  color: var(--text-primary);
+}
+
+.navDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: none;
+  /* Faint filled dot so every stop is visible, not a barely-there ring. */
+  background: color-mix(in srgb, var(--text-tertiary) 55%, transparent);
+  transition:
+    background 0.25s ease,
+    transform 0.25s ease;
+}
+
+.navItem:hover .navDot,
+.navItem:focus-visible .navDot {
+  background: var(--text-secondary);
+}
+
+/* Active dot = the brand mini-gradient (an interaction, within budget). */
+.navItemActive .navDot {
+  background: var(--gradient-mini);
+  border-color: transparent;
+  transform: scale(1.3);
+}
+
+@media (max-width: 768px) {
+  .sectionNav {
+    display: none;
+  }
+}
+
+/* ── Card depth ─────────────────────────────────────────────────────
+   Gradient hairline border (dual-background trick), layered brand-tinted
+   shadows, hover lift. `translate` (not transform) so GSAP-owned
+   transforms never conflict. */
+.pillarCard,
+.workCard {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
+    linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--brand-purple) 34%, var(--border-subtle)),
+        color-mix(in srgb, var(--brand-blue) 20%, var(--border-subtle)) 45%,
+        color-mix(in srgb, var(--brand-cyan) 30%, var(--border-subtle))
+      )
+      border-box;
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--text-primary) 4%, transparent),
+    0 14px 36px -14px color-mix(in srgb, var(--brand-purple) 15%, transparent);
+  transition:
+    box-shadow 0.25s ease,
+    translate 0.25s ease;
+}
+
+.pillarCard:hover,
+.workCard:hover,
+.workCard:focus-visible {
+  translate: 0 -3px;
+  box-shadow:
+    0 2px 4px color-mix(in srgb, var(--text-primary) 6%, transparent),
+    0 22px 52px -16px color-mix(in srgb, var(--brand-blue) 24%, transparent);
+}
+
+/* Readability scrim: the body sections sit directly over the ambient
+   mesh + particles, which drops text legibility. Lift the centred reading
+   column with a soft light band (edges masked so it fades into the
+   atmosphere — no section boundary returns). Scoped to <main>, so the hero
+   keeps its own scrim and vivid field. Tunable via the bg-page percentage. */
+.landingMain {
+  position: relative;
+}
+
+.landingMain::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100% - 32px, 1180px);
+  background: color-mix(in srgb, var(--bg-page) 34%, transparent);
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    black 7%,
+    black 93%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    black 7%,
+    black 93%,
+    transparent
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Keep the sections above the scrim. */
+.landingMain > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ghost numerals pick up a quiet brand tint instead of neutral gray. */
+.workIndex {
+  color: color-mix(in srgb, var(--brand-purple) 16%, transparent);
+}
+
+.chainIndex {
+  color: color-mix(in srgb, var(--brand-blue) 18%, transparent);
+}
+
+/* Page-wide morph canvas — above the mesh, below the smoother content. */
+.morphCanvas {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+
+.morphCanvasVisible {
+  opacity: 1;
 }

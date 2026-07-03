@@ -23,20 +23,33 @@ function StatValue({ stat }: { stat: CountUpStat }) {
 
 export function SelectedWork() {
   return (
-    <section className={styles.section} aria-labelledby="work-title">
-      <h2 id="work-title" className={styles.sectionTitle}>
+    // data-anim="work-section" is the atmosphere scroll-spy anchor.
+    <section
+      className={styles.section}
+      aria-labelledby="work-title"
+      data-anim="work-section"
+      id="work"
+    >
+      <h2 id="work-title" className={styles.sectionTitle} data-reveal="title">
         {selectedWork.title}
       </h2>
-      <p className={styles.sectionIntro}>{selectedWork.intro}</p>
+      <p className={styles.sectionIntro} data-reveal="intro">
+        {selectedWork.intro}
+      </p>
       <ul className={styles.workList}>
-        {selectedWork.cards.map((card) => (
+        {selectedWork.cards.map((card, index) => (
           <li key={card.index}>
             <Link
               href={card.href}
               className={styles.workCard}
               data-anim="work-card"
+              // Cards float with increasing lag down the stack; the ghost
+              // numeral drifts further behind for parallax depth.
+              data-lag={(0.05 + index * 0.04).toFixed(2)}
             >
-              <span className={styles.workIndex}>{card.index}</span>
+              <span className={styles.workIndex} data-lag="0.25">
+                {card.index}
+              </span>
               <h3 className={styles.workTitle}>
                 <span className={styles.miniUnderline}>{card.title}</span>
               </h3>

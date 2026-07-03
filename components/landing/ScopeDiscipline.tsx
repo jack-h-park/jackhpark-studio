@@ -23,9 +23,12 @@ function TitleWithEmphasis() {
 
 export function ScopeDiscipline() {
   return (
-    // "dark-mode" (global) flips the jp token scope for this band only —
-    // the page's mid-scroll inversion beat (storyboard scene 3).
-    <div className={`${styles.scopeBand} dark-mode`}>
+    // No dark inversion: the section stays transparent so the ambient
+    // mesh/particles flow through unbroken (storyboard §8). The "focus"
+    // beat now comes from its outsized whitespace + display type, not a
+    // dark block — a dark scrim over the faint light-mode atmosphere only
+    // reads as flat gray and can't keep light text above AA.
+    <div className={styles.scopeBand} id="discipline">
       <section className={styles.scopeSection} aria-labelledby="scope-title">
       <h2 id="scope-title" className={styles.scopeTitle}>
         <TitleWithEmphasis />

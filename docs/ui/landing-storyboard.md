@@ -68,9 +68,9 @@ Viewport-height opening. The argument stated before any proof.
 The thesis becomes a diagram. Source: `chain`.
 
 - **[V]** Four nodes laid out vertically (mobile) / as a connected horizontal sequence (desktop): node name in `--t-h2`, its one-liner in `--t-body` `--text-secondary`. Connectors are 1px `--border-default` lines. `chain.outro` ("Each layer is load-bearing.") sits below in `--t-h3`, centered.
-- **[M]** ScrollTrigger sequential reveal: each node fades up *and its connector draws in* (scaleX/scaleY 0→1) before the next node appears — the chain visibly *depends* on the previous link. ~0.4s per node, linked to scroll position (scrubbed), not time.
-- **[V/M]** Section exit: the **2px Full-gradient divider** draws left→right (scaleX 0→1) as the section completes. This is the page's one structural gradient moment — the chain "powering" everything below.
-- **[mobile]** Vertical layout is the native reading order; connectors become short vertical ticks.
+- **[M]** **Desktop: pinned set-piece (the page's signature scroll moment).** The section pins for ~140% of a viewport and the chain builds under the reader's scroll: each connector tick draws in (`--tick` scaleX 0→1), then its node rises — in strict dependency order — then the outro, then the divider. Scrubbed (`scrub: 1`), reversible.
+- **[V/M]** Section exit: the **2px Full-gradient divider** draws left→right (scaleX 0→1) as the pinned scene completes. This is the page's one structural gradient moment — the chain "powering" everything below.
+- **[mobile]** No pin — native scroll with the scrubbed sequential node reveal; connectors become short vertical ticks.
 
 **Beat:** the visitor *watches the dependency build*. Skipping ahead in the scroll never shows a node before its parent.
 
@@ -138,16 +138,18 @@ Source: `closing`.
 |-----------|-------|
 | Library | GSAP ≥3.13 (SplitText + ScrollTrigger, free since 3.13) |
 | Easing vocabulary | `power3.out` for entrances, `power2.out` for count-ups, `none` for scrubbed tweens |
-| Entrance distance | 16–24px translate-y, never more |
+| Entrance distance | 14–36px translate-y; cards add a settle-in scale (0.97–0.985 → 1); stats pop with `back.out(1.6)` |
 | Durations | 0.4–0.9s entrances; scrubbed sections have no duration (scroll-linked) |
-| Triggers | Scenes 1, 3 (statement), 5 = scrubbed; Scenes 2, 4, 6 = play-once on enter |
+| Triggers | Scene 1 = **pinned + scrubbed** (desktop; scrub-only on mobile); Scenes 3 (statement), 5 = scrubbed (`scrub: 1`); Scenes 2, 4, 6 = play-once on enter; every section overline/intro gets a staged reveal |
+| Parallax depth | Desktop only (`ScrollSmoother effects`): hero inner `data-speed 0.92`; work-card ghost numerals `data-lag 0.25`; work cards lag 0.05→0.13 down the stack; pillar cards alternate 0.05/0.12. Touch keeps native scroll with no effects. |
+| Resize safety | Both SplitText instances use `autoSplit` — masked hero lines re-split on resize/orientation change so they never clip; the hero rise plays once |
 | Reduced motion | `gsap.matchMedia('(prefers-reduced-motion: reduce)')`: all tweens jump to end state, count-ups render final values, scroll hint hidden. The Three.js field keeps a **slow ambient drift** (0.4× clock) but drops the scroll-coupled converge and the pointer parallax — the two motions that can trigger vestibular discomfort. The rAF loop still pauses off-screen (IntersectionObserver) and in background tabs (visibilitychange). |
 | Performance | Single rAF (GSAP ticker drives Three.js camera too); hero rAF stops via IntersectionObserver when canvas <1% visible; `will-change` only during active tweens |
 | CLS guard | SplitText runs after `document.fonts.ready`; split targets reserve their final box (`visibility` not `display` toggling) |
 
 ## 5 · Three.js Hero Spec (Scene 0 detail)
 
-- One `Points` object (~3,000 particles desktop / ~800 mobile), positions seeded from the JP monogram's bar-and-glyph silhouette then relaxed into a loose field — *abstracted from*, never *rendering*, the logo (the logo no-animate rule applies to the mark, not this field).
+- One `Points` object (~3,400 particles desktop / ~800 mobile), positions seeded from the JP monogram's bar-and-glyph silhouette then relaxed into a loose field — *abstracted from*, never *rendering*, the logo (the logo no-animate rule applies to the mark, not this field).
 - Custom `ShaderMaterial`: per-particle color = 4-stop gradient sampled by normalized x (stop values read from `--brand-*` tokens at init, not hard-coded — guardrail-compliant since they live in JS, but still token-sourced).
 - Motion: slow curl-noise drift (~0.02 units/s) + mouse parallax (lerped, ±8px world units). No bloom, no postprocessing — "calm system."
 - Loading: `next/dynamic({ ssr: false })`, mounted on `requestIdleCallback` (fallback `setTimeout 200ms`); until then a static CSS radial wash in `--ai-accent-bg` holds the space (also the permanent fallback for reduced-motion / WebGL-unavailable / mobile-low-power).
@@ -164,3 +166,66 @@ Source: `closing`.
 1. **Full-gradient double-spend ruling** (§2): hero particle tint + closing CTA. Recommended reading: canvas background ≠ UI surface, so both stand. If rejected → particle field falls back to Mini gradient.
 2. ~~`/landing` → `/` swap timing~~ **Done (2026-06-16):** the landing owns `/`; the Notion studio home moved to `/studio` (`pages/studio.tsx`, root URL re-homed in `lib/map-page-url.ts`); `/landing` 301-redirects to `/`; `noindex` removed; `/studio` added to the sitemap.
 3. OG image per brand §7.3 — after visual lock (Phase 5).
+
+## 8 · Atmospheric direction (chosen 2026-07-03)
+
+The body read as "plain" against the award-worthy brief, so two richer
+directions — **atmospheric** and **maximal** — were built side-by-side
+behind a runtime toggle for a live scroll comparison. The owner picked
+**atmospheric**; maximal was removed and the toggle deleted. The full
+maximal work (page-wide morphing WebGL field, pinned horizontal Selected
+Work gallery, custom cursor + magnetic CTAs, oversized type) is preserved
+at the git tag **`landing-maximal-archive`** — recover by cherry-picking
+from there if it's ever wanted.
+
+**What atmospheric is (now the design, no longer scoped to a mode):**
+- Fixed paint layer `.vibeBackdrop` — base page color + a brand-hued
+  ambient mesh (slow counter-drift) + colorless film grain. Moving the page
+  paint here (off the smoother wrapper/content) also keeps the below-the-
+  fold dark-mode guarantee.
+- `MorphField` — one fixed page-wide particle field, a faint whisper
+  (α 0.05, ~950 pts, partial morph) so it never competes with text; the
+  hero keeps its own crisp `ParticleField`. Desktop-only; mobile /
+  reduced-motion / no-WebGL fall back to mesh + hero field.
+- Card depth (gradient hairline border + brand-tinted layered shadow +
+  hover lift), tinted ghost numerals, per-section hue shift, readability
+  scrim behind `<main>`.
+
+**Deliberate brand deviations (kept, documented here):** ambient brand
+color as *atmosphere* stretches "gradient is a signature, not a wallpaper";
+card borders use a gradient hairline outside the "interactions only"
+budget; film grain adds texture where the base system is flat. AA text
+contrast and `prefers-reduced-motion` fallbacks are preserved (mesh drift
+pauses, particle field bails, static gradients remain).
+
+**Scene 3 inversion dropped.** The Discipline of No no longer forces the
+dark band (§3). Over the new continuous atmosphere a dark scrim only reads
+as flat gray — and light-text-on-dark-scrim-over-light-mesh can't be both
+see-through and AA-legible. The section is now transparent (atmosphere
+flows through, dark type); its "slow down / focus" beat comes from its
+outsized whitespace + display type instead of the dark block.
+
+**Per-section atmosphere (rhythm without boundaries).** Removing every hard
+edge left the page reading as one undifferentiated flow, so the *ambient
+temperature* now shifts by chapter: a fixed `.vibeAtmoTint` glow whose hue
+crossfades (1s) as `data-atmo` on the root changes — set by a `ScrollTrigger`
+per section (the one spanning the viewport centre wins): hero pink → chain
+purple → pillars blue → **discipline** cool + faint (the quiet beat, which
+also drops the particle field to 40% opacity) → work cyan → trajectory
+purple → closing pink. Continuity is kept; each section gets its own
+temperature. All hues are token-derived `color-mix`.
+
+**Section progress rail (`SectionNav`).** The hue shift is *mood*, not
+wayfinding — too subtle to signal structure and color-only (weak for
+a11y). So the explicit structure signal is a fixed right-edge rail: seven
+chapter dots that highlight the current section (reusing `data-atmo` via a
+MutationObserver — single source of truth) and jump to it on click
+(`ScrollSmoother.scrollTo`, native `#id` anchor fallback). Labels reveal on
+hover/focus + for the active chapter; active dot is the mini-gradient.
+Desktop only (hidden ≤768px); each section carries an `id` anchor.
+
+**Decision gate.** After a live comparison the owner picks ONE direction:
+the losing mode's CSS/JS, the `VibeToggle`, and (if practical)
+`VibeProvider` are deleted — this is a decision tool, not a permanent
+setting. Mobile is implemented once, for the winning mode, as that mode's
+own lite variant (never by falling back to the other mode).

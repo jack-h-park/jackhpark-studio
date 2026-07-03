@@ -81,7 +81,11 @@ function socialLinks(): Array<{ name: SocialName; href: string }> {
 export function LandingFooter() {
   return (
     <>
-      <section className={styles.closing} aria-labelledby="closing-title">
+      <section
+        className={styles.closing}
+        aria-labelledby="closing-title"
+        id="contact"
+      >
         <h2
           id="closing-title"
           className={styles.closingHeadline}
