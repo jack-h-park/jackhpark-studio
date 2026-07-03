@@ -7,18 +7,22 @@
 
 ---
 
-## 0 · Post-promotion result (2026-06-16, `/`)
+## 0 · Post-atmospheric result (2026-07-03, `/`)
 
-The landing was promoted to `/` and the `noindex` removed (see `landing-storyboard.md` §7). Re-measured at `https://www.jackhpark.com/`:
+After the award-worthy pass (motion elevation + atmospheric visual direction: ambient WebGL field, per-section hue shift, section rail, full-height outro; maximal removed — storyboard §8). Re-measured at `https://www.jackhpark.com/`:
 
 | Category | Mobile | Desktop |
 |----------|:------:|:-------:|
-| Performance | 92 | 99 |
-| Accessibility | 91 | 95 |
+| Performance | 92 | 98 |
+| Accessibility | 95 | 95 |
 | Best Practices | 100 | 100 |
 | **SEO** | **100** | **100** |
 
-**SEO 63 → 100** as predicted (the `noindex` gate is gone). Mobile Performance settled at 92 across repeat runs (LCP 3.2s · TBT ~85ms · CLS 0.003) — a first post-deploy run read 64 from cold-start + local CPU contention, not a regression. Accessibility unchanged (the §3 contrast fixes shipped; the remaining deductions are the documented SplitText/animation items). The baseline detail below is retained for history.
+**All targets held** — the atmospheric layer did not regress performance (mobile still 92: LCP 3.2s · TBT ~100ms · CLS 0). A first post-deploy run read **36** (LCP 10.2s, TBT 1,640ms) from a cold serverless start + local CPU contention; two warm re-runs both returned 92 — so measure warm. The lone accessibility deduction is the SplitText `aria-label` on the scope statement (`aria-prohibited-attr`) — net-positive for screen readers, not a real defect.
+
+### Post-promotion result (2026-06-16, `/`)
+
+The landing was promoted to `/` and `noindex` removed (`landing-storyboard.md` §7): Mobile 92 / Desktop 99, A11y 91/95, BP 100, **SEO 63 → 100**. Mobile settled at 92 across repeat runs (a first run read 64 from cold-start, not a regression).
 
 ---
 
