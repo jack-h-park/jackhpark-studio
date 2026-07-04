@@ -37,7 +37,9 @@ async function gatherDocumentStats(): Promise<DocScanResult> {
     const { data, error } = await supabaseClient
       .from("rag_documents")
       .select(
-        "doc_id, raw_doc_id, metadata->>doc_id AS metadata_doc_id, metadata->>raw_doc_id AS metadata_raw_doc_id",
+        // PostgREST aliases JSON paths with `alias:path`; a SQL-style `AS`
+        // is parsed as part of the key and silently yields null (false mismatches).
+        "doc_id, raw_doc_id, metadata_doc_id:metadata->>doc_id, metadata_raw_doc_id:metadata->>raw_doc_id",
       )
       .range(pageOffset, pageOffset + DOC_BATCH_SIZE - 1);
 
