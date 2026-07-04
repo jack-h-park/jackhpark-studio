@@ -1,4 +1,5 @@
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { maximalMarginalRelevance } from "@langchain/core/utils/math";
 
 import type { EmbeddingSpace } from "@/lib/core/embedding-spaces";
 import type { ModelProvider } from "@/lib/shared/model-provider";
@@ -158,24 +159,6 @@ function getDocumentText(doc: RankerInputDoc): string | null {
   return candidate && candidate.length > 0 ? candidate : null;
 }
 
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (!a.length || !b.length || a.length !== b.length) {
-    return 0;
-  }
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (const [index, element] of a.entries()) {
-    const valueA = element ?? 0;
-    const valueB = b[index] ?? 0;
-    dot += valueA * valueB;
-    normA += valueA * valueA;
-    normB += valueB * valueB;
-  }
-  const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
-  return magnitude > 0 ? dot / magnitude : 0;
-}
-
 async function runMmr<T extends RankerInputDoc>(
   docs: T[],
   options: RankerOptions,
@@ -212,56 +195,20 @@ async function runMmr<T extends RankerInputDoc>(
   );
 
   const mmrLambda = Math.max(0, Math.min(1, options.mmrLambda ?? MMR_LAMBDA));
-  const selectedIndices: number[] = [];
-  const finalDocs: T[] = [];
+  const k = Math.min(maxResults, normalizedDocs.length);
 
-  while (finalDocs.length < Math.min(maxResults, docs.length)) {
-    let bestScore = -Infinity;
-    let bestIndex: number | null = null;
+  // Indices returned by maximalMarginalRelevance address the embeddings/
+  // normalizedDocs arrays, so map them back to the original doc positions.
+  const selected = maximalMarginalRelevance(
+    queryEmbedding,
+    embeddings,
+    mmrLambda,
+    k,
+  );
 
-    for (const [candidateIndex] of normalizedDocs.entries()) {
-      if (selectedIndices.includes(candidateIndex)) {
-        continue;
-      }
-
-      const candidateEmbedding = embeddings[candidateIndex];
-      if (!candidateEmbedding || candidateEmbedding.length === 0) {
-        continue;
-      }
-
-      const similarityToQuery = cosineSimilarity(
-        candidateEmbedding,
-        queryEmbedding,
-      );
-      let diversityPenalty = 0;
-
-      if (selectedIndices.length > 0) {
-        diversityPenalty = Math.max(
-          ...selectedIndices.map((selected) =>
-            cosineSimilarity(candidateEmbedding, embeddings[selected] ?? []),
-          ),
-        );
-      }
-
-      const score =
-        mmrLambda * similarityToQuery - (1 - mmrLambda) * diversityPenalty;
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestIndex = candidateIndex;
-      }
-    }
-
-    if (bestIndex === null) {
-      break;
-    }
-
-    selectedIndices.push(bestIndex);
-    const selectedDocIndex = normalizedDocs[bestIndex].index;
-    finalDocs.push(docs[selectedDocIndex]);
-  }
-
-  return finalDocs;
+  return selected.map(
+    (embeddingIndex) => docs[normalizedDocs[embeddingIndex].index],
+  );
 }
 
 async function runCohereRerank<T extends RankerInputDoc>(

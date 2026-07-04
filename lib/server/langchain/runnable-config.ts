@@ -36,7 +36,10 @@ export function makeRunName(base: string, stage?: string): string {
   return `${normalizedBase}:${normalizedStage}`;
 }
 
-export function buildChainRunnableConfig(ctx: ChainRunContext): RunnableConfig {
+export function buildChainRunnableConfig(
+  ctx: ChainRunContext,
+  callbacks: RunnableConfig["callbacks"] = [],
+): RunnableConfig {
   const intentTag = ctx.intent ?? "intent:unknown";
   const providerTag = ctx.provider;
   const tagSet = new Set<string>(["langchain", "rag", intentTag, providerTag]);
@@ -78,6 +81,6 @@ export function buildChainRunnableConfig(ctx: ChainRunContext): RunnableConfig {
     runName,
     tags,
     metadata,
-    callbacks: [],
+    callbacks,
   };
 }

@@ -17,6 +17,7 @@ import type { CitationPayload } from "@/lib/types/citation";
 import { llmLogger, ragLogger } from "@/lib/logging/logger";
 import { memoryCacheClient } from "@/lib/server/chat-cache";
 import { CITATIONS_SEPARATOR } from "@/lib/server/chat-common";
+import { buildLinkedLangfuseCallbacks } from "@/lib/server/langchain/langfuse-callbacks";
 import { buildRagAnswerChain } from "@/lib/server/langchain/rag-answer-chain";
 import {
   buildChainRunnableConfig,
@@ -197,10 +198,17 @@ export async function streamAnswerWithPrompt({
       ? memoryParts.join("\n\n")
       : "(No prior conversation history. Treat this as a standalone exchange.)";
   const answerChain = buildRagAnswerChain();
-  const answerChainRunnableConfig = buildChainRunnableConfig({
-    ...chainRunContext,
-    stage: "answer",
-  });
+  const answerChainRunnableConfig = buildChainRunnableConfig(
+    {
+      ...chainRunContext,
+      stage: "answer",
+    },
+    buildLinkedLangfuseCallbacks({
+      trace,
+      sessionId: chainRunContext.requestId,
+      tags: ["answer:llm-chain"],
+    }),
+  );
   const signal = abortSignal ?? undefined;
 
   let streamHeadersSent = initialStreamStarted;

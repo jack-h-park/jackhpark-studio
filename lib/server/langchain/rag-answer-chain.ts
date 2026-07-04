@@ -14,19 +14,18 @@ type RagAnswerChainInput = {
   llmInstance: BaseLanguageModelInterface;
 };
 
-type RagAnswerChainState = RagAnswerChainInput & {
-  promptInput?: BaseMessage[];
+type RagAnswerChainWithPrompt = RagAnswerChainInput & {
+  promptInput: BaseMessage[];
 };
 
-type RagAnswerChainOutput = RagAnswerChainState & {
-  promptInput: BaseMessage[];
+type RagAnswerChainOutput = RagAnswerChainWithPrompt & {
   stream: AsyncIterable<string>;
 };
 
 export function buildRagAnswerChain() {
   const promptRunnable = RunnableLambda.from<
     RagAnswerChainInput,
-    RagAnswerChainState & { promptInput: BaseMessage[] }
+    RagAnswerChainWithPrompt
   >(async (input) => {
     const promptInput = await input.prompt.formatMessages({
       question: input.question,
@@ -40,7 +39,7 @@ export function buildRagAnswerChain() {
   });
 
   const llmRunnable = RunnableLambda.from<
-    RagAnswerChainState & { promptInput: string },
+    RagAnswerChainWithPrompt,
     RagAnswerChainOutput
   >(async (input) => {
     const stream = await input.llmInstance.stream(input.promptInput);
