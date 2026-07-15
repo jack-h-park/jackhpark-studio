@@ -2,6 +2,7 @@ import { IconContext } from "@react-icons/all-files";
 import Document, { Head, Html, Main, NextScript } from "next/document";
 
 import { name } from "@/lib/config";
+import { THEME_NOFLASH_SCRIPT } from "@/lib/theme";
 
 export default class MyDocument extends Document {
   override render() {
@@ -61,50 +62,7 @@ export default class MyDocument extends Document {
             <div className="notion-frame" style={{ display: "none" }} />
 
             <script
-              dangerouslySetInnerHTML={{
-                __html: `
-/** Inlined version of noflash.js from use-dark-mode */
-;(function () {
-  var storageKey = 'darkMode'
-  var darkClasses = ['dark-mode', 'dark']
-  var lightClasses = ['light-mode']
-  function setClassOnDocumentBody(darkMode) {
-    var addClasses = darkMode ? darkClasses : lightClasses
-    var removeClasses = darkMode ? lightClasses : darkClasses
-    addClasses.forEach(function (cls) {
-      document.body.classList.add(cls)
-    })
-    removeClasses.forEach(function (cls) {
-      document.body.classList.remove(cls)
-    })
-  }
-  var preferDarkQuery = '(prefers-color-scheme: dark)'
-  var mql = window.matchMedia(preferDarkQuery)
-  var supportsColorSchemeQuery = mql.media === preferDarkQuery
-  var localStorageTheme = null
-  try {
-    localStorageTheme = localStorage.getItem(storageKey)
-  } catch (err) {}
-  var localStorageExists = localStorageTheme !== null
-  if (localStorageExists) {
-    localStorageTheme = JSON.parse(localStorageTheme)
-  }
-  // Determine the source of truth
-  if (localStorageExists) {
-    // source of truth from localStorage
-    setClassOnDocumentBody(localStorageTheme)
-  } else if (supportsColorSchemeQuery) {
-    // source of truth from system
-    setClassOnDocumentBody(mql.matches)
-    localStorage.setItem(storageKey, mql.matches)
-  } else {
-    // source of truth from document.body
-    var isDarkMode = document.body.classList.contains('dark-mode')
-    localStorage.setItem(storageKey, JSON.stringify(isDarkMode))
-  }
-})();
-`,
-              }}
+              dangerouslySetInnerHTML={{ __html: THEME_NOFLASH_SCRIPT }}
             />
             <Main />
 
