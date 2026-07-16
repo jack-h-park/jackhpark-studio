@@ -33,7 +33,7 @@ export async function matchRagChunksForConfig(
     client,
     embedding,
     matchCount,
-    similarityThreshold = 0.78,
+    similarityThreshold = 0.4,
     filter = {},
     mode,
     embeddingProvider,

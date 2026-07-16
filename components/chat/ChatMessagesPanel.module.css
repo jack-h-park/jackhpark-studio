@@ -279,6 +279,76 @@
   font-size: 0.7rem;
 }
 
+.sourcePreviewRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.sourcePreviewCard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid hsl(var(--ai-border));
+  border-radius: 10px;
+  background: hsl(var(--ai-bg));
+  color: hsl(var(--ai-fg));
+  text-decoration: none;
+  max-width: 300px;
+  min-width: 0;
+}
+
+a.sourcePreviewCard:hover {
+  border-color: var(--ai-accent);
+}
+
+.sourcePreviewThumb {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--ai-border));
+  background: hsl(var(--ai-bg-muted));
+}
+
+.sourcePreviewText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sourcePreviewLabel {
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(var(--ai-fg-muted));
+}
+
+.sourcePreviewTitle {
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.citationThumbnail {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid hsl(var(--ai-border));
+  background: hsl(var(--ai-bg-muted));
+}
+
 .citationTitleBlock {
   flex: 1;
   min-width: 0;

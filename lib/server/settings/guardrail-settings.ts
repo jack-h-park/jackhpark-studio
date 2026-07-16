@@ -96,8 +96,12 @@ const DEFAULT_COMMAND_FALLBACK = normalizeGuardrailText(
     "The user is asking for an action/command. You must politely decline to execute actions and instead explain what is possible.",
 );
 
+// Keep in sync with the "default" (Balanced) preset in admin-chat-config.ts.
+// This value applies to sessions without a preset override; 0.78 was far too
+// strict for text-embedding-3-small cosine scores (good matches land ~0.5-0.7)
+// and made anonymous visitors hit the insufficient-context fallback.
 const DEFAULT_SIMILARITY_THRESHOLD = clampNumber(
-  Number(process.env.RAG_SIMILARITY_THRESHOLD ?? 0.78),
+  Number(process.env.RAG_SIMILARITY_THRESHOLD ?? 0.4),
   0,
   1,
 );

@@ -183,6 +183,15 @@ export function ChatMessageItem({
 
   const showCitationsSection = showCitations && isExpanded && hasCitations;
 
+  // Regular-answer surface (not diagnostics): when retrieval produced a source
+  // with a preview image, show compact source cards under the answer so
+  // "show me visually" requests surface the article visual for every visitor.
+  const sourcePreviews = (citations ?? [])
+    .filter((citation) => citation.previewImageUrl)
+    .slice(0, 2);
+  const showSourcePreviews =
+    (m.isComplete ?? true) && sourcePreviews.length > 0;
+
   const isStreamingAssistant =
     m.role === "assistant" && isLoading && loadingAssistantId === m.id;
   const isAbortedAssistant =
@@ -229,6 +238,62 @@ export function ChatMessageItem({
           />
           <div className={styles.assistantContent}>
             {bubble}
+            {showSourcePreviews && (
+              <div className={styles.sourcePreviewRow}>
+                {sourcePreviews.map((citation, index) => {
+                  const title =
+                    (citation.title ?? "").trim() ||
+                    (citation.url ?? "").trim() ||
+                    `Source ${index + 1}`;
+                  const url = (citation.url ?? "").trim();
+                  const cardContent = (
+                    <>
+                      <img
+                        src={citation.previewImageUrl!}
+                        alt=""
+                        loading="lazy"
+                        className={styles.sourcePreviewThumb}
+                        // Notion attachment URLs can expire; a card without
+                        // its visual adds no value here (diagnostics still
+                        // lists every source), so drop the whole card.
+                        onError={(event) => {
+                          const card = event.currentTarget.parentElement;
+                          if (card) {
+                            card.style.display = "none";
+                          }
+                        }}
+                      />
+                      <span className={styles.sourcePreviewText}>
+                        <span className={styles.sourcePreviewLabel}>
+                          Source
+                        </span>
+                        <span className={styles.sourcePreviewTitle}>
+                          {title}
+                        </span>
+                      </span>
+                    </>
+                  );
+                  return url ? (
+                    <a
+                      key={`${m.id}-source-${index}`}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className={styles.sourcePreviewCard}
+                    >
+                      {cardContent}
+                    </a>
+                  ) : (
+                    <span
+                      key={`${m.id}-source-${index}`}
+                      className={styles.sourcePreviewCard}
+                    >
+                      {cardContent}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
             {m.isComplete && m.traceId && (
               <ChatMessageFeedback traceId={m.traceId} messageId={m.id} />
             )}
@@ -519,6 +584,18 @@ export function ChatMessageItem({
                           <span className={styles.citationIndex}>
                             {index + 1}
                           </span>
+                          {citation.previewImageUrl && (
+                            <img
+                              src={citation.previewImageUrl}
+                              alt=""
+                              loading="lazy"
+                              className={styles.citationThumbnail}
+                              // Notion attachment URLs can expire; degrade to no thumbnail.
+                              onError={(event) => {
+                                event.currentTarget.style.display = "none";
+                              }}
+                            />
+                          )}
                           <div className={styles.citationTitleBlock}>
                             <div className={styles.citationTitle}>
                               {title}

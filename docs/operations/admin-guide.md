@@ -83,7 +83,7 @@ Defines the baseline behavior:
 
 - **Context Limit:** Max tokens reserved for RAG context (default: ~4000).
 - **History Limit:** Max tokens reserved for conversation history.
-- **Retrieval Thresholds:** Minimum similarity score (0.78) required to include a chunk.
+- **Retrieval Thresholds:** Minimum similarity score (default 0.4) required to include a chunk.
 
 ---
 

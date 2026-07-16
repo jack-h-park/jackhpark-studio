@@ -16,6 +16,7 @@ export type CitationDocScore = {
   url?: string | null;
   docType?: string | null;
   personaType?: string | null;
+  previewImageUrl?: string | null;
 
   similarityMax: number;
   similarityAvg: number;
@@ -77,6 +78,14 @@ function pickTitle(doc: RagDocument): string | null {
   return raw && raw.trim().length > 0 ? raw.trim() : null;
 }
 
+function pickPreviewImageUrl(doc: RagDocument): string | null {
+  const raw =
+    (doc?.metadata?.preview_image_url as string | undefined) ??
+    (doc?.metadata?.previewImageUrl as string | undefined) ??
+    (doc?.metadata?.document_meta?.preview_image_url as string | undefined);
+  return raw && raw.trim().length > 0 ? raw.trim() : null;
+}
+
 function pickDocType(doc: RagDocument): string | null {
   const raw = (doc?.metadata as { doc_type?: string | null } | null)?.doc_type;
   return raw ?? null;
@@ -127,6 +136,7 @@ export function buildCitationPayload(
     url?: string | null;
     docType?: string | null;
     personaType?: string | null;
+    previewImageUrl?: string | null;
     weight: number;
     similaritySum: number;
     similarityMax: number;
@@ -150,6 +160,8 @@ export function buildCitationPayload(
 
     const existing = docMap.get(key);
     if (existing) {
+      // Chunk-level metadata can be sparse; keep the first non-null image.
+      existing.previewImageUrl ??= pickPreviewImageUrl(doc);
       existing.similaritySum += similarity;
       existing.similarityMax = Math.max(existing.similarityMax, similarity);
       existing.excerptCount += 1;
@@ -170,6 +182,7 @@ export function buildCitationPayload(
         url,
         docType: pickDocType(doc),
         personaType: pickPersonaType(doc),
+        previewImageUrl: pickPreviewImageUrl(doc),
         weight,
         similaritySum: similarity,
         similarityMax: similarity,
@@ -210,6 +223,7 @@ export function buildCitationPayload(
         url: doc.url ?? undefined,
         docType: doc.docType ?? undefined,
         personaType: doc.personaType ?? undefined,
+        previewImageUrl: doc.previewImageUrl ?? undefined,
         similarityMax: doc.similarityMax,
         similarityAvg,
         weight: doc.weight,

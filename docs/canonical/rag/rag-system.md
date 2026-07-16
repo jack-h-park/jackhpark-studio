@@ -102,7 +102,7 @@ Every retrieval request flows through a multi-pass evaluation logic:
 1.  **Base Pass:** execute standard vector search.
 2.  **Quality Check:** The system analyzes the results for "Weakness":
     - Are there zero matches?
-    - Is the highest similarity score below the strict threshold (0.78)?
+    - Is the highest similarity score below the similarity threshold (default 0.4)?
     - Is the result density low (fewer than 3 matches)?
 3.  **Self-Correction:** If weak, the system automatically escalates:
     - **HyDE (Hypothetical Document Embedding):** The LLM hallucinates a theoretical answer, which is then embedded to find semantically similar real chunks.

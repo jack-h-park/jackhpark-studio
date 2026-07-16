@@ -48,7 +48,7 @@ The system actively monitors the quality of retrieval to trigger self-correction
 ### A. Weak Retrieval Detection
 
 - **Logic:** Defined in `lib/server/api/langchain_chat_impl_heavy.ts`.
-- **Trigger:** If the highest similarity score of retrieved chunks is below `similarityThreshold` (default: 0.78).
+- **Trigger:** If the highest similarity score of retrieved chunks is below `similarityThreshold` (default: 0.4).
 - **Signal:** Logs a `weak-retrieval` event which triggers the **Auto-RAG** workflow (Hypothetical Document Embeddings or Query Rewriting).
 
 ### B. Auto-RAG Telemetry

@@ -142,10 +142,18 @@ export async function streamAnswerWithPrompt({
     logReturn,
   },
 }: StreamAnswerParams): Promise<StreamAnswerResult> {
+  // Insufficient means retrieval confidence was below the similarity threshold,
+  // NOT that the topic is absent from the knowledge base. The model must never
+  // turn a low-confidence retrieval into a claim that the author never wrote
+  // about the topic.
+  const insufficientStatus =
+    contextResult.included.length > 0
+      ? "Context status: low-confidence matches only. The excerpts below scored beneath the similarity threshold but may still be relevant. Do not state that the author has not written about this topic; say you could not find a confident match, and if an excerpt looks related, point the user to that document by title."
+      : "Context status: no matching excerpts retrieved. Say you could not find related content in the knowledge base for this question; do not claim the author has never written about the topic.";
   const guardrailMeta = [
     `Intent: ${routingDecision.intent} (${routingDecision.reason})`,
     contextResult.insufficient
-      ? "Context status: insufficient matches. Be explicit when information is missing."
+      ? insufficientStatus
       : `Context status: ${contextResult.included.length} excerpts (${contextResult.totalTokens} tokens).`,
   ].join(" | ");
   const contextValue =
