@@ -17,7 +17,8 @@
   position: fixed;
   top: 0;
   right: 0;
-  height: 100vh;
+  height: 100vh; /* fallback for browsers without dvh */
+  height: 100dvh;
   width: min(100%, 504px);
   transform: translateX(100%);
   transition: transform 0.3s ease;

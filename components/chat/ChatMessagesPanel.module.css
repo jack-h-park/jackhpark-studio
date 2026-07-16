@@ -14,6 +14,13 @@
   font-size: 0.9rem;
 }
 
+@media (max-width: 640px) {
+  /* Narrow screens need most of the row for readable bubbles. */
+  .message {
+    max-width: 92%;
+  }
+}
+
 .message a {
   color: var(--ai-role-interaction-base);
   text-decoration: underline;

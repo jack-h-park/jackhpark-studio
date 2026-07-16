@@ -53,3 +53,24 @@
   padding: 0;
   gap: 0;
 }
+
+@media (max-width: 640px) {
+  /* Full-bleed AI pages (chat) become an app-like viewport shell on mobile:
+     the page itself must not scroll — the chat panel owns scrolling — so the
+     chrome is pinned to the dynamic viewport and the footer is hidden to keep
+     the input bar reachable without double scroll. */
+  .chromeFullBleed {
+    height: 100vh; /* fallback for browsers without dvh */
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .chromeFullBleed .body {
+    min-height: 0;
+  }
+
+  .chromeFullBleed .footer {
+    display: none;
+  }
+}

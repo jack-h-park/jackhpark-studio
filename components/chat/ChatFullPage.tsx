@@ -291,7 +291,9 @@ function ChatShellContent() {
               Ask JackGPT
             </CardTitle>
             {renderPromptSummary && (
-              <CardDescription className="text-sm leading-relaxed ai-text-muted">
+              <CardDescription
+                className={`text-sm leading-relaxed ai-text-muted ${styles.description}`}
+              >
                 {renderPromptSummary}
               </CardDescription>
             )}

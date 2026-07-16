@@ -70,12 +70,42 @@
 }
 
 @media (max-width: 640px) {
+  /* App-like layout: the chrome pins the viewport (see AiPageChrome), the
+     shell/panel fill it edge-to-edge, and only .messages scrolls. */
   .shell {
-    padding: 16px 12px 32px;
+    padding: 0;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .panel {
+    height: 100%;
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   .header {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  /* The one-line summary is dispensable on small screens; reclaiming its
+     height keeps more of the conversation visible. */
+  .description {
+    display: none;
+  }
+
+  .hero {
+    padding: 20px 16px;
+    gap: 16px;
+  }
+
+  .hero img {
+    width: 132px;
+    height: auto;
   }
 }
