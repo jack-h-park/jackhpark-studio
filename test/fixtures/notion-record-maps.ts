@@ -98,3 +98,17 @@ export function buildNotionContractRecordMap(): ExtendedRecordMap {
     collection_query_by_collection: {},
   } as unknown as ExtendedRecordMap;
 }
+
+// Mirrors the doubly-nested shape Notion sometimes returns:
+// recordMap.block[id].value = { role, value: Block } instead of the Block itself.
+// https://github.com/NotionX/react-notion-x/issues/682
+export function buildDoublyNestedNotionRecordMap(): ExtendedRecordMap {
+  const base = buildNotionContractRecordMap();
+  const block = Object.fromEntries(
+    Object.entries(base.block).map(([id, entry]) => [
+      id,
+      { value: { role: "reader", value: entry.value } },
+    ]),
+  );
+  return { ...base, block } as unknown as ExtendedRecordMap;
+}

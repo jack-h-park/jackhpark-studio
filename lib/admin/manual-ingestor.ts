@@ -17,6 +17,7 @@ import {
   type IngestRunStats,
   startIngestRun,
 } from "../rag/index";
+import { unwrapRecordValue } from "../rag/notion-record-value";
 import {
   type IngestDocumentOutcome,
   ingestPreparedDocument,
@@ -35,20 +36,6 @@ type ManualNotionScope = "workspace" | "selected";
 const LINKED_PAGE_MAX_PAGES = 250;
 const LINKED_PAGE_MAX_DEPTH = 4;
 
-// Notion sometimes returns doubly-nested blocks: recordMap.block[id].value = { role, value: Block }.
-// Unwrap until we find an object with an `id` field (the actual Block).
-// https://github.com/NotionX/react-notion-x/issues/682
-function unwrapBlock(
-  blockEntry: ExtendedRecordMap["block"][string] | undefined,
-): Record<string, unknown> | undefined {
-  if (!blockEntry) return undefined;
-  let v: unknown = blockEntry.value;
-  while (v && typeof v === "object" && !(v as Record<string, unknown>).id) {
-    v = (v as Record<string, unknown>).value;
-  }
-  if (!v || typeof v !== "object") return undefined;
-  return v as Record<string, unknown>;
-}
 
 let _workspaceRootPageId: string | undefined;
 
@@ -192,7 +179,7 @@ async function collectLinkedPagesFromSeeds(
     const collectionViews: Array<{ collectionId: string; viewId: string }> = [];
 
     for (const block of Object.values(recordMap.block ?? {})) {
-      const value = unwrapBlock(block);
+      const value = unwrapRecordValue(block);
       if (!value || value.alive === false) continue;
 
       const type = value.type as string | undefined;

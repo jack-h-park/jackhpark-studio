@@ -8,9 +8,15 @@ import {
   getPageLastEditedTime,
   getPageTitle,
 } from "@/lib/rag";
-import { extractNotionMetadata } from "@/lib/rag/notion-metadata";
+import {
+  buildNotionSourceMetadata,
+  extractNotionMetadata,
+} from "@/lib/rag/notion-metadata";
+import { normalizeNotionRecordMap } from "@/lib/rag/notion-record-value";
+import { prepareNotionPageDocument } from "@/lib/rag/sources/notion";
 
 import {
+  buildDoublyNestedNotionRecordMap,
   buildNotionContractRecordMap,
   fixtureCollectionId,
   fixturePageId,
@@ -43,6 +49,34 @@ void describe("Notion fixture contracts", () => {
     assert.equal(metadata.persona_type, "professional");
     assert.equal(metadata.is_public, true);
     assert.deepEqual(metadata.tags, ["notion", "rag"]);
+  });
+
+  void it("extracts title, text, and metadata from doubly-nested record maps", () => {
+    const nested = buildDoublyNestedNotionRecordMap();
+    const normalized = normalizeNotionRecordMap(nested);
+
+    assert.equal(
+      getPageTitle(normalized, fixturePageId),
+      "Jack H. Park Portfolio",
+    );
+    // The nested shape must not degrade any derived metadata (icon, teaser, …).
+    assert.deepEqual(
+      buildNotionSourceMetadata(normalized, fixturePageId),
+      buildNotionSourceMetadata(buildNotionContractRecordMap(), fixturePageId),
+    );
+    const metadata = extractNotionMetadata(normalized, fixturePageId);
+    assert.equal(metadata.doc_type, "profile");
+    assert.equal(metadata.persona_type, "professional");
+
+    // End-to-end through the ingestion boundary, including a compact pageId
+    // (record maps are keyed by dashed UUIDs).
+    const compactPageId = fixturePageId.replaceAll("-", "");
+    const prepared = prepareNotionPageDocument(nested, compactPageId);
+    assert.equal(prepared.title, "Jack H. Park Portfolio");
+    assert.equal(
+      prepared.text,
+      "Jack H. Park Portfolio\nEnterprise mobility and security background.",
+    );
   });
 
   void it("keeps token chunks deterministic and overlapping", () => {
