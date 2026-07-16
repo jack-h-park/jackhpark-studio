@@ -15,6 +15,10 @@ import type { LangfuseTrace } from "@/lib/langfuse";
  * otherwise defaults to the EU cloud, but the rest of the app configures
  * Langfuse via LANGFUSE_BASE_URL (us.cloud). Relying on env alone ships these
  * spans to the wrong region, where they silently 401 and are dropped.
+ *
+ * environment is likewise explicit: without it the handler's own Langfuse
+ * client falls back to "default", so these traces would be invisible to the
+ * env-scoped views the primary trace lands in.
  */
 export function buildLinkedLangfuseCallbacks(params: {
   trace: LangfuseTrace | null | undefined;
@@ -31,6 +35,7 @@ export function buildLinkedLangfuseCallbacks(params: {
       baseUrl: process.env.LANGFUSE_BASE_URL,
       publicKey: process.env.LANGFUSE_PUBLIC_KEY,
       secretKey: process.env.LANGFUSE_SECRET_KEY,
+      environment: trace.environment,
       sessionId: sessionId ?? undefined,
       tags,
       metadata: { linkedTraceId: trace.traceId },

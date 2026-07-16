@@ -212,7 +212,7 @@
 | Property | Source |
 | --- | --- |
 | `latency_ms` | Handler entry → response completion latency (canonical p99 signal for Alert A). |
-| `latency_llm_ms` | `answer:llm` observation |
+| `latency_llm_ms` | `answer:llm` span |
 | `latency_retrieval_ms` | Retrieval-stage latency on `chat_completion` |
 | `aborted` | Completion flag |
 | `response_cache_hit` | Cache metadata |
@@ -235,7 +235,7 @@ There are **no separate `latency_breakdown` or `cache_decision` events**. Attrib
 | --- | --- |
 | `latency_ms` | Handler entry → completion (total) |
 | `latency_retrieval_ms` | Retrieval-stage latency |
-| `latency_llm_ms` | LLM generation latency (`answer:llm`) |
+| `latency_llm_ms` | LLM generation latency (`answer:llm` span) |
 
 **Cache attribution** — for Alert C hit-rate diagnostics and cost dashboards:
 | Property | Source |

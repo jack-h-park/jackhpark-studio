@@ -14,7 +14,7 @@ type RagConfigSummary = {
   hydeEnabled: boolean;
 };
 
-export type EmitAnswerGenerationOptions = {
+export type EmitAnswerSummarySpanOptions = {
   trace: LangfuseTrace | null;
   requestId?: string | null;
   intent: string;
@@ -41,8 +41,8 @@ export type EmitAnswerGenerationOptions = {
   endTimeMs: number;
 };
 
-const buildAnswerGenerationInput = (
-  options: EmitAnswerGenerationOptions,
+const buildAnswerSummaryInput = (
+  options: EmitAnswerSummarySpanOptions,
 ): Record<string, unknown> => {
   const sanitizedInput = buildLangfuseGenerationInput({
     intent: options.intent,
@@ -87,8 +87,8 @@ const buildAnswerGenerationInput = (
   return input;
 };
 
-const buildGenerationOutput = (
-  options: EmitAnswerGenerationOptions,
+const buildAnswerSummaryOutput = (
+  options: EmitAnswerSummarySpanOptions,
 ): Record<string, unknown> => ({
   finish_reason: options.finishReason,
   aborted: options.aborted,
@@ -99,8 +99,20 @@ const buildGenerationOutput = (
   insufficient: options.insufficient,
 });
 
-export async function emitAnswerGeneration(
-  options: EmitAnswerGenerationOptions,
+/**
+ * Emits the `answer:llm` observation: a PII-safe summary of the answer stage
+ * (config snapshot in, finish semantics out) timed over the LLM generation.
+ *
+ * This is a SPAN, not a GENERATION, on purpose. Token usage and cost for the
+ * answer call are owned solely by the LangChain CallbackHandler's generation on
+ * the linked `answer:root` trace, which reports the provider's real usage. This
+ * observation never carries `model`: a GENERATION without usage makes Langfuse
+ * infer tokens by tokenizing input/output, which here are JSON summaries — that
+ * produced fabricated token counts and double-counted cost against the real
+ * generation.
+ */
+export async function emitAnswerSummarySpan(
+  options: EmitAnswerSummarySpanOptions,
 ): Promise<void> {
   const { trace } = options;
   if (!trace) {
@@ -120,7 +132,7 @@ export async function emitAnswerGeneration(
   const endTime = new Date(options.endTimeMs).toISOString();
 
   const ingestionEvent = {
-    type: "generation-create" as const,
+    type: "span-create" as const,
     id: randomUUID(),
     timestamp: new Date().toISOString(),
     body: {
@@ -130,19 +142,20 @@ export async function emitAnswerGeneration(
       startTime,
       endTime,
       environment: trace.environment,
-      model: options.model,
       metadata: {
         requestId: options.requestId ?? null,
+        provider: options.provider,
+        model: options.model,
       },
-      input: buildAnswerGenerationInput(options),
-      output: buildGenerationOutput(options),
+      input: buildAnswerSummaryInput(options),
+      output: buildAnswerSummaryOutput(options),
     },
   };
 
   try {
     await client.api.ingestion.batch({ batch: [ingestionEvent] });
   } catch (err) {
-    telemetryLogger.debug("langfuse generation emission failed", {
+    telemetryLogger.debug("langfuse answer summary span emission failed", {
       requestId: options.requestId ?? null,
       error: err instanceof Error ? err.message : err,
     });

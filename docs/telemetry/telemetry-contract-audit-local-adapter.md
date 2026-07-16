@@ -80,7 +80,10 @@ Exact trace metadata fields, `metadata.rag.*` structure, and summary field seman
 ### Canonical Local Observations
 
 - `answer:llm`
-  - generation lifecycle and terminal completion semantics
+  - answer-stage summary span: generation lifecycle and terminal completion semantics
+  - carries no tokens/cost; the canonical Generation is on the linked `answer:root` trace
+- `answer:stream`
+  - streaming-loop lifecycle span
 - `rag:root`
   - retrieval quality summary for knowledge traces
 - `context:selection`
@@ -90,7 +93,7 @@ Exact trace metadata fields, `metadata.rag.*` structure, and summary field seman
 
 ### Emission Rules
 
-- `answer:llm` is the universal generation observation when a trace exists.
+- `answer:llm` is the universal answer-stage summary span when a trace exists.
 - Retrieval observations are local knowledge-only artifacts.
 - Verbose retrieval-stage diagnostics are local verbose-only artifacts.
 - Detail level determines whether config snapshots and retrieval observations appear.

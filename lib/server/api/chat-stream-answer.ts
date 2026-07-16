@@ -281,7 +281,10 @@ export async function streamAnswerWithPrompt({
       {
         trace,
         requestId: chainRunContext.requestId ?? null,
-        name: "answer:llm",
+        // Streaming lifecycle only. The `answer:llm` summary observation is
+        // emitted once at trace finalization (emitAnswerSummarySpan) so the
+        // two no longer collide on one name.
+        name: "answer:stream",
         metadata: answerMetadata,
       },
       async () => {

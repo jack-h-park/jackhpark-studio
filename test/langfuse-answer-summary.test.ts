@@ -1,10 +1,10 @@
 import { describe, it } from "node:test";
 
-import { emitAnswerGeneration } from "@/lib/server/telemetry/langfuse-generations";
+import { emitAnswerSummarySpan } from "@/lib/server/telemetry/langfuse-answer-summary";
 
-void describe("emitAnswerGeneration", () => {
-  void it("skips generation when trace is missing", async () => {
-    await emitAnswerGeneration({
+void describe("emitAnswerSummarySpan", () => {
+  void it("skips emission when trace is missing", async () => {
+    await emitAnswerSummarySpan({
       trace: null,
       requestId: "request",
       intent: "knowledge",

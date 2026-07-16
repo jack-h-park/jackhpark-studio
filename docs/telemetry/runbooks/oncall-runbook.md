@@ -59,7 +59,7 @@ For product-level interpretation and decision-making context (e.g., how alerts m
 - In Langfuse:
   - Knowledge traces exist during the alert window
   - Expected observations exist:
-    - `answer:llm` (generation)
+    - `answer:llm` (span; the answer Generation lives on the linked `answer:root` trace)
     - `retrieval` (for knowledge)
 - In PostHog:
   - Incoming events in the last 15 minutes:
