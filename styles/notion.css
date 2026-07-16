@@ -438,6 +438,11 @@ svg[data-processed-mermaid] .section-root tspan {
   padding: 10px;
 }
 
+/* Gallery text-teaser thumbnail CSS ships with react-notion-x (styles.css,
+   imported above). The teaser content itself is built in
+   lib/notion-collection-card-cover.tsx and plugged in via the library's
+   `components.collectionCardCover` seam (see components/NotionPage.tsx). */
+
 .gallery-image-modal__overlay {
   position: fixed;
   inset: 0;

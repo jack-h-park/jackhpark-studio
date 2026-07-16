@@ -24,6 +24,7 @@ import { debugNotionXEnabled, debugNotionXLogger } from "@/lib/debug-notion-x";
 import { mapImageUrl } from "@/lib/map-image-url";
 import { getCanonicalPageUrl, mapPageUrl } from "@/lib/map-page-url";
 import { getPageCollectionId } from "@/lib/notion/getPageCollectionId";
+import { createCollectionCardCoverRenderer } from "@/lib/notion-collection-card-cover";
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { useSidePeek } from "@/lib/use-side-peek";
 
@@ -508,6 +509,13 @@ const NotionImage = React.forwardRef<HTMLImageElement, NotionImageProps>(
 
 NotionImage.displayName = "NotionImage";
 
+// Gallery card covers (image discovery + text teasers) render through the
+// react-notion-x `collectionCardCover` seam, reusing NotionImage so covers get
+// the same next/image loading + fallback behavior as the rest of the page.
+const collectionCardCoverRenderer = createCollectionCardCoverRenderer({
+  Image: NotionImage,
+});
+
 export function NotionPage({
   site,
   recordMap,
@@ -927,6 +935,7 @@ export function NotionPage({
       Modal,
       Tweet,
       Header: NotionPageHeader,
+      collectionCardCover: collectionCardCoverRenderer,
       propertyLastEditedTimeValue,
       propertyTitleValue,
       propertyTextValue,
