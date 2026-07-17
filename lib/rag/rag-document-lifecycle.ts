@@ -263,29 +263,16 @@ export async function markMissing(
   logLifecycle(docId, outcome);
 
   try {
-    const { data: statusData, error: statusError } = await supabase
-      .from(DOCUMENTS_TABLE)
-      .update({
-        status: "missing",
-        last_fetch_status: statusCode ?? 404,
-        last_fetch_error: errorMessage,
-        last_sync_attempt_at: now,
-      })
-      .eq("doc_id", docId)
-      .neq("status", "soft_deleted")
-      .select("doc_id");
-    if (statusError) {
-      await logLifecycleError("markMissing.status", docId, statusError);
-    }
-
-    if (!statusError && (!statusData || statusData.length === 0)) {
-      console.warn("[rag:lifecycle] markMissing affected 0 rows", {
-        docId,
-        statusCode: statusCode ?? 404,
-        errorMessage,
-      });
-    }
-
+    // Write the missing_detected_at sentinel BEFORE the status flip. Observed
+    // 2026-07-16 (docs 2fb99029...bda3 / ...caf9): the status update did not
+    // stick on the first markMissing invocation while missing_detected_at
+    // did; a second invocation converged. The repo schema
+    // (db/schema/schema.latest.sql) shows no trigger/constraint on
+    // rag_documents that explains it, and lifecycle DB errors used to be
+    // swallowed in production (logLifecycleError is dev-only), so the first
+    // status PATCH most plausibly failed silently. Ordering the sentinel
+    // first plus the verify-and-retry below makes a single invocation
+    // converge, and re-runs stay idempotent either way.
     const { data: missingAtData, error: missingAtError } = await supabase
       .from(DOCUMENTS_TABLE)
       .update({ missing_detected_at: now })
@@ -296,6 +283,49 @@ export async function markMissing(
     if (missingAtError) {
       await logLifecycleError("markMissing.detectedAt", docId, missingAtError);
     }
+
+    const applyStatusUpdate = () =>
+      supabase
+        .from(DOCUMENTS_TABLE)
+        .update({
+          status: "missing",
+          last_fetch_status: statusCode ?? 404,
+          last_fetch_error: errorMessage,
+          last_sync_attempt_at: now,
+        })
+        .eq("doc_id", docId)
+        .neq("status", "soft_deleted")
+        .select("doc_id");
+
+    let { data: statusData, error: statusError } = await applyStatusUpdate();
+    if (statusError || !statusData || statusData.length === 0) {
+      // Unconditional warn (unlike logLifecycleError): a silently dropped
+      // status flip leaves deleted pages retrievable for weeks.
+      console.warn(
+        "[rag:lifecycle] markMissing status update did not apply; retrying once",
+        {
+          docId,
+          statusCode: statusCode ?? 404,
+          errorMessage,
+          dbError: statusError?.message ?? null,
+        },
+      );
+      ({ data: statusData, error: statusError } = await applyStatusUpdate());
+    }
+    if (statusError) {
+      console.warn("[rag:lifecycle] markMissing status update failed", {
+        docId,
+        dbError: statusError.message,
+      });
+      await logLifecycleError("markMissing.status", docId, statusError);
+    } else if (!statusData || statusData.length === 0) {
+      console.warn("[rag:lifecycle] markMissing affected 0 rows", {
+        docId,
+        statusCode: statusCode ?? 404,
+        errorMessage,
+      });
+    }
+
     return {
       statusUpdated: Boolean(statusData && statusData.length > 0),
       missingDetectedAtSet: Boolean(missingAtData && missingAtData.length > 0),

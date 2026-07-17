@@ -14,6 +14,11 @@ import {
 } from "../lib/rag";
 import { debugIngestionLog } from "../lib/rag/debug";
 import {
+  appendSweepRunLogs,
+  formatSweepSummary,
+  sweepUnvisitedDocuments,
+} from "../lib/rag/missing-sweep";
+import {
   formatRunSummary,
   ingestPreparedDocument,
   type IngestReporter,
@@ -247,8 +252,24 @@ async function main() {
             targetPageId,
           });
           await ingestSinglePage(targetPageId, stats, errorLogs, mode.type);
-        } else {
-          await ingestWorkspace(rootPageId, stats, errorLogs, mode.type);
+          return;
+        }
+
+        // Captured before the traversal so every markAttempt in this run
+        // lands at or after it; anything older was not visited by this run.
+        const runStartedAt = new Date().toISOString();
+        await ingestWorkspace(rootPageId, stats, errorLogs, mode.type);
+
+        // Full workspace runs only: deleted pages vanish from the traversal
+        // without a 404, so sweep still-"active" docs the run never visited.
+        // Single-page/partial runs must never sweep, and a traversal that
+        // threw has already aborted before this point.
+        if (mode.type === "full") {
+          const sweep = await sweepUnvisitedDocuments(supabaseClient, {
+            runStartedAt,
+          });
+          appendSweepRunLogs(sweep, stats, errorLogs);
+          console.log(formatSweepSummary(sweep));
         }
       },
     );

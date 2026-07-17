@@ -17,6 +17,11 @@ import {
   type IngestRunStats,
   startIngestRun,
 } from "../rag/index";
+import {
+  appendSweepRunLogs,
+  formatSweepSummary,
+  sweepUnvisitedDocuments,
+} from "../rag/missing-sweep";
 import { unwrapRecordValue } from "../rag/notion-record-value";
 import {
   type IngestDocumentOutcome,
@@ -35,7 +40,6 @@ type ManualNotionScope = "workspace" | "selected";
 
 const LINKED_PAGE_MAX_PAGES = 250;
 const LINKED_PAGE_MAX_DEPTH = 4;
-
 
 let _workspaceRootPageId: string | undefined;
 
@@ -204,7 +208,8 @@ async function collectLinkedPagesFromSeeds(
       ) {
         const collectionId = value.collection_id as string | undefined;
         const viewId = (value.view_ids as string[] | undefined)?.[0];
-        if (collectionId && viewId) collectionViews.push({ collectionId, viewId });
+        if (collectionId && viewId)
+          collectionViews.push({ collectionId, viewId });
         continue;
       }
 
@@ -233,8 +238,9 @@ async function collectLinkedPagesFromSeeds(
               { limit: LINKED_PAGE_MAX_PAGES },
             );
             const rowIds =
-              (collData as unknown as { allBlockIds?: string[] })
-                .allBlockIds ?? collData.result.blockIds ?? [];
+              (collData as unknown as { allBlockIds?: string[] }).allBlockIds ??
+              collData.result.blockIds ??
+              [];
             for (const rowId of rowIds) {
               if (seen.size >= LINKED_PAGE_MAX_PAGES) break;
               const normalizedRow = normalizeNotionPageId(rowId);
@@ -401,6 +407,10 @@ async function runNotionPageIngestion({
 
   const candidatePages: CandidatePage[] = [];
   const seen = new Set<string>();
+  // True only when the workspace enumeration finished without falling back
+  // and without hitting the page cap — the preconditions for the post-run
+  // missing-document sweep to be safe.
+  let workspaceTraversalComplete = false;
 
   const pushCandidate = (id: string) => {
     const normalized = normalizeNotionPageId(id) ?? id;
@@ -441,9 +451,15 @@ async function runNotionPageIngestion({
       if (workspacePageIds.length === 0) {
         workspacePageIds = [rootPageId];
       }
+      // At the cap the BFS stopped early, so unvisited docs may simply be
+      // beyond the cap rather than deleted — sweeping would be unsafe.
+      workspaceTraversalComplete =
+        workspacePageIds.length < LINKED_PAGE_MAX_PAGES;
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Failed to enumerate workspace pages.";
+        err instanceof Error
+          ? err.message
+          : "Failed to enumerate workspace pages.";
       await emit({
         type: "log",
         level: "warn",
@@ -619,6 +635,21 @@ async function runNotionPageIngestion({
           message: `Failed to ingest Notion page ${currentPageId}: ${message}`,
         });
       }
+    }
+
+    // Full workspace runs only: deleted pages vanish from the traversal
+    // without a 404, so sweep still-"active" docs the run never visited.
+    // Selected/partial runs and incomplete traversals must never sweep.
+    if (isFull && isWorkspace && workspaceTraversalComplete) {
+      const sweep = await sweepUnvisitedDocuments(supabaseClient, {
+        runStartedAt: new Date(started).toISOString(),
+      });
+      appendSweepRunLogs(sweep, stats, errorLogs);
+      await emit({
+        type: "log",
+        level: sweep.failures.length > 0 ? "warn" : "info",
+        message: formatSweepSummary(sweep),
+      });
     }
 
     const updatedPages = stats.documentsAdded + stats.documentsUpdated;
