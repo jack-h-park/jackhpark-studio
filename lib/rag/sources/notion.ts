@@ -19,6 +19,7 @@ import {
   mergeMetadata,
   mergeRagDocumentMetadata,
 } from "../metadata";
+import { extractNotionPageImages } from "../notion-images";
 import {
   buildNotionSourceMetadata,
   extractNotionMetadata,
@@ -55,6 +56,9 @@ export function prepareNotionPageDocument(
     lastSourceUpdate: getPageLastEditedTime(normalizedRecordMap, lookupId),
     statusCode: 200,
     changeDetection: "hash",
+    // Extraction is cheap and read-only; the pipeline decides whether to
+    // caption/embed these (feature flag + doc_type allowlist).
+    images: extractNotionPageImages(normalizedRecordMap, lookupId),
     buildMetadata: (existingMetadata) => {
       // Admin-editable fields win over freshly extracted page properties,
       // which in turn win over derived source metadata (icon, breadcrumb, teaser).

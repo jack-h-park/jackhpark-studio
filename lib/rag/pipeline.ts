@@ -1,5 +1,13 @@
+import type { NotionPageImage } from "./notion-images";
 import { supabaseClient } from "../core/supabase";
 import { debugIngestionLog } from "./debug";
+import {
+  buildImageChunkText,
+  captionImagesWithCache,
+  imageUrlHash,
+  isImageChunksEnabled,
+  shouldCaptionDocType,
+} from "./image-captions";
 import {
   chunkByTokens,
   type ChunkInsert,
@@ -70,6 +78,12 @@ export type PreparedDocument = {
     | Promise<RagDocumentMetadata | null>
     | RagDocumentMetadata
     | null;
+  /**
+   * Content images with caption context (Notion pages). The pipeline turns
+   * these into image-caption chunks when IMAGE_CHUNKS_ENABLED is on and the
+   * doc_type is allowlisted; extraction itself is unconditional and cheap.
+   */
+  images?: NotionPageImage[];
 };
 
 export type IngestDocumentOutcome =
@@ -116,7 +130,19 @@ export async function ingestPreparedDocument({
 
   await progress?.("processing");
 
-  const contentHash = hashChunk(`${canonicalId}:${doc.text}`);
+  // When image chunks are active, image add/replace/delete must invalidate
+  // the content hash (URLs are content-addressed by Notion attachment id).
+  // Docs without images keep the legacy hash input, so enabling the flag
+  // only churns image-bearing documents once.
+  const imageChunksActive =
+    isImageChunksEnabled() && (doc.images?.length ?? 0) > 0;
+  const contentHash = imageChunksActive
+    ? hashChunk(
+        `${canonicalId}:${doc.text}:images:${doc
+          .images!.map((image) => image.url)
+          .join(",")}`,
+      )
+    : hashChunk(`${canonicalId}:${doc.text}`);
   const existingState = await getDocumentState(canonicalId);
   if (existingState?.raw_doc_id && existingState.raw_doc_id !== rawId) {
     console.warn("[doc-id] raw_doc_id drift detected", {
@@ -214,12 +240,53 @@ export async function ingestPreparedDocument({
     return { action: "skipped", reason: "empty-chunks" };
   }
 
+  // Image-caption chunks: VLM caption (cached by image URL) → chunk text.
+  // Runs before embedding so text + image chunks share one embed batch.
+  const docType =
+    typeof metadataWithIds?.doc_type === "string"
+      ? metadataWithIds.doc_type
+      : null;
+  let imageChunkTexts: string[] = [];
+  let imageChunksMeta: Record<
+    string,
+    { image_url: string; block_id: string; order_index: number }
+  > | null = null;
+  if (imageChunksActive && shouldCaptionDocType(docType)) {
+    const captioned = await captionImagesWithCache({
+      images: doc.images!,
+      docId: canonicalId,
+      docTitle: doc.title,
+      supabase: supabaseClient,
+    });
+    if (captioned.length > 0) {
+      imageChunkTexts = captioned.map((entry) => buildImageChunkText(entry));
+      imageChunksMeta = Object.fromEntries(
+        captioned.map((entry, index) => [
+          hashChunk(`${canonicalId}:${imageChunkTexts[index]!}`),
+          {
+            image_url: entry.image.url,
+            block_id: entry.image.blockId,
+            order_index: entry.image.orderIndex,
+          },
+        ]),
+      );
+      await log?.(
+        "info",
+        `Prepared ${captioned.length} image chunk(s) (${captioned.filter((entry) => entry.fromCache).length} cached, key=${imageUrlHash(captioned[0]!.image.url).slice(0, 8)}…).`,
+      );
+    }
+  }
+
   await progress?.("embedding");
-  await log?.("info", `Embedding ${chunks.length} chunk(s)...`);
-  const embeddings = await embedBatch(chunks, embedding);
+  const allChunkTexts = [...chunks, ...imageChunkTexts];
+  await log?.(
+    "info",
+    `Embedding ${chunks.length} text + ${imageChunkTexts.length} image chunk(s)...`,
+  );
+  const embeddings = await embedBatch(allChunkTexts, embedding);
   const ingestedAt = new Date().toISOString();
 
-  const rows: ChunkInsert[] = chunks.map((chunk, index) => ({
+  const rows: ChunkInsert[] = allChunkTexts.map((chunk, index) => ({
     doc_id: canonicalId,
     source_url: doc.sourceUrl,
     title: doc.title,
@@ -232,6 +299,19 @@ export async function ingestPreparedDocument({
   const chunkCount = rows.length;
   const totalCharacters = rows.reduce((sum, row) => sum + row.chunk.length, 0);
 
+  // image_chunks maps chunk_hash → image info so citations can attach the
+  // exact image to a retrieved chunk (doc-level metadata already reaches the
+  // client via fetchRefinedMetadata). On a full re-chunk the map is always
+  // rebuilt — or removed when image chunks are inactive — so it can never
+  // reference hashes that no longer exist.
+  const { image_chunks: _staleImageChunks, ...metadataBase } =
+    metadataWithIds ?? {};
+  const finalMetadata = normalizeMetadata(
+    imageChunksMeta
+      ? { ...metadataBase, image_chunks: imageChunksMeta }
+      : metadataBase,
+  );
+
   await progress?.("saving");
   await replaceChunks(canonicalId, rows, embedding);
   await upsertDocumentState({
@@ -242,7 +322,7 @@ export async function ingestPreparedDocument({
     last_source_update: doc.lastSourceUpdate,
     chunk_count: chunkCount,
     total_characters: totalCharacters,
-    metadata: metadataWithIds,
+    metadata: finalMetadata,
   });
   await markSuccess(supabaseClient, canonicalId, doc.statusCode);
 
