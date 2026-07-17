@@ -13,6 +13,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { formatMessageTime } from "@/lib/chat/format-message-time";
 import {
   MODEL_PROVIDER_LABELS,
   type ModelProvider,
@@ -21,6 +22,7 @@ import {
 import { ChatMessageActions } from "./ChatMessageActions";
 import { ChatMessageFeedback } from "./ChatMessageFeedback";
 import styles from "./ChatMessagesPanel.module.css";
+import { ChatUserMessage } from "./ChatUserMessage";
 import { ChatMessageRenderer } from "./rendering/ChatMessageRenderer";
 
 function formatLinkLabel(rawUrl: string, maxLength = 24): string {
@@ -62,11 +64,14 @@ export function ChatMessageItem({
   retryPreset,
   onRetryWithPreset,
   onRegenerate,
+  onEdit,
 }: ChatMessageItemProps & {
   retryPreset?: ChatRetryPreset | null;
   onRetryWithPreset?: (targetPresetId: string) => Promise<void>;
   /** Present only on the latest assistant message. */
   onRegenerate?: (() => Promise<void>) | null;
+  /** Edit a user message and re-run from that turn; absent while loading. */
+  onEdit?: ((messageId: string, newContent: string) => Promise<void>) | null;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -308,6 +313,14 @@ export function ChatMessageItem({
             )}
             {m.isComplete && !m.isError && m.traceId && (
               <ChatMessageFeedback traceId={m.traceId} messageId={m.id} />
+            )}
+            {m.isComplete && m.createdAt && (
+              <time
+                className={styles.messageTimestamp}
+                dateTime={new Date(m.createdAt).toISOString()}
+              >
+                {formatMessageTime(m.createdAt)}
+              </time>
             )}
             {(hasAnyMeta || hasCitations) && (
               <div className={styles.messageMeta}>
@@ -721,7 +734,7 @@ export function ChatMessageItem({
 
   return (
     <div key={m.id} className={styles.messageGroup}>
-      {bubble}
+      <ChatUserMessage message={m} bubble={bubble} onEdit={onEdit} />
     </div>
   );
 }

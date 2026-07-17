@@ -506,6 +506,121 @@ a.sourcePreviewCard:hover {
   opacity: 0.5;
 }
 
+/* User message: bubble + a right-aligned meta row (edit + timestamp). */
+.userMessageWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.userMessageMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+/* Reveal on hover/focus; keep it available for keyboard and touch users. */
+.messageGroup:hover .userMessageMeta,
+.userMessageMeta:focus-within {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .userMessageMeta {
+    opacity: 1;
+  }
+}
+
+.userEditButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: none;
+  border: none;
+  font-size: 0.85rem;
+  color: var(--ai-text-muted);
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.userEditButton:hover {
+  color: var(--ai-accent);
+}
+
+.messageTimestamp {
+  font-size: 0.62rem;
+  color: var(--ai-text-faint);
+  line-height: 1;
+}
+
+/* Inline edit form, right-aligned to mirror the user bubble. */
+.userEditContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: min(520px, 100%);
+  align-self: flex-end;
+}
+
+.userEditTextarea {
+  width: 100%;
+  min-height: 40px;
+  max-height: 200px;
+  resize: none;
+  overflow-y: auto;
+  border: 1px solid var(--ai-accent);
+  background: hsl(var(--ai-bg-muted));
+  color: hsl(var(--ai-fg));
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.userEditTextarea:focus {
+  outline: none;
+}
+
+.userEditActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.userEditCancel,
+.userEditSave {
+  padding: 5px 12px;
+  border-radius: var(--ai-radius-pill);
+  font-size: 0.72rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.userEditCancel {
+  background: none;
+  border-color: hsl(var(--ai-border));
+  color: var(--ai-text-muted);
+}
+
+.userEditSave {
+  background: var(--ai-accent);
+  color: var(--ai-role-surface-default);
+  border: none;
+}
+
+.userEditSave:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .feedbackBlock {
   display: flex;
   flex-direction: column;

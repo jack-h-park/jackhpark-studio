@@ -21,6 +21,7 @@ export type ChatMessagesPanelProps = {
   retryPreset?: ChatRetryPreset | null;
   onRetryWithPreset?: (targetPresetId: string) => Promise<void>;
   onRegenerate?: (() => Promise<void>) | null;
+  onEdit?: ((messageId: string, newContent: string) => Promise<void>) | null;
 };
 
 export function ChatMessagesPanel({
@@ -35,6 +36,7 @@ export function ChatMessagesPanel({
   retryPreset,
   onRetryWithPreset,
   onRegenerate,
+  onEdit,
 }: ChatMessagesPanelProps) {
   if (messages.length === 0) {
     if (showPlaceholder) {
@@ -65,6 +67,7 @@ export function ChatMessagesPanel({
             i === messages.length - 1 ? onRetryWithPreset : undefined
           }
           onRegenerate={i === messages.length - 1 ? onRegenerate : undefined}
+          onEdit={isLoading ? null : onEdit}
         />
       ))}
     </>

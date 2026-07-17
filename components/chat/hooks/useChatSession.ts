@@ -89,6 +89,9 @@ export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  // Wall-clock creation time (ms epoch). Optional so pre-existing persisted
+  // sessions without it still render; new messages always set it.
+  createdAt?: number;
   meta?: GuardrailMeta | null;
   citations?: CitationDocScore[];
   citationMeta?: CitationMeta | null;
@@ -201,6 +204,9 @@ const getUserFacingErrorMessage = (error: unknown) => {
   }
 
   if (error instanceof ChatRequestError) {
+    if (error.status === 429 || error.code === "RATE_LIMITED") {
+      return "The assistant is receiving too many requests right now. Please wait a moment and try again.";
+    }
     const message = error.message || NETWORK_ERROR_MESSAGE;
     if (isLikelyNetworkError(message)) {
       return NETWORK_ERROR_MESSAGE;
@@ -260,9 +266,25 @@ export type UseChatSessionResult = {
   retryWithPreset: (targetPresetId: string) => Promise<void>;
   /** Re-run the last user question with the current config, replacing the last answer. */
   regenerateLast: () => Promise<void>;
+  /**
+   * Replace a user message's content and re-run from that turn, dropping every
+   * message after it (the standard "edit & resubmit" branch).
+   */
+  editMessageAt: (messageId: string, newContent: string) => Promise<void>;
   /** Abort any in-flight request and clear the conversation. */
   resetSession: () => void;
   abortActiveRequest: () => void;
+};
+
+type StreamAssistantArgs = {
+  assistantMessageId: string;
+  timestamp: number;
+  controller: AbortController;
+  requestBody: {
+    question: string;
+    messages: { role: ChatMessage["role"]; content: string }[];
+    config?: SessionChatConfig;
+  };
 };
 
 export function useChatSession(
@@ -349,293 +371,19 @@ export function useChatSession(
     abortControllerRef.current = null;
   }, []);
 
-  const sendMessage = useCallback(
-    async (value: string, options?: { skipUserInsert?: boolean }) => {
-      const trimmed = value.trim();
-      if (!trimmed || isLoading) {
-        return;
-      }
+  // Keep the latest runtime config reachable from the streaming core without
+  // adding it to that callback's deps (it loads asynchronously after mount).
+  const runtimeConfigRef = useRef<ChatRuntimeConfig | null>(runtimeConfig);
+  useEffect(() => {
+    runtimeConfigRef.current = runtimeConfig;
+  }, [runtimeConfig]);
 
-      const timestamp = Date.now();
-      const userMessage: ChatMessage = {
-        id: `user-${timestamp}`,
-        role: "user",
-        content: trimmed,
-      };
-      const assistantMessageId = `assistant-${timestamp}`;
-      const assistantMessage: ChatMessage = {
-        id: assistantMessageId,
-        role: "assistant",
-        content: "",
-        isComplete: false,
-      };
-
-      setLoadingAssistantId(assistantMessageId);
-      setMessages((previous) => {
-        if (!isMountedRef.current) {
-          return previous;
-        }
-        if (options?.skipUserInsert) {
-          return [...previous, assistantMessage];
-        }
-        return [...previous, userMessage, assistantMessage];
-      });
-      setIsLoading(true);
-
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-
-      const updateAssistant = (
-        content?: string,
-        meta?: GuardrailMeta | null,
-        citations?: ChatResponse["citations"],
-        runtime?: ChatRuntimeConfig | null,
-        isComplete?: boolean,
-        metrics?: ChatMessageMetrics,
-      ) => {
-        setMessages((prev) =>
-          prev.map((message) =>
-            message.id === assistantMessageId
-              ? {
-                  ...message,
-                  content:
-                    typeof content === "string" ? content : message.content,
-                  ...(meta !== undefined ? { meta } : {}),
-                  ...(citations !== undefined
-                    ? {
-                        citations: citations.citations ?? [],
-                        citationMeta: citations.citationMeta ?? null,
-                      }
-                    : {}),
-                  ...(runtime !== undefined ? { runtime } : {}),
-                  ...(isComplete !== undefined ? { isComplete } : {}),
-                  ...(metrics || isComplete
-                    ? {
-                        metrics: {
-                          ...message.metrics,
-                          ...metrics,
-                          ...(isComplete
-                            ? { totalMs: Date.now() - timestamp }
-                            : {}),
-                        },
-                      }
-                    : {}),
-                }
-              : message,
-          ),
-        );
-      };
-
-      const sanitizedMessagesPayload = (
-        options?.skipUserInsert ? messages : [...messages, userMessage]
-      ).map((message) => ({
-        role: message.role,
-        content: message.content,
-      }));
-
-      const run = async () => {
-        try {
-          const endpoint = `/api/chat`;
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              question: trimmed,
-              messages: sanitizedMessagesPayload,
-              config,
-            }),
-            signal: controller.signal,
-          });
-
-          if (!response.ok || !response.body) {
-            throw await buildResponseError(response);
-          }
-
-          const guardrailMeta = deserializeGuardrailMeta(
-            response.headers.get("x-guardrail-meta"),
-          );
-          if (guardrailMeta) {
-            updateAssistant(undefined, guardrailMeta);
-          }
-
-          const traceId = response.headers.get("x-trace-id");
-          if (traceId) {
-            setMessages((prev) =>
-              prev.map((message) =>
-                message.id === assistantMessageId
-                  ? { ...message, traceId }
-                  : message,
-              ),
-            );
-          }
-
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let fullContent = "";
-
-          let done = false;
-          let ttftRecorded = false;
-          while (!done) {
-            const result = await reader.read();
-            done = result.done ?? false;
-            const chunk = result.value;
-            if (!chunk) continue;
-
-            const chunkText = decoder.decode(chunk, { stream: !done });
-            if (
-              loadingAssistantRef.current === assistantMessageId &&
-              chunkText.trim().length > 0
-            ) {
-              setLoadingAssistantId(null);
-            }
-            fullContent += chunkText;
-            if (STREAM_TRACE_LOGGING_ENABLED) {
-              // eslint-disable-next-line unicorn/prefer-string-replace-all
-              const preview = chunkText.replace(/\s+/g, " ").trim();
-              console.debug(
-                `[langchain_chat:client] chunk (${chunkText.length} chars): ${
-                  preview.length > 0 ? preview.slice(0, 40) : "<empty>"
-                }`,
-              );
-            }
-            if (!isMountedRef.current) return;
-
-            const [answer] = fullContent.split(CITATIONS_SEPARATOR);
-            updateAssistant(answer);
-
-            if (!ttftRecorded && answer.trim().length > 0) {
-              ttftRecorded = true;
-              updateAssistant(
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                undefined,
-                {
-                  ttftMs: Date.now() - timestamp,
-                },
-              );
-            }
-          }
-
-          const [answer, citationsJson] =
-            fullContent.split(CITATIONS_SEPARATOR);
-          const finalContent = (answer ?? "").trim();
-          const parsedPayload = parseCitationPayload(citationsJson);
-
-          if (isMountedRef.current) {
-            updateAssistant(
-              finalContent,
-              guardrailMeta,
-              parsedPayload,
-              runtimeConfig ?? null,
-              true,
-            );
-          }
-        } catch (err) {
-          if (!isMountedRef.current) {
-            return;
-          }
-          if (controller.signal.aborted) {
-            setMessages((prev) =>
-              prev.map((item) =>
-                item.id === assistantMessageId
-                  ? {
-                      ...item,
-                      content: item.content.trim() + " [Stopped]",
-                      isComplete: true,
-                      metrics: {
-                        ...item.metrics,
-                        totalMs: Date.now() - timestamp,
-                        aborted: true,
-                      },
-                    }
-                  : item,
-              ),
-            );
-            return;
-          }
-          console.error("[useChatSession] chat request failed", err);
-          const message = getUserFacingErrorMessage(err);
-          setMessages((prev) =>
-            prev.map((item) =>
-              item.id === assistantMessageId
-                ? {
-                    ...item,
-                    content: `Warning: ${message}`,
-                    isComplete: true,
-                    isError: true,
-                  }
-                : item,
-            ),
-          );
-        } finally {
-          abortControllerRef.current = null;
-          setLoadingAssistantId(null);
-          if (isMountedRef.current) {
-            setIsLoading(false);
-          }
-        }
-      };
-
-      await run();
-    },
-    [isLoading, messages, runtimeConfig, config],
-  );
-
-  const currentPresetId = config?.presetId ?? "default";
-  const nextPresetId = PRESET_RECALL_ESCALATION[currentPresetId] ?? null;
-  const retryPreset: ChatRetryPreset | null = nextPresetId
-    ? { label: PRESET_LABELS[nextPresetId] ?? nextPresetId, presetId: nextPresetId }
-    : null;
-
-  // Re-runs the last user question, replacing the last assistant answer.
-  // targetPresetId escalates the recall preset; null keeps the current config
-  // (generic regenerate / try-again).
-  const rerunLastQuestion = useCallback(async (targetPresetId: string | null) => {
-    if (isLoading || messages.length === 0) return;
-
-    // 1. Find last user message
-    const lastMessage = messages.at(-1);
-    if (!lastMessage) return;
-
-    let userMessage: ChatMessage | null = null;
-    let newHistory = messages;
-
-    if (lastMessage.role === "user") {
-      userMessage = lastMessage;
-    } else if (lastMessage.role === "assistant") {
-      const prev = messages.at(-2);
-      if (prev?.role === "user") {
-        userMessage = prev;
-        newHistory = messages.slice(0, -1); // Remove the assistant response to retry
-      }
-    }
-
-    if (!userMessage) return;
-
-    // 2. Prepare UI state
-    const timestamp = Date.now();
-    const assistantMessageId = `assistant-${timestamp}`;
-    const assistantMessage: ChatMessage = {
-      id: assistantMessageId,
-      role: "assistant",
-      content: "",
-      isComplete: false,
-    };
-
-    setLoadingAssistantId(assistantMessageId);
-    setMessages([...newHistory, assistantMessage]);
-    setIsLoading(true);
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    // 3. Duplicate logic (TODO: Refactor shareable core)
-    // For now, implementing the core fetch logic again to avoid massive refactor of 'run' which captures many closure vars.
-    // Ideally we'd extract 'fetchAndStream' but 'updateAssistant' depends on setMessages which depends on the specific IDs.
-
-    // We can reuse the exact same logic structure.
+  // Shared fetch + stream core for every send/regenerate/edit path. The caller
+  // is responsible for having already inserted the user + placeholder-assistant
+  // messages and set loading state; this drives the assistant message
+  // identified by `assistantMessageId` to completion (or error).
+  const streamAssistant = useCallback(async (args: StreamAssistantArgs) => {
+    const { assistantMessageId, timestamp, controller, requestBody } = args;
 
     const updateAssistant = (
       content?: string,
@@ -679,22 +427,10 @@ export function useChatSession(
     };
 
     try {
-      const endpoint = `/api/chat`;
-      const sanitizedHistory = newHistory.map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: userMessage.content,
-          messages: sanitizedHistory,
-          config: targetPresetId
-            ? { ...config, presetId: targetPresetId }
-            : config,
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
 
@@ -709,8 +445,7 @@ export function useChatSession(
         updateAssistant(undefined, guardrailMeta);
       }
 
-      // Same as sendMessage: without the traceId the regenerated answer
-      // would silently lose its 👍/👎 feedback control.
+      // Without the traceId the answer would silently lose its 👍/👎 control.
       const traceId = response.headers.get("x-trace-id");
       if (traceId) {
         setMessages((prev) =>
@@ -742,7 +477,15 @@ export function useChatSession(
           setLoadingAssistantId(null);
         }
         fullContent += chunkText;
-        // trace logging omitted for brevity in retry
+        if (STREAM_TRACE_LOGGING_ENABLED) {
+          // eslint-disable-next-line unicorn/prefer-string-replace-all
+          const preview = chunkText.replace(/\s+/g, " ").trim();
+          console.debug(
+            `[langchain_chat:client] chunk (${chunkText.length} chars): ${
+              preview.length > 0 ? preview.slice(0, 40) : "<empty>"
+            }`,
+          );
+        }
         if (!isMountedRef.current) return;
 
         const [answer] = fullContent.split(CITATIONS_SEPARATOR);
@@ -750,16 +493,9 @@ export function useChatSession(
 
         if (!ttftRecorded && answer.trim().length > 0) {
           ttftRecorded = true;
-          updateAssistant(
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            {
-              ttftMs: Date.now() - timestamp,
-            },
-          );
+          updateAssistant(undefined, undefined, undefined, undefined, undefined, {
+            ttftMs: Date.now() - timestamp,
+          });
         }
       }
 
@@ -772,7 +508,7 @@ export function useChatSession(
           finalContent,
           guardrailMeta,
           parsedPayload,
-          runtimeConfig ?? null,
+          runtimeConfigRef.current ?? null,
           true,
         );
       }
@@ -797,7 +533,7 @@ export function useChatSession(
         );
         return;
       }
-      console.error("[useChatSession] retry failed", err);
+      console.error("[useChatSession] chat request failed", err);
       const message = getUserFacingErrorMessage(err);
       setMessages((prev) =>
         prev.map((item) =>
@@ -807,7 +543,7 @@ export function useChatSession(
                 content: `Warning: ${message}`,
                 isComplete: true,
                 isError: true,
-                metrics: { ...item.metrics, totalMs: Date.now() - timestamp }, // ensure metrics close
+                metrics: { ...item.metrics, totalMs: Date.now() - timestamp },
               }
             : item,
         ),
@@ -819,7 +555,134 @@ export function useChatSession(
         setIsLoading(false);
       }
     }
-  }, [isLoading, messages, config, runtimeConfig]);
+  }, []);
+
+  const sendMessage = useCallback(
+    async (value: string, options?: { skipUserInsert?: boolean }) => {
+      const trimmed = value.trim();
+      if (!trimmed || isLoading) {
+        return;
+      }
+
+      const timestamp = Date.now();
+      const userMessage: ChatMessage = {
+        id: `user-${timestamp}`,
+        role: "user",
+        content: trimmed,
+        createdAt: timestamp,
+      };
+      const assistantMessageId = `assistant-${timestamp}`;
+      const assistantMessage: ChatMessage = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        isComplete: false,
+        createdAt: timestamp,
+      };
+
+      const historyForRequest = options?.skipUserInsert
+        ? messages
+        : [...messages, userMessage];
+
+      setLoadingAssistantId(assistantMessageId);
+      setMessages((previous) => {
+        if (!isMountedRef.current) {
+          return previous;
+        }
+        if (options?.skipUserInsert) {
+          return [...previous, assistantMessage];
+        }
+        return [...previous, userMessage, assistantMessage];
+      });
+      setIsLoading(true);
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      await streamAssistant({
+        assistantMessageId,
+        timestamp,
+        controller,
+        requestBody: {
+          question: trimmed,
+          messages: historyForRequest.map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
+          config,
+        },
+      });
+    },
+    [isLoading, messages, config, streamAssistant],
+  );
+
+  const currentPresetId = config?.presetId ?? "default";
+  const nextPresetId = PRESET_RECALL_ESCALATION[currentPresetId] ?? null;
+  const retryPreset: ChatRetryPreset | null = nextPresetId
+    ? { label: PRESET_LABELS[nextPresetId] ?? nextPresetId, presetId: nextPresetId }
+    : null;
+
+  // Re-runs the last user question, replacing the last assistant answer.
+  // targetPresetId escalates the recall preset; null keeps the current config
+  // (generic regenerate / try-again).
+  const rerunLastQuestion = useCallback(
+    async (targetPresetId: string | null) => {
+      if (isLoading || messages.length === 0) return;
+
+      const lastMessage = messages.at(-1);
+      if (!lastMessage) return;
+
+      let userMessage: ChatMessage | null = null;
+      let newHistory = messages;
+
+      if (lastMessage.role === "user") {
+        userMessage = lastMessage;
+      } else if (lastMessage.role === "assistant") {
+        const prev = messages.at(-2);
+        if (prev?.role === "user") {
+          userMessage = prev;
+          newHistory = messages.slice(0, -1); // Drop the answer we're replacing.
+        }
+      }
+
+      if (!userMessage) return;
+
+      const timestamp = Date.now();
+      const assistantMessageId = `assistant-${timestamp}`;
+      const assistantMessage: ChatMessage = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        isComplete: false,
+        createdAt: timestamp,
+      };
+
+      setLoadingAssistantId(assistantMessageId);
+      setMessages([...newHistory, assistantMessage]);
+      setIsLoading(true);
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      await streamAssistant({
+        assistantMessageId,
+        timestamp,
+        controller,
+        requestBody: {
+          question: userMessage.content,
+          messages: newHistory.map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
+          config:
+            targetPresetId && config
+              ? { ...config, presetId: targetPresetId }
+              : config,
+        },
+      });
+    },
+    [isLoading, messages, config, streamAssistant],
+  );
 
   const retryWithPreset = useCallback(
     (targetPresetId: string) => rerunLastQuestion(targetPresetId),
@@ -829,6 +692,60 @@ export function useChatSession(
   const regenerateLast = useCallback(
     () => rerunLastQuestion(null),
     [rerunLastQuestion],
+  );
+
+  const editMessageAt = useCallback(
+    async (messageId: string, newContent: string) => {
+      if (isLoading) return;
+      const trimmed = newContent.trim();
+      if (!trimmed) return;
+
+      const index = messages.findIndex((message) => message.id === messageId);
+      if (index === -1 || messages[index].role !== "user") return;
+
+      const timestamp = Date.now();
+      // Everything before the edited turn is preserved; everything after it
+      // (the old answer and any later turns) is dropped — the branch restarts
+      // from the edited question.
+      const precedingHistory = messages.slice(0, index);
+      const editedUserMessage: ChatMessage = {
+        id: `user-${timestamp}`,
+        role: "user",
+        content: trimmed,
+        createdAt: timestamp,
+      };
+      const assistantMessageId = `assistant-${timestamp}`;
+      const assistantMessage: ChatMessage = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        isComplete: false,
+        createdAt: timestamp,
+      };
+      const newHistory = [...precedingHistory, editedUserMessage];
+
+      setLoadingAssistantId(assistantMessageId);
+      setMessages([...newHistory, assistantMessage]);
+      setIsLoading(true);
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      await streamAssistant({
+        assistantMessageId,
+        timestamp,
+        controller,
+        requestBody: {
+          question: trimmed,
+          messages: newHistory.map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
+          config,
+        },
+      });
+    },
+    [isLoading, messages, config, streamAssistant],
   );
 
   const resetSession = useCallback(() => {
@@ -848,6 +765,7 @@ export function useChatSession(
     retryPreset,
     retryWithPreset,
     regenerateLast,
+    editMessageAt,
     resetSession,
     abortActiveRequest,
   };

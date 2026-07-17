@@ -110,6 +110,22 @@ const telemetryEnabled = isTelemetryEnabled();
 
 const MAX_TOKENS = Number(process.env.LLM_MAX_TOKENS ?? 1024);
 
+// Best-effort read of a provider's Retry-After header off an SDK error.
+// Anthropic/OpenAI errors carry either a Headers instance or a plain object.
+function extractRetryAfterSeconds(err: unknown): number | undefined {
+  const headers = (err as { headers?: unknown })?.headers;
+  if (!headers) return undefined;
+  let raw: string | null | undefined;
+  if (typeof (headers as Headers).get === "function") {
+    raw = (headers as Headers).get("retry-after");
+  } else if (typeof headers === "object") {
+    raw = (headers as Record<string, string>)["retry-after"];
+  }
+  if (!raw) return undefined;
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined;
+}
+
 const SUPABASE_URL = process.env.SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env
   .SUPABASE_SERVICE_ROLE_KEY as string;
@@ -1144,6 +1160,24 @@ export async function handleLangchainChat(
       clearWatchdog();
       respondWithOllamaUnavailable(res);
       logReturn("error-ollama-unavailable");
+      return;
+    }
+    // Surface provider rate limits as a real 429 (the SDK already auto-retried
+    // and gave up) so the client can show a distinct "slow down" message
+    // instead of a generic error. Mid-stream 429s can't reach here — headers
+    // are already sent and handled above.
+    if (errorType === "rate_limit") {
+      clearWatchdog();
+      const retryAfter = extractRetryAfterSeconds(err);
+      respondJson(429, {
+        error: {
+          code: "RATE_LIMITED",
+          message:
+            "The assistant is receiving too many requests right now. Please wait a moment and try again.",
+          ...(retryAfter ? { retryAfter } : {}),
+        },
+      });
+      logReturn("error-rate-limited");
       return;
     }
     respondJson(500, { error: err?.message || "Internal Server Error" });

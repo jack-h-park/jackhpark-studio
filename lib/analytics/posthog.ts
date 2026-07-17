@@ -117,5 +117,15 @@ export function classifyChatCompletionError(error: unknown): string {
   if (normalizedMessage.includes("network")) {
     return "network_error";
   }
+  if (
+    (typeof (error as { status?: unknown })?.status === "number" &&
+      (error as { status: number }).status === 429) ||
+    normalizedMessage.includes("rate limit") ||
+    normalizedMessage.includes("rate_limit") ||
+    normalizedMessage.includes("too many requests") ||
+    normalizedMessage.includes("429")
+  ) {
+    return "rate_limit";
+  }
   return "upstream_error";
 }

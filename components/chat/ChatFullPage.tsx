@@ -2,6 +2,7 @@
 
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
 import { FiArrowDown } from "@react-icons/all-files/fi/FiArrowDown";
+import { FiDownload } from "@react-icons/all-files/fi/FiDownload";
 import { FiMessageCircle } from "@react-icons/all-files/fi/FiMessageCircle";
 import { FiPlus } from "@react-icons/all-files/fi/FiPlus";
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
@@ -28,6 +29,10 @@ import {
 import { ChatAdvancedSettingsDrawer } from "@/components/chat/settings/ChatAdvancedSettingsDrawer";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
+import {
+  conversationToMarkdown,
+  downloadTextFile,
+} from "@/lib/chat/export-conversation";
 
 import styles from "./ChatFullPage.module.css";
 
@@ -123,6 +128,7 @@ function ChatShellContent() {
     retryPreset,
     retryWithPreset,
     regenerateLast,
+    editMessageAt,
     resetSession,
     abortActiveRequest,
   } = useChatSession({
@@ -257,6 +263,20 @@ function ChatShellContent() {
     focusInput();
   }, [focusInput, resetSession, router, setActiveCid]);
 
+  const handleExport = useCallback(() => {
+    if (messages.length === 0) return;
+    const exportedAt = Date.now();
+    const markdown = conversationToMarkdown(messages, {
+      title: "JackGPT conversation",
+      exportedAt,
+    });
+    const stamp = new Date(exportedAt)
+      .toISOString()
+      .slice(0, 19)
+      .replaceAll(":", "-");
+    downloadTextFile(`jackgpt-conversation-${stamp}.md`, markdown);
+  }, [messages]);
+
   // isMounted 가드: SSR에서는 sessionStorage가 없어 routeSession이 항상 null이므로
   // 클라이언트 마운트 후에만 stale 여부를 평가해 hydration mismatch를 방지한다.
   const isStaleSession =
@@ -320,6 +340,19 @@ function ChatShellContent() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {hasMessages && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                type="button"
+                className="gap-2"
+                title="Download this conversation as Markdown"
+              >
+                <FiDownload aria-hidden="true" />
+                Export
+              </Button>
+            )}
             {hasMessages && (
               <Button
                 variant="outline"
@@ -394,6 +427,7 @@ function ChatShellContent() {
                 retryPreset={retryPreset}
                 onRetryWithPreset={retryWithPreset}
                 onRegenerate={regenerateLast}
+                onEdit={editMessageAt}
               />
             )}
             {hasMessages && !autoScrollEnabled && (
