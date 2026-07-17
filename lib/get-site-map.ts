@@ -12,11 +12,21 @@ import { getCanonicalPageId } from "./get-canonical-page-id";
 import { notion } from "./notion-api";
 
 // ---------------------------------------------------------------------------
-// Disk-based sitemap cache
-// Persists the sitemap across dev-server restarts so every restart does not
-// hammer the Notion API and exhaust its rate limits.
-// Cache is stored in .next/cache/notion-sitemap.json.
-// TTL: 5 minutes in development, 60 minutes in production.
+// Disk-based sitemap cache (.next/cache/notion-sitemap.json)
+//
+// The crawl takes 3-5 minutes at concurrency 1 (150+ pages plus one
+// queryCollection per collection view), so where it runs matters:
+//
+// - Production build: always crawl fresh, exactly once per build. Vercel
+//   restores .next/cache across builds, so a TTL alone would silently reuse
+//   the previous deploy's sitemap; instead the cache entry is stamped with a
+//   per-deploy build id and only reused when it matches (which is also what
+//   lets `next build`'s parallel getStaticProps workers share one crawl).
+// - Production runtime: never crawl. The bundled cache is served regardless
+//   of age — a multi-minute crawl inside a serverless function would exceed
+//   maxDuration, and stale-until-next-deploy is the intended trade-off.
+// - Development: 5-minute TTL, as before, so dev-server restarts don't
+//   hammer the Notion API.
 // ---------------------------------------------------------------------------
 const SITEMAP_CACHE_PATH = path.join(
   process.cwd(),
@@ -24,32 +34,58 @@ const SITEMAP_CACHE_PATH = path.join(
   "cache",
   "notion-sitemap.json",
 );
-const SITEMAP_TTL_MS =
-  process.env.NODE_ENV === "production" ? 60 * 60 * 1000 : 5 * 60 * 1000;
+const SITEMAP_TTL_MS = 5 * 60 * 1000;
+
+const isProdBuild =
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PHASE === "phase-production-build";
+const isProdRuntime = process.env.NODE_ENV === "production" && !isProdBuild;
+
+// Unique per Vercel deploy (unlike the git SHA, it changes on same-commit
+// redeploys, so a redeploy still picks up Notion content changes). Null for
+// local `next build`, which falls back to the short TTL below.
+const BUILD_ID = process.env.VERCEL_DEPLOYMENT_ID ?? null;
+
+interface SitemapCacheEntry {
+  ts: number;
+  buildId?: string | null;
+  data: Partial<types.SiteMap>;
+}
 
 function readSitemapCache(): Partial<types.SiteMap> | null {
   try {
     const raw = fs.readFileSync(SITEMAP_CACHE_PATH, "utf8");
-    const { ts, data } = JSON.parse(raw) as {
-      ts: number;
-      data: Partial<types.SiteMap>;
-    };
-    if (Date.now() - ts < SITEMAP_TTL_MS) {
+    const { ts, buildId, data } = JSON.parse(raw) as SitemapCacheEntry;
+
+    if (isProdRuntime) {
+      // Bundled at build time; always valid (see header comment).
       return data;
     }
+
+    if (isProdBuild && BUILD_ID) {
+      // Reuse only within this deploy's build; entries restored from a
+      // previous build must not skip the crawl.
+      return buildId === BUILD_ID ? data : null;
+    }
+
+    // Development, and local prod builds where no deploy id exists to
+    // distinguish "this build" from "a restored previous build".
+    return Date.now() - ts < SITEMAP_TTL_MS ? data : null;
   } catch {
     // cache miss or parse error — fall through
+    return null;
   }
-  return null;
 }
 
 function writeSitemapCache(data: Partial<types.SiteMap>): void {
   try {
     fs.mkdirSync(path.dirname(SITEMAP_CACHE_PATH), { recursive: true });
-    fs.writeFileSync(
-      SITEMAP_CACHE_PATH,
-      JSON.stringify({ ts: Date.now(), data }),
-    );
+    const entry: SitemapCacheEntry = {
+      ts: Date.now(),
+      buildId: BUILD_ID,
+      data,
+    };
+    fs.writeFileSync(SITEMAP_CACHE_PATH, JSON.stringify(entry));
   } catch (err) {
     console.warn("[sitemap cache] write failed", err);
   }
@@ -236,6 +272,16 @@ async function getAllPagesImpl(
   if (cached) {
     console.log("[sitemap cache] hit — skipping Notion API fetch");
     return cached;
+  }
+
+  if (isProdRuntime) {
+    // Fail loudly rather than start a 3-5 minute crawl that would exceed the
+    // serverless maxDuration anyway. This only fires if the build skipped the
+    // crawl or the cache file was not traced into the function bundle (see
+    // outputFileTracingIncludes in next.config.js).
+    throw new Error(
+      "[sitemap] bundled sitemap cache missing at runtime — refusing to crawl Notion inside a serverless function",
+    );
   }
 
   // concurrency: 1 to avoid hammering the unofficial Notion API with parallel

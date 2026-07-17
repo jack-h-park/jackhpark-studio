@@ -86,5 +86,13 @@ export default withBundleAnalyzer({
       ".next/cache/webpack/**",
     ],
   },
+
+  // lib/get-site-map.ts reads this at runtime via a computed path, which file
+  // tracing cannot discover statically. Without this the sitemap crawled at
+  // build time never reaches the serverless bundle and getSiteMap() fails at
+  // runtime (it refuses to re-crawl inside a function).
+  outputFileTracingIncludes: {
+    "*": [".next/cache/notion-sitemap.json"],
+  },
 });
 /* eslint-enable no-process-env */
