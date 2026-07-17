@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import type { NotionPageImage } from "@/lib/rag/notion-images";
 import {
   buildImageChunkText,
+  imageChunksActiveFor,
   imageUrlHash,
   shouldCaptionDocType,
 } from "@/lib/rag/image-captions";
@@ -47,6 +48,41 @@ void describe("image-captions helpers", () => {
         delete process.env.IMAGE_CHUNKS_DOC_TYPES;
       } else {
         process.env.IMAGE_CHUNKS_DOC_TYPES = previous;
+      }
+    }
+  });
+
+  void it("imageChunksActiveFor gates on flag, images, and doc_type", () => {
+    const previous = process.env.IMAGE_CHUNKS_ENABLED;
+    try {
+      process.env.IMAGE_CHUNKS_ENABLED = "true";
+      // Eligible article with images → active.
+      assert.equal(
+        imageChunksActiveFor({ imageCount: 3, docType: "project_article" }),
+        true,
+      );
+      // Photo gallery with images → NOT active (would otherwise churn the
+      // content hash for no captioning benefit).
+      assert.equal(
+        imageChunksActiveFor({ imageCount: 5, docType: "photo" }),
+        false,
+      );
+      // Article with no images → not active.
+      assert.equal(
+        imageChunksActiveFor({ imageCount: 0, docType: "kb_article" }),
+        false,
+      );
+      // Flag off → never active, even for eligible docs.
+      process.env.IMAGE_CHUNKS_ENABLED = "false";
+      assert.equal(
+        imageChunksActiveFor({ imageCount: 3, docType: "project_article" }),
+        false,
+      );
+    } finally {
+      if (previous === undefined) {
+        delete process.env.IMAGE_CHUNKS_ENABLED;
+      } else {
+        process.env.IMAGE_CHUNKS_ENABLED = previous;
       }
     }
   });

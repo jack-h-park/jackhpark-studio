@@ -4,9 +4,8 @@ import { debugIngestionLog } from "./debug";
 import {
   buildImageChunkText,
   captionImagesWithCache,
+  imageChunksActiveFor,
   imageUrlHash,
-  isImageChunksEnabled,
-  shouldCaptionDocType,
 } from "./image-captions";
 import {
   chunkByTokens,
@@ -130,19 +129,6 @@ export async function ingestPreparedDocument({
 
   await progress?.("processing");
 
-  // When image chunks are active, image add/replace/delete must invalidate
-  // the content hash (URLs are content-addressed by Notion attachment id).
-  // Docs without images keep the legacy hash input, so enabling the flag
-  // only churns image-bearing documents once.
-  const imageChunksActive =
-    isImageChunksEnabled() && (doc.images?.length ?? 0) > 0;
-  const contentHash = imageChunksActive
-    ? hashChunk(
-        `${canonicalId}:${doc.text}:images:${doc
-          .images!.map((image) => image.url)
-          .join(",")}`,
-      )
-    : hashChunk(`${canonicalId}:${doc.text}`);
   const existingState = await getDocumentState(canonicalId);
   if (existingState?.raw_doc_id && existingState.raw_doc_id !== rawId) {
     console.warn("[doc-id] raw_doc_id drift detected", {
@@ -152,14 +138,8 @@ export async function ingestPreparedDocument({
     });
   }
 
-  const contentUnchanged =
-    doc.changeDetection === "hash"
-      ? !!existingState && existingState.content_hash === contentHash
-      : isUnchanged(existingState, {
-          contentHash,
-          lastSourceUpdate: doc.lastSourceUpdate,
-        });
-
+  // Metadata is resolved before the content hash so doc_type can gate the
+  // hash's image inclusion (below). buildMetadata is pure/read-only.
   const existingMetadata = stripDocIdentifierFields(
     existingState?.metadata ?? null,
   );
@@ -177,6 +157,35 @@ export async function ingestPreparedDocument({
     preview_image_url: nextMetadata?.preview_image_url,
   });
   const metadataUnchanged = metadataEquals(existingMetadata, nextMetadata);
+
+  const docType =
+    typeof metadataWithIds?.doc_type === "string"
+      ? metadataWithIds.doc_type
+      : null;
+  // Gated on doc_type (not merely image presence) so photo galleries never
+  // re-ingest just because the flag is on. Shared with the captioning step.
+  const imageChunksActive = imageChunksActiveFor({
+    imageCount: doc.images?.length ?? 0,
+    docType,
+  });
+  // When active, image add/replace/delete must invalidate the content hash
+  // (Notion attachment URLs are content-addressed). Other docs keep the
+  // legacy hash input, so enabling the flag never churns them.
+  const contentHash = imageChunksActive
+    ? hashChunk(
+        `${canonicalId}:${doc.text}:images:${doc
+          .images!.map((image) => image.url)
+          .join(",")}`,
+      )
+    : hashChunk(`${canonicalId}:${doc.text}`);
+
+  const contentUnchanged =
+    doc.changeDetection === "hash"
+      ? !!existingState && existingState.content_hash === contentHash
+      : isUnchanged(existingState, {
+          contentHash,
+          lastSourceUpdate: doc.lastSourceUpdate,
+        });
 
   const providerHasChunks =
     contentUnchanged && (await hasChunksForProvider(canonicalId, embedding));
@@ -242,16 +251,14 @@ export async function ingestPreparedDocument({
 
   // Image-caption chunks: VLM caption (cached by image URL) → chunk text.
   // Runs before embedding so text + image chunks share one embed batch.
-  const docType =
-    typeof metadataWithIds?.doc_type === "string"
-      ? metadataWithIds.doc_type
-      : null;
+  // Eligibility (flag + images + doc_type) is already folded into
+  // imageChunksActive.
   let imageChunkTexts: string[] = [];
   let imageChunksMeta: Record<
     string,
     { image_url: string; block_id: string; order_index: number }
   > | null = null;
-  if (imageChunksActive && shouldCaptionDocType(docType)) {
+  if (imageChunksActive) {
     const captioned = await captionImagesWithCache({
       images: doc.images!,
       docId: canonicalId,
