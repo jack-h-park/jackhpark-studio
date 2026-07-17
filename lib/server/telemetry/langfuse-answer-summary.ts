@@ -26,6 +26,8 @@ export type EmitAnswerSummarySpanOptions = {
   questionHash: string | null;
   questionLength: number;
   question?: string;
+  /** Final answer text; only emitted when allowPii is true (mirrors question). */
+  answer?: string;
   allowPii?: boolean;
   detailLevel: string;
   configHash?: string | null;
@@ -89,15 +91,23 @@ const buildAnswerSummaryInput = (
 
 const buildAnswerSummaryOutput = (
   options: EmitAnswerSummarySpanOptions,
-): Record<string, unknown> => ({
-  finish_reason: options.finishReason,
-  aborted: options.aborted,
-  error_category: options.errorCategory ?? null,
-  cache_hit: options.cacheHit,
-  answer_chars: options.answerChars,
-  citationsCount: options.citationsCount,
-  insufficient: options.insufficient,
-});
+): Record<string, unknown> => {
+  const output: Record<string, unknown> = {
+    finish_reason: options.finishReason,
+    aborted: options.aborted,
+    error_category: options.errorCategory ?? null,
+    cache_hit: options.cacheHit,
+    answer_chars: options.answerChars,
+    citationsCount: options.citationsCount,
+    insufficient: options.insufficient,
+  };
+  // Same PII gate as the question on the input side: full answer text is only
+  // stored when LANGFUSE_INCLUDE_PII allows it.
+  if (options.allowPii && options.answer) {
+    output.answer = options.answer;
+  }
+  return output;
+};
 
 /**
  * Emits the `answer:llm` observation: a PII-safe summary of the answer stage

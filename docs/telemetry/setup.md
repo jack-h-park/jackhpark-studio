@@ -22,7 +22,8 @@ Environment column legend: **App-server** = prod/dev Next.js server runtime · *
 | `LANGFUSE_PUBLIC_KEY` | API key (write traces / read scores) | App-server + Digest | Required for any Langfuse |
 | `LANGFUSE_SECRET_KEY` | API secret | App-server + Digest | Required for any Langfuse |
 | `LANGFUSE_BASE_URL` | Region host, e.g. `https://us.cloud.langfuse.com` | App-server + Digest | Required (region-specific) |
-| `LANGFUSE_INCLUDE_PII` | Store raw question text when `true` | App-server | Optional (default false) |
+| `LANGFUSE_INCLUDE_PII` | Store chat transcripts (question **and** answer) on traces when `true` | App-server | Optional (default false); pair with the recording notice in the chat UI |
+| `LANGFUSE_PROJECT_ID` | Project id for trace deep links in notifications | App-server | Optional — auto-resolved from the API keys; set only to override |
 | `LANGFUSE_ENV_TAG` | Overrides the `env:` trace tag | App-server | Optional |
 | `LANGFUSE_ATTACH_PROVIDER_METADATA` | Attach provider metadata to traces | App-server | Optional |
 | `LANGFUSE_TIMEOUT` | Client timeout (ms) | App-server | Optional |
@@ -54,6 +55,22 @@ Auto-tracing only — no bespoke code. All App-server, all optional (enables a c
 | `POSTHOG_API_HOST` | Query host | Digest only | Optional (default `https://us.posthog.com`) |
 
 > ⚠️ **Security:** `POSTHOG_PERSONAL_API_KEY` is powerful (org-wide read). Keep it only where the digest runs. **Do not put it in the prod web app env.**
+
+### Owner notifications (Telegram)
+
+Fire-and-forget heads-up when a visitor starts a new chat (first turn of a
+conversation), with a deep link to the Langfuse trace. All App-server, all
+optional — silently disabled when unset.
+
+| Variable | Purpose | Environment | Required? |
+|----------|---------|-------------|-----------|
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | App-server | Required for notifications |
+| `TELEGRAM_CHAT_ID` | Your chat id (e.g. via @userinfobot) | App-server | Required for notifications |
+| `CHAT_NOTIFY_ENV` | Only notify in this env | App-server | Optional (default `prod`) |
+
+> The trace deep link may show "still being processed" if clicked immediately —
+> the notification fires at chat start, while Langfuse UI ingestion takes
+> ~1–2 minutes. The link works once ingestion completes.
 
 ### Cross-cutting controls
 

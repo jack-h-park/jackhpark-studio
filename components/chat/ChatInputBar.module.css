@@ -40,6 +40,16 @@
   color: hsl(var(--ai-fg-muted));
 }
 
+.chatInputNotice {
+  margin: 0;
+  padding: 0 16px 10px;
+  font-size: 0.62rem;
+  text-align: center;
+  color: hsl(var(--ai-fg-muted));
+  background: hsl(var(--ai-bg));
+  flex-shrink: 0;
+}
+
 @media (max-width: 640px) {
   .chatInputForm {
     /* Safe-area padding keeps the bar clear of the iOS home indicator. */

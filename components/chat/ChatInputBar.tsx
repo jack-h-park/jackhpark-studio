@@ -43,23 +43,28 @@ export function ChatInputBar({
   };
 
   return (
-    <form className={styles.chatInputForm} onSubmit={handleSubmit}>
-      <input
-        className={styles.chatInput}
-        ref={inputRef}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        disabled={isInputDisabled}
-      />
-      <button
-        type="submit"
-        className={styles.chatSubmitButton}
-        disabled={!isLoading && isSubmitDisabled}
-        aria-label={isLoading ? "Stop generation" : "Send message"}
-      >
-        {isLoading ? <VscDebugStop size={20} /> : <AiOutlineSend size={20} />}
-      </button>
-    </form>
+    <>
+      <form className={styles.chatInputForm} onSubmit={handleSubmit}>
+        <input
+          className={styles.chatInput}
+          ref={inputRef}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          disabled={isInputDisabled}
+        />
+        <button
+          type="submit"
+          className={styles.chatSubmitButton}
+          disabled={!isLoading && isSubmitDisabled}
+          aria-label={isLoading ? "Stop generation" : "Send message"}
+        >
+          {isLoading ? <VscDebugStop size={20} /> : <AiOutlineSend size={20} />}
+        </button>
+      </form>
+      <p className={styles.chatInputNotice}>
+        Conversations may be recorded to improve this service.
+      </p>
+    </>
   );
 }

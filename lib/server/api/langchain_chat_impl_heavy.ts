@@ -68,6 +68,7 @@ import {
 import { createRequestAbortSignal } from "@/lib/server/langchain/abort";
 import { type ChainRunContext } from "@/lib/server/langchain/runnable-config";
 import { escapeForPromptTemplate } from "@/lib/server/langchain/stream-chunk";
+import { notifyChatStarted } from "@/lib/server/notifications/telegram";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 import {
@@ -428,6 +429,17 @@ export async function handleLangchainChat(
       presetKey: tracePresetForTag,
       environment: env,
     });
+    // Owner heads-up when a visitor starts a NEW conversation. First-turn
+    // detection is stateless (no prior assistant message in the history), so
+    // it needs no cross-instance dedup on serverless. Env-gated inside.
+    if (!messages.some((message) => message.role === "assistant")) {
+      notifyChatStarted({
+        question,
+        sessionId: sessionId ?? null,
+        traceId: traceState.trace?.traceId ?? null,
+        environment: env,
+      });
+    }
     const responseCacheTtl = adminConfig.cache.responseTtlSeconds;
     const retrievalCacheTtl = adminConfig.cache.retrievalTtlSeconds;
     const responseCacheEnabled = responseCacheTtl > 0;
@@ -1014,6 +1026,11 @@ export async function handleLangchainChat(
           },
         });
         traceState.llmGenerationEndMs = Date.now();
+        // Full answer text is only retained when PII capture is enabled; it
+        // flows into the answer:llm generation output at trace finalization.
+        if (allowPii && streamResult.finalOutput) {
+          traceState.answerText = streamResult.finalOutput;
+        }
       } catch (streamErr) {
         traceState.llmGenerationEndMs = Date.now();
         throw streamErr;
