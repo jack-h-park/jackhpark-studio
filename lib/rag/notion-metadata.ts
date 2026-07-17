@@ -299,7 +299,7 @@ type ResolveNotionImageUrlArgs = {
   fallbackId?: string;
 };
 
-function resolveNotionImageUrl({
+export function resolveNotionImageUrl({
   raw,
   block,
   signedUrls,
@@ -569,7 +569,7 @@ function extractNotionTeaserText(
   return finalTeaser;
 }
 
-function extractImageSourceFromBlock(block: Block): string | undefined {
+export function extractImageSourceFromBlock(block: Block): string | undefined {
   const sourceProperty = block.properties?.source;
   if (!Array.isArray(sourceProperty) || sourceProperty.length === 0) {
     return undefined;
