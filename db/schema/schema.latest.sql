@@ -608,6 +608,21 @@ CREATE TABLE IF NOT EXISTS "public"."rag_ingest_runs" (
 ALTER TABLE "public"."rag_ingest_runs" OWNER TO "postgres";
 
 
+-- Image caption cache: keyed by image-URL hash so text-only page edits
+-- cache-hit and only genuinely new/replaced images pay the VLM call.
+CREATE TABLE IF NOT EXISTS "public"."rag_image_captions" (
+    "image_url_hash" "text" NOT NULL,
+    "image_url" "text" NOT NULL,
+    "caption" "text" NOT NULL,
+    "model" "text" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "rag_image_captions_pkey" PRIMARY KEY ("image_url_hash")
+);
+
+
+ALTER TABLE "public"."rag_image_captions" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."system_settings" (
     "key" "text" NOT NULL,
     "value" "jsonb" NOT NULL,
@@ -696,6 +711,9 @@ ALTER TABLE "public"."rag_chunks_openai_te3s_v1" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."rag_documents" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."rag_image_captions" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."rag_ingest_runs" ENABLE ROW LEVEL SECURITY;
