@@ -1,6 +1,7 @@
 import type { RagDocument } from "@/lib/server/chat-guardrails";
 import type { RagRankingConfig } from "@/types/chat-config";
 import { computeMetadataWeight } from "@/lib/rag/ranking";
+import { imageUrlForChunk } from "@/lib/shared/visual-intent";
 
 export type CitationChunkDetail = {
   chunkIndex: number;
@@ -86,6 +87,15 @@ function pickPreviewImageUrl(doc: RagDocument): string | null {
   return raw && raw.trim().length > 0 ? raw.trim() : null;
 }
 
+/**
+ * The exact image behind an image-caption chunk (image_chunks map keyed by
+ * chunk_hash). Preferred over the doc-level preview so "show me the X
+ * diagram" surfaces that diagram, not the article cover.
+ */
+function pickChunkImageUrl(doc: RagDocument): string | null {
+  return imageUrlForChunk(doc?.metadata ?? null);
+}
+
 function pickDocType(doc: RagDocument): string | null {
   const raw = (doc?.metadata as { doc_type?: string | null } | null)?.doc_type;
   return raw ?? null;
@@ -136,7 +146,8 @@ export function buildCitationPayload(
     url?: string | null;
     docType?: string | null;
     personaType?: string | null;
-    previewImageUrl?: string | null;
+    docImageUrl?: string | null;
+    chunkImageUrl?: string | null;
     weight: number;
     similaritySum: number;
     similarityMax: number;
@@ -161,7 +172,8 @@ export function buildCitationPayload(
     const existing = docMap.get(key);
     if (existing) {
       // Chunk-level metadata can be sparse; keep the first non-null image.
-      existing.previewImageUrl ??= pickPreviewImageUrl(doc);
+      existing.docImageUrl ??= pickPreviewImageUrl(doc);
+      existing.chunkImageUrl ??= pickChunkImageUrl(doc);
       existing.similaritySum += similarity;
       existing.similarityMax = Math.max(existing.similarityMax, similarity);
       existing.excerptCount += 1;
@@ -182,7 +194,8 @@ export function buildCitationPayload(
         url,
         docType: pickDocType(doc),
         personaType: pickPersonaType(doc),
-        previewImageUrl: pickPreviewImageUrl(doc),
+        docImageUrl: pickPreviewImageUrl(doc),
+        chunkImageUrl: pickChunkImageUrl(doc),
         weight,
         similaritySum: similarity,
         similarityMax: similarity,
@@ -223,7 +236,8 @@ export function buildCitationPayload(
         url: doc.url ?? undefined,
         docType: doc.docType ?? undefined,
         personaType: doc.personaType ?? undefined,
-        previewImageUrl: doc.previewImageUrl ?? undefined,
+        // The matched chunk's own image beats the doc-level preview.
+        previewImageUrl: doc.chunkImageUrl ?? doc.docImageUrl ?? undefined,
         similarityMax: doc.similarityMax,
         similarityAvg,
         weight: doc.weight,
