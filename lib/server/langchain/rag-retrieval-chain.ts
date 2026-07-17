@@ -48,6 +48,7 @@ import {
   type RankerMode,
   type ReverseRagMode,
 } from "@/lib/shared/rag-config";
+import { hasVisualIntent } from "@/lib/shared/visual-intent";
 
 // Retrieval-stage minimum K (vector search limit). Defaults to 5 via env.
 const RAG_TOP_K = Number(process.env.RAG_TOP_K || 5);
@@ -492,6 +493,7 @@ async function retrieveStage(
       baseDocs,
       metadataMap,
       input.ragRanking,
+      { visualIntent: hasVisualIntent(input.question) },
     );
 
     ragLogger.debug("[langchain_chat] retrieved urls", {

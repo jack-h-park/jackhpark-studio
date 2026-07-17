@@ -15,6 +15,10 @@ import {
 } from "@/lib/server/rag-enhancements";
 import { buildTelemetryMetadata } from "@/lib/server/telemetry/telemetry-metadata";
 import { withSpan } from "@/lib/server/telemetry/withSpan";
+import {
+  imageChunkVisualBoost,
+  isImageChunk,
+} from "@/lib/shared/visual-intent";
 
 // --- Types ---
 
@@ -303,6 +307,13 @@ export function enrichAndFilterDocs<T extends BaseRetrievalItem>(
   baseDocs: T[],
   metadataMap: Map<string, RagDocumentMetadata | null>,
   ragRanking: any, // passed from adminConfig
+  options?: {
+    /**
+     * When the question asks for visuals, image-caption chunks get a weight
+     * boost so the matching diagram/screenshot outranks nearby prose.
+     */
+    visualIntent?: boolean;
+  },
 ): EnrichedRetrievalItem<T>[] {
   return (
     baseDocs
@@ -327,19 +338,26 @@ export function enrichAndFilterDocs<T extends BaseRetrievalItem>(
           } as unknown as EnrichedRetrievalItem<T>;
         }
 
-        const weight = computeMetadataWeight(
-          hydratedMeta ?? undefined,
-          ragRanking,
-        );
+        // Chunk-level keys (chunk_hash) live on doc.metadata; doc-level
+        // refinements (image_chunks, doc_type, ...) come from hydratedMeta.
+        const mergedMeta = {
+          ...doc.metadata,
+          ...hydratedMeta,
+          doc_id: docId,
+        } as RagDocumentMetadata;
+
+        let weight = computeMetadataWeight(hydratedMeta ?? undefined, ragRanking);
+        if (
+          options?.visualIntent &&
+          isImageChunk((doc as { chunk?: string }).chunk ?? null, mergedMeta)
+        ) {
+          weight *= imageChunkVisualBoost();
+        }
         const finalScore = doc.baseSimilarity * weight;
 
         return {
           ...doc,
-          metadata: {
-            ...doc.metadata,
-            ...hydratedMeta,
-            doc_id: docId,
-          },
+          metadata: mergedMeta,
           similarity: finalScore, // Override similarity with weighted score
           metadata_weight: weight,
           baseSimilarity: doc.baseSimilarity, // Keep original
