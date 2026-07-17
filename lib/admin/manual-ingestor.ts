@@ -152,7 +152,10 @@ function toEmbeddingOptions(
   };
 }
 
-async function collectLinkedPagesFromSeeds(
+// Exported for read-only tooling (scripts/report-notion-images.ts) that needs
+// the same workspace discovery as manual ingestion: BFS over child pages,
+// links, aliases, and collection rows.
+export async function collectLinkedPagesFromSeeds(
   seedPageIds: string[],
   emit: EmitFn,
 ): Promise<string[]> {

@@ -25,6 +25,7 @@
     "dev": "pnpm next dev",
     "ingest": "node --import=tsx --env-file=.env.local scripts/ingest-url.ts",
     "ingest:notion": "node --import=tsx --env-file=.env.local scripts/ingest-notion.ts",
+    "report:notion-images": "node --import=tsx --env-file=.env.local scripts/report-notion-images.ts",
     "build": "next build",
     "start": "pnpm next start",
     "deploy": "vercel deploy",

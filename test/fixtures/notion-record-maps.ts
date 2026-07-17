@@ -99,6 +99,80 @@ export function buildNotionContractRecordMap(): ExtendedRecordMap {
   } as unknown as ExtendedRecordMap;
 }
 
+export const fixtureImagePageId = "28299029-c0b4-81ce-8999-d425287d3dc0";
+export const fixtureHeadingBlockId = "28299029-c0b4-81ce-8999-d425287d3dc1";
+export const fixtureParagraphBlockId = "28299029-c0b4-81ce-8999-d425287d3dc2";
+export const fixtureImageBlockId = "28299029-c0b4-81ce-8999-d425287d3dc3";
+export const fixtureSecondImageBlockId =
+  "28299029-c0b4-81ce-8999-d425287d3dc4";
+
+// A page with: heading -> paragraph -> captioned image -> plain image.
+// Exercises document-order context tracking in extractNotionPageImages.
+export function buildImagePageRecordMap(): ExtendedRecordMap {
+  return {
+    block: {
+      [fixtureImagePageId]: {
+        value: {
+          id: fixtureImagePageId,
+          type: "page",
+          properties: { title: text("Architecture Notes") },
+          content: [
+            fixtureHeadingBlockId,
+            fixtureParagraphBlockId,
+            fixtureImageBlockId,
+            fixtureSecondImageBlockId,
+          ],
+        },
+      },
+      [fixtureHeadingBlockId]: {
+        value: {
+          id: fixtureHeadingBlockId,
+          type: "sub_header",
+          parent_id: fixtureImagePageId,
+          properties: { title: text("Retrieval Pipeline") },
+        },
+      },
+      [fixtureParagraphBlockId]: {
+        value: {
+          id: fixtureParagraphBlockId,
+          type: "text",
+          parent_id: fixtureImagePageId,
+          properties: { title: text("The pipeline fans out per chunk.") },
+        },
+      },
+      [fixtureImageBlockId]: {
+        value: {
+          id: fixtureImageBlockId,
+          type: "image",
+          parent_id: fixtureImagePageId,
+          properties: {
+            source: [["https://example.com/pipeline-diagram.png"]],
+            caption: text("Figure 1: retrieval fan-out"),
+          },
+        },
+      },
+      [fixtureSecondImageBlockId]: {
+        value: {
+          id: fixtureSecondImageBlockId,
+          type: "image",
+          parent_id: fixtureImagePageId,
+          format: {
+            display_source: "https://example.com/screenshot.png",
+          },
+          properties: {},
+        },
+      },
+    },
+    signed_urls: {},
+    collection: {},
+    collection_view: {},
+    collection_query: {},
+    collection_view_page: {},
+    notion_user: {},
+    collection_query_by_collection: {},
+  } as unknown as ExtendedRecordMap;
+}
+
 // Mirrors the doubly-nested shape Notion sometimes returns:
 // recordMap.block[id].value = { role, value: Block } instead of the Block itself.
 // https://github.com/NotionX/react-notion-x/issues/682
