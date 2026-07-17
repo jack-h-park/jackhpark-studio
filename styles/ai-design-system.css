@@ -1031,20 +1031,18 @@ body.dark-mode {
   box-shadow: inset 0 0 0 1px var(--ai-role-border-selected);
 }
 
+/* Selection reads as a single coherent accent: a solid selected-border token
+   plus a same-hue inset halo. The wide `--gradient-mini` (purple→cyan) is
+   reserved for "contained" interactions (§0-B) and stretched across a large
+   tile into two clashing colors — so selection keys off one role token. */
 .ai-selectable--active {
   border-width: 2px;
-  border-color: transparent;
-  background:
-    linear-gradient(
-        var(--ai-role-surface-1),
-        var(--ai-role-surface-1)
-      )
-      padding-box,
-    var(--gradient-mini) border-box;
+  border-color: var(--ai-role-interaction-base);
+  background-color: var(--ai-role-surface-1);
   box-shadow:
     var(--ai-shadow-soft),
     inset 0 0 0 1px
-      color-mix(in srgb, var(--ai-role-border-selected) 30%, transparent);
+      color-mix(in srgb, var(--ai-role-interaction-base) 22%, transparent);
 }
 
 .ai-selectable--disabled {
