@@ -95,6 +95,9 @@ export type ChatMessage = {
   runtime?: ChatRuntimeConfig | null;
   metrics?: ChatMessageMetrics;
   isComplete?: boolean;
+  // Set when the assistant turn failed and the content is an error notice
+  // rather than a model answer. Drives the "Try again" affordance.
+  isError?: boolean;
   // Langfuse traceId for this response, surfaced via the X-Trace-Id header.
   // Used to attach user feedback (👍/👎) to the originating trace.
   traceId?: string | null;
@@ -255,6 +258,10 @@ export type UseChatSessionResult = {
   /** The preset to escalate to on retry, or null if already at max recall. */
   retryPreset: ChatRetryPreset | null;
   retryWithPreset: (targetPresetId: string) => Promise<void>;
+  /** Re-run the last user question with the current config, replacing the last answer. */
+  regenerateLast: () => Promise<void>;
+  /** Abort any in-flight request and clear the conversation. */
+  resetSession: () => void;
   abortActiveRequest: () => void;
 };
 
@@ -557,6 +564,7 @@ export function useChatSession(
                     ...item,
                     content: `Warning: ${message}`,
                     isComplete: true,
+                    isError: true,
                   }
                 : item,
             ),
@@ -581,7 +589,10 @@ export function useChatSession(
     ? { label: PRESET_LABELS[nextPresetId] ?? nextPresetId, presetId: nextPresetId }
     : null;
 
-  const retryWithPreset = useCallback(async (targetPresetId: string) => {
+  // Re-runs the last user question, replacing the last assistant answer.
+  // targetPresetId escalates the recall preset; null keeps the current config
+  // (generic regenerate / try-again).
+  const rerunLastQuestion = useCallback(async (targetPresetId: string | null) => {
     if (isLoading || messages.length === 0) return;
 
     // 1. Find last user message
@@ -680,7 +691,9 @@ export function useChatSession(
         body: JSON.stringify({
           question: userMessage.content,
           messages: sanitizedHistory,
-          config: { ...config, presetId: targetPresetId },
+          config: targetPresetId
+            ? { ...config, presetId: targetPresetId }
+            : config,
         }),
         signal: controller.signal,
       });
@@ -694,6 +707,19 @@ export function useChatSession(
       );
       if (guardrailMeta) {
         updateAssistant(undefined, guardrailMeta);
+      }
+
+      // Same as sendMessage: without the traceId the regenerated answer
+      // would silently lose its 👍/👎 feedback control.
+      const traceId = response.headers.get("x-trace-id");
+      if (traceId) {
+        setMessages((prev) =>
+          prev.map((message) =>
+            message.id === assistantMessageId
+              ? { ...message, traceId }
+              : message,
+          ),
+        );
       }
 
       const reader = response.body.getReader();
@@ -780,6 +806,7 @@ export function useChatSession(
                 ...item,
                 content: `Warning: ${message}`,
                 isComplete: true,
+                isError: true,
                 metrics: { ...item.metrics, totalMs: Date.now() - timestamp }, // ensure metrics close
               }
             : item,
@@ -794,6 +821,24 @@ export function useChatSession(
     }
   }, [isLoading, messages, config, runtimeConfig]);
 
+  const retryWithPreset = useCallback(
+    (targetPresetId: string) => rerunLastQuestion(targetPresetId),
+    [rerunLastQuestion],
+  );
+
+  const regenerateLast = useCallback(
+    () => rerunLastQuestion(null),
+    [rerunLastQuestion],
+  );
+
+  const resetSession = useCallback(() => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setMessages([]);
+    setIsLoading(false);
+    setLoadingAssistantId(null);
+  }, []);
+
   return {
     messages,
     isLoading,
@@ -802,6 +847,8 @@ export function useChatSession(
     sendMessage,
     retryPreset,
     retryWithPreset,
+    regenerateLast,
+    resetSession,
     abortActiveRequest,
   };
 }

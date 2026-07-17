@@ -19,9 +19,10 @@ export function ChatMessageRenderer({
   const nodes = useMemo(() => {
     if (policy === "plain") return null;
 
-    return parseMarkdownLite(content, {
-      allowCodeBlocks: policy === "diagnostics",
-    });
+    // Code blocks render in every rich policy — an AI-architecture portfolio
+    // bot regularly answers with code, so hiding them in the default view
+    // degraded real answers, not just diagnostics.
+    return parseMarkdownLite(content, { allowCodeBlocks: true });
   }, [content, policy]);
 
   if (policy === "plain" || !nodes) {
@@ -44,7 +45,6 @@ export function ChatMessageRenderer({
               <ListNode key={key} ordered={node.ordered} items={node.items} />
             );
           case "codeblock":
-            // Only rendered if parser produced it (so policy was diagnostics)
             return (
               <CodeBlockNode
                 key={key}

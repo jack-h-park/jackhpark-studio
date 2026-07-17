@@ -1,7 +1,9 @@
 "use client";
 
 import { FiAlertCircle } from "@react-icons/all-files/fi/FiAlertCircle";
+import { FiArrowDown } from "@react-icons/all-files/fi/FiArrowDown";
 import { FiMessageCircle } from "@react-icons/all-files/fi/FiMessageCircle";
+import { FiPlus } from "@react-icons/all-files/fi/FiPlus";
 import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -66,7 +68,7 @@ function ChatShellContent() {
   useEffect(() => {
     setIsMounted(true);
   }, []);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const routeCid = useMemo(() => {
     if (!CHAT_PROMOTION_MVP_ENABLED || !router.isReady) {
@@ -120,6 +122,8 @@ function ChatShellContent() {
     sendMessage,
     retryPreset,
     retryWithPreset,
+    regenerateLast,
+    resetSession,
     abortActiveRequest,
   } = useChatSession({
     source: "full-page",
@@ -237,6 +241,22 @@ function ChatShellContent() {
     focusInput();
   };
 
+  const handleNewChat = useCallback(() => {
+    resetSession();
+    setInputValue("");
+    if (CHAT_PROMOTION_MVP_ENABLED) {
+      setLocalCid(null);
+      setActiveCid(null);
+      const { cid: _discarded, ...restQuery } = router.query;
+      void router.replace(
+        { pathname: "/chat", query: restQuery },
+        undefined,
+        { shallow: true },
+      );
+    }
+    focusInput();
+  }, [focusInput, resetSession, router, setActiveCid]);
+
   // isMounted 가드: SSR에서는 sessionStorage가 없어 routeSession이 항상 null이므로
   // 클라이언트 마운트 후에만 stale 여부를 평가해 hydration mismatch를 방지한다.
   const isStaleSession =
@@ -277,10 +297,11 @@ function ChatShellContent() {
     void sendMessage(latestUserMessage.content, { skipUserInsert: true });
   };
 
-  const { scrollRef, onScroll } = useChatScroll({
-    messages,
-    isLoading,
-  });
+  const { scrollRef, onScroll, scrollToBottom, autoScrollEnabled } =
+    useChatScroll({
+      messages,
+      isLoading,
+    });
 
   return (
     <div data-theme="jp" className={styles.shell}>
@@ -298,16 +319,30 @@ function ChatShellContent() {
               </CardDescription>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDrawerOpen(true)}
-            type="button"
-            className="gap-2"
-          >
-            <FiSliders aria-hidden="true" />
-            Chat Settings
-          </Button>
+          <div className="flex items-center gap-2">
+            {hasMessages && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNewChat}
+                type="button"
+                className="gap-2"
+              >
+                <FiPlus aria-hidden="true" />
+                New chat
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDrawerOpen(true)}
+              type="button"
+              className="gap-2"
+            >
+              <FiSliders aria-hidden="true" />
+              Chat Settings
+            </Button>
+          </div>
         </header>
         <div className={styles.body}>
           {isStaleSession && (
@@ -334,7 +369,14 @@ function ChatShellContent() {
               </div>
             </div>
           )}
-          <div className={styles.messages} ref={scrollRef} onScroll={onScroll}>
+          <div
+            className={styles.messages}
+            ref={scrollRef}
+            onScroll={onScroll}
+            role="log"
+            aria-live="polite"
+            aria-label="Conversation"
+          >
             {!hasMessages && (
               <div className={styles.hero}>
                 <ChatEmptyState onSelectPrompt={handleSuggestedPromptClick} />
@@ -351,7 +393,18 @@ function ChatShellContent() {
                 citationLinkLength={60}
                 retryPreset={retryPreset}
                 onRetryWithPreset={retryWithPreset}
+                onRegenerate={regenerateLast}
               />
+            )}
+            {hasMessages && !autoScrollEnabled && (
+              <button
+                type="button"
+                className={styles.scrollToBottom}
+                onClick={() => scrollToBottom()}
+                aria-label="Scroll to latest message"
+              >
+                <FiArrowDown aria-hidden="true" size={16} />
+              </button>
             )}
           </div>
           <ChatInputBar

@@ -318,6 +318,16 @@ export async function handleLangchainChat(
       return;
     }
 
+    // Mirrors MAX_MESSAGE_LENGTH in components/chat/ChatInputBar.tsx; the
+    // client caps input, so this only rejects requests bypassing the UI.
+    if (lastMessage.content.length > 2000) {
+      logReturn("question-too-long");
+      respondJson(400, {
+        error: "question exceeds the 2000 character limit",
+      });
+      return;
+    }
+
     const historySummaryHash = computeHistorySummaryHash(
       historyWindow.summaryMemory,
     );

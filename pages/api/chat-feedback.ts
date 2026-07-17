@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import { telemetryLogger } from "@/lib/logging/logger";
@@ -48,11 +50,23 @@ export default async function handler(
   const sessionId =
     typeof body.sessionId === "string" ? body.sessionId : undefined;
 
+  // Deterministic per-answer score id (UUID-shaped for ingestion): a repeat
+  // POST for the same message — e.g. a 👎 followed by an optional comment —
+  // upserts the one score instead of double-counting in the weekly digest.
+  const scoreId = createHash("sha256")
+    .update(`user_feedback:${traceId}:${messageId ?? "message"}`)
+    .digest("hex")
+    .replace(
+      /^(.{8})(.{4})(.{4})(.{4})(.{12}).*$/,
+      "$1-$2-$3-$4-$5",
+    );
+
   try {
     const emitted = await emitUserFeedbackScore({
       traceId,
       value: body.value,
       comment,
+      scoreId,
       metadata: { source: "chat-ui", messageId, sessionId },
     });
     // 202 when telemetry is disabled/unavailable so the UI can still confirm

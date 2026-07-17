@@ -57,6 +57,32 @@
   gap: 24px;
 }
 
+/* Sticky inside the scroll container: floats at the bottom edge while the
+   user is scrolled up, and is unmounted once auto-scroll re-engages. */
+.scrollToBottom {
+  position: sticky;
+  bottom: 8px;
+  align-self: center;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-top: -24px;
+  border-radius: 50%;
+  border: 1px solid hsl(var(--ai-border));
+  background: hsl(var(--ai-bg));
+  color: hsl(var(--ai-fg));
+  cursor: pointer;
+  box-shadow: var(--ai-shadow-elevated);
+}
+
+.scrollToBottom:hover {
+  border-color: var(--ai-accent);
+  color: var(--ai-accent);
+}
+
 .hero {
   flex: 1;
   min-height: 0;

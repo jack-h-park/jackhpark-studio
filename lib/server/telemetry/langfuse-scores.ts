@@ -119,6 +119,12 @@ export type EmitUserFeedbackScoreOptions = {
   traceId: string;
   value: UserFeedbackValue;
   comment?: string | null;
+  /**
+   * Deterministic score id. Passing the same id on a follow-up call (e.g. a
+   * 👎 later annotated with a comment) upserts the existing score instead of
+   * creating a second `user_feedback` entry that would skew digest counts.
+   */
+  scoreId?: string;
   /** Low-cardinality context for filtering in the Scores view (no PII). */
   metadata?: Record<string, unknown> | null;
 };
@@ -133,7 +139,7 @@ export type EmitUserFeedbackScoreOptions = {
 export async function emitUserFeedbackScore(
   options: EmitUserFeedbackScoreOptions,
 ): Promise<boolean> {
-  const { traceId, value, comment, metadata } = options;
+  const { traceId, value, comment, scoreId, metadata } = options;
   if (!traceId) {
     return false;
   }
@@ -145,6 +151,7 @@ export async function emitUserFeedbackScore(
 
   try {
     client.score.create({
+      id: scoreId,
       traceId,
       name: USER_FEEDBACK_SCORE_NAME,
       value: value === "up" ? 1 : 0,

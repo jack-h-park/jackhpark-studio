@@ -18,6 +18,7 @@ import {
   type ModelProvider,
 } from "@/lib/shared/model-provider";
 
+import { ChatMessageActions } from "./ChatMessageActions";
 import { ChatMessageFeedback } from "./ChatMessageFeedback";
 import styles from "./ChatMessagesPanel.module.css";
 import { ChatMessageRenderer } from "./rendering/ChatMessageRenderer";
@@ -60,9 +61,12 @@ export function ChatMessageItem({
   citationLinkLength = 24,
   retryPreset,
   onRetryWithPreset,
+  onRegenerate,
 }: ChatMessageItemProps & {
   retryPreset?: ChatRetryPreset | null;
   onRetryWithPreset?: (targetPresetId: string) => Promise<void>;
+  /** Present only on the latest assistant message. */
+  onRegenerate?: (() => Promise<void>) | null;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -294,7 +298,15 @@ export function ChatMessageItem({
                 })}
               </div>
             )}
-            {m.isComplete && m.traceId && (
+            {m.isComplete && (
+              <ChatMessageActions
+                content={m.content}
+                onRegenerate={onRegenerate}
+                isError={m.isError === true}
+                disabled={isLoading}
+              />
+            )}
+            {m.isComplete && !m.isError && m.traceId && (
               <ChatMessageFeedback traceId={m.traceId} messageId={m.id} />
             )}
             {(hasAnyMeta || hasCitations) && (

@@ -476,15 +476,51 @@ a.sourcePreviewCard:hover {
   color: hsl(var(--ai-fg-muted));
 }
 
-.feedbackRow {
+.messageActionsRow {
   display: flex;
   align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.messageActionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  background: none;
+  border: none;
+  font-size: 0.68rem;
+  color: var(--ai-text-muted);
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+
+.messageActionButton:hover:not(:disabled) {
+  color: var(--ai-accent);
+}
+
+.messageActionButton:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.feedbackBlock {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   margin-top: 8px;
 }
 
+.feedbackRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .feedbackLabel {
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--ai-text-muted);
@@ -494,10 +530,11 @@ a.sourcePreviewCard:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px;
+  padding: 3px;
   background: none;
   border: none;
-  color: var(--ai-text-faint);
+  font-size: 0.9rem;
+  color: var(--ai-text-muted);
   cursor: pointer;
   line-height: 1;
   transition: color 0.15s ease;
@@ -518,4 +555,45 @@ a.sourcePreviewCard:hover {
 .feedbackError {
   font-size: 0.6rem;
   color: var(--ai-text-muted);
+}
+
+.feedbackCommentForm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 420px;
+}
+
+.feedbackCommentInput {
+  flex: 1;
+  border: 1px solid hsl(var(--ai-border));
+  background: hsl(var(--ai-bg-muted));
+  color: hsl(var(--ai-fg));
+  border-radius: var(--ai-radius-pill);
+  padding: 5px 12px;
+  font-size: 0.75rem;
+}
+
+.feedbackCommentInput:focus {
+  outline: none;
+  border-color: var(--ai-accent);
+}
+
+.feedbackCommentSend,
+.feedbackCommentSkip {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  color: var(--ai-accent);
+}
+
+.feedbackCommentSkip {
+  color: var(--ai-text-muted);
+}
+
+.feedbackCommentSend:disabled {
+  color: var(--ai-text-faint);
+  cursor: default;
 }

@@ -1,0 +1,16 @@
+.tokenKeyword {
+  color: var(--ai-accent);
+}
+
+.tokenString {
+  color: var(--ai-success);
+}
+
+.tokenComment {
+  color: var(--ai-text-faint);
+  font-style: italic;
+}
+
+.tokenNumber {
+  color: var(--ai-accent-strong);
+}
