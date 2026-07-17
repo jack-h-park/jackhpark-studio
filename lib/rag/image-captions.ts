@@ -40,6 +40,23 @@ export function shouldCaptionDocType(docType: string | null | undefined): boolea
   return allowlist.includes(docType.trim().toLowerCase());
 }
 
+/**
+ * Whether a document should produce image-caption chunks this run — the
+ * single source of truth shared by the content-hash gate and the captioning
+ * step. Gating on doc_type (not just image presence) keeps photo galleries
+ * from re-ingesting merely because the flag is on.
+ */
+export function imageChunksActiveFor(opts: {
+  imageCount: number;
+  docType: string | null | undefined;
+}): boolean {
+  return (
+    isImageChunksEnabled() &&
+    opts.imageCount > 0 &&
+    shouldCaptionDocType(opts.docType)
+  );
+}
+
 export type CaptionedImage = {
   image: NotionPageImage;
   caption: string;
