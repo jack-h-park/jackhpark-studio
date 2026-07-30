@@ -1,5 +1,7 @@
 import * as React from "react";
 
+import { getNextImageProxyUrl } from "@/lib/next-image-proxy";
+
 interface Props {
   coverUrl: string;
   /**
@@ -24,6 +26,30 @@ export function NotionCoverBlurFill({ coverUrl, coverPosition = 0.5 }: Props) {
   // page_cover_position=0 → 100% (bottom), =1 → 0% (top), =0.5 → 50% (center)
   const objectPosition = `center ${(1 - coverPosition) * 100}%`;
 
+  // Both layers share one src so the blurred background can never diverge from
+  // the sharp foreground: when the direct notion.so fetch fails (firewall,
+  // expired signed URL) the foreground <img> reports it and both switch to the
+  // server-side /_next/image proxy. The background is a CSS url() and cannot
+  // report failure on its own.
+  const [proxyUrl, setProxyUrl] = React.useState<string | null>(null);
+  const resolvedUrl = proxyUrl ?? coverUrl;
+
+  React.useEffect(() => {
+    setProxyUrl(null);
+  }, [coverUrl]);
+
+  const handleError = React.useCallback(
+    (event: React.SyntheticEvent<HTMLImageElement>) => {
+      if (proxyUrl) return;
+      const proxied = getNextImageProxyUrl(
+        coverUrl,
+        event.currentTarget.getBoundingClientRect().width,
+      );
+      if (proxied) setProxyUrl(proxied);
+    },
+    [coverUrl, proxyUrl],
+  );
+
   return (
     <div className="notion-page-cover-wrapper notion-yt-cover">
       {/* Layer 1 — background: blurred, fills 100% of the cover band */}
@@ -31,7 +57,7 @@ export function NotionCoverBlurFill({ coverUrl, coverPosition = 0.5 }: Props) {
         aria-hidden="true"
         className="notion-yt-cover__bg"
         style={{
-          backgroundImage: `url(${JSON.stringify(coverUrl)})`,
+          backgroundImage: `url(${JSON.stringify(resolvedUrl)})`,
           backgroundPosition: objectPosition,
         }}
       />
@@ -39,12 +65,13 @@ export function NotionCoverBlurFill({ coverUrl, coverPosition = 0.5 }: Props) {
       {/* Layer 2 — foreground: sharp image capped at content column width */}
       <div className="notion-yt-cover__fg" aria-hidden="true">
         <img
-          src={coverUrl}
+          src={resolvedUrl}
           alt=""
           className="notion-yt-cover__img"
           style={{ objectPosition }}
           loading="eager"
           decoding="async"
+          onError={handleError}
         />
       </div>
     </div>
