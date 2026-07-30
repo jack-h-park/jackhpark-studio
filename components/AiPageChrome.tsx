@@ -5,6 +5,7 @@ import { uuidToId } from "notion-utils";
 import { NotionContextProvider } from "react-notion-x";
 
 import { Footer } from "@/components/Footer";
+import { NotionImage } from "@/components/NotionImage";
 import { NotionPageHeader } from "@/components/NotionPageHeader";
 import { ToggleThemeButton } from "@/components/ToggleThemeButton";
 import { site } from "@/lib/config";
@@ -64,7 +65,10 @@ export function AiPageChrome({
             fullPage
             darkMode={isDarkMode}
             previewImages={false}
-            forceCustomImages={false}
+            // Route the header icon through NotionImage so it keeps the
+            // notion.so -> /_next/image fallback the rest of the app has.
+            forceCustomImages
+            components={{ Image: NotionImage }}
             showCollectionViewDropdown={false}
             showTableOfContents={false}
             minTableOfContentsItems={0}

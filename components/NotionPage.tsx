@@ -1,7 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import NextImage from "next/image";
 import Link from "next/link";
 //import { useRouter } from 'next/router'
 import { type PageBlock } from "notion-types";
@@ -31,6 +30,7 @@ import { useSidePeek } from "@/lib/use-side-peek";
 import { Footer } from "./Footer";
 //import { GitHubShareButton } from './GitHubShareButton'
 import { Loading } from "./Loading";
+import { NotionImage } from "./NotionImage";
 import { NotionPageHeader } from "./NotionPageHeader";
 import { NotionPageRenderer } from "./NotionPageRenderer";
 import { Page404 } from "./Page404";
@@ -435,79 +435,6 @@ type GalleryPreviewState = {
   title?: string;
   href?: string;
 };
-
-type NotionImageProps = Omit<React.ComponentPropsWithoutRef<"img">, "ref"> & {
-  priority?: boolean;
-  placeholder?: "blur" | string;
-  blurDataURL?: string;
-  fill?: boolean;
-};
-
-const NotionImage = React.forwardRef<HTMLImageElement, NotionImageProps>(
-  (
-    {
-      priority,
-      placeholder: _placeholder,
-      blurDataURL,
-      loading,
-      style,
-      fill,
-      width,
-      height,
-      src,
-      alt,
-      className,
-      onError: _onError,
-      ...rest
-    },
-    ref,
-  ) => {
-    const [useFallback, setUseFallback] = React.useState(false);
-
-    const mergedStyle =
-      _placeholder === "blur" && blurDataURL
-        ? {
-            ...style,
-            backgroundImage: `url(${blurDataURL})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }
-        : style;
-
-    if (useFallback && src && typeof src === "string") {
-      const hasDimensions = width && height;
-      return (
-        <NextImage
-          src={src}
-          alt={alt ?? ""}
-          width={!fill && hasDimensions ? Number(width) : undefined}
-          height={!fill && hasDimensions ? Number(height) : undefined}
-          fill={fill || !hasDimensions}
-          className={className}
-          style={mergedStyle}
-          priority={priority}
-        />
-      );
-    }
-
-    return (
-      <img
-        {...rest}
-        ref={ref}
-        src={src}
-        alt={alt}
-        width={width}
-        height={height}
-        className={className}
-        loading={loading ?? "lazy"}
-        style={mergedStyle}
-        onError={() => setUseFallback(true)}
-      />
-    );
-  },
-);
-
-NotionImage.displayName = "NotionImage";
 
 // Gallery card covers (image discovery + text teasers) render through the
 // react-notion-x `collectionCardCover` seam, reusing NotionImage so covers get
@@ -1084,7 +1011,11 @@ export function NotionPage({
                 title={isZoomed ? "Zoom out" : "Zoom in"}
               >
                 {galleryPreview.src ? (
-                  <img src={galleryPreview.src} alt={galleryPreview.alt} />
+                  <NotionImage
+                    src={galleryPreview.src}
+                    alt={galleryPreview.alt}
+                    priority
+                  />
                 ) : (
                   <div className="gallery-image-modal__image--placeholder">
                     Image preview unavailable.

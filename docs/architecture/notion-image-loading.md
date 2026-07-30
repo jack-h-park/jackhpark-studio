@@ -19,7 +19,7 @@ Browser
   └── failure (onError)
         │
         ▼
-      ② <NextImage src="...">        ← Next.js /_next/image proxy
+      ② same <img>, src → /_next/image  ← Next.js optimizer as a proxy
           │
           ├── server fetches image from notion.so on client's behalf
           ├── resizes + converts to WebP/AVIF
@@ -32,15 +32,34 @@ Browser
 
 ### Stage 1 — Direct load
 
-The `NotionImage` component (`components/NotionPage.tsx`) renders a plain `<img>` tag pointing to the Notion-hosted URL. This path has no server involvement and incurs no Vercel image optimization charge.
+The `NotionImage` component (`components/NotionImage.tsx`) renders a plain `<img>` tag pointing to the Notion-hosted URL. This path has no server involvement and incurs no Vercel image optimization charge.
 
 **Failure triggers:** firewall blocking `notion.so`, expired signed S3 URL, network error.
 
 ### Stage 2 — Next.js image proxy (fallback)
 
-On `onError`, the component re-renders using `next/image` (`NextImage`). Next.js intercepts the request at `/_next/image?url=<encoded>&w=<width>&q=75`, fetches the image server-side, optimizes it, and caches the result.
+On `onError`, the component swaps **only the `src`** to `/_next/image?url=<encoded>&w=<width>&q=75` (built by `getNextImageProxyUrl` in `lib/next-image-proxy.ts`). Next.js fetches the image server-side, optimizes it, and caches the result.
+
+The element itself — tag, classes, inline styles, `ref` — is unchanged, so the fallback can never alter page layout, and `medium-zoom` keeps working.
+
+**Why not render `next/image` here.** react-notion-x calls `components.Image` with `width: null, height: null`, so a `next/image` fallback would always have to run in `fill` mode. `fill` makes the element `position: absolute`, which collapses it to zero height inside Notion's unsized wrappers and stretches page icons to the full content column. Requesting the optimizer endpoint directly gets the same proxying without the layout contract.
+
+The requested `w` is derived from the element's rendered width × DPR, snapped up to an allowed optimizer bucket and capped at 2048. `NEXT_IMAGE_WIDTHS` in that module must stay in sync with `images.deviceSizes`/`images.imageSizes` in `next.config.js` — the optimizer returns 400 for any other width.
 
 The server must be able to reach `notion.so` for this to work. If the server is behind the same firewall as the browser, stage 2 also fails.
+
+### Coverage
+
+Everything that renders a Notion-hosted image participates in the chain:
+
+| Surface | Path |
+|---|---|
+| Page content, icons, gallery card covers | `NotionImage` via `components.Image` + `forceCustomImages` |
+| Page cover (`NotionCoverBlurFill`) | Own `onError`; the blurred CSS background shares the resolved URL, since a `url()` cannot report failure |
+| Gallery preview modal | `NotionImage` |
+| AI page header (`AiPageChrome`) | `NotionImage` registered on the `NotionContextProvider` |
+
+`NotionPageRenderer` also installs a document-level capture listener that replaces broken **icons** with `defaultPageIcon` (or hides them). That handler retries through the proxy first and only treats an icon as missing once the proxied attempt has failed — otherwise a blocked host would silently hide every inline icon before the fallback ran.
 
 ---
 
@@ -98,14 +117,15 @@ images: {
 
 Add a new entry here whenever a new Notion image host is encountered in production.
 
-### `NotionImage` component — `components/NotionPage.tsx`
+### `NotionImage` component — `components/NotionImage.tsx`
 
-The component is registered as `Image: NotionImage` in the `NotionRenderer` components map. It manages the stage 1 → stage 2 transition via `React.useState(false)` (`useFallback`).
+The component is registered as `Image: NotionImage` in the `NotionRenderer` components map. It manages the stage 1 → stage 2 transition via `React.useState<string | null>(null)` (`proxySrc`).
 
 Key behaviors:
-- `fill` prop propagates to `NextImage` for images without explicit dimensions (cover photos, page icons).
-- `blurDataURL` / `placeholder="blur"` is applied as a CSS background on the `<img>` in stage 1 and passed to `NextImage` in stage 2.
-- The forwarded `ref` is attached to the `<img>` in stage 1 only; it is not forwarded in stage 2 (Next.js Image manages its own DOM node).
+- Exactly one retry. Once `src` is already a `/_next/image` URL the error is final — retrying would loop forever against a host the server can't reach either.
+- A changed `src` prop resets `proxySrc`, so a re-signed Notion URL gets a fresh direct attempt.
+- `blurDataURL` / `placeholder="blur"` is applied as a CSS background on the `<img>` in both stages.
+- The forwarded `ref` stays attached across both stages.
 
 ---
 
