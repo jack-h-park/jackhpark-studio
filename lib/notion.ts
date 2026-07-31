@@ -766,11 +766,6 @@ const loadPageFromNotion = async (
         }
       }
 
-      if (isPreviewImageSupportEnabled) {
-        const previewImageMap = await getPreviewImageMap(recordMap);
-        (recordMap as any).preview_images = previewImageMap;
-      }
-
       await getTweetsMap(recordMap);
 
       return recordMap;
@@ -1095,6 +1090,29 @@ const hydrateGroupedCollectionData = async (
   return recordMap;
 };
 
+/**
+ * Post-fetch finalization shared by every `getPage` path.
+ *
+ * LQIP placeholders have to be generated *after* hydration: grouped-collection
+ * hydration is what pulls gallery card blocks — and therefore their cover
+ * images — into the record map. Generating earlier silently skips every
+ * gallery cover. `getPreviewImage` is memoized per URL, so repeating this on
+ * cache hits costs a map rebuild and picks up covers that hydration just added.
+ */
+const finalizeRecordMap = async (
+  recordMap: ExtendedRecordMap,
+): Promise<ExtendedRecordMap> => {
+  const hydrated = enableGroupedCollectionHydration
+    ? await hydrateGroupedCollectionData(recordMap)
+    : recordMap;
+
+  if (isPreviewImageSupportEnabled) {
+    hydrated.preview_images = await getPreviewImageMap(hydrated);
+  }
+
+  return hydrated;
+};
+
 export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
   const cacheKey = getPageCacheKey(pageId);
 
@@ -1102,7 +1120,7 @@ export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
     const memoryCached = getCachedRecordMapFromMemory(cacheKey);
     if (memoryCached) {
       if (enableGroupedCollectionHydration) {
-        const hydratedCached = await hydrateGroupedCollectionData(memoryCached);
+        const hydratedCached = await finalizeRecordMap(memoryCached);
         setCachedRecordMapInMemory(cacheKey, hydratedCached);
         await writeCachedRecordMap(cacheKey, hydratedCached);
         return hydratedCached;
@@ -1114,8 +1132,7 @@ export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
     const persistentCached = await readCachedRecordMap(cacheKey);
     if (persistentCached) {
       if (enableGroupedCollectionHydration) {
-        const hydratedPersistent =
-          await hydrateGroupedCollectionData(persistentCached);
+        const hydratedPersistent = await finalizeRecordMap(persistentCached);
         setCachedRecordMapInMemory(cacheKey, hydratedPersistent);
         await writeCachedRecordMap(cacheKey, hydratedPersistent);
         return hydratedPersistent;
@@ -1133,9 +1150,7 @@ export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
 
   const fetchPromise = (async () => {
     const recordMap = await loadPageFromNotion(pageId);
-    const finalRecordMap = enableGroupedCollectionHydration
-      ? await hydrateGroupedCollectionData(recordMap)
-      : recordMap;
+    const finalRecordMap = await finalizeRecordMap(recordMap);
 
     await writeCachedRecordMap(cacheKey, finalRecordMap);
 

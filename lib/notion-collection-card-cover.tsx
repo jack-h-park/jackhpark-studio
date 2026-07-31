@@ -21,10 +21,11 @@
 import type {
   Block,
   CollectionCardCover,
-  ExtendedRecordMap
+  ExtendedRecordMap,
+  PreviewImage
 } from 'notion-types'
 import type { CollectionCardCoverOverrideFn, MapImageUrlFn } from 'react-notion-x'
-import { getBlockIcon, getTextContent } from 'notion-utils'
+import { getBlockIcon, getTextContent, normalizeUrl } from 'notion-utils'
 import React from 'react'
 
 type ThumbnailImageCandidate = {
@@ -221,6 +222,18 @@ function getBlockSource(block: Block): string | null {
     (block.format as any)?.display_source ??
     null
   )
+}
+
+/** Mirrors the two-key lookup react-notion-x's LazyImage does. */
+function getPreviewImage(
+  src: string,
+  recordMap: ExtendedRecordMap
+): PreviewImage | null {
+  const previewImage =
+    recordMap.preview_images?.[src] ??
+    recordMap.preview_images?.[normalizeUrl(src)]
+
+  return previewImage?.dataURIBase64 ? previewImage : null
 }
 
 function isImageLikeUrl(url: string): boolean {
@@ -689,9 +702,12 @@ function CollectionCardCoverTeaser({
  * with. `NotionImage` (next/image-backed, with blur-up + error fallback)
  * satisfies this, but any `<img>`-compatible component does.
  */
-type CoverImageComponent = React.ComponentType<
-  React.ImgHTMLAttributes<HTMLImageElement>
->
+type CoverImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
+  placeholder?: 'blur' | string
+  blurDataURL?: string
+}
+
+type CoverImageComponent = React.ComponentType<CoverImageProps>
 
 /**
  * Builds a `components.collectionCardCover` override, injecting the host app's
@@ -730,6 +746,10 @@ export function createCollectionCardCoverRenderer({
     }
 
     if (candidate.kind === 'image') {
+      // Cards render outside react-notion-x's LazyImage, so the LQIP lookup it
+      // normally does has to happen here for gallery covers to blur up too.
+      const previewImage = getPreviewImage(candidate.src, recordMap)
+
       return (
         <CoverImage
           className='notion-collection-card-cover-image'
@@ -739,6 +759,12 @@ export function createCollectionCardCoverRenderer({
             objectFit: coverAspect,
             objectPosition: candidate.objectPosition
           }}
+          {...(previewImage
+            ? {
+                placeholder: 'blur' as const,
+                blurDataURL: previewImage.dataURIBase64
+              }
+            : {})}
         />
       )
     }
