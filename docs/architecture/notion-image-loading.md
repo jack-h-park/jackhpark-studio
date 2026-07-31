@@ -140,9 +140,11 @@ Either half alone is a no-op — the flag was on with step 2 missing for a long 
 
 The scan runs through `normalizeNotionRecordMap` because notion-utils reads `block[id].value` while the render path ships doubly-nested `value.value` entries. Without that unwrap `getPageImageUrls` returns zero URLs and the map is silently empty.
 
-**Cost** (measured on `/studio`, 141 candidate URLs): ~0.2 kB of blur data per image and ~530 ms to generate one. `getPreviewImage` is `pMemoize`d with no TTL, so a process pays that once; pages are ISR (`revalidate: 60`), so regeneration stays off the visitor's critical path. Redis (`isRedisEnabled`) only saves recomputation across instances — it is not required.
+Generation runs in `finalizeRecordMap` (`lib/notion.ts`), **after** `hydrateGroupedCollectionData` — hydration is what pulls gallery card blocks and their covers into the record map, so generating earlier silently skips every gallery cover (16 placeholders instead of 133 on `/studio`).
 
-**Known gap:** the map is built before `hydrateGroupedCollectionData` runs, so gallery collection-card covers are not covered — on `/studio` that is 16 placeholders rather than one per image. Moving the call after hydration would widen coverage but touches the cache path in `getPage`.
+Gallery cards render through the `collectionCardCover` seam rather than react-notion-x's `LazyImage`, so `lib/notion-collection-card-cover.tsx` does its own `preview_images` lookup and passes `placeholder`/`blurDataURL` to the cover image component. Populating the map is not enough on its own.
+
+**Cost** (measured on `/studio`, 141 candidate URLs): ~0.2 kB of blur data per image and ~530 ms to generate one; 133 placeholders add ~52 kB to the page props. `getPreviewImage` is `pMemoize`d with no TTL, so a process pays generation once and later cache-hit paths only rebuild the map. Pages are ISR (`revalidate: 60`), so regeneration stays off the visitor's critical path. Redis (`isRedisEnabled`) only saves recomputation across instances — it is not required.
 
 ## Self-Hosted Environments
 
