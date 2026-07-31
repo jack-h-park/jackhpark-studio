@@ -39,21 +39,28 @@ export const NotionImage = React.forwardRef<HTMLImageElement, NotionImageProps>(
       alt,
       className,
       onError,
+      onLoad,
       ...rest
     },
     ref,
   ) => {
     const [proxySrc, setProxySrc] = React.useState<string | null>(null);
+    const [isLoaded, setIsLoaded] = React.useState(false);
 
-    // A new src is a new image: drop any proxy URL resolved for the previous one.
+    // A new src is a new image: drop the proxy URL and the loaded flag
+    // resolved for the previous one.
     const lastSrcRef = React.useRef(src);
     if (lastSrcRef.current !== src) {
       lastSrcRef.current = src;
       if (proxySrc) setProxySrc(null);
+      if (isLoaded) setIsLoaded(false);
     }
 
+    // The blur placeholder is a background *behind* the image, so it has to go
+    // once the image is there — a transparent PNG would otherwise keep showing
+    // its own blurred copy through the transparent pixels forever.
     const mergedStyle =
-      _placeholder === "blur" && blurDataURL
+      _placeholder === "blur" && blurDataURL && !isLoaded
         ? {
             ...style,
             backgroundImage: `url(${blurDataURL})`,
@@ -61,6 +68,15 @@ export const NotionImage = React.forwardRef<HTMLImageElement, NotionImageProps>(
             backgroundPosition: "center",
           }
         : style;
+
+    const handleLoad = React.useCallback(
+      (event: React.SyntheticEvent<HTMLImageElement>) => {
+        setIsLoaded(true);
+        // react-notion-x attaches medium-zoom here; keep it working.
+        onLoad?.(event);
+      },
+      [onLoad],
+    );
 
     const handleError = React.useCallback(
       (event: React.SyntheticEvent<HTMLImageElement>) => {
@@ -91,6 +107,7 @@ export const NotionImage = React.forwardRef<HTMLImageElement, NotionImageProps>(
         loading={loading ?? (priority ? "eager" : "lazy")}
         fetchPriority={priority ? "high" : undefined}
         style={mergedStyle}
+        onLoad={handleLoad}
         onError={handleError}
       />
     );
