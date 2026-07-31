@@ -7,6 +7,7 @@ import {
   type DocumentDisplayInfo,
   type DocumentRow,
 } from "@/lib/admin/rag-document-display";
+import { retryImageThroughProxy } from "@/lib/next-image-proxy";
 import styles from "@/pages/admin/documents.module.css";
 
 type DocumentPreviewOverlayProps = {
@@ -40,6 +41,9 @@ function DocumentPreviewOverlay({
               alt={doc.displayTitle}
               className={styles.previewImageFull}
               loading="lazy"
+              onError={(event) => {
+                retryImageThroughProxy(event.currentTarget);
+              }}
             />
           </div>
           <div className="space-y-1">
@@ -103,7 +107,10 @@ export function DocumentPreviewThumbnail({
             alt={doc.displayTitle}
             className="h-full w-full object-cover"
             loading="lazy"
-            onError={() => setCoverFailed(true)}
+            onError={(event) => {
+              if (retryImageThroughProxy(event.currentTarget)) return;
+              setCoverFailed(true);
+            }}
           />
         );
       case "notionEmoji":
@@ -120,7 +127,10 @@ export function DocumentPreviewThumbnail({
             alt={`${doc.displayTitle} icon`}
             className="h-full w-full object-contain"
             loading="lazy"
-            onError={() => setIconFailed(true)}
+            onError={(event) => {
+              if (retryImageThroughProxy(event.currentTarget)) return;
+              setIconFailed(true);
+            }}
           />
         );
       default:
