@@ -124,10 +124,25 @@ The component is registered as `Image: NotionImage` in the `NotionRenderer` comp
 Key behaviors:
 - Exactly one retry. Once `src` is already a `/_next/image` URL the error is final — retrying would loop forever against a host the server can't reach either.
 - A changed `src` prop resets `proxySrc`, so a re-signed Notion URL gets a fresh direct attempt.
-- `blurDataURL` / `placeholder="blur"` is applied as a CSS background on the `<img>` in both stages.
+- `blurDataURL` / `placeholder="blur"` is applied as a CSS background on the `<img>` in both stages, and cleared on `load`. The background sits *behind* the image, so leaving it in place makes a transparent PNG show its own blurred copy through the transparent pixels forever.
 - The forwarded `ref` stays attached across both stages.
 
 ---
+
+## LQIP Blur Placeholders
+
+`isPreviewImageSupportEnabled` (site.config.ts) drives **both** ends of the feature and they must stay in sync:
+
+1. `getPreviewImageMap` (`lib/preview-images.ts`) downloads each image at fetch time, generates a tiny base64 placeholder, and attaches it as `recordMap.preview_images`.
+2. `NotionPageRenderer` passes `previewImages` to `NotionRenderer`, which is what makes react-notion-x read that map and hand `blurDataURL` to `components.Image`.
+
+Either half alone is a no-op — the flag was on with step 2 missing for a long time, so the server generated placeholders nobody rendered.
+
+The scan runs through `normalizeNotionRecordMap` because notion-utils reads `block[id].value` while the render path ships doubly-nested `value.value` entries. Without that unwrap `getPageImageUrls` returns zero URLs and the map is silently empty.
+
+**Cost** (measured on `/studio`, 141 candidate URLs): ~0.2 kB of blur data per image and ~530 ms to generate one. `getPreviewImage` is `pMemoize`d with no TTL, so a process pays that once; pages are ISR (`revalidate: 60`), so regeneration stays off the visitor's critical path. Redis (`isRedisEnabled`) only saves recomputation across instances — it is not required.
+
+**Known gap:** the map is built before `hydrateGroupedCollectionData` runs, so gallery collection-card covers are not covered — on `/studio` that is 16 placeholders rather than one per image. Moving the call after hydration would widen coverage but touches the cache path in `getPage`.
 
 ## Self-Hosted Environments
 

@@ -15,7 +15,7 @@ import { Collection } from "react-notion-x/build/third-party/collection";
 import { Equation } from "react-notion-x/build/third-party/equation";
 import { Modal } from "react-notion-x/build/third-party/modal";
 
-import { defaultPageIcon } from "@/lib/config";
+import { defaultPageIcon, isPreviewImageSupportEnabled } from "@/lib/config";
 import { retryImageThroughProxy } from "@/lib/next-image-proxy";
 import { sanitizeNotionRecordMap } from "@/lib/notion/sanitize-record-map";
 import {
@@ -445,6 +445,10 @@ export function NotionPageRenderer({
             components={components}
             pageCover={pageCoverNode as any}
             forceCustomImages={true}
+            // Same flag that makes the server build `recordMap.preview_images`.
+            // Without it react-notion-x defaults to false and never reads the
+            // blur data, so the whole pipeline runs for nothing.
+            previewImages={isPreviewImageSupportEnabled}
           />
         ) : null}
       </div>

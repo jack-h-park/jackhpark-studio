@@ -12,11 +12,17 @@ import pMemoize from "p-memoize";
 import { defaultPageCover, defaultPageIcon } from "./config";
 import { db } from "./db";
 import { mapImageUrl } from "./map-image-url";
+import { normalizeNotionRecordMap } from "./rag/notion-record-value";
 
 export async function getPreviewImageMap(
   recordMap: ExtendedRecordMap,
 ): Promise<PreviewImageMap> {
-  const urls: string[] = getPageImageUrls(recordMap, {
+  // The render path ships doubly-nested record entries (`block[id].value.value`)
+  // while notion-utils reads `block[id].value` directly. Without unwrapping,
+  // this scan silently finds zero URLs and every page gets an empty map — the
+  // whole LQIP feature quietly does nothing. Scoped to the scan on purpose:
+  // the recordMap handed to react-notion-x keeps its original shape.
+  const urls: string[] = getPageImageUrls(normalizeNotionRecordMap(recordMap), {
     mapImageUrl,
   })
     .concat([defaultPageIcon, defaultPageCover].filter(Boolean))

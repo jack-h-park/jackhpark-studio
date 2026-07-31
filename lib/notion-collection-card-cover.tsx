@@ -24,7 +24,7 @@ import type {
   ExtendedRecordMap
 } from 'notion-types'
 import type { CollectionCardCoverOverrideFn, MapImageUrlFn } from 'react-notion-x'
-import { getBlockIcon, getTextContent, normalizeUrl } from 'notion-utils'
+import { getBlockIcon, getTextContent } from 'notion-utils'
 import React from 'react'
 
 type ThumbnailImageCandidate = {
@@ -223,18 +223,6 @@ function getBlockSource(block: Block): string | null {
   )
 }
 
-function hasPreviewImage(
-  src: string | undefined,
-  recordMap: ExtendedRecordMap
-): src is string {
-  if (!src) return false
-
-  return !!(
-    recordMap.preview_images?.[src] ||
-    recordMap.preview_images?.[normalizeUrl(src)]
-  )
-}
-
 function isImageLikeUrl(url: string): boolean {
   if (
     url.startsWith('data:image/') ||
@@ -293,9 +281,14 @@ function resolveVisualCandidate(
   }
 
   if (block.type === 'pdf' || block.type === 'file') {
+    // Attachments only render as a thumbnail when the file itself is an image;
+    // a PDF in an <img> is just a broken cover. This used to gate on
+    // `recordMap.preview_images`, which never contains attachments —
+    // getPageImageUrls only scans image blocks, covers and icons — so the
+    // branch could never be reached.
     const source = getBlockSource(block)
     const src = source ? mapImageUrl(source, block) : null
-    if (!src || !hasPreviewImage(src, recordMap)) return null
+    if (!src || !isImageLikeUrl(src)) return null
 
     return {
       kind: 'image',
