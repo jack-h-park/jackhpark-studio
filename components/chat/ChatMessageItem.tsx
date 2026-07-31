@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { formatMessageTime } from "@/lib/chat/format-message-time";
+import { retryImageThroughProxy } from "@/lib/next-image-proxy";
 import {
   MODEL_PROVIDER_LABELS,
   type ModelProvider,
@@ -262,10 +263,15 @@ export function ChatMessageItem({
                         alt=""
                         loading="lazy"
                         className={styles.sourcePreviewThumb}
-                        // Notion attachment URLs can expire; a card without
-                        // its visual adds no value here (diagnostics still
-                        // lists every source), so drop the whole card.
+                        // A blocked image host is recoverable, an expired
+                        // Notion attachment URL is not: retry through the
+                        // proxy first. Only then drop the whole card — without
+                        // its visual it adds no value here (diagnostics still
+                        // lists every source).
                         onError={(event) => {
+                          if (retryImageThroughProxy(event.currentTarget)) {
+                            return;
+                          }
                           const card = event.currentTarget.parentElement;
                           if (card) {
                             card.style.display = "none";
@@ -615,8 +621,14 @@ export function ChatMessageItem({
                               alt=""
                               loading="lazy"
                               className={styles.citationThumbnail}
-                              // Notion attachment URLs can expire; degrade to no thumbnail.
+                              // Retry through the proxy (blocked host), then
+                              // degrade to no thumbnail (expired URL).
                               onError={(event) => {
+                                if (
+                                  retryImageThroughProxy(event.currentTarget)
+                                ) {
+                                  return;
+                                }
                                 event.currentTarget.style.display = "none";
                               }}
                             />
