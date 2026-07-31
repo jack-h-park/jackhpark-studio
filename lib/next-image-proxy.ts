@@ -58,3 +58,27 @@ export function getNextImageProxyUrl(
 
   return `/_next/image?url=${encodeURIComponent(src)}&w=${width}&q=${QUALITY}`;
 }
+
+/**
+ * `onError` helper for plain `<img>` elements that degrade on failure (hide the
+ * thumbnail, swap in a placeholder). Call it first and bail out when it returns
+ * `true`: a blocked host is not a missing image, and degrading before the proxy
+ * has been tried makes those images disappear for firewalled visitors.
+ *
+ * Returns `false` once the proxied attempt has failed too, or when there is
+ * nothing to proxy — that is when the caller's degraded state is correct.
+ *
+ * The `src` is written directly to the DOM. React keeps its own record of the
+ * `src` prop, so it will not undo this on re-render; it only takes over again
+ * when the prop itself changes, which is the intended reset.
+ */
+export function retryImageThroughProxy(image: HTMLImageElement): boolean {
+  const proxied = getNextImageProxyUrl(
+    image.src,
+    image.getBoundingClientRect().width,
+  );
+  if (!proxied) return false;
+
+  image.src = proxied;
+  return true;
+}

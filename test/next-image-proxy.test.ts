@@ -1,10 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getNextImageProxyUrl } from "@/lib/next-image-proxy";
+import {
+  getNextImageProxyUrl,
+  retryImageThroughProxy,
+} from "@/lib/next-image-proxy";
 
 const NOTION_SRC =
   "https://www.notion.so/image/attachment%3Aabc%3Acover.png?table=block&id=123&cache=v2";
+
+/** Minimal stand-in for the two members retryImageThroughProxy touches. */
+function fakeImage(src: string, renderedWidth = 348): HTMLImageElement {
+  return {
+    src,
+    getBoundingClientRect: () => ({ width: renderedWidth }) as DOMRect,
+  } as unknown as HTMLImageElement;
+}
 
 void test("proxies remote notion urls through the next image optimizer", () => {
   const url = getNextImageProxyUrl(NOTION_SRC, 348);
@@ -46,4 +57,25 @@ void test("returns null when there is nothing to proxy", () => {
   // Same-origin and inline sources are never host-blocked.
   assert.equal(getNextImageProxyUrl("/assets/avatar.png"), null);
   assert.equal(getNextImageProxyUrl("data:image/png;base64,AAAA"), null);
+});
+
+void test("retry rewrites the element and reports whether a retry is pending", () => {
+  const image = fakeImage(NOTION_SRC);
+
+  // First failure: recoverable, so the caller must not degrade yet.
+  assert.equal(retryImageThroughProxy(image), true);
+  assert.match(image.src, /^\/_next\/image\?url=/);
+
+  // Second failure on the proxied URL: nothing left to try, so the caller's
+  // degraded state (hide the card, swap a placeholder) is now correct.
+  const proxiedSrc = image.src;
+  assert.equal(retryImageThroughProxy(image), false);
+  assert.equal(image.src, proxiedSrc);
+});
+
+void test("retry leaves non-proxyable sources untouched", () => {
+  const image = fakeImage("/assets/avatar.png");
+
+  assert.equal(retryImageThroughProxy(image), false);
+  assert.equal(image.src, "/assets/avatar.png");
 });

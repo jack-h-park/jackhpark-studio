@@ -16,7 +16,7 @@ import { Equation } from "react-notion-x/build/third-party/equation";
 import { Modal } from "react-notion-x/build/third-party/modal";
 
 import { defaultPageIcon } from "@/lib/config";
-import { getNextImageProxyUrl } from "@/lib/next-image-proxy";
+import { retryImageThroughProxy } from "@/lib/next-image-proxy";
 import { sanitizeNotionRecordMap } from "@/lib/notion/sanitize-record-map";
 import {
   SIDE_PEEK_DISABLED_COLLECTION_BLOCK_IDS,
@@ -159,14 +159,7 @@ export function NotionPageRenderer({
       // server-side proxy first, and only treat the icon as unavailable once
       // that attempt has failed too. Without this, environments that block
       // notion.so hide every inline icon on the first error.
-      const proxied = getNextImageProxyUrl(
-        target.src,
-        target.getBoundingClientRect().width,
-      );
-      if (proxied) {
-        target.src = proxied;
-        return;
-      }
+      if (retryImageThroughProxy(target)) return;
 
       if (target.dataset.iconFallbackApplied === "1") return;
 
