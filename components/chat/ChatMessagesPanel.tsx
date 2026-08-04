@@ -17,6 +17,8 @@ export type ChatMessagesPanelProps = {
   showCitations?: boolean;
   showPlaceholder?: boolean;
   citationLinkLength?: number;
+  /** Conversation id, attached to 👍/👎 scores so ratings group by session. */
+  chatSessionId?: string | null;
   onSelectPrompt?: (prompt: string) => void;
   retryPreset?: ChatRetryPreset | null;
   onRetryWithPreset?: (targetPresetId: string) => Promise<void>;
@@ -32,6 +34,7 @@ export function ChatMessagesPanel({
   showCitations = false,
   showPlaceholder = true,
   citationLinkLength = 24,
+  chatSessionId = null,
   onSelectPrompt,
   retryPreset,
   onRetryWithPreset,
@@ -62,6 +65,7 @@ export function ChatMessagesPanel({
           showTelemetry={showTelemetry}
           showCitations={showCitations}
           citationLinkLength={citationLinkLength}
+          chatSessionId={chatSessionId}
           retryPreset={i === messages.length - 1 ? retryPreset : undefined}
           onRetryWithPreset={
             i === messages.length - 1 ? onRetryWithPreset : undefined
