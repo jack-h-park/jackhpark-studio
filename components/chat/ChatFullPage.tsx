@@ -124,6 +124,7 @@ function ChatShellContent() {
     messages,
     isLoading,
     loadingAssistantId,
+    chatSessionId,
     sendMessage,
     retryPreset,
     retryWithPreset,
@@ -424,6 +425,7 @@ function ChatShellContent() {
                 showCitations={showCitations}
                 showPlaceholder={false}
                 citationLinkLength={60}
+                chatSessionId={chatSessionId}
                 retryPreset={retryPreset}
                 onRetryWithPreset={retryWithPreset}
                 onRegenerate={regenerateLast}

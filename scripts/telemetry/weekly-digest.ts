@@ -9,6 +9,7 @@
  * Run: `pnpm telemetry:digest` (loads .env.local). Optional flags:
  *   --days <n>     lookback window in days (default 7)
  *   --out <path>   also write the markdown to a file
+ *   --env <name>   PostHog env to report on (default "prod"; "all" for no filter)
  *
  * PostHog product metrics (latency p50/p95/p99, volume, error/abort/cache rates)
  * are folded in when POSTHOG_PERSONAL_API_KEY + POSTHOG_PROJECT_ID are set —
@@ -47,6 +48,17 @@ function cleanEnv(raw: string): string {
 function parseFlag(name: string): string | undefined {
   const idx = process.argv.indexOf(`--${name}`);
   return idx !== -1 ? process.argv[idx + 1] : undefined;
+}
+
+// The env value is interpolated into HogQL, so keep it to an identifier-safe
+// shape rather than trusting the flag.
+function assertSafeEnv(env: string): string {
+  if (!/^[\w-]+$/.test(env)) {
+    throw new Error(
+      `Invalid --env value: ${env} (expected letters, digits, "_" or "-", or "all")`,
+    );
+  }
+  return env;
 }
 
 function asFiniteNumber(v: number | null | undefined): number | null {
@@ -162,6 +174,7 @@ async function fetchLangfuseMetrics(
  */
 async function fetchPostHogMetrics(
   days: number,
+  env: string,
 ): Promise<PostHogMetrics | null> {
   const personalKey = readOptionalEnv("POSTHOG_PERSONAL_API_KEY");
   if (!personalKey) {
@@ -171,6 +184,12 @@ async function fetchPostHogMetrics(
   // is required. Set POSTHOG_PROJECT_ID to target a specific project.
   const projectId = readOptionalEnv("POSTHOG_PROJECT_ID") ?? "@current";
   const host = readOptionalEnv("POSTHOG_API_HOST") ?? "https://us.posthog.com";
+
+  // Without this predicate local dev traffic is counted as production: dev
+  // requests outnumber prod here, so an unfiltered window reports dev failures
+  // as prod error/abort rates. `--env all` opts out.
+  const envPredicate =
+    env === "all" ? "" : ` AND properties.env = '${assertSafeEnv(env)}'`;
 
   const query = `
     SELECT
@@ -184,7 +203,7 @@ async function fetchPostHogMetrics(
       round(avg(if(properties.aborted, 1, 0)), 4) AS abort_rate,
       round(avg(toFloat(properties.total_tokens)), 0) AS avg_tokens
     FROM events
-    WHERE event = 'chat_completion' AND timestamp > now() - toIntervalDay(${days})
+    WHERE event = 'chat_completion' AND timestamp > now() - toIntervalDay(${days})${envPredicate}
   `;
 
   const res = await fetch(`${host}/api/projects/${projectId}/query/`, {
@@ -206,6 +225,7 @@ async function fetchPostHogMetrics(
     return null;
   }
   return {
+    env,
     requests: asFiniteNumber(row[0]) ?? 0,
     distinctUsers: asFiniteNumber(row[1]) ?? 0,
     latencyP50Ms: asFiniteNumber(row[2]),
@@ -225,6 +245,7 @@ try {
   const auth = Buffer.from(`${publicKey}:${secretKey}`).toString("base64");
 
   const days = Number.parseInt(parseFlag("days") ?? "7", 10);
+  const env = parseFlag("env") ?? "prod";
   const now = new Date();
   const from = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
   const window = {
@@ -239,7 +260,7 @@ try {
     from.toISOString(),
     now.toISOString(),
   );
-  const posthog = await fetchPostHogMetrics(days);
+  const posthog = await fetchPostHogMetrics(days, env);
   const digest = computeWeeklyDigest(scores, window);
   const markdown = renderWeeklyDigestMarkdown(digest, posthog, langfuseMetrics);
 

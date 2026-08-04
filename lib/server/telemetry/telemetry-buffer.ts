@@ -76,6 +76,11 @@ export function createTelemetryBuffer(context: TelemetryContext = {}) {
     };
     const traceOptions: LangfuseTraceOptions = {
       name: "langchain-chat",
+      // Pin the trace id to the request, never to the session: createTrace falls
+      // back to sessionId, which would collapse every turn of a conversation
+      // into one trace once the client sends a stable `x-chat-id`. sessionId
+      // stays on the trace as the grouping key — that is what it is for.
+      id: requestId,
       sessionId: currentContext.sessionId,
       input: traceInput,
       metadata: {

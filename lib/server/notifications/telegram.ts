@@ -9,6 +9,21 @@ export type ChatStartedNotice = {
 
 const QUESTION_PREVIEW_CHARS = 200;
 
+// Both config gates below are static per process, so log each reason once —
+// enough to diagnose a misconfigured deployment without repeating per request.
+// They log at `info` because the production default level is `info`; at `debug`
+// the skip stays invisible in exactly the environment where it matters.
+const loggedSkipReasons = new Set<string>();
+let didLogFirstSend = false;
+
+function logSkipOnce(reason: string, payload: Record<string, unknown>): void {
+  if (loggedSkipReasons.has(reason)) {
+    return;
+  }
+  loggedSkipReasons.add(reason);
+  telemetryLogger.info(`[notify] telegram skipped: ${reason}`, payload);
+}
+
 // Langfuse project id for trace deep links. Resolved once per process from the
 // API keys via /api/public/projects (the keys are project-scoped, so the call
 // returns exactly the owning project). LANGFUSE_PROJECT_ID overrides when set;
@@ -63,10 +78,21 @@ export function notifyChatStarted(notice: ChatStartedNotice): void {
   const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
   const chatId = process.env.TELEGRAM_CHAT_ID?.trim();
   if (!botToken || !chatId) {
+    logSkipOnce("missing_credentials", {
+      hasBotToken: Boolean(botToken),
+      hasChatId: Boolean(chatId),
+    });
     return;
   }
   const notifyEnv = (process.env.CHAT_NOTIFY_ENV ?? "prod").trim();
   if (notice.environment !== notifyEnv) {
+    // Both values are non-secret env names — log them so a "production" vs
+    // "prod" style mismatch is visible instead of silently never firing.
+    logSkipOnce("env_mismatch", {
+      appEnv: notice.environment,
+      chatNotifyEnv: notifyEnv,
+      chatNotifyEnvSet: process.env.CHAT_NOTIFY_ENV !== undefined,
+    });
     return;
   }
 
@@ -112,12 +138,29 @@ export function notifyChatStarted(notice: ChatStartedNotice): void {
       },
     );
     if (!res.ok) {
-      telemetryLogger.debug("[notify] telegram send failed", {
+      // Telegram explains rejections in `description` (bad chat_id, bot blocked,
+      // …); surface it — the status alone is not actionable. Never log the token.
+      const description = await res
+        .clone()
+        .json()
+        .then((body) => (body as { description?: string }).description ?? null)
+        .catch(() => null);
+      telemetryLogger.error("[notify] telegram send failed", {
         status: res.status,
+        description,
+      });
+      return;
+    }
+    if (!didLogFirstSend) {
+      didLogFirstSend = true;
+      // One line per process confirms the happy path in production logs without
+      // needing a Telegram round trip to verify a deployment.
+      telemetryLogger.info("[notify] telegram send ok", {
+        environment: notice.environment,
       });
     }
   })().catch((err: unknown) => {
-    telemetryLogger.debug("[notify] telegram send failed", {
+    telemetryLogger.error("[notify] telegram send failed", {
       error: err instanceof Error ? err.message : String(err ?? "unknown"),
     });
   });

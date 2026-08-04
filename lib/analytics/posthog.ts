@@ -90,6 +90,27 @@ export function captureChatCompletion(options: {
   }
 }
 
+/**
+ * Drains queued PostHog events. `capture()` only enqueues — the client sends in
+ * the background — so on serverless the instance can be frozen before the HTTP
+ * request lands. Callers register this with `waitUntil` so the send survives.
+ * Never throws: a dropped analytics event must not fail a chat response.
+ */
+export async function flushPostHog(): Promise<void> {
+  if (!telemetryEnabled || !posthogClient) {
+    return;
+  }
+  try {
+    await posthogClient.flush();
+  } catch (err: unknown) {
+    if (isDevEnvironment) {
+      telemetryLogger.debug("[posthog] flush failed", {
+        error: err instanceof Error ? err.message : String(err ?? "unknown"),
+      });
+    }
+  }
+}
+
 export function classifyChatCompletionError(error: unknown): string {
   const normalizedMessage =
     error instanceof Error
