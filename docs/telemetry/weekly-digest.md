@@ -7,10 +7,16 @@ Turns raw Langfuse scores into a structured, actionable digest — the "analysis
 ```bash
 pnpm telemetry:digest            # last 7 days
 pnpm telemetry:digest --days 30  # custom window
+pnpm telemetry:digest --env all  # include dev traffic (default: prod only)
 pnpm telemetry:digest --out docs/telemetry/digests/2026-06-11.md
 ```
 
 Loads Langfuse credentials from `.env.local` (`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, `LANGFUSE_BASE_URL`).
+
+The PostHog section filters on `properties.env` (`prod` by default) and prints the
+environment in its heading. Without that filter local dev requests are counted as
+production — dev traffic outnumbers prod here, so a single failed dev run used to
+surface as a 100% production error rate.
 
 ## What it reports
 

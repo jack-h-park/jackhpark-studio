@@ -67,6 +67,12 @@ export type WeeklyDigest = {
  * phc_ capture key cannot query). Sourced separately from the Langfuse scores.
  */
 export type PostHogMetrics = {
+  /**
+   * Environment these metrics were filtered to ("prod", "all", …). Rendered in
+   * the section heading so a digest can never be misread as production-wide
+   * when it also counted dev traffic.
+   */
+  env?: string | null;
   requests: number;
   distinctUsers: number;
   latencyP50Ms: number | null;
@@ -286,7 +292,7 @@ export function renderWeeklyDigestMarkdown(
 
   const posthogSection: string[] = posthog
     ? [
-        `## Product metrics (PostHog)`,
+        `## Product metrics (PostHog)${posthog.env ? ` — env: ${posthog.env}` : ""}`,
         "",
         `| Metric | Value |`,
         `| --- | --- |`,
