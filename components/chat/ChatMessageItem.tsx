@@ -52,6 +52,7 @@ export type ChatMessageItemProps = {
   showTelemetry?: boolean;
   showCitations?: boolean;
   citationLinkLength?: number;
+  chatSessionId?: string | null;
 };
 
 export function ChatMessageItem({
@@ -61,6 +62,7 @@ export function ChatMessageItem({
   showTelemetry = false,
   showCitations = false,
   citationLinkLength = 24,
+  chatSessionId = null,
   retryPreset,
   onRetryWithPreset,
   onRegenerate,
@@ -312,7 +314,11 @@ export function ChatMessageItem({
               />
             )}
             {m.isComplete && !m.isError && m.traceId && (
-              <ChatMessageFeedback traceId={m.traceId} messageId={m.id} />
+              <ChatMessageFeedback
+                traceId={m.traceId}
+                messageId={m.id}
+                sessionId={chatSessionId}
+              />
             )}
             {m.isComplete && m.createdAt && (
               <time

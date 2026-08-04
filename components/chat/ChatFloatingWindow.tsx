@@ -63,6 +63,7 @@ export function ChatFloatingWindow({
     isLoading,
     runtimeConfig,
     loadingAssistantId,
+    chatSessionId,
     sendMessage,
     retryPreset,
     retryWithPreset,
@@ -396,6 +397,7 @@ export function ChatFloatingWindow({
               loadingAssistantId={loadingAssistantId}
               showPlaceholder={false}
               citationLinkLength={24}
+              chatSessionId={chatSessionId}
               retryPreset={retryPreset}
               onRetryWithPreset={retryWithPreset}
             />

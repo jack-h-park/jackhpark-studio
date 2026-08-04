@@ -7,6 +7,7 @@ import type {
   CitationMeta,
   CitationPayload,
 } from "@/lib/types/citation";
+import { createChatSessionId, getVisitorId } from "@/lib/analytics/visitor-id";
 import { isClientLogLevelEnabled } from "@/lib/logging/client";
 import { PRESET_LABELS_SHORT } from "@/lib/shared/chat-labels";
 import {
@@ -257,6 +258,8 @@ export type UseChatSessionResult = {
   isLoading: boolean;
   runtimeConfig: ChatRuntimeConfig | null;
   loadingAssistantId: string | null;
+  /** Stable id for the current conversation; sent as `x-chat-id`. */
+  chatSessionId: string;
   sendMessage: (
     value: string,
     options?: { skipUserInsert?: boolean },
@@ -301,6 +304,11 @@ export function useChatSession(
   const loadingAssistantRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
+  // One id per conversation, reset by resetSession. Sent as `x-chat-id` so the
+  // turns of a chat group together in PostHog and Langfuse.
+  const [chatSessionId, setChatSessionId] = useState<string>(
+    createChatSessionId,
+  );
 
   const sourceLabel = options?.source ?? "unknown";
   const config = options?.config;
@@ -427,9 +435,21 @@ export function useChatSession(
     };
 
     try {
+      // Identity headers: without them the server falls back to the per-request
+      // id, so every turn is counted as a separate person and a multi-turn chat
+      // never groups into one session.
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        "x-chat-id": chatSessionId,
+      };
+      const visitorId = getVisitorId();
+      if (visitorId) {
+        headers["x-anonymous-id"] = visitorId;
+      }
+
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
@@ -555,7 +575,7 @@ export function useChatSession(
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [chatSessionId]);
 
   const sendMessage = useCallback(
     async (value: string, options?: { skipUserInsert?: boolean }) => {
@@ -754,6 +774,8 @@ export function useChatSession(
     setMessages([]);
     setIsLoading(false);
     setLoadingAssistantId(null);
+    // A cleared conversation is a new session, not a continuation of the old.
+    setChatSessionId(createChatSessionId());
   }, []);
 
   return {
@@ -761,6 +783,7 @@ export function useChatSession(
     isLoading,
     runtimeConfig,
     loadingAssistantId,
+    chatSessionId,
     sendMessage,
     retryPreset,
     retryWithPreset,
