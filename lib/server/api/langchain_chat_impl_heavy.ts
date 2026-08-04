@@ -68,6 +68,7 @@ import {
   loadChatModelSettings,
 } from "@/lib/server/chat-settings";
 import { createRequestAbortSignal } from "@/lib/server/langchain/abort";
+import { flushLinkedLangfuseCallbacks } from "@/lib/server/langchain/langfuse-callbacks";
 import { type ChainRunContext } from "@/lib/server/langchain/runnable-config";
 import { escapeForPromptTemplate } from "@/lib/server/langchain/stream-chunk";
 import { notifyChatStarted } from "@/lib/server/notifications/telegram";
@@ -198,6 +199,9 @@ export async function handleLangchainChat(
             console.error("[telemetry] flush error", err);
           }),
           flushPostHog(),
+          // The LangChain handlers hold their own Langfuse client and queue;
+          // traceState is populated by now, so read the id at call time.
+          flushLinkedLangfuseCallbacks(traceState.trace?.traceId),
         ]).finally(resolve);
       });
     });
