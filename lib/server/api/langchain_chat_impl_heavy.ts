@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { BaseLanguageModelInterface } from "@langchain/core/language_models/base";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { waitUntil } from "@vercel/functions";
 
 import type { GuardrailRoute } from "@/lib/rag/types";
 import type {
@@ -12,6 +13,7 @@ import type {
 import {
   captureChatCompletion,
   classifyChatCompletionError,
+  flushPostHog,
   isPostHogEnabled,
 } from "@/lib/analytics/posthog";
 import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
@@ -179,17 +181,29 @@ export async function handleLangchainChat(
   pushTelemetryEvent("handler-start", { method: req.method });
   let telemetryScheduled = false;
   const scheduleTelemetryFlush = () => {
-    if (!telemetryBuffer || telemetryScheduled) {
+    if (telemetryScheduled) {
       return;
     }
     telemetryScheduled = true;
-    setImmediate(() =>
-      telemetryBuffer.flush().catch((err) => {
-        console.error("[telemetry] flush error", err);
-      }),
-    );
+    // Both sinks still drain after the response is handed off, so neither adds
+    // latency — but the work must be registered with waitUntil. On Vercel the
+    // instance can be frozen the moment the stream closes, which silently
+    // dropped whole traces and events (a request could answer fine and reach
+    // neither Langfuse nor PostHog). waitUntil no-ops off-Vercel, so local and
+    // dev behaviour is unchanged.
+    const flushed = new Promise<void>((resolve) => {
+      setImmediate(() => {
+        void Promise.allSettled([
+          telemetryBuffer?.flush().catch((err) => {
+            console.error("[telemetry] flush error", err);
+          }),
+          flushPostHog(),
+        ]).finally(resolve);
+      });
+    });
+    waitUntil(flushed);
   };
-  if (telemetryBuffer) {
+  if (telemetryBuffer || isPostHogEnabled()) {
     res.once("finish", scheduleTelemetryFlush);
     res.once("close", scheduleTelemetryFlush);
   }
