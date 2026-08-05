@@ -28,7 +28,10 @@ separate, authenticated step.
    The script: places the bundle → renames `*.dc.html` → `index.html` → **injects
    `<base href="/decks/<slug>/">`** as the first `<head>` child → verifies over HTTP at the
    real subpath (clean URL 200, base present, `support.js`/`deck-stage.js`/CSS/font/image
-   all 200). It fails loudly if any check fails.
+   all 200) → runs a **facts guard** that refuses to publish a bundle containing any
+   known-wrong fact (e.g. `4 golden`, the pre-US-55 API, `never touches Notion`). It fails
+   loudly if any check fails. The facts guard mirrors `tests/docs/test_deck_facts.py` in
+   `hermes-control-plane` (which guards the Marp side); keep the two lists in sync.
 
 3. **Commit + PR:**
    ```bash

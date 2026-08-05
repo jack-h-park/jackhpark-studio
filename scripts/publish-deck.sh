@@ -108,6 +108,29 @@ done
 
 kill "$SRV" 2>/dev/null || true; trap - EXIT
 
+# ---- 4. facts guard — refuse to publish a known-wrong fact ----------------
+# Mirror of hermes-control-plane tests/docs/test_deck_facts.py (which guards the Marp
+# skeleton). These strings only appear when a fact has drifted; keep the two lists in
+# sync. Update BOTH the system and here when a fact genuinely changes.
+FORBIDDEN=(
+  "4 golden"                    # eval golden-scenario count is 7 (R01-R07)
+  "S2 + S7"                     # note depth stops at S2 (no S7)
+  "current_stage"               # US-55: run state is lifecycle/position/outcome
+  "/runs/{id}/direction"        # US-55: unified POST /runs/{id}/decision
+  "/runs/{id}/routing-review"   #   "
+  "/runs?status="               # US-55: no ?status= on runs
+  "auto-@mention"               # avatar consult is opt-in, not auto-every-gate
+  "never touches Notion"        # Wren publishes to the Notion posts DB
+  "Sole Notion writer"          # Quill = portfolio; Wren also writes Notion
+)
+facts_ok=1
+for bad in "${FORBIDDEN[@]}"; do
+  if grep -Fq "$bad" "$DST/index.html"; then
+    log "FAIL known-wrong fact present: '$bad'"; fail=1; facts_ok=0
+  fi
+done
+[ "$facts_ok" = 1 ] && log "ok   no known-wrong facts (facts guard)"
+
 slides="$(grep -c '<section' "$DST/index.html" || true)"
 echo ""
 if [ "$fail" = 0 ]; then
