@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<template id="__bundler_thumbnail">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#191919"/>
+  <rect x="120" y="90" width="160" height="8" rx="4" fill="url(#g)"/>
+  <text x="200" y="165" font-family="Georgia, serif" font-size="62" font-weight="500" fill="#F2F0EA" text-anchor="middle">PM</text>
+  <text x="200" y="205" font-family="ui-monospace, monospace" font-size="17" letter-spacing="3" fill="#9B9A97" text-anchor="middle">INTELLIGENCE</text>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f06292"/><stop offset="35%" stop-color="#b439df"/>
+      <stop offset="70%" stop-color="#5b8def"/><stop offset="100%" stop-color="#4dd0e1"/>
+    </linearGradient>
+  </defs>
+</svg>
+</template>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/jhp-studio-design-system-70185efc-fbe4-48d1-bb5b-1bdfb287ad6d/styles.css">
+<script src="_ds/jhp-studio-design-system-70185efc-fbe4-48d1-bb5b-1bdfb287ad6d/_ds_bundle.js"></script>
+<style>
+  :root{
+    --ink:#37352F; --ink2:#6B6A65; --ink3:#9B9A97;
+    --bg:#FFFFFF; --surface:#F7F6F3; --border:#EFEEEA; --border2:#E3E1DB;
+    --pink:#f06292; --purple:#b439df; --blue:#5b8def; --cyan:#4dd0e1;
+    --cyan-ink:#2a8fa0; --purple-ink:#8e29b3; --blue-ink:#3d6fcf; --pink-ink:#d23f74;
+    --night:#191919; --night2:#252525;
+    --grad:linear-gradient(90deg,#f06292 0%,#b439df 30%,#5b8def 60%,#4dd0e1 100%);
+    --gradd:linear-gradient(135deg,#f06292 0%,#b439df 30%,#5b8def 60%,#4dd0e1 100%);
+    --gradm:linear-gradient(90deg,#b439df 0%,#5b8def 50%,#4dd0e1 100%);
+    --card:0 1px 2px rgba(15,15,15,0.04),0 6px 16px rgba(15,15,15,0.05);
+    --fs-cover:104px; --fs-title:56px; --fs-h2:34px; --fs-lead:30px; --fs-body:25px; --fs-label:24px; --fs-stat:80px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;}
+  @keyframes deckFade{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:none;}}
+</style>
+</helmet>
+<x-import component-from-global-scope="deck-stage" from="./deck-stage.js" width="1920" height="1080" hint-size="100%,100%">
+
+<!-- ===== 1 · COVER ===== -->
+<section data-label="Cover" data-screen-label="01 Cover" data-speaker-notes="Opening. A personal PM operating system: from market signal intake to product decision, with human judgment preserved at every gate. The line to land: not a copilot that assists with PM work — a system that runs on the PM's thinking." style="background:var(--night);color:#F2F0EA;font-family:var(--font-sans);padding:96px 110px;display:flex;flex-direction:column;justify-content:space-between;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+    <div style="display:flex;align-items:center;gap:14px;">
+      <span style="font-family:var(--font-sans);font-weight:500;font-size:22px;letter-spacing:-0.01em;color:#F2F0EA;">Jack H. Park</span>
+      <span style="font-family:var(--font-mono);font-size:15px;letter-spacing:0.22em;color:#9B9A97;">STUDIO</span>
+    </div>
+    <span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.04em;color:#9B9A97;">Portfolio · 2026</span>
+  </div>
+  <div>
+    <span style="display:inline-block;width:120px;height:6px;border-radius:3px;background:var(--grad);margin-bottom:34px;"></span>
+    <h1 style="margin:0;font-family:var(--font-sans);font-weight:500;font-size:var(--fs-cover);line-height:1.0;letter-spacing:-0.03em;">PM Intelligence<br>System</h1>
+    <p style="margin:34px 0 0;font-size:var(--fs-lead);line-height:1.45;color:#B4B2A9;max-width:1180px;">Making my PM decisions <span style="background-image:var(--gradm);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:500;">consistent, reproducible, and AI-leverageable</span> — a system that structures the full cycle from market signal to product decision.</p>
+  </div>
+  <p style="margin:0;font-size:var(--fs-body);color:#9B9A97;max-width:1100px;">Not a copilot that assists with PM work. A system that runs on the PM's thinking.</p>
+</section>
+
+<!-- ===== 2 · WHY ===== -->
+<section data-label="Why" data-screen-label="02 Why I built this" data-speaker-notes="PM is a judgment profession, but most time goes to the work surrounding decisions. Most AI tools automate that surrounding work and leave the judgment architecture to chance. A PM already has a way of thinking — it just lives implicitly, applied inconsistently, leaving no record. I built toward externalizing it." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:88px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+    <span style="width:34px;height:4px;border-radius:2px;background:var(--pink);"></span>
+    <span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">Background</span>
+  </div>
+  <h2 style="margin:0 0 40px;font-weight:500;font-size:var(--fs-title);line-height:1.08;letter-spacing:-0.02em;">Why I built this</h2>
+  <div style="display:grid;grid-template-columns:1.05fr 0.95fr;gap:64px;align-items:start;flex:1;">
+    <div style="display:flex;flex-direction:column;gap:26px;">
+      <p style="margin:0;font-size:var(--fs-lead);line-height:1.5;color:var(--ink);">Product management is a judgment profession. Yet most time goes to the work <span style="color:var(--ink2);">surrounding</span> decisions — gathering, normalizing, formatting, filing.</p>
+      <p style="margin:0;font-size:var(--fs-body);line-height:1.6;color:var(--ink2);">Most AI tools address that surrounding work but leave the <strong style="color:var(--ink);font-weight:500;">judgment architecture</strong> to chance. A chatbot can draft a PRD — it can't ensure you evaluate an opportunity the same way every time.</p>
+      <p style="margin:0;font-size:var(--fs-body);line-height:1.6;color:var(--ink2);">A PM already has a way of thinking. The problem: it lives <strong style="color:var(--ink);font-weight:500;">implicitly</strong>, applied inconsistently, leaving no record.</p>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:40px;display:flex;flex-direction:column;gap:24px;">
+      <span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.16em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">What I built toward</span>
+      <div style="display:flex;gap:16px;align-items:flex-start;"><span style="width:9px;height:9px;border-radius:50%;background:var(--purple);margin-top:13px;flex-shrink:0;"></span><p style="margin:0;font-size:var(--fs-body);line-height:1.5;">My philosophy externalized → decisions that come out <strong style="font-weight:500;">"more me than me."</strong></p></div>
+      <div style="display:flex;gap:16px;align-items:flex-start;"><span style="width:9px;height:9px;border-radius:50%;background:var(--blue);margin-top:13px;flex-shrink:0;"></span><p style="margin:0;font-size:var(--fs-body);line-height:1.5;">Knowledge that accumulates in an <strong style="font-weight:500;">AI-leverageable form</strong> — Markdown in Obsidian, not a bespoke DB.</p></div>
+      <div style="display:flex;gap:16px;align-items:flex-start;"><span style="width:9px;height:9px;border-radius:50%;background:var(--cyan);margin-top:13px;flex-shrink:0;"></span><p style="margin:0;font-size:var(--fs-body);line-height:1.5;">An agent fleet that keeps <strong style="font-weight:500;">learning my know-how</strong> and runs the system with me.</p></div>
+    </div>
+  </div>
+  <div style="position:absolute;left:110px;bottom:46px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 3 · THESIS ===== -->
+<section data-label="Thesis" data-screen-label="03 Design thesis" data-speaker-notes="Two quality attributes drove every architectural choice: consistency and evolvability. Five principles serve them. The most important: separate deterministic logic from the non-deterministic LLM, and never offload determinism onto the model." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:88px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+    <span style="width:34px;height:4px;border-radius:2px;background:var(--pink);"></span>
+    <span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">Design thesis</span>
+  </div>
+  <h2 style="margin:0 0 14px;font-weight:500;font-size:var(--fs-title);line-height:1.08;letter-spacing:-0.02em;">Two quality attributes drove every choice</h2>
+  <div style="display:flex;gap:18px;align-items:center;margin-bottom:44px;">
+    <span style="font-family:var(--font-sans);font-weight:500;font-size:40px;letter-spacing:-0.02em;background-image:var(--gradm);-webkit-background-clip:text;background-clip:text;color:transparent;">Consistency</span>
+    <span style="font-size:34px;color:var(--ink3);">·</span>
+    <span style="font-family:var(--font-sans);font-weight:500;font-size:40px;letter-spacing:-0.02em;background-image:var(--gradm);-webkit-background-clip:text;background-clip:text;color:transparent;">Evolvability</span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:20px;flex:1;align-content:center;">
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:30px 26px;display:flex;flex-direction:column;gap:16px;"><span style="font-family:var(--font-mono);font-size:30px;font-weight:500;color:var(--purple-ink);">01</span><span style="font-size:23px;font-weight:500;line-height:1.25;">Determinism in two layers</span><span style="font-size:20px;line-height:1.45;color:var(--ink2);">A fixed pipeline runs every signal through the same stages; within each stage, code — not the LLM — does the deterministic work.</span></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:30px 26px;display:flex;flex-direction:column;gap:16px;"><span style="font-family:var(--font-mono);font-size:30px;font-weight:500;color:var(--pink-ink);">02</span><span style="font-size:23px;font-weight:500;line-height:1.25;">Human-in-the-loop by design</span><span style="font-size:20px;line-height:1.45;color:var(--ink2);">Every gate is a checkpoint where PM judgment decides what happens next.</span></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:30px 26px;display:flex;flex-direction:column;gap:16px;"><span style="font-family:var(--font-mono);font-size:30px;font-weight:500;color:var(--blue-ink);">03</span><span style="font-size:23px;font-weight:500;line-height:1.25;">Specialized over autonomous</span><span style="font-size:20px;line-height:1.45;color:var(--ink2);">Agents are about specialization — not automation for its own sake.</span></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:30px 26px;display:flex;flex-direction:column;gap:16px;"><span style="font-family:var(--font-mono);font-size:30px;font-weight:500;color:var(--cyan-ink);">04</span><span style="font-size:23px;font-weight:500;line-height:1.25;">Externalized, versioned reasoning</span><span style="font-size:20px;line-height:1.45;color:var(--ink2);">Identity, prompts &amp; rubrics live as files you can read, diff, and roll back.</span></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:30px 26px;display:flex;flex-direction:column;gap:16px;"><span style="font-family:var(--font-mono);font-size:30px;font-weight:500;color:var(--purple-ink);">05</span><span style="font-size:23px;font-weight:500;line-height:1.25;">Closed-loop learning</span><span style="font-size:20px;line-height:1.45;color:var(--ink2);">Accumulated decisions feed back into future analysis — decision back to identity.</span></div>
+  </div>
+  <div style="position:absolute;left:110px;bottom:46px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 4 · SYSTEM AT A GLANCE (HERO) ===== -->
+<section data-label="System" data-screen-label="04 System at a glance" data-speaker-notes="Six repos in three groups — Knowledge, Intelligence, Operations. A network of dependencies, not a sequential stack. ① stores and delivers knowledge, ② turns signals into decisions using that knowledge, ③ orchestrates the full pipeline with the PM in the loop, and observes it. Decisions compound back into ①." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 70px;display:flex;flex-direction:column;" data-comment-anchor="d75621eb04-section">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:34px;">
+    <div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--pink);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">Architecture</span></div>
+      <h2 style="margin:0;font-weight:500;font-size:50px;line-height:1.05;letter-spacing:-0.02em;">The system at a glance</h2>
+    </div>
+    <p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);max-width:560px;text-align:right;">Six repositories in three groups — a <strong style="color:var(--ink);font-weight:500;">network of dependencies</strong>, not a sequential stack.</p>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;flex:1;">
+    <!-- GROUP 1 -->
+    <div style="display:flex;flex-direction:column;gap:16px;background:rgba(180,57,223,0.05);border:1px solid rgba(180,57,223,0.18);border-radius:18px;padding:24px;">
+      <div style="display:flex;align-items:center;gap:14px;"><span style="width:38px;height:38px;border-radius:10px;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:500;font-size:22px;">1</span><div style="display:flex;flex-direction:column;"><span style="font-weight:500;font-size:26px;letter-spacing:-0.01em;">Knowledge</span><span style="font-size:18px;color:var(--purple-ink);">Memory that accumulates</span></div></div>
+      <div style="background:#fff;border:1px solid var(--border);border-top:3px solid var(--purple);border-radius:12px;box-shadow:var(--card);padding:22px;display:flex;flex-direction:column;gap:8px;flex:1;"><span style="font-family:var(--font-mono);font-size:18px;color:var(--purple-ink);">product-management-wiki</span><span style="font-weight:500;font-size:24px;">Memory · the LLM Wiki</span><span style="font-size:19px;line-height:1.4;color:var(--ink2);">Sensing inbox + compounding knowledge base — no bespoke DB.</span></div>
+      <div style="background:#fff;border:1px solid var(--border);border-top:3px solid var(--purple);border-radius:12px;box-shadow:var(--card);padding:22px;display:flex;flex-direction:column;gap:8px;"><span style="font-family:var(--font-mono);font-size:18px;color:var(--purple-ink);">notion-cms-backup</span><span style="font-weight:500;font-size:24px;">Data edge</span><span style="font-size:19px;line-height:1.4;color:var(--ink2);">Weekly Notion → wiki raw-layer sync.</span></div>
+    </div>
+    <!-- GROUP 2 -->
+    <div style="display:flex;flex-direction:column;gap:16px;background:rgba(91,141,239,0.05);border:1px solid rgba(91,141,239,0.18);border-radius:18px;padding:24px;">
+      <div style="display:flex;align-items:center;gap:14px;"><span style="width:38px;height:38px;border-radius:10px;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:500;font-size:22px;">2</span><div style="display:flex;flex-direction:column;"><span style="font-weight:500;font-size:26px;letter-spacing:-0.01em;">Intelligence</span><span style="font-size:18px;color:var(--blue-ink);">Reasoning that decides</span></div></div>
+      <div style="background:#fff;border:1px solid var(--border);border-top:3px solid var(--blue);border-radius:12px;box-shadow:var(--card);padding:22px;display:flex;flex-direction:column;gap:8px;"><span style="font-family:var(--font-mono);font-size:18px;color:var(--blue-ink);">pm-decision-context</span><span style="font-weight:500;font-size:24px;">Reasoning</span><span style="font-size:19px;line-height:1.4;color:var(--ink2);">PM identity · strategy · stage prompts &amp; rubrics.</span></div>
+      <div style="background:var(--blue-ink);border:1px solid var(--blue-ink);border-radius:12px;box-shadow:var(--card);padding:22px;display:flex;flex-direction:column;gap:8px;flex:1;"><span style="font-family:var(--font-mono);font-size:18px;color:#cfe0fb;">pm-intelligence-engine</span><span style="font-weight:500;font-size:24px;color:#ffffff;">Execution</span><span style="font-size:19px;line-height:1.4;color:#d4e1fa;">The S1→S7 pipeline — typed stages around 3 human gates.</span></div>
+    </div>
+    <!-- GROUP 3 -->
+    <div style="display:flex;flex-direction:column;gap:16px;background:rgba(77,208,225,0.07);border:1px solid rgba(77,208,225,0.22);border-radius:18px;padding:24px;">
+      <div style="display:flex;align-items:center;gap:14px;"><span style="width:38px;height:38px;border-radius:10px;background:var(--cyan);color:var(--night);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:500;font-size:22px;">3</span><div style="display:flex;flex-direction:column;"><span style="font-weight:500;font-size:26px;letter-spacing:-0.01em;">Operations</span><span style="font-size:18px;color:var(--cyan-ink);">Agents that orchestrate</span></div></div>
+      <div style="background:#fff;border:1px solid var(--border);border-top:3px solid var(--cyan);border-radius:12px;box-shadow:var(--card);padding:22px;display:flex;flex-direction:column;gap:8px;flex:1;"><span style="font-family:var(--font-mono);font-size:18px;color:var(--cyan-ink);">hermes-control-plane</span><span style="font-weight:500;font-size:24px;">Operations · Hermes Agent</span><span style="font-size:19px;line-height:1.4;color:var(--ink2);">Gate 0 · 8 specialized agents · cron · deploy.</span></div>
+      <div style="background:#fff;border:1px solid var(--border);border-top:3px solid var(--cyan);border-radius:12px;box-shadow:var(--card);padding:22px;display:flex;flex-direction:column;gap:8px;"><span style="font-family:var(--font-mono);font-size:18px;color:var(--cyan-ink);">pm-observatory</span><span style="font-weight:500;font-size:24px;">Observability</span><span style="font-size:19px;line-height:1.4;color:var(--ink2);">Read-only dashboard — observe, never control.</span></div>
+    </div>
+  </div>
+  <div style="margin-top:24px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 28px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;">
+    <span style="font-family:var(--font-mono);font-size:17px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink3);">The loop</span>
+    <span style="font-size:21px;color:var(--ink);">Web signal</span><span style="color:var(--ink3);font-size:21px;">→</span>
+    <span style="font-size:21px;color:var(--ink);"><strong style="color:var(--purple-ink);font-weight:500;">①</strong> delivers knowledge</span><span style="color:var(--ink3);font-size:21px;">→</span>
+    <span style="font-size:21px;color:var(--ink);"><strong style="color:var(--blue-ink);font-weight:500;">②</strong> turns signals into decisions</span><span style="color:var(--ink3);font-size:21px;">→</span>
+    <span style="font-size:21px;color:var(--ink);"><strong style="color:var(--cyan-ink);font-weight:500;">③</strong> runs it with the PM in the loop</span>
+    <span style="margin-left:auto;font-size:19px;color:var(--ink2);font-style:italic;">↺ decisions compound back into ①</span>
+  </div>
+</section>
+
+<!-- ===== 4b · SYSTEM BLUEPRINT (original, preserved) ===== -->
+<section data-label="System · blueprint" data-screen-label="04b System · detailed blueprint" data-speaker-notes="The original detailed blueprint, preserved alongside the simplified view. Here the full dependency network is visible with every labeled edge — detects sensing, context, triggers, gate states, observe, wiki-export after S7, and the weekly Notion sync — plus the feedback loop from Operations back into Memory. Use the previous slide to tell the story; use this one when someone wants the wiring." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:62px 90px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;" data-comment-anchor="bd606f49fa-div">
+    <div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--pink);"></span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">Architecture · original blueprint</span></div>
+      <h2 style="margin:0;font-weight:500;font-size:48px;line-height:1.05;letter-spacing:-0.02em;">The system at a glance — detailed blueprint</h2>
+    </div>
+    <span style="font-size:21px;color:var(--ink2);max-width:460px;text-align:right;">The full dependency network, with every labeled edge preserved.</span>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:34px 56px;">
+    <svg viewBox="0 0 820 408" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-height:820px;display:block">
+      <defs>
+        <marker id="arr" markerWidth="9" markerHeight="7" refX="7.5" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#a9a7a0"/></marker>
+        <marker id="arr-fb" markerWidth="9" markerHeight="7" refX="7.5" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#b439df"/></marker>
+        <marker id="arr-cy" markerWidth="9" markerHeight="7" refX="7.5" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#2a8fa0"/></marker>
+        <marker id="arr-sl" markerWidth="9" markerHeight="7" refX="7.5" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#3d6fcf"/></marker>
+      </defs>
+      <!-- column headers double as the legend: each column = one architecture group -->
+      <rect x="85" y="11" width="11" height="11" rx="3" fill="#b439df"/><text x="102" y="20.5" fill="#37352f" font-size="12.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">① Knowledge</text>
+      <rect x="372" y="11" width="11" height="11" rx="3" fill="#5b8def"/><text x="389" y="20.5" fill="#37352f" font-size="12.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">② Intelligence</text>
+      <rect x="662" y="11" width="11" height="11" rx="3" fill="#2a8fa0"/><text x="679" y="20.5" fill="#37352f" font-size="12.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">③ Operations</text>
+      <text x="500" y="400" text-anchor="middle" fill="#9b9a93" font-size="10" font-style="italic" font-family="Geist, ui-sans-serif, sans-serif">Solid fill = core repo · Tinted = supporting node</text>
+
+      <!-- external input → Memory -->
+      <text x="135" y="40" text-anchor="middle" fill="#8a8780" font-size="10" font-style="italic" font-family="Geist, ui-sans-serif, sans-serif">Web sensing</text>
+      <text x="135" y="52" text-anchor="middle" fill="#9b9a93" font-size="9.5" font-family="Geist, ui-sans-serif, sans-serif">blog posts · tech articles · CVEs</text>
+      <line x1="135" y1="56" x2="135" y2="71" stroke="#a9a7a0" stroke-width="1.6" marker-end="url(#arr)" data-comment-anchor="58bc69ce4d-line"/>
+
+      <!-- ① KNOWLEDGE column -->
+      <rect x="18" y="76" width="234" height="68" rx="12" fill="#b439df"/>
+      <text x="135" y="104" text-anchor="middle" fill="#ffffff" font-size="14.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">Memory</text>
+      <text x="135" y="120" text-anchor="middle" fill="#f3e6fb" font-size="10.5" font-family="Geist, ui-sans-serif, sans-serif">product-management-wiki</text>
+      <text x="135" y="134" text-anchor="middle" fill="#e6d4f6" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">sensing inbox · knowledge base</text>
+
+      <rect x="18" y="162" width="234" height="62" rx="12" fill="#f3e7fb" stroke="#dcc0f0" stroke-width="1.2"/>
+      <text x="135" y="187" text-anchor="middle" fill="#8e29b3" font-size="14.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">Data edge</text>
+      <text x="135" y="203" text-anchor="middle" fill="#9a5cc0" font-size="10.5" font-family="Geist, ui-sans-serif, sans-serif">notion-cms-backup</text>
+      <text x="135" y="216" text-anchor="middle" fill="#a87ac6" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">weekly sync → raw layer</text>
+
+      <!-- ② INTELLIGENCE column -->
+      <rect x="300" y="76" width="248" height="68" rx="12" fill="#5b8def" data-comment-anchor="61e4c34c05-rect"/>
+      <text x="424" y="104" text-anchor="middle" fill="#ffffff" font-size="14.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">Reasoning</text>
+      <text x="424" y="120" text-anchor="middle" fill="#e8effc" font-size="10.5" font-family="Geist, ui-sans-serif, sans-serif">pm-decision-context</text>
+      <text x="424" y="134" text-anchor="middle" fill="#dae6fb" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">PM identity · strategy · prompts</text>
+
+      <rect x="300" y="162" width="248" height="100" rx="12" fill="#3d6fcf" data-comment-anchor="19e1cb6ef7-rect"/>
+      <text x="424" y="192" text-anchor="middle" fill="#ffffff" font-size="14.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">Execution</text>
+      <text x="424" y="211" text-anchor="middle" fill="#d6e4fc" font-size="10.5" font-family="Geist, ui-sans-serif, sans-serif">pm-intelligence-engine</text>
+      <text x="424" y="229" text-anchor="middle" fill="#eef3fd" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">S1 → S2 → S3 → S4 → S5 → S6 → S7</text>
+      <text x="424" y="246" text-anchor="middle" fill="#c3d5f7" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">[Gate 1] S2 · [Gate 2] S4 · [Gate 3] S5</text>
+
+      <!-- ③ OPERATIONS column -->
+      <rect x="624" y="162" width="180" height="68" rx="12" fill="#2a8fa0"/>
+      <text x="714" y="190" text-anchor="middle" fill="#ffffff" font-size="14.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">Operations</text>
+      <text x="714" y="206" text-anchor="middle" fill="#ddf3f6" font-size="10.5" font-family="Geist, ui-sans-serif, sans-serif">hermes-control-plane</text>
+      <text x="714" y="220" text-anchor="middle" fill="#c9eaef" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">Gate 0 · gate-watcher · deploy</text>
+
+      <rect x="624" y="246" width="180" height="68" rx="12" fill="#dceff3" stroke="#9fccd7" stroke-width="2" data-comment-anchor="5f06baa3ec-rect"/>
+      <text x="714" y="274" text-anchor="middle" fill="#1f7484" font-size="14.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">Observability</text>
+      <text x="714" y="290" text-anchor="middle" fill="#3a8593" font-size="10.5" font-family="Geist, ui-sans-serif, sans-serif">pm-observatory</text>
+      <text x="714" y="304" text-anchor="middle" fill="#4e96a3" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">read-only · never controls</text>
+
+      <!-- ARROWS (all solid; each colored by its source group) -->
+      <!-- detects sensing: Memory(①) → Operations(③), routed over the top -->
+      <path d="M 252,90 V 66 H 714 V 160" fill="none" stroke="#b439df" stroke-width="1.8" marker-end="url(#arr-fb)"/>
+      <text x="468" y="60" text-anchor="middle" fill="#8e29b3" font-size="10.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">detects sensing</text>
+
+      <!-- context: Reasoning → Execution (down the ② column) -->
+      <line x1="424" y1="144" x2="424" y2="160" stroke="#3d6fcf" stroke-width="1.8" marker-end="url(#arr-sl)"/>
+      <text x="434" y="156" text-anchor="start" fill="#3d6fcf" font-size="10.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">context</text>
+
+      <!-- triggers ← / gate states → : Operations ⇄ Execution (two clean horizontal lanes) -->
+      <line x1="622" y1="186" x2="550" y2="186" stroke="#2a8fa0" stroke-width="2.2" marker-end="url(#arr-cy)"/>
+      <text x="586" y="180" text-anchor="middle" fill="#2a8fa0" font-size="10.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">triggers</text>
+      <line x1="550" y1="210" x2="622" y2="210" stroke="#3d6fcf" stroke-width="2.2" marker-end="url(#arr-sl)"/>
+      <text x="586" y="224" text-anchor="middle" fill="#3d6fcf" font-size="10.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">gate states</text>
+
+      <!-- observe: Execution → Observability -->
+      <line x1="550" y1="250" x2="622" y2="270" stroke="#3d6fcf" stroke-width="1.6" marker-end="url(#arr-sl)"/>
+      <text x="589" y="244" text-anchor="middle" fill="#3d6fcf" font-size="10.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">observe</text>
+
+      <!-- weekly sync: Data edge → Memory (up the ① column) -->
+      <line x1="135" y1="162" x2="135" y2="146" stroke="#b439df" stroke-width="1.8" marker-end="url(#arr-fb)"/>
+      <text x="142" y="156" text-anchor="start" fill="#8e29b3" font-size="10.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">weekly sync</text>
+
+      <!-- wiki-export after S7: Execution → Memory (feedback loop, outer route) -->
+      <path d="M 400,262 V 384 H 10 V 110 H 16" fill="none" stroke="#3d6fcf" stroke-width="1.8" marker-end="url(#arr-sl)"/>
+      <text x="240" y="378" text-anchor="middle" fill="#3d6fcf" font-size="10.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">wiki-export after S7 — feedback loop</text>
+    </svg>
+  </div>
+  <div style="position:absolute;left:90px;bottom:26px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 5 · § KNOWLEDGE ===== -->
+<section data-label="§ Knowledge" data-screen-label="05 Section · Knowledge" data-speaker-notes="Section one: Knowledge. Memory that accumulates, data that syncs. The wiki is where knowledge compounds — no bespoke database." style="background:var(--night);color:#F2F0EA;font-family:var(--font-sans);padding:96px 110px;display:flex;flex-direction:column;justify-content:center;">
+  <span style="display:inline-block;width:120px;height:6px;border-radius:3px;background:var(--grad);margin-bottom:40px;"></span>
+  <div style="display:flex;align-items:baseline;gap:32px;">
+    <span style="font-family:var(--font-mono);font-weight:500;font-size:160px;line-height:0.9;background-image:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;">01</span>
+    <div>
+      <h2 style="margin:0;font-weight:500;font-size:84px;line-height:1.0;letter-spacing:-0.03em;">Knowledge</h2>
+      <p style="margin:18px 0 0;font-size:var(--fs-lead);color:#B4B2A9;">Memory that accumulates · Data that syncs</p>
+    </div>
+  </div>
+  <p style="margin:52px 0 0;font-family:var(--font-mono);font-size:22px;letter-spacing:0.04em;color:#6B6A65;">product-management-wiki &nbsp;·&nbsp; notion-cms-backup</p>
+</section>
+
+<!-- ===== 6 · MEMORY / WIKI (+graph image) ===== -->
+<section data-label="Memory" data-screen-label="06 Memory · LLM Wiki" data-speaker-notes="The wiki has three tiers, one owner each: human-owned raw, LLM-distilled canonical wiki, derived outputs. Each new decision is integrated into existing pages — extracting the pattern, not just filing the case. Graphify turns the corpus into a queryable graph so agents read 1 community article plus a few god nodes instead of 20 raw files — and queries cost no LLM tokens." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 70px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--purple);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--purple-ink);">① Knowledge</span></div>
+  <h2 style="margin:0 0 30px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Memory — the LLM Wiki</h2>
+  <div style="display:grid;grid-template-columns:1.02fr 0.98fr;gap:48px;flex:1;align-items:stretch;">
+    <div style="display:flex;flex-direction:column;">
+      <!-- 3 tiers -->
+      <div style="display:flex;align-items:stretch;gap:12px;margin-bottom:26px;">
+        <div style="flex:1;background:rgba(180,57,223,0.06);border:1px solid rgba(180,57,223,0.22);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:6px;"><span style="font-weight:500;font-size:24px;color:var(--purple-ink);">Raw</span><span style="font-size:18px;color:var(--ink2);line-height:1.35;">human / auto-sync · from-web · from-notion</span></div>
+        <span style="align-self:center;color:var(--purple);font-size:26px;">→</span>
+        <div style="flex:1;background:var(--purple);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:6px;"><span style="font-weight:500;font-size:24px;color:#fff;">Wiki</span><span style="font-size:18px;color:#f3e6fb;line-height:1.35;">LLM-distilled canonical pages</span></div>
+        <span style="align-self:center;color:var(--purple);font-size:26px;">→</span>
+        <div style="flex:1;background:rgba(180,57,223,0.06);border:1px solid rgba(180,57,223,0.22);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:6px;"><span style="font-weight:500;font-size:24px;color:var(--purple-ink);">Outputs</span><span style="font-size:18px;color:var(--ink2);line-height:1.35;">cases · pocs · prds · interview</span></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:18px;margin-bottom:26px;">
+        <div style="display:flex;gap:14px;align-items:flex-start;"><span style="width:9px;height:9px;border-radius:50%;background:var(--purple);margin-top:12px;flex-shrink:0;"></span><p style="margin:0;font-size:var(--fs-body);line-height:1.5;">Each decision is <strong style="font-weight:500;">integrated</strong> into existing pages — extracting the pattern it illustrates, not just filing the case.</p></div>
+        <div style="display:flex;gap:14px;align-items:flex-start;"><span style="width:9px;height:9px;border-radius:50%;background:var(--purple);margin-top:12px;flex-shrink:0;"></span><p style="margin:0;font-size:var(--fs-body);line-height:1.5;color:var(--ink2);">A kill decision → <span style="font-family:var(--font-mono);font-size:21px;color:var(--purple-ink);">kill-decisions.md</span> → a rule in <span style="font-family:var(--font-mono);font-size:21px;color:var(--purple-ink);">build-vs-buy.md</span> → an interview answer.</p></div>
+      </div>
+      <div style="margin-top:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 26px;">
+        <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Graphify</span>
+        <p style="margin:10px 0 0;font-size:21px;line-height:1.5;color:var(--ink);">A knowledge graph over the wiki: community-first routing replaces reading 20 files with <strong style="font-weight:500;">1 + 2–3 god nodes</strong>. Persists in git; queries run on static JSON — <strong style="font-weight:500;">no LLM cost at query time.</strong></p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="flex:1;border:1px solid var(--border2);border-radius:14px;overflow:hidden;box-shadow:var(--card);background:#fff;display:flex;flex-direction:column;">
+        <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--surface);"><span style="width:11px;height:11px;border-radius:50%;background:#E0DED8;"></span><span style="width:11px;height:11px;border-radius:50%;background:#E0DED8;"></span><span style="width:11px;height:11px;border-radius:50%;background:#E0DED8;"></span><span style="margin-left:8px;font-family:var(--font-mono);font-size:15px;color:var(--ink3);">Obsidian · graph view</span></div>
+        <img src="images/llm-wiki-graph.png" alt="Knowledge graph of the PM wiki in Obsidian" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;flex:1;min-height:0;">
+      </div>
+      <p style="margin:0;font-size:18px;line-height:1.4;color:var(--ink3);text-align:center;">The wiki as a queryable graph — knowledge that compounds instead of just growing.</p>
+    </div>
+  </div>
+  <div style="position:absolute;left:90px;bottom:30px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 7 · § INTELLIGENCE ===== -->
+<section data-label="§ Intelligence" data-screen-label="07 Section · Intelligence" data-speaker-notes="Section two: Intelligence. Reasoning that grounds, execution that decides. This is where signals become decisions." style="background:var(--night);color:#F2F0EA;font-family:var(--font-sans);padding:96px 110px;display:flex;flex-direction:column;justify-content:center;">
+  <span style="display:inline-block;width:120px;height:6px;border-radius:3px;background:var(--grad);margin-bottom:40px;"></span>
+  <div style="display:flex;align-items:baseline;gap:32px;">
+    <span style="font-family:var(--font-mono);font-weight:500;font-size:160px;line-height:0.9;background-image:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;">02</span>
+    <div>
+      <h2 style="margin:0;font-weight:500;font-size:84px;line-height:1.0;letter-spacing:-0.03em;">Intelligence</h2>
+      <p style="margin:18px 0 0;font-size:var(--fs-lead);color:#B4B2A9;">Reasoning that grounds · Execution that decides</p>
+    </div>
+  </div>
+  <p style="margin:52px 0 0;font-family:var(--font-mono);font-size:22px;letter-spacing:0.04em;color:#6B6A65;">pm-decision-context &nbsp;·&nbsp; pm-intelligence-engine</p>
+</section>
+
+<!-- ===== 8 · REASONING (context funnel) ===== -->
+<section data-label="Reasoning" data-screen-label="08 Reasoning · context" data-speaker-notes="Before any LLM stage runs, three context levels load in sequence — WHY, WHERE, WHAT. PM identity, company strategy, product context. Each narrows the output space. Remove one and you get competent but generic PM advice — not decisions grounded in this PM, this company, this product." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 70px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--blue);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--blue-ink);">② Intelligence · pm-decision-context</span></div>
+  <h2 style="margin:0 0 12px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Reasoning — context that grounds every run</h2>
+  <p style="margin:0 0 34px;font-size:23px;color:var(--ink2);max-width:1180px;">Before any LLM stage runs, three levels load in sequence. Each narrows the output space — remove one and you get generic PM advice.</p>
+  <div style="display:flex;flex-direction:column;gap:18px;align-items:center;flex:1;justify-content:center;">
+    <div style="width:100%;display:flex;align-items:center;gap:28px;background:rgba(91,141,239,0.06);border:1px solid rgba(91,141,239,0.22);border-radius:14px;padding:26px 32px;">
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:170px;"><span style="font-family:var(--font-sans);font-weight:500;font-size:30px;color:var(--blue-ink);">PM identity</span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.1em;color:var(--blue);">WHY</span></div>
+      <div style="width:1px;align-self:stretch;background:rgba(91,141,239,0.3);"></div>
+      <div style="flex:1;"><p style="margin:0 0 4px;font-size:24px;font-style:italic;color:var(--ink);">"Strategy is defined by what you choose NOT to build."</p><p style="margin:0;font-size:20px;color:var(--ink2);">PM identity · values · non-negotiable constraints</p></div>
+    </div>
+    <span style="color:var(--blue);font-size:28px;">↓</span>
+    <div style="width:90%;display:flex;align-items:center;gap:28px;background:rgba(91,141,239,0.06);border:1px solid rgba(91,141,239,0.22);border-radius:14px;padding:26px 32px;">
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:170px;"><span style="font-family:var(--font-sans);font-weight:500;font-size:30px;color:var(--blue-ink);">Company strategy</span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.1em;color:var(--blue);">WHERE</span></div>
+      <div style="width:1px;align-self:stretch;background:rgba(91,141,239,0.3);"></div>
+      <div style="flex:1;"><p style="margin:0 0 4px;font-size:23px;color:var(--ink);">Hardware-Rooted Security · Ecosystem Integration · Enterprise IT as Buyer · On-Device AI Moat</p><p style="margin:0;font-size:20px;color:var(--ink2);">Where to compete · positioning · strategic bets</p></div>
+    </div>
+    <span style="color:var(--blue);font-size:28px;">↓</span>
+    <div style="width:80%;display:flex;align-items:center;gap:28px;background:rgba(91,141,239,0.06);border:1px solid rgba(91,141,239,0.22);border-radius:14px;padding:26px 32px;">
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:170px;"><span style="font-family:var(--font-sans);font-weight:500;font-size:30px;color:var(--blue-ink);">Product context</span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.1em;color:var(--blue);">WHAT</span></div>
+      <div style="width:1px;align-self:stretch;background:rgba(91,141,239,0.3);"></div>
+      <div style="flex:1;"><p style="margin:0 0 4px;font-size:23px;color:var(--ink);">Knox-specific constraints, positioning, portfolios</p><p style="margin:0;font-size:20px;color:var(--ink2);">What to build · surface constraints · current bets</p></div>
+    </div>
+  </div>
+  <div style="position:absolute;left:90px;bottom:30px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 9 · EXECUTION PIPELINE ===== -->
+<section data-label="Pipeline" data-screen-label="09 Execution · S1–S7" data-speaker-notes="The engine: stages are typed functions, not agents — async run(input, context, llm). Every output is schema-validated, so no narrative drift, and stages are individually re-runnable. Gate 0 is pre-pipeline intake, run by the ops agent. Three human gates sit inside: Gate 1 sets direction, Gate 2 evaluates personas, Gate 3 confirms routing. A deterministic scaffold around LLM inference — end-to-end auditable." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 64px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--blue);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--blue-ink);">② Intelligence · pm-intelligence-engine</span></div>
+  <h2 style="margin:0 0 8px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Execution — the S1→S7 pipeline</h2>
+  <p style="margin:0 0 30px;font-size:23px;color:var(--ink2);max-width:1240px;">Stages are typed functions, not agents. Every output is schema-validated and re-runnable — a deterministic scaffold around LLM inference.</p>
+  <!-- Phase A -->
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+    <span style="font-family:var(--font-mono);font-size:17px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);min-width:118px;">Intake → frame</span>
+    <div style="flex:1;display:flex;align-items:center;gap:10px;">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:var(--surface);border:1px solid var(--border);"><span style="font-weight:500;font-size:25px;">Signal</span><span style="font-size:18px;color:var(--ink3);">input</span></div>
+      <span style="color:var(--ink3);font-size:22px;">→</span>
+      <div style="flex:1.05;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:rgba(77,208,225,0.12);border:1px solid rgba(77,208,225,0.4);border-top:4px solid var(--cyan);"><span style="font-weight:500;font-size:25px;color:var(--cyan-ink);">Gate 0</span><span style="font-size:18px;color:var(--cyan-ink);">③ ops intake</span></div>
+      <span style="color:var(--ink3);font-size:22px;">→</span>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:#fff;border:1px solid var(--border);border-top:4px solid #B6B3AC;box-shadow:var(--card);"><span style="font-weight:500;font-size:25px;">S1</span><span style="font-size:18px;color:var(--ink3);">ingest · code</span></div>
+      <span style="color:var(--ink3);font-size:22px;">→</span>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:#fff;border:1px solid var(--border);border-top:4px solid var(--blue);box-shadow:var(--card);"><span style="font-weight:500;font-size:25px;">S2</span><span style="font-size:18px;color:var(--ink3);">insight · LLM</span></div>
+      <span style="color:var(--ink3);font-size:22px;">→</span>
+      <div style="flex:1.05;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:rgba(240,98,146,0.1);border:1px solid rgba(240,98,146,0.38);border-top:4px solid var(--pink);"><span style="font-weight:500;font-size:25px;color:var(--pink-ink);">Gate 1</span><span style="font-size:18px;color:var(--pink-ink);">direction</span></div>
+      <span style="color:var(--ink3);font-size:22px;">→</span>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:#fff;border:1px solid var(--border);border-top:4px solid var(--blue);box-shadow:var(--card);"><span style="font-weight:500;font-size:25px;">S3</span><span style="font-size:18px;color:var(--ink3);">frame · LLM</span></div>
+    </div>
+  </div>
+  <!-- Phase B -->
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:26px;">
+    <span style="font-family:var(--font-mono);font-size:17px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);min-width:118px;">Evaluate → output</span>
+    <div style="flex:1;display:flex;align-items:center;gap:10px;">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:#fff;border:1px solid var(--border);border-top:4px solid var(--blue);box-shadow:var(--card);"><span style="font-weight:500;font-size:25px;">S4</span><span style="font-size:18px;color:var(--ink3);">personas ×4 · LLM</span></div>
+      <span style="color:var(--ink3);font-size:22px;">→</span>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:rgba(240,98,146,0.1);border:1px solid rgba(240,98,146,0.38);border-top:4px solid var(--pink);"><span style="font-weight:500;font-size:25px;color:var(--pink-ink);">Gate 2</span><span style="font-size:18px;color:var(--pink-ink);">evaluation</span></div>
+      <span style="color:var(--ink3);font-size:22px;">→</span>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:#fff;border:1px solid var(--border);border-top:4px solid #B6B3AC;box-shadow:var(--card);"><span style="font-weight:500;font-size:25px;">S5</span><span style="font-size:18px;color:var(--ink3);">route · code</span></div>
+      <span style="color:var(--ink3);font-size:22px;">→</span>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:rgba(240,98,146,0.1);border:1px solid rgba(240,98,146,0.38);border-top:4px solid var(--pink);"><span style="font-weight:500;font-size:25px;color:var(--pink-ink);">Gate 3</span><span style="font-size:18px;color:var(--pink-ink);">routing</span></div>
+      <span style="color:var(--ink3);font-size:22px;">→</span>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:#fff;border:1px solid var(--border);border-top:4px solid var(--blue);box-shadow:var(--card);"><span style="font-weight:500;font-size:25px;">S6</span><span style="font-size:18px;color:var(--ink3);">PoC / PRD · LLM</span></div>
+      <span style="color:var(--ink3);font-size:22px;">→</span>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:#fff;border:1px solid var(--border);border-top:4px solid var(--blue);box-shadow:var(--card);"><span style="font-weight:500;font-size:25px;">S7</span><span style="font-size:18px;color:var(--ink3);">summary · LLM</span></div>
+      <span style="color:var(--ink3);font-size:22px;">→</span>
+      <div style="flex:0.9;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:92px;border-radius:12px;background:var(--surface);border:1px solid var(--border);"><span style="font-weight:500;font-size:25px;">archive</span></div>
+    </div>
+  </div>
+  <!-- legend -->
+  <div style="display:flex;align-items:center;gap:34px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 28px;">
+    <div style="display:flex;align-items:center;gap:10px;"><span style="width:26px;height:6px;border-radius:3px;background:var(--blue);"></span><span style="font-size:20px;color:var(--ink2);">LLM stage</span></div>
+    <div style="display:flex;align-items:center;gap:10px;"><span style="width:26px;height:6px;border-radius:3px;background:#B6B3AC;"></span><span style="font-size:20px;color:var(--ink2);">Deterministic · code</span></div>
+    <div style="display:flex;align-items:center;gap:10px;"><span style="width:26px;height:6px;border-radius:3px;background:var(--pink);"></span><span style="font-size:20px;color:var(--ink2);">Human gate (in-pipeline)</span></div>
+    <div style="display:flex;align-items:center;gap:10px;"><span style="width:26px;height:6px;border-radius:3px;background:var(--cyan);"></span><span style="font-size:20px;color:var(--ink2);">Ops intake (pre-pipeline)</span></div>
+    <span style="margin-left:auto;font-size:20px;color:var(--ink);font-style:italic;">Schema-validated · no narrative drift · end-to-end auditable</span>
+  </div>
+</section>
+
+<!-- ===== 10 · S4 PERSONAS ===== -->
+<section data-label="Personas" data-screen-label="10 S4 · personas" data-speaker-notes="Four viewpoints score the same opportunity in parallel, each in its own isolated context. These aren't generic AI roles — they're my own evaluation perspectives, made explicit as separate agents. A bias-control mechanism, not multi-agent orchestration. After S4, a 12-point rubric quality-gates the outputs before routing." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 70px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--blue);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--blue-ink);">② Intelligence · S4</span></div>
+  <h2 style="margin:0 0 12px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Multi-persona evaluation</h2>
+  <p style="margin:0 0 36px;font-size:23px;color:var(--ink2);max-width:1240px;">Four viewpoints score the same opportunity in parallel — each in its own context, no shared state. Not generic AI roles: my own evaluation perspectives, made explicit.</p>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:22px;flex:1;align-content:center;">
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:34px 28px;display:flex;flex-direction:column;gap:18px;"><span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blue-ink);">Impact</span><span style="font-weight:500;font-size:34px;letter-spacing:-0.01em;">Explorer</span><p style="margin:0;font-size:24px;line-height:1.45;color:var(--ink2);">How far can we go?</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:34px 28px;display:flex;flex-direction:column;gap:18px;"><span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blue-ink);">Strategic fit</span><span style="font-weight:500;font-size:34px;letter-spacing:-0.01em;">Strategist</span><p style="margin:0;font-size:24px;line-height:1.45;color:var(--ink2);">Does this belong?</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:34px 28px;display:flex;flex-direction:column;gap:18px;"><span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.12em;text-transform:uppercase;color:var(--blue-ink);">Feasibility</span><span style="font-weight:500;font-size:34px;letter-spacing:-0.01em;">Builder</span><p style="margin:0;font-size:24px;line-height:1.45;color:var(--ink2);">Can we build it?</p></div>
+    <div style="background:var(--night);border-radius:16px;box-shadow:var(--card);padding:34px 28px;display:flex;flex-direction:column;gap:18px;"><span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.12em;text-transform:uppercase;color:var(--pink);">Confidence</span><span style="font-weight:500;font-size:34px;letter-spacing:-0.01em;color:#F2F0EA;">Skeptic</span><p style="margin:0;font-size:24px;line-height:1.45;color:#B4B2A9;">What if we're wrong?</p></div>
+  </div>
+  <div style="margin-top:24px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 28px;display:flex;align-items:center;gap:18px;">
+    <span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">After S4</span>
+    <span style="font-size:22px;color:var(--ink);">A <strong style="font-weight:500;">12-point rubric</strong> (Score Grounding · Skeptic Quality · Open-Question Specificity · Persona Independence) quality-gates outputs — pass ≥ 9/12, or S4 re-runs.</span>
+  </div>
+  <div style="position:absolute;left:90px;bottom:30px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 11 · S5 ROUTING ===== -->
+<section data-label="Routing" data-screen-label="11 S5 · routing" data-speaker-notes="From S4 onward it's deterministic. The composite is a weighted sum; thresholds route to Kill, PoC, or PRD. Routing is code, not the LLM — LLM-driven routing would mean identical scores could route differently across runs or model versions. Humans set and version the criteria; the LLM only scores within them. Same inputs, same output, always." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 70px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--blue);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--blue-ink);">② Intelligence · S5</span></div>
+  <h2 style="margin:0 0 12px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Deterministic routing</h2>
+  <p style="margin:0 0 32px;font-size:23px;color:var(--ink2);max-width:1240px;">The LLM scores; <strong style="color:var(--ink);font-weight:500;">code routes.</strong> Same inputs, same output — always.</p>
+  <div style="display:grid;grid-template-columns:1.05fr 0.95fr;gap:44px;flex:1;align-items:stretch;">
+    <div style="display:flex;flex-direction:column;gap:24px;">
+      <div style="background:var(--night);border-radius:16px;padding:32px 34px;font-family:var(--font-mono);box-shadow:var(--card);">
+        <p style="margin:0 0 8px;font-size:18px;color:#9B9A97;">S4 (LLM) → each persona scores 1–5</p>
+        <p style="margin:0 0 22px;font-size:18px;color:#9B9A97;">S5 (code) → deterministic from here:</p>
+        <p style="margin:0;font-size:24px;line-height:1.7;color:#F2F0EA;">composite =</p>
+        <p style="margin:0;font-size:23px;line-height:1.75;color:#F2F0EA;">&nbsp;&nbsp;Impact·<span style="color:var(--cyan);">0.35</span> + Fit·<span style="color:var(--cyan);">0.30</span></p>
+        <p style="margin:0;font-size:23px;line-height:1.75;color:#F2F0EA;">&nbsp;&nbsp;+ Feasibility·<span style="color:var(--cyan);">0.20</span> + Confidence·<span style="color:var(--cyan);">0.15</span></p>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 26px;">
+        <p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink);">Weights are <strong style="font-weight:500;">per-product config</strong> — tune the criteria without touching code. S3 assumptions are also classified here: <strong style="font-weight:500;color:var(--pink-ink);">Blocking</strong> (abandon if wrong) vs. <strong style="font-weight:500;color:var(--blue-ink);">Adjusting</strong> (descope and continue).</p>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:18px;justify-content:center;">
+      <div style="display:flex;align-items:center;gap:22px;background:#fff;border:1px solid var(--border);border-left:6px solid var(--pink);border-radius:14px;box-shadow:var(--card);padding:26px 30px;"><span style="font-weight:500;font-size:34px;color:var(--pink-ink);min-width:130px;">Kill</span><span style="font-family:var(--font-mono);font-size:23px;color:var(--ink2);">composite ≤ 1.5</span></div>
+      <div style="display:flex;align-items:center;gap:22px;background:#fff;border:1px solid var(--border);border-left:6px solid var(--blue);border-radius:14px;box-shadow:var(--card);padding:26px 30px;"><span style="font-weight:500;font-size:34px;color:var(--blue-ink);min-width:130px;">PoC</span><span style="font-family:var(--font-mono);font-size:22px;color:var(--ink2);">otherwise</span></div>
+      <div style="display:flex;align-items:center;gap:22px;background:#fff;border:1px solid var(--border);border-left:6px solid var(--cyan);border-radius:14px;box-shadow:var(--card);padding:26px 30px;"><span style="font-weight:500;font-size:34px;color:var(--cyan-ink);min-width:130px;">PRD</span><span style="font-family:var(--font-mono);font-size:22px;color:var(--ink2);">≥ 3.5 &amp; confidence ≥ 4</span></div>
+      <p style="margin:8px 0 0;font-size:21px;line-height:1.45;color:var(--ink2);font-style:italic;">Humans set and version the criteria. The LLM only scores within them.</p>
+    </div>
+  </div>
+  <div style="position:absolute;left:90px;bottom:30px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 12 · § OPERATIONS ===== -->
+<section data-label="§ Operations" data-screen-label="12 Section · Operations" data-speaker-notes="Section three: Operations. Agents that orchestrate, a dashboard that observes. The engine decides what to run; the Hermes fleet owns when to sense, how to notify, where to record." style="background:var(--night);color:#F2F0EA;font-family:var(--font-sans);padding:96px 110px;display:flex;flex-direction:column;justify-content:center;">
+  <span style="display:inline-block;width:120px;height:6px;border-radius:3px;background:var(--grad);margin-bottom:40px;"></span>
+  <div style="display:flex;align-items:baseline;gap:32px;">
+    <span style="font-family:var(--font-mono);font-weight:500;font-size:160px;line-height:0.9;background-image:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;">03</span>
+    <div>
+      <h2 style="margin:0;font-weight:500;font-size:84px;line-height:1.0;letter-spacing:-0.03em;">Operations</h2>
+      <p style="margin:18px 0 0;font-size:var(--fs-lead);color:#B4B2A9;">Agents that orchestrate · Dashboard that observes</p>
+    </div>
+  </div>
+  <p style="margin:52px 0 0;font-family:var(--font-mono);font-size:22px;letter-spacing:0.04em;color:#6B6A65;">hermes-control-plane &nbsp;·&nbsp; pm-observatory</p>
+</section>
+
+<!-- ===== 13 · HERMES FLEET (+image) ===== -->
+<section data-label="Hermes" data-screen-label="13 Hermes · agent fleet" data-speaker-notes="Hermes-control-plane is a versioned control plane — identity, skills, policy, deploy — it runs no business logic itself. Eight specialized profiles, each with its own SOUL.md constitution and MEMORY.md growth log. Ops executes, avatar recommends — clean role separation. The engine decides what to run; the fleet owns when to sense, how to notify, where to record." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 64px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--cyan);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--cyan-ink);">③ Operations · hermes-control-plane</span></div>
+  <h2 style="margin:0 0 8px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Hermes — a fleet of specialized agents</h2>
+  <p style="margin:0 0 26px;font-size:23px;color:var(--ink2);max-width:1240px;">Eight profiles, each with its own <span style="font-family:var(--font-mono);font-size:21px;">SOUL.md</span> (constitution) + <span style="font-family:var(--font-mono);font-size:21px;">MEMORY.md</span> (growth log). <strong style="color:var(--ink);font-weight:500;">Ops executes · avatar recommends.</strong></p>
+  <div style="display:grid;grid-template-columns:0.82fr 1.18fr;gap:40px;flex:1;align-items:stretch;">
+    <div style="border-radius:16px;overflow:hidden;border:1px solid var(--border2);box-shadow:var(--card);background:var(--night);"><img src="images/hermes-agents.png" alt="Jack H. Park's Hermes agent team — 8 named agents" style="width:100%;height:100%;object-fit:cover;display:block;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 20px;display:flex;flex-direction:column;gap:5px;"><div style="display:flex;align-items:baseline;gap:9px;"><span style="font-weight:500;font-size:25px;">Iris</span><span style="font-family:var(--font-mono);font-size:16px;letter-spacing:0.08em;color:var(--cyan-ink);">OPS</span></div><span style="font-size:18px;line-height:1.35;color:var(--ink2);">Platform ops &amp; cron · gate notifications</span></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 20px;display:flex;flex-direction:column;gap:5px;"><div style="display:flex;align-items:baseline;gap:9px;"><span style="font-weight:500;font-size:25px;">Jax</span><span style="font-family:var(--font-mono);font-size:16px;letter-spacing:0.08em;color:var(--cyan-ink);">AVATAR</span></div><span style="font-size:18px;line-height:1.35;color:var(--ink2);">Gate recommendations — advisory, read-only</span></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 20px;display:flex;flex-direction:column;gap:5px;"><div style="display:flex;align-items:baseline;gap:9px;"><span style="font-weight:500;font-size:25px;">Remy</span><span style="font-family:var(--font-mono);font-size:16px;letter-spacing:0.08em;color:var(--cyan-ink);">LOCAL</span></div><span style="font-size:18px;line-height:1.35;color:var(--ink2);">Git, file ops, services · confirm each write</span></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 20px;display:flex;flex-direction:column;gap:5px;"><div style="display:flex;align-items:baseline;gap:9px;"><span style="font-weight:500;font-size:25px;">Cleo</span><span style="font-family:var(--font-mono);font-size:16px;letter-spacing:0.08em;color:var(--cyan-ink);">INTERVIEW-OPS</span></div><span style="font-size:18px;line-height:1.35;color:var(--ink2);">Interview prep backlog &amp; answer drafts</span></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 20px;display:flex;flex-direction:column;gap:5px;"><div style="display:flex;align-items:baseline;gap:9px;"><span style="font-weight:500;font-size:25px;">Quill</span><span style="font-family:var(--font-mono);font-size:16px;letter-spacing:0.08em;color:var(--cyan-ink);">PUBLISHER</span></div><span style="font-size:18px;line-height:1.35;color:var(--ink2);">Portfolio &amp; admin Notion pages · confirm per section</span></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 20px;display:flex;flex-direction:column;gap:5px;"><div style="display:flex;align-items:baseline;gap:9px;"><span style="font-weight:500;font-size:25px;">Vega</span><span style="font-family:var(--font-mono);font-size:16px;letter-spacing:0.08em;color:var(--cyan-ink);">EVAL</span></div><span style="font-size:18px;line-height:1.35;color:var(--ink2);">Daily health digest · never alters state</span></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 20px;display:flex;flex-direction:column;gap:5px;"><div style="display:flex;align-items:baseline;gap:9px;"><span style="font-weight:500;font-size:25px;">Wren</span><span style="font-family:var(--font-mono);font-size:16px;letter-spacing:0.08em;color:var(--cyan-ink);">WRITER</span></div><span style="font-size:18px;line-height:1.35;color:var(--ink2);">Writes in Jack's voice → publishes to Notion posts DB (owns full lifecycle)</span></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 20px;display:flex;flex-direction:column;gap:5px;"><div style="display:flex;align-items:baseline;gap:9px;"><span style="font-weight:500;font-size:25px;">Pip</span><span style="font-family:var(--font-mono);font-size:16px;letter-spacing:0.08em;color:var(--cyan-ink);">SCRATCH</span></div><span style="font-size:18px;line-height:1.35;color:var(--ink2);">Dev &amp; prompt sandbox · no production tokens</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 14 · ORCHESTRATION ===== -->
+<section data-label="Orchestration" data-screen-label="14 Orchestration" data-speaker-notes="Operations owns every handoff. Step 1: Gate 0 intake — the ops agent senses a signal, the PM decides to run it. Step 2: trigger the pipeline; at Gate 1/2/3 ops notifies the PM over Telegram/Discord, execution pauses until the PM replies, and avatar joins to recommend. Step 3: after S7, ops triggers wiki-export back to Memory. The engine owns gate state; Hermes is the response bridge and can never override the human." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 70px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--cyan);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--cyan-ink);">③ Operations</span></div>
+  <h2 style="margin:0 0 12px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;" data-comment-anchor="1394570cbd-h2">Orchestration — operations owns every handoff</h2>
+  <p style="margin:0 0 36px;font-size:23px;color:var(--ink2);max-width:1240px;">The engine decides <em>what</em> to run; the Hermes fleet owns <em>when to sense, how to notify, where to record</em> — and can never override the human.</p>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;flex:1;">
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:34px 30px;display:flex;flex-direction:column;gap:18px;">
+      <div style="display:flex;align-items:center;gap:14px;"><span style="width:48px;height:48px;border-radius:12px;background:rgba(77,208,225,0.16);color:var(--cyan-ink);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:500;font-size:26px;">1</span><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.1em;text-transform:uppercase;color:var(--cyan-ink);">Gate 0 · intake</span></div>
+      <span style="font-weight:500;font-size:30px;line-height:1.2;">Sense &amp; submit</span>
+      <p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);">Ops senses a web signal into the inbox and notifies the PM. The PM triages: archive, queue, or run.</p>
+      <span style="margin-top:auto;font-family:var(--font-mono);font-size:18px;color:var(--ink3);">web → sensing inbox → POST /signals</span>
+    </div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:34px 30px;display:flex;flex-direction:column;gap:18px;">
+      <div style="display:flex;align-items:center;gap:14px;"><span style="width:48px;height:48px;border-radius:12px;background:rgba(240,98,146,0.14);color:var(--pink-ink);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:500;font-size:26px;">2</span><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.1em;text-transform:uppercase;color:var(--pink-ink);">Gate 1 / 2 / 3</span></div>
+      <span style="font-weight:500;font-size:30px;line-height:1.2;">Notify &amp; pause</span>
+      <p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);">Ops notifies over Telegram / Discord; execution <strong style="font-weight:500;color:var(--ink);">pauses</strong> until the PM replies. Avatar joins to recommend.</p>
+      <span style="margin-top:auto;font-family:var(--font-mono);font-size:18px;color:var(--ink3);">approve · revise · direction · override</span>
+    </div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:34px 30px;display:flex;flex-direction:column;gap:18px;">
+      <div style="display:flex;align-items:center;gap:14px;"><span style="width:48px;height:48px;border-radius:12px;background:rgba(180,57,223,0.12);color:var(--purple-ink);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:500;font-size:26px;">3</span><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.1em;text-transform:uppercase;color:var(--purple-ink);">After S7</span></div>
+      <span style="font-weight:500;font-size:30px;line-height:1.2;">Export to memory</span>
+      <p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);">On completion, ops triggers <strong style="font-weight:500;color:var(--ink);">wiki-export</strong> — the decision and its reasoning compound back into the wiki.</p>
+      <span style="margin-top:auto;font-family:var(--font-mono);font-size:18px;color:var(--ink3);">run archive → wiki/cases · pocs · prds</span>
+    </div>
+  </div>
+  <div style="margin-top:24px;display:flex;align-items:center;justify-content:center;gap:18px;">
+    <span style="font-size:21px;color:var(--ink2);">Gate 0 intake</span><span style="color:var(--cyan);font-size:22px;">→</span>
+    <span style="font-size:21px;color:var(--ink2);">trigger pipeline · PM gates</span><span style="color:var(--cyan);font-size:22px;">→</span>
+    <span style="font-size:21px;color:var(--ink2);">wiki-export to Memory</span>
+    <span style="font-size:21px;color:var(--ink3);font-style:italic;margin-left:8px;">— Operations owns every handoff</span>
+  </div>
+  <div style="position:absolute;left:90px;bottom:30px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 14b · ORCHESTRATION BLUEPRINT (original, preserved) ===== -->
+<section data-label="Orchestration · blueprint" data-screen-label="14b Orchestration · detailed blueprint" data-speaker-notes="The original orchestration blueprint, preserved. Operations sits at the center: Gate 0 intake feeds in, the PM decides over Telegram/Discord, execution is triggered and pauses at each gate until the PM replies, and after S7 the result is wiki-exported to Memory. The earlier 3-step slide is the talking version; this is the full handoff topology." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:62px 90px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;">
+    <div>
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--cyan);"></span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--cyan-ink);">③ Operations · original blueprint</span></div>
+      <h2 style="margin:0;font-weight:500;font-size:48px;line-height:1.05;letter-spacing:-0.02em;">Orchestration — detailed blueprint</h2>
+    </div>
+    <span style="font-size:21px;color:var(--ink2);max-width:460px;text-align:right;">Operations owns every handoff — the full pause-and-resume topology.</span>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:30px 56px;">
+    <svg viewBox="0 0 820 384" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;max-height:780px;display:block">
+      <defs>
+        <marker id="arrOa" markerWidth="9" markerHeight="7" refX="7.5" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#2a8fa0"/></marker>
+        <marker id="arrOg" markerWidth="9" markerHeight="7" refX="7.5" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#a9a7a0"/></marker>
+        <marker id="arrOp" markerWidth="9" markerHeight="7" refX="7.5" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#b439df"/></marker>
+      </defs>
+      <!-- Lifecycle legend (left) -->
+      <rect x="22" y="120" width="214" height="150" rx="12" fill="#f1fbfc" stroke="#c4e7ec" stroke-width="1"/>
+      <text x="42" y="148" fill="#1f7484" font-size="12.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">Pipeline lifecycle</text>
+      <text x="42" y="165" fill="#2a8fa0" font-size="9.5" font-family="Geist, ui-sans-serif, sans-serif">Operations owns every handoff</text>
+      <text x="42" y="197" fill="#2a8fa0" font-size="13" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">1</text>
+      <text x="58" y="197" fill="#55524b" font-size="10.5" font-family="Geist, ui-sans-serif, sans-serif">Gate 0 — signal intake</text>
+      <text x="42" y="222" fill="#2a8fa0" font-size="13" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">2</text>
+      <text x="58" y="222" fill="#55524b" font-size="10.5" font-family="Geist, ui-sans-serif, sans-serif">Trigger pipeline → PM gates</text>
+      <text x="42" y="247" fill="#2a8fa0" font-size="13" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">3</text>
+      <text x="58" y="247" fill="#55524b" font-size="10.5" font-family="Geist, ui-sans-serif, sans-serif">Wiki-export → Memory (S7)</text>
+      <!-- Nodes -->
+      <rect x="300" y="18" width="210" height="58" rx="11" fill="#e8f8fb" stroke="#2a8fa0" stroke-width="2"/>
+      <text x="405" y="42" text-anchor="middle" fill="#1f7484" font-size="13" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">Gate 0 · intake</text>
+      <text x="405" y="58" text-anchor="middle" fill="#2a8fa0" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">signal evaluation</text>
+      <text x="405" y="70" text-anchor="middle" fill="#3a99a9" font-size="9.5" font-family="Geist, ui-sans-serif, sans-serif">archive / queue / run?</text>
+      <rect x="585" y="18" width="215" height="58" rx="11" fill="#fdeef4" stroke="#eab6cd" stroke-width="1.5"/>
+      <text x="692" y="42" text-anchor="middle" fill="#b0386a" font-size="12.5" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">PM · Telegram / Discord</text>
+      <text x="692" y="58" text-anchor="middle" fill="#9a6a80" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">human decision at each gate</text>
+      <text x="692" y="70" text-anchor="middle" fill="#a87b91" font-size="9.5" font-family="Geist, ui-sans-serif, sans-serif">approve · revise · archive</text>
+      <rect x="300" y="158" width="210" height="84" rx="12" fill="#2a8fa0"/>
+      <text x="405" y="190" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">Operations</text>
+      <text x="405" y="209" text-anchor="middle" fill="#ddf3f6" font-size="11" font-family="Geist, ui-sans-serif, sans-serif">hermes-control-plane</text>
+      <text x="405" y="225" text-anchor="middle" fill="#c9eaef" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">orchestrator · Hermes ops agent</text>
+      <rect x="600" y="158" width="200" height="84" rx="12" fill="#3d6fcf"/>
+      <text x="700" y="190" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">Execution</text>
+      <text x="700" y="209" text-anchor="middle" fill="#e8effc" font-size="11" font-family="Geist, ui-sans-serif, sans-serif">pm-intelligence-engine</text>
+      <text x="700" y="225" text-anchor="middle" fill="#dae6fb" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">S1 – S7 pipeline</text>
+      <rect x="300" y="304" width="210" height="64" rx="12" fill="#b439df"/>
+      <text x="405" y="330" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="500" font-family="Geist, ui-sans-serif, sans-serif">Memory</text>
+      <text x="405" y="347" text-anchor="middle" fill="#f3e6fb" font-size="11" font-family="Geist, ui-sans-serif, sans-serif">product-management-wiki</text>
+      <text x="405" y="361" text-anchor="middle" fill="#e6d4f6" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">wiki/cases · wiki/pocs · wiki/prds</text>
+      <!-- Arrows -->
+      <line x1="405" y1="76" x2="405" y2="156" stroke="#2a8fa0" stroke-width="2" marker-end="url(#arrOa)"/>
+      <text x="414" y="108" fill="#1f7484" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">PM decides</text>
+      <text x="414" y="121" fill="#1f7484" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">→ run decision</text>
+      <line x1="512" y1="170" x2="592" y2="86" stroke="#2a8fa0" stroke-width="1.6" marker-end="url(#arrOa)"/>
+      <text x="566" y="128" text-anchor="middle" fill="#1f7484" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">Gate 1/2/3 notify</text>
+      <line x1="510" y1="186" x2="598" y2="186" stroke="#2a8fa0" stroke-width="2" marker-end="url(#arrOa)"/>
+      <text x="554" y="179" text-anchor="middle" fill="#1f7484" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">trigger</text>
+      <line x1="598" y1="214" x2="510" y2="214" stroke="#a9a7a0" stroke-width="1.5" marker-end="url(#arrOg)"/>
+      <text x="554" y="231" text-anchor="middle" fill="#6b7280" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">gate pause</text>
+      <line x1="700" y1="76" x2="700" y2="156" stroke="#a9a7a0" stroke-width="1.5" marker-end="url(#arrOg)"/>
+      <text x="712" y="108" fill="#6b7280" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">PM decision</text>
+      <text x="712" y="121" fill="#6b7280" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">resume / archive</text>
+      <line x1="405" y1="242" x2="405" y2="302" stroke="#b439df" stroke-width="1.6" marker-end="url(#arrOp)"/>
+      <text x="414" y="270" fill="#8e29b3" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">wiki-export</text>
+      <text x="414" y="283" fill="#8e29b3" font-size="10" font-family="Geist, ui-sans-serif, sans-serif">after S7</text>
+    </svg>
+  </div>
+  <div style="position:absolute;left:90px;bottom:26px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 15 · OBSERVATORY (+image) ===== -->
+<section data-label="Observatory" data-screen-label="15 Observability" data-speaker-notes="A Next.js dashboard over a read-only SQLite snapshot of the engine DB. Pages for the whole system; six integrity rules catch drift — stale stages, missing audit logs, orphaned artifacts, runs without signals, stale runs and backups. It never writes the engine DB. Observe, don't control — any action routes through the engine API." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 64px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--cyan);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--cyan-ink);">③ Operations · pm-observatory</span></div>
+  <h2 style="margin:0 0 8px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Observability — the PM Observatory</h2>
+  <p style="margin:0 0 26px;font-size:23px;color:var(--ink2);max-width:1240px;">A read-only SQLite snapshot of the engine DB. <strong style="color:var(--ink);font-weight:500;">Observe, don't control</strong> — any action routes through the engine API.</p>
+  <div style="display:grid;grid-template-columns:1.4fr 0.6fr;gap:40px;flex:1;align-items:stretch;">
+    <div style="border-radius:14px;overflow:hidden;border:1px solid var(--border2);box-shadow:var(--card);background:#fff;"><img src="images/pm-observatory.png" alt="PM Observatory dashboard — Signals & Sensing Inbox" style="width:100%;height:100%;object-fit:cover;object-position:left top;display:block;"></div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 26px;">
+        <span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Pages</span>
+        <p style="margin:10px 0 0;font-size:21px;line-height:1.55;color:var(--ink);">Overview · Pipeline DAG · Runs · Signals · Wiki · Publisher · Data Map · Health</p>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 26px;">
+        <span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">6 integrity rules</span>
+        <p style="margin:10px 0 0;font-size:21px;line-height:1.5;color:var(--ink);">Stale stages · missing audit logs · orphaned artifacts · runs without signals · stale runs · stale backups</p>
+      </div>
+      <div style="background:var(--night);border-radius:14px;padding:24px 26px;margin-top:auto;">
+        <p style="margin:0;font-size:22px;line-height:1.5;color:#F2F0EA;"><strong style="font-weight:500;">Drift matrix:</strong> project × Notion section, git-staleness scored.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 16 · ENGINEERING PRINCIPLES ===== -->
+<section data-label="Engineering" data-screen-label="16 Engineering principles" data-speaker-notes="The cross-cutting discipline. Eval-first: the harness with 7 golden scenarios was built before feature code. Vendor-agnostic LLM via a provider protocol. Fail-closed security. SQLite-first behind a protocol so a Postgres migration stays mechanical. Traceability by design — every stage output stored, every gate logged. A personal project, built with production-grade discipline." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:88px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--pink);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">Cross-cutting</span></div>
+  <h2 style="margin:0 0 38px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Engineering principles</h2>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;flex:1;align-content:center;">
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:32px 30px;display:flex;flex-direction:column;gap:14px;"><span style="font-weight:500;font-size:28px;letter-spacing:-0.01em;">Eval-first</span><p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);">The eval harness — 7 golden scenarios — was built <strong style="font-weight:500;color:var(--ink);">before</strong> feature code. Every prompt/model change is regression-checked.</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:32px 30px;display:flex;flex-direction:column;gap:14px;"><span style="font-weight:500;font-size:28px;letter-spacing:-0.01em;">Vendor-agnostic LLM</span><p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);">An <span style="font-family:var(--font-mono);font-size:20px;">LLMProvider</span> protocol — swap Claude / GPT via one env var.</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:32px 30px;display:flex;flex-direction:column;gap:14px;"><span style="font-weight:500;font-size:28px;letter-spacing:-0.01em;">Fail-closed security</span><p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);">No token ⇒ 503. Loopback bind + Tailscale — never exposed.</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:32px 30px;display:flex;flex-direction:column;gap:14px;"><span style="font-weight:500;font-size:28px;letter-spacing:-0.01em;">SQLite-first</span><p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);">Protocol-abstracted store — a future Postgres migration stays mechanical.</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:32px 30px;display:flex;flex-direction:column;gap:14px;"><span style="font-weight:500;font-size:28px;letter-spacing:-0.01em;">Traceability by design</span><p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);">Every stage output stored, every gate logged — the full reasoning chain available months later.</p></div>
+    <div style="background:var(--night);border-radius:16px;box-shadow:var(--card);padding:32px 30px;display:flex;flex-direction:column;justify-content:center;gap:8px;"><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.12em;text-transform:uppercase;color:var(--cyan);">The standard</span><p style="margin:0;font-size:26px;line-height:1.35;color:#F2F0EA;font-weight:500;">A personal project, built with production-grade discipline.</p></div>
+  </div>
+  <div style="position:absolute;left:110px;bottom:46px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 16b · § IN PRACTICE (lead) ===== -->
+<section data-label="§ In practice" data-screen-label="In practice · walkthrough" data-speaker-notes="Now let's watch the whole system run once, end to end. The scenario: a well-funded startup raises forty million dollars and launches zero-config enterprise SSO at forty percent below Knox pricing, aimed straight at our core enterprise segment. We'll follow it from market signal to product decision — and a human makes the call at every gate." style="background:var(--night);color:#F2F0EA;font-family:var(--font-sans);padding:96px 110px;display:flex;flex-direction:column;justify-content:center;">
+  <span style="display:inline-block;width:120px;height:6px;border-radius:3px;background:var(--grad);margin-bottom:40px;"></span>
+  <div style="display:flex;align-items:baseline;gap:32px;margin-bottom:30px;">
+    <span style="font-family:var(--font-mono);font-weight:500;font-size:140px;line-height:0.9;background-image:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;">▶</span>
+    <div>
+      <h2 style="margin:0;font-weight:500;font-size:84px;line-height:1.0;letter-spacing:-0.03em;">In practice</h2>
+      <p style="margin:18px 0 0;font-size:var(--fs-lead);color:#B4B2A9;">End-to-end — from market signal to product decision</p>
+    </div>
+  </div>
+  <div style="background:var(--night2);border:1px solid #34322d;border-left:5px solid var(--pink);border-radius:16px;padding:30px 36px;max-width:1400px;">
+    <span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.16em;text-transform:uppercase;color:#9B9A97;">Scenario</span>
+    <p style="margin:12px 0 0;font-size:30px;line-height:1.5;color:#F2F0EA;">A well-funded startup raises <strong style="font-weight:500;">$40M</strong> and launches <strong style="font-weight:500;">zero-config enterprise SSO</strong> at <span style="background-image:var(--gradm);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:500;">40% below Knox pricing</span> — directly targeting our core enterprise segment.</p>
+  </div>
+</section>
+
+<!-- ===== 16c · IN PRACTICE · INTAKE & DIRECTION ===== -->
+<section data-label="IP · Intake" data-screen-label="In practice · Intake & Direction" data-speaker-notes="Intake and direction. Jack spots a TechCrunch article and forwards the URL to Iris on Telegram. Iris fetches and parses it, files a sensing note, and asks: run, queue, or archive? Jack submits it; pm-engine classifies it as a competitive threat, relevance 4.8 out of 5, suggested depth decide. At Gate 1, the Jax consult is opt-in — if Jack requests it, Iris fires the consult on Discord for that run. Jax says decide; Jack confirms and S3 begins." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 64px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--pink);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">In practice · 01 — Intake &amp; direction</span></div>
+  <h2 style="margin:0 0 8px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">From signal to a confirmed direction</h2>
+  <p style="margin:0 0 26px;font-size:23px;color:var(--ink2);max-width:1300px;">Gate 0 is pre-pipeline intake; Gate 1 sets the depth. A human decides at each.</p>
+  <!-- step rail -->
+  <div style="display:flex;align-items:stretch;gap:12px;margin-bottom:28px;">
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px;justify-content:center;border-radius:12px;border:1px solid var(--border);border-top:4px solid var(--night);box-shadow:var(--card);padding:20px 22px;background:#fff;"><span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink3);">Jack</span><span style="font-weight:500;font-size:28px;">sense</span><span style="font-size:20px;color:var(--ink2);">forward URL</span></div>
+    <span style="align-self:center;color:var(--ink3);font-size:22px;">→</span>
+    <div style="flex:1.15;display:flex;flex-direction:column;gap:6px;justify-content:center;border-radius:12px;border:1px solid var(--border);border-top:4px solid var(--cyan);box-shadow:var(--card);padding:20px 22px;background:#fff;"><span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--cyan-ink);">Iris · ops</span><span style="font-weight:500;font-size:28px;">Gate 0</span><span style="font-size:20px;color:var(--ink2);">run / queue / archive? → submit</span></div>
+    <span style="align-self:center;color:var(--ink3);font-size:22px;">→</span>
+    <div style="flex:1.05;display:flex;flex-direction:column;gap:6px;justify-content:center;border-radius:12px;border:1px solid var(--border);border-top:4px solid var(--blue);box-shadow:var(--card);padding:20px 22px;background:#fff;"><span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--blue-ink);">pm-engine</span><span style="font-weight:500;font-size:28px;">S1 → S2</span><span style="font-size:20px;color:var(--ink2);">categorize · relevance</span></div>
+    <span style="align-self:center;color:var(--ink3);font-size:22px;">→</span>
+    <div style="flex:1.2;display:flex;flex-direction:column;gap:6px;justify-content:center;border-radius:12px;border:1px solid var(--pink);border-top:4px solid var(--pink);box-shadow:var(--card);padding:20px 22px;background:rgba(240,98,146,0.07);"><span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--pink-ink);">Iris + Jax → Jack</span><span style="font-weight:500;font-size:28px;color:var(--pink-ink);">Gate 1 · decide</span><span style="font-size:20px;color:var(--ink2);">direction read → depth confirmed</span></div>
+  </div>
+  <!-- narrative + callout -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:34px;flex:1;align-items:stretch;">
+    <div style="display:flex;flex-direction:column;gap:22px;justify-content:center;">
+      <div style="display:flex;gap:16px;align-items:flex-start;"><span style="font-family:var(--font-mono);font-size:21px;color:var(--ink3);margin-top:3px;">01</span><p style="margin:0;font-size:24px;line-height:1.5;color:var(--ink2);">Iris fetches the article, files a sensing note in <span style="font-family:var(--font-mono);font-size:21px;color:var(--ink);">wiki/raw/</span>, and pings Jack on Telegram — Gate 0 stays a human <em>submit / skip</em>.</p></div>
+      <div style="display:flex;gap:16px;align-items:flex-start;"><span style="font-family:var(--font-mono);font-size:21px;color:var(--ink3);margin-top:3px;">02</span><p style="margin:0;font-size:24px;line-height:1.5;color:var(--ink2);">pm-engine classifies it <span style="font-family:var(--font-mono);font-size:21px;color:var(--blue-ink);">competitive_threat</span> — relevance <strong style="font-weight:500;color:var(--ink);">4.8/5</strong>, suggested depth <em>decide</em>. Both stages run in code, not the model.</p></div>
+      <div style="display:flex;gap:16px;align-items:flex-start;"><span style="font-family:var(--font-mono);font-size:21px;color:var(--ink3);margin-top:3px;">03</span><p style="margin:0;font-size:24px;line-height:1.5;color:var(--ink2);">Jack confirms depth <em>decide</em> via Telegram — the full 7-stage pipeline proceeds to S3.</p></div>
+    </div>
+    <div style="background:var(--night);border-radius:16px;padding:30px 32px;display:flex;flex-direction:column;gap:14px;justify-content:center;">
+      <span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.12em;text-transform:uppercase;color:#4dd0e1;">Avatar @mention — platform-aware</span>
+      <p style="margin:0;font-size:23px;line-height:1.5;color:#F2F0EA;">Jax consult is <strong style="font-weight:500;">opt-in</strong>, once per run. If Jack requests it, Iris fires the consult on Discord for that run. Earlier, every gate auto-fired a consult — but on the static backlog that doubled per-item LLM cost, so it moved to opt-in.</p>
+      <p style="margin:0;font-size:23px;line-height:1.45;color:#B4B2A9;font-style:italic;">Jax: “Decide — direct pricing threat to Knox's core segment. Full run is warranted.”</p>
+    </div>
+  </div>
+  <div style="position:absolute;left:90px;bottom:30px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 16d · IN PRACTICE · EVALUATION ===== -->
+<section data-label="IP · Evaluation" data-screen-label="In practice · Evaluation" data-speaker-notes="Evaluation. S3 enriches the signal with Knox's competitive positioning, pricing, and ICP from pm-decision-context. S4 runs four parallel persona evaluations: Explorer four out of five, Strategist four, Builder three, Skeptic three — each with a grounded argument. At Gate 2, Iris sends the scores; if Jack opts in, Jax is consulted on Discord for that run. Jax recommends approve, differentiate on compliance depth rather than racing to the bottom on price. Jack approves." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 64px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--pink);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">In practice · 02 — Evaluation</span></div>
+  <h2 style="margin:0 0 8px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Four perspectives score the threat</h2>
+  <p style="margin:0 0 26px;font-size:23px;color:var(--ink2);max-width:1300px;">S3 grounds the run in Knox's real context; S4 evaluates in parallel; Gate 2 approves.</p>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:22px;">
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:22px 24px;display:flex;flex-direction:column;gap:10px;"><div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-weight:500;font-size:25px;">Explorer</span><span style="font-family:var(--font-mono);font-size:24px;font-weight:500;color:var(--blue-ink);">4/5</span></div><p style="margin:0;font-size:20px;line-height:1.4;color:var(--ink2);">“Zero-config removes Knox's primary SMB adoption barrier — a wedge into mid-market.”</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:22px 24px;display:flex;flex-direction:column;gap:10px;"><div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-weight:500;font-size:25px;">Strategist</span><span style="font-family:var(--font-mono);font-size:24px;font-weight:500;color:var(--blue-ink);">4/5</span></div><p style="margin:0;font-size:20px;line-height:1.4;color:var(--ink2);">“Top-tier pricing is exposed. SMB losses erode Knox's revenue mix without enterprise wins.”</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:22px 24px;display:flex;flex-direction:column;gap:10px;"><div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-weight:500;font-size:25px;">Builder</span><span style="font-family:var(--font-mono);font-size:24px;font-weight:500;color:var(--ink3);">3/5</span></div><p style="margin:0;font-size:20px;line-height:1.4;color:var(--ink2);">“A 3-month response is feasible — lead with compliance depth, not feature parity.”</p></div>
+    <div style="background:var(--night);border-radius:14px;box-shadow:var(--card);padding:22px 24px;display:flex;flex-direction:column;gap:10px;"><div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-weight:500;font-size:25px;color:#F2F0EA;">Skeptic</span><span style="font-family:var(--font-mono);font-size:24px;font-weight:500;color:var(--pink);">3/5</span></div><p style="margin:0;font-size:20px;line-height:1.4;color:#B4B2A9;">“Their SOC2/HIPAA readiness is unproven — urgency is real, but not immediate.”</p></div>
+  </div>
+  <div style="display:grid;grid-template-columns:0.8fr 1.2fr;gap:32px;flex:1;align-items:stretch;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px 30px;display:flex;flex-direction:column;gap:12px;justify-content:center;">
+      <span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">S3 · enrich</span>
+      <p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink);">pm-engine pulls Knox's <strong style="font-weight:500;">competitive positioning, pricing, and ICP</strong> from pm-decision-context — grounding the evaluation in real product context.</p>
+    </div>
+    <div style="background:#fff;border:1px solid var(--border);border-top:4px solid var(--pink);border-radius:16px;box-shadow:var(--card);padding:26px 30px;display:flex;flex-direction:column;gap:12px;justify-content:center;">
+      <span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.12em;text-transform:uppercase;color:var(--pink-ink);">Gate 2 · approve</span>
+      <p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink2);">Iris sends the four scores. <span style="color:#3f7d12;font-weight:500;">Jax</span> recommends: <span style="color:var(--ink);font-style:italic;">“Approve — differentiate on compliance depth, don't race to the bottom on price.”</span></p>
+      <p style="margin:0;font-size:21px;line-height:1.45;color:var(--ink);"><strong style="font-weight:500;">Jack approves</strong> — the scoring pipeline begins.</p>
+    </div>
+  </div>
+  <div style="position:absolute;left:90px;bottom:30px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 16e · IN PRACTICE · SCORING & OUTPUT ===== -->
+<section data-label="IP · Output" data-screen-label="In practice · Scoring & Output" data-speaker-notes="Scoring and output. S5 computes a composite of 3.5 out of 5 from the four personas and flags one assumption: the competitor's enterprise compliance timeline is unknown. At Gate 3, Iris presents the routing options — PRD, kill, or PoC. Jack selects PRD. S6 and S7 generate the recommendation: price-protect the top tier, fast-track compliance certifications as the moat, avoid a feature-parity race. Iris exports the full reasoning chain to the wiki — preserved as institutional knowledge for the next competitive review." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 64px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--pink);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">In practice · 03 — Scoring &amp; output</span></div>
+  <h2 style="margin:0 0 8px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">A decision — and a record that compounds</h2>
+  <p style="margin:0 0 26px;font-size:23px;color:var(--ink2);max-width:1300px;">Code scores; the PM confirms the route; the reasoning chain is preserved.</p>
+  <div style="display:flex;align-items:stretch;gap:12px;margin-bottom:28px;">
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px;justify-content:center;border-radius:12px;border:1px solid var(--border);border-top:4px solid #B6B3AC;box-shadow:var(--card);padding:20px 22px;background:#fff;"><span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink3);">pm-engine · code</span><span style="font-weight:500;font-size:28px;">S5 score</span><span style="font-size:20px;color:var(--ink2);">composite <strong style="font-weight:500;color:var(--ink);">3.5/5</strong></span></div>
+    <span style="align-self:center;color:var(--ink3);font-size:22px;">→</span>
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px;justify-content:center;border-radius:12px;border:1px solid var(--border);border-top:4px solid var(--cyan);box-shadow:var(--card);padding:20px 22px;background:#fff;"><span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--cyan-ink);">Iris · ops</span><span style="font-weight:500;font-size:28px;">Gate 3</span><span style="font-size:20px;color:var(--ink2);">routing options</span></div>
+    <span style="align-self:center;color:var(--ink3);font-size:22px;">→</span>
+    <div style="flex:1.1;display:flex;flex-direction:column;gap:6px;justify-content:center;border-radius:12px;border:1px solid var(--pink);border-top:4px solid var(--pink);box-shadow:var(--card);padding:20px 22px;background:rgba(240,98,146,0.07);"><span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--pink-ink);">Jack</span><span style="font-weight:500;font-size:28px;color:var(--pink-ink);">confirm → PRD</span><span style="font-size:20px;color:var(--ink2);">routing locked</span></div>
+    <span style="align-self:center;color:var(--ink3);font-size:22px;">→</span>
+    <div style="flex:1.25;display:flex;flex-direction:column;gap:6px;justify-content:center;border-radius:12px;border:1px solid var(--border);border-top:4px solid var(--blue);box-shadow:var(--card);padding:20px 22px;background:#fff;"><span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--blue-ink);">pm-engine → Iris</span><span style="font-weight:500;font-size:28px;">S6 → S7 → wiki</span><span style="font-size:20px;color:var(--ink2);">recommend · format · export</span></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px;flex:1;align-items:stretch;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:30px 34px;display:flex;flex-direction:column;gap:20px;">
+      <span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">S5 · score in code, not the model</span>
+      <div style="display:flex;align-items:flex-end;gap:20px;">
+        <span style="font-family:var(--font-mono);font-weight:500;font-size:76px;line-height:0.9;letter-spacing:-0.02em;color:var(--ink);">3.5</span>
+        <div style="display:flex;flex-direction:column;gap:3px;padding-bottom:6px;">
+          <span style="font-size:22px;color:var(--ink2);">composite / 5</span>
+          <span style="font-size:22px;color:var(--ink2);">4 · 4 · 3 · 3 — weighted in code</span>
+        </div>
+        <span style="margin-left:auto;align-self:center;font-family:var(--font-mono);font-size:24px;font-weight:500;color:var(--cyan-ink);border:1px solid var(--cyan);border-radius:999px;padding:8px 20px;white-space:nowrap;">→ PRD</span>
+      </div>
+      <div style="height:1px;background:var(--border);"></div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);">Assumption surfaced, not buried</span>
+        <p style="margin:0;font-size:23px;line-height:1.5;color:var(--ink);font-style:italic;">“The competitor's enterprise compliance timeline is unknown — could accelerate or neutralize the threat within 6 months.”</p>
+        <p style="margin:0;font-size:21px;line-height:1.45;color:var(--ink2);">It travels with the run, so the next reviewer inherits the caveat — not just the number.</p>
+      </div>
+    </div>
+    <div style="background:var(--night);border-radius:16px;padding:30px 34px;display:flex;flex-direction:column;gap:20px;">
+      <span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.12em;text-transform:uppercase;color:#4dd0e1;">S6 → S7 · the recommendation</span>
+      <p style="margin:0;font-size:27px;line-height:1.45;color:#F2F0EA;">“Price-protect the top tier; <strong style="font-weight:500;">fast-track compliance certifications</strong> as the differentiation moat. Avoid a feature-parity race.”</p>
+      <div style="height:1px;background:#34322d;"></div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:#9B9A97;">Two tracks out</span>
+        <div style="display:flex;gap:14px;align-items:flex-start;"><span style="width:8px;height:8px;border-radius:50%;background:var(--pink);margin-top:11px;flex-shrink:0;"></span><p style="margin:0;font-size:22px;line-height:1.45;color:#F2F0EA;"><strong style="font-weight:500;">Decision</strong> → <span style="font-family:var(--font-mono);font-size:19px;color:#dcdcd6;">wiki/raw/prds/competitor-sso-entry-2026.md</span></p></div>
+        <div style="display:flex;gap:14px;align-items:flex-start;"><span style="width:8px;height:8px;border-radius:50%;background:var(--purple);margin-top:11px;flex-shrink:0;"></span><p style="margin:0;font-size:22px;line-height:1.45;color:#F2F0EA;"><strong style="font-weight:500;">Knowledge</strong> → a reusable pattern on pricing-led entry threats</p></div>
+      </div>
+      <p style="margin:0;font-size:21px;line-height:1.45;color:#B4B2A9;">Both retrievable months later — the reasoning chain outlives the decision.</p>
+    </div>
+  </div>
+  <div style="position:absolute;left:90px;bottom:30px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 17 · § REFLECTIONS ===== -->
+<section data-label="§ Reflections" data-screen-label="17 Section · Reflections" data-speaker-notes="What building this actually taught me." style="background:var(--night);color:#F2F0EA;font-family:var(--font-sans);padding:96px 110px;display:flex;flex-direction:column;justify-content:center;">
+  <span style="display:inline-block;width:120px;height:6px;border-radius:3px;background:var(--grad);margin-bottom:40px;"></span>
+  <h2 style="margin:0;font-weight:500;font-size:96px;line-height:1.0;letter-spacing:-0.03em;">Reflections</h2>
+  <p style="margin:26px 0 0;font-size:var(--fs-lead);color:#B4B2A9;">What building this actually taught me</p>
+</section>
+
+<!-- ===== 18 · BIGGEST LEVER ===== -->
+<section data-label="Lever" data-screen-label="18 The biggest lever" data-speaker-notes="I expected right-sizing the model to be the main efficiency win. The bigger lever was separating deterministic logic from the non-deterministic LLM — and never offloading determinism onto the model. It wins three things at once: cost down, consistency up, performance up. It's not just coding with AI; it's building better scaffolding for AI." style="background:var(--surface);color:var(--ink);font-family:var(--font-sans);padding:88px 110px;display:flex;flex-direction:column;justify-content:center;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:26px;"><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.16em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">Takeaway 01</span></div>
+  <h2 style="margin:0;font-weight:500;font-size:46px;line-height:1.12;letter-spacing:-0.02em;color:var(--ink2);max-width:1560px;">The biggest lever isn't the model. It's wrapping the LLM in<br><span style="color:var(--ink);">two layers of determinism</span> — a fixed pipeline outside, code over the model inside.</h2>
+  <span style="display:inline-block;width:200px;height:6px;border-radius:3px;background:var(--grad);margin:32px 0;"></span>
+  <div style="display:flex;gap:20px;max-width:1500px;margin-bottom:30px;">
+    <div style="flex:1;background:#fff;border:1px solid var(--border);border-top:4px solid var(--purple);border-radius:14px;box-shadow:var(--card);padding:26px 30px;display:flex;flex-direction:column;gap:8px;"><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.1em;text-transform:uppercase;color:var(--purple-ink);">Layer 1 · Process</span><span style="font-weight:500;font-size:25px;letter-spacing:-0.01em;">A fixed, invariant pipeline</span><span style="font-size:20px;color:var(--ink2);line-height:1.4;">Every signal runs the same stages and gates — structural consistency the LLM can't perturb.</span></div>
+    <div style="flex:1;background:#fff;border:1px solid var(--border);border-top:4px solid var(--blue);border-radius:14px;box-shadow:var(--card);padding:26px 30px;display:flex;flex-direction:column;gap:8px;"><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.1em;text-transform:uppercase;color:var(--blue-ink);">Layer 2 · Logic</span><span style="font-weight:500;font-size:25px;letter-spacing:-0.01em;">Code over LLM, in-stage</span><span style="font-size:20px;color:var(--ink2);line-height:1.4;">S1 categorize · S5 composite · routing stay in code — model variance can't leak into scoring.</span></div>
+  </div>
+  <div style="display:flex;align-items:center;gap:30px;flex-wrap:wrap;max-width:1500px;">
+    <span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Wins three at once</span>
+    <span style="font-family:var(--font-mono);font-size:26px;font-weight:500;color:var(--purple-ink);">cost ↓</span>
+    <span style="font-family:var(--font-mono);font-size:26px;font-weight:500;color:var(--blue-ink);">consistency ↑</span>
+    <span style="font-family:var(--font-mono);font-size:26px;font-weight:500;color:var(--cyan-ink);">performance ↑</span>
+    <span style="margin-left:auto;font-size:24px;color:var(--ink);font-style:italic;">Not “coding <em>with</em> AI” — scaffolding <em>for</em> it.</span>
+  </div>
+</section>
+
+<!-- ===== 19 · OTHER TAKEAWAYS ===== -->
+<section data-label="Lessons" data-screen-label="19 What else I learned" data-speaker-notes="Four more lessons. For a personal system, MCP wasn't necessary — REST and a deliberate CLI wall were enough. Context is king, best isolated through clearly separated agents — by identity, not just data. Claude Code paired with the Hermes fleet was the real unlock — VibeOps, running ops in natural language. And autonomy is the direction, not today's priority — decision-making is far more non-deterministic than coding, so HITL stays non-negotiable until it matures." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:88px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--pink);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">Takeaways 02–05</span></div>
+  <h2 style="margin:0 0 38px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">What else building this taught me</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:24px;flex:1;align-content:center;">
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:34px 36px;display:flex;flex-direction:column;gap:14px;"><span style="font-family:var(--font-mono);font-size:20px;color:var(--purple-ink);">02</span><span style="font-weight:500;font-size:30px;letter-spacing:-0.01em;">MCP wasn't necessary</span><p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);">For ~10 fixed endpoints in one on-machine fleet, REST was enough — and a CLI to the publisher is a <strong style="font-weight:500;color:var(--ink);">deliberate wall</strong>: isolation, gate enforcement, secret containment.</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:34px 36px;display:flex;flex-direction:column;gap:14px;"><span style="font-family:var(--font-mono);font-size:20px;color:var(--blue-ink);">03</span><span style="font-weight:500;font-size:30px;letter-spacing:-0.01em;">Context is king</span><p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);">Best isolated through clearly separated agents — split by <strong style="font-weight:500;color:var(--ink);">identity / persona / R&amp;R</strong>, not just data. Specialization, not autonomy, is the real point.</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:34px 36px;display:flex;flex-direction:column;gap:14px;"><span style="font-family:var(--font-mono);font-size:20px;color:var(--cyan-ink);">04</span><span style="font-weight:500;font-size:30px;letter-spacing:-0.01em;">Claude Code = VibeOps</span><p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);">Dev + devops paired with the prod fleet — cross-repo in one session, local <em>and</em> remote, ops in natural language. Not vibecoding — VibeOps.</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:34px 36px;display:flex;flex-direction:column;gap:14px;"><span style="font-family:var(--font-mono);font-size:20px;color:var(--pink-ink);">05</span><span style="font-weight:500;font-size:30px;letter-spacing:-0.01em;">Autonomy is the direction — not today's priority</span><p style="margin:0;font-size:22px;line-height:1.5;color:var(--ink2);">Decisions are far more non-deterministic than code. Until this matures, <strong style="font-weight:500;color:var(--ink);">human-in-the-loop is non-negotiable.</strong></p></div>
+  </div>
+  <div style="position:absolute;left:110px;bottom:46px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 20 · CLOSING ===== -->
+<section data-label="Closing" data-screen-label="20 Closing" data-speaker-notes="Thank you. Turning judgment into a system. The pattern — make judgment reproducible, auditable, and self-improving — generalizes well beyond PM work. Happy to go to the backup slides for the technical reference and FAQ." style="background:var(--night);color:#F2F0EA;font-family:var(--font-sans);padding:96px 110px;display:flex;flex-direction:column;justify-content:space-between;">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div style="display:flex;align-items:center;gap:14px;"><span style="font-family:var(--font-sans);font-weight:500;font-size:22px;color:#F2F0EA;">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:15px;letter-spacing:0.22em;color:#9B9A97;">STUDIO</span></div>
+    <span style="font-family:var(--font-mono);font-size:18px;color:#6B6A65;">jackhpark.com</span>
+  </div>
+  <div>
+    <span style="display:inline-block;width:120px;height:6px;border-radius:3px;background:var(--grad);margin-bottom:34px;"></span>
+    <h2 style="margin:0;font-weight:500;font-size:88px;line-height:1.02;letter-spacing:-0.03em;">Turning judgment<br>into a system.</h2>
+    <p style="margin:36px 0 0;font-size:var(--fs-lead);line-height:1.5;color:#B4B2A9;max-width:1200px;">The pattern — <span style="background-image:var(--gradm);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:500;">make judgment reproducible, auditable, and self-improving</span> — generalizes well beyond PM work.</p>
+  </div>
+  <p style="margin:0;font-size:var(--fs-body);color:#6B6A65;">Thank you &nbsp;·&nbsp; Technical reference &amp; FAQ follow in the appendix</p>
+</section>
+
+<!-- ===== BACKUP DIVIDER ===== -->
+<section data-label="§ Backup" data-screen-label="Backup · divider" data-speaker-notes="Backup material — the FAQ and technical reference behind the main story. Happy to jump to any of these." style="background:var(--night);color:#F2F0EA;font-family:var(--font-sans);padding:96px 110px;display:flex;flex-direction:column;justify-content:center;">
+  <span style="display:inline-block;width:120px;height:6px;border-radius:3px;background:var(--grad);margin-bottom:40px;"></span>
+  <h2 style="margin:0;font-weight:500;font-size:96px;line-height:1.0;letter-spacing:-0.03em;">Backup</h2>
+  <p style="margin:26px 0 0;font-size:var(--fs-lead);color:#B4B2A9;">FAQ &amp; technical reference</p>
+  <p style="margin:30px 0 0;font-family:var(--font-mono);font-size:20px;letter-spacing:0.04em;color:#6B6A65;">Part A · FAQ (F1–F8) &nbsp;·&nbsp; Part B · Technical reference (B1–B7)</p>
+</section>
+
+<!-- ===== BACKUP · F1 — ONE REPO PER INTENT ===== -->
+<section data-label="F1 · One repo per intent" data-screen-label="F1 · Why six repos" data-speaker-notes="Why split into separate repos? Different change cadences — engine is code dev, decision-context is PM judgment, wiki is continuous operation, hermes is ops config, notion-backup is automated weekly. Coupling would force a deploy on every prompt tweak. Clear ownership boundaries, independent deploy and test, and blast-radius control. Underlying principle: vibecoding is a means, not the goal — don't code what doesn't need code." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:80px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--ink3);"></span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">F1 · FAQ</span></div>
+  <h2 style="margin:0 0 12px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Why six repos — one per intent</h2>
+  <p style="margin:0 0 32px;font-size:23px;color:var(--ink2);max-width:1300px;">Three groups, six repos — each with a distinct role and change cadence. Coupling would force a code deploy on every prompt tweak.</p>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px;flex:1;align-content:center;">
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:28px 26px;display:flex;flex-direction:column;gap:12px;"><span style="font-weight:500;font-size:25px;">Different change cadences</span><p style="margin:0;font-size:20px;line-height:1.45;color:var(--ink2);">Code dev · PM judgment · continuous operation · ops config · automated weekly sync.</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:28px 26px;display:flex;flex-direction:column;gap:12px;"><span style="font-weight:500;font-size:25px;">Clear ownership boundaries</span><p style="margin:0;font-size:20px;line-height:1.45;color:var(--ink2);">Each repo owns one thing — run state / reasoning / knowledge / identity / sync.</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:28px 26px;display:flex;flex-direction:column;gap:12px;"><span style="font-weight:500;font-size:25px;">Independent deploy &amp; test</span><p style="margin:0;font-size:20px;line-height:1.45;color:var(--ink2);">The engine ships without touching the wiki; prompts change without redeploying code.</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:28px 26px;display:flex;flex-direction:column;gap:12px;"><span style="font-weight:500;font-size:25px;">Blast-radius control</span><p style="margin:0;font-size:20px;line-height:1.45;color:var(--ink2);">A mistake in one layer doesn't cascade across all of them.</p></div>
+  </div>
+  <div style="margin-top:24px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 28px;"><span style="font-size:22px;line-height:1.5;color:var(--ink);"><strong style="font-weight:500;">Underlying principle —</strong> vibecoding is a <em>means</em>, not the goal: don't code what doesn't need code. An LLM Wiki over a custom DB/RAG; REST / CLI / GUI only where each earns its place.</span></div>
+  <div style="position:absolute;left:110px;bottom:42px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== BACKUP · F2 — WIKI OPERATIONS & DATA EDGE ===== -->
+<section data-label="F2 · Wiki ops & data edge" data-screen-label="F2 · Wiki skills & data edge" data-speaker-notes="Why an LLM Wiki? Knowledge that accumulates in a form AI can use directly — human-readable and agent-readable at once, near-zero infra. Three operational skills keep it coherent: ingest distills a raw source into canonical pages, query routes community-first via Graphify, lint scans against the schema contract. The human owns the raw layer and schema; the LLM owns wiki content, but only after review_needed clears. The data edge — notion-cms-backup — is a weekly one-way mirror of Jack's Notion into the raw layer." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:80px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--purple);"></span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--purple-ink);">F2 / F2a · FAQ</span></div>
+  <h2 style="margin:0 0 12px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Wiki operations — skills &amp; data edge</h2>
+  <p style="margin:0 0 30px;font-size:23px;color:var(--ink2);max-width:1300px;">An LLM Wiki gives ~90% of a bespoke RAG with near-zero infra — human-readable and agent-readable at once. Three skills keep it coherent.</p>
+  <div style="display:grid;grid-template-columns:1.25fr 0.75fr;gap:36px;flex:1;align-items:stretch;">
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div style="display:flex;gap:18px;align-items:flex-start;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:22px 26px;"><span style="font-family:var(--font-mono);font-size:23px;font-weight:500;color:var(--purple-ink);min-width:120px;">/ingest</span><p style="margin:0;font-size:21px;line-height:1.45;color:var(--ink2);">Distills a raw source into the right canonical page(s); extracts the pattern; flags <span style="font-family:var(--font-mono);font-size:19px;">review_needed</span> when confidence is low.</p></div>
+      <div style="display:flex;gap:18px;align-items:flex-start;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:22px 26px;"><span style="font-family:var(--font-mono);font-size:23px;font-weight:500;color:var(--purple-ink);min-width:120px;">/query</span><p style="margin:0;font-size:21px;line-height:1.45;color:var(--ink2);">Routes a question community-first via the Graphify graph; falls back to direct read if coverage is low.</p></div>
+      <div style="display:flex;gap:18px;align-items:flex-start;background:#fff;border:1px solid var(--border);border-radius:14px;box-shadow:var(--card);padding:22px 26px;"><span style="font-family:var(--font-mono);font-size:23px;font-weight:500;color:var(--purple-ink);min-width:120px;">/lint</span><p style="margin:0;font-size:21px;line-height:1.45;color:var(--ink2);">Scans every page against the <span style="font-family:var(--font-mono);font-size:19px;">CLAUDE.md</span> schema — flags orphans, duplicates, stale cross-refs.</p></div>
+      <div style="margin-top:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 26px;"><span style="font-size:21px;line-height:1.45;color:var(--ink);"><strong style="font-weight:500;">Human</strong> owns the raw layer + schema. <strong style="font-weight:500;">LLM</strong> owns wiki content — only after <span style="font-family:var(--font-mono);font-size:19px;">review_needed</span> clears.</span></div>
+    </div>
+    <div style="background:var(--night);border-radius:16px;padding:30px 30px;display:flex;flex-direction:column;gap:14px;">
+      <span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.12em;text-transform:uppercase;color:var(--cyan);">Data edge · notion-cms-backup</span>
+      <span style="font-weight:500;font-size:26px;color:#F2F0EA;line-height:1.25;">Weekly one-way mirror</span>
+      <p style="margin:0;font-size:20px;line-height:1.5;color:#B4B2A9;">A GitHub Actions job syncs Jack's Notion workspace → the wiki raw layer. Decouples live edits from agent reads → grounded, versioned knowledge.</p>
+      <p style="margin:0;font-size:20px;line-height:1.5;color:#B4B2A9;">Raw layer only — never touches canonical pages directly (human gate via <span style="font-family:var(--font-mono);font-size:18px;color:#dcdcd6;">/ingest</span>). Runs headlessly; no iMac dependency.</p>
+    </div>
+  </div>
+  <div style="position:absolute;left:110px;bottom:42px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== BACKUP · F4/F5 — REST & CLI, NOT MCP ===== -->
+<section data-label="F4/F5 · Why not MCP" data-screen-label="F4/F5 · REST & CLI, not MCP" data-speaker-notes="Why REST for the engine, not MCP? The interface is small, fixed, and internal — about 10 endpoints, all consumers in the same on-machine fleet. MCP would add a separate process, a parallel schema, connection state and extra auth — complexity with no functional gain here. Why a direct Notion API via CLI, not the Notion MCP? The CLI is a deliberate wall: isolation, gate enforcement, secret containment. The official connector grants broad read/write and can't enforce my narrow, gated, production-only write semantics." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:80px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--ink3);"></span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">F4 / F5 · FAQ</span></div>
+  <h2 style="margin:0 0 30px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Why REST &amp; CLI, not MCP</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;flex:1;">
+    <div style="background:#fff;border:1px solid var(--border);border-top:4px solid var(--blue);border-radius:16px;box-shadow:var(--card);padding:32px 34px;display:flex;flex-direction:column;gap:16px;">
+      <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:var(--blue-ink);">Engine → REST</span>
+      <span style="font-weight:500;font-size:30px;line-height:1.2;">Small, fixed, internal</span>
+      <p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink2);">~10 endpoints, stable surface. All consumers in the same on-machine fleet — no external discovery, no multi-vendor composition.</p>
+      <p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink2);">MCP would add a separate process, a parallel schema, connection-state, extra auth — <strong style="font-weight:500;color:var(--ink);">complexity with no gain.</strong></p>
+    </div>
+    <div style="background:#fff;border:1px solid var(--border);border-top:4px solid var(--pink);border-radius:16px;box-shadow:var(--card);padding:32px 34px;display:flex;flex-direction:column;gap:16px;">
+      <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:var(--pink-ink);">Publisher → CLI wall</span>
+      <span style="font-weight:500;font-size:30px;line-height:1.2;">A deliberate boundary</span>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;"><span style="width:8px;height:8px;border-radius:50%;background:var(--pink);margin-top:11px;flex-shrink:0;"></span><span style="font-size:21px;line-height:1.45;color:var(--ink2);"><strong style="font-weight:500;color:var(--ink);">Isolation</strong> — internal code changes don't leak to the agent.</span></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;"><span style="width:8px;height:8px;border-radius:50%;background:var(--pink);margin-top:11px;flex-shrink:0;"></span><span style="font-size:21px;line-height:1.45;color:var(--ink2);"><strong style="font-weight:500;color:var(--ink);">Gate enforcement</strong> — human-approval rules can't be bypassed.</span></div>
+        <div style="display:flex;gap:12px;align-items:flex-start;"><span style="width:8px;height:8px;border-radius:50%;background:var(--pink);margin-top:11px;flex-shrink:0;"></span><span style="font-size:21px;line-height:1.45;color:var(--ink2);"><strong style="font-weight:500;color:var(--ink);">Secret containment</strong> — Notion tokens never reach the agent.</span></div>
+      </div>
+      <p style="margin:0;font-size:20px;line-height:1.45;color:var(--ink2);">The official Notion MCP grants broad read/write — it can't enforce my narrow, gated, production-only semantics.</p>
+    </div>
+  </div>
+  <div style="margin-top:24px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 28px;"><span style="font-size:22px;color:var(--ink);font-style:italic;">MCP earns its keep with a large / evolving surface, external discovery, or multi-vendor composition — none of which I had.</span></div>
+  <div style="position:absolute;left:110px;bottom:42px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== BACKUP · F3/F7 — WHY HERMES + CRON ===== -->
+<section data-label="F3/F7 · Hermes & cron" data-screen-label="F3/F7 · Why Hermes & cron" data-speaker-notes="Why Hermes Agent? Specialization over automation; consistency made tangible through SOUL.md and MEMORY.md; messaging-native via Telegram and Discord threads; always-on and low-cost on a 10-year-old iMac, reachable via Tailscale; vendor-agnostic; and easy to set up — easier than OpenClaw, especially when managed through Claude Code. Cron jobs are owned by the fleet, versioned in-repo: gate-watcher sweeps for pending gates, provider-auth-watchdog flags OAuth logout, plus eval-digest, engine-watchdog, and briefing — with notify-once hardening and explicit active/paused state." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:80px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--cyan);"></span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--cyan-ink);">F3 / F7 · FAQ</span></div>
+  <h2 style="margin:0 0 30px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Why Hermes Agent — and how cron runs</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;flex:1;">
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:var(--card);padding:30px 32px;display:flex;flex-direction:column;gap:13px;">
+      <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:var(--cyan-ink);">What I loved about it</span>
+      <div style="display:flex;gap:12px;align-items:flex-start;"><span style="width:8px;height:8px;border-radius:50%;background:var(--cyan);margin-top:11px;flex-shrink:0;"></span><span style="font-size:21px;line-height:1.4;color:var(--ink2);"><strong style="font-weight:500;color:var(--ink);">Specialization</strong> over automation — split by identity / persona / R&amp;R.</span></div>
+      <div style="display:flex;gap:12px;align-items:flex-start;"><span style="width:8px;height:8px;border-radius:50%;background:var(--cyan);margin-top:11px;flex-shrink:0;"></span><span style="font-size:21px;line-height:1.4;color:var(--ink2);"><strong style="font-weight:500;color:var(--ink);">Consistency, made tangible</strong> — <span style="font-family:var(--font-mono);font-size:18px;">SOUL.md</span> (static) + <span style="font-family:var(--font-mono);font-size:18px;">MEMORY.md</span> (dynamic).</span></div>
+      <div style="display:flex;gap:12px;align-items:flex-start;"><span style="width:8px;height:8px;border-radius:50%;background:var(--cyan);margin-top:11px;flex-shrink:0;"></span><span style="font-size:21px;line-height:1.4;color:var(--ink2);"><strong style="font-weight:500;color:var(--ink);">Messaging-native</strong> — Telegram / Discord threads hold per-context chats with the same agent.</span></div>
+      <div style="display:flex;gap:12px;align-items:flex-start;"><span style="width:8px;height:8px;border-radius:50%;background:var(--cyan);margin-top:11px;flex-shrink:0;"></span><span style="font-size:21px;line-height:1.4;color:var(--ink2);"><strong style="font-weight:500;color:var(--ink);">Always-on, low-cost</strong> — runs on a 10-year-old iMac, reachable via Tailscale.</span></div>
+      <div style="display:flex;gap:12px;align-items:flex-start;"><span style="width:8px;height:8px;border-radius:50%;background:var(--cyan);margin-top:11px;flex-shrink:0;"></span><span style="font-size:21px;line-height:1.4;color:var(--ink2);"><strong style="font-weight:500;color:var(--ink);">Vendor-agnostic &amp; easy to run</strong> — easier than OpenClaw, especially via Claude Code.</span></div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:30px 32px;display:flex;flex-direction:column;gap:12px;">
+      <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);">Cron · 18 ops + 1 eval job</span>
+      <div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding-bottom:9px;"><span style="font-family:var(--font-mono);font-size:19px;color:var(--ink);white-space:nowrap;">gate-watcher</span><span style="font-size:18px;color:var(--ink2);">sweep gates · one digest · ~2 min</span></div>
+      <div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding-bottom:9px;"><span style="font-family:var(--font-mono);font-size:19px;color:var(--ink);white-space:nowrap;">source-feed-scanner</span><span style="font-size:18px;color:var(--ink2);">the sensing funnel · 6 h</span></div>
+      <div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding-bottom:9px;"><span style="font-family:var(--font-mono);font-size:19px;color:var(--ink);white-space:nowrap;">wiki-sync</span><span style="font-size:18px;color:var(--ink2);">export decide / kill runs · daily</span></div>
+      <div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding-bottom:9px;"><span style="font-family:var(--font-mono);font-size:19px;color:var(--ink);white-space:nowrap;">signal-start-reconciler</span><span style="font-size:18px;color:var(--ink2);">re-surface never-started · 1 h</span></div>
+      <div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border);padding-bottom:9px;"><span style="font-family:var(--font-mono);font-size:19px;color:var(--ink);white-space:nowrap;">cron-health-watchdog</span><span style="font-size:18px;color:var(--ink2);">alert on failing jobs · 30 min</span></div>
+      <div style="display:flex;justify-content:space-between;gap:12px;"><span style="font-family:var(--font-mono);font-size:19px;color:var(--ink);white-space:nowrap;">anthropic-keepalive</span><span style="font-size:18px;color:var(--ink2);">verify Fallback 1 · daily</span></div>
+      <p style="margin:6px 0 0;font-size:19px;line-height:1.45;color:var(--ink2);">All jobs run <span style="font-family:var(--font-mono);font-size:17px;">--no-agent</span> — only <strong style="font-weight:500;color:var(--ink);">4</strong> wake the LLM, on real work (<strong style="font-weight:500;color:var(--ink);">detect → compose</strong>), never on an idle tick. <span style="font-family:var(--font-mono);font-size:17px;">notify-once</span> blocks duplicate alerts; <strong style="font-weight:500;color:var(--ink);">new-cron-vs-fold</strong> is deliberate — a shared <span style="font-family:var(--font-mono);font-size:17px;">cron-common.sh</span>, not job-count creep.</p>
+    </div>
+  </div>
+  <div style="position:absolute;left:110px;bottom:42px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== BACKUP · F7b — THE SENSING FUNNEL ===== -->
+<section data-label="F7b · Sensing funnel" data-screen-label="F7b · The sensing funnel" data-speaker-notes="The sensing funnel. Signals no longer wait for me to notice them — source-feed-scanner runs every six hours as four stages, and three of them cost zero LLM tokens. Stage 1 detect: scan RSS, HN, Reddit, and web search, keyword-gate, exact-dedup. Stage 1.1 policy and caps: source activation, per-tick, source, and domain caps, age cutoff, and Gate 0 backpressure. Stage 1.5 fetch and quality gate: a fetch ladder, then drop page-chrome, bot-walls, and too-short captures — if nothing survives, the LLM is never woken. Only Stage 2 scores, and only on bodies that were already fetched. Two lanes come out, and only one costs a decision: submit writes a sensing file and opens Gate 0; capture-only becomes one row in a weekly roll-up, free and promotable later. A full Gate 0 — cap ten pending — pauses submits but never capture, and a per-product budget of five a day caps flooding. The point: backpressure protects my attention, not the scanner. Capture is cheap; deciding is not. And every threshold here is tunable live from the Observatory with no deploy." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:74px 90px 64px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--cyan);"></span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">F7 (cont.) · The sensing funnel</span></div>
+  <h2 style="margin:0 0 8px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Four stages — three of them cost zero LLM</h2>
+  <p style="margin:0 0 26px;font-size:23px;color:var(--ink2);max-width:1340px;"><span style="font-family:var(--font-mono);font-size:20px;color:var(--ink);">source-feed-scanner</span> runs every 6 h. Determinism filters first; the model is woken last.</p>
+  <div style="display:flex;align-items:stretch;gap:10px;margin-bottom:26px;">
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px;border-radius:12px;border:1px solid var(--border);border-top:4px solid #B6B3AC;box-shadow:var(--card);padding:18px 20px;background:#fff;"><div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-weight:500;font-size:24px;">Detect</span><span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink3);">0 LLM</span></div><span style="font-size:20px;color:var(--ink2);line-height:1.4;">RSS · HN · Reddit · web-search → keyword gate → exact dedup</span></div>
+    <span style="align-self:center;color:var(--ink3);font-size:20px;">→</span>
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px;border-radius:12px;border:1px solid var(--border);border-top:4px solid #B6B3AC;box-shadow:var(--card);padding:18px 20px;background:#fff;"><div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-weight:500;font-size:24px;">Policy &amp; caps</span><span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink3);">0 LLM</span></div><span style="font-size:20px;color:var(--ink2);line-height:1.4;">activation · per-tick / source / domain caps · age cutoff · Gate 0 backpressure</span></div>
+    <span style="align-self:center;color:var(--ink3);font-size:20px;">→</span>
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px;border-radius:12px;border:1px solid var(--border);border-top:4px solid #B6B3AC;box-shadow:var(--card);padding:18px 20px;background:#fff;"><div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-weight:500;font-size:24px;">Fetch &amp; quality</span><span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink3);">0 LLM</span></div><span style="font-size:20px;color:var(--ink2);line-height:1.4;">fetch ladder → drop page-chrome · bot-walls · too-short. <strong style="font-weight:500;color:var(--ink);">Nothing survives ⇒ no LLM.</strong></span></div>
+    <span style="align-self:center;color:var(--ink3);font-size:20px;">→</span>
+    <div style="flex:1;display:flex;flex-direction:column;gap:6px;border-radius:12px;border:1px solid var(--blue);border-top:4px solid var(--blue);box-shadow:var(--card);padding:18px 20px;background:rgba(91,141,239,0.07);"><div style="display:flex;align-items:baseline;justify-content:space-between;"><span style="font-weight:500;font-size:24px;color:var(--blue-ink);">Score</span><span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.06em;text-transform:uppercase;color:var(--blue-ink);">LLM</span></div><span style="font-size:20px;color:var(--ink2);line-height:1.4;">relevance on already-fetched bodies, then route each item</span></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;flex:1;align-items:stretch;">
+    <div style="display:flex;flex-direction:column;gap:14px;justify-content:center;">
+      <span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink3);">Two lanes out — only one costs a decision</span>
+      <div style="background:#fff;border:1px solid var(--border);border-top:4px solid var(--pink);border-radius:14px;box-shadow:var(--card);padding:20px 24px;display:flex;flex-direction:column;gap:6px;"><span style="font-family:var(--font-mono);font-size:21px;font-weight:500;color:var(--pink-ink);">submit</span><span style="font-size:20px;color:var(--ink2);line-height:1.4;">→ a sensing file → <strong style="font-weight:500;color:var(--ink);">Gate 0</strong> · costs a decision</span></div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 24px;display:flex;flex-direction:column;gap:6px;"><span style="font-family:var(--font-mono);font-size:21px;font-weight:500;color:var(--ink);">capture-only</span><span style="font-size:20px;color:var(--ink2);line-height:1.4;">→ one row in a weekly roll-up · costs nothing, promotable later</span></div>
+      <p style="margin:0;font-size:21px;line-height:1.45;color:var(--ink2);">A full Gate 0 (cap <strong style="font-weight:500;color:var(--ink);">10 pending</strong>) pauses <em>submits</em>, never capture; a per-product budget (<strong style="font-weight:500;color:var(--ink);">5/day</strong>) caps flooding.</p>
+    </div>
+    <div style="background:var(--night);border-radius:16px;padding:30px 32px;display:flex;flex-direction:column;gap:16px;justify-content:center;">
+      <span style="font-family:var(--font-mono);font-size:20px;letter-spacing:0.12em;text-transform:uppercase;color:#4dd0e1;">Why it's built this way</span>
+      <p style="margin:0;font-size:26px;line-height:1.45;color:#F2F0EA;">Backpressure protects <strong style="font-weight:500;">my attention</strong>, not the scanner. Capture is cheap; <span style="background-image:var(--gradm);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:500;">deciding is not.</span></p>
+      <p style="margin:0;font-size:21px;line-height:1.5;color:#B4B2A9;">Keywords, thresholds, source flags, and caps are tunable live from the Observatory (<span style="font-family:var(--font-mono);font-size:18px;color:#dcdcd6;">/settings/keywords</span>) — a runtime override store, no deploy or restart.</p>
+    </div>
+  </div>
+  <div style="position:absolute;left:90px;bottom:30px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== BACKUP · F8 — TWO DESIGN CHOICES ===== -->
+<section data-label="F8 · Pipeline honesty" data-screen-label="F8 · Fan-out & knowledge track" data-speaker-notes="Two design choices that keep the pipeline honest. First, portfolio fan-out: a platform signal can touch several Knox products at once, but auto-running the full pipeline per product flooded the review loop with duplicate gates — about 2.4 times the gate load — for what was almost always the same judgment. So the default is conservative: Triage picks one primary product; the rest are recorded as candidates, and I promote by hand only when one genuinely needs its own decision. A promoted product re-enters at S2, reusing the primary's product-agnostic S1 — never back at Gate 0. Second, the knowledge track is independent of the decision. Every signal leaves two tracks: the decision track exports the outcome, while the knowledge track can still distill reusable PM or market knowledge from any terminal run — even an archive. Eligibility is a durability test, not which depth ran. Both choices stop the pipeline from doing more than the decision warrants — without throwing away anything learned." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:80px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--ink3);"></span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">F8 · FAQ</span></div>
+  <h2 style="margin:0 0 30px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Two choices that keep the pipeline honest</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;flex:1;">
+    <div style="background:#fff;border:1px solid var(--border);border-top:4px solid var(--blue);border-radius:16px;box-shadow:var(--card);padding:32px 34px;display:flex;flex-direction:column;gap:14px;">
+      <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:var(--blue-ink);">Portfolio fan-out</span>
+      <span style="font-weight:500;font-size:29px;line-height:1.2;">One signal, one primary product</span>
+      <p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink2);">A platform signal can touch several Knox products at once. Auto-running the full pipeline <em>per product</em> flooded the review loop — <strong style="font-weight:500;color:var(--ink);">~2.4× gate load</strong> — for the <strong style="font-weight:500;color:var(--ink);">same</strong> underlying judgment.</p>
+      <p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink2);">So Triage picks <strong style="font-weight:500;color:var(--ink);">one primary</strong>; the rest are recorded as candidates I promote by hand. A promoted product re-enters at <span style="font-family:var(--font-mono);font-size:19px;color:var(--blue-ink);">S2</span> — reusing the product-agnostic S1, never back at Gate 0.</p>
+    </div>
+    <div style="background:#fff;border:1px solid var(--border);border-top:4px solid var(--purple);border-radius:16px;box-shadow:var(--card);padding:32px 34px;display:flex;flex-direction:column;gap:14px;">
+      <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:var(--purple-ink);">The knowledge track</span>
+      <span style="font-weight:500;font-size:29px;line-height:1.2;">Independent of the decision</span>
+      <p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink2);">Every signal leaves <strong style="font-weight:500;color:var(--ink);">two tracks</strong>. The <strong style="font-weight:500;color:var(--ink);">decision track</strong> exports the outcome — PRD / kill / PoC — to the wiki.</p>
+      <p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink2);">The <strong style="font-weight:500;color:var(--ink);">knowledge track</strong> is separate: <em>any</em> terminal run — even an <em>archive</em> — can still distill reusable PM / market knowledge into <span style="font-family:var(--font-mono);font-size:19px;color:var(--purple-ink);">wiki/concepts · frameworks</span>. Eligibility is a durability test, <strong style="font-weight:500;color:var(--ink);">not which depth ran</strong>.</p>
+    </div>
+  </div>
+  <div style="margin-top:24px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 28px;"><span style="font-size:22px;color:var(--ink);font-style:italic;">Both exist to stop the pipeline from doing <em>more</em> than the decision warrants — fewer redundant runs, but nothing learned is thrown away.</span></div>
+  <div style="position:absolute;left:110px;bottom:42px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 21 · APPENDIX · REPOS ===== -->
+<section data-label="B1 · Six repos" data-screen-label="B1 · Six repos at a glance" data-speaker-notes="Reference: the six repos, their role, host, and what each owns. Separate change cadences keep each concern independently versionable — coupling would force a deploy on every prompt tweak." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:88px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--ink3);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">B1 · Reference</span></div>
+  <h2 style="margin:0 0 34px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Six repos at a glance</h2>
+  <div style="border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--card);flex:1;display:flex;flex-direction:column;">
+    <div style="display:grid;grid-template-columns:1.4fr 2fr 1.6fr 1.1fr;background:var(--surface);border-bottom:1px solid var(--border);padding:18px 28px;"><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);">Repo</span><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);">Role</span><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);">Owns</span><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);">Host</span></div>
+    <div style="display:grid;grid-template-columns:1.4fr 2fr 1.6fr 1.1fr;padding:20px 28px;border-bottom:1px solid var(--border);align-items:center;"><span style="font-family:var(--font-mono);font-size:20px;color:var(--blue-ink);">pm-intelligence-engine</span><span style="font-size:21px;color:var(--ink);">S1–S7 execution, gates</span><span style="font-size:21px;color:var(--ink2);">run state, stage outputs</span><span style="font-size:20px;color:var(--ink2);">iMac · launchd</span></div>
+    <div style="display:grid;grid-template-columns:1.4fr 2fr 1.6fr 1.1fr;padding:20px 28px;border-bottom:1px solid var(--border);align-items:center;background:#fdfdfc;"><span style="font-family:var(--font-mono);font-size:20px;color:var(--blue-ink);">pm-decision-context</span><span style="font-size:21px;color:var(--ink);">reasoning assets</span><span style="font-size:21px;color:var(--ink2);">prompts, rubrics, contexts</span><span style="font-size:20px;color:var(--ink2);">filesystem</span></div>
+    <div style="display:grid;grid-template-columns:1.4fr 2fr 1.6fr 1.1fr;padding:20px 28px;border-bottom:1px solid var(--border);align-items:center;"><span style="font-family:var(--font-mono);font-size:20px;color:var(--purple-ink);">product-management-wiki</span><span style="font-size:21px;color:var(--ink);">sensing + memory</span><span style="font-size:21px;color:var(--ink2);">knowledge, cases, raw signals</span><span style="font-size:20px;color:var(--ink2);">filesystem</span></div>
+    <div style="display:grid;grid-template-columns:1.4fr 2fr 1.6fr 1.1fr;padding:20px 28px;border-bottom:1px solid var(--border);align-items:center;background:#fdfdfc;"><span style="font-family:var(--font-mono);font-size:20px;color:var(--cyan-ink);">hermes-control-plane</span><span style="font-size:21px;color:var(--ink);">ops plane · agents</span><span style="font-size:21px;color:var(--ink2);">agent identity, deploy config</span><span style="font-size:20px;color:var(--ink2);">iMac · MacBook</span></div>
+    <div style="display:grid;grid-template-columns:1.4fr 2fr 1.6fr 1.1fr;padding:20px 28px;border-bottom:1px solid var(--border);align-items:center;"><span style="font-family:var(--font-mono);font-size:20px;color:var(--cyan-ink);">pm-observatory</span><span style="font-size:21px;color:var(--ink);">observability</span><span style="font-size:21px;color:var(--ink2);">dashboards, integrity rules</span><span style="font-size:20px;color:var(--ink2);">iMac · :3100</span></div>
+    <div style="display:grid;grid-template-columns:1.4fr 2fr 1.6fr 1.1fr;padding:20px 28px;align-items:center;background:#fdfdfc;"><span style="font-family:var(--font-mono);font-size:20px;color:var(--purple-ink);">notion-cms-backup</span><span style="font-size:21px;color:var(--ink);">data edge</span><span style="font-size:21px;color:var(--ink2);">Notion export + sync</span><span style="font-size:20px;color:var(--ink2);">GitHub Actions</span></div>
+  </div>
+  <div style="position:absolute;left:110px;bottom:46px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== 22 · APPENDIX · LLM USAGE ===== -->
+<section data-label="F6 · LLM usage" data-screen-label="F6 · Where LLMs are used" data-speaker-notes="Where and how LLMs are used. Two structurally different integration styles plus repos with no LLM. The Hermes gateway profiles use openai-codex with an API fallback; the engine embeds the OpenAI SDK with temperature 0 across roughly 9-10 calls per decide run. S1 and the S5 composite score are deterministic — no LLM. Vendor-agnostic throughout: swap providers via one env var." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:88px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--ink3);"></span><span style="font-family:var(--font-mono);font-size:var(--fs-label);letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">F6 · FAQ</span></div>
+  <h2 style="margin:0 0 14px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Where LLMs are used</h2>
+  <p style="margin:0 0 34px;font-size:23px;color:var(--ink2);max-width:1240px;">Two integration styles + repos with no LLM. <strong style="color:var(--ink);font-weight:500;">S1 and the S5 composite score are deterministic — no model.</strong></p>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px;flex:1;align-content:center;">
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;border-top:4px solid var(--cyan);box-shadow:var(--card);padding:32px 30px;display:flex;flex-direction:column;gap:16px;"><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.1em;text-transform:uppercase;color:var(--cyan-ink);">Pattern ①</span><span style="font-weight:500;font-size:28px;line-height:1.2;">Hermes gateway profiles</span><p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink2);">8 profiles · 3-tier chain <span style="font-family:var(--font-mono);font-size:18px;">openai-codex</span> → <span style="font-family:var(--font-mono);font-size:18px;">anthropic</span> (Claude) → <span style="font-family:var(--font-mono);font-size:18px;">openai-api</span> key. Model tracks workload: <span style="font-family:var(--font-mono);font-size:18px;">gpt-5.4-mini</span> for automation (ops·local·eval·scratch), <span style="font-family:var(--font-mono);font-size:18px;">gpt-5.4</span> for conversational (avatar·interview-ops·publisher·writer).</p></div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:16px;border-top:4px solid var(--blue);box-shadow:var(--card);padding:32px 30px;display:flex;flex-direction:column;gap:16px;"><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.1em;text-transform:uppercase;color:var(--blue-ink);">Pattern ②</span><span style="font-weight:500;font-size:28px;line-height:1.2;">App-embedded SDK</span><p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink2);">pm-intelligence-engine · ~9–10 calls per decide run, all <span style="font-family:var(--font-mono);font-size:19px;">temperature=0</span>. S2·S3·S4×4·S5-classify·S6·S7 call the model; S1 and the S5 composite don't. Swap via <span style="font-family:var(--font-mono);font-size:19px;">LLM_PROVIDER</span>.</p></div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;border-top:4px solid #B6B3AC;padding:32px 30px;display:flex;flex-direction:column;gap:16px;"><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);">No LLM</span><span style="font-weight:500;font-size:28px;line-height:1.2;">Store · serve · observe</span><p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink2);">decision-context · wiki · observatory · control-plane — context delivery and state, no inference.</p></div>
+  </div>
+  <div style="margin-top:24px;background:var(--night);border-radius:14px;padding:22px 30px;display:flex;align-items:center;gap:18px;"><span style="font-family:var(--font-mono);font-size:18px;letter-spacing:0.12em;text-transform:uppercase;color:var(--cyan);">Vendor-agnostic</span><span style="font-size:22px;color:#F2F0EA;">OpenAI is the default. Claude (<span style="font-family:var(--font-mono);font-size:19px;color:#B4B2A9;">claude-sonnet-5</span> full-tier · <span style="font-family:var(--font-mono);font-size:19px;color:#B4B2A9;">claude-haiku-4-5</span> mini-tier) is <strong style="font-weight:500;">Fallback 1</strong> across every gateway profile <em>and</em> the engine's configured alternative — swapped through one provider protocol.</span></div>
+  <div style="position:absolute;left:110px;bottom:46px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== B2/B4 · DATA MODEL & STATE MACHINE ===== -->
+<section data-label="B2/B4 · Data model & state" data-screen-label="B2/B4 · Data model & gate state" data-speaker-notes="The pm-engine data model: WorkflowRun, Signal, StageOutput, ApprovalEvent, Artifact — SQLite v1 behind a PMWorkflowStore protocol so a Postgres migration stays mechanical. The gate state machine: pending → running, pausing at waiting_direction (Gate 1), waiting_approval (Gate 2), and waiting_routing_review (Gate 3), terminating at completed or killed — both of which trigger wiki export. Every transition through a gate is logged as an ApprovalEvent." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:80px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--ink3);"></span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">B2 / B4 · Reference</span></div>
+  <h2 style="margin:0 0 30px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Data model &amp; gate state machine</h2>
+  <div style="display:grid;grid-template-columns:1.05fr 0.95fr;gap:36px;flex:1;align-items:stretch;">
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);">pm-engine data model</span>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 24px;"><span style="font-family:var(--font-mono);font-size:21px;font-weight:500;color:var(--blue-ink);">WorkflowRun</span><p style="margin:4px 0 0;font-size:19px;line-height:1.4;color:var(--ink2);">run_id, signal_id, product_id, lifecycle, position, depth, outcome, routing, composite_score</p></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 24px;"><span style="font-family:var(--font-mono);font-size:21px;font-weight:500;color:var(--purple-ink);">Signal</span><p style="margin:4px 0 0;font-size:19px;line-height:1.4;color:var(--ink2);">signal_id, product_id, title, source_url, raw_content, status lifecycle</p></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 24px;"><span style="font-family:var(--font-mono);font-size:21px;font-weight:500;color:var(--blue-ink);">StageOutput</span><p style="margin:4px 0 0;font-size:19px;line-height:1.4;color:var(--ink2);">run_id, stage (s1–s7), output_json (Pydantic), version (++ on revise)</p></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 24px;"><span style="font-family:var(--font-mono);font-size:21px;font-weight:500;color:var(--pink-ink);">ApprovalEvent</span><p style="margin:4px 0 0;font-size:19px;line-height:1.4;color:var(--ink2);">run_id, action (advance / advance_to / revise / stop), feedback_text</p></div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:18px 24px;"><span style="font-family:var(--font-mono);font-size:21px;font-weight:500;color:var(--cyan-ink);">Artifact</span><p style="margin:4px 0 0;font-size:19px;line-height:1.4;color:var(--ink2);">run_id, type (poc_plan/prd/executive_summary), content_md <span style="font-family:var(--font-mono);font-size:16px;color:var(--ink3);">(content_json column removed 2026-07-19)</span></p></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);">Gate state machine</span>
+      <div style="background:var(--night);border-radius:14px;padding:26px 28px;font-family:var(--font-mono);box-shadow:var(--card);">
+        <p style="margin:0;font-size:19px;line-height:1.85;color:#F2F0EA;">lifecycle = running → <span style="color:var(--cyan);">paused</span> <span style="color:#9B9A97;">(at S2 / S4 / S5)</span></p>
+        <p style="margin:0;font-size:19px;line-height:1.85;color:#F2F0EA;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ running → <span style="color:#97C459;">done</span></p>
+        <p style="margin:0;font-size:19px;line-height:1.85;color:#F2F0EA;">outcome = <span style="color:#97C459;">completed</span> | <span style="color:#FF7369;">stopped</span> | <span style="color:#FF7369;">failed</span></p>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 26px;margin-top:auto;"><p style="margin:0;font-size:21px;line-height:1.5;color:var(--ink);">Terminal <span style="font-family:var(--font-mono);font-size:18px;">done</span> triggers <strong style="font-weight:500;">wiki export</strong>. Every gate transition is logged as an <span style="font-family:var(--font-mono);font-size:18px;">ApprovalEvent</span> — the audit trail.</p></div>
+    </div>
+  </div>
+  <div style="position:absolute;left:110px;bottom:42px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== B3 · API SURFACE & SECURITY ===== -->
+<section data-label="B3 · API & security" data-screen-label="B3 · API surface & security" data-speaker-notes="The API surface: signals and runs endpoints, plus a single unified gate decision endpoint (advance / advance_to / revise / stop) covering Gates 1–3 — and artifacts, an HTML review page, and health. Bearer token auth; the server fails closed with a 503 if the token is unset. It binds to loopback 127.0.0.1:8000; off-device review goes through Tailscale." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:80px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--ink3);"></span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">B3 · Reference</span></div>
+  <h2 style="margin:0 0 30px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">API surface &amp; security</h2>
+  <div style="display:grid;grid-template-columns:1.35fr 0.65fr;gap:36px;flex:1;align-items:stretch;">
+    <div style="background:var(--night);border-radius:16px;padding:34px 38px;font-family:var(--font-mono);box-shadow:var(--card);display:flex;flex-direction:column;justify-content:center;gap:14px;">
+      <p style="margin:0;font-size:21px;line-height:1.6;color:#F2F0EA;"><span style="color:var(--cyan);">POST</span> /signals &nbsp;&nbsp; <span style="color:var(--cyan);">GET</span> /signals?product_id=&amp;status=</p>
+      <p style="margin:0;font-size:21px;line-height:1.6;color:#F2F0EA;"><span style="color:var(--cyan);">POST</span> /runs/start</p>
+      <p style="margin:0;font-size:21px;line-height:1.6;color:#F2F0EA;"><span style="color:var(--cyan);">GET</span> /runs?lifecycle=&amp;position= &nbsp;&nbsp; <span style="color:var(--cyan);">GET</span> /runs?lifecycle=done&amp;outcome=</p>
+      <p style="margin:0;font-size:21px;line-height:1.6;color:#F2F0EA;"><span style="color:var(--cyan);">POST</span> /runs/{id}/decision <span style="color:#9B9A97;">{action: advance | advance_to | revise | stop}</span> <span style="color:#9B9A97;"># Gates 1/2/3</span></p>
+      <p style="margin:0;font-size:21px;line-height:1.6;color:#F2F0EA;"><span style="color:var(--cyan);">GET</span> /runs/{id}/artifacts &nbsp; <span style="color:var(--cyan);">GET</span> /runs/{id}/review &nbsp; <span style="color:var(--cyan);">GET</span> /health</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px;">
+      <div style="background:#fff;border:1px solid var(--border);border-top:4px solid var(--pink);border-radius:14px;box-shadow:var(--card);padding:24px 26px;flex:1;display:flex;flex-direction:column;gap:8px;justify-content:center;"><span style="font-weight:500;font-size:24px;">Fails closed</span><p style="margin:0;font-size:20px;line-height:1.45;color:var(--ink2);">Bearer-token auth; server returns <span style="font-family:var(--font-mono);font-size:18px;">503</span> if the token is unset.</p></div>
+      <div style="background:#fff;border:1px solid var(--border);border-top:4px solid var(--cyan);border-radius:14px;box-shadow:var(--card);padding:24px 26px;flex:1;display:flex;flex-direction:column;gap:8px;justify-content:center;"><span style="font-weight:500;font-size:24px;">Loopback only</span><p style="margin:0;font-size:20px;line-height:1.45;color:var(--ink2);">Binds <span style="font-family:var(--font-mono);font-size:18px;">127.0.0.1:8000</span>; off-device review via Tailscale <span style="font-family:var(--font-mono);font-size:18px;">BASE_URL</span>.</p></div>
+    </div>
+  </div>
+  <div style="position:absolute;left:110px;bottom:42px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+<!-- ===== B5/B6 · DEPTH LADDER & PERSONA SYSTEM ===== -->
+<section data-label="B5/B6 · Depth & personas" data-screen-label="B5/B6 · Depth ladder & personas" data-speaker-notes="Not every signal deserves a full 7-stage run. The processing-depth ladder runs from archive (reject) to note (S2 only, no S7), structure (S3), evaluate (S4), and decide (full S1–S7 with gated routing). Low-relevance signals auto-archive at the S2 gate; the PM chooses depth at Gate 1. The S4 persona system: four personas, each its own system prompt, each producing a score, a key argument, and an open question, running in parallel and fully isolated — quality-gated by a 12-point rubric that must pass 9 of 12." style="background:var(--bg);color:var(--ink);font-family:var(--font-sans);padding:80px 110px;display:flex;flex-direction:column;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;"><span style="width:34px;height:4px;border-radius:2px;background:var(--ink3);"></span><span style="font-family:var(--font-mono);font-size:22px;letter-spacing:0.18em;text-transform:uppercase;white-space:nowrap;color:var(--ink3);">B5 / B6 · Reference</span></div>
+  <h2 style="margin:0 0 30px;font-weight:500;font-size:var(--fs-title);line-height:1.06;letter-spacing:-0.02em;">Processing-depth ladder &amp; persona system</h2>
+  <div style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:36px;flex:1;align-items:stretch;">
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);">Depth ladder — PM chooses at Gate 1</span>
+      <div style="display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:16px 24px;"><span style="font-family:var(--font-mono);font-size:24px;font-weight:500;color:var(--ink3);min-width:30px;">1</span><span style="font-weight:500;font-size:23px;min-width:130px;">archive</span><span style="font-size:20px;color:var(--ink2);">reject, no action</span></div>
+      <div style="display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:16px 24px;"><span style="font-family:var(--font-mono);font-size:24px;font-weight:500;color:var(--ink3);min-width:30px;">2</span><span style="font-weight:500;font-size:23px;min-width:130px;">note</span><span style="font-size:20px;color:var(--ink2);">insight only — S2, no S7 (S7 runs in decide only)</span></div>
+      <div style="display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:16px 24px;"><span style="font-family:var(--font-mono);font-size:24px;font-weight:500;color:var(--ink3);min-width:30px;">3</span><span style="font-weight:500;font-size:23px;min-width:130px;">structure</span><span style="font-size:20px;color:var(--ink2);">frame opportunity (S3)</span></div>
+      <div style="display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:var(--card);padding:16px 24px;"><span style="font-family:var(--font-mono);font-size:24px;font-weight:500;color:var(--ink3);min-width:30px;">4</span><span style="font-weight:500;font-size:23px;min-width:130px;">evaluate</span><span style="font-size:20px;color:var(--ink2);">persona eval (S4), no routing</span></div>
+      <div style="display:flex;align-items:center;gap:16px;background:var(--night);border-radius:12px;box-shadow:var(--card);padding:16px 24px;"><span style="font-family:var(--font-mono);font-size:24px;font-weight:500;color:var(--cyan);min-width:30px;">5</span><span style="font-weight:500;font-size:23px;min-width:130px;color:#F2F0EA;">decide</span><span style="font-size:20px;color:#B4B2A9;">full S1–S7 with gated routing</span></div>
+      <p style="margin:4px 0 0;font-size:20px;line-height:1.45;color:var(--ink2);">Low-relevance signals <strong style="font-weight:500;color:var(--ink);">auto-archive</strong> at the S2 gate.</p>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:30px 32px;display:flex;flex-direction:column;justify-content:center;gap:16px;">
+      <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);">S4 persona system</span>
+      <p style="margin:0;font-size:21px;line-height:1.55;color:var(--ink);">Four personas, each its own system prompt in <span style="font-family:var(--font-mono);font-size:18px;">prompts/s4/&lt;persona&gt;/</span>. Each produces <span style="font-family:var(--font-mono);font-size:18px;">{score 1–5, key_argument, open_question}</span> — parallel, fully isolated.</p>
+      <div style="height:1px;background:var(--border);"></div>
+      <span style="font-family:var(--font-mono);font-size:19px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink3);">12-point rubric · pass ≥ 9/12</span>
+      <p style="margin:0;font-size:21px;line-height:1.55;color:var(--ink);">Score Grounding · Skeptic Quality · Open-Question Specificity · Persona Independence — <strong style="font-weight:500;">3 pts each.</strong> Fail → S4 re-runs.</p>
+    </div>
+  </div>
+  <div style="position:absolute;left:110px;bottom:42px;display:flex;align-items:center;gap:10px;"><span style="font-weight:500;font-size:17px;color:var(--ink2);">Jack H. Park</span><span style="font-family:var(--font-mono);font-size:12px;letter-spacing:0.2em;color:var(--ink3);">STUDIO</span></div>
+</section>
+
+</x-import>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1920,&quot;height&quot;:1080}}"></script>
+</body>
+</html>
