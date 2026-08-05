@@ -1,0 +1,490 @@
+/* ========================================================================
+   JHP Studio — Design Tokens (v1.1, aligned with Brand Guidelines v1.0)
+   Source of truth: jack-h-park-studio-brand-guidelines.md (2026-05-27)
+
+   This file expresses the brand guide as CSS variables. Brand tokens are
+   canonical; the legacy aliases (`--ink`, `--cream`, `--jp-cyan`, …) used
+   by the first batch of preview cards are kept and re-aliased so the
+   visual system stays consistent.
+   ======================================================================== */
+
+/* ---------- Brand fonts (self-hosted) ----------
+   Geist sans and Geist Mono. Each declares a variable-font @font-face
+   covering 100–900, plus explicit per-weight @font-face declarations so
+   asset detectors can resolve every weight by filename. */
+
+/* === Geist Sans (variable) === */
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fonts/Geist_wght_.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Geist";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fonts/Geist-Italic_wght_.woff2") format("woff2");
+}
+
+/* === Geist Sans (explicit weights) === */
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 100; font-display: swap; src: url("fonts/Geist-Thin.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: italic; font-weight: 100; font-display: swap; src: url("fonts/Geist-ThinItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 200; font-display: swap; src: url("fonts/Geist-ExtraLight.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: italic; font-weight: 200; font-display: swap; src: url("fonts/Geist-ExtraLightItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 300; font-display: swap; src: url("fonts/Geist-Light.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: italic; font-weight: 300; font-display: swap; src: url("fonts/Geist-LightItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/Geist-Regular.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: italic; font-weight: 400; font-display: swap; src: url("fonts/Geist-Italic.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 500; font-display: swap; src: url("fonts/Geist-Medium.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: italic; font-weight: 500; font-display: swap; src: url("fonts/Geist-MediumItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 600; font-display: swap; src: url("fonts/Geist-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: italic; font-weight: 600; font-display: swap; src: url("fonts/Geist-SemiBoldItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 700; font-display: swap; src: url("fonts/Geist-Bold.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: italic; font-weight: 700; font-display: swap; src: url("fonts/Geist-BoldItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 800; font-display: swap; src: url("fonts/Geist-ExtraBold.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: italic; font-weight: 800; font-display: swap; src: url("fonts/Geist-ExtraBoldItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 900; font-display: swap; src: url("fonts/Geist-Black.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: italic; font-weight: 900; font-display: swap; src: url("fonts/Geist-BlackItalic.woff2") format("woff2"); }
+
+/* === Geist Mono (variable) === */
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fonts/GeistMono_wght_.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Geist Mono";
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("fonts/GeistMono-Italic_wght_.woff2") format("woff2");
+}
+
+/* === Geist Mono (explicit weights) === */
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 100; font-display: swap; src: url("fonts/GeistMono-Thin.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: italic; font-weight: 100; font-display: swap; src: url("fonts/GeistMono-ThinItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 200; font-display: swap; src: url("fonts/GeistMono-ExtraLight.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: italic; font-weight: 200; font-display: swap; src: url("fonts/GeistMono-ExtraLightItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 300; font-display: swap; src: url("fonts/GeistMono-Light.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: italic; font-weight: 300; font-display: swap; src: url("fonts/GeistMono-LightItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("fonts/GeistMono-Regular.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: italic; font-weight: 400; font-display: swap; src: url("fonts/GeistMono-Italic.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("fonts/GeistMono-Medium.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: italic; font-weight: 500; font-display: swap; src: url("fonts/GeistMono-MediumItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 600; font-display: swap; src: url("fonts/GeistMono-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: italic; font-weight: 600; font-display: swap; src: url("fonts/GeistMono-SemiBoldItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url("fonts/GeistMono-Bold.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: italic; font-weight: 700; font-display: swap; src: url("fonts/GeistMono-BoldItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 800; font-display: swap; src: url("fonts/GeistMono-ExtraBold.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: italic; font-weight: 800; font-display: swap; src: url("fonts/GeistMono-ExtraBoldItalic.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 900; font-display: swap; src: url("fonts/GeistMono-Black.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: italic; font-weight: 900; font-display: swap; src: url("fonts/GeistMono-BlackItalic.woff2") format("woff2"); }
+
+/* ---------- 4 · Type families ----------------------------------------- */
+:root {
+  --font-sans:
+    "Geist", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Helvetica, Arial, sans-serif;
+  --font-mono:
+    "Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco,
+    Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* ---------- 3.1 · Brand colors -------------------------------------- */
+  --brand-pink:   #f06292;
+  --brand-purple: #b439df;
+  --brand-blue:   #5b8def;
+  --brand-cyan:   #4dd0e1;
+
+  /* ---------- 3.2 · The only two gradients ---------------------------- */
+  --gradient-full:
+    linear-gradient(90deg,
+      #f06292 0%,
+      #b439df 30%,
+      #5b8def 60%,
+      #4dd0e1 100%); /* @kind color */
+  --gradient-full-diagonal:
+    linear-gradient(135deg,
+      #f06292 0%,
+      #b439df 30%,
+      #5b8def 60%,
+      #4dd0e1 100%); /* @kind color */
+  --gradient-mini:
+    linear-gradient(90deg,
+      #b439df 0%,
+      #5b8def 50%,
+      #4dd0e1 100%); /* @kind color */
+
+  /* ---------- 3.3 · Neutrals · Notion ink foundation (light) ---------- */
+  --bg-page:         #FFFFFF;
+  --bg-surface:      #F7F6F3;
+  --bg-card:         #FFFFFF;
+  --text-primary:    #37352F;
+  --text-secondary:  #6B6A65;
+  --text-tertiary:   #9B9A97;
+  --border-subtle:   rgba(55, 53, 47, 0.09);
+  --border-default:  #EFEEEA;
+
+  /* ---------- 3.4 · Semantic ----------------------------------------- */
+  --accent-info:     #0B6E99;
+  --accent-success:  #3B6D11;
+  --accent-warning:  #BA7517;
+  --accent-danger:   #A32D2D;
+
+  /* ---------- 4.3 · Type scale --------------------------------------- */
+  --t-display:    40px;
+  --t-h1:         28px;
+  --t-h2:         22px;
+  --t-h3:         18px;
+  --t-body:       14px;
+  --t-caption:    12px;
+  --t-eyebrow:    11px;
+  --t-mono:       12px;
+  --t-studio-tag: 11px;
+
+  --lh-display:   1.12; /* @kind font */
+  --lh-h1:        1.18; /* @kind font */
+  --lh-h2:        1.25; /* @kind font */
+  --lh-h3:        1.35; /* @kind font */
+  --lh-body:      1.65; /* @kind font */
+  --lh-caption:   1.5; /* @kind font */
+  --lh-eyebrow:   1.4; /* @kind font */
+  --lh-mono:      1.5; /* @kind font */
+
+  --tr-display:    -0.025em; /* @kind font */
+  --tr-h1:         -0.02em; /* @kind font */
+  --tr-h2:         -0.015em; /* @kind font */
+  --tr-h3:         -0.01em; /* @kind font */
+  --tr-eyebrow:    0.10em; /* @kind font */
+  --tr-studio:     0.20em; /* @kind font */
+
+  /* ---------- 5.1 · Spacing scale ------------------------------------ */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* ---------- 5.2 · Radius ------------------------------------------- */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   24px;
+  --radius-pill: 999px;
+
+  /* ---------- 5.3 · Elevation ---------------------------------------- */
+  --shadow-card:      0 1px 2px rgba(15,15,15,0.04), 0 4px 12px rgba(15,15,15,0.05);
+  --shadow-elevated:  0 10px 20px rgba(15,15,15,0.05);
+  --shadow-popover:   0 18px 35px rgba(15,15,15,0.08);
+  --shadow-card-dark: 0 1px 2px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.40);
+
+  /* ---------- Motion --------------------------------------------------- */
+  --ease-out:  cubic-bezier(0.16, 1, 0.3, 1); /* @kind other */
+  --ease-in:   cubic-bezier(0.7, 0, 0.84, 0); /* @kind other */
+  --ease-std:  cubic-bezier(0.4, 0, 0.2, 1); /* @kind other */
+  --dur-1:     80ms; /* @kind other */
+  --dur-2:     150ms; /* @kind other */
+  --dur-3:     250ms; /* @kind other */
+  --dur-4:     400ms; /* @kind other */
+
+  /* =====================================================================
+     LEGACY ALIASES — v1.0 token names mapped to brand tokens. These keep
+     the original preview cards rendering without rewrite. Prefer the
+     brand tokens above for any new work.
+     ===================================================================== */
+  --font-serif: var(--font-sans);    /* serif removed from system */
+
+  --ink:      var(--text-primary);
+  --ink-2:    #4B4842;
+  --ink-3:    var(--text-secondary);
+  --ink-4:    var(--text-tertiary);
+  --ink-5:    #C2BDB0;
+
+  --cream:    var(--bg-page);
+  --cream-2:  var(--bg-surface);
+  --cream-3:  #EFEEEA;
+  --paper:    var(--bg-card);
+  --sand:         var(--border-default);
+  --sand-strong:  #D6D3C8;
+  --hairline:     var(--border-default);
+
+  --night:    #191919;
+  --night-2:  #252525;
+  --night-3:  #2A2A2A;
+  --night-4:  #36342D;
+  --night-5:  #4A4740;
+
+  /* Brand-aligned accents (replace old jp-cyan/coral/ink-blue) */
+  --jp-cyan:      var(--brand-cyan);
+  --jp-cyan-2:    var(--brand-blue);
+  --jp-cyan-3:    #3a8eb0;
+  --jp-cyan-bg:   rgba(77, 208, 225, 0.16);
+  --jp-coral:     var(--brand-pink);
+  --jp-coral-2:   #d45a8c;
+  --jp-coral-bg:  rgba(240, 98, 146, 0.16);
+  --jp-ink-blue:  var(--accent-info);
+
+  --ok:       var(--accent-success);
+  --ok-bg:    #E4EEDA;
+  --warn:     var(--accent-warning);
+  --warn-bg:  #F6E6D2;
+  --err:      var(--accent-danger);
+  --err-bg:   #F2DADA;
+  --info:     var(--accent-info);
+  --info-bg:  #DDEBF1;
+
+  /* Old Notion tag palette retained for content tags */
+  --tag-red:     #E03E3E;   --tag-red-bg:     #FBE4E4;   --tag-red-fg:     #5D1715;
+  --tag-pink:    #AD1A72;   --tag-pink-bg:    #F4DFEB;   --tag-pink-fg:    #4C2337;
+  --tag-blue:    #0B6E99;   --tag-blue-bg:    #DDEBF1;   --tag-blue-fg:    #183347;
+  --tag-purple:  #6940A5;   --tag-purple-bg:  #EAE4F2;   --tag-purple-fg:  #412454;
+  --tag-teal:    #4D6461;   --tag-teal-bg:    #DDEDEA;   --tag-teal-fg:    #1C3829;
+  --tag-yellow:  #DFAB01;   --tag-yellow-bg:  #FBF3DB;   --tag-yellow-fg:  #402C1B;
+  --tag-orange:  #D9730D;   --tag-orange-bg:  #FAEBDD;   --tag-orange-fg:  #49290E;
+  --tag-brown:   #64473A;   --tag-brown-bg:   #E9E5E3;   --tag-brown-fg:   #442A1E;
+  --tag-gray:    #9B9A97;   --tag-gray-bg:    #EBECED;   --tag-gray-fg:    #32302C;
+
+  /* Old shadow aliases mapped to new */
+  --shadow-hairline: 0 0 0 1px var(--border-subtle);
+  --shadow-raised:   var(--shadow-elevated);
+  --shadow-pop:      var(--shadow-popover);
+
+  /* Old type-scale aliases (still referenced by some preview cards) */
+  --t-11: 11px;   --t-12: 12px;   --t-13: 13px;   --t-14: 14px;
+  --t-16: 16px;   --t-18: 18px;   --t-21: 22px;   --t-25: 18px;
+  --t-31: 22px;   --t-39: 28px;   --t-49: 40px;   --t-61: 40px;
+
+  --lh-tight: 1.12; /* @kind font */
+  --lh-snug: 1.25; /* @kind font */
+  --lh-normal: 1.45; /* @kind font */
+  --lh-relaxed: 1.65; /* @kind font */
+
+  --tracking-tightest: -0.025em;
+  --tracking-tight:    -0.015em;
+  --tracking-normal:   0;
+  --tracking-wide:     0.04em;
+  --tracking-wider:    0.12em;
+  --tracking-widest:   0.20em;
+
+  /* Layout */
+  --content-narrow: 720px;
+  --content-wide:   900px;
+  --content-app:    1280px;
+  --header-h:       54px;
+
+  /* Old spacing aliases */
+  --s-1:  4px;   --s-2:  8px;   --s-3:  12px;   --s-4:  16px;
+  --s-5:  24px;  --s-6:  32px;  --s-8:  48px;   --s-10: 64px;
+  --s-12: 48px;  --s-16: 64px;  --s-20: 80px;
+
+  --r-0: 0; /* @kind radius */
+  --r-2: 6px;   --r-4: 6px;   --r-6: 6px;
+  --r-8: 10px;  --r-12: 14px;  --r-16: 14px;  --r-pill: 999px;
+}
+
+/* ---------- 3.3 · Neutrals (dark) -------------------------------------- */
+.dark, [data-theme="dark"], html.dark, body.dark, body.dark-mode {
+  --bg-page:        #191919;
+  --bg-surface:     #252525;
+  --bg-card:        #252525;
+  --text-primary:   #F2F0EA;
+  --text-secondary: #B4B2A9;
+  --text-tertiary:  #9B9A97;
+  --border-subtle:  rgba(255,255,255,0.10);
+  --border-default: #2A2A2A;
+
+  --accent-info:    #529CCA;
+  --accent-success: #97C459;
+  --accent-warning: #FFA344;
+  --accent-danger:  #FF7369;
+
+  --shadow-card: var(--shadow-card-dark);
+
+  /* legacy aliases re-declared here so the var() reference resolves
+     against the dark text tokens (a :root-level alias would keep its
+     light value because it's substituted at :root). */
+  --ink:          var(--text-primary);
+  --ink-2:        #C7C2B2;
+  --ink-3:        var(--text-secondary);
+  --ink-4:        var(--text-tertiary);
+  --ink-5:        #4A4740;
+  --cream:        var(--bg-page);
+  --cream-2:      var(--bg-surface);
+  --cream-3:      #2A2A2A;
+  --paper:        var(--bg-card);
+  --sand:         var(--border-default);
+  --sand-strong:  #3A3A3A;
+  --hairline:     var(--border-default);
+  /* semantic text aliases must be re-declared here too, otherwise their
+     :root var() stays pinned to the (dark) light-mode accents and is
+     unreadable on dark surfaces. */
+  --ok:           var(--accent-success);
+  --warn:         var(--accent-warning);
+  --err:          var(--accent-danger);
+  --info:         var(--accent-info);
+  --jp-ink-blue:  var(--accent-info);
+  --ok-bg:        rgba(151, 196, 89, 0.18);
+  --warn-bg:      rgba(255, 163, 68, 0.18);
+  --err-bg:       rgba(255, 115, 105, 0.18);
+  --jp-cyan-bg:   rgba(77, 208, 225, 0.18);
+  --jp-coral-bg:  rgba(240, 98, 146, 0.18);
+}
+
+/* ========================================================================
+   SEMANTIC TYPE CLASSES — keyed to §4.3 scale exactly.
+   ======================================================================== */
+
+.t-display {
+  font-family: var(--font-sans);
+  font-size: var(--t-display);
+  font-weight: 500;
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  color: var(--text-primary);
+}
+
+.t-h1 {
+  font-family: var(--font-sans);
+  font-size: var(--t-h1);
+  font-weight: 500;
+  line-height: var(--lh-h1);
+  letter-spacing: var(--tr-h1);
+  color: var(--text-primary);
+}
+
+.t-h2 {
+  font-family: var(--font-sans);
+  font-size: var(--t-h2);
+  font-weight: 500;
+  line-height: var(--lh-h2);
+  letter-spacing: var(--tr-h2);
+  color: var(--text-primary);
+}
+
+.t-h3 {
+  font-family: var(--font-sans);
+  font-size: var(--t-h3);
+  font-weight: 500;
+  line-height: var(--lh-h3);
+  letter-spacing: var(--tr-h3);
+  color: var(--text-primary);
+}
+
+.t-body {
+  font-family: var(--font-sans);
+  font-size: var(--t-body);
+  font-weight: 400;
+  line-height: var(--lh-body);
+  color: var(--text-primary);
+}
+
+.t-caption {
+  font-family: var(--font-sans);
+  font-size: var(--t-caption);
+  font-weight: 400;
+  line-height: var(--lh-caption);
+  color: var(--text-secondary);
+}
+
+/* §4.3 · sans, 500, 0.10em — for in-product eyebrows */
+.t-eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--t-eyebrow);
+  font-weight: 500;
+  line-height: var(--lh-eyebrow);
+  letter-spacing: var(--tr-eyebrow);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  font-weight: 400;
+  line-height: var(--lh-mono);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* §4.4 · the "STUDIO" tag — reserved for workmark + footer signatures */
+.t-studio-tag {
+  font-family: var(--font-mono);
+  font-size: var(--t-studio-tag);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: var(--tr-studio);
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.t-mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum", "zero";
+}
+
+/* Single-word in-text emphasis — Mini gradient applied via background-clip */
+.t-emph-gradient {
+  background-image: var(--gradient-mini);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 500;
+}
+
+/* Tertiary text-only button hover underline using Mini gradient */
+.t-link {
+  color: var(--text-primary);
+  text-decoration: none;
+  position: relative;
+  padding-bottom: 1px;
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--dur-2) var(--ease-std);
+}
+.t-link:hover {
+  background-image: var(--gradient-mini);
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 1.5px;
+}
+
+/* Legacy quote class (was Source Serif) — falls back to sans italic */
+.t-quote {
+  font-family: var(--font-sans);
+  font-size: var(--t-h3);
+  font-weight: 400;
+  font-style: italic;
+  line-height: var(--lh-h2);
+  color: var(--text-primary);
+  padding-left: var(--space-4);
+  border-left: 2px solid;
+  border-image: var(--gradient-mini) 1;
+}
+
+/* Legacy hero alias maps to display */
+.t-hero {
+  font-family: var(--font-sans);
+  font-size: var(--t-display);
+  font-weight: 500;
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  color: var(--text-primary);
+}
+.t-body-lg { font-family: var(--font-sans); font-size: 16px; line-height: var(--lh-body); color: var(--text-primary); }
+.t-body-sm { font-family: var(--font-sans); font-size: var(--t-caption); line-height: var(--lh-caption); color: var(--text-secondary); }
+.t-meta { font-family: var(--font-sans); font-size: var(--t-caption); line-height: var(--lh-caption); color: var(--text-secondary); font-weight: 500; }
+.t-overline { font-family: var(--font-sans); font-size: var(--t-eyebrow); font-weight: 500; letter-spacing: var(--tr-eyebrow); text-transform: uppercase; color: var(--text-secondary); }
+.t-overline-sm { font-family: var(--font-mono); font-size: 10px; font-weight: 400; letter-spacing: var(--tr-studio); text-transform: uppercase; color: var(--text-tertiary); }
+.t-stat { font-family: var(--font-mono); font-size: var(--t-h1); font-weight: 500; line-height: 1; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.t-code {
+  font-family: var(--font-mono); font-size: var(--t-mono); font-weight: 400;
+  background: var(--bg-surface); border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm); padding: 0.1em 0.35em; color: var(--brand-purple);
+}

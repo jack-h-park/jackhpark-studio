@@ -3,7 +3,9 @@ import simpleImportSort from "eslint-plugin-simple-import-sort"; // <-- 1. Impor
 
 export default [
   {
-    ignores: ["instrumentation.js"],
+    // Static, self-contained deck bundles published under public/ (minified
+    // runtime + design-system JS from Claude Design) are not source we lint.
+    ignores: ["instrumentation.js", "public/decks/**"],
   },
   ...config,
   {
