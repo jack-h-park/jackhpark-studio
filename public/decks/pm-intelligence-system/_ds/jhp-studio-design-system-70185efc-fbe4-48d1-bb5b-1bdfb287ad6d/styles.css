@@ -1,0 +1,9 @@
+/* ========================================================================
+   JHP Studio Design System — entry stylesheet
+   This is the canonical entry point detectors and HTML files should import.
+   It re-exports the brand tokens + every @font-face rule from
+   colors_and_type.css, so any file that pulls styles.css automatically gets
+   the self-hosted Geist + Geist Mono families.
+   ======================================================================== */
+
+@import url("colors_and_type.css");
