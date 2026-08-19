@@ -5,7 +5,7 @@
 //
 // What it does:
 //   1. Creates and pushes a git tag on react-notion-x
-//   2. Switches nextjs-react-notion-x deps to remote (the new tag)
+//   2. Switches jackhpark-studio deps to remote (the new tag)
 //   3. Runs pnpm install to regenerate pnpm-lock.yaml
 //   4. Commits and pushes the changes → triggers Vercel deployment
 
@@ -49,7 +49,7 @@ function main() {
   run(`git push origin ${tag}`, RNX_ROOT);
 
   // ── Step 2: Switch to remote deps ────────────────────────────────────────
-  console.log(`\n[2/4] Switching nextjs-react-notion-x deps to remote @ ${tag}`);
+  console.log(`\n[2/4] Switching jackhpark-studio deps to remote @ ${tag}`);
   run(`node scripts/switch-rnx-deps.js remote ${tag}`);
 
   // ── Step 3: Regenerate pnpm-lock.yaml ────────────────────────────────────

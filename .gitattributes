@@ -1,0 +1,14 @@
+# GitHub Linguist overrides.
+#
+# Both files below are build outputs committed for static serving, not authored
+# source. Without these rules their combined ~6.7 MB outweighs the ~2.4 MB of
+# TypeScript and GitHub classifies the repository as HTML.
+#
+# linguist-generated also collapses them in diffs, which keeps the 6.5 MB
+# single-file bundle from drowning review.
+
+# Built from docs/brand-guidelines.md; everything is inlined into one bundle.
+public/assets/brand-design-system-guide.html linguist-generated=true
+
+# Emitted by scripts/publish-deck.sh.
+public/decks/**/index.html linguist-generated=true
