@@ -109,13 +109,6 @@ function buildRequest(
 }
 
 async function main() {
-  if (process.env.INGEST_CONCURRENCY) {
-    console.warn(
-      "[ingest-notion] INGEST_CONCURRENCY is set but not honoured: the shared ingestion " +
-        "path processes pages serially. Remove it, or add concurrency to the shared path.",
-    );
-  }
-
   const ingestionType = parseRunMode("full");
   const targetPageId = parseTargetPageId();
   const request = buildRequest(ingestionType, targetPageId);

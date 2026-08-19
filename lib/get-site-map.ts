@@ -10,6 +10,7 @@ import * as config from "./config";
 import { includeNotionIdInUrls } from "./config";
 import { getCanonicalPageId } from "./get-canonical-page-id";
 import { notion } from "./notion-api";
+import { withRateLimitRetry } from "./notion-rate-limit";
 
 // ---------------------------------------------------------------------------
 // Disk-based sitemap cache (.next/cache/notion-sitemap.json)
@@ -157,26 +158,6 @@ function resolveCollectionDataId(
     return value.parent_id;
   }
   return collectionId;
-}
-
-// Notion 429s even at concurrency 1 once a sitemap crawl exceeds a few dozen
-// pages; skipped pages silently fall back to UUID URLs, so retry with backoff
-// instead of dropping them.
-async function withRateLimitRetry<T>(fn: () => Promise<T>): Promise<T> {
-  const maxAttempts = 5;
-  for (let attempt = 0; ; attempt++) {
-    try {
-      return await fn();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (attempt + 1 >= maxAttempts || !message.includes("429")) {
-        throw err;
-      }
-      await new Promise((resolve) =>
-        setTimeout(resolve, 2000 * 2 ** attempt),
-      );
-    }
-  }
 }
 
 // The double-nested collection_view shape (above) also breaks notion-client's
