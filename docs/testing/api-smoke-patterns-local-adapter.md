@@ -2,7 +2,7 @@
 
 This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/api-smoke-patterns.md` and the canonical skill `jackhpark-ai-skills/skills/dev/chat-api-smoke-regression/SKILL.md`.
 
-It intentionally contains only local information needed to apply that method inside `nextjs-react-notion-x`.
+It intentionally contains only local information needed to apply that method inside `jackhpark-studio`.
 
 ## Local Vocabulary
 

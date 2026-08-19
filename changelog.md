@@ -4,7 +4,7 @@
 ![build](https://img.shields.io/badge/build-Vercel-success)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
-![commits since](https://img.shields.io/github/commits-since/jack-h-park/nextjs-react-notion-x/v0.1.0)
+![commits since](https://img.shields.io/github/commits-since/jack-h-park/jackhpark-studio/v0.1.0)
 
 > Base: **transitive-bullshit/nextjs-notion-starter-kit** · Author: **Jack H. Park** · Hosting: **Vercel** · CMS: **Notion**
 
