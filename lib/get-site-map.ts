@@ -11,7 +11,7 @@ import { includeNotionIdInUrls } from "./config";
 import { getCanonicalPageId } from "./get-canonical-page-id";
 import { notion } from "./notion-api";
 import {
-  normalizeRecordTable,
+  normalizeNotionRecordMap,
   resolveCollectionDataId,
   unwrapRecordValue,
 } from "./rag/notion-record-value";
@@ -113,23 +113,6 @@ export async function getSiteMap(): Promise<types.SiteMap> {
 const getAllPages = pMemoize(getAllPagesImpl, {
   cacheKey: (...args) => JSON.stringify(args),
 });
-
-// notion-utils' getAllPagesInSpace reads block[id].value.type to find sub-pages,
-// but this project's Notion API returns a double-nested structure:
-//   block[id] = { spaceId, value: { value: { id, type, ... } } }
-// Normalize blocks to the standard single-nested format so traversal works.
-//
-// Blocks only: normalizing `collection` here too would let getPageProperty
-// below start reading the collection schema, changing which pages the crawl
-// keeps. That is a behaviour change, not a refactor.
-function normalizeBlocksForTraversal(
-  recordMap: ExtendedRecordMap,
-): ExtendedRecordMap {
-  return {
-    ...recordMap,
-    block: normalizeRecordTable(recordMap.block) ?? recordMap.block,
-  };
-}
 
 // Notion 429s even at concurrency 1 once a sitemap crawl exceeds a few dozen
 // pages; skipped pages silently fall back to UUID URLs, so retry with backoff
@@ -248,7 +231,12 @@ const getPage = async (pageId: string) => {
     }),
   );
   await hydrateCollectionPageBlocks(recordMap);
-  return normalizeBlocksForTraversal(recordMap);
+  // notion-utils' getAllPagesInSpace reads block[id].value.type to find
+  // sub-pages, but this project's Notion API returns a double-nested
+  // structure:
+  //   block[id] = { spaceId, value: { value: { id, type, ... } } }
+  // Normalize to the standard single-nested format so traversal works.
+  return normalizeNotionRecordMap(recordMap);
 };
 
 async function getAllPagesImpl(

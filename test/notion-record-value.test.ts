@@ -3,9 +3,11 @@ import { describe, it } from "node:test";
 
 import { type ExtendedRecordMap } from "notion-types";
 
+import { getCanonicalPageId } from "@/lib/get-canonical-page-id";
 import { readCollectionViewTarget } from "@/lib/get-site-map";
 import {
   getBlockValue,
+  normalizeNotionRecordMap,
   normalizeRecordTable,
   resolveCollectionDataId,
   unwrapRecordValue,
@@ -144,6 +146,57 @@ void describe("normalizeRecordTable", () => {
 
     assert.equal(normalizeRecordTable(table), table);
     assert.equal(normalizeRecordTable(undefined), undefined);
+  });
+});
+
+// The sitemap crawl and the canonical-id reader both hand a whole record map
+// to notion-utils, which reads block[id].value and collection[id].value.schema
+// directly. Every collection entry the live crawl returns is doubly nested, so
+// the collection table has to be normalized alongside the block table.
+void describe("normalizeNotionRecordMap", () => {
+  void it("normalizes the block and collection tables together", () => {
+    const page = { id: BLOCK_ID, type: "page" };
+    const collection = { id: COLLECTION_ID, name: [["Reading list"]] };
+
+    const normalized = normalizeNotionRecordMap({
+      block: { [BLOCK_ID]: doubly(page) },
+      collection: { [COLLECTION_ID]: doubly(collection) },
+    } as unknown as ExtendedRecordMap);
+
+    assert.equal(normalized.block[BLOCK_ID].value, page);
+    assert.equal(normalized.collection[COLLECTION_ID].value, collection);
+  });
+
+  void it("returns the same record map when both tables are already flat", () => {
+    const recordMap = {
+      block: { [BLOCK_ID]: singly({ id: BLOCK_ID, type: "page" }) },
+      collection: { [COLLECTION_ID]: singly({ id: COLLECTION_ID }) },
+    } as unknown as ExtendedRecordMap;
+
+    assert.equal(normalizeNotionRecordMap(recordMap), recordMap);
+  });
+});
+
+// getCanonicalPageId slugifies the page title, which notion-utils reads off
+// the block. A doubly-nested block leaves it with nothing to read, and the
+// page silently falls back to a UUID URL.
+void describe("getCanonicalPageId", () => {
+  void it("slugifies the title through a doubly-nested block entry", () => {
+    const recordMap = {
+      block: {
+        [BLOCK_ID]: doubly({
+          id: BLOCK_ID,
+          type: "page",
+          properties: { title: [["Architecture Notes"]] },
+        }),
+      },
+      collection: {},
+    } as unknown as ExtendedRecordMap;
+
+    assert.equal(
+      getCanonicalPageId(BLOCK_ID, recordMap, { uuid: false }),
+      "architecture-notes",
+    );
   });
 });
 
