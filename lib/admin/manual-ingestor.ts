@@ -103,6 +103,15 @@ type ManualIngestionBase = {
    * admin-initiated runs on the values they have always used.
    */
   source?: string;
+  /**
+   * Epoch ms after which no further page is started.
+   *
+   * For callers that run under a hard external timeout (a serverless cron), where being
+   * killed mid-loop would leave the run row `in_progress` for ever and the operator with no
+   * idea how much was covered. Pages already in flight finish; the rest are reported as not
+   * reached. Ingestion is per-page and idempotent, so the next run simply continues.
+   */
+  deadlineAt?: number;
   ingestionType?: "full" | "partial";
   embeddingProvider?: ModelProvider;
   embeddingModel?: string | null;
@@ -138,6 +147,8 @@ export type ManualIngestionEvent =
       message?: string;
       runId: string | null;
       stats: IngestRunStats;
+      /** Pages skipped because `deadlineAt` passed. Absent or 0 means the run was complete. */
+      pagesNotReached?: number;
     };
 
 type EmitFn = (event: ManualIngestionEvent) => Promise<void> | void;
@@ -357,6 +368,7 @@ async function runNotionPageIngestion({
   includeLinkedPages = true,
   embeddingOptions,
   source = "manual/notion-page",
+  deadlineAt,
   emit,
 }: {
   scope?: ManualNotionScope;
@@ -366,6 +378,7 @@ async function runNotionPageIngestion({
   includeLinkedPages?: boolean;
   embeddingOptions: EmbedBatchOptions;
   source?: string;
+  deadlineAt?: number;
   emit: EmitFn;
 }): Promise<void> {
   const requestedScope =
@@ -578,12 +591,20 @@ async function runNotionPageIngestion({
   // `queue.current` reports how many pages have been picked up, not an index, because
   // completion order is no longer the traversal order.
   let queuePosition = 0;
+  let pagesNotReached = 0;
 
   try {
     await pMap(
       uniquePages,
       async (candidate) => {
         const currentPageId = candidate.pageId;
+
+        // Checked per page rather than cancelling the pool: a page already fetched should
+        // finish and be recorded, and stopping cleanly is what keeps the run row honest.
+        if (deadlineAt !== undefined && Date.now() >= deadlineAt) {
+          pagesNotReached += 1;
+          return;
+        }
 
         let recordMap: ExtendedRecordMap | null = null;
 
@@ -718,6 +739,16 @@ async function runNotionPageIngestion({
             ? "Manual Notion page ingestion finished."
             : "Manual Notion page ingestion found no changes.";
       }
+
+      // A run cut short must not read as a clean sweep of the workspace.
+      if (pagesNotReached > 0) {
+        finalMessage = `${finalMessage} Deadline reached with ${pagesNotReached} page(s) not visited; the next run covers them.`;
+        await emit({
+          type: "log",
+          level: "warn",
+          message: `Deadline reached: ${pagesNotReached} of ${uniquePages.length} page(s) were not visited. This run is incomplete.`,
+        });
+      }
     }
   } catch (err) {
     status = "failed";
@@ -777,6 +808,7 @@ async function runNotionPageIngestion({
       message: finalMessage,
       runId: runHandle?.id ?? null,
       stats,
+      pagesNotReached,
     });
   }
 }
@@ -918,6 +950,7 @@ export async function runManualIngestion(
       includeLinkedPages,
       embeddingOptions,
       source: request.source,
+      deadlineAt: request.deadlineAt,
       emit,
     });
     return;
