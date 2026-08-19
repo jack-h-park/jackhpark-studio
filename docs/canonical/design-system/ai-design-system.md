@@ -16,9 +16,9 @@ This document outlines the architecture and principles of the AI Design System, 
 - Interaction states are driven by shared primitives (e.g., `.ai-selectable`) and their tokens, not per-feature overrides.
 - Dark mode and border/contrast expectations remain tied to the defined tokens so theme changes flow automatically.
   **Derived documents:**
-- [../css-guardrails.md](../css-guardrails.md)
+- [../css-guardrails.md](../../css-guardrails.md)
 - [../ui/color-contract.md](../ui/color-contract.md)
-- [../ui/color-audit.md](../ui/color-audit.md)
+- [../ui/color-audit.md](../../ui/color-audit.md)
   **Change rule:** If this contract changes, update derived docs in the same PR.
 
 ---
