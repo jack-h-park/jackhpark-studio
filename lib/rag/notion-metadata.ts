@@ -27,7 +27,13 @@ type PropertyLookup = {
   type?: string | null;
 } | null;
 
-function normalizePropertyName(
+/**
+ * Collapse a Notion property name to a comparison key, so `_is_public`,
+ * `Is Public` and `public` all match. Exported so callers that reason about
+ * property names (the sitemap's visibility guard) use the same rule as the
+ * lookup itself.
+ */
+export function normalizePropertyName(
   value: string | null | undefined,
 ): string | null {
   if (!value) {

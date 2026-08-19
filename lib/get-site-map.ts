@@ -10,8 +10,15 @@ import * as config from "./config";
 import { includeNotionIdInUrls } from "./config";
 import { getCanonicalPageId } from "./get-canonical-page-id";
 import { notion } from "./notion-api";
-import { getNotionPageIsPublic } from "./rag/notion-metadata";
-import { normalizeNotionRecordMap } from "./rag/notion-record-value";
+import {
+  getNotionPageIsPublic,
+  normalizePropertyName,
+  NOTION_IS_PUBLIC_PROPERTY,
+} from "./rag/notion-metadata";
+import {
+  normalizeNotionRecordMap,
+  unwrapRecordValue,
+} from "./rag/notion-record-value";
 
 // ---------------------------------------------------------------------------
 // Disk-based sitemap cache (.next/cache/notion-sitemap.json)
@@ -161,6 +168,66 @@ function resolveCollectionDataId(
   return collectionId;
 }
 
+// ---------------------------------------------------------------------------
+// Visibility guard (ported from the parallel investigation in #77)
+//
+// The crawl honours exactly one visibility column, `_is_public`. A column
+// named anything else — the "Public" this filter used to look for, or a
+// "Draft"/"Published" added later — would be ignored in silence, which is the
+// failure this whole change exists to fix. Detect and say so.
+// ---------------------------------------------------------------------------
+const VISIBILITY_FLAG_WORDS = [
+  "public",
+  "published",
+  "publish",
+  "private",
+  "draft",
+  "unlisted",
+  "visibility",
+  "visible",
+  "hidden",
+  "nopublish",
+];
+
+// Notion columns are named both ways ("Public" and "Is Public"), and the
+// normalizer collapses the spacing, so match the "is" form of each word too —
+// `_is_public` itself is one of them.
+const VISIBILITY_PROPERTY_NAMES = new Set(
+  VISIBILITY_FLAG_WORDS.flatMap((word) => [word, `is${word}`]),
+);
+
+const HONOURED_VISIBILITY_NAME = normalizePropertyName(
+  NOTION_IS_PUBLIC_PROPERTY,
+);
+
+/**
+ * Collection schema columns that look like a visibility flag but are not the
+ * one the crawl reads. Empty is the healthy state.
+ */
+export function findUnhonouredVisibilityProperties(
+  recordMap: Pick<ExtendedRecordMap, "collection">,
+): string[] {
+  const found = new Set<string>();
+
+  for (const rawCollection of Object.values(recordMap.collection ?? {})) {
+    const collection = unwrapRecordValue(rawCollection) as
+      | { schema?: Record<string, { name?: string | null } | null> }
+      | undefined;
+
+    for (const schema of Object.values(collection?.schema ?? {})) {
+      const name = schema?.name;
+      const normalized = normalizePropertyName(name);
+      if (!name || !normalized) continue;
+      if (normalized === HONOURED_VISIBILITY_NAME) continue;
+      if (VISIBILITY_PROPERTY_NAMES.has(normalized)) {
+        found.add(name);
+      }
+    }
+  }
+
+  return [...found].toSorted();
+}
+
 // Notion 429s even at concurrency 1 once a sitemap crawl exceeds a few dozen
 // pages; skipped pages silently fall back to UUID URLs, so retry with backoff
 // instead of dropping them.
@@ -174,9 +241,7 @@ async function withRateLimitRetry<T>(fn: () => Promise<T>): Promise<T> {
       if (attempt + 1 >= maxAttempts || !message.includes("429")) {
         throw err;
       }
-      await new Promise((resolve) =>
-        setTimeout(resolve, 2000 * 2 ** attempt),
-      );
+      await new Promise((resolve) => setTimeout(resolve, 2000 * 2 ** attempt));
     }
   }
 }
@@ -357,8 +422,23 @@ async function getAllPagesImpl(
 
   console.log(
     `[sitemap] ${Object.keys(canonicalPageMap).length} pages published, ` +
-      `${excludedByIsPublic.length} excluded by _is_public`,
+      `${excludedByIsPublic.length} excluded by ${NOTION_IS_PUBLIC_PROPERTY}`,
   );
+
+  const unhonoured = new Set<string>();
+  for (const recordMap of Object.values(pageMap)) {
+    if (!recordMap) continue;
+    for (const name of findUnhonouredVisibilityProperties(recordMap)) {
+      unhonoured.add(name);
+    }
+  }
+  if (unhonoured.size > 0) {
+    console.warn(
+      `[sitemap] Notion defines visibility-looking column(s) the crawl ignores: ` +
+        `${[...unhonoured].toSorted().join(", ")}. ` +
+        `Only "${NOTION_IS_PUBLIC_PROPERTY}" is honoured — rename the column or wire it in.`,
+    );
+  }
 
   const result = { pageMap, canonicalPageMap };
   writeSitemapCache(result);

@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 
 import { type ExtendedRecordMap } from "notion-types";
 
+import { pageAcl } from "@/lib/acl";
+import { findUnhonouredVisibilityProperties } from "@/lib/get-site-map";
 import {
   extractNotionMetadata,
   getNotionPageIsPublic,
@@ -149,6 +151,144 @@ void describe("_is_public visibility", () => {
     assert.equal(
       extractNotionMetadata(recordMap, fixturePageId).is_public,
       true,
+    );
+  });
+});
+
+// Every collection schema property name observed across a full sitemap crawl
+// (162 collection entries, measured 2026-08-18). None of them is a visibility
+// column, which is why nothing is excluded today. If Notion grows one under a
+// name the crawl does not read, `pnpm check:sitemap-visibility` fails against
+// live data.
+const LIVE_SCHEMA_PROPERTY_NAMES = [
+  "Capability Type",
+  "Category",
+  "Created",
+  "Date",
+  "Degree & Major",
+  "Environment",
+  "Ex Level",
+  "Level of expertise",
+  "LinkedIn Post URL",
+  "Name",
+  "Period",
+  "Posted on",
+  "Role",
+  "Status",
+  "Tags",
+  "Tool Type",
+  "URL",
+  "Website",
+  "_doc_type",
+  "_persona_type",
+];
+
+function collectionWithColumns(names: string[]) {
+  return {
+    collection: {
+      [COLLECTION_ID]: {
+        role: "reader",
+        value: {
+          role: "reader",
+          value: {
+            id: COLLECTION_ID,
+            schema: Object.fromEntries(
+              names.map((name, i) => [`p${i}`, { name, type: "text" }]),
+            ),
+          },
+        },
+      },
+    },
+  } as unknown as ExtendedRecordMap;
+}
+
+void describe("unhonoured visibility columns", () => {
+  void it("finds nothing in the live property-name set", () => {
+    assert.deepEqual(
+      findUnhonouredVisibilityProperties(
+        collectionWithColumns(LIVE_SCHEMA_PROPERTY_NAMES),
+      ),
+      [],
+    );
+  });
+
+  void it("ignores the column the crawl does honour", () => {
+    assert.deepEqual(
+      findUnhonouredVisibilityProperties(
+        collectionWithColumns([NOTION_IS_PUBLIC_PROPERTY, "Tags"]),
+      ),
+      [],
+    );
+  });
+
+  void it("flags a visibility column under any other name", () => {
+    // Including "Public" — the name that shipped the original dead filter.
+    assert.deepEqual(
+      findUnhonouredVisibilityProperties(
+        collectionWithColumns(["Public", "Draft", "Tags"]),
+      ),
+      ["Draft", "Public"],
+    );
+  });
+
+  void it("reads through the doubly-nested collection shape", () => {
+    // The fixtures above are doubly nested on purpose: that extra layer is
+    // what blinded the original filter, so a detector that cannot see through
+    // it would report "all clear" on live data.
+    const found = findUnhonouredVisibilityProperties(
+      collectionWithColumns(["Is Published"]),
+    );
+    assert.deepEqual(found, ["Is Published"]);
+  });
+
+  void it("does not flag near-misses", () => {
+    assert.deepEqual(
+      findUnhonouredVisibilityProperties(
+        collectionWithColumns(["Public Speaking", "Publication", "Publisher"]),
+      ),
+      [],
+    );
+  });
+});
+
+// De-listing is not hiding: resolveNotionPage serves a page directly whenever
+// the URL carries its id, never consulting canonicalPageMap. The gate has to
+// sit on the path every resolution takes.
+void describe("page gating", () => {
+  const site = {
+    domain: "example.com",
+    rootNotionSpaceId: null,
+  } as unknown as Parameters<typeof pageAcl>[0]["site"];
+
+  void it("404s a page whose box is unchecked", async () => {
+    const recordMap = buildRow({
+      column: NOTION_IS_PUBLIC_PROPERTY,
+      value: "false",
+    });
+
+    const result = await pageAcl({ site, recordMap, pageId: PAGE_ID });
+    assert.equal(result?.error?.statusCode, 404);
+  });
+
+  void it("serves a page whose box is checked", async () => {
+    const recordMap = buildRow({
+      column: NOTION_IS_PUBLIC_PROPERTY,
+      value: "true",
+    });
+
+    assert.equal(
+      await pageAcl({ site, recordMap, pageId: PAGE_ID }),
+      undefined,
+    );
+  });
+
+  void it("serves a page with no such column", async () => {
+    // Today's live state for all 156 pages.
+    const recordMap = buildRow({ column: "Category", value: "false" });
+
+    assert.equal(
+      await pageAcl({ site, recordMap, pageId: PAGE_ID }),
+      undefined,
     );
   });
 });
