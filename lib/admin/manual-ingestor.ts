@@ -33,6 +33,11 @@ import {
 } from "../rag/pipeline";
 import { markAttempt, markFetchFailure } from "../rag/rag-document-lifecycle";
 import {
+  fetchInterviewBankCards,
+  INTERVIEW_BANK_SOURCE_URL_PREFIX,
+  prepareInterviewCardDocument,
+} from "../rag/sources/interview-bank";
+import {
   deriveNotionDocIdentifiers,
   prepareNotionPageDocument,
 } from "../rag/sources/notion";
@@ -119,7 +124,8 @@ export type ManualIngestionRequest =
       pageIds?: string[];
       includeLinkedPages?: boolean;
     })
-  | (ManualIngestionBase & { mode: "url"; url: string });
+  | (ManualIngestionBase & { mode: "url"; url: string })
+  | (ManualIngestionBase & { mode: "interview_bank" });
 
 export type ManualIngestionEvent =
   | { type: "run"; runId: string | null }
@@ -899,6 +905,145 @@ async function runUrlIngestion(
   }
 }
 
+/**
+ * Ingest the interview Q&A bank.
+ *
+ * Unlike the Notion path there is no traversal to be incomplete: the card list is the whole
+ * directory, fetched in one call. So the sweep runs on every successful listing rather than
+ * only on `full` runs — a card demoted below `reviewed`, or opted out, simply stops being
+ * returned, and the sweep is what makes it stop being retrieved. (That only has an effect
+ * once the status-filtered RPCs are enabled; see RAG_MATCH_RPC_VERSION.)
+ */
+async function runInterviewBankIngestion({
+  ingestionType,
+  embeddingOptions,
+  source = "manual/interview-bank",
+  emit,
+}: {
+  ingestionType: "full" | "partial";
+  embeddingOptions: EmbedBatchOptions;
+  source?: string;
+  emit: EmitFn;
+}): Promise<void> {
+  const runHandle: IngestRunHandle = await startIngestRun({
+    source,
+    ingestion_type: ingestionType,
+    metadata: {
+      repo: process.env.INTERVIEW_BANK_REPO ?? null,
+      ingestionType,
+      embeddingProvider: embeddingOptions.provider ?? null,
+      embeddingSpaceId: embeddingOptions.embeddingSpaceId ?? null,
+      embeddingModelId: embeddingOptions.embeddingModelId ?? null,
+      embeddingVersion: embeddingOptions.version ?? null,
+    },
+  });
+
+  await emit({ type: "run", runId: runHandle?.id ?? null });
+  await emit({ type: "progress", step: "initializing", percent: 5 });
+
+  const stats = createEmptyRunStats();
+  const errorLogs: IngestRunErrorLog[] = [];
+  const started = Date.now();
+  let status: ManualRunStatus = "success";
+  let finalMessage = "Interview bank ingestion finished.";
+
+  try {
+    await emit({
+      type: "log",
+      level: "info",
+      message: "Reading the interview Q&A bank from GitHub...",
+    });
+
+    const cards = await fetchInterviewBankCards();
+    await emit({
+      type: "log",
+      level: "info",
+      message: `${cards.length} card(s) are review-complete and opted in.`,
+    });
+    await emit({ type: "progress", step: "collected", percent: 20 });
+
+    let position = 0;
+    for (const card of cards) {
+      position += 1;
+      await emit({
+        type: "queue",
+        current: position,
+        total: cards.length,
+        pageId: card.slug,
+        title: card.question,
+      });
+
+      try {
+        await ingestPreparedDocument({
+          doc: prepareInterviewCardDocument(card),
+          ingestionType,
+          embedding: embeddingOptions,
+          stats,
+          reporter: buildReporter(emit, URL_PROGRESS_PERCENT),
+        });
+      } catch (err) {
+        stats.errorCount += 1;
+        const message = err instanceof Error ? err.message : String(err);
+        errorLogs.push({ context: "fatal", doc_id: card.slug, message });
+        await emit({
+          type: "log",
+          level: "error",
+          message: `Failed to ingest interview card ${card.slug}: ${message}`,
+        });
+      }
+    }
+
+    // Scoped to this source's URL prefix, so it can only ever retire interview cards.
+    const sweep = await sweepUnvisitedDocuments(supabaseClient, {
+      runStartedAt: new Date(started).toISOString(),
+      sourceUrlPrefix: INTERVIEW_BANK_SOURCE_URL_PREFIX,
+    });
+    appendSweepRunLogs(sweep, stats, errorLogs);
+    await emit({
+      type: "log",
+      level: "info",
+      message: formatSweepSummary(sweep),
+    });
+
+    const updated = stats.documentsAdded + stats.documentsUpdated;
+    finalMessage =
+      cards.length === 0
+        ? "No interview cards are review-complete and opted in; nothing ingested."
+        : `Processed ${cards.length} interview card(s); updated ${updated}, skipped ${stats.documentsSkipped}.`;
+  } catch (err) {
+    status = "failed";
+    stats.errorCount += 1;
+    const message = err instanceof Error ? err.message : String(err);
+    finalMessage = `Interview bank ingestion failed: ${message}`;
+    errorLogs.push({ context: "fatal", doc_id: "interview-bank", message });
+    await emit({ type: "log", level: "error", message: finalMessage });
+  } finally {
+    const durationMs = Date.now() - started;
+    if (status === "failed" && stats.errorCount === 0) {
+      stats.errorCount = 1;
+    }
+    if (stats.errorCount > 0 && status === "success") {
+      status = "completed_with_errors";
+    }
+
+    await finishIngestRun(runHandle, {
+      status,
+      durationMs,
+      totals: stats,
+      errorLogs,
+    });
+
+    await emit({ type: "progress", step: "finished", percent: 100 });
+    await emit({
+      type: "complete",
+      status,
+      message: finalMessage,
+      runId: runHandle?.id ?? null,
+      stats,
+    });
+  }
+}
+
 export async function runManualIngestion(
   request: ManualIngestionRequest,
   emit: EmitFn,
@@ -916,6 +1061,16 @@ export async function runManualIngestion(
       pageIds: request.pageIds,
       ingestionType,
       includeLinkedPages,
+      embeddingOptions,
+      source: request.source,
+      emit,
+    });
+    return;
+  }
+
+  if (request.mode === "interview_bank") {
+    await runInterviewBankIngestion({
+      ingestionType: request.ingestionType ?? "partial",
       embeddingOptions,
       source: request.source,
       emit,

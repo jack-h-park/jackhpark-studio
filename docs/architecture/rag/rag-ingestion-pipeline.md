@@ -5,7 +5,7 @@
 > If behavior changes, update the canonical doc first, then reflect here.
 
 **Status:** authoritative
-**Implementations:** `lib/rag/pipeline.ts` (shared core), `lib/rag/sources/{notion,url}.ts` (source adapters), `lib/rag/index.ts` (chunking/persistence primitives), `lib/admin/manual-ingestor.ts` (Notion traversal + run orchestration), `scripts/ingest-{notion,url}.ts` and `pages/api/admin/manual-ingest.ts` (thin callers)
+**Implementations:** `lib/rag/pipeline.ts` (shared core), `lib/rag/sources/{notion,url,interview-bank}.ts` (source adapters), `lib/rag/index.ts` (chunking/persistence primitives), `lib/admin/manual-ingestor.ts` (Notion traversal + run orchestration), `scripts/ingest-{notion,url}.ts` and `pages/api/admin/manual-ingest.ts` (thin callers)
 
 Related: [RAG Document Lifecycle](./rag-document-lifecycle.md)
 
@@ -30,6 +30,28 @@ Source-specific fetch/parse/metadata logic lives in **adapters** (`lib/rag/sourc
 - Its callers are thin and differ only in how they surface events and how they label the run's `source`: `pages/api/admin/manual-ingest.ts` streams them as SSE (`manual/notion-page`), `scripts/ingest-notion.ts` prints them (`cli/notion-page`). The distinct `source` keeps runs separable in the admin runs list, which builds its filter from the values it sees.
 - This is a single path on purpose. `scripts/ingest-notion.ts` previously carried a second traversal, loop and sweep; the copies drifted, and the CLI's crawl silently returned only the root page while the admin one worked. `test/ingest-single-path.test.ts` pins the CLI to delegation.
 - **Adding a new source type (e.g. PDF) means writing one adapter** — the chunk/embed/store path is reused unchanged.
+
+### Interview Q&A bank
+
+`lib/rag/sources/interview-bank.ts` reads Jack's interview cards (one markdown file per
+question) from the wiki repo **over the GitHub API, not from disk** — `lib/rag` has no
+filesystem access and ingestion runs serverless, so the pushed git state is the only source
+it can see. It is also the better one: the commit reconciler pushes every 30 minutes, and a
+working tree would make ingestion depend on which machine ran it.
+
+Two gates, both required: `status` in `reviewed`/`delivery_ready`, **and** an explicit
+`publish_to_jackgpt: true` in the card's frontmatter. Status alone is not enough — it means
+the answer is good, not that it should be publicly retrievable.
+
+Only `## Short Version` and `## Answer Draft` are embedded, and the list is an **allow-list**:
+`## Evidence Notes`, `## Gaps`, `## Improvement Notes` and anything added later stay private
+by default. That filter is the point of the adapter — leaking a card's self-critique or its
+internal repo paths into a public assistant fails silently.
+
+`doc_id` is a synthetic 32-hex digest of the slug (these have no external id, and
+`deriveDocIdentifiers` only strips dashes). The sweep is scoped by the source's URL prefix,
+so a card demoted below `reviewed`, or opted out, is retired without touching any other
+document. Requires `INTERVIEW_BANK_GITHUB_TOKEN`; the repo is private.
 
 ---
 
