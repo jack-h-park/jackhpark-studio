@@ -11,11 +11,7 @@ import { includeNotionIdInUrls } from "./config";
 import { getCanonicalPageId } from "./get-canonical-page-id";
 import { notion } from "./notion-api";
 import { withRateLimitRetry } from "./notion-rate-limit";
-import {
-  getNotionPageIsPublic,
-  normalizePropertyName,
-  NOTION_IS_PUBLIC_PROPERTY,
-} from "./rag/notion-metadata";
+import { normalizePropertyName } from "./rag/notion-metadata";
 import {
   normalizeNotionRecordMap,
   resolveCollectionDataId,
@@ -156,12 +152,19 @@ export function readCollectionViewTarget(
 }
 
 // ---------------------------------------------------------------------------
-// Visibility guard (ported from the parallel investigation in #77)
+// Visibility guard
 //
-// The crawl honours exactly one visibility column, `_is_public`. A column
-// named anything else — the "Public" this filter used to look for, or a
-// "Draft"/"Published" added later — would be ignored in silence, which is the
-// failure this whole change exists to fix. Detect and say so.
+// The sitemap publishes every crawled page. It used to filter on a Notion
+// property called "Public" — a column no collection defines, left from a
+// personal-vs-public split that `_persona_type` (personal vs professional)
+// replaced, and which is a ranking weight in retrieval rather than a gate. The
+// filter had never excluded a page, and could not have.
+//
+// Nothing is filtered here now, so a visibility column appearing in Notion
+// would be ignored by the website — silently, which is how the dead filter
+// survived in the first place. Detect it and say so. (Ingestion is separate:
+// it reads `_is_public` into document metadata, and chat retrieval honours
+// it — see lib/server/chat-rag-utils.ts.)
 // ---------------------------------------------------------------------------
 const VISIBILITY_FLAG_WORDS = [
   "public",
@@ -183,13 +186,10 @@ const VISIBILITY_PROPERTY_NAMES = new Set(
   VISIBILITY_FLAG_WORDS.flatMap((word) => [word, `is${word}`]),
 );
 
-const HONOURED_VISIBILITY_NAME = normalizePropertyName(
-  NOTION_IS_PUBLIC_PROPERTY,
-);
-
 /**
- * Collection schema columns that look like a visibility flag but are not the
- * one the crawl reads. Empty is the healthy state.
+ * Collection schema columns that look like a visibility flag. The website
+ * honours none of them, so anything found here is a column it is ignoring.
+ * Empty is the healthy state.
  */
 export function findUnhonouredVisibilityProperties(
   recordMap: Pick<ExtendedRecordMap, "collection">,
@@ -205,7 +205,6 @@ export function findUnhonouredVisibilityProperties(
       const name = schema?.name;
       const normalized = normalizePropertyName(name);
       if (!name || !normalized) continue;
-      if (normalized === HONOURED_VISIBILITY_NAME) continue;
       if (VISIBILITY_PROPERTY_NAMES.has(normalized)) {
         found.add(name);
       }
@@ -316,10 +315,6 @@ async function getAllPagesImpl(
     { concurrency: 1 },
   );
 
-  // Reported below: a visibility filter that quietly matches nothing looks
-  // exactly like a visibility filter that is working.
-  const excludedByIsPublic: string[] = [];
-
   const canonicalPageMap = Object.keys(pageMap).reduce(
     (map: Record<string, string>, pageId: string) => {
       const recordMap = pageMap[pageId];
@@ -327,22 +322,6 @@ async function getAllPagesImpl(
         // Page failed to load (e.g. Notion API 429 rate limit). Skip rather
         // than aborting sitemap generation entirely.
         console.warn(`Skipping page "${pageId}" — recordMap unavailable`);
-        return map;
-      }
-
-      // A page is publishable unless it carries `_is_public` and it is
-      // unchecked — the same property RAG ingestion reads. Pages without the
-      // property (every page until the column exists in Notion) are kept.
-      //
-      // Normalized at the read: the lookup walks the collection schema, and a
-      // doubly-nested collection table hides it, so the filter would answer
-      // "no property" for every page. Already-flat tables come back as the
-      // same object, so this costs nothing.
-      if (
-        getNotionPageIsPublic(normalizeNotionRecordMap(recordMap), pageId) ===
-        false
-      ) {
-        excludedByIsPublic.push(pageId);
         return map;
       }
 
@@ -377,8 +356,7 @@ async function getAllPagesImpl(
   );
 
   console.log(
-    `[sitemap] ${Object.keys(canonicalPageMap).length} pages published, ` +
-      `${excludedByIsPublic.length} excluded by ${NOTION_IS_PUBLIC_PROPERTY}`,
+    `[sitemap] ${Object.keys(canonicalPageMap).length} pages published`,
   );
 
   const unhonoured = new Set<string>();
@@ -390,9 +368,9 @@ async function getAllPagesImpl(
   }
   if (unhonoured.size > 0) {
     console.warn(
-      `[sitemap] Notion defines visibility-looking column(s) the crawl ignores: ` +
+      `[sitemap] Notion defines visibility-looking column(s) the website ignores: ` +
         `${[...unhonoured].toSorted().join(", ")}. ` +
-        `Only "${NOTION_IS_PUBLIC_PROPERTY}" is honoured — rename the column or wire it in.`,
+        `The sitemap publishes every crawled page — wire the column in or drop it.`,
     );
   }
 
