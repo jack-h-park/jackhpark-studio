@@ -187,14 +187,16 @@ Contract:
 
 ### Stable wrapper functions
 
-These wrappers provide provider-stable RPC names for application code:
+These wrappers expose provider-stable RPC names that omit the embedding-space and version suffixes:
 
 - `match_rag_chunks_langchain_gemini`
 - `match_rag_chunks_langchain_openai`
 - `match_rag_chunks_native_gemini`
 - `match_rag_chunks_native_openai`
 
-The wrappers currently delegate to versioned retrieval functions defined in the SQL snapshot. Check [db/schema/schema.latest.sql](../../db/schema/schema.latest.sql#L289) before changing caller behavior, because wrapper targets may lag behind newer versioned RPCs during migrations.
+No application code calls them. Retrieval builds its RPC name directly from the resolved embedding space and `RAG_MATCH_RPC_VERSION` — see [lib/core/rag-tables.ts](../../lib/core/rag-tables.ts) and [lib/shared/models.ts](../../lib/shared/models.ts) — so these wrappers govern nothing that is currently served.
+
+All four delegate to `_v1` functions, as defined at [db/schema/schema.latest.sql](../../db/schema/schema.latest.sql#L289). They therefore do **not** apply the `status = 'active'` filter that the `_v2` RPCs add. Repoint them before giving any caller a wrapper name.
 
 ### `take_rag_snapshot`
 
