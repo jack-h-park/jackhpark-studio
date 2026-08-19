@@ -3,12 +3,10 @@ import { describe, it } from "node:test";
 
 import { type ExtendedRecordMap } from "notion-types";
 
-import {
-  readCollectionViewTarget,
-  resolveCollectionDataId,
-} from "@/lib/get-site-map";
+import { readCollectionViewTarget } from "@/lib/get-site-map";
 import {
   getBlockValue,
+  resolveCollectionDataId,
   unwrapRecordValue,
 } from "@/lib/rag/notion-record-value";
 
@@ -75,6 +73,16 @@ void describe("unwrapRecordValue", () => {
     assert.deepEqual(unwrapRecordValue(singly(record)), record);
   });
 
+  void it("gives up rather than looping on a self-referential entry", () => {
+    // Not a shape Notion returns — the bound exists so a malformed entry
+    // cannot hang a build. The implementation folded in from lib/notion.ts
+    // capped its own loop for the same reason.
+    const cyclic: Record<string, unknown> = { type: "page" };
+    cyclic.value = cyclic;
+
+    assert.deepEqual(unwrapRecordValue({ value: cyclic }), cyclic);
+  });
+
   void it("returns undefined for missing, empty, and non-object entries", () => {
     assert.equal(unwrapRecordValue(undefined), undefined);
     assert.equal(unwrapRecordValue(null), undefined);
@@ -99,11 +107,11 @@ const buildRecordMap = (collectionEntry: unknown): ExtendedRecordMap =>
     collection: { [COLLECTION_ID]: collectionEntry },
   }) as unknown as ExtendedRecordMap;
 
-// The sitemap crawl reads collection and collection_view records through the
-// same helper. These pin the callers, not just the helper: a stricter or
-// looser unwrap shows up here as a lost collection id, which in production
-// means inline-database pages silently fall back to UUID URLs.
-void describe("get-site-map record readers", () => {
+// resolveCollectionDataId is read by both the sitemap crawl and the page
+// renderer. These pin the caller, not just the unwrapper: a stricter or looser
+// unwrap shows up here as a lost collection id, which in production means
+// inline-database pages silently fall back to UUID URLs.
+void describe("resolveCollectionDataId", () => {
   void it("resolveCollectionDataId follows a copied collection's parent, both shapes", () => {
     const copied = {
       id: COLLECTION_ID,
@@ -138,6 +146,29 @@ void describe("get-site-map record readers", () => {
     );
   });
 
+  void it("ignores a parent_id that is empty or not a string", () => {
+    // Inherited from the lib/notion.ts implementation this replaced: a copied
+    // collection with an unusable parent_id must fall back to its own id
+    // rather than issue a queryCollection against "" or an object.
+    for (const parent_id of ["", { id: PARENT_COLLECTION_ID }, 42, null]) {
+      assert.equal(
+        resolveCollectionDataId(
+          buildRecordMap(
+            doubly({
+              id: COLLECTION_ID,
+              parent_table: "collection",
+              parent_id,
+            }),
+          ),
+          COLLECTION_ID,
+        ),
+        COLLECTION_ID,
+      );
+    }
+  });
+});
+
+void describe("readCollectionViewTarget", () => {
   void it("readCollectionViewTarget finds collection_id in both shapes", () => {
     const view = { id: VIEW_ID, type: "list", collection_id: COLLECTION_ID };
 

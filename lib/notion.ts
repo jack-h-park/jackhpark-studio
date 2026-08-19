@@ -23,6 +23,7 @@ import { debugNotionXEnabled, debugNotionXLogger } from "./debug-notion-x";
 import { getTweetsMap } from "./get-tweets";
 import { notion } from "./notion-api";
 import { getPreviewImageMap } from "./preview-images";
+import { resolveCollectionDataId } from "./rag/notion-record-value";
 
 const normalizeGroupValue = (group: any) => {
   if (!group || typeof group !== "object") return group;
@@ -113,45 +114,6 @@ const sanitizeCollectionViewForGrouping = (viewValue: any) => {
   }
 
   return sanitized;
-};
-
-const getCollectionValueDeep = (entry: any): any => {
-  let value = entry?.value;
-  let depth = 0;
-  while (depth < 5 && value && typeof value === "object" && value.value) {
-    const next = value.value;
-    if (!next || typeof next !== "object") break;
-    if (
-      next.schema ||
-      next.parent_id ||
-      next.parent_table ||
-      next.copied_from
-    ) {
-      value = next;
-      break;
-    }
-    value = next;
-    depth += 1;
-  }
-  return value;
-};
-
-const resolveCollectionDataId = (
-  recordMap: ExtendedRecordMap,
-  collectionId: string,
-): string => {
-  const rawEntry = recordMap.collection?.[collectionId];
-  const value = getCollectionValueDeep(rawEntry);
-  if (
-    value &&
-    typeof value === "object" &&
-    value.parent_table === "collection" &&
-    typeof value.parent_id === "string" &&
-    value.parent_id.length > 0
-  ) {
-    return value.parent_id;
-  }
-  return collectionId;
 };
 
 const sanitizeForJSON = (value: any): any => {

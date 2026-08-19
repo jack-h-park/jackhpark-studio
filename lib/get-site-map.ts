@@ -10,7 +10,10 @@ import * as config from "./config";
 import { includeNotionIdInUrls } from "./config";
 import { getCanonicalPageId } from "./get-canonical-page-id";
 import { notion } from "./notion-api";
-import { unwrapRecordValue } from "./rag/notion-record-value";
+import {
+  resolveCollectionDataId,
+  unwrapRecordValue,
+} from "./rag/notion-record-value";
 
 // ---------------------------------------------------------------------------
 // Disk-based sitemap cache (.next/cache/notion-sitemap.json)
@@ -134,26 +137,6 @@ function normalizeBlocksForTraversal(
   return { ...recordMap, block: normalizedBlocks };
 }
 
-// Notion's v3 API returns collection_view and collection entries
-// double-nested ({ value: { value, role } }), so unwrap with the shared
-// unwrapRecordValue before reading record fields.
-//
-// Mirrors lib/notion.ts resolveCollectionDataId: collections copied from
-// another collection must be queried via their parent collection id.
-export function resolveCollectionDataId(
-  recordMap: ExtendedRecordMap,
-  collectionId: string,
-): string {
-  const value = unwrapRecordValue<{
-    parent_table?: string;
-    parent_id?: string;
-  }>(recordMap.collection?.[collectionId]);
-  if (value?.parent_table === "collection" && value.parent_id) {
-    return value.parent_id;
-  }
-  return collectionId;
-}
-
 // Notion 429s even at concurrency 1 once a sitemap crawl exceeds a few dozen
 // pages; skipped pages silently fall back to UUID URLs, so retry with backoff
 // instead of dropping them.
@@ -172,6 +155,10 @@ async function withRateLimitRetry<T>(fn: () => Promise<T>): Promise<T> {
   }
 }
 
+// Notion's v3 API returns collection_view and collection entries
+// double-nested ({ value: { value, role } }), so unwrap with the shared
+// unwrapRecordValue before reading record fields.
+//
 // The pure part of hydrateCollectionPageBlocks, exported for tests: unwrap a
 // collection_view entry (both the single- and double-nested shapes) and read
 // the collection it points at.

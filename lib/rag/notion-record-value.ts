@@ -7,6 +7,12 @@ import { type ExtendedRecordMap } from "notion-types";
 // yields nothing and every page ingests as an empty "Untitled" document.
 // https://github.com/NotionX/react-notion-x/issues/682
 
+// Two levels is all Notion has ever returned. The bound only exists so a
+// malformed or self-referential entry cannot spin the loop forever — the
+// implementation this replaced in lib/notion.ts capped at 5 for the same
+// reason.
+const MAX_UNWRAP_DEPTH = 8;
+
 /**
  * Unwrap nested `{ role, value }` wrappers until the actual record (an object
  * with an `id`).
@@ -26,16 +32,42 @@ export function unwrapRecordValue<T extends object = Record<string, unknown>>(
 ): T | undefined {
   if (!entry) return undefined;
   let v: unknown = entry.value;
-  while (
+  for (
+    let depth = 0;
+    depth < MAX_UNWRAP_DEPTH &&
     v &&
     typeof v === "object" &&
     !(v as Record<string, unknown>).id &&
-    (v as Record<string, unknown>).value
+    (v as Record<string, unknown>).value;
+    depth++
   ) {
     v = (v as Record<string, unknown>).value;
   }
   if (!v || typeof v !== "object") return undefined;
   return v as T;
+}
+
+/**
+ * Collections copied from another collection must be queried via their parent
+ * collection id. Both the sitemap crawl and the page renderer need this, and
+ * both used to carry their own copy alongside their own unwrapper.
+ */
+export function resolveCollectionDataId(
+  recordMap: ExtendedRecordMap,
+  collectionId: string,
+): string {
+  const value = unwrapRecordValue<{
+    parent_table?: string;
+    parent_id?: string;
+  }>(recordMap.collection?.[collectionId]);
+  if (
+    value?.parent_table === "collection" &&
+    typeof value.parent_id === "string" &&
+    value.parent_id.length > 0
+  ) {
+    return value.parent_id;
+  }
+  return collectionId;
 }
 
 /** Point lookup variant typed for block entries. */
