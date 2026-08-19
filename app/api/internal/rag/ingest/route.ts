@@ -22,6 +22,12 @@ type CompleteEvent = Extract<ManualIngestionEvent, { type: "complete" }>;
  *
  * Scheduled an hour before the corpus snapshot (`vercel.json`), so the daily metrics
  * describe the corpus after this run rather than the one before it.
+ *
+ * Covers both ingest lanes. The interview bank goes first: it is small and bounded by the
+ * number of opted-in cards, so it cannot starve the workspace pass, whereas the reverse
+ * order would let a slow workspace crawl skip the bank indefinitely. A lane nothing
+ * schedules is a lane nothing can alarm on, which is why this and the freshness lanes
+ * landed together.
  */
 
 // Valid on every Vercel plan. The loop is bounded by `deadlineAt` below rather than by this,
@@ -60,30 +66,53 @@ export async function GET(request: Request) {
   }
 
   const startedAt = Date.now();
+  const deadlineAt = startedAt + maxDuration * 1000 - DEADLINE_HEADROOM_MS;
   const logs: string[] = [];
   // A closure assignment does not narrow a `let`, so hold it on an object.
   const outcome: { completion: CompleteEvent | null } = { completion: null };
+  const bank: { completion: CompleteEvent | null } = { completion: null };
+
+  // Warnings and errors are the only lines worth keeping: a per-page "Fetching…" trail is
+  // 156 lines of noise in a cron log.
+  const collect =
+    (into: { completion: CompleteEvent | null }, prefix: string) =>
+    (event: ManualIngestionEvent) => {
+      if (event.type === "complete") {
+        into.completion = event;
+        return;
+      }
+      if (event.type === "log" && event.level && event.level !== "info") {
+        logs.push(`[${event.level}] ${prefix}: ${event.message}`);
+      }
+    };
 
   try {
+    // The bank is skipped, not failed, when its token is absent — the adapter throws a
+    // legible error, and a workspace ingest must not be lost to an unconfigured second lane.
+    try {
+      await runManualIngestion(
+        {
+          mode: "interview_bank",
+          ingestionType: "partial",
+          source: "cron/interview-bank",
+        },
+        collect(bank, "interview-bank"),
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logs.push(`[error] interview-bank: ${message}`);
+      console.error("Scheduled interview bank ingest failed", { message });
+    }
+
     await runManualIngestion(
       {
         mode: "notion_page",
         scope: "workspace",
         ingestionType: "partial",
         source: "cron/notion-page",
-        deadlineAt: startedAt + maxDuration * 1000 - DEADLINE_HEADROOM_MS,
+        deadlineAt,
       },
-      (event) => {
-        if (event.type === "complete") {
-          outcome.completion = event;
-          return;
-        }
-        // Warnings and errors are the only lines worth keeping: a per-page "Fetching…" trail
-        // is 156 lines of noise in a cron log.
-        if (event.type === "log" && event.level && event.level !== "info") {
-          logs.push(`[${event.level}] ${event.message}`);
-        }
-      },
+      collect(outcome, "workspace"),
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -114,6 +143,14 @@ export async function GET(request: Request) {
     message,
     incomplete,
     pagesNotReached: pagesNotReached ?? 0,
+    interviewBank: bank.completion
+      ? {
+          status: bank.completion.status,
+          message: bank.completion.message,
+          documentsProcessed: bank.completion.stats.documentsProcessed,
+          errorCount: bank.completion.stats.errorCount,
+        }
+      : null,
     documentsProcessed: stats.documentsProcessed,
     documentsAdded: stats.documentsAdded,
     documentsUpdated: stats.documentsUpdated,
