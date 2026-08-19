@@ -2,7 +2,7 @@
 
 This document is the repo-local supplement to the canonical operational verification playbook `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md`.
 
-Use the canonical playbook for the reusable verification flow. Use this local supplement only for exact field names, observation names, and first-pass ownership hints inside `nextjs-react-notion-x`.
+Use the canonical playbook for the reusable verification flow. Use this local supplement only for exact field names, observation names, and first-pass ownership hints inside `jackhpark-studio`.
 
 ## Exact Local Signals
 

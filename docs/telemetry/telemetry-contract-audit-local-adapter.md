@@ -2,7 +2,7 @@
 
 This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/telemetry-contract-audit.md` and the canonical skill `jackhpark-ai-skills/skills/dev/telemetry-contract-audit/SKILL.md`.
 
-It intentionally contains only the local signal vocabulary, canonical semantics, vendor surfaces, alert groups, and configuration controls needed to apply that method inside `nextjs-react-notion-x`.
+It intentionally contains only the local signal vocabulary, canonical semantics, vendor surfaces, alert groups, and configuration controls needed to apply that method inside `jackhpark-studio`.
 
 ## Local Vocabulary
 

@@ -2,7 +2,7 @@
 
 This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/admin-surface-hierarchy-audit.md` and the canonical skill `jackhpark-ai-skills/skills/dev/admin-surface-depth-audit/SKILL.md`.
 
-It intentionally contains only the local vocabulary, primitive mappings, page-specific hierarchy models, and current audit references needed to apply that method inside `nextjs-react-notion-x`.
+It intentionally contains only the local vocabulary, primitive mappings, page-specific hierarchy models, and current audit references needed to apply that method inside `jackhpark-studio`.
 
 ## Local Vocabulary
 
