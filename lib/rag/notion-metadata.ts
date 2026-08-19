@@ -219,36 +219,6 @@ function parsePropertyValue(
   return safeText(value);
 }
 
-/**
- * The Notion checkbox that marks a page as publishable. One name, read the
- * same way everywhere: RAG ingestion writes it to `metadata.is_public` (chat
- * retrieval drops documents where it is false) and the sitemap crawl keeps it
- * out of the published page map. The site used to look for a property called
- * "Public" instead, which no collection defines — so that filter never
- * excluded anything.
- */
-export const NOTION_IS_PUBLIC_PROPERTY = "_is_public";
-
-/**
- * Read the `_is_public` checkbox for a page. `undefined` means the page does
- * not carry the property at all — which is every page until the column is
- * added in Notion, and is treated as publishable by both callers.
- *
- * Reads `recordMap.block[id].value` and `recordMap.collection[id].value`
- * directly, so the record map must already be normalized
- * (`normalizeNotionRecordMap`) — a doubly-nested collection table hides the
- * schema and every lookup comes back `undefined`.
- */
-export function getNotionPageIsPublic(
-  recordMap: ExtendedRecordMap,
-  pageId: string,
-): boolean | undefined {
-  const value = parsePropertyValue(
-    lookupProperty(recordMap, pageId, NOTION_IS_PUBLIC_PROPERTY),
-  );
-  return typeof value === "boolean" ? value : undefined;
-}
-
 export function extractNotionMetadata(
   recordMap: ExtendedRecordMap,
   pageId: string,
@@ -259,7 +229,12 @@ export function extractNotionMetadata(
   const personaType = parsePropertyValue(
     lookupProperty(recordMap, pageId, "_persona_type"),
   );
-  const isPublic = getNotionPageIsPublic(recordMap, pageId);
+  // Ingestion still reads this: metadata.is_public feeds the chat retrieval
+  // filter, which is a live control (the admin document editor writes it).
+  // The website does not read it — see lib/get-site-map.ts.
+  const isPublic = parsePropertyValue(
+    lookupProperty(recordMap, pageId, "_is_public"),
+  );
 
   const tagsLookup = lookupProperty(recordMap, pageId, "_tags");
   let tags = parsePropertyValue(tagsLookup, { forceMulti: true });
