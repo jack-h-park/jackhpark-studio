@@ -80,7 +80,8 @@ Documents marked `soft_deleted` are **not** automatically revived. Specifically:
 
 - `markSuccess` will not update `status` from `soft_deleted`.
 - `last_sync_success_at` is not updated for `soft_deleted` documents.
-- Retrieval (v2) excludes `soft_deleted` documents.
+- Retrieval excludes `soft_deleted` documents **only under the v2 RPCs** — see
+  "Retrieval Behavior" below for which generation is actually called.
 
 ## Admin UI Behavior
 The Admin > RAG Documents list surfaces the `status` value and provides a
@@ -93,6 +94,21 @@ status filter.
 The v2 retrieval RPCs only return chunks for documents where
 `rag_documents.status = 'active'`. This ensures missing/soft-deleted documents
 are excluded at query time.
+
+**Which generation runs is a deployment setting, and the default is v1.**
+`RAG_MATCH_RPC_VERSION` selects it (`resolveRagMatchRpcVersion` in
+`lib/core/rag-match-version.ts`), applied to both the LangChain and native name
+derivations through `lib/core/rag-tables.ts`. Under the default, `status` has no
+effect on retrieval at all: marking a document `missing` or `soft_deleted`
+changes the Admin UI and the document row, not what the assistant retrieves.
+
+Before enabling v2, confirm the functions exist in the target database —
+migrations here are applied by hand, and naming a function that does not exist
+fails the query rather than degrading:
+
+```bash
+pnpm check:rag-rpcs
+```
 
 ## Notes
 - No garbage collection of chunks/embeddings is performed in lifecycle updates.
