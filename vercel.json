@@ -19,11 +19,14 @@
       "destination": "https://mcp-security-incidents.vercel.app"
     }
   ],
-
   "crons": [
     {
       "path": "/api/internal/rag/snapshot",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/internal/rag/ingest",
+      "schedule": "0 7 * * *"
     }
   ]
 }

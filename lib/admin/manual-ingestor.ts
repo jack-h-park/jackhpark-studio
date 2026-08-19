@@ -33,6 +33,11 @@ import {
 } from "../rag/pipeline";
 import { markAttempt, markFetchFailure } from "../rag/rag-document-lifecycle";
 import {
+  fetchInterviewBankCards,
+  INTERVIEW_BANK_SOURCE_URL_PREFIX,
+  prepareInterviewCardDocument,
+} from "../rag/sources/interview-bank";
+import {
   deriveNotionDocIdentifiers,
   prepareNotionPageDocument,
 } from "../rag/sources/notion";
@@ -103,6 +108,15 @@ type ManualIngestionBase = {
    * admin-initiated runs on the values they have always used.
    */
   source?: string;
+  /**
+   * Epoch ms after which no further page is started.
+   *
+   * For callers that run under a hard external timeout (a serverless cron), where being
+   * killed mid-loop would leave the run row `in_progress` for ever and the operator with no
+   * idea how much was covered. Pages already in flight finish; the rest are reported as not
+   * reached. Ingestion is per-page and idempotent, so the next run simply continues.
+   */
+  deadlineAt?: number;
   ingestionType?: "full" | "partial";
   embeddingProvider?: ModelProvider;
   embeddingModel?: string | null;
@@ -119,7 +133,8 @@ export type ManualIngestionRequest =
       pageIds?: string[];
       includeLinkedPages?: boolean;
     })
-  | (ManualIngestionBase & { mode: "url"; url: string });
+  | (ManualIngestionBase & { mode: "url"; url: string })
+  | (ManualIngestionBase & { mode: "interview_bank" });
 
 export type ManualIngestionEvent =
   | { type: "run"; runId: string | null }
@@ -138,6 +153,8 @@ export type ManualIngestionEvent =
       message?: string;
       runId: string | null;
       stats: IngestRunStats;
+      /** Pages skipped because `deadlineAt` passed. Absent or 0 means the run was complete. */
+      pagesNotReached?: number;
     };
 
 type EmitFn = (event: ManualIngestionEvent) => Promise<void> | void;
@@ -357,6 +374,7 @@ async function runNotionPageIngestion({
   includeLinkedPages = true,
   embeddingOptions,
   source = "manual/notion-page",
+  deadlineAt,
   emit,
 }: {
   scope?: ManualNotionScope;
@@ -366,6 +384,7 @@ async function runNotionPageIngestion({
   includeLinkedPages?: boolean;
   embeddingOptions: EmbedBatchOptions;
   source?: string;
+  deadlineAt?: number;
   emit: EmitFn;
 }): Promise<void> {
   const requestedScope =
@@ -578,12 +597,20 @@ async function runNotionPageIngestion({
   // `queue.current` reports how many pages have been picked up, not an index, because
   // completion order is no longer the traversal order.
   let queuePosition = 0;
+  let pagesNotReached = 0;
 
   try {
     await pMap(
       uniquePages,
       async (candidate) => {
         const currentPageId = candidate.pageId;
+
+        // Checked per page rather than cancelling the pool: a page already fetched should
+        // finish and be recorded, and stopping cleanly is what keeps the run row honest.
+        if (deadlineAt !== undefined && Date.now() >= deadlineAt) {
+          pagesNotReached += 1;
+          return;
+        }
 
         let recordMap: ExtendedRecordMap | null = null;
 
@@ -718,6 +745,16 @@ async function runNotionPageIngestion({
             ? "Manual Notion page ingestion finished."
             : "Manual Notion page ingestion found no changes.";
       }
+
+      // A run cut short must not read as a clean sweep of the workspace.
+      if (pagesNotReached > 0) {
+        finalMessage = `${finalMessage} Deadline reached with ${pagesNotReached} page(s) not visited; the next run covers them.`;
+        await emit({
+          type: "log",
+          level: "warn",
+          message: `Deadline reached: ${pagesNotReached} of ${uniquePages.length} page(s) were not visited. This run is incomplete.`,
+        });
+      }
     }
   } catch (err) {
     status = "failed";
@@ -777,6 +814,7 @@ async function runNotionPageIngestion({
       message: finalMessage,
       runId: runHandle?.id ?? null,
       stats,
+      pagesNotReached,
     });
   }
 }
@@ -899,6 +937,145 @@ async function runUrlIngestion(
   }
 }
 
+/**
+ * Ingest the interview Q&A bank.
+ *
+ * Unlike the Notion path there is no traversal to be incomplete: the card list is the whole
+ * directory, fetched in one call. So the sweep runs on every successful listing rather than
+ * only on `full` runs — a card demoted below `reviewed`, or opted out, simply stops being
+ * returned, and the sweep is what makes it stop being retrieved. (That only has an effect
+ * once the status-filtered RPCs are enabled; see RAG_MATCH_RPC_VERSION.)
+ */
+async function runInterviewBankIngestion({
+  ingestionType,
+  embeddingOptions,
+  source = "manual/interview-bank",
+  emit,
+}: {
+  ingestionType: "full" | "partial";
+  embeddingOptions: EmbedBatchOptions;
+  source?: string;
+  emit: EmitFn;
+}): Promise<void> {
+  const runHandle: IngestRunHandle = await startIngestRun({
+    source,
+    ingestion_type: ingestionType,
+    metadata: {
+      repo: process.env.INTERVIEW_BANK_REPO ?? null,
+      ingestionType,
+      embeddingProvider: embeddingOptions.provider ?? null,
+      embeddingSpaceId: embeddingOptions.embeddingSpaceId ?? null,
+      embeddingModelId: embeddingOptions.embeddingModelId ?? null,
+      embeddingVersion: embeddingOptions.version ?? null,
+    },
+  });
+
+  await emit({ type: "run", runId: runHandle?.id ?? null });
+  await emit({ type: "progress", step: "initializing", percent: 5 });
+
+  const stats = createEmptyRunStats();
+  const errorLogs: IngestRunErrorLog[] = [];
+  const started = Date.now();
+  let status: ManualRunStatus = "success";
+  let finalMessage = "Interview bank ingestion finished.";
+
+  try {
+    await emit({
+      type: "log",
+      level: "info",
+      message: "Reading the interview Q&A bank from GitHub...",
+    });
+
+    const cards = await fetchInterviewBankCards();
+    await emit({
+      type: "log",
+      level: "info",
+      message: `${cards.length} card(s) are review-complete and opted in.`,
+    });
+    await emit({ type: "progress", step: "collected", percent: 20 });
+
+    let position = 0;
+    for (const card of cards) {
+      position += 1;
+      await emit({
+        type: "queue",
+        current: position,
+        total: cards.length,
+        pageId: card.slug,
+        title: card.question,
+      });
+
+      try {
+        await ingestPreparedDocument({
+          doc: prepareInterviewCardDocument(card),
+          ingestionType,
+          embedding: embeddingOptions,
+          stats,
+          reporter: buildReporter(emit, URL_PROGRESS_PERCENT),
+        });
+      } catch (err) {
+        stats.errorCount += 1;
+        const message = err instanceof Error ? err.message : String(err);
+        errorLogs.push({ context: "fatal", doc_id: card.slug, message });
+        await emit({
+          type: "log",
+          level: "error",
+          message: `Failed to ingest interview card ${card.slug}: ${message}`,
+        });
+      }
+    }
+
+    // Scoped to this source's URL prefix, so it can only ever retire interview cards.
+    const sweep = await sweepUnvisitedDocuments(supabaseClient, {
+      runStartedAt: new Date(started).toISOString(),
+      sourceUrlPrefix: INTERVIEW_BANK_SOURCE_URL_PREFIX,
+    });
+    appendSweepRunLogs(sweep, stats, errorLogs);
+    await emit({
+      type: "log",
+      level: "info",
+      message: formatSweepSummary(sweep),
+    });
+
+    const updated = stats.documentsAdded + stats.documentsUpdated;
+    finalMessage =
+      cards.length === 0
+        ? "No interview cards are review-complete and opted in; nothing ingested."
+        : `Processed ${cards.length} interview card(s); updated ${updated}, skipped ${stats.documentsSkipped}.`;
+  } catch (err) {
+    status = "failed";
+    stats.errorCount += 1;
+    const message = err instanceof Error ? err.message : String(err);
+    finalMessage = `Interview bank ingestion failed: ${message}`;
+    errorLogs.push({ context: "fatal", doc_id: "interview-bank", message });
+    await emit({ type: "log", level: "error", message: finalMessage });
+  } finally {
+    const durationMs = Date.now() - started;
+    if (status === "failed" && stats.errorCount === 0) {
+      stats.errorCount = 1;
+    }
+    if (stats.errorCount > 0 && status === "success") {
+      status = "completed_with_errors";
+    }
+
+    await finishIngestRun(runHandle, {
+      status,
+      durationMs,
+      totals: stats,
+      errorLogs,
+    });
+
+    await emit({ type: "progress", step: "finished", percent: 100 });
+    await emit({
+      type: "complete",
+      status,
+      message: finalMessage,
+      runId: runHandle?.id ?? null,
+      stats,
+    });
+  }
+}
+
 export async function runManualIngestion(
   request: ManualIngestionRequest,
   emit: EmitFn,
@@ -916,6 +1093,17 @@ export async function runManualIngestion(
       pageIds: request.pageIds,
       ingestionType,
       includeLinkedPages,
+      embeddingOptions,
+      source: request.source,
+      deadlineAt: request.deadlineAt,
+      emit,
+    });
+    return;
+  }
+
+  if (request.mode === "interview_bank") {
+    await runInterviewBankIngestion({
+      ingestionType: request.ingestionType ?? "partial",
       embeddingOptions,
       source: request.source,
       emit,
