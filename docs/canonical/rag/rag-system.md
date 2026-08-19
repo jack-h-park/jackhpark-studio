@@ -132,7 +132,7 @@ The system generates a `Citations` payload alongside the prompt, mapping every s
 
 - **Latency vs. Accuracy:** The **Auto-RAG** loop introduces latency (multi-pass generation and search). We accept this trade-off because confident hallucinations are more damaging than a 500ms delay in a portfolio assistant context.
 - **Storage Normalization:** Splitting metadata (`rag_documents`) from vectors (`rag_chunks`) complicates writes but dramatically simplifies reads and analytics.
-- **Ingestion Freshness:** This is a "Pull" system (triggered indexing) rather than "Push" (webhook-driven). This means there is a delay between a Notion edit and its availability in chat. For this application scope, eventual consistency is acceptable.
+- **Ingestion Freshness:** This is a "Pull" system (triggered indexing) rather than "Push" (webhook-driven), so a Notion edit is not immediately available in chat. The delay is now bounded by a daily scheduled ingest (`/api/internal/rag/ingest`, `vercel.json`) rather than by whoever remembers to run one — the corpus previously went a month without a refresh while the site updated within a minute. Eventual consistency is acceptable for this scope; unbounded staleness was not.
 
 ---
 
