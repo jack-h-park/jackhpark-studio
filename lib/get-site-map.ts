@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { type ExtendedRecordMap } from "notion-types";
-import { getAllPagesInSpace, getPageProperty, uuidToId } from "notion-utils";
+import { getAllPagesInSpace, uuidToId } from "notion-utils";
 import pMemoize from "p-memoize";
 
 import type * as types from "./types";
@@ -10,6 +10,8 @@ import * as config from "./config";
 import { includeNotionIdInUrls } from "./config";
 import { getCanonicalPageId } from "./get-canonical-page-id";
 import { notion } from "./notion-api";
+import { getNotionPageIsPublic } from "./rag/notion-metadata";
+import { normalizeNotionRecordMap } from "./rag/notion-record-value";
 
 // ---------------------------------------------------------------------------
 // Disk-based sitemap cache (.next/cache/notion-sitemap.json)
@@ -293,6 +295,10 @@ async function getAllPagesImpl(
     { concurrency: 1 },
   );
 
+  // Reported below: a visibility filter that quietly matches nothing looks
+  // exactly like a visibility filter that is working.
+  const excludedByIsPublic: string[] = [];
+
   const canonicalPageMap = Object.keys(pageMap).reduce(
     (map: Record<string, string>, pageId: string) => {
       const recordMap = pageMap[pageId];
@@ -303,10 +309,19 @@ async function getAllPagesImpl(
         return map;
       }
 
-      const block = recordMap.block[pageId]?.value;
+      // A page is publishable unless it carries `_is_public` and it is
+      // unchecked — the same property RAG ingestion reads. Pages without the
+      // property (every page until the column exists in Notion) are kept.
+      //
+      // Normalized at the read: the lookup walks the collection schema, and a
+      // doubly-nested collection table hides it, so the filter would answer
+      // "no property" for every page. Already-flat tables come back as the
+      // same object, so this costs nothing.
       if (
-        !(getPageProperty<boolean | null>("Public", block!, recordMap) ?? true)
+        getNotionPageIsPublic(normalizeNotionRecordMap(recordMap), pageId) ===
+        false
       ) {
+        excludedByIsPublic.push(pageId);
         return map;
       }
 
@@ -338,6 +353,11 @@ async function getAllPagesImpl(
       }
     },
     {},
+  );
+
+  console.log(
+    `[sitemap] ${Object.keys(canonicalPageMap).length} pages published, ` +
+      `${excludedByIsPublic.length} excluded by _is_public`,
   );
 
   const result = { pageMap, canonicalPageMap };
