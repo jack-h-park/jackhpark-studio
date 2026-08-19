@@ -6,6 +6,7 @@ import { type ExtendedRecordMap } from "notion-types";
 import { readCollectionViewTarget } from "@/lib/get-site-map";
 import {
   getBlockValue,
+  normalizeRecordTable,
   resolveCollectionDataId,
   unwrapRecordValue,
 } from "@/lib/rag/notion-record-value";
@@ -106,6 +107,45 @@ const buildRecordMap = (collectionEntry: unknown): ExtendedRecordMap =>
   ({
     collection: { [COLLECTION_ID]: collectionEntry },
   }) as unknown as ExtendedRecordMap;
+
+// The sitemap crawl normalizes its whole block table before handing it to
+// notion-utils, which reads block[id].value.type directly. A table left
+// half-nested is the failure mode from #70: traversal finds no sub-pages and
+// the crawl returns just the seed.
+void describe("normalizeRecordTable", () => {
+  void it("normalizes a mixed table so every entry exposes the record at .value", () => {
+    const page = { id: BLOCK_ID, type: "page", content: [VIEW_ID] };
+    const child = { id: VIEW_ID, type: "text", parent_id: BLOCK_ID };
+
+    const normalized = normalizeRecordTable({
+      [BLOCK_ID]: doubly(page),
+      [VIEW_ID]: singly(child),
+    });
+
+    assert.equal(normalized?.[BLOCK_ID].value, page);
+    assert.equal(normalized?.[VIEW_ID].value, child);
+  });
+
+  void it("keeps the entry's sibling fields", () => {
+    const page = { id: BLOCK_ID, type: "page" };
+    const normalized = normalizeRecordTable({
+      [BLOCK_ID]: { ...doubly(page), spaceId: "space-1" },
+    });
+
+    assert.equal(normalized?.[BLOCK_ID].role, "reader");
+    assert.equal(
+      (normalized?.[BLOCK_ID] as { spaceId?: string }).spaceId,
+      "space-1",
+    );
+  });
+
+  void it("returns the same table when nothing was nested", () => {
+    const table = { [BLOCK_ID]: singly({ id: BLOCK_ID, type: "page" }) };
+
+    assert.equal(normalizeRecordTable(table), table);
+    assert.equal(normalizeRecordTable(undefined), undefined);
+  });
+});
 
 // resolveCollectionDataId is read by both the sitemap crawl and the page
 // renderer. These pin the caller, not just the unwrapper: a stricter or looser

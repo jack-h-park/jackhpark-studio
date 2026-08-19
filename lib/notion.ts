@@ -23,7 +23,10 @@ import { debugNotionXEnabled, debugNotionXLogger } from "./debug-notion-x";
 import { getTweetsMap } from "./get-tweets";
 import { notion } from "./notion-api";
 import { getPreviewImageMap } from "./preview-images";
-import { resolveCollectionDataId } from "./rag/notion-record-value";
+import {
+  resolveCollectionDataId,
+  unwrapRecordValue,
+} from "./rag/notion-record-value";
 
 const normalizeGroupValue = (group: any) => {
   if (!group || typeof group !== "object") return group;
@@ -634,23 +637,6 @@ const writeCachedRecordMap = async (
 };
 
 /**
- * Resolves a block's actual value, handling both the standard format
- * ({role, value: {type, ...}}) and the nested format used by collection
- * query results ({spaceId, value: {value: {type, ...}}}).
- */
-const getActualBlockValue = (raw: any): any => {
-  if (!raw) return null;
-  const v = raw.value;
-  if (!v || typeof v !== "object") return null;
-  // Nested format: value.value contains the actual block data
-  if ("value" in v && v.value && typeof v.value === "object") {
-    const inner = v.value;
-    if (inner.id || inner.type || inner.parent_id) return inner;
-  }
-  return v;
-};
-
-/**
  * After getPage, notion-client may not load children of callout/toggle blocks
  * inside collection item pages (due to page-boundary stops in block traversal).
  * This function finds those missing grandchildren and fetches them so that
@@ -662,13 +648,13 @@ const fetchCollectionCardCalloutChildren = async (
   const missingChildIds = new Set<string>();
 
   for (const blockId of Object.keys(recordMap.block)) {
-    const b = getActualBlockValue(recordMap.block[blockId]);
+    const b = unwrapRecordValue<any>(recordMap.block[blockId]);
     if (!b || b.parent_table !== "collection") continue;
     if (b.type !== "page" && b.type !== "collection_view_page") continue;
     if (!Array.isArray(b.content)) continue;
 
     for (const childId of b.content) {
-      const child = getActualBlockValue(recordMap.block[childId]);
+      const child = unwrapRecordValue<any>(recordMap.block[childId]);
       if (!child || (child.type !== "callout" && child.type !== "toggle"))
         continue;
       if (!Array.isArray(child.content)) continue;
@@ -760,7 +746,7 @@ const hydrateGroupedCollectionData = async (
       }
 
       const typedView = view as { role: Role; value: CollectionView };
-      const rawView = getActualBlockValue(view) ?? typedView.value;
+      const rawView = unwrapRecordValue<any>(view) ?? typedView.value;
       if (!rawView) return null;
 
       const sanitizedView = sanitizeCollectionViewForGrouping(rawView);

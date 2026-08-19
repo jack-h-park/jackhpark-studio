@@ -11,6 +11,7 @@ import { includeNotionIdInUrls } from "./config";
 import { getCanonicalPageId } from "./get-canonical-page-id";
 import { notion } from "./notion-api";
 import {
+  normalizeRecordTable,
   resolveCollectionDataId,
   unwrapRecordValue,
 } from "./rag/notion-record-value";
@@ -117,24 +118,17 @@ const getAllPages = pMemoize(getAllPagesImpl, {
 // but this project's Notion API returns a double-nested structure:
 //   block[id] = { spaceId, value: { value: { id, type, ... } } }
 // Normalize blocks to the standard single-nested format so traversal works.
+//
+// Blocks only: normalizing `collection` here too would let getPageProperty
+// below start reading the collection schema, changing which pages the crawl
+// keeps. That is a behaviour change, not a refactor.
 function normalizeBlocksForTraversal(
   recordMap: ExtendedRecordMap,
 ): ExtendedRecordMap {
-  const normalizedBlocks: ExtendedRecordMap["block"] = {};
-  for (const [id, raw] of Object.entries(recordMap.block ?? {})) {
-    const outer = (raw as any)?.value;
-    const isDoubleNested =
-      outer &&
-      typeof outer === "object" &&
-      "value" in outer &&
-      outer.value &&
-      typeof outer.value === "object" &&
-      (outer.value.id || outer.value.type || outer.value.parent_id);
-    normalizedBlocks[id] = isDoubleNested
-      ? ({ value: outer.value } as any)
-      : raw;
-  }
-  return { ...recordMap, block: normalizedBlocks };
+  return {
+    ...recordMap,
+    block: normalizeRecordTable(recordMap.block) ?? recordMap.block,
+  };
 }
 
 // Notion 429s even at concurrency 1 once a sitemap crawl exceeds a few dozen

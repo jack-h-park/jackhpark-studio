@@ -85,9 +85,17 @@ function unwrapRecordEntry<T extends { value?: unknown }>(entry: T): T {
   return { ...entry, value: v };
 }
 
-function normalizeRecordTable<T extends Record<string, { value?: unknown }>>(
-  table: T | undefined,
-): T | undefined {
+/**
+ * Unwrap every entry of one record table, returning the table unchanged (same
+ * reference) when nothing was nested. Exported for callers that need a single
+ * table normalized rather than the whole record map — the sitemap crawl
+ * normalizes blocks only, because normalizing `collection` there would change
+ * which collection schema `getPageProperty` can read, and with it which pages
+ * the crawl keeps.
+ */
+export function normalizeRecordTable<
+  T extends Record<string, { value?: unknown }>,
+>(table: T | undefined): T | undefined {
   if (!table) return table;
   let changed = false;
   const next: Record<string, unknown> = {};
