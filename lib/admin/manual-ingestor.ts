@@ -80,6 +80,14 @@ function normalizeNotionPageId(value?: string): string | undefined {
 }
 
 type ManualIngestionBase = {
+  /**
+   * Where this run came from, recorded as the ingest run's `source`.
+   *
+   * The admin runs list builds its source filter from the distinct values seen, so a caller
+   * that supplies its own label becomes filterable without a schema change. Defaults keep
+   * admin-initiated runs on the values they have always used.
+   */
+  source?: string;
   ingestionType?: "full" | "partial";
   embeddingProvider?: ModelProvider;
   embeddingModel?: string | null;
@@ -333,6 +341,7 @@ async function runNotionPageIngestion({
   ingestionType,
   includeLinkedPages = true,
   embeddingOptions,
+  source = "manual/notion-page",
   emit,
 }: {
   scope?: ManualNotionScope;
@@ -341,6 +350,7 @@ async function runNotionPageIngestion({
   ingestionType: "full" | "partial";
   includeLinkedPages?: boolean;
   embeddingOptions: EmbedBatchOptions;
+  source?: string;
   emit: EmitFn;
 }): Promise<void> {
   const requestedScope =
@@ -364,7 +374,7 @@ async function runNotionPageIngestion({
   const pageUrl = getPageUrl(rootPageId);
   const isFull = ingestionType === "full";
   const runHandle: IngestRunHandle = await startIngestRun({
-    source: "manual/notion-page",
+    source,
     ingestion_type: ingestionType,
     metadata: {
       pageId: rootPageId,
@@ -747,10 +757,11 @@ async function runUrlIngestion(
   ingestionType: "full" | "partial",
   embeddingOptions: EmbedBatchOptions,
   emit: EmitFn,
+  source = "manual/url",
 ): Promise<void> {
   const parsedUrl = new URL(url);
   const runHandle: IngestRunHandle = await startIngestRun({
-    source: "manual/url",
+    source,
     ingestion_type: ingestionType,
     metadata: {
       url,
@@ -877,11 +888,18 @@ export async function runManualIngestion(
       ingestionType,
       includeLinkedPages,
       embeddingOptions,
+      source: request.source,
       emit,
     });
     return;
   }
 
   const ingestionType = request.ingestionType ?? "partial";
-  await runUrlIngestion(request.url, ingestionType, embeddingOptions, emit);
+  await runUrlIngestion(
+    request.url,
+    ingestionType,
+    embeddingOptions,
+    emit,
+    request.source,
+  );
 }
