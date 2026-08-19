@@ -15,7 +15,7 @@ It is stored here as a draft because the sibling `jackhpark-ai-skills` repositor
 
 ## Why This Should Be Shared
 
-This method is not specific to `nextjs-react-notion-x`.
+This method is not specific to `jackhpark-studio`.
 
 It applies whenever an agent needs to review whether an external document such as a Notion page, README, PRD, architecture note, portfolio writeup, design doc, or launch brief matches:
 
@@ -307,7 +307,7 @@ Any consuming repository should create a local adapter that includes:
 
 ## Suggested First Consumer
 
-If this method is later used in `nextjs-react-notion-x`, the wrapper and local adapter would likely look like:
+If this method is later used in `jackhpark-studio`, the wrapper and local adapter would likely look like:
 
 - wrapper:
   - `ai/skill-wrappers/external-doc-alignment-review/SKILL.md`

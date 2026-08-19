@@ -2,7 +2,7 @@
 
 This document defines how this repository consumes shared skill-source assets.
 
-The canonical shared-library document lives in `jackhpark-ai-skills/docs/skill-source-architecture.md`. This file is the repo-local supplement for `nextjs-react-notion-x`: it records the local wrapper path, adapter path, and validation assumptions that make those shared assets executable here.
+The canonical shared-library document lives in `jackhpark-ai-skills/docs/skill-source-architecture.md`. This file is the repo-local supplement for `jackhpark-studio`: it records the local wrapper path, adapter path, and validation assumptions that make those shared assets executable here.
 
 ## Governing Assumptions
 
