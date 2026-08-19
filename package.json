@@ -23,6 +23,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm next dev",
+    "check:rag-rpcs": "node --import=tsx --env-file=.env.local scripts/check-rag-rpcs.ts",
     "ingest": "node --import=tsx --env-file=.env.local scripts/ingest-url.ts",
     "ingest:interview-bank": "node --import=tsx --env-file=.env.local scripts/ingest-interview-bank.ts",
     "ingest:notion": "node --import=tsx --env-file=.env.local scripts/ingest-notion.ts",
@@ -67,7 +68,8 @@
     "smoke:langchain-chat:debug-on": "EXPECT_DEBUG_SURFACES=1 pnpm smoke:langchain-chat",
     "check:ai-docs": "node scripts/check-ai-docs.mjs",
     "check:docs": "node scripts/check-doc-integrity.mjs",
-    "check:server-only-pages": "node scripts/check-server-only-pages.mjs"
+    "check:server-only-pages": "node scripts/check-server-only-pages.mjs",
+    "check:sitemap-visibility": "node --import=tsx --env-file=.env.local scripts/check-sitemap-visibility.ts"
   },
   "dependencies": {
     "@fisch0920/use-dark-mode": "^2.4.0",

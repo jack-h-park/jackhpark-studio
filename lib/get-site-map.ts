@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { type ExtendedRecordMap } from "notion-types";
-import { getAllPagesInSpace, getPageProperty, uuidToId } from "notion-utils";
+import { getAllPagesInSpace, uuidToId } from "notion-utils";
 import pMemoize from "p-memoize";
 
 import type * as types from "./types";
@@ -11,6 +11,12 @@ import { includeNotionIdInUrls } from "./config";
 import { getCanonicalPageId } from "./get-canonical-page-id";
 import { notion } from "./notion-api";
 import { withRateLimitRetry } from "./notion-rate-limit";
+import { normalizePropertyName } from "./rag/notion-metadata";
+import {
+  normalizeNotionRecordMap,
+  resolveCollectionDataId,
+  unwrapRecordValue,
+} from "./rag/notion-record-value";
 
 // ---------------------------------------------------------------------------
 // Disk-based sitemap cache (.next/cache/notion-sitemap.json)
@@ -110,54 +116,102 @@ const getAllPages = pMemoize(getAllPagesImpl, {
   cacheKey: (...args) => JSON.stringify(args),
 });
 
-// notion-utils' getAllPagesInSpace reads block[id].value.type to find sub-pages,
-// but this project's Notion API returns a double-nested structure:
-//   block[id] = { spaceId, value: { value: { id, type, ... } } }
-// Normalize blocks to the standard single-nested format so traversal works.
-function normalizeBlocksForTraversal(
-  recordMap: ExtendedRecordMap,
-): ExtendedRecordMap {
-  const normalizedBlocks: ExtendedRecordMap["block"] = {};
-  for (const [id, raw] of Object.entries(recordMap.block ?? {})) {
-    const outer = (raw as any)?.value;
-    const isDoubleNested =
-      outer &&
-      typeof outer === "object" &&
-      "value" in outer &&
-      outer.value &&
-      typeof outer.value === "object" &&
-      (outer.value.id || outer.value.type || outer.value.parent_id);
-    normalizedBlocks[id] = isDoubleNested
-      ? ({ value: outer.value } as any)
-      : raw;
-  }
-  return { ...recordMap, block: normalizedBlocks };
+// Notion's v3 API returns collection_view and collection entries
+// double-nested ({ value: { value, role } }), so unwrap with the shared
+// unwrapRecordValue before reading record fields.
+//
+// The pure part of hydrateCollectionPageBlocks, exported for tests: unwrap a
+// collection_view entry (both the single- and double-nested shapes) and read
+// the collection it points at.
+//
+// Grouped views 400 when queried with their grouping metadata intact
+// (queryCollection expects per-group reducers). The sitemap only needs the
+// flat item list, so strip grouping and query ungrouped.
+export function readCollectionViewTarget(
+  rawView: unknown,
+): { collectionId: string; flatView: Record<string, unknown> } | null {
+  const view = unwrapRecordValue<{
+    collection_id?: string;
+    format?: Record<string, unknown> & {
+      collection_pointer?: { id?: string };
+    };
+  }>(rawView as { value?: unknown } | null | undefined);
+  const collectionId =
+    view?.collection_id ?? view?.format?.collection_pointer?.id;
+  if (!collectionId) return null;
+
+  const {
+    collection_group_by: _cgb,
+    collection_groups: _cg,
+    board_columns: _bc,
+    board_columns_by: _bcb,
+    ...flatFormat
+  } = view?.format ?? {};
+
+  return { collectionId, flatView: { ...view, format: flatFormat } };
 }
 
-// Notion's v3 API returns collection_view entries double-nested
-// ({ value: { value, role } }), so unwrap before reading view fields.
-function unwrapValue<T>(raw: unknown): T | null {
-  const outer = (raw as { value?: unknown } | null)?.value;
-  if (outer && typeof outer === "object" && "value" in outer) {
-    const inner = (outer as { value?: unknown }).value;
-    if (inner && typeof inner === "object") return inner as T;
-  }
-  return (outer as T) ?? null;
-}
+// ---------------------------------------------------------------------------
+// Visibility guard
+//
+// The sitemap publishes every crawled page. It used to filter on a Notion
+// property called "Public" — a column no collection defines, left from a
+// personal-vs-public split that `_persona_type` (personal vs professional)
+// replaced, and which is a ranking weight in retrieval rather than a gate. The
+// filter had never excluded a page, and could not have.
+//
+// Nothing is filtered here now, so a visibility column appearing in Notion
+// would be ignored by the website — silently, which is how the dead filter
+// survived in the first place. Detect it and say so. (Ingestion is separate:
+// it reads `_is_public` into document metadata, and chat retrieval honours
+// it — see lib/server/chat-rag-utils.ts.)
+// ---------------------------------------------------------------------------
+const VISIBILITY_FLAG_WORDS = [
+  "public",
+  "published",
+  "publish",
+  "private",
+  "draft",
+  "unlisted",
+  "visibility",
+  "visible",
+  "hidden",
+  "nopublish",
+];
 
-// Mirrors lib/notion.ts resolveCollectionDataId: collections copied from
-// another collection must be queried via their parent collection id.
-function resolveCollectionDataId(
-  recordMap: ExtendedRecordMap,
-  collectionId: string,
-): string {
-  const value = unwrapValue<{ parent_table?: string; parent_id?: string }>(
-    recordMap.collection?.[collectionId],
-  );
-  if (value?.parent_table === "collection" && value.parent_id) {
-    return value.parent_id;
+// Notion columns are named both ways ("Public" and "Is Public"), and the
+// normalizer collapses the spacing, so match the "is" form of each word too —
+// `_is_public` itself is one of them.
+const VISIBILITY_PROPERTY_NAMES = new Set(
+  VISIBILITY_FLAG_WORDS.flatMap((word) => [word, `is${word}`]),
+);
+
+/**
+ * Collection schema columns that look like a visibility flag. The website
+ * honours none of them, so anything found here is a column it is ignoring.
+ * Empty is the healthy state.
+ */
+export function findUnhonouredVisibilityProperties(
+  recordMap: Pick<ExtendedRecordMap, "collection">,
+): string[] {
+  const found = new Set<string>();
+
+  for (const rawCollection of Object.values(recordMap.collection ?? {})) {
+    const collection = unwrapRecordValue(rawCollection) as
+      | { schema?: Record<string, { name?: string | null } | null> }
+      | undefined;
+
+    for (const schema of Object.values(collection?.schema ?? {})) {
+      const name = schema?.name;
+      const normalized = normalizePropertyName(name);
+      if (!name || !normalized) continue;
+      if (VISIBILITY_PROPERTY_NAMES.has(normalized)) {
+        found.add(name);
+      }
+    }
   }
-  return collectionId;
+
+  return [...found].toSorted();
 }
 
 // The double-nested collection_view shape (above) also breaks notion-client's
@@ -172,27 +226,9 @@ async function hydrateCollectionPageBlocks(
   for (const [viewId, rawView] of Object.entries(
     recordMap.collection_view ?? {},
   )) {
-    const view = unwrapValue<{
-      collection_id?: string;
-      format?: Record<string, unknown> & {
-        collection_pointer?: { id?: string };
-      };
-    }>(rawView);
-    const collectionId =
-      view?.collection_id ?? view?.format?.collection_pointer?.id;
-    if (!collectionId) continue;
-
-    // Grouped views 400 when queried with their grouping metadata intact
-    // (queryCollection expects per-group reducers). The sitemap only needs the
-    // flat item list, so strip grouping and query ungrouped.
-    const {
-      collection_group_by: _cgb,
-      collection_groups: _cg,
-      board_columns: _bc,
-      board_columns_by: _bcb,
-      ...flatFormat
-    } = view?.format ?? {};
-    const flatView = { ...view, format: flatFormat };
+    const target = readCollectionViewTarget(rawView);
+    if (!target) continue;
+    const { collectionId, flatView } = target;
 
     try {
       const data = await withRateLimitRetry(() =>
@@ -242,7 +278,12 @@ const getPage = async (pageId: string) => {
     }),
   );
   await hydrateCollectionPageBlocks(recordMap);
-  return normalizeBlocksForTraversal(recordMap);
+  // notion-utils' getAllPagesInSpace reads block[id].value.type to find
+  // sub-pages, but this project's Notion API returns a double-nested
+  // structure:
+  //   block[id] = { spaceId, value: { value: { id, type, ... } } }
+  // Normalize to the standard single-nested format so traversal works.
+  return normalizeNotionRecordMap(recordMap);
 };
 
 async function getAllPagesImpl(
@@ -284,13 +325,6 @@ async function getAllPagesImpl(
         return map;
       }
 
-      const block = recordMap.block[pageId]?.value;
-      if (
-        !(getPageProperty<boolean | null>("Public", block!, recordMap) ?? true)
-      ) {
-        return map;
-      }
-
       const canonicalPageId = getCanonicalPageId(pageId, recordMap, {
         uuid,
       })!;
@@ -320,6 +354,25 @@ async function getAllPagesImpl(
     },
     {},
   );
+
+  console.log(
+    `[sitemap] ${Object.keys(canonicalPageMap).length} pages published`,
+  );
+
+  const unhonoured = new Set<string>();
+  for (const recordMap of Object.values(pageMap)) {
+    if (!recordMap) continue;
+    for (const name of findUnhonouredVisibilityProperties(recordMap)) {
+      unhonoured.add(name);
+    }
+  }
+  if (unhonoured.size > 0) {
+    console.warn(
+      `[sitemap] Notion defines visibility-looking column(s) the website ignores: ` +
+        `${[...unhonoured].toSorted().join(", ")}. ` +
+        `The sitemap publishes every crawled page — wire the column in or drop it.`,
+    );
+  }
 
   const result = { pageMap, canonicalPageMap };
   writeSitemapCache(result);

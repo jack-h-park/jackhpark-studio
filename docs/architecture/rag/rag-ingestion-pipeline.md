@@ -16,7 +16,9 @@ Canonical invariants on chunking/token budgets, change detection, and ingestion 
 
 ## 1. Overview
 
-The ingestion system follows a "push" model triggered via the Admin UI or scripts. It supports two primary strategies:
+Ingestion is triggered three ways, all of which run the same `runManualIngestion` path: the Admin UI, `pnpm ingest:notion`, and a daily Vercel cron (`/api/internal/rag/ingest`, scheduled an hour before the corpus snapshot so the metrics describe the fresh corpus). The scheduled run is `partial` and workspace-scoped, and is bounded by a `deadlineAt` rather than by the function timeout — pages it does not reach are reported, not silently dropped, and the next run covers them.
+
+It supports two primary strategies:
 
 1.  **Atomic Document Updates:** Replaces all chunks for a document if its content hash changes.
 2.  **Versioning:** Supports multiple embedding providers (OpenAI, Gemini) concurrently via isolated tables.

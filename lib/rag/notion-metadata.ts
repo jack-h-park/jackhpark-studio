@@ -27,7 +27,13 @@ type PropertyLookup = {
   type?: string | null;
 } | null;
 
-function normalizePropertyName(
+/**
+ * Collapse a Notion property name to a comparison key, so `_is_public`,
+ * `Is Public` and `public` all match. Exported so callers that reason about
+ * property names (the sitemap's visibility guard) use the same rule as the
+ * lookup itself.
+ */
+export function normalizePropertyName(
   value: string | null | undefined,
 ): string | null {
   if (!value) {
@@ -223,6 +229,9 @@ export function extractNotionMetadata(
   const personaType = parsePropertyValue(
     lookupProperty(recordMap, pageId, "_persona_type"),
   );
+  // Ingestion still reads this: metadata.is_public feeds the chat retrieval
+  // filter, which is a live control (the admin document editor writes it).
+  // The website does not read it — see lib/get-site-map.ts.
   const isPublic = parsePropertyValue(
     lookupProperty(recordMap, pageId, "_is_public"),
   );

@@ -446,18 +446,50 @@ export function getLcChunksViewName(embeddingSpaceId: string): string {
 
 // The RPC version is a separate axis from the embedding space id, whose own
 // trailing `_v1` denotes the embedding model. Callers that omit it stay on v1.
+
+/**
+ * The embedding-space portion of a match RPC name.
+ *
+ * Stripping the space's own version segment is what makes the two axes separable, but it
+ * does not make the resulting names unique: `match_*_openai_te3s_v2` says "space
+ * openai_te3s, RPC v2" and nothing about *which generation* of that space. Every space
+ * defined today ends in `_v1`, so the ambiguity is latent — but a second generation named
+ * `openai_te3s_v2` would strip to the same base and silently resolve to the v1 space's v2
+ * RPC: the right table through the wrong filter, with no error.
+ *
+ * Renaming the deployed functions to an unambiguous scheme is a migration, not a code
+ * change, so this keeps the deployed names and refuses the ambiguous case instead. The
+ * collision becomes a loud failure at the point of derivation rather than a quiet one at
+ * query time.
+ */
+export function getMatchRpcSpaceBase(embeddingSpaceId: string): string {
+  const match = /_v(\d+)$/.exec(embeddingSpaceId);
+  if (!match) {
+    return embeddingSpaceId;
+  }
+  if (match[1] !== "1") {
+    throw new Error(
+      `Embedding space "${embeddingSpaceId}" is generation v${match[1]}, but match RPC names ` +
+        `encode only <provider>_<slug>_v<rpcVersion>. Deriving a name here would collide with ` +
+        `the v${match[1]} RPC of the v1 space. Introduce an unambiguous RPC naming scheme ` +
+        `(and the migration that defines it) before adding a second embedding-space generation.`,
+    );
+  }
+  return embeddingSpaceId.slice(0, match.index);
+}
+
 export function getMatchChunksFunctionName(
   embeddingSpaceId: string,
   rpcVersion = "1",
 ): string {
-  return `match_native_chunks_${embeddingSpaceId.replace(/_v\d+$/, "")}_v${rpcVersion}`;
+  return `match_native_chunks_${getMatchRpcSpaceBase(embeddingSpaceId)}_v${rpcVersion}`;
 }
 
 export function getMatchLcChunksFunctionName(
   embeddingSpaceId: string,
   rpcVersion = "1",
 ): string {
-  return `match_langchain_chunks_${embeddingSpaceId.replace(/_v\d+$/, "")}_v${rpcVersion}`;
+  return `match_langchain_chunks_${getMatchRpcSpaceBase(embeddingSpaceId)}_v${rpcVersion}`;
 }
 
 export type EmbeddingModelId = string;
