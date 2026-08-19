@@ -5,7 +5,7 @@
 > If behavior changes, update the canonical doc first, then reflect here.
 
 **Status:** authoritative
-**Implementations:** `lib/rag/pipeline.ts` (shared core), `lib/rag/sources/{notion,url}.ts` (source adapters), `lib/rag/index.ts` (chunking/persistence primitives), `lib/admin/manual-ingestor.ts` + `scripts/ingest-{notion,url}.ts` (thin callers)
+**Implementations:** `lib/rag/pipeline.ts` (shared core), `lib/rag/sources/{notion,url}.ts` (source adapters), `lib/rag/index.ts` (chunking/persistence primitives), `lib/admin/manual-ingestor.ts` (Notion traversal + run orchestration), `scripts/ingest-{notion,url}.ts` and `pages/api/admin/manual-ingest.ts` (thin callers)
 
 Related: [RAG Document Lifecycle](./rag-document-lifecycle.md)
 
@@ -26,7 +26,9 @@ The ingestion system follows a "push" model triggered via the Admin UI or script
 Source-specific fetch/parse/metadata logic lives in **adapters** (`lib/rag/sources/`); everything downstream of a parsed document — change detection, the skip/metadata-only/full decision, chunking, embedding, persistence, and lifecycle marking — runs in the **shared core** (`ingestPreparedDocument` in `lib/rag/pipeline.ts`).
 
 - An adapter produces a `PreparedDocument` (canonical/raw IDs, title, text, `lastSourceUpdate`, a `changeDetection` strategy, and a `buildMetadata` callback).
-- The CLI scripts (`scripts/ingest-{notion,url}.ts`) and the admin manual ingestor (`lib/admin/manual-ingestor.ts`) are thin callers over the core; they share `withIngestRun` for run-level bookkeeping and an `IngestReporter` for progress (console vs. SSE).
+- **`lib/admin/manual-ingestor.ts` owns Notion ingestion end to end** — page traversal, the per-page loop, run bookkeeping (`startIngestRun`/`finishIngestRun`) and the missing-document sweep. Everything that ingests Notion goes through `runManualIngestion`, which takes a request plus an `emit` callback and has no HTTP dependency.
+- Its callers are thin and differ only in how they surface events and how they label the run's `source`: `pages/api/admin/manual-ingest.ts` streams them as SSE (`manual/notion-page`), `scripts/ingest-notion.ts` prints them (`cli/notion-page`). The distinct `source` keeps runs separable in the admin runs list, which builds its filter from the values it sees.
+- This is a single path on purpose. `scripts/ingest-notion.ts` previously carried a second traversal, loop and sweep; the copies drifted, and the CLI's crawl silently returned only the root page while the admin one worked. `test/ingest-single-path.test.ts` pins the CLI to delegation.
 - **Adding a new source type (e.g. PDF) means writing one adapter** — the chunk/embed/store path is reused unchanged.
 
 ---

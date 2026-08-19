@@ -1,11 +1,13 @@
 import { type ExtendedRecordMap } from "notion-types";
 import { parsePageId } from "notion-utils";
+import pMap from "p-map";
 
 import type { ModelProvider } from "../shared/model-provider";
 import { resolveEmbeddingSpace } from "../core/embedding-spaces";
 import { supabaseClient } from "../core/supabase";
 import { getSiteConfig } from "../get-config-value";
 import { notion } from "../notion-api";
+import { withRateLimitRetry } from "../notion-rate-limit";
 import {
   createEmptyRunStats,
   type EmbedBatchOptions,
@@ -40,6 +42,19 @@ type ManualNotionScope = "workspace" | "selected";
 
 const LINKED_PAGE_MAX_PAGES = 250;
 const LINKED_PAGE_MAX_DEPTH = 4;
+
+/**
+ * How many pages to ingest at once.
+ *
+ * Kept low on purpose. Notion 429s even at concurrency 1 on a long traversal (see
+ * `withRateLimitRetry`), and every retry costs more wall-clock than the parallelism saves,
+ * so this trades a small speedup for a rate-limit budget rather than chasing throughput.
+ * Ingestion is a background job in every caller; nothing waits on it interactively.
+ */
+const INGEST_CONCURRENCY = Math.max(
+  1,
+  Number.parseInt(process.env.INGEST_CONCURRENCY ?? "2", 10),
+);
 
 let _workspaceRootPageId: string | undefined;
 
@@ -80,6 +95,14 @@ function normalizeNotionPageId(value?: string): string | undefined {
 }
 
 type ManualIngestionBase = {
+  /**
+   * Where this run came from, recorded as the ingest run's `source`.
+   *
+   * The admin runs list builds its source filter from the distinct values seen, so a caller
+   * that supplies its own label becomes filterable without a schema change. Defaults keep
+   * admin-initiated runs on the values they have always used.
+   */
+  source?: string;
   ingestionType?: "full" | "partial";
   embeddingProvider?: ModelProvider;
   embeddingModel?: string | null;
@@ -333,6 +356,7 @@ async function runNotionPageIngestion({
   ingestionType,
   includeLinkedPages = true,
   embeddingOptions,
+  source = "manual/notion-page",
   emit,
 }: {
   scope?: ManualNotionScope;
@@ -341,6 +365,7 @@ async function runNotionPageIngestion({
   ingestionType: "full" | "partial";
   includeLinkedPages?: boolean;
   embeddingOptions: EmbedBatchOptions;
+  source?: string;
   emit: EmitFn;
 }): Promise<void> {
   const requestedScope =
@@ -364,7 +389,7 @@ async function runNotionPageIngestion({
   const pageUrl = getPageUrl(rootPageId);
   const isFull = ingestionType === "full";
   const runHandle: IngestRunHandle = await startIngestRun({
-    source: "manual/notion-page",
+    source,
     ingestion_type: ingestionType,
     metadata: {
       pageId: rootPageId,
@@ -541,104 +566,118 @@ async function runNotionPageIngestion({
     });
   }
 
-  const processedPages: string[] = [];
+  // Deduplicate up front: the traversal can surface the same page by more than one route,
+  // and with pages in flight concurrently a running "have I seen this" list would race.
+  const seenPageIds = new Set<string>();
+  const uniquePages = candidatePages.filter((candidate) => {
+    if (seenPageIds.has(candidate.pageId)) return false;
+    seenPageIds.add(candidate.pageId);
+    return true;
+  });
+
+  // `queue.current` reports how many pages have been picked up, not an index, because
+  // completion order is no longer the traversal order.
+  let queuePosition = 0;
 
   try {
-    for (let index = 0; index < candidatePages.length; index += 1) {
-      const candidate = candidatePages[index]!;
-      const currentPageId = candidate.pageId;
+    await pMap(
+      uniquePages,
+      async (candidate) => {
+        const currentPageId = candidate.pageId;
 
-      if (processedPages.includes(currentPageId)) {
-        continue;
-      }
-      processedPages.push(currentPageId);
+        let recordMap: ExtendedRecordMap | null = null;
 
-      let recordMap: ExtendedRecordMap | null = null;
+        const { canonicalId } = deriveNotionDocIdentifiers(currentPageId);
 
-      const { canonicalId } = deriveNotionDocIdentifiers(currentPageId);
+        try {
+          await markAttempt(supabaseClient, canonicalId);
+          await emit({
+            type: "log",
+            level: "info",
+            message: `Fetching Notion page ${currentPageId}...`,
+          });
 
-      try {
-        await markAttempt(supabaseClient, canonicalId);
+          // Retry 429s rather than dropping the page: a page skipped here leaves the corpus
+          // silently short, which is exactly the failure this job exists to prevent.
+          recordMap = await withRateLimitRetry(() =>
+            notion.getPage(currentPageId),
+          );
+        } catch (err) {
+          stats.errorCount += 1;
+          const message = err instanceof Error ? err.message : String(err);
+          errorLogs.push({
+            context: "fatal",
+            doc_id: currentPageId,
+            message,
+          });
+          await markFetchFailure(supabaseClient, canonicalId, err);
+          await emit({
+            type: "log",
+            level: "error",
+            message: `Failed to load Notion page ${currentPageId}: ${message}`,
+          });
+          return;
+        }
+
+        if (!recordMap) {
+          stats.documentsSkipped += 1;
+          await emit({
+            type: "log",
+            level: "warn",
+            message: `Unable to load Notion page ${currentPageId}; skipping.`,
+          });
+          return;
+        }
+
+        if (Object.keys(recordMap.block ?? {}).length === 0) {
+          stats.errorCount += 1;
+          const apiBaseUrl =
+            process.env.NOTION_API_BASE_URL ?? "https://www.notion.so/api/v3";
+          await emit({
+            type: "log",
+            level: "error",
+            message: `Notion API returned no data for page ${currentPageId}. Check that NOTION_API_BASE_URL is correct (currently: ${apiBaseUrl}). The page may be private or the endpoint may be unreachable.`,
+          });
+          return;
+        }
+
+        const title = getPageTitle(recordMap, currentPageId);
+
+        queuePosition += 1;
         await emit({
-          type: "log",
-          level: "info",
-          message: `Fetching Notion page ${currentPageId}...`,
-        });
-
-        recordMap = await notion.getPage(currentPageId);
-      } catch (err) {
-        stats.errorCount += 1;
-        const message = err instanceof Error ? err.message : String(err);
-        errorLogs.push({
-          context: "fatal",
-          doc_id: currentPageId,
-          message,
-        });
-        await markFetchFailure(supabaseClient, canonicalId, err);
-        await emit({
-          type: "log",
-          level: "error",
-          message: `Failed to load Notion page ${currentPageId}: ${message}`,
-        });
-        continue;
-      }
-
-      if (!recordMap) {
-        stats.documentsSkipped += 1;
-        await emit({
-          type: "log",
-          level: "warn",
-          message: `Unable to load Notion page ${currentPageId}; skipping.`,
-        });
-        continue;
-      }
-
-      if (Object.keys(recordMap.block ?? {}).length === 0) {
-        stats.errorCount += 1;
-        const apiBaseUrl =
-          process.env.NOTION_API_BASE_URL ?? "https://www.notion.so/api/v3";
-        await emit({
-          type: "log",
-          level: "error",
-          message: `Notion API returned no data for page ${currentPageId}. Check that NOTION_API_BASE_URL is correct (currently: ${apiBaseUrl}). The page may be private or the endpoint may be unreachable.`,
-        });
-        continue;
-      }
-
-      const title = getPageTitle(recordMap, currentPageId);
-
-      await emit({
-        type: "queue",
-        current: index + 1,
-        total: candidatePages.length,
-        pageId: currentPageId,
-        title: title ?? null,
-      });
-
-      try {
-        await ingestNotionPage({
+          type: "queue",
+          current: queuePosition,
+          total: uniquePages.length,
           pageId: currentPageId,
-          recordMap,
-          ingestionType,
-          stats,
-          emit,
-          embeddingOptions,
+          title: title ?? null,
         });
-      } catch (err) {
-        stats.errorCount += 1;
-        const message = err instanceof Error ? err.message : String(err);
-        errorLogs.push({
-          context: "fatal",
-          doc_id: currentPageId,
-          message,
-        });
-        await emit({
-          type: "log",
-          level: "error",
-          message: `Failed to ingest Notion page ${currentPageId}: ${message}`,
-        });
-      }
-    }
+
+        try {
+          await ingestNotionPage({
+            pageId: currentPageId,
+            recordMap,
+            ingestionType,
+            stats,
+            emit,
+            embeddingOptions,
+          });
+        } catch (err) {
+          stats.errorCount += 1;
+          const message = err instanceof Error ? err.message : String(err);
+          errorLogs.push({
+            context: "fatal",
+            doc_id: currentPageId,
+            message,
+          });
+          await emit({
+            type: "log",
+            level: "error",
+            message: `Failed to ingest Notion page ${currentPageId}: ${message}`,
+          });
+        }
+      },
+      { concurrency: INGEST_CONCURRENCY },
+    );
 
     // Full workspace runs only: deleted pages vanish from the traversal
     // without a 404, so sweep still-"active" docs the run never visited.
@@ -661,18 +700,18 @@ async function runNotionPageIngestion({
     if (status === "success") {
       if (requestedScope === "workspace") {
         finalMessage =
-          processedPages.length === 0
+          uniquePages.length === 0
             ? "No Notion pages were available to ingest."
             : stats.errorCount > 0
               ? `Manual Notion ingestion completed with failures (${stats.errorCount}).`
-              : `Processed ${processedPages.length} Notion page(s) workspace-wide; updated ${updatedPages}, skipped ${skippedPages}.`;
+              : `Processed ${uniquePages.length} Notion page(s) workspace-wide; updated ${updatedPages}, skipped ${skippedPages}.`;
       } else if (includeLinkedPages) {
         finalMessage =
-          processedPages.length === 0
+          uniquePages.length === 0
             ? "No Notion pages were available to ingest."
             : stats.errorCount > 0
               ? `Manual Notion ingestion completed with failures (${stats.errorCount}).`
-              : `Processed ${processedPages.length} Notion page(s); updated ${updatedPages}, skipped ${skippedPages}.`;
+              : `Processed ${uniquePages.length} Notion page(s); updated ${updatedPages}, skipped ${skippedPages}.`;
       } else {
         finalMessage =
           updatedPages > 0
@@ -747,10 +786,11 @@ async function runUrlIngestion(
   ingestionType: "full" | "partial",
   embeddingOptions: EmbedBatchOptions,
   emit: EmitFn,
+  source = "manual/url",
 ): Promise<void> {
   const parsedUrl = new URL(url);
   const runHandle: IngestRunHandle = await startIngestRun({
-    source: "manual/url",
+    source,
     ingestion_type: ingestionType,
     metadata: {
       url,
@@ -877,11 +917,18 @@ export async function runManualIngestion(
       ingestionType,
       includeLinkedPages,
       embeddingOptions,
+      source: request.source,
       emit,
     });
     return;
   }
 
   const ingestionType = request.ingestionType ?? "partial";
-  await runUrlIngestion(request.url, ingestionType, embeddingOptions, emit);
+  await runUrlIngestion(
+    request.url,
+    ingestionType,
+    embeddingOptions,
+    emit,
+    request.source,
+  );
 }

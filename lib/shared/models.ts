@@ -444,12 +444,20 @@ export function getLcChunksViewName(embeddingSpaceId: string): string {
   return `lc_chunks_${embeddingSpaceId}`;
 }
 
-export function getMatchChunksFunctionName(embeddingSpaceId: string): string {
-  return `match_native_chunks_${embeddingSpaceId}`;
+// The RPC version is a separate axis from the embedding space id, whose own
+// trailing `_v1` denotes the embedding model. Callers that omit it stay on v1.
+export function getMatchChunksFunctionName(
+  embeddingSpaceId: string,
+  rpcVersion = "1",
+): string {
+  return `match_native_chunks_${embeddingSpaceId.replace(/_v\d+$/, "")}_v${rpcVersion}`;
 }
 
-export function getMatchLcChunksFunctionName(embeddingSpaceId: string): string {
-  return `match_langchain_chunks_${embeddingSpaceId}`;
+export function getMatchLcChunksFunctionName(
+  embeddingSpaceId: string,
+  rpcVersion = "1",
+): string {
+  return `match_langchain_chunks_${embeddingSpaceId.replace(/_v\d+$/, "")}_v${rpcVersion}`;
 }
 
 export type EmbeddingModelId = string;

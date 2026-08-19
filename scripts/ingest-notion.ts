@@ -1,90 +1,53 @@
 // scripts/ingest-notion.ts
-import { NotionAPI } from "notion-client";
-import { type ExtendedRecordMap } from "notion-types";
-import { getAllPagesInSpace } from "notion-utils";
-import pMap from "p-map";
-
-import { rootNotionPageId as configRootNotionPageId } from "../lib/config";
-import { resolveEmbeddingSpace } from "../lib/core/embedding-spaces";
-import { supabaseClient } from "../lib/core/supabase";
+//
+// Thin CLI over the shared manual-ingestion path (`lib/admin/manual-ingestor.ts`).
+//
+// This script used to carry its own traversal, its own per-page loop, its own run
+// bookkeeping and its own sweep — a second implementation of what the admin dashboard
+// already does. The copies had drifted, and only one of them worked:
+//
+//   - It built its own `new NotionAPI()`, ignoring NOTION_API_BASE_URL, so it hit
+//     www.notion.so/api/v3 — which answers 403 without a token, and no token is sent.
+//   - It handed a bare `notion.getPage` to `getAllPagesInSpace`. Record-map entries come
+//     back doubly nested (`{value: {value: …}}`); notion-utils reads `block[key].value.type`,
+//     saw `undefined` on every block, and matched zero page-like blocks. The workspace
+//     crawl returned one page — the root — and called that the workspace.
+//
+// Both neighbours normalize (`lib/get-site-map.ts` wraps its fetcher;
+// `lib/admin/manual-ingestor.ts` reads through `unwrapRecordValue`), and this was the one
+// caller that did neither. Rather than repair a second traversal, the CLI now calls the
+// one that works, so there is a single ingest path to keep correct.
 import {
-  type EmbedBatchOptions,
-  type IngestRunErrorLog,
-  type IngestRunStats,
-} from "../lib/rag";
-import { debugIngestionLog } from "../lib/rag/debug";
-import {
-  appendSweepRunLogs,
-  formatSweepSummary,
-  sweepUnvisitedDocuments,
-} from "../lib/rag/missing-sweep";
-import {
-  formatRunSummary,
-  ingestPreparedDocument,
-  type IngestReporter,
-  withIngestRun,
-} from "../lib/rag/pipeline";
-import {
-  markAttempt,
-  markFetchFailure,
-} from "../lib/rag/rag-document-lifecycle";
-import {
-  deriveNotionDocIdentifiers,
-  prepareNotionPageDocument,
-} from "../lib/rag/sources/notion";
+  type ManualIngestionEvent,
+  type ManualIngestionRequest,
+  runManualIngestion,
+} from "../lib/admin/manual-ingestor";
+import { formatRunSummary } from "../lib/rag/pipeline";
 
-const notion = new NotionAPI();
-const DEFAULT_EMBEDDING_SELECTION = resolveEmbeddingSpace({
-  embeddingSpaceId: process.env.EMBEDDING_SPACE_ID ?? null,
-  embeddingModelId: process.env.EMBEDDING_MODEL ?? null,
-  provider: process.env.EMBEDDING_PROVIDER ?? process.env.LLM_PROVIDER ?? null,
-  version: process.env.EMBEDDING_VERSION ?? null,
-});
-const EMBEDDING_OPTIONS: EmbedBatchOptions = {
-  provider: DEFAULT_EMBEDDING_SELECTION.provider,
-  embeddingModelId: DEFAULT_EMBEDDING_SELECTION.embeddingModelId,
-  embeddingSpaceId: DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
-  version: DEFAULT_EMBEDDING_SELECTION.version,
-};
-const DEFAULT_ROOT_PAGE_ID = configRootNotionPageId;
+type RunModeType = "full" | "partial";
+type CompleteEvent = Extract<ManualIngestionEvent, { type: "complete" }>;
 
-const consoleReporter: IngestReporter = {
-  log: (level, message) => {
-    if (level === "info") {
-      console.log(message);
-    } else if (level === "warn") {
-      console.warn(message);
-    } else {
-      console.error(message);
-    }
-  },
-};
-
-type RunMode = {
-  type: "full" | "partial";
-};
-
-function parseRunMode(defaultType: "full" | "partial"): RunMode {
+function parseRunMode(defaultType: RunModeType): RunModeType {
   const args = process.argv.slice(2);
-  let mode: RunMode = { type: defaultType };
+  let mode: RunModeType = defaultType;
 
   for (const arg_ of args) {
     const arg = arg_!;
 
     if (arg === "--full" || arg === "--mode=full") {
-      mode = { type: "full" };
+      mode = "full";
       continue;
     }
 
     if (arg === "--partial" || arg === "--mode=partial") {
-      mode = { type: "partial" };
+      mode = "partial";
       continue;
     }
 
     if (arg.startsWith("--mode=")) {
       const value = arg.split("=")[1];
       if (value === "full" || value === "partial") {
-        mode = { type: value };
+        mode = value;
       }
       continue;
     }
@@ -122,167 +85,107 @@ function parseTargetPageId(): string | null {
 
   return null;
 }
-const INGEST_CONCURRENCY = Math.max(
-  1,
-  Number.parseInt(process.env.INGEST_CONCURRENCY ?? "2", 10),
-);
 
-async function ingestPage(
-  pageId: string,
-  recordMap: ExtendedRecordMap,
-  stats: IngestRunStats,
-  ingestionType: RunMode["type"],
-): Promise<void> {
-  const doc = prepareNotionPageDocument(recordMap, pageId);
-  await ingestPreparedDocument({
-    doc,
-    ingestionType,
-    embedding: EMBEDDING_OPTIONS,
-    stats,
-    reporter: consoleReporter,
-  });
-}
+function buildRequest(
+  ingestionType: RunModeType,
+  targetPageId: string | null,
+): ManualIngestionRequest {
+  // `source` is the ingest-runs filter facet, so a CLI run stays distinguishable from one
+  // started in the dashboard even though both take the same code path.
+  const base = { ingestionType, source: "cli/notion-page" } as const;
 
-async function ingestWorkspace(
-  rootPageId: string,
-  stats: IngestRunStats,
-  errorLogs: IngestRunErrorLog[],
-  ingestionType: RunMode["type"],
-) {
-  console.log(`\nFetching all pages in Notion space (root: ${rootPageId})...`);
-  const pageMap = await getAllPagesInSpace(
-    rootPageId,
-    undefined,
-    async (pageId) => {
-      const { canonicalId } = deriveNotionDocIdentifiers(pageId);
-      await markAttempt(supabaseClient, canonicalId);
-      try {
-        return await notion.getPage(pageId);
-      } catch (err) {
-        await markFetchFailure(supabaseClient, canonicalId, err);
-        throw err;
-      }
-    },
-  );
-
-  console.log(`Found ${Object.keys(pageMap).length} total pages.`);
-
-  const entries = Object.entries(pageMap).filter(
-    (entry): entry is [string, ExtendedRecordMap] => Boolean(entry[1]),
-  );
-
-  if (entries.length === 0) {
-    console.log("No pages to ingest.");
-    return;
+  if (targetPageId) {
+    return {
+      ...base,
+      mode: "notion_page",
+      scope: "selected",
+      pageIds: [targetPageId],
+      includeLinkedPages: false,
+    };
   }
 
-  await pMap(
-    entries,
-    async ([pageId, recordMap]) => {
-      try {
-        await ingestPage(pageId, recordMap, stats, ingestionType);
-      } catch (err) {
-        stats.errorCount += 1;
-        const message =
-          err instanceof Error ? err.message : JSON.stringify(err);
-        errorLogs.push({
-          doc_id: pageId,
-          message,
-        });
-        console.error(`Failed to ingest Notion page ${pageId}: ${message}`);
-      }
-    },
-    { concurrency: INGEST_CONCURRENCY },
-  );
-}
-
-async function ingestSinglePage(
-  pageId: string,
-  stats: IngestRunStats,
-  errorLogs: IngestRunErrorLog[],
-  ingestionType: RunMode["type"],
-) {
-  debugIngestionLog("single-page-mode", { pageId });
-  const { canonicalId } = deriveNotionDocIdentifiers(pageId);
-  try {
-    await markAttempt(supabaseClient, canonicalId);
-    const recordMap = await notion.getPage(pageId);
-    await ingestPage(pageId, recordMap, stats, ingestionType);
-  } catch (err) {
-    stats.errorCount += 1;
-    const message = err instanceof Error ? err.message : JSON.stringify(err);
-    errorLogs.push({
-      doc_id: pageId,
-      message,
-    });
-    await markFetchFailure(supabaseClient, canonicalId, err);
-    console.error(`Failed to ingest Notion page ${pageId}: ${message}`);
-  }
+  // Workspace scope resolves the root from NOTION_ROOT_PAGE_ID / site.config itself.
+  return { ...base, mode: "notion_page", scope: "workspace" };
 }
 
 async function main() {
-  const rootPageId = process.env.NOTION_ROOT_PAGE_ID ?? DEFAULT_ROOT_PAGE_ID;
-  if (!rootPageId) {
-    throw new Error(
-      "Missing Notion root page ID. Set NOTION_ROOT_PAGE_ID or configure it in site.config.ts.",
-    );
-  }
+  const ingestionType = parseRunMode("full");
+  const targetPageId = parseTargetPageId();
+  const request = buildRequest(ingestionType, targetPageId);
 
   console.log("Starting Notion ingestion...");
+  if (targetPageId) {
+    console.log(`[ingest-notion] single page: ${targetPageId}`);
+  }
+  console.log(`[ingest-notion] mode: ${ingestionType}`);
 
-  const mode = parseRunMode("full");
-  const targetPageId = parseTargetPageId();
+  const started = Date.now();
+  const outcome: { completion: CompleteEvent | null } = { completion: null };
+
+  const emit = (event: ManualIngestionEvent) => {
+    switch (event.type) {
+      case "run":
+        if (event.runId) console.log(`[ingest-notion] run ${event.runId}`);
+        break;
+      
+      case "log":
+        if (event.level === "error") console.error(event.message);
+        else if (event.level === "warn") console.warn(event.message);
+        else console.log(event.message);
+        break;
+      
+      case "queue":
+        console.log(
+          `[${event.current}/${event.total}] ${event.title ?? event.pageId}`,
+        );
+        break;
+      
+      case "complete":
+        outcome.completion = event;
+        break;
+      
+      // `progress` drives the dashboard's bar; it says nothing a log line does not.
+      default:
+        break;
+    }
+  };
 
   try {
-    const result = await withIngestRun(
-      {
-        source: "notion",
-        ingestion_type: mode.type,
-        metadata: {
-          rootPageId,
-          embeddingProvider: DEFAULT_EMBEDDING_SELECTION.provider,
-          embeddingSpaceId: DEFAULT_EMBEDDING_SELECTION.embeddingSpaceId,
-          embeddingModelId: DEFAULT_EMBEDDING_SELECTION.embeddingModelId,
-          embeddingVersion: DEFAULT_EMBEDDING_SELECTION.version,
-        },
-      },
-      async ({ stats, errorLogs }) => {
-        if (targetPageId) {
-          console.log("[ingest-notion] ingesting single page", {
-            targetPageId,
-          });
-          await ingestSinglePage(targetPageId, stats, errorLogs, mode.type);
-          return;
-        }
-
-        // Captured before the traversal so every markAttempt in this run
-        // lands at or after it; anything older was not visited by this run.
-        const runStartedAt = new Date().toISOString();
-        await ingestWorkspace(rootPageId, stats, errorLogs, mode.type);
-
-        // Full workspace runs only: deleted pages vanish from the traversal
-        // without a 404, so sweep still-"active" docs the run never visited.
-        // Single-page/partial runs must never sweep, and a traversal that
-        // threw has already aborted before this point.
-        if (mode.type === "full") {
-          const sweep = await sweepUnvisitedDocuments(supabaseClient, {
-            runStartedAt,
-          });
-          appendSweepRunLogs(sweep, stats, errorLogs);
-          console.log(formatSweepSummary(sweep));
-        }
-      },
-    );
-
-    console.log(formatRunSummary(result));
-
-    if (result.stats.errorCount > 0) {
-      process.exitCode = 1;
-    }
+    await runManualIngestion(request, emit);
   } catch (err) {
     console.error("\n--- Ingestion Failed ---");
     console.error(err);
     throw err;
+  }
+
+  const completion = outcome.completion;
+  if (!completion) {
+    // runManualIngestion always emits `complete`, including on failure. Reaching here means
+    // the contract changed; treat it as a failure rather than reporting a success we cannot
+    // substantiate.
+    console.error(
+      "\n--- Ingestion produced no completion event; treating as failed ---",
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  const { status, stats, message } = completion;
+  // `formatRunSummary` reads only stats/status/durationMs. Per-document failures already
+  // reached the console as error-level log events while they happened, and the run record
+  // holds them; the completion event does not carry them again.
+  console.log(
+    formatRunSummary({
+      stats,
+      status,
+      durationMs: Date.now() - started,
+      errorLogs: [],
+    }),
+  );
+  if (message) console.log(message);
+
+  if (status === "failed" || stats.errorCount > 0) {
+    process.exitCode = 1;
   }
 }
 
