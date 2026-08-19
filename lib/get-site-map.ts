@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { type ExtendedRecordMap } from "notion-types";
-import { getAllPagesInSpace, getPageProperty, uuidToId } from "notion-utils";
+import { getAllPagesInSpace, uuidToId } from "notion-utils";
 import pMemoize from "p-memoize";
 
 import type * as types from "./types";
@@ -159,6 +159,79 @@ function resolveCollectionDataId(
   return collectionId;
 }
 
+// ---------------------------------------------------------------------------
+// Visibility guard
+//
+// This crawl used to filter pages on a Notion "Public" checkbox. No collection
+// schema in the space has ever defined that column (measured 2026-08-18: 162
+// collection entries, zero matches), so getPageProperty always returned
+// undefined and the `?? true` default published every page — a filter that
+// could never fail a check because it never matched anything.
+//
+// The filter is gone. Page visibility is not modelled in Notion, and this map
+// was never the place to enforce it anyway: omitting a page here only drops its
+// slug, sitemap.xml entry and feed entry — resolveNotionPage still serves the
+// page at its UUID URL. Publishing every crawled page is therefore the honest
+// behaviour, and the guard below fails loudly if someone adds a visibility
+// column to Notion expecting this crawl to honour it.
+// ---------------------------------------------------------------------------
+const VISIBILITY_PROPERTY_NAMES = new Set([
+  "public",
+  "ispublic",
+  "published",
+  "publish",
+  "private",
+  "draft",
+  "unlisted",
+  "visibility",
+  "visible",
+  "hidden",
+  "nopublish",
+]);
+
+// Matches lib/rag/notion-metadata.ts' normalizePropertyName so "_is_public",
+// "Is Public" and "public" all collapse to the same key.
+function normalizeSchemaPropertyName(name: string): string {
+  return name
+    .trim()
+    .replace(/^_+/, "")
+    .replaceAll(/[\s_-]+/g, "")
+    .replaceAll(/[.:]+/g, "")
+    .toLowerCase();
+}
+
+/**
+ * Collect schema column names that look like a page-visibility flag.
+ *
+ * Reads collection schemas through unwrapValue, so it keeps working whether the
+ * v3 API hands back single- or doubly-nested collection records — the double
+ * nesting is what independently made the old "Public" filter unreadable.
+ *
+ * Expected to return [] against the live space. A non-empty result means Notion
+ * now expresses visibility and this crawl is ignoring it.
+ */
+export function findVisibilitySchemaProperties(
+  recordMap: Pick<ExtendedRecordMap, "collection">,
+): string[] {
+  const found = new Set<string>();
+
+  for (const rawCollection of Object.values(recordMap.collection ?? {})) {
+    const collection = unwrapValue<{
+      schema?: Record<string, { name?: string | null } | null>;
+    }>(rawCollection);
+
+    for (const schema of Object.values(collection?.schema ?? {})) {
+      const name = schema?.name;
+      if (!name) continue;
+      if (VISIBILITY_PROPERTY_NAMES.has(normalizeSchemaPropertyName(name))) {
+        found.add(name);
+      }
+    }
+  }
+
+  return [...found].toSorted();
+}
+
 // Notion 429s even at concurrency 1 once a sitemap crawl exceeds a few dozen
 // pages; skipped pages silently fall back to UUID URLs, so retry with backoff
 // instead of dropping them.
@@ -264,6 +337,71 @@ const getPage = async (pageId: string) => {
   return normalizeBlocksForTraversal(recordMap);
 };
 
+/**
+ * Map every crawled page to its canonical slug.
+ *
+ * Every page that loaded gets a slug — there is no visibility filter here, by
+ * design (see the visibility guard above).
+ */
+export function buildCanonicalPageMap(
+  pageMap: Record<string, ExtendedRecordMap | null | undefined>,
+): Record<string, string> {
+  const map: Record<string, string> = {};
+
+  for (const pageId of Object.keys(pageMap)) {
+    const recordMap = pageMap[pageId];
+    if (!recordMap) {
+      // Page failed to load (e.g. Notion API 429 rate limit). Skip rather
+      // than aborting sitemap generation entirely.
+      console.warn(`Skipping page "${pageId}" — recordMap unavailable`);
+      continue;
+    }
+
+    const canonicalPageId = getCanonicalPageId(pageId, recordMap, { uuid })!;
+
+    if (map[canonicalPageId]) {
+      // Two pages with the same title slugify to the same canonical id.
+      // Disambiguate with a short id suffix instead of dropping the page
+      // (a dropped page would fall back to a UUID URL).
+      const suffixed = `${canonicalPageId}-${uuidToId(pageId).slice(0, 8)}`;
+      console.warn("duplicate canonical page id — disambiguating", {
+        canonicalPageId,
+        suffixed,
+        pageId,
+        existingPageId: map[canonicalPageId],
+      });
+      map[suffixed] = pageId;
+    } else {
+      map[canonicalPageId] = pageId;
+    }
+  }
+
+  return map;
+}
+
+// Build-time half of the visibility guard: the crawl publishes every page, so
+// say so out loud the moment Notion starts carrying a visibility column.
+// `pnpm check:sitemap-visibility` is the enforcing version.
+function warnOnUnhonouredVisibilityProperties(
+  pageMap: Record<string, ExtendedRecordMap | null | undefined>,
+): void {
+  const found = new Set<string>();
+  for (const recordMap of Object.values(pageMap)) {
+    if (!recordMap) continue;
+    for (const name of findVisibilitySchemaProperties(recordMap)) {
+      found.add(name);
+    }
+  }
+
+  if (found.size > 0) {
+    console.warn(
+      `[sitemap] Notion now defines visibility propert${found.size === 1 ? "y" : "ies"} ` +
+        `${[...found].toSorted().join(", ")}, but the sitemap publishes every crawled page. ` +
+        "Wire the property into buildCanonicalPageMap or drop the column.",
+    );
+  }
+}
+
 async function getAllPagesImpl(
   rootNotionPageId: string,
   rootNotionSpaceId?: string,
@@ -293,52 +431,8 @@ async function getAllPagesImpl(
     { concurrency: 1 },
   );
 
-  const canonicalPageMap = Object.keys(pageMap).reduce(
-    (map: Record<string, string>, pageId: string) => {
-      const recordMap = pageMap[pageId];
-      if (!recordMap) {
-        // Page failed to load (e.g. Notion API 429 rate limit). Skip rather
-        // than aborting sitemap generation entirely.
-        console.warn(`Skipping page "${pageId}" — recordMap unavailable`);
-        return map;
-      }
-
-      const block = recordMap.block[pageId]?.value;
-      if (
-        !(getPageProperty<boolean | null>("Public", block!, recordMap) ?? true)
-      ) {
-        return map;
-      }
-
-      const canonicalPageId = getCanonicalPageId(pageId, recordMap, {
-        uuid,
-      })!;
-
-      if (map[canonicalPageId]) {
-        // Two pages with the same title slugify to the same canonical id.
-        // Disambiguate with a short id suffix instead of dropping the page
-        // (a dropped page would fall back to a UUID URL).
-        const suffixed = `${canonicalPageId}-${uuidToId(pageId).slice(0, 8)}`;
-        console.warn("duplicate canonical page id — disambiguating", {
-          canonicalPageId,
-          suffixed,
-          pageId,
-          existingPageId: map[canonicalPageId],
-        });
-
-        return {
-          ...map,
-          [suffixed]: pageId,
-        };
-      } else {
-        return {
-          ...map,
-          [canonicalPageId]: pageId,
-        };
-      }
-    },
-    {},
-  );
+  const canonicalPageMap = buildCanonicalPageMap(pageMap);
+  warnOnUnhonouredVisibilityProperties(pageMap);
 
   const result = { pageMap, canonicalPageMap };
   writeSitemapCache(result);
