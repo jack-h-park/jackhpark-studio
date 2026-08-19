@@ -2,6 +2,7 @@ import {
   type EmbeddingModelSelectionInput,
   resolveEmbeddingSpace,
 } from "@/lib/core/embedding-spaces";
+import { resolveRagMatchRpcVersion } from "@/lib/core/rag-match-version";
 import {
   getLcChunksViewName,
   getMatchChunksFunctionName,
@@ -36,10 +37,16 @@ export function getLcChunksView(selection?: Selection): string {
 
 export function getRagMatchFunction(selection?: Selection): string {
   const resolved = resolveSelection(selection);
-  return getMatchChunksFunctionName(resolved.embeddingSpaceId);
+  return getMatchChunksFunctionName(
+    resolved.embeddingSpaceId,
+    resolveRagMatchRpcVersion(),
+  );
 }
 
 export function getLcMatchFunction(selection?: Selection): string {
   const resolved = resolveSelection(selection);
-  return getMatchLcChunksFunctionName(resolved.embeddingSpaceId);
+  return getMatchLcChunksFunctionName(
+    resolved.embeddingSpaceId,
+    resolveRagMatchRpcVersion(),
+  );
 }
