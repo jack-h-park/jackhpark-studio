@@ -9,12 +9,33 @@
 /** The ingest cron is daily; a day and a half allows one missed run plus clock drift. */
 export const DEFAULT_STALE_AFTER_HOURS = 36;
 
+/**
+ * The lanes the scheduled ingest covers, keyed by the `scope` their runs record.
+ *
+ * A lane is watched only if something schedules it. Adding one here without scheduling it
+ * produces an alarm that is right on day one and ignored by day three, so the two changes
+ * belong together.
+ */
+export const FRESHNESS_LANES = {
+  workspace: "Notion workspace",
+  interview_bank: "Interview Q&A bank",
+} as const;
+
+export type FreshnessLane = keyof typeof FRESHNESS_LANES;
+
 export type FreshnessVerdict = {
   stale: boolean;
   /** Null when nothing has ever succeeded. */
   hoursSinceLastSuccess: number | null;
   reason: "never-succeeded" | "stale" | "fresh";
 };
+
+/** True when any lane is stale — what an alarm should act on. */
+export function anyLaneStale(
+  verdicts: Partial<Record<FreshnessLane, FreshnessVerdict>>,
+): boolean {
+  return Object.values(verdicts).some((verdict) => verdict?.stale === true);
+}
 
 export function hoursBetween(iso: string | null, now: number): number | null {
   if (!iso) return null;

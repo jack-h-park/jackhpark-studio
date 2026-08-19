@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, it } from "node:test";
 
 import {
+  anyLaneStale,
   DEFAULT_STALE_AFTER_HOURS,
+  FRESHNESS_LANES,
+  type FreshnessLane,
   hoursBetween,
   judgeFreshness,
   resolveStaleAfterHours,
@@ -85,5 +90,41 @@ void describe("hoursBetween", () => {
     assert.equal(hoursBetween(hoursAgo(3), NOW), 3);
     assert.equal(hoursBetween(null, NOW), null);
     assert.equal(hoursBetween("nonsense", NOW), null);
+  });
+});
+
+void describe("freshness lanes", () => {
+  void it("watches every lane the scheduled ingest covers", () => {
+    // A lane the cron does not run would alarm for ever; a lane it runs but nobody watches
+    // fails silently. Both are the bug, so the two lists must agree.
+    const cronSource = readFileSync(
+      path.join(process.cwd(), "app/api/internal/rag/ingest/route.ts"),
+      "utf8",
+    );
+    assert.match(cronSource, /mode: "interview_bank"/);
+    assert.match(cronSource, /scope: "workspace"/);
+    assert.deepEqual(Object.keys(FRESHNESS_LANES).toSorted(), [
+      "interview_bank",
+      "workspace",
+    ]);
+  });
+
+  void it("records a scope on bank runs so the lane can find them", () => {
+    // The lane query filters `metadata->>scope`. A run without one is invisible to it.
+    const ingestor = readFileSync(
+      path.join(process.cwd(), "lib/admin/manual-ingestor.ts"),
+      "utf8",
+    );
+    assert.match(ingestor, /scope: "interview_bank"/);
+  });
+
+  void it("is stale when any lane is stale", () => {
+    const fresh = judgeFreshness({ lastSuccessAt: hoursAgo(2), now: NOW });
+    const stale = judgeFreshness({ lastSuccessAt: hoursAgo(200), now: NOW });
+    assert.equal(anyLaneStale({ workspace: fresh, interview_bank: fresh }), false);
+    assert.equal(anyLaneStale({ workspace: fresh, interview_bank: stale }), true);
+    assert.equal(anyLaneStale({ workspace: stale, interview_bank: fresh }), true);
+    // An empty report is not evidence of health.
+    assert.equal(anyLaneStale({} as Partial<Record<FreshnessLane, never>>), false);
   });
 });
