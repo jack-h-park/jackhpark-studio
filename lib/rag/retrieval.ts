@@ -1,19 +1,26 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { resolveRagMatchRpcVersion } from "@/lib/core/rag-match-version";
+import { getLcMatchFunction, getRagMatchFunction } from "@/lib/core/rag-tables";
 
 export type RagRetrievalMode = "native" | "langchain";
 export type RagEmbeddingProvider = "openai" | "gemini";
 export type RagFilter = Record<string, unknown>;
 
+/**
+ * NOTE: nothing imports this module today — chat retrieves through
+ * `lib/server/langchain/rag-retrieval-chain.ts`.
+ *
+ * It shared the version resolver but still hardcoded its own provider→suffix mapping, so the
+ * two name derivations could still drift on everything except the version. Both now come
+ * from `lib/core/rag-tables`, which is also where the environment is read.
+ */
 function getMatchFunctionName(
   mode: RagRetrievalMode,
   provider: RagEmbeddingProvider,
 ): string {
-  const suffix = provider === "gemini" ? "gemini_te4" : "openai_te3s";
-  const prefix =
-    mode === "native" ? "match_native_chunks" : "match_langchain_chunks";
-  return `${prefix}_${suffix}_v${resolveRagMatchRpcVersion()}`;
+  return mode === "native"
+    ? getRagMatchFunction(provider)
+    : getLcMatchFunction(provider);
 }
 
 export interface RagRetrievalOptions {
