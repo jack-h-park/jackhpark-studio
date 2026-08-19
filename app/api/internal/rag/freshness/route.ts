@@ -3,7 +3,13 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-import { judgeFreshness, resolveStaleAfterHours } from "@/lib/rag/freshness";
+import {
+  anyLaneStale,
+  FRESHNESS_LANES,
+  type FreshnessLane,
+  judgeFreshness,
+  resolveStaleAfterHours,
+} from "@/lib/rag/freshness";
 
 /**
  * Read-only freshness report for the RAG corpus.
@@ -58,32 +64,62 @@ export async function GET(request: Request) {
 
   const staleAfterHours = resolveStaleAfterHours();
 
-  // Scoped to workspace runs on purpose. Any run at all resets a naive clock, so a
+  // One lane per thing the schedule covers, each keyed on the `scope` its runs record.
+  //
+  // Scoping matters more than it looks: any run at all resets a naive clock, so a
   // single-page CLI refresh — or a one-document verification run — would report the corpus
-  // as fresh while the job that actually keeps it current had been dead for a month. That
-  // is not hypothetical: it is what the first version of this endpoint reported.
+  // as fresh while the job that actually keeps it current had been dead for a month. That is
+  // not hypothetical; it is what the first version of this endpoint reported.
   //
-  // `scope` is recorded in the run metadata by the shared ingestion path. Rows predating it
-  // are excluded, which can only ever overstate staleness — the safe direction for an alarm.
-  //
-  // The most recent run of any kind is fetched too: "failed an hour ago" and "has not run
-  // since Tuesday" are different problems, and the number alone cannot tell them apart.
-  const [{ data: lastSuccess }, { data: lastAny }] = await Promise.all([
-    supabase
+  // Rows predating the metadata field are excluded, which can only overstate staleness — the
+  // safe direction for an alarm.
+  const lanes: Partial<
+    Record<
+      FreshnessLane,
+      ReturnType<typeof judgeFreshness> & {
+        label: string;
+        lastSuccessfulRun: Record<string, unknown> | null;
+      }
+    >
+  > = {};
+
+  for (const scope of Object.keys(FRESHNESS_LANES) as FreshnessLane[]) {
+    const { data } = await supabase
       .from("rag_ingest_runs")
       .select("id,source,status,started_at,ended_at,documents_processed")
       .eq("status", "success")
-      .eq("metadata->>scope", "workspace")
+      .eq("metadata->>scope", scope)
       .order("started_at", { ascending: false })
-      .limit(1),
-    supabase
-      .from("rag_ingest_runs")
-      .select("id,source,status,started_at,ended_at")
-      .order("started_at", { ascending: false })
-      .limit(1),
-  ]);
+      .limit(1);
 
-  const success = lastSuccess?.[0] ?? null;
+    const success = data?.[0] ?? null;
+    lanes[scope] = {
+      ...judgeFreshness({
+        lastSuccessAt:
+          (success?.ended_at as string | null) ??
+          (success?.started_at as string | null) ??
+          null,
+        staleAfterHours,
+      }),
+      label: FRESHNESS_LANES[scope],
+      lastSuccessfulRun: success
+        ? {
+            id: success.id,
+            source: success.source,
+            endedAt: success.ended_at ?? success.started_at,
+            documentsProcessed: success.documents_processed ?? null,
+          }
+        : null,
+    };
+  }
+
+  // The most recent run of any kind, for triage: "failed an hour ago" and "has not run since
+  // Tuesday" are different problems, and a staleness number alone cannot tell them apart.
+  const { data: lastAny } = await supabase
+    .from("rag_ingest_runs")
+    .select("id,source,status,started_at")
+    .order("started_at", { ascending: false })
+    .limit(1);
   const latest = lastAny?.[0] ?? null;
 
   const counts: Record<string, number> = {};
@@ -102,28 +138,11 @@ export async function GET(request: Request) {
     .order("last_ingested_at", { ascending: true })
     .limit(1);
 
-  const verdict = judgeFreshness({
-    lastSuccessAt:
-      (success?.ended_at as string | null) ??
-      (success?.started_at as string | null) ??
-      null,
-    staleAfterHours,
-  });
-
   return NextResponse.json({
     ok: true,
-    stale: verdict.stale,
-    reason: verdict.reason,
+    stale: anyLaneStale(lanes),
     staleAfterHours,
-    hoursSinceLastSuccess: verdict.hoursSinceLastSuccess,
-    lastSuccessfulWorkspaceRun: success
-      ? {
-          id: success.id,
-          source: success.source,
-          endedAt: success.ended_at ?? success.started_at,
-          documentsProcessed: success.documents_processed ?? null,
-        }
-      : null,
+    lanes,
     lastRun: latest
       ? {
           id: latest.id,

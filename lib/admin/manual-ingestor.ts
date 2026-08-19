@@ -961,6 +961,10 @@ async function runInterviewBankIngestion({
     source,
     ingestion_type: ingestionType,
     metadata: {
+      // Same key the Notion path uses for workspace/selected: "what did this run cover".
+      // The freshness endpoint filters lanes on it, so a run without it is a run nothing
+      // is watching.
+      scope: "interview_bank",
       repo: process.env.INTERVIEW_BANK_REPO ?? null,
       ingestionType,
       embeddingProvider: embeddingOptions.provider ?? null,
