@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { type ExtendedRecordMap } from "notion-types";
-import { getAllPagesInSpace, getPageProperty, uuidToId } from "notion-utils";
+import { getAllPagesInSpace, uuidToId } from "notion-utils";
 import pMemoize from "p-memoize";
 
 import type * as types from "./types";
@@ -11,6 +11,11 @@ import { includeNotionIdInUrls } from "./config";
 import { getCanonicalPageId } from "./get-canonical-page-id";
 import { notion } from "./notion-api";
 import { withRateLimitRetry } from "./notion-rate-limit";
+import {
+  getNotionPageIsPublic,
+  normalizePropertyName,
+  NOTION_IS_PUBLIC_PROPERTY,
+} from "./rag/notion-metadata";
 import {
   normalizeNotionRecordMap,
   resolveCollectionDataId,
@@ -150,6 +155,66 @@ export function readCollectionViewTarget(
   return { collectionId, flatView: { ...view, format: flatFormat } };
 }
 
+// ---------------------------------------------------------------------------
+// Visibility guard (ported from the parallel investigation in #77)
+//
+// The crawl honours exactly one visibility column, `_is_public`. A column
+// named anything else — the "Public" this filter used to look for, or a
+// "Draft"/"Published" added later — would be ignored in silence, which is the
+// failure this whole change exists to fix. Detect and say so.
+// ---------------------------------------------------------------------------
+const VISIBILITY_FLAG_WORDS = [
+  "public",
+  "published",
+  "publish",
+  "private",
+  "draft",
+  "unlisted",
+  "visibility",
+  "visible",
+  "hidden",
+  "nopublish",
+];
+
+// Notion columns are named both ways ("Public" and "Is Public"), and the
+// normalizer collapses the spacing, so match the "is" form of each word too —
+// `_is_public` itself is one of them.
+const VISIBILITY_PROPERTY_NAMES = new Set(
+  VISIBILITY_FLAG_WORDS.flatMap((word) => [word, `is${word}`]),
+);
+
+const HONOURED_VISIBILITY_NAME = normalizePropertyName(
+  NOTION_IS_PUBLIC_PROPERTY,
+);
+
+/**
+ * Collection schema columns that look like a visibility flag but are not the
+ * one the crawl reads. Empty is the healthy state.
+ */
+export function findUnhonouredVisibilityProperties(
+  recordMap: Pick<ExtendedRecordMap, "collection">,
+): string[] {
+  const found = new Set<string>();
+
+  for (const rawCollection of Object.values(recordMap.collection ?? {})) {
+    const collection = unwrapRecordValue(rawCollection) as
+      | { schema?: Record<string, { name?: string | null } | null> }
+      | undefined;
+
+    for (const schema of Object.values(collection?.schema ?? {})) {
+      const name = schema?.name;
+      const normalized = normalizePropertyName(name);
+      if (!name || !normalized) continue;
+      if (normalized === HONOURED_VISIBILITY_NAME) continue;
+      if (VISIBILITY_PROPERTY_NAMES.has(normalized)) {
+        found.add(name);
+      }
+    }
+  }
+
+  return [...found].toSorted();
+}
+
 // The double-nested collection_view shape (above) also breaks notion-client's
 // own fetchCollections pass: it cannot read collection_id off the view, never
 // issues queryCollection, and collection_query stays empty — so
@@ -251,6 +316,10 @@ async function getAllPagesImpl(
     { concurrency: 1 },
   );
 
+  // Reported below: a visibility filter that quietly matches nothing looks
+  // exactly like a visibility filter that is working.
+  const excludedByIsPublic: string[] = [];
+
   const canonicalPageMap = Object.keys(pageMap).reduce(
     (map: Record<string, string>, pageId: string) => {
       const recordMap = pageMap[pageId];
@@ -261,10 +330,19 @@ async function getAllPagesImpl(
         return map;
       }
 
-      const block = recordMap.block[pageId]?.value;
+      // A page is publishable unless it carries `_is_public` and it is
+      // unchecked — the same property RAG ingestion reads. Pages without the
+      // property (every page until the column exists in Notion) are kept.
+      //
+      // Normalized at the read: the lookup walks the collection schema, and a
+      // doubly-nested collection table hides it, so the filter would answer
+      // "no property" for every page. Already-flat tables come back as the
+      // same object, so this costs nothing.
       if (
-        !(getPageProperty<boolean | null>("Public", block!, recordMap) ?? true)
+        getNotionPageIsPublic(normalizeNotionRecordMap(recordMap), pageId) ===
+        false
       ) {
+        excludedByIsPublic.push(pageId);
         return map;
       }
 
@@ -297,6 +375,26 @@ async function getAllPagesImpl(
     },
     {},
   );
+
+  console.log(
+    `[sitemap] ${Object.keys(canonicalPageMap).length} pages published, ` +
+      `${excludedByIsPublic.length} excluded by ${NOTION_IS_PUBLIC_PROPERTY}`,
+  );
+
+  const unhonoured = new Set<string>();
+  for (const recordMap of Object.values(pageMap)) {
+    if (!recordMap) continue;
+    for (const name of findUnhonouredVisibilityProperties(recordMap)) {
+      unhonoured.add(name);
+    }
+  }
+  if (unhonoured.size > 0) {
+    console.warn(
+      `[sitemap] Notion defines visibility-looking column(s) the crawl ignores: ` +
+        `${[...unhonoured].toSorted().join(", ")}. ` +
+        `Only "${NOTION_IS_PUBLIC_PROPERTY}" is honoured — rename the column or wire it in.`,
+    );
+  }
 
   const result = { pageMap, canonicalPageMap };
   writeSitemapCache(result);

@@ -27,7 +27,13 @@ type PropertyLookup = {
   type?: string | null;
 } | null;
 
-function normalizePropertyName(
+/**
+ * Collapse a Notion property name to a comparison key, so `_is_public`,
+ * `Is Public` and `public` all match. Exported so callers that reason about
+ * property names (the sitemap's visibility guard) use the same rule as the
+ * lookup itself.
+ */
+export function normalizePropertyName(
   value: string | null | undefined,
 ): string | null {
   if (!value) {
@@ -213,6 +219,36 @@ function parsePropertyValue(
   return safeText(value);
 }
 
+/**
+ * The Notion checkbox that marks a page as publishable. One name, read the
+ * same way everywhere: RAG ingestion writes it to `metadata.is_public` (chat
+ * retrieval drops documents where it is false) and the sitemap crawl keeps it
+ * out of the published page map. The site used to look for a property called
+ * "Public" instead, which no collection defines — so that filter never
+ * excluded anything.
+ */
+export const NOTION_IS_PUBLIC_PROPERTY = "_is_public";
+
+/**
+ * Read the `_is_public` checkbox for a page. `undefined` means the page does
+ * not carry the property at all — which is every page until the column is
+ * added in Notion, and is treated as publishable by both callers.
+ *
+ * Reads `recordMap.block[id].value` and `recordMap.collection[id].value`
+ * directly, so the record map must already be normalized
+ * (`normalizeNotionRecordMap`) — a doubly-nested collection table hides the
+ * schema and every lookup comes back `undefined`.
+ */
+export function getNotionPageIsPublic(
+  recordMap: ExtendedRecordMap,
+  pageId: string,
+): boolean | undefined {
+  const value = parsePropertyValue(
+    lookupProperty(recordMap, pageId, NOTION_IS_PUBLIC_PROPERTY),
+  );
+  return typeof value === "boolean" ? value : undefined;
+}
+
 export function extractNotionMetadata(
   recordMap: ExtendedRecordMap,
   pageId: string,
@@ -223,9 +259,7 @@ export function extractNotionMetadata(
   const personaType = parsePropertyValue(
     lookupProperty(recordMap, pageId, "_persona_type"),
   );
-  const isPublic = parsePropertyValue(
-    lookupProperty(recordMap, pageId, "_is_public"),
-  );
+  const isPublic = getNotionPageIsPublic(recordMap, pageId);
 
   const tagsLookup = lookupProperty(recordMap, pageId, "_tags");
   let tags = parsePropertyValue(tagsLookup, { forceMulti: true });

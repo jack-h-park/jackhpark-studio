@@ -66,7 +66,8 @@
     "smoke:langchain-chat:debug-on": "EXPECT_DEBUG_SURFACES=1 pnpm smoke:langchain-chat",
     "check:ai-docs": "node scripts/check-ai-docs.mjs",
     "check:docs": "node scripts/check-doc-integrity.mjs",
-    "check:server-only-pages": "node scripts/check-server-only-pages.mjs"
+    "check:server-only-pages": "node scripts/check-server-only-pages.mjs",
+    "check:sitemap-visibility": "node --import=tsx --env-file=.env.local scripts/check-sitemap-visibility.ts"
   },
   "dependencies": {
     "@fisch0920/use-dark-mode": "^2.4.0",
