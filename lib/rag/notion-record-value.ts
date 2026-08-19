@@ -7,22 +7,67 @@ import { type ExtendedRecordMap } from "notion-types";
 // yields nothing and every page ingests as an empty "Untitled" document.
 // https://github.com/NotionX/react-notion-x/issues/682
 
-/** Unwrap nested `{ role, value }` wrappers until the actual record (an object with an `id`). */
-export function unwrapRecordValue(
+// Two levels is all Notion has ever returned. The bound only exists so a
+// malformed or self-referential entry cannot spin the loop forever — the
+// implementation this replaced in lib/notion.ts capped at 5 for the same
+// reason.
+const MAX_UNWRAP_DEPTH = 8;
+
+/**
+ * Unwrap nested `{ role, value }` wrappers until the actual record (an object
+ * with an `id`).
+ *
+ * This is the single unwrapper for every record table — blocks, collections
+ * and collection views alike. All three arrive in the same two shapes
+ * (`{ value: Record }` and `{ value: { role, value: Record } }`) and all three
+ * carry an `id` on the record itself, so the `id` stop condition is what keeps
+ * a record that happens to own a `value` property from being unwrapped one
+ * level too far.
+ *
+ * `T` is a caller-side view of the record's fields; nothing is validated at
+ * runtime beyond "it is an object".
+ */
+export function unwrapRecordValue<T extends object = Record<string, unknown>>(
   entry: { value?: unknown } | null | undefined,
-): Record<string, unknown> | undefined {
+): T | undefined {
   if (!entry) return undefined;
   let v: unknown = entry.value;
-  while (
+  for (
+    let depth = 0;
+    depth < MAX_UNWRAP_DEPTH &&
     v &&
     typeof v === "object" &&
     !(v as Record<string, unknown>).id &&
-    (v as Record<string, unknown>).value
+    (v as Record<string, unknown>).value;
+    depth++
   ) {
     v = (v as Record<string, unknown>).value;
   }
   if (!v || typeof v !== "object") return undefined;
-  return v as Record<string, unknown>;
+  return v as T;
+}
+
+/**
+ * Collections copied from another collection must be queried via their parent
+ * collection id. Both the sitemap crawl and the page renderer need this, and
+ * both used to carry their own copy alongside their own unwrapper.
+ */
+export function resolveCollectionDataId(
+  recordMap: ExtendedRecordMap,
+  collectionId: string,
+): string {
+  const value = unwrapRecordValue<{
+    parent_table?: string;
+    parent_id?: string;
+  }>(recordMap.collection?.[collectionId]);
+  if (
+    value?.parent_table === "collection" &&
+    typeof value.parent_id === "string" &&
+    value.parent_id.length > 0
+  ) {
+    return value.parent_id;
+  }
+  return collectionId;
 }
 
 /** Point lookup variant typed for block entries. */
@@ -40,9 +85,17 @@ function unwrapRecordEntry<T extends { value?: unknown }>(entry: T): T {
   return { ...entry, value: v };
 }
 
-function normalizeRecordTable<T extends Record<string, { value?: unknown }>>(
-  table: T | undefined,
-): T | undefined {
+/**
+ * Unwrap every entry of one record table, returning the table unchanged (same
+ * reference) when nothing was nested. Exported for callers that need a single
+ * table normalized rather than the whole record map — the sitemap crawl
+ * normalizes blocks only, because normalizing `collection` there would change
+ * which collection schema `getPageProperty` can read, and with it which pages
+ * the crawl keeps.
+ */
+export function normalizeRecordTable<
+  T extends Record<string, { value?: unknown }>,
+>(table: T | undefined): T | undefined {
   if (!table) return table;
   let changed = false;
   const next: Record<string, unknown> = {};

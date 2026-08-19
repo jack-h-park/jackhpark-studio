@@ -1,6 +1,6 @@
 # Database Schema Documentation
 
-This document describes the current RAG-facing schema in [db/schema/schema.latest.sql](/Users/jackpark/workspace/code/core/nextjs-react-notion-x/db/schema/schema.latest.sql:1). It is intended as a human-readable reference; the SQL snapshot remains the executable source of truth for table, view, function, and grant definitions.
+This document describes the current RAG-facing schema in [db/schema/schema.latest.sql](../../db/schema/schema.latest.sql). It is intended as a human-readable reference; the SQL snapshot remains the executable source of truth for table, view, function, and grant definitions.
 
 ## Overview
 
@@ -49,7 +49,7 @@ Canonical metadata table for ingested source documents.
 Notes:
 
 - `status` is operationally significant. The v2 retrieval RPCs only return chunks for documents with `status = 'active'`.
-- Detailed lifecycle semantics are documented in [docs/architecture/rag/rag-document-lifecycle.md](/Users/jackpark/workspace/code/core/nextjs-react-notion-x/docs/architecture/rag/rag-document-lifecycle.md:1).
+- Detailed lifecycle semantics are documented in [docs/architecture/rag/rag-document-lifecycle.md](../architecture/rag/rag-document-lifecycle.md).
 
 ### `rag_ingest_runs`
 
@@ -187,14 +187,16 @@ Contract:
 
 ### Stable wrapper functions
 
-These wrappers provide provider-stable RPC names for application code:
+These wrappers expose provider-stable RPC names that omit the embedding-space and version suffixes:
 
 - `match_rag_chunks_langchain_gemini`
 - `match_rag_chunks_langchain_openai`
 - `match_rag_chunks_native_gemini`
 - `match_rag_chunks_native_openai`
 
-The wrappers currently delegate to versioned retrieval functions defined in the SQL snapshot. Check [db/schema/schema.latest.sql](/Users/jackpark/workspace/code/core/nextjs-react-notion-x/db/schema/schema.latest.sql:278) before changing caller behavior, because wrapper targets may lag behind newer versioned RPCs during migrations.
+No application code calls them. Retrieval builds its RPC name directly from the resolved embedding space and `RAG_MATCH_RPC_VERSION` — see [lib/core/rag-tables.ts](../../lib/core/rag-tables.ts) and [lib/shared/models.ts](../../lib/shared/models.ts) — so these wrappers govern nothing that is currently served.
+
+All four delegate to `_v1` functions, as defined at [db/schema/schema.latest.sql](../../db/schema/schema.latest.sql#L289). They therefore do **not** apply the `status = 'active'` filter that the `_v2` RPCs add. Repoint them before giving any caller a wrapper name.
 
 ### `take_rag_snapshot`
 
@@ -227,4 +229,4 @@ Important caveat:
 
 - The snapshot currently shows `GRANT` statements for `anon`, `authenticated`, and `service_role`.
 - It does not document explicit `CREATE POLICY` statements in this file.
-- Treat [db/schema/schema.latest.sql](/Users/jackpark/workspace/code/core/nextjs-react-notion-x/db/schema/schema.latest.sql:674) as the source for what is actually exported, and verify live Supabase policies separately when auditing access control.
+- Treat [db/schema/schema.latest.sql](../../db/schema/schema.latest.sql#L728) as the source for what is actually exported, and verify live Supabase policies separately when auditing access control.

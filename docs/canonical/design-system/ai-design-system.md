@@ -16,9 +16,8 @@ This document outlines the architecture and principles of the AI Design System, 
 - Interaction states are driven by shared primitives (e.g., `.ai-selectable`) and their tokens, not per-feature overrides.
 - Dark mode and border/contrast expectations remain tied to the defined tokens so theme changes flow automatically.
   **Derived documents:**
-- [../css-guardrails.md](../css-guardrails.md)
-- [../ui/color-contract.md](../ui/color-contract.md)
-- [../ui/color-audit.md](../ui/color-audit.md)
+- [../css-guardrails.md](../../css-guardrails.md)
+- [../ui/color-audit.md](../../ui/color-audit.md)
   **Change rule:** If this contract changes, update derived docs in the same PR.
 
 ---
@@ -281,9 +280,9 @@ This ensures that improving or fixing interaction clarity happens in one place a
 
 ### B. Higher-Order Patterns
 
-- **[card.tsx](file:///Users/jackpark/workspace/code/core/nextjs-react-notion-x/components/ui/card.tsx)**: Structural cards using `.ai-card`.
-- **[meta-card.tsx](file:///Users/jackpark/workspace/code/core/nextjs-react-notion-x/components/ui/meta-card.tsx)**: **[NEW]** Diagnostic display for telemetry and guardrail data.
-- **[field.tsx](file:///Users/jackpark/workspace/code/core/nextjs-react-notion-x/components/ui/field.tsx)**: Combines Label + Control + Helper text.
+- **[card.tsx](../../../components/ui/card.tsx)**: Structural cards using `.ai-card`.
+- **[meta-card.tsx](../../../components/ui/meta-card.tsx)**: **[NEW]** Diagnostic display for telemetry and guardrail data.
+- **[field.tsx](../../../components/ui/field.tsx)**: Combines Label + Control + Helper text.
 
 ### C. Selection Controls (Canonical Pairing)
 
