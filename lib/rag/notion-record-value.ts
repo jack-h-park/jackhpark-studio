@@ -7,10 +7,23 @@ import { type ExtendedRecordMap } from "notion-types";
 // yields nothing and every page ingests as an empty "Untitled" document.
 // https://github.com/NotionX/react-notion-x/issues/682
 
-/** Unwrap nested `{ role, value }` wrappers until the actual record (an object with an `id`). */
-export function unwrapRecordValue(
+/**
+ * Unwrap nested `{ role, value }` wrappers until the actual record (an object
+ * with an `id`).
+ *
+ * This is the single unwrapper for every record table — blocks, collections
+ * and collection views alike. All three arrive in the same two shapes
+ * (`{ value: Record }` and `{ value: { role, value: Record } }`) and all three
+ * carry an `id` on the record itself, so the `id` stop condition is what keeps
+ * a record that happens to own a `value` property from being unwrapped one
+ * level too far.
+ *
+ * `T` is a caller-side view of the record's fields; nothing is validated at
+ * runtime beyond "it is an object".
+ */
+export function unwrapRecordValue<T extends object = Record<string, unknown>>(
   entry: { value?: unknown } | null | undefined,
-): Record<string, unknown> | undefined {
+): T | undefined {
   if (!entry) return undefined;
   let v: unknown = entry.value;
   while (
@@ -22,7 +35,7 @@ export function unwrapRecordValue(
     v = (v as Record<string, unknown>).value;
   }
   if (!v || typeof v !== "object") return undefined;
-  return v as Record<string, unknown>;
+  return v as T;
 }
 
 /** Point lookup variant typed for block entries. */

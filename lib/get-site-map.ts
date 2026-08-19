@@ -10,6 +10,7 @@ import * as config from "./config";
 import { includeNotionIdInUrls } from "./config";
 import { getCanonicalPageId } from "./get-canonical-page-id";
 import { notion } from "./notion-api";
+import { unwrapRecordValue } from "./rag/notion-record-value";
 
 // ---------------------------------------------------------------------------
 // Disk-based sitemap cache (.next/cache/notion-sitemap.json)
@@ -133,26 +134,20 @@ function normalizeBlocksForTraversal(
   return { ...recordMap, block: normalizedBlocks };
 }
 
-// Notion's v3 API returns collection_view entries double-nested
-// ({ value: { value, role } }), so unwrap before reading view fields.
-function unwrapValue<T>(raw: unknown): T | null {
-  const outer = (raw as { value?: unknown } | null)?.value;
-  if (outer && typeof outer === "object" && "value" in outer) {
-    const inner = (outer as { value?: unknown }).value;
-    if (inner && typeof inner === "object") return inner as T;
-  }
-  return (outer as T) ?? null;
-}
-
+// Notion's v3 API returns collection_view and collection entries
+// double-nested ({ value: { value, role } }), so unwrap with the shared
+// unwrapRecordValue before reading record fields.
+//
 // Mirrors lib/notion.ts resolveCollectionDataId: collections copied from
 // another collection must be queried via their parent collection id.
-function resolveCollectionDataId(
+export function resolveCollectionDataId(
   recordMap: ExtendedRecordMap,
   collectionId: string,
 ): string {
-  const value = unwrapValue<{ parent_table?: string; parent_id?: string }>(
-    recordMap.collection?.[collectionId],
-  );
+  const value = unwrapRecordValue<{
+    parent_table?: string;
+    parent_id?: string;
+  }>(recordMap.collection?.[collectionId]);
   if (value?.parent_table === "collection" && value.parent_id) {
     return value.parent_id;
   }
@@ -172,11 +167,40 @@ async function withRateLimitRetry<T>(fn: () => Promise<T>): Promise<T> {
       if (attempt + 1 >= maxAttempts || !message.includes("429")) {
         throw err;
       }
-      await new Promise((resolve) =>
-        setTimeout(resolve, 2000 * 2 ** attempt),
-      );
+      await new Promise((resolve) => setTimeout(resolve, 2000 * 2 ** attempt));
     }
   }
+}
+
+// The pure part of hydrateCollectionPageBlocks, exported for tests: unwrap a
+// collection_view entry (both the single- and double-nested shapes) and read
+// the collection it points at.
+//
+// Grouped views 400 when queried with their grouping metadata intact
+// (queryCollection expects per-group reducers). The sitemap only needs the
+// flat item list, so strip grouping and query ungrouped.
+export function readCollectionViewTarget(
+  rawView: unknown,
+): { collectionId: string; flatView: Record<string, unknown> } | null {
+  const view = unwrapRecordValue<{
+    collection_id?: string;
+    format?: Record<string, unknown> & {
+      collection_pointer?: { id?: string };
+    };
+  }>(rawView as { value?: unknown } | null | undefined);
+  const collectionId =
+    view?.collection_id ?? view?.format?.collection_pointer?.id;
+  if (!collectionId) return null;
+
+  const {
+    collection_group_by: _cgb,
+    collection_groups: _cg,
+    board_columns: _bc,
+    board_columns_by: _bcb,
+    ...flatFormat
+  } = view?.format ?? {};
+
+  return { collectionId, flatView: { ...view, format: flatFormat } };
 }
 
 // The double-nested collection_view shape (above) also breaks notion-client's
@@ -191,27 +215,9 @@ async function hydrateCollectionPageBlocks(
   for (const [viewId, rawView] of Object.entries(
     recordMap.collection_view ?? {},
   )) {
-    const view = unwrapValue<{
-      collection_id?: string;
-      format?: Record<string, unknown> & {
-        collection_pointer?: { id?: string };
-      };
-    }>(rawView);
-    const collectionId =
-      view?.collection_id ?? view?.format?.collection_pointer?.id;
-    if (!collectionId) continue;
-
-    // Grouped views 400 when queried with their grouping metadata intact
-    // (queryCollection expects per-group reducers). The sitemap only needs the
-    // flat item list, so strip grouping and query ungrouped.
-    const {
-      collection_group_by: _cgb,
-      collection_groups: _cg,
-      board_columns: _bc,
-      board_columns_by: _bcb,
-      ...flatFormat
-    } = view?.format ?? {};
-    const flatView = { ...view, format: flatFormat };
+    const target = readCollectionViewTarget(rawView);
+    if (!target) continue;
+    const { collectionId, flatView } = target;
 
     try {
       const data = await withRateLimitRetry(() =>
