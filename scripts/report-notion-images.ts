@@ -152,11 +152,19 @@ async function collectRecordMaps(
   // Reuse the admin ingestor's BFS discovery: getAllPagesInSpace only walks
   // page `content` arrays and misses collection rows, which is where most of
   // this corpus lives.
-  const pageIds = await collectLinkedPagesFromSeeds([rootPageId], (event) => {
-    if (event.type === "log") {
-      console.log(event.message);
-    }
-  });
+  const { pageIds, complete } = await collectLinkedPagesFromSeeds(
+    [rootPageId],
+    (event) => {
+      if (event.type === "log") {
+        console.log(event.message);
+      }
+    },
+  );
+  if (!complete) {
+    console.warn(
+      "⚠️  Discovery did not reach every page (cap hit, or a fetch failed). This report covers what was visited, not the whole workspace.",
+    );
+  }
   console.log(`Discovered ${pageIds.length} pages. Fetching record maps...`);
 
   const result = new Map<string, ExtendedRecordMap>();
@@ -264,9 +272,7 @@ async function main() {
   if (broken.length > 0) {
     console.log("\n--- Broken image URLs ---");
     for (const image of broken) {
-      const page = pages.find((candidate) =>
-        candidate.images.includes(image),
-      );
+      const page = pages.find((candidate) => candidate.images.includes(image));
       console.log(
         `[${image.urlStatus ?? "ERR"}] ${page?.title ?? "?"} :: ${image.url.slice(0, 120)}`,
       );
@@ -276,7 +282,11 @@ async function main() {
   if (options.jsonPath) {
     await writeFile(
       options.jsonPath,
-      JSON.stringify({ generatedForRoot: options.pageId ?? "workspace", pages }, null, 2),
+      JSON.stringify(
+        { generatedForRoot: options.pageId ?? "workspace", pages },
+        null,
+        2,
+      ),
       "utf8",
     );
     console.log(`\nJSON report written to ${options.jsonPath}`);
