@@ -192,15 +192,30 @@ function toEmbeddingOptions(
   };
 }
 
+export interface LinkedPageDiscovery {
+  pageIds: string[];
+  /**
+   * False when the traversal is known to have missed pages: the cap stopped
+   * it early, or a page/collection fetch failed and was skipped.
+   *
+   * Callers that delete on absence must check this. A crawl that gave up on
+   * one page returns a shorter list, not an error, and "shorter" is
+   * indistinguishable from "those pages were deleted" — which is how a
+   * transient 429 can mark a corpus missing.
+   */
+  complete: boolean;
+}
+
 // Exported for read-only tooling (scripts/report-notion-images.ts) that needs
 // the same workspace discovery as manual ingestion: BFS over child pages,
 // links, aliases, and collection rows.
 export async function collectLinkedPagesFromSeeds(
   seedPageIds: string[],
   emit: EmitFn,
-): Promise<string[]> {
+): Promise<LinkedPageDiscovery> {
   const seen = new Set<string>();
   const queue: Array<{ pageId: string; depth: number }> = [];
+  let complete = true;
 
   for (const pageId of seedPageIds) {
     const normalized = normalizeNotionPageId(pageId);
@@ -216,11 +231,24 @@ export async function collectLinkedPagesFromSeeds(
 
     let recordMap: ExtendedRecordMap | null = null;
     try {
-      recordMap = await notion.getPage(pageId);
-    } catch {
+      recordMap = await withRateLimitRetry(() => notion.getPage(pageId));
+    } catch (err) {
+      // The subtree behind this page is now unreachable, so the traversal is
+      // no longer a complete picture of the workspace.
+      complete = false;
+      await emit({
+        type: "log",
+        level: "warn",
+        message: `Could not read page ${pageId} during discovery: ${
+          err instanceof Error ? err.message : String(err)
+        }. Pages below it were not visited.`,
+      });
       continue;
     }
-    if (!recordMap) continue;
+    if (!recordMap) {
+      complete = false;
+      continue;
+    }
 
     // Collect collection_view blocks to fetch in parallel after sync block scan
     const collectionViews: Array<{ collectionId: string; viewId: string }> = [];
@@ -271,14 +299,16 @@ export async function collectLinkedPagesFromSeeds(
         level: "info",
         message: `Scanning ${collectionViews.length} database(s) on page ${pageId}...`,
       });
-      await Promise.all(
+      // Each fetch reports whether it reached its rows; `complete` is folded in
+      // after the batch rather than written from inside the loop.
+      const reached = await Promise.all(
         collectionViews.map(async ({ collectionId, viewId }) => {
-          if (seen.size >= LINKED_PAGE_MAX_PAGES) return;
+          if (seen.size >= LINKED_PAGE_MAX_PAGES) return true;
           try {
-            const collData = await notion.getCollectionData(
-              collectionId,
-              viewId,
-              { limit: LINKED_PAGE_MAX_PAGES },
+            const collData = await withRateLimitRetry(() =>
+              notion.getCollectionData(collectionId, viewId, {
+                limit: LINKED_PAGE_MAX_PAGES,
+              }),
             );
             const rowIds =
               (collData as unknown as { allBlockIds?: string[] }).allBlockIds ??
@@ -291,11 +321,21 @@ export async function collectLinkedPagesFromSeeds(
               seen.add(normalizedRow);
               // Database rows are leaf pages — add to seen but skip BFS expansion
             }
-          } catch {
-            // ignore individual collection errors
+            return true;
+          } catch (err) {
+            // Every row of this database is now unvisited.
+            await emit({
+              type: "log",
+              level: "warn",
+              message: `Could not read database ${collectionId} on page ${pageId}: ${
+                err instanceof Error ? err.message : String(err)
+              }. Its rows were not visited.`,
+            });
+            return false;
           }
         }),
       );
+      if (reached.includes(false)) complete = false;
       await emit({
         type: "log",
         level: "info",
@@ -304,7 +344,12 @@ export async function collectLinkedPagesFromSeeds(
     }
   }
 
-  return Array.from(seen);
+  return {
+    pageIds: Array.from(seen),
+    // At the cap the BFS stopped early, so unvisited docs may be beyond the
+    // cap rather than deleted.
+    complete: complete && seen.size < LINKED_PAGE_MAX_PAGES,
+  };
 }
 
 function buildReporter(
@@ -494,14 +539,14 @@ async function runNotionPageIngestion({
 
     let workspacePageIds: string[] = [];
     try {
-      workspacePageIds = await collectLinkedPagesFromSeeds([rootPageId], emit);
+      const discovery = await collectLinkedPagesFromSeeds([rootPageId], emit);
+      workspacePageIds = discovery.pageIds;
       if (workspacePageIds.length === 0) {
         workspacePageIds = [rootPageId];
       }
-      // At the cap the BFS stopped early, so unvisited docs may simply be
-      // beyond the cap rather than deleted — sweeping would be unsafe.
-      workspaceTraversalComplete =
-        workspacePageIds.length < LINKED_PAGE_MAX_PAGES;
+      // Only a traversal that reached everything can tell "deleted" from
+      // "not visited", and only it may drive the sweep below.
+      workspaceTraversalComplete = discovery.complete;
     } catch (err) {
       const message =
         err instanceof Error
@@ -529,10 +574,10 @@ async function runNotionPageIngestion({
 
     let linkedPageIds: string[] = [];
     try {
-      linkedPageIds = await collectLinkedPagesFromSeeds(
+      ({ pageIds: linkedPageIds } = await collectLinkedPagesFromSeeds(
         seedList.length > 0 ? seedList : [rootPageId],
         emit,
-      );
+      ));
       if (linkedPageIds.length === 0) {
         linkedPageIds = seedList.length > 0 ? seedList : [rootPageId];
       }
