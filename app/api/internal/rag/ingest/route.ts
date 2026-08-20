@@ -23,7 +23,12 @@ type CompleteEvent = Extract<ManualIngestionEvent, { type: "complete" }>;
  * Scheduled an hour before the corpus snapshot (`vercel.json`), so the daily metrics
  * describe the corpus after this run rather than the one before it.
  *
- * Covers both ingest lanes. The interview bank goes first: it is small and bounded by the
+ * Also serves single-page refreshes (`?pageId=`), which is how a publish couples to the
+ * index: the publisher knows exactly which page it just wrote, so that page can be
+ * re-embedded immediately instead of waiting for the next daily pass. Everything else about
+ * the request is identical — same auth, same shared ingestion path.
+ *
+ * The scheduled form covers both ingest lanes. The interview bank goes first: it is small and bounded by the
  * number of opted-in cards, so it cannot starve the workspace pass, whereas the reverse
  * order would let a slow workspace crawl skip the bank indefinitely. A lane nothing
  * schedules is a lane nothing can alarm on, which is why this and the freshness lanes
@@ -65,6 +70,11 @@ export async function GET(request: Request) {
     return unauthorizedResponse;
   }
 
+  // A single page is a publish-coupled refresh, not the scheduled sweep: no traversal, no
+  // second lane, and nothing to sweep — the page was just written, so its absence from a
+  // one-page run says nothing about any other document.
+  const requestedPageId = new URL(request.url).searchParams.get("pageId");
+
   const startedAt = Date.now();
   const deadlineAt = startedAt + maxDuration * 1000 - DEADLINE_HEADROOM_MS;
   const logs: string[] = [];
@@ -85,6 +95,55 @@ export async function GET(request: Request) {
         logs.push(`[${event.level}] ${prefix}: ${event.message}`);
       }
     };
+
+
+  if (requestedPageId) {
+    try {
+      await runManualIngestion(
+        {
+          mode: "notion_page",
+          scope: "selected",
+          pageIds: [requestedPageId],
+          includeLinkedPages: false,
+          ingestionType: "partial",
+          source: "publish/notion-page",
+        },
+        collect(outcome, "page"),
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("Publish-coupled ingest failed", { requestedPageId, message });
+      return NextResponse.json(
+        {
+          ok: false,
+          pageId: requestedPageId,
+          error: message,
+          durationMs: Date.now() - startedAt,
+        },
+        { status: 500 },
+      );
+    }
+
+    const done = outcome.completion;
+    return NextResponse.json(
+      {
+        ok: done ? done.status !== "failed" : false,
+        mode: "single-page",
+        pageId: requestedPageId,
+        status: done?.status ?? "unknown",
+        runId: done?.runId ?? null,
+        message: done?.message,
+        documentsUpdated: done
+          ? done.stats.documentsAdded + done.stats.documentsUpdated
+          : 0,
+        documentsSkipped: done?.stats.documentsSkipped ?? 0,
+        errorCount: done?.stats.errorCount ?? 0,
+        durationMs: Date.now() - startedAt,
+        logs,
+      },
+      { status: done && done.status !== "failed" ? 200 : 500 },
+    );
+  }
 
   try {
     // The bank is skipped, not failed, when its token is absent — the adapter throws a

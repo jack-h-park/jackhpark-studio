@@ -16,7 +16,9 @@ Canonical invariants on chunking/token budgets, change detection, and ingestion 
 
 ## 1. Overview
 
-Ingestion is triggered three ways, all of which run the same `runManualIngestion` path: the Admin UI, `pnpm ingest:notion`, and a daily Vercel cron (`/api/internal/rag/ingest`, scheduled an hour before the corpus snapshot so the metrics describe the fresh corpus). The scheduled run is `partial` and workspace-scoped, and is bounded by a `deadlineAt` rather than by the function timeout — pages it does not reach are reported, not silently dropped, and the next run covers them.
+Ingestion is triggered four ways, all of which run the same `runManualIngestion` path: the Admin UI, `pnpm ingest:notion`, a daily Vercel cron (`/api/internal/rag/ingest`, scheduled an hour before the corpus snapshot so the metrics describe the fresh corpus), and a publish-coupled single-page refresh (`/api/internal/rag/ingest?pageId=…`) that the publisher fires after writing a Notion section — the page it just wrote is re-embedded at once instead of waiting for the next daily pass.
+
+A single-page run never traverses and never sweeps: the pages it did not visit are all of them, which is not evidence that any is gone. It is also excluded from the freshness lanes, so a publish refresh cannot report the corpus fresh on the strength of one edited page. The scheduled run is `partial` and workspace-scoped, and is bounded by a `deadlineAt` rather than by the function timeout — pages it does not reach are reported, not silently dropped, and the next run covers them.
 
 It supports two primary strategies:
 
