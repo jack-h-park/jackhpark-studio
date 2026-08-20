@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 
 const repoRoot = process.cwd();
 
+
 type CronEntry = { path: string; schedule: string };
 
 const crons: CronEntry[] = (
@@ -60,6 +61,37 @@ void describe("scheduled RAG jobs", () => {
       Number.parseInt(declared[1]!, 10) <= 60,
       "maxDuration above 60 is rejected on the Hobby plan; raise it only deliberately",
     );
+  });
+});
+
+void describe("publish-coupled single-page ingest", () => {
+  void it("refreshes one page without traversing or sweeping", () => {
+    // A publish knows exactly which page it wrote. Re-running the workspace sweep for one
+    // edit would cost a full crawl, and — worse — a one-page run must never sweep: the pages
+    // it did not visit are all of them, which is not evidence that any is gone.
+    const source = readFileSync(
+      path.join(repoRoot, "app/api/internal/rag/ingest/route.ts"),
+      "utf8",
+    );
+    assert.match(source, /searchParams\.get\("pageId"\)/);
+    assert.match(source, /scope: "selected"/);
+    assert.match(source, /includeLinkedPages: false/);
+    // Its runs are labelled distinctly so the admin runs list separates them from the cron's.
+    assert.match(source, /source: "publish\/notion-page"/);
+  });
+
+  void it("keeps the single-page branch out of the scheduled lanes", () => {
+    // The freshness lanes judge the scheduled sweep. A publish refresh resetting a lane
+    // clock would report the corpus fresh on the strength of one edited page — the exact
+    // failure the lane scoping exists to prevent.
+    const source = readFileSync(
+      path.join(repoRoot, "app/api/internal/rag/ingest/route.ts"),
+      "utf8",
+    );
+    const singlePage = source.slice(source.indexOf("if (requestedPageId)"));
+    const branch = singlePage.slice(0, singlePage.indexOf("\n  try {"));
+    assert.doesNotMatch(branch, /scope: "workspace"/);
+    assert.doesNotMatch(branch, /interview_bank/);
   });
 });
 
