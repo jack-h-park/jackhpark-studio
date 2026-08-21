@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 const PAGES = [
   { href: "/admin/ingestion", label: "Overview" },
   { href: "/admin/documents", label: "RAG Documents" },
+  { href: "/admin/interview-bank", label: "Interview Q&A Bank" },
 ];
 
 export function IngestionSubNav() {

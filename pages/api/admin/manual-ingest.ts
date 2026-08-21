@@ -113,6 +113,14 @@ function validateBody(body: ManualIngestionBody): ManualIngestionRequest {
     };
   }
 
+  if (body.mode === "interview_bank") {
+    // No scope, no page ids, no linked-page traversal: the card list is the whole directory.
+    return {
+      mode: "interview_bank",
+      ingestionType: body.ingestionType === "full" ? "full" : "partial",
+    };
+  }
+
   if (body.mode === "url") {
     if (typeof body.url !== "string") {
       throw new Error("Missing URL.");
