@@ -35,6 +35,7 @@ import { markAttempt, markFetchFailure } from "../rag/rag-document-lifecycle";
 import {
   fetchInterviewBankCards,
   INTERVIEW_BANK_SOURCE_URL_PREFIX,
+  interviewCardDocId,
   prepareInterviewCardDocument,
 } from "../rag/sources/interview-bank";
 import {
@@ -1055,6 +1056,13 @@ async function runInterviewBankIngestion({
       });
 
       try {
+        // Stamp the attempt before ingesting, exactly as the Notion loop does. The sweep
+        // decides "visited this run" from `last_sync_attempt_at`, so a card ingested without
+        // one stays invisible to it for ever: `planMissingSweep` sees zero visited documents,
+        // hits its all-unvisited safety valve, and skips. Publishing worked; withdrawing an
+        // opted-out card silently did not, and nothing failed to say so.
+        await markAttempt(supabaseClient, interviewCardDocId(card.slug));
+
         await ingestPreparedDocument({
           doc: prepareInterviewCardDocument(card),
           ingestionType,
