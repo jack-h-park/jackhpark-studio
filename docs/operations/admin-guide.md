@@ -11,6 +11,23 @@ This guide details the operational workflows for managing the AI Assistant's dat
 The Ingestion Dashboard is the control center for updating the RAG knowledge base. It allows operators to trigger manual indexing runs and monitor system health.
 
 ### Interview Q&A Bank (`/admin/interview-bank`)
+### Withdrawing a card
+
+Removing `publish_to_jackgpt: true` (or dropping the status below `reviewed`) makes the next
+ingest stop returning the card, and the missing-document sweep then retires its document so
+retrieval stops seeing it.
+
+Two guards decide whether the sweep actually fires, and both can legitimately refuse:
+
+- **It only retires documents the run did not visit**, judged from `last_sync_attempt_at`.
+  The ingest stamps that per card before ingesting; without the stamp every card looks
+  unvisited and the sweep skips entirely.
+- **It refuses to retire more than 25% of the lane in one run** (`MAX_SWEEP_FRACTION`), so a
+  half-failed run cannot wipe the corpus. **With fewer than four published cards, withdrawing
+  one exceeds that fraction and will not sweep** — set the document's status by hand in
+  `/admin/documents` if it needs to go immediately.
+
+
 
 What the next interview-bank ingest would publish to JackGPT, **before** it publishes it.
 Read-only: it fetches the card files, applies the same eligibility decision the ingest uses,
