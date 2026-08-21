@@ -135,6 +135,13 @@ type PreviewImageResult = {
   reason?: string;
 };
 
+// notion.so/image/* answers 403 to a request with no User-Agent, which is what
+// undici sends by default — so every remote placeholder fetch failed, and each
+// failure looked individually unremarkable. Any self-identifying agent is
+// accepted; this is the string lib/rag/fetch-favicon.ts already uses.
+const PREVIEW_IMAGE_USER_AGENT =
+  "jackhpark-nextjs-notion/1.0 (+https://jackhpark.com/)";
+
 async function createPreviewImage(
   url: string,
   { cacheKey }: { cacheKey: string },
@@ -155,7 +162,9 @@ async function createPreviewImage(
       });
     }
 
-    const body = await ky(url).arrayBuffer();
+    const body = await ky(url, {
+      headers: { "user-agent": PREVIEW_IMAGE_USER_AGENT },
+    }).arrayBuffer();
     const result = await lqip(body);
     //console.log('lqip', { ...result.metadata, url, cacheKey })
 
