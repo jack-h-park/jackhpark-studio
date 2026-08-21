@@ -13,13 +13,14 @@
 
 import { writeFile } from "node:fs/promises";
 
-import { NotionAPI } from "notion-client";
 import { type ExtendedRecordMap } from "notion-types";
 import { getPageTitle } from "notion-utils";
 import pMap from "p-map";
 
 import { collectLinkedPagesFromSeeds } from "../lib/admin/manual-ingestor";
 import { rootNotionPageId as configRootNotionPageId } from "../lib/config";
+import { notion } from "../lib/notion-api";
+import { NOTION_IMAGE_FETCH_HEADERS } from "../lib/notion-image-fetch";
 import {
   extractNotionPageImages,
   type NotionPageImage,
@@ -27,7 +28,9 @@ import {
 import { normalizeNotionRecordMap } from "../lib/rag/notion-record-value";
 import { deriveNotionDocIdentifiers } from "../lib/rag/sources/notion";
 
-const notion = new NotionAPI();
+// Use the app's configured client, not a bare `new NotionAPI()`: that defaults
+// to www.notion.so, whose bot filter answers this script's requests with 403
+// before any page loads. NOTION_API_BASE_URL points at the site subdomain.
 
 const URL_CHECK_CONCURRENCY = 4;
 const PAGE_FETCH_CONCURRENCY = 2;
@@ -91,7 +94,11 @@ async function checkImageUrl(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), URL_CHECK_TIMEOUT_MS);
     try {
-      return await fetch(url, { method, signal: controller.signal });
+      return await fetch(url, {
+        method,
+        signal: controller.signal,
+        headers: NOTION_IMAGE_FETCH_HEADERS,
+      });
     } finally {
       clearTimeout(timer);
     }
