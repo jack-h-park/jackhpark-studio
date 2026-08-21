@@ -52,12 +52,12 @@ The server must be able to reach `notion.so` for this to work. If the server is 
 
 Everything that renders a Notion-hosted image participates in the chain:
 
-| Surface | Path |
-|---|---|
-| Page content, icons, gallery card covers | `NotionImage` via `components.Image` + `forceCustomImages` |
-| Page cover (`NotionCoverBlurFill`) | Own `onError`; the blurred CSS background shares the resolved URL, since a `url()` cannot report failure |
-| Gallery preview modal | `NotionImage` |
-| AI page header (`AiPageChrome`) | `NotionImage` registered on the `NotionContextProvider` |
+| Surface                                  | Path                                                                                                     |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Page content, icons, gallery card covers | `NotionImage` via `components.Image` + `forceCustomImages`                                               |
+| Page cover (`NotionCoverBlurFill`)       | Own `onError`; the blurred CSS background shares the resolved URL, since a `url()` cannot report failure |
+| Gallery preview modal                    | `NotionImage`                                                                                            |
+| AI page header (`AiPageChrome`)          | `NotionImage` registered on the `NotionContextProvider`                                                  |
 
 `NotionPageRenderer` also installs a document-level capture listener that replaces broken **icons** with `defaultPageIcon` (or hides them). That handler retries through the proxy first and only treats an icon as missing once the proxied attempt has failed — otherwise a blocked host would silently hide every inline icon before the fallback ran.
 
@@ -65,12 +65,12 @@ Everything that renders a Notion-hosted image participates in the chain:
 
 ## Why the Two-Stage Approach
 
-| | Stage 1 (`<img>`) | Stage 2 (`NextImage`) |
-|---|---|---|
-| Who fetches | Browser | Next.js server |
-| Vercel charge | None | 1 unit per unique URL+size |
-| Requires server access to notion.so | No | Yes |
-| Use case | Normal environments | Firewall-restricted clients |
+|                                     | Stage 1 (`<img>`)   | Stage 2 (`NextImage`)       |
+| ----------------------------------- | ------------------- | --------------------------- |
+| Who fetches                         | Browser             | Next.js server              |
+| Vercel charge                       | None                | 1 unit per unique URL+size  |
+| Requires server access to notion.so | No                  | Yes                         |
+| Use case                            | Normal environments | Firewall-restricted clients |
 
 Defaulting to stage 1 avoids Vercel image optimization charges for users who can reach `notion.so` directly, which is the common case.
 
@@ -84,10 +84,10 @@ Stage 2 uses Vercel's image optimization service. Charges apply per **unique (so
 
 ### Behavior at the limit
 
-| Plan | Monthly allowance | At limit |
-|---|---|---|
-| Hobby | 1,000 optimizations | Hard cap — stage 2 stops, original unoptimized image is served |
-| Pro | 5,000 optimizations | Overages billed at $5 / 1,000 unless Spend Management cap is set |
+| Plan  | Monthly allowance   | At limit                                                         |
+| ----- | ------------------- | ---------------------------------------------------------------- |
+| Hobby | 1,000 optimizations | Hard cap — stage 2 stops, original unoptimized image is served   |
+| Pro   | 5,000 optimizations | Overages billed at $5 / 1,000 unless Spend Management cap is set |
 
 **To set a hard cap on Pro:** Vercel Dashboard → Settings → Billing → Spend Management → Image Optimization.
 
@@ -122,9 +122,10 @@ Add a new entry here whenever a new Notion image host is encountered in producti
 The component is registered as `Image: NotionImage` in the `NotionRenderer` components map. It manages the stage 1 → stage 2 transition via `React.useState<string | null>(null)` (`proxySrc`).
 
 Key behaviors:
+
 - Exactly one retry. Once `src` is already a `/_next/image` URL the error is final — retrying would loop forever against a host the server can't reach either.
 - A changed `src` prop resets `proxySrc`, so a re-signed Notion URL gets a fresh direct attempt.
-- `blurDataURL` / `placeholder="blur"` is applied as a CSS background on the `<img>` in both stages, and cleared on `load`. The background sits *behind* the image, so leaving it in place makes a transparent PNG show its own blurred copy through the transparent pixels forever.
+- `blurDataURL` / `placeholder="blur"` is applied as a CSS background on the `<img>` in both stages, and cleared on `load`. The background sits _behind_ the image, so leaving it in place makes a transparent PNG show its own blurred copy through the transparent pixels forever.
 - The forwarded `ref` stays attached across both stages.
 
 ---
@@ -145,6 +146,32 @@ Generation runs in `finalizeRecordMap` (`lib/notion.ts`), **after** `hydrateGrou
 Gallery cards render through the `collectionCardCover` seam rather than react-notion-x's `LazyImage`, so `lib/notion-collection-card-cover.tsx` does its own `preview_images` lookup and passes `placeholder`/`blurDataURL` to the cover image component. Populating the map is not enough on its own.
 
 **Cost** (measured on `/studio`, 141 candidate URLs): ~0.2 kB of blur data per image and ~530 ms to generate one; 133 placeholders add ~52 kB to the page props. `getPreviewImage` is `pMemoize`d with no TTL, so a process pays generation once and later cache-hit paths only rebuild the map. Pages are ISR (`revalidate: 60`), so regeneration stays off the visitor's critical path. Redis (`isRedisEnabled`) only saves recomputation across instances — it is not required.
+
+## Externally Hosted Images Rot
+
+Notion attachments are re-signed on demand and effectively never break. Images
+Notion snapshots from _other_ people's servers do.
+
+Bookmarking a page stores whatever preview the site advertised at that moment
+(`bookmark_cover` / `bookmark_icon`) and keeps that URL forever. When the file
+is later renamed, deleted, or served under a thumbnail spec the host stops
+honouring, the bookmark renders with a broken cover and nothing in the app can
+tell — the URL is still a well-formed link to somebody else's server.
+
+`pnpm report:external-images` walks the workspace and reports which of these no
+longer resolve. It checks the URL the browser actually requests (Notion's
+`/image/` proxy) and, when that fails, the upstream URL too, because the two
+failures need different fixes:
+
+| verdict             | meaning                                                 | fix                                                     |
+| ------------------- | ------------------------------------------------------- | ------------------------------------------------------- |
+| `stale-thumbnail`   | original file is fine, the stored thumbnail URL is dead | re-add the bookmark so Notion snapshots a current URL   |
+| `gone`              | upstream serves nothing at that path                    | re-adding will not help — new source, or drop the cover |
+| `notion-proxy-only` | upstream is fine, Notion refuses to proxy it            | re-add the bookmark, or self-host the image             |
+
+It exits non-zero when anything is broken, so it can gate a scheduled check.
+`format.display_source` is deliberately not scanned: on video and embed blocks
+that is the embed URL, not an image, and Notion's proxy answers those with 422.
 
 ## Self-Hosted Environments
 
