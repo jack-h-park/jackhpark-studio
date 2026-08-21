@@ -26,12 +26,13 @@ separate, authenticated step.
    scripts/publish-deck.sh /path/to/"PM Intelligence System.dc.html" pm-intelligence-system
    ```
    The script: places the bundle → renames `*.dc.html` → `index.html` → **injects
-   `<base href="/decks/<slug>/">`** as the first `<head>` child → verifies over HTTP at the
-   real subpath (clean URL 200, base present, `support.js`/`deck-stage.js`/CSS/font/image
-   all 200) → runs a **facts guard** that refuses to publish a bundle containing any
-   known-wrong fact (e.g. `4 golden`, the pre-US-55 API, `never touches Notion`). It fails
-   loudly if any check fails. The facts guard mirrors `tests/docs/test_deck_facts.py` in
-   `hermes-control-plane` (which guards the Marp side); keep the two lists in sync.
+   `<base href="/decks/<slug>/">`** as the first `<head>` child → **injects the `no-rail`
+   chrome setter** (see below) → verifies over HTTP at the real subpath (clean URL 200, base
+   present, no-rail setter present, `support.js`/`deck-stage.js`/CSS/font/image all 200) →
+   runs a **facts guard** that refuses to publish a bundle containing any known-wrong fact
+   (e.g. `4 golden`, the pre-US-55 API, `never touches Notion`). It fails loudly if any check
+   fails. The facts guard mirrors `tests/docs/test_deck_facts.py` in `hermes-control-plane`
+   (which guards the Marp side); keep the two lists in sync.
 
 3. **Commit + PR:**
    ```bash
@@ -51,6 +52,20 @@ The deck loads every asset with **document-relative** paths (`./support.js`,
 dropped the browser base becomes `/decks/` and every asset 404s. The `<base href>` pins
 resolution to the deploy path regardless of trailing slash. It is **not** in the Claude
 Design export, so the script re-adds it on every publish.
+
+## Why the `no-rail` chrome setter
+
+The deck runtime (`deck-stage.js`) shows a ~188px **thumbnail navigator rail** down the left
+edge by default. For a finished portfolio/presentation deck we want **full-bleed slides**, so
+the script sets the runtime's `no-rail` attribute. Navigation is unaffected — the hover control
+bar (`‹ n/40 › Reset`) and keyboard (←/→) still work, and the rail auto-hides on mobile anyway.
+
+Mechanics: `no-rail` lives on the runtime `<deck-stage>` element, which the runtime generates
+from `<x-import>` at load time — and **attributes do not forward through `<x-import>`** (verified;
+only `width`/`height` do). It is also **not** in the Claude Design export. So the script injects a
+tiny script (marker `deck-chrome:no-rail`) that sets the attribute once `<deck-stage>` exists —
+the same "publish-time transform, not in the export" rationale as `<base href>`. To bring the rail
+back, delete that injection step.
 
 ## Source-of-truth split
 
