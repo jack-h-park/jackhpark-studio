@@ -116,23 +116,52 @@ function asString(value: unknown): string | null {
  *
  * Ineligibility is ordinary, not an error: most of the bank is mid-drill at any moment.
  */
-export function parseInterviewCard(
+/** Why a card is not published. Ordinary states, not errors — most of the bank is mid-drill. */
+export type InterviewCardExclusion =
+  | "status-not-review-complete"
+  | "not-opted-in"
+  | "no-question"
+  | "no-answer-sections";
+
+export type InterviewCardVerdict =
+  | { eligible: true; card: InterviewCard }
+  | {
+      eligible: false;
+      reason: InterviewCardExclusion;
+      /** What is known about the card even though it is excluded, for the preview. */
+      slug: string;
+      question: string | null;
+      status: string | null;
+      optedIn: boolean;
+    };
+
+/**
+ * The single eligibility decision.
+ *
+ * `parseInterviewCard` and the admin preview both go through this. A preview computed by a
+ * second copy of these rules would be worse than no preview: it would show text as
+ * "about to be published" that the ingest disagrees about, and the disagreement would
+ * surface as a surprise in a public assistant.
+ */
+export function inspectInterviewCard(
   slug: string,
   source: string,
-): InterviewCard | null {
+): InterviewCardVerdict {
   const { frontmatter, body } = splitFrontmatter(source);
 
   const status = asString(frontmatter.status);
-  if (!status || !PUBLISHABLE_STATUSES.has(status)) {
-    return null;
-  }
-  if (frontmatter[OPT_IN_FIELD] !== true) {
-    return null;
-  }
-
   const question = asString(frontmatter.question);
+  const optedIn = frontmatter[OPT_IN_FIELD] === true;
+  const known = { slug, question, status, optedIn };
+
+  if (!status || !PUBLISHABLE_STATUSES.has(status)) {
+    return { eligible: false, reason: "status-not-review-complete", ...known };
+  }
+  if (!optedIn) {
+    return { eligible: false, reason: "not-opted-in", ...known };
+  }
   if (!question) {
-    return null;
+    return { eligible: false, reason: "no-question", ...known };
   }
 
   const sections = splitSections(body);
@@ -146,19 +175,35 @@ export function parseInterviewCard(
   );
 
   if (answerParts.length === 0) {
-    return null;
+    return { eligible: false, reason: "no-answer-sections", ...known };
   }
 
   return {
-    slug,
-    question,
-    category: asString(frontmatter.category),
-    status,
-    lastReviewed: asString(frontmatter.last_reviewed),
-    // The question is embedded with the answer on purpose: a visitor's phrasing matches the
-    // question far more often than it matches the answer prose.
-    answer: [`Q: ${question}`, ...answerParts].join("\n\n"),
+    eligible: true,
+    card: {
+      slug,
+      question,
+      category: asString(frontmatter.category),
+      status,
+      lastReviewed: asString(frontmatter.last_reviewed),
+      // The question is embedded with the answer on purpose: a visitor's phrasing matches
+      // the question far more often than it matches the answer prose.
+      answer: [`Q: ${question}`, ...answerParts].join("\n\n"),
+    },
   };
+}
+
+/**
+ * Parse one card, returning null when it is not eligible.
+ *
+ * Ineligibility is ordinary, not an error: most of the bank is mid-drill at any moment.
+ */
+export function parseInterviewCard(
+  slug: string,
+  source: string,
+): InterviewCard | null {
+  const verdict = inspectInterviewCard(slug, source);
+  return verdict.eligible ? verdict.card : null;
 }
 
 /**
@@ -227,7 +272,14 @@ function requireEnv(name: string): string {
 }
 
 /** List and fetch every card file, returning only the eligible ones. */
-export async function fetchInterviewBankCards(): Promise<InterviewCard[]> {
+/** One card file as fetched, before any eligibility judgement. */
+export type InterviewBankFile = { slug: string; source: string };
+
+/**
+ * Fetch every card file. The ingest and the preview share this so they cannot disagree
+ * about which files exist, only about what to do with them.
+ */
+export async function fetchInterviewBankFiles(): Promise<InterviewBankFile[]> {
   const repo = process.env.INTERVIEW_BANK_REPO ?? DEFAULT_REPO;
   const branch = process.env.INTERVIEW_BANK_BRANCH ?? DEFAULT_BRANCH;
   const dir = process.env.INTERVIEW_BANK_PATH ?? DEFAULT_PATH;
@@ -252,7 +304,7 @@ export async function fetchInterviewBankCards(): Promise<InterviewCard[]> {
     (entry) => entry.type === "file" && entry.name.endsWith(".md"),
   );
 
-  const cards: InterviewCard[] = [];
+  const out: InterviewBankFile[] = [];
   for (const file of files) {
     if (!file.download_url) continue;
     const response = await fetch(file.download_url, { headers });
@@ -261,12 +313,88 @@ export async function fetchInterviewBankCards(): Promise<InterviewCard[]> {
         `Failed to read ${file.name}: ${response.status} ${response.statusText}`,
       );
     }
-    const card = parseInterviewCard(
-      file.name.replace(/\.md$/, ""),
-      await response.text(),
-    );
-    if (card) cards.push(card);
+    out.push({
+      slug: file.name.replace(/\.md$/, ""),
+      source: await response.text(),
+    });
   }
 
+  return out;
+}
+
+/** List and fetch every card file, returning only the eligible ones. */
+export async function fetchInterviewBankCards(): Promise<InterviewCard[]> {
+  const files = await fetchInterviewBankFiles();
+  const cards: InterviewCard[] = [];
+  for (const file of files) {
+    const card = parseInterviewCard(file.slug, file.source);
+    if (card) cards.push(card);
+  }
   return cards;
+}
+
+export type InterviewBankPreviewEntry = {
+  slug: string;
+  question: string | null;
+  status: string | null;
+  optedIn: boolean;
+  eligible: boolean;
+  reason: InterviewCardExclusion | null;
+  /** Exactly the text that would be embedded. Only present for eligible cards. */
+  text: string | null;
+  characters: number | null;
+};
+
+export type InterviewBankPreview = {
+  total: number;
+  eligible: number;
+  entries: InterviewBankPreviewEntry[];
+};
+
+/**
+ * What the next ingest would publish, without publishing it.
+ *
+ * Reads and judges only: no embedding, no Supabase, no run record. The section filter is the
+ * one part of this adapter whose failure is silent and public — a card's self-critique or an
+ * internal repo path reaching a public assistant breaks nothing and announces nothing — so
+ * being able to read the exact text before it is embedded is the point.
+ */
+export async function previewInterviewBank(): Promise<InterviewBankPreview> {
+  const files = await fetchInterviewBankFiles();
+  const entries = files.map((file): InterviewBankPreviewEntry => {
+    const verdict = inspectInterviewCard(file.slug, file.source);
+    if (verdict.eligible) {
+      return {
+        slug: verdict.card.slug,
+        question: verdict.card.question,
+        status: verdict.card.status,
+        optedIn: true,
+        eligible: true,
+        reason: null,
+        text: verdict.card.answer,
+        characters: verdict.card.answer.length,
+      };
+    }
+    return {
+      slug: verdict.slug,
+      question: verdict.question,
+      status: verdict.status,
+      optedIn: verdict.optedIn,
+      eligible: false,
+      reason: verdict.reason,
+      text: null,
+      characters: null,
+    };
+  });
+
+  entries.sort((a, b) => {
+    if (a.eligible !== b.eligible) return a.eligible ? -1 : 1;
+    return a.slug.localeCompare(b.slug);
+  });
+
+  return {
+    total: entries.length,
+    eligible: entries.filter((entry) => entry.eligible).length,
+    entries,
+  };
 }

@@ -10,7 +10,33 @@ This guide details the operational workflows for managing the AI Assistant's dat
 
 The Ingestion Dashboard is the control center for updating the RAG knowledge base. It allows operators to trigger manual indexing runs and monitor system health.
 
-### Manual Ingestion Panel
+### Interview Q&A Bank (`/admin/interview-bank`)
+
+What the next interview-bank ingest would publish to JackGPT, **before** it publishes it.
+Read-only: it fetches the card files, applies the same eligibility decision the ingest uses,
+and stops. Nothing is embedded and no run is recorded.
+
+It exists because the section filter's failure mode is silent and public. Only
+`## Short Version` and `## Answer Draft` are embedded; `## Evidence Notes`, `## Gaps`,
+`## Improvement Notes` and anything added to the card template later stay private. If that
+allow-list ever let something through, nothing would break and nothing would announce it —
+the assistant would simply start quoting Jack's notes on his own answers. Reading the exact
+embedded text is the cheap way to catch it.
+
+Each card shows whether it publishes and, if not, why: status not review-complete, no
+`publish_to_jackgpt: true`, no question, or no answer sections. Eligible cards expand to the
+verbatim text that would be embedded — rendered as preformatted text on purpose, since
+markdown rendering would hide whitespace and stray headings.
+
+The preview and the ingest share one decision function (`inspectInterviewCard`). A preview
+computed from a second copy of those rules would be worse than none: it would show text as
+"about to be published" that the ingest disagrees about.
+
+`/api/admin/manual-ingest` also accepts `mode: "interview_bank"`, so the bank can be
+ingested on demand through the same endpoint the dashboard uses. The daily cron already runs
+it, so this is for when you have just opted a card in and do not want to wait.
+
+## Manual Ingestion Panel
 
 Use this panel to "push" new content into the vector database immediately.
 
