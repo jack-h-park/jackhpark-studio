@@ -50,7 +50,7 @@ export const hero = {
   /** Phrase inside subheadline that receives emphasis styling. */
   subheadlineEmphasis: "what not to build",
   positioning:
-    "I build enterprise security platforms from 0 to 1 — and the discipline to refuse what doesn’t belong.",
+    "I build enterprise SaaS, security, and AI platforms from 0 to 1 — and the discipline to refuse what doesn’t belong.",
   primaryCta: { label: "Enter the studio", href: studioHref },
   secondaryCta: { label: "Ask JackGPT about my work", href: "/chat" },
 } as const;

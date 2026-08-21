@@ -15,7 +15,7 @@ export default siteConfig({
 
   // open graph metadata (optional)
   description:
-    "Jack H. Park's  personal studio of work, ideas, and experiments, crafting products, sharing stories, and exploring curiosity.",
+    "Product leader across enterprise SaaS, security, and AI — 0→1 launches at global scale, plus the AI systems I design, build, and operate myself.",
 
   inlineCollectionTitleBold: false,
 
