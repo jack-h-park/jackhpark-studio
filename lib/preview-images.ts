@@ -13,6 +13,7 @@ import { defaultPageCover, defaultPageIcon } from "./config";
 import { db } from "./db";
 import { notionLogger } from "./logging/logger";
 import { mapImageUrl } from "./map-image-url";
+import { NOTION_IMAGE_FETCH_HEADERS } from "./notion-image-fetch";
 import { normalizeNotionRecordMap } from "./rag/notion-record-value";
 
 export async function getPreviewImageMap(
@@ -155,7 +156,9 @@ async function createPreviewImage(
       });
     }
 
-    const body = await ky(url).arrayBuffer();
+    const body = await ky(url, {
+      headers: NOTION_IMAGE_FETCH_HEADERS,
+    }).arrayBuffer();
     const result = await lqip(body);
     //console.log('lqip', { ...result.metadata, url, cacheKey })
 
