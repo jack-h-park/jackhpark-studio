@@ -74,6 +74,40 @@ else:
 open(path, "w", encoding="utf-8").write(html)
 PY
 
+# ---- 2b. inject the no-rail chrome setter (idempotent) ---------------------
+# The deck runtime (deck-stage.js) shows a 188px thumbnail navigator rail by
+# default. For a finished portfolio/presentation deck we want full-bleed slides
+# — nav still works via the hover control bar (‹ n/40 › Reset) + keyboard + the
+# rail auto-hides on mobile anyway. The `no-rail` attribute lives on the runtime
+# <deck-stage> element, which the runtime generates from <x-import> at load time
+# (attributes do NOT forward through x-import — verified), and it is NOT in the
+# Claude Design export. So set it from a tiny injected script once the element
+# exists — the same "publish-time transform" rationale as <base href>.
+python3 - "$DST/index.html" <<'PY'
+import sys
+path = sys.argv[1]
+html = open(path, encoding="utf-8").read()
+MARK = "deck-chrome:no-rail"
+if MARK in html:
+    print("  no-rail setter already present")
+else:
+    snippet = (
+        '<script>/* ' + MARK + ' */(function(){'
+        'function a(){var el=document.querySelector("deck-stage");'
+        'if(el){if(!el.hasAttribute("no-rail"))el.setAttribute("no-rail","");return true;}return false;}'
+        'if(!a()){var mo=new MutationObserver(function(){if(a())mo.disconnect();});'
+        'mo.observe(document.documentElement,{childList:true,subtree:true});'
+        'if(window.customElements&&customElements.whenDefined)customElements.whenDefined("deck-stage").then(a);'
+        'document.addEventListener("DOMContentLoaded",a);window.addEventListener("load",a);}})();</script>'
+    )
+    if "</body>" in html:
+        html = html.replace("</body>", snippet + "\n</body>", 1)
+    else:
+        html = html + snippet
+    open(path, "w", encoding="utf-8").write(html)
+    print("  injected no-rail setter")
+PY
+
 # ---- 3. verify over HTTP at the subpath -----------------------------------
 echo "verify (serving public/ at :$PORT, checking $BASE):"
 ( cd "$PUBLIC" && exec python3 -m http.server "$PORT" >/dev/null 2>&1 ) &
@@ -95,6 +129,11 @@ if [[ "$body" == *"<base href=\"$BASE\""* ]]; then
   log "ok   <base href> present in served HTML"
 else
   log "FAIL <base href=\"$BASE\"> missing from served HTML"; fail=1
+fi
+if [[ "$body" == *"deck-chrome:no-rail"* ]]; then
+  log "ok   no-rail chrome setter present in served HTML"
+else
+  log "FAIL no-rail chrome setter missing from served HTML"; fail=1
 fi
 
 css="$(cd "$DST" && ls _ds/*/styles.css 2>/dev/null | head -1 || true)"
