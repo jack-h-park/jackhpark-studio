@@ -46,8 +46,30 @@ import { fetchUrlDocument } from "../rag/sources/url";
 
 type ManualNotionScope = "workspace" | "selected";
 
-const LINKED_PAGE_MAX_PAGES = 250;
-const LINKED_PAGE_MAX_DEPTH = 4;
+/**
+ * Bounds on the workspace traversal.
+ *
+ * Tunable because reaching the page cap has a consequence beyond a shorter run: a traversal
+ * that stopped early cannot tell "deleted" from "not reached", so the missing-document sweep
+ * is disabled for that run. Raising the cap is how a growing corpus keeps its sweep, and the
+ * admin guide describes these as configurable — which was untrue while they were literals.
+ *
+ * A malformed value falls back rather than being trusted: a cap of 0 or NaN would silently
+ * reduce the workspace to nothing.
+ */
+function positiveIntFromEnv(name: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[name] ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const LINKED_PAGE_MAX_PAGES = positiveIntFromEnv(
+  "NOTION_LINKED_PAGE_MAX_PAGES",
+  250,
+);
+const LINKED_PAGE_MAX_DEPTH = positiveIntFromEnv(
+  "NOTION_LINKED_PAGE_MAX_DEPTH",
+  4,
+);
 
 /**
  * How many pages to ingest at once.
@@ -345,11 +367,26 @@ export async function collectLinkedPagesFromSeeds(
     }
   }
 
+  const hitCap = seen.size >= LINKED_PAGE_MAX_PAGES;
+  if (hitCap) {
+    // Silence here is the trap this warning exists for: the run still succeeds, still
+    // ingests, and simply stops retiring deleted pages — with nothing said, a corpus that
+    // grew past the cap looks healthy while its sweep has been off for weeks.
+    await emit({
+      type: "log",
+      level: "warn",
+      message:
+        `Traversal stopped at the ${LINKED_PAGE_MAX_PAGES}-page cap. Deleted pages will NOT be ` +
+        `retired by this run, because a truncated traversal cannot tell "deleted" from ` +
+        `"not reached". Raise NOTION_LINKED_PAGE_MAX_PAGES to restore the sweep.`,
+    });
+  }
+
   return {
     pageIds: Array.from(seen),
     // At the cap the BFS stopped early, so unvisited docs may be beyond the
     // cap rather than deleted.
-    complete: complete && seen.size < LINKED_PAGE_MAX_PAGES,
+    complete: complete && !hitCap,
   };
 }
 
@@ -764,6 +801,17 @@ async function runNotionPageIngestion({
         type: "log",
         level: sweep.failures.length > 0 ? "warn" : "info",
         message: formatSweepSummary(sweep),
+      });
+    } else if (isFull && isWorkspace) {
+      // The sweep is the only thing that retires a deleted page. Skipping it is correct on
+      // an incomplete traversal and must still be visible, or "full run, no errors" reads as
+      // "the corpus is now exactly the workspace" when it is not.
+      await emit({
+        type: "log",
+        level: "warn",
+        message:
+          "Missing-document sweep skipped: the workspace traversal did not complete, so " +
+          "documents it never reached cannot be distinguished from deleted ones.",
       });
     }
 

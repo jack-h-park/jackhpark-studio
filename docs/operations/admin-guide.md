@@ -63,7 +63,13 @@ Use this panel to "push" new content into the vector database immediately.
     - **Scope:**
       - `Workspace`: Scans _all_ accessible pages.
       - `Selected`: Ingests a specific Page ID.
-    - **Linked Pages:** Optionally crawls child pages and linked references (recursive depth limited by system config).
+    - **Linked Pages:** Optionally crawls child pages and linked references. Bounded by
+      `NOTION_LINKED_PAGE_MAX_PAGES` (default 250) and `NOTION_LINKED_PAGE_MAX_DEPTH`
+      (default 4).
+    - **Reaching the page cap disables the sweep for that run.** A truncated traversal
+      cannot tell "deleted" from "not reached", so deleted pages stop being retired — while
+      the run still succeeds and still ingests. The run log warns when this happens; raise
+      `NOTION_LINKED_PAGE_MAX_PAGES` past the corpus size to restore it.
 2.  **External URL:** Scrapes and ingests a public web article.
     - _Note:_ Uses `readability` to strip ads and navigation.
 
