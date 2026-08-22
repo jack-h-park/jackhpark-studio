@@ -242,7 +242,11 @@ function verdictFor(
 
   return {
     verdict: "gone",
-    hint: "Upstream no longer serves this file. Re-adding will not help; pick a new source or drop the cover.",
+    // Deliberately not "re-adding will not help". A dead path does not mean a
+    // dead image: a Wikipedia file that moved from Commons to a local upload
+    // 404'd here, and re-adding the bookmark picked up its new location,
+    // because Notion re-snapshots whatever the source page advertises today.
+    hint: "Upstream serves nothing at this path. Re-add the bookmark first — the source may now advertise the image from somewhere else. If the cover comes back empty, pick a new source or drop it.",
   };
 }
 

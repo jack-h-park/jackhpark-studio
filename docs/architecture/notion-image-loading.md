@@ -163,11 +163,11 @@ longer resolve. It checks the URL the browser actually requests (Notion's
 `/image/` proxy) and, when that fails, the upstream URL too, because the two
 failures need different fixes:
 
-| verdict             | meaning                                                 | fix                                                     |
-| ------------------- | ------------------------------------------------------- | ------------------------------------------------------- |
-| `stale-thumbnail`   | original file is fine, the stored thumbnail URL is dead | re-add the bookmark so Notion snapshots a current URL   |
-| `gone`              | upstream serves nothing at that path                    | re-adding will not help — new source, or drop the cover |
-| `notion-proxy-only` | upstream is fine, Notion refuses to proxy it            | re-add the bookmark, or self-host the image             |
+| verdict             | meaning                                                 | fix                                                                                                              |
+| ------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `stale-thumbnail`   | original file is fine, the stored thumbnail URL is dead | re-add the bookmark so Notion snapshots a current URL                                                            |
+| `gone`              | upstream serves nothing at that path                    | re-add first — the source may advertise the image from a new location; only then a new source, or drop the cover |
+| `notion-proxy-only` | upstream is fine, Notion refuses to proxy it            | re-add the bookmark, or self-host the image                                                                      |
 
 It exits non-zero when anything is broken, so it can gate a scheduled check.
 `format.display_source` is deliberately not scanned: on video and embed blocks
