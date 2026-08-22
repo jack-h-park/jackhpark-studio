@@ -28,7 +28,7 @@
 import { writeFile } from "node:fs/promises";
 
 import { type Block, type ExtendedRecordMap } from "notion-types";
-import { getPageTitle } from "notion-utils";
+import { getPageTitle, parsePageId } from "notion-utils";
 import pMap from "p-map";
 
 import { collectLinkedPagesFromSeeds } from "../lib/admin/manual-ingestor";
@@ -274,7 +274,17 @@ async function collectRecordMaps(
   options: CliOptions,
 ): Promise<Map<string, ExtendedRecordMap>> {
   if (options.pageId) {
-    return new Map([[options.pageId, await notion.getPage(options.pageId)]]);
+    // Notion page ids travel in two shapes — bare hex from a URL, dashed uuid
+    // from the API — but every downstream block lookup keys on the dashed one.
+    // A bare id used to fetch the page just fine and then match no blocks at
+    // all, so the report said "0 images" for a page full of them.
+    const pageId = parsePageId(options.pageId);
+    if (!pageId) {
+      throw new Error(
+        `--page: "${options.pageId}" is not a Notion page id (expected 32 hex characters, dashed or not).`,
+      );
+    }
+    return new Map([[pageId, await notion.getPage(pageId)]]);
   }
 
   const rootPageId = process.env.NOTION_ROOT_PAGE_ID ?? configRootNotionPageId;
