@@ -1,96 +1,34 @@
-# Skill Wrappers
+# Skills
 
-This directory contains the project-local wrapper layer for reusable AI skills.
+Audit and review methods for this repository, one directory per method. Each `SKILL.md` is
+self-contained: when it applies, the goals, the method, the workflow, the output format, and
+a pointer to its repo-specific companion doc under `docs/`.
 
-In this repository, wrappers bind local routing cues to selected shared assets in the sibling `jackhpark-ai-skills` repository. That shared repository is treated here as an external library of canonical methods and lightweight contracts, not as a mandatory platform every repository must mirror.
+| Skill | Companion doc |
+|---|---|
+| `telemetry-contract-audit` | `docs/telemetry/telemetry-contract-audit-local-adapter.md` |
+| `rag-trace-review` | `docs/telemetry/retrieval-trace-review-local-adapter.md` |
+| `chat-api-smoke-regression` | `docs/testing/api-smoke-patterns-local-adapter.md` |
+| `admin-surface-depth-audit` | `docs/ui/admin-surface-hierarchy-audit-local-adapter.md` |
+| `advanced-settings-policy-audit` | `docs/chat/settings-ownership-audit-local-adapter.md` |
 
-## Layer Model
+The split follows one rule: the skill holds the **method** and loads only when a request
+matches its description; the companion doc holds the **local vocabulary** — exact field
+names, vendor surfaces, invariants, control knobs — and is read from the skill.
 
-This repository currently uses three layers:
+## History
 
-- **Canonical playbooks** in `jackhpark-ai-skills/playbooks/`
-  - reusable methods
-  - reusable checklists
-  - reusable failure taxonomies
-  - reusable output/report formats
-- **Canonical skills** in `jackhpark-ai-skills/skills/`
-  - reusable trigger baselines
-  - reusable workflow skeletons
-  - reusable output contracts
-- **Local adapters** in `docs/`
-  - repo-specific vocabulary
-  - repo-specific entrypoints
-  - repo-specific invariants
-  - repo-specific commands, signals, traces, or primitive mappings
-- **Project wrappers** in `ai/skill-wrappers/`
-  - routing surface for this repo
-  - canonical skill reference
-  - local adapter binding
-  - narrow project-specific overrides only
+These were previously wrappers under an `ai/skill-wrappers` directory, binding to canonical playbooks
+and skills in a sibling `jackhpark-ai-skills` repository through a four-layer contract
+(canonical playbook → canonical skill → local adapter → local wrapper).
 
-## What `ai/skill-wrappers` Is For
+Two problems ended that arrangement. That directory is not a path Claude Code
+discovers skills from, so despite good trigger descriptions none of them ever fired. And
+every method in the shared library had exactly one consumer — this repo — so the
+indirection bought no reuse while costing three extra files per topic.
 
-Each `SKILL.md` should do four jobs:
+## Adding a skill
 
-- help Codex choose the right skill
-- point execution at the canonical shared skill
-- point execution at the right local adapter
-- state any repo-specific override that cannot live in the shared layer
-
-`ai/skill-wrappers` is not the place for full methodology docs or full repo-specific reference docs.
-
-## What Should Stay in A Wrapper
-
-- strong trigger wording
-- canonical skill reference
-- local adapter reference
-- minimal local execution framing
-- only the smallest project-specific override set
-
-## What Belongs In Canonical Skills
-
-- reusable trigger baselines
-- reusable review workflows
-- reusable output/reporting contracts
-- reusable pitfalls and routing boundaries
-
-If another repo could reuse the skill entrypoint with only a local adapter change, it may be a candidate for `jackhpark-ai-skills/skills/`. That is a shared-library decision, not a requirement that every repo expose the same wrapper stack.
-
-## What Should Stay in Local Adapters
-
-- local vocabulary
-- local commands and entrypoints
-- local traces, events, headers, flags, or UI primitive names
-- local invariants and exclusions
-- local page maps, ownership maps, and implementation references
-
-If the detail depends on this repo's exact terminology or implementation shape, it belongs in the adapter.
-
-## How to Add or Migrate a Skill
-
-1. Identify one repeated engineering job.
-2. Split the source material into:
-   - canonical playbook
-   - canonical skill
-   - local adapter
-   - do not promote
-3. Draft or update the canonical playbook in `jackhpark-ai-skills/playbooks/` when the method is worth sharing.
-4. Draft or update the canonical skill in `jackhpark-ai-skills/skills/` only when a shared routing or output contract adds value.
-5. Update or create `ai/skill-wrappers/<skill>/SKILL.md` as the local binding layer.
-6. Keep the wrapper concise and reference-aware.
-
-## Duplication Rule
-
-Do not copy full canonical workflows into a wrapper.
-
-Do not copy full local mappings into a wrapper.
-
-The expected shape is:
-
-- canonical playbook = reusable method
-- canonical skill = reusable execution contract
-- local adapter = repo mapping
-- wrapper = routing + local binding
-
-If a wrapper starts reading like a full documentation file, it is too heavy.
-If a wrapper stops identifying the correct canonical skill or local adapter, it is too thin.
+Write it here, self-contained. Put repo-specific vocabulary in a companion doc under `docs/`
+and link it from the skill. Only if a method turns out to be used by a second repo does
+extracting it anywhere else become worth discussing.

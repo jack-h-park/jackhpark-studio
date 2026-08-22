@@ -1,6 +1,6 @@
 # Telemetry Contract Local Adapter
 
-This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/telemetry-contract-audit.md` and the canonical skill `jackhpark-ai-skills/skills/dev/telemetry-contract-audit/SKILL.md`.
+This document is the repo-specific companion to the `telemetry-contract-audit` skill in [`.claude/skills/telemetry-contract-audit/SKILL.md`](../../.claude/skills/telemetry-contract-audit/SKILL.md), which holds the method.
 
 It intentionally contains only the local signal vocabulary, canonical semantics, vendor surfaces, alert groups, and configuration controls needed to apply that method inside `jackhpark-studio`.
 
@@ -39,7 +39,7 @@ It intentionally contains only the local signal vocabulary, canonical semantics,
 
 ## Local Operational Verification Notes
 
-- Use the canonical playbook `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md` for the reusable scenario checklist.
+- Use the canonical playbook [`docs/telemetry/operations/telemetry-operational-verification-local.md`](operations/telemetry-operational-verification-local.md) for the reusable scenario checklist.
 - Use the local supplement `docs/telemetry/operations/telemetry-operational-verification-local.md` only for exact field names, observation names, and first-pass code ownership hints.
 
 ## Local Event and Field Contract

@@ -1,6 +1,6 @@
 # Admin Surface Hierarchy Local Adapter
 
-This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/admin-surface-hierarchy-audit.md` and the canonical skill `jackhpark-ai-skills/skills/dev/admin-surface-depth-audit/SKILL.md`.
+This document is the repo-specific companion to the `admin-surface-depth-audit` skill in [`.claude/skills/admin-surface-depth-audit/SKILL.md`](../../.claude/skills/admin-surface-depth-audit/SKILL.md), which holds the method.
 
 It intentionally contains only the local vocabulary, primitive mappings, page-specific hierarchy models, and current audit references needed to apply that method inside `jackhpark-studio`.
 

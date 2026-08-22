@@ -14,7 +14,6 @@ The `terminology.md` file remains the single authoritative source for shared ter
 2. Orientation maps:
    - `00-start-here/repository-map.md`
    - `00-start-here/documentation-governance.md`
-   - `00-start-here/skill-source-architecture.md`
 3. Canonical contracts:
    - `canonical/rag/rag-system.md`
    - `canonical/guardrails/guardrail-system.md`
@@ -98,14 +97,13 @@ The `terminology.md` file remains the single authoritative source for shared ter
 
 ## Promotion Candidates For Shared Extraction
 
-This repo consumes a small shared library of canonical playbooks and skills from the sibling `jackhpark-ai-skills` repository. Those shared assets are external inputs to this repo, not proof that every project should adopt the same structure.
+Audit and review methods live in this repo as skills under `.claude/skills/`, each holding
+its own method and output format. They previously lived in a sibling `jackhpark-ai-skills`
+library and were bound here through wrappers and adapters; that indirection was removed
+because every one of those methods had exactly one consumer — this repo.
 
-For the full layer contract, start with `00-start-here/skill-source-architecture.md`.
-
-- Canonical playbooks live in the sibling `jackhpark-ai-skills/playbooks/` repo path
-- Canonical skills live in the sibling `jackhpark-ai-skills/skills/` repo path
-- Repo-specific adapters remain under `docs/...-local-adapter.md`
-- Repo-local skill bindings remain under `ai/skill-wrappers/`
+- Methods live in `.claude/skills/<skill>/SKILL.md`
+- Repo-specific vocabulary and signals remain under `docs/...-local-adapter.md`
 
 Promote only material that is reusable across codebases. Keep repo names, file paths, event names, local trace names, primitive names, and canonical local contracts in this repository.
 

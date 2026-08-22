@@ -1,6 +1,6 @@
 # Settings Ownership Local Adapter
 
-This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/settings-ownership-audit.md` and the canonical skill `jackhpark-ai-skills/skills/hybrid/advanced-settings-policy-audit/SKILL.md`.
+This document is the repo-specific companion to the `advanced-settings-policy-audit` skill in [`.claude/skills/advanced-settings-policy-audit/SKILL.md`](../../.claude/skills/advanced-settings-policy-audit/SKILL.md), which holds the method.
 
 It intentionally contains only the local vocabulary, ownership mappings, UX semantics, and implementation references needed to apply that method inside `jackhpark-studio`.
 

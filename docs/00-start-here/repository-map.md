@@ -87,7 +87,7 @@ The pre-push hook (`scripts/hooks/pre-push`) blocks accidental pushes while in l
   - `pnpm qa:notion-polish`
   - `pnpm check:katex` for optional live Notion content audits
   - `pnpm lint:css-guardrails`
-- Repo-local skill bindings live in `ai/skill-wrappers/`. Canonical shared skills and playbooks are referenced through the sibling `jackhpark-ai-skills` path as an external shared library; do not document local copies as source-of-truth skill material.
+- Audit and review skills live in `.claude/skills/<skill>/SKILL.md`, each self-contained. Their repo-specific companions are the `docs/...-local-adapter.md` files.
 
 ## Stack Signals
 
