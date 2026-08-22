@@ -1,6 +1,6 @@
 # Retrieval Trace Local Adapter
 
-This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/retrieval-trace-review.md` and the canonical skill `jackhpark-ai-skills/skills/dev/rag-trace-review/SKILL.md`.
+This document is the repo-specific companion to the `rag-trace-review` skill in [`.claude/skills/rag-trace-review/SKILL.md`](../../.claude/skills/rag-trace-review/SKILL.md), which holds the method.
 
 It intentionally contains only the local trace vocabulary, stage map, metric meanings, strategy terms, implementation ownership clues, and reporting additions needed to apply that method inside `jackhpark-studio`.
 

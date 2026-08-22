@@ -1,6 +1,6 @@
 # API Smoke Local Adapter
 
-This document is the repo-specific adapter for the canonical playbook `jackhpark-ai-skills/playbooks/api-smoke-patterns.md` and the canonical skill `jackhpark-ai-skills/skills/dev/chat-api-smoke-regression/SKILL.md`.
+This document is the repo-specific companion to the `chat-api-smoke-regression` skill in [`.claude/skills/chat-api-smoke-regression/SKILL.md`](../../.claude/skills/chat-api-smoke-regression/SKILL.md), which holds the method.
 
 It intentionally contains only local information needed to apply that method inside `jackhpark-studio`.
 

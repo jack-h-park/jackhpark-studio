@@ -34,8 +34,8 @@ This codebase is part of an interview. Favor clarity, consistency, and explainab
 - For UI or runtime debugging, prefer live execution over pure reasoning.
 - Use browser tools automatically when available.
 
-## Skill-Wrapper Routing
+## Skills
 
-This repository consumes selected shared canonical playbooks and skills from the sibling `jackhpark-ai-skills` repository. Project skill wrappers live in [ai/skill-wrappers](ai/skill-wrappers) as a local binding layer for this repo; they are useful here, but not a claim that every repo must adopt the same structure.
+Audit and review procedures live as skills in [.claude/skills](.claude/skills), one directory per method: `telemetry-contract-audit`, `rag-trace-review`, `chat-api-smoke-regression`, `admin-surface-depth-audit`, `advanced-settings-policy-audit`. Each is self-contained — trigger conditions, method, workflow, and output format — and points at its repo-specific companion doc under `docs/`.
 
-When a request matches a wrapper's trigger phrases, read `ai/skill-wrappers/<skill>/SKILL.md` first, then follow its canonical skill reference and repo-local adapter before executing.
+They load on demand when a request matches, so the procedures are not carried in this file.

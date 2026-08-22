@@ -18,7 +18,7 @@
 - [langfuse-guide.md](./langfuse-guide.md)
 - [implementation/telemetry-logging.md](./implementation/telemetry-logging.md)
 - [runbooks/oncall-runbook.md](./runbooks/oncall-runbook.md)
-- canonical playbook `jackhpark-ai-skills/playbooks/telemetry-operational-verification.md`
+- canonical playbook [`docs/telemetry/operations/telemetry-operational-verification-local.md`](../../telemetry/operations/telemetry-operational-verification-local.md)
 - [../operations/telemetry-operational-verification-local.md](../operations/telemetry-operational-verification-local.md)
 **Change rule:** If this contract changes, update derived docs in the same PR.
 

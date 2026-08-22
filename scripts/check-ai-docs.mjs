@@ -3,19 +3,19 @@ import path from 'node:path'
 import process from 'node:process'
 
 const repoRoot = process.cwd()
-const sharedRepoRoot = process.env.JACKHPARK_AI_SKILLS_PATH
-  ? path.resolve(process.env.JACKHPARK_AI_SKILLS_PATH)
-  : path.resolve(repoRoot, '..', '..', '..', 'ai-assets', 'jackhpark-ai-skills')
 
 const scanRoots = [
   'AGENTS.md',
   'CLAUDE.md',
   '.gemini',
-  'ai',
+  '.claude/skills',
   'docs'
 ]
 
 const forbiddenPatterns = [
+  'jackhpark-ai-skills/playbooks/',
+  'jackhpark-ai-skills/skills/',
+  'ai/skill-wrappers/',
   'shared-docs',
   'ai/shared-docs-source',
   'ai/skills/',
@@ -32,9 +32,10 @@ const forbiddenPatterns = [
 
 const errors = []
 
-// This script validates this repository's configured bindings to the sibling
-// shared AI docs library. It intentionally checks local integration rules; it
-// does not try to enforce a universal architecture for other repositories.
+// This script validates that this repository's AI skills stay self-contained and
+// correctly paired with their companion docs. The methods used to live in a sibling
+// jackhpark-ai-skills library bound through wrappers; that indirection is gone, so a
+// reference to it now counts as a legacy reference.
 
 function listFiles(entry) {
   const absolutePath = path.join(repoRoot, entry)
@@ -82,8 +83,16 @@ const filesToScan = scanRoots
   .flatMap(listFiles)
   .filter((filePath) => /\.(md|mdx|ts|tsx|js|mjs|cjs|json)$/.test(filePath))
 
+// Plan records under docs/implementation/plans/ describe what was proposed at the time and
+// are not rewritten when the code moves on, so legacy paths there are history, not drift.
+const archivedRecord = (filePath) => relative(filePath).startsWith('docs/implementation/plans/')
+
 for (const filePath of filesToScan) {
   const content = read(filePath)
+
+  if (archivedRecord(filePath)) {
+    continue
+  }
 
   for (const pattern of forbiddenPatterns) {
     if (content.includes(pattern)) {
@@ -92,57 +101,64 @@ for (const filePath of filesToScan) {
   }
 }
 
-const wrapperRoot = path.join(repoRoot, 'ai', 'skill-wrappers')
-const wrapperFiles = existsSync(wrapperRoot)
-  ? listFiles(path.relative(repoRoot, wrapperRoot)).filter((filePath) => filePath.endsWith('/SKILL.md'))
+const skillsRoot = path.join(repoRoot, '.claude', 'skills')
+const skillFiles = existsSync(skillsRoot)
+  ? listFiles(path.relative(repoRoot, skillsRoot)).filter((filePath) => filePath.endsWith('/SKILL.md'))
   : []
 
-for (const filePath of wrapperFiles) {
-  const content = read(filePath)
-  const canonicalSkill = content.match(/Canonical skill:\s*`([^`]+)`/)
-  const localAdapter = content.match(/Local adapter:\s*`([^`]+)`/)
+if (skillFiles.length === 0) {
+  errors.push('no skills found under .claude/skills — skills there are discoverable; elsewhere they are not')
+}
 
-  if (!canonicalSkill) {
-    errors.push(`${relative(filePath)} is missing a Canonical skill binding`)
-  } else if (!existsSync(pathForCanonicalReference(canonicalSkill[1]))) {
-    errors.push(`${relative(filePath)} references missing canonical skill: ${canonicalSkill[1]}`)
+// Every skill must be self-contained (a description that says when it applies, and a
+// method) and must point at a companion doc that exists.
+for (const filePath of skillFiles) {
+  const content = read(filePath)
+
+  if (!/^---[\s\S]*?\ndescription:\s*\S/m.test(content)) {
+    errors.push(`${relative(filePath)} is missing a frontmatter description — without one the skill cannot be matched`)
   }
 
-  if (!localAdapter) {
-    errors.push(`${relative(filePath)} is missing a Local adapter binding`)
-  } else if (!existsSync(path.join(repoRoot, localAdapter[1]))) {
-    errors.push(`${relative(filePath)} references missing local adapter: ${localAdapter[1]}`)
+  if (!content.includes('# Method') && !content.includes('# Workflow')) {
+    errors.push(`${relative(filePath)} has no Method or Workflow section — it is a pointer, not a skill`)
+  }
+
+  const companions = [...content.matchAll(/\((\.\.\/[^)]*docs\/[^)]+\.md)\)/g)].map((match) => match[1])
+
+  for (const companion of companions) {
+    const resolved = path.resolve(path.dirname(filePath), companion)
+    if (!existsSync(resolved)) {
+      errors.push(`${relative(filePath)} references missing companion doc: ${companion}`)
+    }
   }
 }
 
+// Companion docs must point back at a skill that exists, so a rename cannot orphan a pair.
 const adapterFiles = listFiles('docs').filter((filePath) => filePath.endsWith('-local-adapter.md'))
 
 for (const filePath of adapterFiles) {
   const content = read(filePath)
-  const hasCanonicalPlaybook = content.includes('jackhpark-ai-skills/playbooks/')
-  const hasCanonicalSkill = content.includes('jackhpark-ai-skills/skills/')
+  const backLinks = [...content.matchAll(/\((\.\.\/[^)]*\.claude\/skills\/[^)]+\/SKILL\.md)\)/g)].map((match) => match[1])
 
-  if (!hasCanonicalPlaybook && !hasCanonicalSkill) {
-    errors.push(`${relative(filePath)} is missing a canonical shared-asset reference`)
+  if (backLinks.length === 0) {
+    errors.push(`${relative(filePath)} does not link the skill it belongs to`)
+    continue
   }
 
-  const canonicalReferences = [...content.matchAll(/`(jackhpark-ai-skills\/(?:playbooks|skills)\/[^`]+)`/g)]
-    .map((match) => match[1])
-    .filter((reference) => reference.endsWith('.md') || reference.endsWith('/SKILL.md'))
-
-  for (const reference of canonicalReferences) {
-    if (!existsSync(pathForCanonicalReference(reference))) {
-      errors.push(`${relative(filePath)} references missing canonical asset: ${reference}`)
+  for (const backLink of backLinks) {
+    const resolved = path.resolve(path.dirname(filePath), backLink)
+    if (!existsSync(resolved)) {
+      errors.push(`${relative(filePath)} links a missing skill: ${backLink}`)
     }
   }
 }
 
 if (errors.length > 0) {
-  console.error('AI docs local binding check failed:')
+  console.error('AI skills check failed:')
   for (const error of errors) {
     console.error(`- ${error}`)
   }
   process.exit(1)
 }
 
-console.log('AI docs local binding check passed.')
+console.log('AI skills check passed.')
