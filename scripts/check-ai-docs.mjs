@@ -71,14 +71,6 @@ function read(filePath) {
   return readFileSync(filePath, 'utf8')
 }
 
-function pathForCanonicalReference(reference) {
-  if (!reference.startsWith('jackhpark-ai-skills/')) {
-    return path.join(repoRoot, reference)
-  }
-
-  return path.join(sharedRepoRoot, reference.replace('jackhpark-ai-skills/', ''))
-}
-
 const filesToScan = scanRoots
   .flatMap(listFiles)
   .filter((filePath) => /\.(md|mdx|ts|tsx|js|mjs|cjs|json)$/.test(filePath))

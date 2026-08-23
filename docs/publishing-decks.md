@@ -29,10 +29,25 @@ separate, authenticated step.
    `<base href="/decks/<slug>/">`** as the first `<head>` child → **injects the `no-rail`
    chrome setter** (see below) → verifies over HTTP at the real subpath (clean URL 200, base
    present, no-rail setter present, `support.js`/`deck-stage.js`/CSS/font/image all 200) →
-   runs a **facts guard** that refuses to publish a bundle containing any known-wrong fact
-   (e.g. `4 golden`, the pre-US-55 API, `never touches Notion`). It fails loudly if any check
-   fails. The facts guard mirrors `tests/docs/test_deck_facts.py` in `hermes-control-plane`
-   (which guards the Marp side); keep the two lists in sync.
+   runs a **facts guard** that refuses to publish a bundle whose facts have drifted. It
+   fails loudly if any check fails.
+
+   The facts guard reads **`hermes-control-plane` `docs/deck/deck-facts.json`** — the same
+   file `tests/docs/test_deck_facts.py` and `make deck-facts-verify` read over there. There
+   is no list in this repo any more: it used to be a hand-copied `FORBIDDEN[]` array, and on
+   2026-08-22 the two copies were found out of step in the worst way — this one still banned
+   `4 golden` while the source of truth has always held four scenarios, so a *corrected*
+   bundle would have been refused.
+
+   The script finds the file at `$DECK_FACTS`, then next to the bundle, then in the sibling
+   `hermes-control-plane` checkout. **If it finds none, publishing stops** — there is no
+   fallback list, because a guard that quietly degrades to "no known-wrong facts" is worse
+   than none. Ship `deck-facts.json` alongside the export, or set `DECK_FACTS`.
+
+   Three kinds of check per fact: banned strings must be absent, corrected values must be
+   present, and countable figures (endpoints, Observatory sections, integrity rules, eval
+   fixtures) must match the count cached in the file. Run `make deck-facts-verify` in
+   `hermes-control-plane` first — that recounts them from the engine and observatory source.
 
 3. **Commit + PR:**
    ```bash
