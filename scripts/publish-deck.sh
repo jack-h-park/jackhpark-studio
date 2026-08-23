@@ -148,27 +148,88 @@ done
 kill "$SRV" 2>/dev/null || true; trap - EXIT
 
 # ---- 4. facts guard — refuse to publish a known-wrong fact ----------------
-# Mirror of hermes-control-plane tests/docs/test_deck_facts.py (which guards the Marp
-# skeleton). These strings only appear when a fact has drifted; keep the two lists in
-# sync. Update BOTH the system and here when a fact genuinely changes.
-FORBIDDEN=(
-  "4 golden"                    # eval golden-scenario count is 7 (R01-R07)
-  "S2 + S7"                     # note depth stops at S2 (no S7)
-  "current_stage"               # US-55: run state is lifecycle/position/outcome
-  "/runs/{id}/direction"        # US-55: unified POST /runs/{id}/decision
-  "/runs/{id}/routing-review"   #   "
-  "/runs?status="               # US-55: no ?status= on runs
-  "auto-@mention"               # avatar consult is opt-in, not auto-every-gate
-  "never touches Notion"        # Wren publishes to the Notion posts DB
-  "Sole Notion writer"          # Quill = portfolio; Wren also writes Notion
-)
-facts_ok=1
-for bad in "${FORBIDDEN[@]}"; do
-  if grep -Fq "$bad" "$DST/index.html"; then
-    log "FAIL known-wrong fact present: '$bad'"; fail=1; facts_ok=0
-  fi
-done
-[ "$facts_ok" = 1 ] && log "ok   no known-wrong facts (facts guard)"
+# The published .dc.html is the LAST gate before the open web, and it is HTML that the
+# control-plane's Python test (tests/docs/test_deck_facts.py) cannot see. Both now read
+# the SAME file — hermes-control-plane docs/deck/deck-facts.json — so the list is
+# written once. It used to be hand-copied into a FORBIDDEN[] array here, and on
+# 2026-08-22 the two copies were found out of step in the worst way: this one still
+# banned "4 golden" and its comment asserted the answer was 7, while the source of truth
+# has always held four scenarios. A correct bundle would have been refused.
+#
+# There is deliberately NO fallback list. If the facts file cannot be found, publishing
+# stops — a guard that silently degrades to "no known-wrong facts" is worse than none.
+if [ -n "${DECK_FACTS:-}" ]; then
+  FACTS_FILE="$DECK_FACTS"
+elif [ -d "$SRC" ] && [ -f "$SRC/deck-facts.json" ]; then
+  FACTS_FILE="$SRC/deck-facts.json"                    # shipped with the exported bundle
+elif [ -f "$(dirname "$SRC")/deck-facts.json" ]; then
+  FACTS_FILE="$(dirname "$SRC")/deck-facts.json"       # …or beside a single .dc.html
+else
+  FACTS_FILE="$ROOT/../../ai-assets/jackhpark-hermes-control-plane/docs/deck/deck-facts.json"
+fi
+if [ ! -f "$FACTS_FILE" ]; then
+  echo ""
+  echo "❌ facts guard: cannot find deck-facts.json (looked at '$FACTS_FILE')."
+  echo "   Ship it next to the bundle, or set DECK_FACTS=/path/to/deck-facts.json."
+  echo "   It lives in jackhpark-hermes-control-plane at docs/deck/deck-facts.json."
+  exit 1
+fi
+log "facts guard: $FACTS_FILE"
+# The facts file names the wrong values on purpose — it does not belong on the web.
+rm -f "$DST/deck-facts.json"
+
+if python3 - "$DST/index.html" "$FACTS_FILE" <<'FACTSPY'
+import html as htmllib
+import json
+import re
+import sys
+
+page = open(sys.argv[1], encoding="utf-8").read()
+spec = json.load(open(sys.argv[2], encoding="utf-8"))
+
+# Check the raw HTML *and* a tag-stripped rendering of it. Neither alone is enough:
+# stripping joins text that a <strong> split in two ("**4 regression fixtures**"),
+# while the raw source is the only place attribute content lives — data-speaker-notes
+# carries facts too, and that is where "7 golden" was still sitting in the last publish.
+text = htmllib.unescape(re.sub(r"<[^>]+>", "", page))
+haystacks = (page, text)
+
+fails = []
+checked = 0
+for fact in spec["facts"]:
+    label = fact["label"]
+    for token in fact["absent"]:
+        checked += 1
+        if any(token in h for h in haystacks):
+            fails.append("known-wrong '%s' [%s]\n         %s"
+                         % (token, label, fact["source"]))
+    for token in fact["present"]:
+        checked += 1
+        if not any(token in h for h in haystacks):
+            fails.append("missing '%s' [%s] — the bundle predates this correction\n"
+                         "         %s" % (token, label, fact["source"]))
+    cfg = fact.get("count")
+    if cfg:
+        checked += 1
+        found = [int(m.group(1)) for m in re.finditer(cfg["deck_pattern"], text)]
+        if not found:
+            fails.append("nothing matches %s [%s] — the claim is missing from the "
+                         "bundle, or reworded past its pattern"
+                         % (cfg["deck_pattern"], label))
+        for value in found:
+            if value != cfg["value"]:
+                fails.append("bundle says %d, source says %d [%s]\n         %s"
+                             % (value, cfg["value"], label, fact["source"]))
+
+for f in fails:
+    print("  FAIL %s" % f)
+if fails:
+    print("  counted facts are cached in deck-facts.json — run `make deck-facts-verify`")
+    print("  in hermes-control-plane to recount them from engine/observatory source.")
+    sys.exit(1)
+print("  ok   facts guard — %d checks from %s" % (checked, sys.argv[2].split("/")[-1]))
+FACTSPY
+then :; else fail=1; fi
 
 slides="$(grep -c '<section' "$DST/index.html" || true)"
 echo ""
