@@ -45,7 +45,12 @@ PORT="${DECK_VERIFY_PORT:-8971}"
 log() { printf '  %s\n' "$*"; }
 
 # ---- 1. place the file -----------------------------------------------------
+# Clean the destination first — a Claude Design-era publish left a multi-file
+# bundle (_ds/, images/, support.js, deck-stage.js) alongside index.html.
+# A frontend-slides deck is a single self-contained file; a bare `cp -f` would
+# silently leave those stale bundle assets sitting in the repo forever.
 echo "publish: $SRC -> $DST/index.html"
+rm -rf "$DST"
 mkdir -p "$DST"
 cp -f "$SRC" "$DST/index.html"
 
