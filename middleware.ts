@@ -1,4 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+
+import { isAllowedAdminEmail } from "@/lib/admin/auth";
 
 export const config = {
   /*
@@ -12,35 +15,35 @@ export const config = {
   matcher: ["/admin/:path*", "/api/admin/:path*"],
 };
 
-export function middleware(req: NextRequest) {
-  const basicAuth = req.headers.get("authorization");
-  const user = process.env.ADMIN_DASH_USER;
-  const pass = process.env.ADMIN_DASH_PASS;
-
-  // Require username and password to be set
-  if (!user || !pass) {
-    return new NextResponse(
-      "Internal Server Error: Auth credentials not set.",
-      {
-        status: 500,
-      },
-    );
+export async function middleware(req: NextRequest) {
+  if (req.nextUrl.pathname === "/admin/sign-in") {
+    return NextResponse.next();
   }
 
-  if (basicAuth) {
-    const authValue = basicAuth.split(" ")[1];
-    const [providedUser, providedPass] = atob(authValue).split(":");
-
-    if (providedUser === user && providedPass === pass) {
-      return NextResponse.next();
+  const nextAuthSecret = process.env.NEXTAUTH_SECRET;
+  if (nextAuthSecret && process.env.ADMIN_GOOGLE_EMAIL) {
+    try {
+      const token = await getToken({ req, secret: nextAuthSecret });
+      if (isAllowedAdminEmail(token?.email, process.env.ADMIN_GOOGLE_EMAIL)) {
+        return NextResponse.next();
+      }
+    } catch {
+      // Fall through to the unauthenticated response below.
     }
   }
 
-  // If authentication fails, request credentials
-  return new NextResponse("Authentication required.", {
-    status: 401,
-    headers: {
-      "WWW-Authenticate": 'Basic realm="Secure Area"',
-    },
-  });
+  // Browser navigation should return to the branded sign-in page. API clients
+  // receive 401.
+  if (!req.nextUrl.pathname.startsWith("/api/admin/")) {
+    const signInUrl = req.nextUrl.clone();
+    signInUrl.pathname = "/admin/sign-in";
+    signInUrl.search = "";
+    signInUrl.searchParams.set(
+      "callbackUrl",
+      `${req.nextUrl.pathname}${req.nextUrl.search}`,
+    );
+    return NextResponse.redirect(signInUrl);
+  }
+
+  return new NextResponse("Authentication required.", { status: 401 });
 }

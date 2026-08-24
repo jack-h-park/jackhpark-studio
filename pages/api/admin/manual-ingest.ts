@@ -6,6 +6,11 @@ import {
   type ManualIngestionRequest,
   runManualIngestion,
 } from "../../../lib/admin/manual-ingestor";
+import {
+  auditAdminMutation,
+  requireAdminApiAccess,
+  requireSameOriginMutation,
+} from "../../../lib/server/admin-auth";
 
 type ManualIngestionBody = ManualIngestionRequest & {
   mode?: unknown;
@@ -171,9 +176,24 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ): Promise<void> {
+  const admin = await requireAdminApiAccess(req, res);
+  if (!admin) {
+    return;
+  }
+
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).send("Method Not Allowed");
+    return;
+  }
+
+  if (!requireSameOriginMutation(req, res)) {
+    auditAdminMutation({
+      ...admin,
+      action: "start",
+      target: "manual-ingestion",
+      result: "failure",
+    });
     return;
   }
 
@@ -182,6 +202,12 @@ export default async function handler(
     request = validateBody((req.body ?? {}) as ManualIngestionBody);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Invalid payload.";
+    auditAdminMutation({
+      ...admin,
+      action: "start",
+      target: "manual-ingestion",
+      result: "failure",
+    });
     res.status(400).json({ error: message });
     return;
   }
@@ -205,6 +231,12 @@ export default async function handler(
 
   try {
     await runManualIngestion(request, send);
+    auditAdminMutation({
+      ...admin,
+      action: "start",
+      target: "manual-ingestion",
+      result: "success",
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unexpected error.";
     send({
@@ -228,6 +260,12 @@ export default async function handler(
         charactersUpdated: 0,
         errorCount: 1,
       },
+    });
+    auditAdminMutation({
+      ...admin,
+      action: "start",
+      target: "manual-ingestion",
+      result: "failure",
     });
   } finally {
     close();
