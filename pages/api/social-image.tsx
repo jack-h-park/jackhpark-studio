@@ -4,7 +4,6 @@ import { ImageResponse } from "next/og";
 import { type PageBlock } from "notion-types";
 import {
   getBlockIcon,
-  getBlockTitle,
   getPageProperty,
   isUrl,
   parsePageId,
@@ -12,9 +11,76 @@ import {
 
 import * as libConfig from "@/lib/config";
 import interSemiBoldFont from "@/lib/fonts/inter-semibold";
+import { getPageTitle } from "@/lib/get-page-title";
 import { mapImageUrl } from "@/lib/map-image-url";
 import { notion } from "@/lib/notion-api";
 import { type NotionPageInfo, type PageError } from "@/lib/types";
+
+// Signature gradient — the single brand gradient from the design system,
+// mirrored from public/og/logo.svg. Keep the stops in sync with that asset.
+const SIGNATURE_GRADIENT =
+  "linear-gradient(90deg, #f06292 0%, #b439df 30%, #5b8def 60%, #4dd0e1 100%)";
+
+// Official Jack H. Park Studio logo mark, rebuilt from satori-native primitives
+// so next/og renders it crisply at any size (mirrors public/og/logo.svg). Used
+// as the social-image fallback when a page has no resolvable title, so the card
+// reads as an intentional brand card rather than a nearly blank layout.
+function StudioLogoMark() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 220,
+          height: 220,
+          borderRadius: 44,
+          backgroundImage: SIGNATURE_GRADIENT,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 104,
+            fontWeight: 700,
+            fontFamily: "Inter",
+            color: "#fff",
+          }}
+        >
+          JHP
+        </div>
+      </div>
+
+      <div
+        style={{
+          width: 340,
+          height: 6,
+          borderRadius: 3,
+          marginTop: 36,
+          backgroundImage: SIGNATURE_GRADIENT,
+        }}
+      />
+
+      <div
+        style={{
+          marginTop: 24,
+          fontSize: 24,
+          fontFamily: "Inter",
+          color: "#9B9A97",
+          letterSpacing: 10,
+        }}
+      >
+        STUDIO
+      </div>
+    </div>
+  );
+}
 
 export const runtime = "edge";
 
@@ -106,15 +172,19 @@ export default async function OGImage(
             <div style={{ fontSize: 32, opacity: 0 }}>{pageInfo.detail}</div>
           )}
 
-          <div
-            style={{
-              fontSize: 70,
-              fontWeight: 700,
-              fontFamily: "Inter",
-            }}
-          >
-            {pageInfo.title}
-          </div>
+          {pageInfo.title ? (
+            <div
+              style={{
+                fontSize: 70,
+                fontWeight: 700,
+                fontFamily: "Inter",
+              }}
+            >
+              {pageInfo.title}
+            </div>
+          ) : (
+            <StudioLogoMark />
+          )}
 
           {pageInfo.detail && (
             <div style={{ fontSize: 32, opacity: 0.6 }}>{pageInfo.detail}</div>
@@ -197,7 +267,9 @@ export async function getNotionPageInfo({
 
   const isBlogPost =
     block.type === "page" && block.parent_table === "collection";
-  const title = getBlockTitle(block, recordMap) || libConfig.name;
+  // Leave empty when the page has no resolvable title so the card renders the
+  // official logo mark instead of the site name on an otherwise blank layout.
+  const title = getPageTitle(recordMap) ?? "";
 
   const imageCoverPosition =
     (block as PageBlock).format?.page_cover_position ??
