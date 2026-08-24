@@ -16,67 +16,51 @@ import { mapImageUrl } from "@/lib/map-image-url";
 import { notion } from "@/lib/notion-api";
 import { type NotionPageInfo, type PageError } from "@/lib/types";
 
-// Signature gradient — the single brand gradient from the design system,
-// mirrored from public/og/logo.svg. Keep the stops in sync with that asset.
+// Brand palette, sourced from public/assets/brand-design-system-guide.html.
 const SIGNATURE_GRADIENT =
   "linear-gradient(90deg, #f06292 0%, #b439df 30%, #5b8def 60%, #4dd0e1 100%)";
+const BRAND_BG = "#191919"; // brand dark neutral
+const BRAND_INK = "#f2f0ea"; // warm off-white for primary text
+const BRAND_MUTE = "#9b9a97"; // Notion-style muted gray
 
-// Official Jack H. Park Studio logo mark, rebuilt from satori-native primitives
-// so next/og renders it crisply at any size (mirrors public/og/logo.svg). Used
-// as the social-image fallback when a page has no resolvable title, so the card
-// reads as an intentional brand card rather than a nearly blank layout.
-function StudioLogoMark() {
+// Title size steps down as the title grows, so long titles stay on the card
+// without overflowing. Only Inter SemiBold (700) is loaded, so the visual
+// hierarchy comes from size, color and tracking rather than font weight.
+function resolveTitleFontSize(title: string): number {
+  const n = title.length;
+  if (n <= 24) return 78;
+  if (n <= 42) return 66;
+  if (n <= 66) return 56;
+  if (n <= 96) return 46;
+  if (n <= 130) return 40;
+  return 34;
+}
+
+// Official Jack H. Park Studio logo mark (signature-gradient rounded square +
+// JHP), rebuilt from satori-native primitives so next/og renders it crisply at
+// any size. Mirrors public/og/logo.svg.
+function StudioLogoMark({ size = 72 }: { size?: number }) {
   return (
     <div
       style={{
         display: "flex",
-        flexDirection: "column",
         alignItems: "center",
+        justifyContent: "center",
+        width: size,
+        height: size,
+        borderRadius: Math.round(size * 0.28),
+        backgroundImage: SIGNATURE_GRADIENT,
       }}
     >
       <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 220,
-          height: 220,
-          borderRadius: 44,
-          backgroundImage: SIGNATURE_GRADIENT,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 104,
-            fontWeight: 700,
-            fontFamily: "Inter",
-            color: "#fff",
-          }}
-        >
-          JHP
-        </div>
-      </div>
-
-      <div
-        style={{
-          width: 340,
-          height: 6,
-          borderRadius: 3,
-          marginTop: 36,
-          backgroundImage: SIGNATURE_GRADIENT,
-        }}
-      />
-
-      <div
-        style={{
-          marginTop: 24,
-          fontSize: 24,
+          fontSize: Math.round(size * 0.42),
+          fontWeight: 700,
           fontFamily: "Inter",
-          color: "#9B9A97",
-          letterSpacing: 10,
+          color: "#fff",
         }}
       >
-        STUDIO
+        JHP
       </div>
     </div>
   );
@@ -103,6 +87,9 @@ export default async function OGImage(
     });
   }
   const pageInfo = pageInfoOrError.data;
+  const hasTitle = pageInfo.title.trim().length > 0;
+  const author = pageInfo.author || libConfig.author;
+  const domain = libConfig.domain.replace(/^www\./, "");
 
   return new ImageResponse(
     <div
@@ -112,108 +99,156 @@ export default async function OGImage(
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        backgroundColor: "#1F2027",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "black",
+        backgroundColor: BRAND_BG,
       }}
     >
+      {/* Optional page cover, full-bleed behind a dark scrim so text stays
+          legible. Most pages have no cover and render on the flat brand dark. */}
       {pageInfo.image && (
-        <img
-          src={pageInfo.image}
-          style={{
-            position: "absolute",
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            // TODO: satori doesn't support background-size: cover and seems to
-            // have inconsistent support for filter + transform to get rid of the
-            // blurred edges. For now, we'll go without a blur filter on the
-            // background, but Satori is still very new, so hopefully we can re-add
-            // the blur soon.
-
-            // backgroundImage: pageInfo.image
-            //   ? `url(${pageInfo.image})`
-            //   : undefined,
-            // backgroundSize: '100% 100%'
-            // TODO: pageInfo.imageObjectPosition
-            // filter: 'blur(8px)'
-            // transform: 'scale(1.05)'
-          }}
-        />
-      )}
-
-      <div
-        style={{
-          position: "relative",
-          width: 900,
-          height: 465,
-          display: "flex",
-          flexDirection: "column",
-          border: "16px solid rgba(0,0,0,0.3)",
-          borderRadius: 8,
-          zIndex: "1",
-        }}
-      >
         <div
           style={{
+            position: "absolute",
+            display: "flex",
             width: "100%",
             height: "100%",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-around",
-            backgroundColor: "#fff",
-            padding: 24,
-            alignItems: "center",
-            textAlign: "center",
           }}
         >
-          {pageInfo.detail && (
-            <div style={{ fontSize: 32, opacity: 0 }}>{pageInfo.detail}</div>
-          )}
+          <img
+            src={pageInfo.image}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              backgroundImage:
+                "linear-gradient(180deg, rgba(25,25,25,0.72) 0%, rgba(25,25,25,0.88) 100%)",
+            }}
+          />
+        </div>
+      )}
 
-          {pageInfo.title ? (
+      {/* Signature-gradient hairline along the top edge. */}
+      <div
+        style={{
+          display: "flex",
+          width: "100%",
+          height: 8,
+          backgroundImage: SIGNATURE_GRADIENT,
+        }}
+      />
+
+      {hasTitle ? (
+        <div
+          style={{
+            position: "relative",
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            padding: "64px 72px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center" }}>
+            <StudioLogoMark size={40} />
             <div
               style={{
-                fontSize: 70,
+                marginLeft: 16,
+                fontSize: 22,
                 fontWeight: 700,
                 fontFamily: "Inter",
+                color: BRAND_MUTE,
+                letterSpacing: 4,
+              }}
+            >
+              JACK H. PARK STUDIO
+            </div>
+          </div>
+
+          <div style={{ display: "flex" }}>
+            <div
+              style={{
+                fontSize: resolveTitleFontSize(pageInfo.title),
+                fontWeight: 700,
+                fontFamily: "Inter",
+                color: BRAND_INK,
+                lineHeight: 1.12,
+                letterSpacing: -1,
               }}
             >
               {pageInfo.title}
             </div>
-          ) : (
-            <StudioLogoMark />
-          )}
+          </div>
 
-          {pageInfo.detail && (
-            <div style={{ fontSize: 32, opacity: 0.6 }}>{pageInfo.detail}</div>
-          )}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div
+                style={{
+                  fontSize: 26,
+                  fontWeight: 700,
+                  fontFamily: "Inter",
+                  color: BRAND_INK,
+                }}
+              >
+                {author}
+              </div>
+              <div
+                style={{
+                  marginTop: 4,
+                  fontSize: 22,
+                  fontWeight: 700,
+                  fontFamily: "Inter",
+                  color: BRAND_MUTE,
+                }}
+              >
+                {domain}
+              </div>
+            </div>
+            <StudioLogoMark size={64} />
+          </div>
         </div>
-      </div>
-
-      {pageInfo.authorImage && (
+      ) : (
         <div
           style={{
-            position: "absolute",
-            top: 47,
-            left: 104,
-            height: 128,
-            width: 128,
+            position: "relative",
+            flex: 1,
             display: "flex",
-            borderRadius: "50%",
-            border: "4px solid #fff",
-            zIndex: "5",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
           }}
         >
-          <img
-            src={pageInfo.authorImage}
+          <StudioLogoMark size={200} />
+          <div
             style={{
-              width: "100%",
-              height: "100%",
-              // transform: 'scale(1.04)'
+              marginTop: 40,
+              fontSize: 30,
+              fontWeight: 700,
+              fontFamily: "Inter",
+              color: BRAND_MUTE,
+              letterSpacing: 14,
             }}
-          />
+          >
+            STUDIO
+          </div>
+          <div
+            style={{
+              marginTop: 14,
+              fontSize: 24,
+              fontWeight: 700,
+              fontFamily: "Inter",
+              color: "#6b6a65",
+            }}
+          >
+            {domain}
+          </div>
         </div>
       )}
     </div>,
