@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PM Intelligence System — Appendix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   JHP STUDIO TOKENS — verbatim (dark mode) from colors_and_type.css
+   Claude Design project 70185efc... (design-system, kept as token
+   source only — see docs/deck/interview-improvement-plan.md § 12)
+   Same design system as core.html — shared archetype library.
+   ============================================================ */
+:root {
+  --font-sans: "Geist", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+  --brand-pink:   #f06292;
+  --brand-purple: #b439df;
+  --brand-blue:   #5b8def;
+  --brand-cyan:   #4dd0e1;
+
+  --gradient-full: linear-gradient(90deg, #f06292 0%, #b439df 30%, #5b8def 60%, #4dd0e1 100%);
+  --gradient-mini: linear-gradient(90deg, #b439df 0%, #5b8def 50%, #4dd0e1 100%);
+
+  --bg-page:        #191919;
+  --bg-surface:     #252525;
+  --text-primary:   #F2F0EA;
+  --text-secondary: #B4B2A9;
+  --text-tertiary:  #9B9A97;
+  --border-default: #2A2A2A;
+  --border-subtle:  rgba(255,255,255,0.10);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-3: 300ms;
+  --dur-4: 400ms;
+
+  --slide-display: 96px;
+  --slide-h2:       50px;
+  --slide-eyebrow:  20px;
+  --slide-body:     28px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* --- viewport-base.css (verbatim) ------------------------------------ */
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--stage-bg, #000); }
+.deck-viewport { position: fixed; inset: 0; overflow: hidden; background: var(--stage-bg, #000); }
+.deck-stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden; transform-origin: 0 0; background: var(--slide-bg, #fff); }
+.slide { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; display: block; visibility: hidden; opacity: 0; pointer-events: none; background: var(--slide-bg, #fff); }
+.slide.active, .slide.visible { visibility: visible; opacity: 1; pointer-events: auto; z-index: 1; }
+img, video, canvas, svg { max-width: 100%; max-height: 100%; }
+.deck-controls { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 1000; }
+@media print {
+  html, body { width: 1920px; height: auto; overflow: visible; background: #fff; }
+  .deck-viewport { position: static; overflow: visible; background: #fff; }
+  .deck-stage { position: static; width: auto; height: auto; transform: none !important; background: none; }
+  .slide { position: relative; display: block !important; visibility: visible !important; opacity: 1 !important; pointer-events: auto !important; width: 1920px; height: 1080px; break-after: page; page-break-after: always; }
+  .slide:last-child { break-after: auto; page-break-after: auto; }
+  .deck-controls, .cursor-trail, .bg-orb { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.2s !important; }
+  .bg-orb { animation: none !important; }
+}
+/* ---------------------------------------------------------------------- */
+
+body { font-family: var(--font-sans); cursor: none; }
+.slide { background: var(--bg-page); color: var(--text-primary); }
+
+/* === Decorative — restrained, scoped (same rule as core.html) ========= */
+.cursor-trail {
+  position: fixed; top: 0; left: 0; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--gradient-mini); filter: blur(5px); opacity: 0.45;
+  pointer-events: none; z-index: 9999; transform: translate(-50%, -50%);
+  transition: transform 90ms linear, opacity 200ms ease;
+}
+.cursor-trail.idle { opacity: 0; }
+
+.bg-orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.16; pointer-events: none; z-index: 0; }
+.bg-orb.o1 { width: 720px; height: 720px; background: var(--brand-purple); top: -220px; right: -160px; animation: drift1 22s ease-in-out infinite; }
+.bg-orb.o2 { width: 560px; height: 560px; background: var(--brand-blue); bottom: -200px; left: -140px; animation: drift2 26s ease-in-out infinite; }
+@keyframes drift1 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-40px, 30px); } }
+@keyframes drift2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(30px, -40px); } }
+
+/* === Chrome ============================================================ */
+.topbar { position: absolute; top: 56px; left: 96px; right: 96px; display: flex; justify-content: space-between; align-items: baseline; z-index: 2; }
+.topbar__name { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.topbar__tag  { font-family: var(--font-mono); font-size: 13px; font-weight: 400; letter-spacing: 0.20em; text-transform: uppercase; color: var(--text-tertiary); margin-left: 12px; }
+.topbar__meta { font-family: var(--font-mono); font-size: 14px; color: var(--text-tertiary); letter-spacing: 0.04em; }
+
+/* === Content column ===================================================== */
+.content { position: absolute; left: 96px; right: 96px; top: 190px; bottom: 80px; z-index: 2; }
+.content.tight { top: 160px; }
+.accent-bar { width: 108px; height: 6px; border-radius: 999px; background: var(--gradient-full); margin-bottom: 36px; }
+
+h1.display { font-family: var(--font-sans); font-weight: 500; font-size: var(--slide-display); line-height: 1.1; letter-spacing: -0.025em; color: var(--text-primary); max-width: 1600px; }
+h2.slide-title { font-family: var(--font-sans); font-weight: 500; font-size: var(--slide-h2); line-height: 1.18; letter-spacing: -0.02em; color: var(--text-primary); margin-bottom: 34px; }
+
+p.lede { font-family: var(--font-sans); font-weight: 400; font-size: var(--slide-body); line-height: 1.5; color: var(--text-secondary); max-width: 1400px; margin-top: 24px; }
+p.lede.tight { margin-top: 0; margin-bottom: 30px; }
+
+/* === Bullet lists — step-revealed ======================================= */
+ul.stack { list-style: none; display: flex; flex-direction: column; gap: 22px; max-width: 1700px; }
+ul.stack li { font-size: 26px; line-height: 1.46; color: var(--text-secondary); padding-left: 38px; position: relative; }
+ul.stack li.sm { font-size: 23px; line-height: 1.48; }
+ul.stack li::before { content: ""; position: absolute; left: 0; top: 13px; width: 14px; height: 3px; border-radius: 999px; background: var(--gradient-mini); }
+ul.stack li strong { color: var(--text-primary); font-weight: 500; }
+ul.stack li code { font-family: var(--font-mono); font-size: 0.82em; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 6px; padding: 1px 8px; color: var(--brand-cyan); }
+ul.stack li a { color: var(--brand-cyan); text-decoration: none; border-bottom: 1px solid var(--border-subtle); }
+
+/* === Numbered rows (ordered lists) ====================================== */
+.principles { display: flex; flex-direction: column; gap: 18px; max-width: 1750px; }
+.principle { display: flex; gap: 28px; align-items: baseline; }
+.principle__num { font-family: var(--font-mono); font-size: 21px; color: var(--brand-purple); font-weight: 500; min-width: 40px; flex-shrink: 0; }
+.principle__body { font-size: 24px; line-height: 1.42; color: var(--text-secondary); }
+.principle__body strong { color: var(--text-primary); font-weight: 500; }
+.principle__body code { font-family: var(--font-mono); font-size: 0.85em; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 6px; padding: 1px 7px; color: var(--brand-cyan); }
+
+/* === Tables — step-revealed by row ====================================== */
+table.walk { width: 100%; border-collapse: collapse; }
+table.walk th { font-family: var(--font-mono); font-size: 15px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); text-align: left; padding: 0 22px 14px 0; border-bottom: 1px solid var(--border-default); }
+table.walk td { font-size: 20px; color: var(--text-secondary); padding: 16px 22px 16px 0; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+table.walk td:first-child { color: var(--text-primary); font-weight: 500; }
+table.walk code { font-family: var(--font-mono); font-size: 0.85em; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 6px; padding: 2px 7px; color: var(--brand-purple); }
+table.walk strong { color: var(--text-primary); }
+table.walk.dense th { font-size: 13px; padding-bottom: 10px; }
+table.walk.dense td { font-size: 17px; padding: 11px 18px 11px 0; }
+
+/* === Code / API-surface display ========================================= */
+pre.code-block { font-family: var(--font-mono); font-size: 19px; line-height: 1.65; color: var(--text-secondary); background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 14px; padding: 30px 36px; white-space: pre; overflow-x: auto; max-width: 1750px; }
+pre.code-block .verb { color: var(--brand-cyan); font-weight: 500; }
+
+/* === Group dividers (① Knowledge / ② Intelligence / ③ Operations) ====== */
+.slide.divider .content { top: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
+.slide.divider h1.display { font-size: 128px; }
+.slide.divider p.lede { font-size: 28px; margin-top: 24px; }
+.slide.divider.groupdiv h1.display { font-size: 104px; }
+.repo-tags { display: flex; gap: 16px; margin-top: 32px; }
+.repo-pill { font-family: var(--font-mono); font-size: 18px; color: var(--brand-cyan); background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 999px; padding: 10px 22px; }
+
+/* === Inline SVG diagrams (orchestration view) =========================== */
+.system-diagram { display: block; width: 100%; margin-top: 10px; }
+.system-diagram.orchestration { max-width: 1520px; }
+.diagram-edge-label { font-family: var(--font-mono); font-size: 16px; fill: var(--text-tertiary); }
+.diagram-edge-label.cyan { fill: var(--brand-cyan); }
+.diagram-edge-label.purple { fill: var(--brand-purple); }
+.diagram-edge-label.pink { fill: var(--brand-pink); }
+.diagram-node-num { font-family: var(--font-sans); font-size: 22px; font-weight: 500; }
+.diagram-node-label { font-family: var(--font-sans); font-size: 22px; font-weight: 500; }
+.diagram-node-sub { font-family: var(--font-mono); font-size: 14px; fill: var(--text-tertiary); }
+
+/* === Roomy — larger type + spacing for slides with little content, so a
+   short slide reads as a deliberately spacious layout instead of a small
+   block floating in a mostly-empty frame. Applied to every content slide
+   whose real content-height came in under ~60% of the frame (measured);
+   excluded from dividers (already spacious by design) and from the few
+   already-full slides (a table, the orchestration diagram) to avoid
+   crowding what's already using the space it needs. ==================== */
+.slide.roomy h2.slide-title { font-size: 60px; margin-bottom: 40px; }
+.slide.roomy p.lede { font-size: 30px; }
+.slide.roomy p.lede.tight { margin-bottom: 34px; }
+.slide.roomy ul.stack { gap: 30px; }
+.slide.roomy ul.stack li { font-size: 30px; line-height: 1.5; }
+.slide.roomy ul.stack li.sm { font-size: 27px; line-height: 1.5; }
+.slide.roomy .principles { gap: 26px; }
+.slide.roomy .principle__body { font-size: 27px; }
+.slide.roomy .repo-tags { margin-top: 40px; }
+.slide.roomy .repo-pill { font-size: 20px; padding: 12px 26px; }
+
+/* === Unified entrance cascade (JS-driven, one system for every element:
+   title, lede, bullets, rows, cards, diagrams). Fixed interval, no CSS
+   nth-child delays — every slide's full content is visible within 2s. ==== */
+.cue { opacity: 0; transform: translateY(14px); transition: opacity 220ms var(--ease-out), transform 220ms var(--ease-out); }
+.cue.shown { opacity: 1; transform: translateY(0); }
+
+/* === Nav controls — magnetic ============================================= */
+.deck-controls { font-family: var(--font-mono); font-size: 14px; color: var(--text-tertiary); background: rgba(37,37,37,0.85); border: 1px solid var(--border-default); border-radius: 999px; padding: 8px 18px; backdrop-filter: blur(6px); transition: transform 150ms var(--ease-out); }
+.step-hint { position: fixed; right: 22px; bottom: 22px; font-family: var(--font-mono); font-size: 12px; color: var(--text-tertiary); opacity: 0.6; z-index: 1000; }
+</style>
+</head>
+<body>
+<div class="cursor-trail idle" id="cursorTrail"></div>
+
+<div class="deck-viewport">
+  <main class="deck-stage" id="deckStage">
+<section class="slide roomy active visible">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">1 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Takeaway 1 (cont.) — Determinism at two levels</h2>
+<ul class="stack">
+<li class="cue sm"><strong>Layer 1 · Process</strong> — pm-engine enforces an invariant pipeline (<code>S1 → S2 → Gate 1 → S3 → S4 → Gate 2 → S5 → Gate 3 → S6 → S7</code>). LLM outputs vary; the structure containing them doesn't. <strong>Why</strong> — if the sequence changes per signal, no two runs are comparable, so no change can be attributed to anything.</li>
+<li class="cue sm"><strong>Layer 2 · Logic</strong> — deterministic work stays in code: <strong>S1 (categorize), S5 (composite score), routing → code</strong>; <strong>S2/S3/S4/S6/S7 → LLM</strong> (judgment is the point). LLM variance can't leak into routing/scoring. <strong>Why</strong> — for stages needing no judgment, code isn't less variable than a model, it's zero-variance.</li>
+<li class="cue sm"><strong>Why both layers</strong> — process determinism alone still lets the model pick routing; code routing alone, under a varying pipeline, feeds different inputs into the same formula. Layer 1 fixes <em>what runs</em>; Layer 2 fixes <em>what is computed</em>.</li>
+</ul>
+</div></section>
+
+
+<section class="slide divider">
+<div class="bg-orb o1"></div><div class="bg-orb o2"></div>
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">2 / 47</div></div>
+<div class="content">
+<div class="accent-bar cue"></div>
+<h1 class="display cue">Backup · System tour</h1>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">3 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">One repo per intent — three groups, six repos</h2>
+<ul class="stack">
+<li class="cue sm"><strong>① Knowledge</strong> — <code>product-management-wiki</code> (the LLM Wiki; no bespoke DB) · <code>notion-cms-backup</code> (Notion → wiki, eventually RAG).</li>
+<li class="cue sm"><strong>② Intelligence</strong> — <code>pm-decision-context</code> (reasoning assets each run loads) · <code>pm-intelligence-engine</code> (the signal→decision workflow).</li>
+<li class="cue sm"><strong>③ Operations</strong> — <code>hermes-control-plane</code> / <em>Hermes Agent</em> (always-on agents + ops plane) · <code>pm-observatory</code> (see & visualize).</li>
+<li class="cue sm">Principle: vibecoding is a <em>means</em>, not the goal — don't code what needn't be code (LLM Wiki over custom DB/RAG; REST/CLI/GUI only where each earns its place).</li>
+</ul>
+</div></section>
+
+
+<section class="slide divider groupdiv">
+<div class="bg-orb o1"></div><div class="bg-orb o2"></div>
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">4 / 47</div></div>
+<div class="content">
+<div class="accent-bar cue"></div>
+<h1 class="display cue">① Knowledge</h1>
+<p class="lede cue" style="font-size:30px;">Memory that accumulates · Data that syncs</p>
+<div class="repo-tags cue"><span class="repo-pill">product-management-wiki</span><span class="repo-pill">notion-cms-backup</span></div>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">5 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Memory — product-management-wiki</h2>
+<p class="lede cue tight" style="font-size:26px;">Signals flow into <code>raw/</code> (immutable, LLM reads only, you curate):</p>
+<ul class="stack">
+<li class="cue sm"><code>from-web/</code> — <strong>two lanes</strong>: <code>sensing/</code> = a Gate 0 decision; <code>capture-only/</code> = a weekly roll-up row.</li>
+<li class="cue sm"><code>from-notion/</code> — weekly GitHub Actions export → mirror repo (the wiki hop is manual — see <em>Data edge</em>).</li>
+<li class="cue sm"><code>from-pm-decision-context/</code> — every completed run deposits its PRD / kill note / PoC.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">6 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Memory — the <code>wiki/</code> lifecycle</h2>
+<p class="lede cue tight" style="font-size:26px;">You own the schema (<code>CLAUDE.md</code>) and curation; the LLM owns all content writes:</p>
+<ul class="stack">
+<li class="cue sm"><code>/ingest</code> — distills a raw file into canonical wiki pages; web sources get <code>review_needed: true</code> until cleared.</li>
+<li class="cue sm"><code>/lint</code> — health check: orphan pages, stale cross-refs, schema violations, missing links.</li>
+<li class="cue sm"><code>/query</code> — routes graph-first via Graphify, falls back to direct wiki read.</li>
+<li class="cue sm">Compounds: kill decision → <code>wiki/cases/kill-decisions.md</code> → rule in <code>build-vs-buy-partner.md</code> → interview answer.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">7 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Graphify — knowledge graph on top of the wiki</h2>
+<ul class="stack">
+<li class="cue sm">A <strong>pre-tool hook</strong> nudges agents to read <code>GRAPH_REPORT.md</code> before grepping raw files.</li>
+<li class="cue sm">Broad "how does X relate to Y" → graph traversal (<code>graphify query</code>/<code>path</code>) instead of full-file reads.</li>
+<li class="cue sm">Graph <strong>persists in git</strong>; queries run on static JSON — <strong>no LLM cost at query time</strong>.</li>
+<li class="cue sm">Community-first routing replaces reading 20 files with 1 + 2–3 god nodes.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">8 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Data edge — notion-cms-backup</h2>
+<ul class="stack">
+<li class="cue sm">Weekly GitHub Actions export: personal Notion → a versioned mirror repo, <strong>one-way</strong>; raw layer only (human gate via <code>/ingest</code>).</li>
+<li class="cue sm">Incident (2026-07-26): a near-duplicate post shipped — corpus 3 weeks stale while the export kept succeeding, because the mirror→wiki hop was a manual <code>git pull</code> nobody had run. Fix: the writer now reads publication history from the Notion API directly, independent of the corpus.</li>
+<li class="cue sm"><strong>Then rebuilt (Phase 3):</strong> the export Action now checks out the wiki, syncs and pushes directly — no machine of mine in the path. The old manual hop chain is a fallback only.</li>
+</ul>
+<p class="lede cue tight" style="font-size:26px;">Ref: <a href="../design/notion-sync-topology.md" target="_blank" rel="noopener"><code>docs/design/notion-sync-topology.md</code></a></p>
+</div></section>
+
+
+<section class="slide divider groupdiv">
+<div class="bg-orb o1"></div><div class="bg-orb o2"></div>
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">9 / 47</div></div>
+<div class="content">
+<div class="accent-bar cue"></div>
+<h1 class="display cue">② Intelligence</h1>
+<p class="lede cue" style="font-size:30px;">Reasoning that grounds · Execution that decides</p>
+<div class="repo-tags cue"><span class="repo-pill">pm-decision-context</span><span class="repo-pill">pm-intelligence-engine</span></div>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">10 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Reasoning — pm-decision-context</h2>
+<p class="lede cue tight" style="font-size:26px;">At S1, three context <strong>levels</strong> load in sequence, each narrowing the output space:</p>
+<ul class="stack">
+<li class="cue sm"><strong>PM identity (WHY)</strong> — identity, values, non-negotiable constraints.</li>
+<li class="cue sm"><strong>Company strategy (WHERE)</strong> — 4 pillars; where to compete, positioning, bets.</li>
+<li class="cue sm"><strong>Product context (WHAT)</strong> — Knox-specific constraints, positioning, portfolios.</li>
+<li class="cue sm">Remove one → competent but generic advice. After S4, a <strong>12-point rubric</strong> (4 dims × 3 pts, pass ≥ 9/12) quality-gates persona outputs before S5; fail → S4 reruns.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">11 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Execution — pm-intelligence-engine</h2>
+<p class="lede cue tight" style="font-size:26px;">Pipeline <code>S1 → S2 → [Gate 1] → S3 → S4 → [Gate 2] → S5 → [Gate 3] → S6 → S7 → archive</code>:</p>
+<ul class="stack">
+<li class="cue sm"><strong>Gate 0</strong> is pre-pipeline intake (Hermes ops agent), not part of S1–S7.</li>
+<li class="cue sm"><strong>Stages are typed functions, not agents</strong> — <code>async run(input, context, llm) -> Output</code>; every output schema-validated; individually re-runnable.</li>
+<li class="cue sm">Three human gates: <strong>Gate 1</strong> depth (<code>archive / note / structure / evaluate / decide</code>) · <strong>Gate 2</strong> persona review (approve/revise/reject) · <strong>Gate 3</strong> routing (prd/poc/kill).</li>
+</ul>
+</div></section>
+
+
+<section class="slide divider groupdiv">
+<div class="bg-orb o1"></div><div class="bg-orb o2"></div>
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">12 / 47</div></div>
+<div class="content">
+<div class="accent-bar cue"></div>
+<h1 class="display cue">③ Operations</h1>
+<p class="lede cue" style="font-size:30px;">Agents that orchestrate · Dashboard that observes</p>
+<div class="repo-tags cue"><span class="repo-pill">hermes-control-plane</span><span class="repo-pill">pm-observatory</span></div>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">13 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Operations — hermes-control-plane</h2>
+<p class="lede cue tight" style="font-size:26px;">Versioned control-plane (identity, skills, policy, deploy) — runs no business logic itself:</p>
+<ul class="stack">
+<li class="cue sm"><strong>8 Hermes Agent profiles</strong>: ops (Iris) · avatar (Jax) · local (Remy) · interview-ops (Cleo) · publisher (Quill) · eval (Vega) · writer (Wren) · scratch (Pip).</li>
+<li class="cue sm"><strong>ops executes / avatar recommends</strong> — avatar is read-only, advisory; consulting it is <strong>opt-in</strong> (on-demand), not fired on every gate.</li>
+<li class="cue sm">Deploy = <code>distribution → profile home → launchd gateway</code>, all via <code>make</code>. Interfaces: Telegram / Discord over Tailscale.</li>
+</ul>
+</div></section>
+
+
+<section class="slide">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">14 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Operations — orchestration view</h2>
+<svg class="system-diagram cue orchestration" viewBox="0 0 1520 460" preserveAspectRatio="xMidYMin meet">
+  <defs>
+    <marker id="oArrowCyan" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="var(--brand-cyan)" /></marker>
+    <marker id="oArrowPurple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="var(--brand-purple)" /></marker>
+    <marker id="oArrowPink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 Z" fill="var(--brand-pink)" /></marker>
+  </defs>
+
+  <line x1="360" y1="148" x2="668" y2="212" stroke="var(--brand-cyan)" stroke-width="2.5" marker-end="url(#oArrowCyan)" />
+  <text x="500" y="163" text-anchor="middle" class="diagram-edge-label cyan">intake</text>
+
+  <line x1="932" y1="212" x2="1258" y2="150" stroke="var(--brand-purple)" stroke-width="2.5" marker-start="url(#oArrowPurple)" marker-end="url(#oArrowPurple)" />
+  <text x="1095" y="163" text-anchor="middle" class="diagram-edge-label purple">orchestrates</text>
+
+  <line x1="668" y1="308" x2="360" y2="372" stroke="var(--brand-cyan)" stroke-width="2.5" stroke-dasharray="2 8" marker-start="url(#oArrowCyan)" marker-end="url(#oArrowCyan)" />
+  <text x="500" y="358" text-anchor="middle" class="diagram-edge-label cyan">notify · replies</text>
+
+  <line x1="932" y1="308" x2="1258" y2="370" stroke="var(--brand-pink)" stroke-width="2.5" marker-end="url(#oArrowPink)" />
+  <text x="1095" y="358" text-anchor="middle" class="diagram-edge-label pink">wiki-export</text>
+
+  <rect x="670" y="214" width="260" height="92" rx="16" fill="var(--brand-blue)" fill-opacity="0.12" stroke="var(--brand-blue)" stroke-width="2" />
+  <text x="800" y="255" text-anchor="middle" class="diagram-node-label" fill="var(--text-primary)">Operations</text>
+  <text x="800" y="280" text-anchor="middle" class="diagram-node-sub">hermes-control-plane</text>
+
+  <rect x="160" y="72" width="200" height="76" rx="14" fill="var(--brand-cyan)" fill-opacity="0.10" stroke="var(--brand-cyan)" stroke-width="1.6" />
+  <text x="260" y="108" text-anchor="middle" class="diagram-node-label" fill="var(--text-primary)">Gate 0</text>
+  <text x="260" y="130" text-anchor="middle" class="diagram-node-sub">pre-pipeline intake</text>
+
+  <rect x="1260" y="72" width="200" height="76" rx="14" fill="var(--brand-purple)" fill-opacity="0.10" stroke="var(--brand-purple)" stroke-width="1.6" />
+  <text x="1360" y="108" text-anchor="middle" class="diagram-node-label" fill="var(--text-primary)">Execution</text>
+  <text x="1360" y="130" text-anchor="middle" class="diagram-node-sub">S1 → S7 pipeline</text>
+
+  <rect x="160" y="372" width="200" height="76" rx="14" fill="var(--brand-cyan)" fill-opacity="0.10" stroke="var(--brand-cyan)" stroke-width="1.6" />
+  <text x="260" y="408" text-anchor="middle" class="diagram-node-label" fill="var(--text-primary)">PM</text>
+  <text x="260" y="430" text-anchor="middle" class="diagram-node-sub">Telegram / Discord</text>
+
+  <rect x="1260" y="372" width="200" height="76" rx="14" fill="var(--brand-pink)" fill-opacity="0.10" stroke="var(--brand-pink)" stroke-width="1.6" />
+  <text x="1360" y="408" text-anchor="middle" class="diagram-node-label" fill="var(--text-primary)">Memory</text>
+  <text x="1360" y="430" text-anchor="middle" class="diagram-node-sub">wiki export target</text>
+</svg>
+<ul class="stack" style="margin-top:14px;">
+<li class="cue sm">Operations runs Gate 0 (pre-pipeline) and notifies the PM at Gate 1/2/3 (within the pipeline).</li>
+<li class="cue sm">Execution pauses at each gate until the PM replies; after S7, Operations triggers wiki-export to Memory.</li>
+<li class="cue sm">The engine decides <em>what</em> to run; the fleet owns <em>when to sense, how to notify, where to record</em>.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">15 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Hermes Agent profiles — 8 specialized roles</h2>
+<table class="walk">
+<thead><tr><th>Profile · Name</th><th>Primary role</th><th>Key constraint</th></tr></thead>
+<tbody>
+<tr class="cue"><td>ops · Iris</td><td>PM platform ops & cron; gate notifications</td><td>No direct DB mutation</td></tr>
+<tr class="cue"><td>avatar · Jax</td><td>Gate 1/2/3 recommendations & run interpretation</td><td>Advisory only — no execution</td></tr>
+<tr class="cue"><td>local · Remy</td><td>Git, file ops, service management</td><td>Confirms before writing</td></tr>
+<tr class="cue"><td>interview-ops · Cleo</td><td>Interview prep backlog & answer drafts</td><td>No PM platform writes</td></tr>
+</tbody></table>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">16 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Hermes Agent profiles — 8 specialized roles (cont.)</h2>
+<table class="walk">
+<thead><tr><th>Profile · Name</th><th>Primary role</th><th>Key constraint</th></tr></thead>
+<tbody>
+<tr class="cue"><td>publisher · Quill</td><td>Notion <strong>portfolio</strong> pages</td><td>Portfolio writer; confirm per section</td></tr>
+<tr class="cue"><td>eval · Vega</td><td>Daily system health digest</td><td>Never alters what it observes</td></tr>
+<tr class="cue"><td>writer · Wren</td><td>Posts in Jack's voice — draft → publish</td><td>Notion <strong>posts DB</strong> only; publish on approval</td></tr>
+<tr class="cue"><td>scratch · Pip</td><td>Dev & prompt experimentation</td><td>No production tokens</td></tr>
+</tbody></table>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">17 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Hermes Agent profiles — how they divide up</h2>
+<ul class="stack">
+<li class="cue sm"><strong>Core vs add-on</strong>: ops + avatar run the core PM-decision loop; publisher/writer/interview-ops are add-ons on the same fleet; local/eval/scratch are ops & support.</li>
+<li class="cue sm">Each profile has its own <code>SOUL.md</code> (constitution) + <code>MEMORY.md</code> (growth log).</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">18 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Observability — pm-observatory</h2>
+<p class="lede cue tight" style="font-size:26px;">Next.js dashboard over a <strong>read-only</strong> SQLite snapshot of the engine DB:</p>
+<ul class="stack">
+<li class="cue sm"><strong>18 sections</strong>: Overview · Pipeline · Runs · Artifacts · Signals & Sensing · Wiki · Publisher · Writing · Backup · Interview Q&A · Activity · Autonomy · Search · Usage & Cost · LLM & Auth · Data Map · Health & Integrity · Settings.</li>
+<li class="cue sm"><strong>7 integrity rules</strong>: stale <code>position</code>, missing gate audit log, S5 not persisted to the run row, DB↔archive mismatch, wiki-export gap, submitted sensing file with no signal, engine DB unreadable.</li>
+<li class="cue sm"><strong>Drift matrix</strong>: project × Notion section, git-staleness scored (fresh / source_changed / never_published).</li>
+<li class="cue sm"><strong>observe, don't control</strong> — never writes the engine DB; every pipeline action routes through the engine API.</li>
+</ul>
+</div></section>
+
+
+<section class="slide">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">19 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Read-mostly — when the dashboard may write</h2>
+<p class="lede cue tight" style="font-size:26px;">Observability stays read-only; a write path ships only if it satisfies <strong>all five</strong>:</p>
+<div class="principles">
+<div class="principle cue"><div class="principle__num">01</div><div class="principle__body">A <strong>runtime override store</strong> — never a git file, never <code>.env</code> (deleting it rolls back).</div></div>
+<div class="principle cue"><div class="principle__num">02</div><div class="principle__body">Its <strong>own env flag</strong> + resolved profile home — a dev checkout can't write; route 503s.</div></div>
+<div class="principle cue"><div class="principle__num">03</div><div class="principle__body"><strong>Atomic write</strong> (tmp-then-rename) — a cron reader never sees a half-written store.</div></div>
+<div class="principle cue"><div class="principle__num">04</div><div class="principle__body">A reader that <strong>degrades to the baseline</strong> when the store is missing/malformed.</div></div>
+<div class="principle cue"><div class="principle__num">05</div><div class="principle__body"><strong>Logged</strong> to the action log.</div></div>
+</div>
+<ul class="stack">
+<li class="cue sm">Today: sensing config · interview-drill TTS · gate actions · signal annotations · backup trigger · usage collector. Excluded: profile <code>tuning:</code>, path contracts, credentials, notification routing.</li>
+<li class="cue sm">The rule behind all five: <strong>a settings bug must cost the setting — not the job.</strong></li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">20 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Cross-cutting engineering principles</h2>
+<ul class="stack">
+<li class="cue sm"><strong>Eval-first</strong> — a harness of <strong>4 regression fixtures</strong> from historical runs (R04–R07) predates the feature code; every prompt or model change is checked against it. They pin past behaviour, not validated ground truth — the calibration target going forward is accumulated Gate decisions.</li>
+<li class="cue sm"><strong>Vendor-agnostic LLM</strong> — <code>LLMProvider</code> protocol → swap Claude / GPT via one env var.</li>
+<li class="cue sm"><strong>Fail-closed security</strong> — no token ⇒ 503; loopback bind + Tailscale.</li>
+<li class="cue sm"><strong>SQLite-first, protocol-abstracted</strong> — a future Postgres migration stays mechanical.</li>
+<li class="cue sm"><strong>Traceability by design</strong> — every stage output stored, every gate decision logged, every artifact linked to its run.</li>
+</ul>
+</div></section>
+
+
+<section class="slide divider">
+<div class="bg-orb o1"></div><div class="bg-orb o2"></div>
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">21 / 47</div></div>
+<div class="content">
+<div class="accent-bar cue"></div>
+<h1 class="display cue">Backup · Further learnings</h1>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">22 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Takeaway 1 (cont.) — What the two layers buy</h2>
+<p class="lede cue tight" style="font-size:26px;">Ad-hoc PM analysis vs pm-engine (both layers):</p>
+<ul class="stack">
+<li class="cue sm"><strong>Workflow</strong>: varies per situation → fixed, same stages every time.</li>
+<li class="cue sm"><strong>Consistency</strong>: varies per run → structural guarantee + exact code paths.</li>
+<li class="cue sm"><strong>Traceability</strong>: effort-dependent → built-in, every run is a record.</li>
+<li class="cue sm"><strong>Evolvability</strong>: hard, no seams → easy, swap any stage independently.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">23 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Takeaway 2 — For a personal system, MCP wasn't necessary</h2>
+<ul class="stack">
+<li class="cue sm">REST / CLI was enough. MCP earns its keep with a large/evolving surface, external discovery, or multi-vendor composition — none of which I had.</li>
+<li class="cue sm"><strong>Agent → engine = REST</strong> — fixed internal surface (28 endpoints, ~10 at v1), all consumers on-machine.</li>
+<li class="cue sm"><strong>Agent → publisher = CLI as a deliberate wall</strong> — internal changes don't leak, approval rules can't be bypassed, tokens never reach the agent.</li>
+<li class="cue sm">Not the official Notion MCP: it grants broad read/write and can't enforce my narrow, gated, production-only write semantics.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">24 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Takeaway 4 — What I loved about Hermes Agent</h2>
+<ul class="stack">
+<li class="cue sm">Easy to set up and run (easier than OpenClaw; easier still through Claude Code).</li>
+<li class="cue sm"><strong>Telegram / Discord native</strong>; Discord threads give per-context conversations with the same agent.</li>
+<li class="cue sm">Consistency made tangible: <code>SOUL.md</code> (static) + <code>MEMORY.md</code> (dynamic).</li>
+<li class="cue sm"><strong>Always-on</strong> on a 10-year-old iMac; <strong>vendor-agnostic</strong> (swap models freely).</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">25 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Takeaway 5 — Claude Code = "VibeOps"</h2>
+<ul class="stack">
+<li class="cue sm"><strong>Cross-repo</strong> work in one session — no per-repo silos.</li>
+<li class="cue sm"><strong>Local <em>and</em> remote</strong> — drive MacBook + iMac over SSH from one prompt.</li>
+<li class="cue sm">Git versioning + data accumulation make Code the choice over Chat/Cowork; even cron moved to the fleet.</li>
+<li class="cue sm">Beyond coding: running <strong>ops in natural language</strong> (git, Hermes setup + maintenance) — VibeOps. Propagate a lesson by editing an agent's <code>SOUL.md</code> / <code>MEMORY.md</code> from a session.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">26 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">Takeaway 6 — Autonomy is the direction, not today's priority</h2>
+<ul class="stack">
+<li class="cue sm">Focused first on <strong>consistency · evolvability</strong>, deliberately keeping humans in the loop.</li>
+<li class="cue sm">Decisions are far more non-deterministic than coding; the point is deep personalization — until it matures, HITL is non-negotiable.</li>
+<li class="cue sm">To keep the human from being a bottleneck: lean on <strong>observatory</strong> + <strong>cron</strong> (reminders, suggestions).</li>
+<li class="cue sm">Long-term, as data accumulates, the system becomes increasingly autonomous — the ultimate goal.</li>
+</ul>
+</div></section>
+
+
+<section class="slide divider">
+<div class="bg-orb o1"></div><div class="bg-orb o2"></div>
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">27 / 47</div></div>
+<div class="content">
+<div class="accent-bar cue"></div>
+<h1 class="display cue">Backup · Part A — FAQ</h1>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">28 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">F1 · Why split into separate repos?</h2>
+<ul class="stack">
+<li class="cue sm"><strong>Different change cadences</strong> — engine (code) · decision-context (prompts) · wiki (continuous) · hermes (ops config) · notion-backup (weekly). Coupling would force a deploy on every prompt tweak.</li>
+<li class="cue sm"><strong>Clear ownership boundaries</strong> · <strong>independent deploy & test</strong> · <strong>blast-radius control</strong>.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">29 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">F2 · Why an LLM Wiki — not RAG, not a bespoke DB?</h2>
+<ul class="stack">
+<li class="cue sm"><strong>RAG re-derives at query time — nothing accumulates.</strong> The wiki compiles knowledge once and keeps it current.</li>
+<li class="cue sm">Decisive factor: <strong>human-readable, human-editable, human-manageable</strong> — open any file in Obsidian, no embeddings DB / vector index / infra.</li>
+<li class="cue sm">The LLM does the bookkeeping (cross-refs, summaries, filing); you own schema + curation. Decisions distill into frameworks/cases — the corpus compounds.</li>
+<li class="cue sm">Karpathy quote (bookkeeping is the tedious part; LLMs don't get bored and can touch 15 files in one pass) — <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f" target="_blank" rel="noopener">LLM Wiki gist</a>.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">30 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">F2a · Why Graphify on top of the wiki?</h2>
+<ul class="stack">
+<li class="cue sm">Turns the wiki corpus into a <strong>queryable knowledge graph</strong> (<code>graph.json</code> + <code>GRAPH_REPORT.md</code> + interactive <code>graph.html</code>).</li>
+<li class="cue sm">Agents route <strong>community-first</strong>: 1 community article + 2–3 god nodes instead of 20 raw files.</li>
+<li class="cue sm">Graph <strong>persists in git</strong>; queries are pure traversal — no LLM cost at query time; incremental <code>--update</code> re-extracts only changed files.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">31 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">F3 · Why Hermes Agent?</h2>
+<ul class="stack">
+<li class="cue sm"><strong>Specialization, not automation for its own sake</strong> — profiles by identity/persona/R&R.</li>
+<li class="cue sm"><strong>Consistency</strong> via <code>SOUL.md</code> (static) + <code>MEMORY.md</code> (dynamic); <strong>messaging-native</strong>; <strong>always-on, low-cost</strong>; <strong>vendor-agnostic</strong>; easy to operate through Claude Code.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">32 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">F4 · Why REST API for the engine, not MCP?</h2>
+<ul class="stack">
+<li class="cue sm">Interface is <strong>fixed in shape and internal</strong> — <strong>28 endpoints</strong> (~10 at v1), stable nouns; no consumer ever had to discover it.</li>
+<li class="cue sm">All consumers on-machine — no external discovery, no multi-vendor composition.</li>
+<li class="cue sm">MCP would add a separate process, parallel schema, connection state, extra auth — complexity, no gain here.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">33 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">F5 · Why a direct Notion API via CLI, not the Notion MCP?</h2>
+<ul class="stack">
+<li class="cue sm">The <strong>publisher</strong> writes to Notion under strict rules; a CLI is a <strong>deliberate wall</strong>: isolation · gate enforcement · secret containment.</li>
+<li class="cue sm">The official Notion MCP grants broad read/write and can't enforce the narrow, gated, production-only write semantics I need.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">34 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">F6 · Where & how are LLMs used? (3 patterns)</h2>
+<ul class="stack">
+<li class="cue sm"><strong>OpenAI is the default</strong> across the stack. gpt-5.4 / gpt-5.4-mini.</li>
+<li class="cue sm">① <strong>Hermes gateway profiles</strong> (9 — 8 on the iMac + scratch on the MacBook) — 3-tier: <code>openai-codex</code> (ChatGPT OAuth) → <code>anthropic</code> (Claude) → <code>openai-api</code> key.</li>
+<li class="cue sm">② <strong>App-embedded OpenAI SDK</strong> — pm-intelligence-engine, live gpt-5.4 (Claude <code>sonnet-4-6</code> as alt).</li>
+<li class="cue sm">— <strong>No LLM</strong> — decision-context · wiki · observatory · control-plane.</li>
+<li class="cue sm">Durable design: <code>docs/overview/llm-model-usage.md</code>.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">35 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">F6 (cont.) · Model selection & where it fires</h2>
+<ul class="stack">
+<li class="cue sm"><strong>Engine (②)</strong> — ~9–10 calls per full <code>decide</code> run, all <code>temperature=0</code>: S2/S3/S4(×4)/S5-classify/S6/S7. <strong>S1 and the S5 composite score are deterministic — no LLM.</strong></li>
+<li class="cue sm"><strong>Fleet (①)</strong> — model tracks workload: <strong>gpt-5.4-mini</strong> → TPM-pressured automation (ops/local/eval/scratch); <strong>gpt-5.4</strong> → context-heavy/conversational/publish (avatar/interview-ops/publisher/writer).</li>
+<li class="cue sm"><strong>Fallback</strong> — every profile drops <code>openai-codex</code> → <strong>anthropic</strong> (<code>claude-sonnet-5</code> full · <code>claude-haiku-4-5</code> mini) → per-profile <code>openai-api</code> key; <code>anthropic-keepalive</code> cron keeps that tier reachable.</li>
+<li class="cue sm"><code>ANTHROPIC_API_KEY</code> kept unset so the Claude subscription credit is used; engine swaps provider via <code>LLM_PROVIDER</code>.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">36 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">F7 · How are cron jobs configured?</h2>
+<ul class="stack">
+<li class="cue sm"><strong>Owned by the fleet</strong> — <strong>21 ops + 1 eval job</strong> (verified live 2026-08-16), installed via <code>cron-install-ops.sh</code>, versioned in-repo.</li>
+<li class="cue sm"><strong>All 22 run <code>no_agent</code></strong> — only <strong>4</strong> wake the LLM, on real work (detect→compose), never an idle tick.</li>
+<li class="cue sm"><strong>68,820 lifetime executions</strong>, every job's last run <code>ok</code>.</li>
+<li class="cue sm">Representative: gate-watcher (sweep/compose, burst → one digest) · source-feed-scanner (sensing funnel, 6h) · wiki-sync (terminal decide/kill → raw layer, daily) · signal-start-reconciler (1h) · cron-health-watchdog (30m) · anthropic-keepalive (daily).</li>
+<li class="cue sm"><strong>notify-once</strong> prevents duplicates; <strong>new-cron-vs-fold</strong> kept deliberate (DRY <code>cron-common.sh</code>, not job-count creep).</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">37 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">F7 (cont.) · The sensing funnel</h2>
+<p class="lede cue tight" style="font-size:26px;"><code>source-feed-scanner</code> runs every 6h as <strong>four stages, three zero-LLM</strong>:</p>
+<div class="principles">
+<div class="principle cue"><div class="principle__num">01</div><div class="principle__body"><strong>Detect</strong> — RSS / HN / Reddit / web-search → keyword gate → exact dedup.</div></div>
+<div class="principle cue"><div class="principle__num">02</div><div class="principle__body"><strong>Policy & caps</strong> — activation, per-tick/source/domain caps, age cutoff, Gate 0 backpressure.</div></div>
+<div class="principle cue"><div class="principle__num">03</div><div class="principle__body"><strong>Fetch & quality gate</strong> — fetch ladder → drop chrome/bot-walls/too-short. Nothing survives ⇒ no LLM.</div></div>
+<div class="principle cue"><div class="principle__num">04</div><div class="principle__body"><strong>Score</strong> (only LLM stage) — relevance on fetched bodies, then route.</div></div>
+</div>
+<ul class="stack">
+<li class="cue sm"><strong>Two lanes out</strong>: <code>submit</code> → sensing file → Gate 0 (costs a decision) · <code>capture-only</code> → weekly roll-up row (costs nothing, promotable). Gate 0 cap <strong>10 pending</strong> pauses submits; per-product budget <strong>5/day</strong>. Backpressure protects my attention.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">38 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">F8 · Two design choices that keep the pipeline honest</h2>
+<ul class="stack">
+<li class="cue sm"><strong>Portfolio fan-out — one signal, one primary product.</strong> A platform signal can touch several Knox products; auto-running per product flooded the loop (~2.4× gate load) for the same judgment. Default: Triage picks one primary; others recorded as candidates, promoted by hand; a promoted product re-enters at <strong>S2</strong> (reusing the primary's product-agnostic S1), never Gate 0.</li>
+<li class="cue sm"><strong>The knowledge track — independent of the decision.</strong> Every signal leaves two tracks; <strong>any</strong> terminal run (even an <code>archive</code>) can carry reusable knowledge → <code>wiki/concepts · frameworks</code>. Eligibility is a durability/abstraction test, not which depth ran.</li>
+</ul>
+</div></section>
+
+
+<section class="slide divider">
+<div class="bg-orb o1"></div><div class="bg-orb o2"></div>
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">39 / 47</div></div>
+<div class="content">
+<div class="accent-bar cue"></div>
+<h1 class="display cue">Backup · Part B — Technical reference</h1>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">40 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">B1 · Six-repo comparison</h2>
+<table class="walk dense">
+<thead><tr><th>Repo</th><th>Role</th><th>Host</th><th>Owns</th></tr></thead>
+<tbody>
+<tr class="cue"><td>pm-intelligence-engine</td><td>S1–S7 execution, gates</td><td>iMac (launchd)</td><td>run state, stage outputs</td></tr>
+<tr class="cue"><td>pm-decision-context</td><td>reasoning assets</td><td>filesystem</td><td>prompts, rubrics, contexts</td></tr>
+<tr class="cue"><td>product-management-wiki</td><td>sensing + memory</td><td>filesystem</td><td>knowledge, cases, raw signals</td></tr>
+<tr class="cue"><td>hermes-control-plane</td><td>ops plane</td><td>iMac / MacBook</td><td>agent identity, deploy config</td></tr>
+<tr class="cue"><td>pm-observatory</td><td>observability</td><td>iMac (:3100)</td><td>dashboards, integrity rules</td></tr>
+<tr class="cue"><td>notion-cms-backup</td><td>data edge</td><td>GitHub Actions</td><td>Notion export + sync</td></tr>
+</tbody></table>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">41 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">B2 · pm-engine data model</h2>
+<ul class="stack">
+<li class="cue sm"><strong>WorkflowRun</strong> — run_id, signal_id, product_id, <strong>lifecycle</strong>, <strong>position</strong>, depth, <strong>outcome</strong>, routing, composite_score.</li>
+<li class="cue sm"><strong>Signal</strong> — signal_id, product_id, title, source_url, raw_content, status lifecycle.</li>
+<li class="cue sm"><strong>StageOutput</strong> — run_id, stage (s1–s7), output_json (Pydantic), version (++ on revise).</li>
+<li class="cue sm"><strong>ApprovalEvent</strong> — run_id, action (advance / advance_to / revise / stop), feedback_text.</li>
+<li class="cue sm"><strong>Artifact</strong> — run_id, type (poc_plan / prd / executive_summary), content_md. (The duplicate <code>content_json</code> column was dropped 2026-07-19; canonical JSON lives in stage_outputs.)</li>
+<li class="cue sm">SQLite v1 behind a <code>PMWorkflowStore</code> Protocol → mechanical Postgres migration for v2.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">42 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">B3 · API surface & security</h2>
+<pre class="code-block cue"><span class="verb">POST</span> /signals            <span class="verb">GET</span> /signals?product_id=&amp;status=   <span class="verb">GET</span> /signals/{id}
+<span class="verb">POST</span> /runs/start         <span class="verb">GET</span> /runs?lifecycle=&amp;position=     <span class="verb">GET</span> /runs/{id}
+                         <span class="verb">GET</span> /runs?lifecycle=done&amp;outcome=  # no `status` param on runs (US-55)
+<span class="verb">POST</span> /runs/{id}/decision         # single gate endpoint (US-55):
+                                 #   advance | advance_to | revise | stop
+                                 #   Gate 1 (s2) / Gate 2 (s4) / Gate 3 (s5)
+<span class="verb">GET</span>  /runs/{id}/artifacts        <span class="verb">GET</span> /runs/{id}/review (HTML)   <span class="verb">GET</span> /health</pre>
+<ul class="stack">
+<li class="cue sm"><strong>Bearer token</strong> auth; server <strong>fails closed (503)</strong> if unset. Binds <code>127.0.0.1:8000</code>; off-device via Tailscale <code>BASE_URL</code>.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">43 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">B4 · Gate state machine</h2>
+<ul class="stack">
+<li class="cue sm">Run state = <strong>lifecycle</strong> (running / paused / done) + <strong>position</strong> (furthest stage) + <strong>outcome</strong>; the old <code>status</code> enum is gone (US-55).</li>
+<li class="cue sm"><code>running</code> → paused @ s2 (Gate 1 · Direction) → paused @ s4 (Gate 2 · Evaluation) → paused @ s5 (Gate 3 · Routing) → done.</li>
+<li class="cue sm"><code>lifecycle=done</code> with <strong>outcome</strong> completed/stopped triggers <strong>wiki export</strong>. Every gate transition logged as an <code>ApprovalEvent</code>.</li>
+</ul>
+</div></section>
+
+
+<section class="slide">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">44 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">B5 · Processing-depth ladder</h2>
+<p class="lede cue tight" style="font-size:26px;">Not every signal deserves a full 7-stage run:</p>
+<table class="walk">
+<thead><tr><th>Depth</th><th>What runs</th></tr></thead>
+<tbody>
+<tr class="cue"><td>archive</td><td>set aside, no artifact</td></tr>
+<tr class="cue"><td>note</td><td>record insight (<strong>S2; no S7</strong>)</td></tr>
+<tr class="cue"><td>structure</td><td>frame opportunity (S3)</td></tr>
+<tr class="cue"><td>evaluate</td><td>persona eval (S4), no routing</td></tr>
+<tr class="cue"><td>decide</td><td>full S1–S7 with gated routing</td></tr>
+</tbody></table>
+<ul class="stack">
+<li class="cue sm">Low-relevance signals auto-archive at the S2 gate. The PM chooses depth at Gate 1.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">45 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">B5 (cont.) · Measured</h2>
+<ul class="stack">
+<li class="cue sm"><strong>First nine weeks</strong> (2026-05-28 → 07-31): <strong>30 of 43</strong> runs stopped at or before S2 (archive 17, note 13), 2 ran the full pipeline — stage outputs corroborate (S1 41 → S2 40 → S3 8 → S4 3 → S5 2). <strong>55 artifacts</strong>, <strong>29 gate decisions</strong>, <strong>$1.32</strong> metered spend / 371,415 tokens.</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">46 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">B6 · S4 persona system + rubric</h2>
+<ul class="stack">
+<li class="cue sm">Four personas, each its own system prompt in <code>pm-decision-context/prompts/s4/<persona>/</code>; produce <code>{score 1–5, key_argument, open_question}</code>; parallel, isolated.</li>
+<li class="cue sm"><strong>12-point rubric</strong> (pass ≥ 9/12): Score Grounding · Skeptic Quality · Open Question Quality · Persona Independence (3 pts each).</li>
+</ul>
+</div></section>
+
+
+<section class="slide roomy">
+<div class="topbar"><div><span class="topbar__name">Jack H. Park</span><span class="topbar__tag">Studio</span></div><div class="topbar__meta">47 / 47</div></div>
+<div class="content tight">
+<h2 class="slide-title cue">B7 · decision-context — three context levels</h2>
+<pre class="code-block cue">PM identity      (WHY)   →  core/00-pm-identity.md
+Company strategy (WHERE) →  company-context.md            · 4 pillars
+Product context  (WHAT)  →  products/&lt;name&gt;/context.md    · portfolios</pre>
+<ul class="stack">
+<li class="cue sm">4 strategic pillars: Hardware-Rooted Security Differentiation · Ecosystem Integration over Standalone Features · Enterprise IT as the Primary Buyer · On-Device AI as a Structural Moat.</li>
+<li class="cue sm">Each pillar carries an explicit <em>disqualifies</em> clause — strategy encoded as a filter with negative space, not a slogan.</li>
+</ul>
+</div></section>
+  </main>
+</div>
+
+<div class="deck-controls" id="deckControls"></div>
+<div class="step-hint" id="stepHint">space / → next · ← back</div>
+
+<script>
+class SlidePresentation {
+  constructor() {
+    this.slides = [...document.querySelectorAll('.slide')];
+    this.currentSlide = 0;
+    this.cascadeTimers = [];
+    this.stage = document.getElementById('deckStage');
+    this.controls = document.getElementById('deckControls');
+    this.setupStageScale();
+    this.setupKeyboardNav();
+    this.setupCursorTrail();
+    this.setupMagneticControls();
+    this.enterSlide(0, true);
+  }
+  setupStageScale() {
+    const scale = () => {
+      const factor = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+      const x = (window.innerWidth - 1920 * factor) / 2;
+      const y = (window.innerHeight - 1080 * factor) / 2;
+      this.stage.style.transform = `translate(${x}px, ${y}px) scale(${factor})`;
+    };
+    scale();
+    window.addEventListener('resize', scale);
+  }
+  getCues(slideEl) { return [...slideEl.querySelectorAll('.cue')]; }
+  clearCascade() { this.cascadeTimers.forEach(t => clearTimeout(t)); this.cascadeTimers = []; }
+  enterSlide(index, autoCascade) {
+    this.clearCascade();
+    this.currentSlide = Math.max(0, Math.min(index, this.slides.length - 1));
+    this.slides.forEach((slide, i) => {
+      slide.classList.toggle('active', i === this.currentSlide);
+      slide.classList.toggle('visible', i === this.currentSlide);
+    });
+    const cues = this.getCues(this.slides[this.currentSlide]);
+    if (autoCascade) {
+      cues.forEach(s => s.classList.remove('shown'));
+      // Fixed, consistent rhythm across every slide — interval capped at
+      // 140ms and shrunk only if a slide has enough cues that the fixed
+      // rhythm would blow the 2s "see everything" budget.
+      const CUE_DURATION = 220, START_DELAY = 60, BUDGET = 1800;
+      const n = cues.length;
+      const interval = n > 1 ? Math.min(140, (BUDGET - START_DELAY - CUE_DURATION) / (n - 1)) : 0;
+      cues.forEach((s, i) => {
+        this.cascadeTimers.push(setTimeout(() => s.classList.add('shown'), START_DELAY + i * interval));
+      });
+    } else {
+      cues.forEach(s => s.classList.add('shown'));
+    }
+    this.controls.textContent = `‹ ${this.currentSlide + 1} / ${this.slides.length} ›`;
+  }
+  advance() { this.enterSlide(this.currentSlide + 1, true); }
+  back() { this.enterSlide(this.currentSlide - 1, false); }
+  setupKeyboardNav() {
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowRight', ' ', 'PageDown'].includes(e.key)) { this.advance(); e.preventDefault(); }
+      if (['ArrowLeft', 'PageUp'].includes(e.key)) { this.back(); e.preventDefault(); }
+    });
+  }
+  setupCursorTrail() {
+    const dot = document.getElementById('cursorTrail');
+    let hideTimer;
+    window.addEventListener('mousemove', (e) => {
+      dot.style.transform = `translate(${e.clientX}px, ${e.clientY}px) translate(-50%, -50%)`;
+      dot.classList.remove('idle');
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => dot.classList.add('idle'), 1200);
+    });
+  }
+  setupMagneticControls() {
+    const el = this.controls;
+    const radius = 90, strength = 0.35;
+    window.addEventListener('mousemove', (e) => {
+      const r = el.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      const dx = e.clientX - cx, dy = e.clientY - cy;
+      const dist = Math.hypot(dx, dy);
+      if (dist < radius) {
+        el.style.transform = `translateX(calc(-50% + ${dx * strength}px)) translateY(${dy * strength}px)`;
+      } else {
+        el.style.transform = 'translateX(-50%)';
+      }
+    });
+  }
+}
+new SlidePresentation();
+</script>
+</body>
+</html>
