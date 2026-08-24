@@ -6,7 +6,6 @@ import Link from "next/link";
 import { type PageBlock } from "notion-types";
 import {
   formatDate,
-  getBlockTitle,
   getPageProperty,
   parsePageId,
 } from "notion-utils";
@@ -20,6 +19,7 @@ import { ChatFloatingWidget } from "@/components/chat/ChatFloatingWidget";
 import { NotionHeaderPropertiesPortal } from "@/components/NotionHeaderProperties/NotionHeaderPropertiesPortal";
 import * as config from "@/lib/config";
 import { debugNotionXEnabled, debugNotionXLogger } from "@/lib/debug-notion-x";
+import { getPageTitle } from "@/lib/get-page-title";
 import { mapImageUrl } from "@/lib/map-image-url";
 import { getCanonicalPageUrl, mapPageUrl } from "@/lib/map-page-url";
 import { getPageCollectionId } from "@/lib/notion/getPageCollectionId";
@@ -803,10 +803,9 @@ export function NotionPage({
 
   const footer = React.useMemo(() => <Footer />, []);
 
-  // const title = block ? getBlockTitle(block, recordMap) || site.name : site.name
-  const title = block
-    ? getBlockTitle(block, recordMap!) || site?.name || "Untitled"
-    : site?.name || "Untitled";
+  // Resolve the page's own title from its (doubly-nested) record map; the site
+  // name is the last resort, not the normal outcome. See lib/get-page-title.ts.
+  const title = getPageTitle(recordMap) || site?.name || "Untitled";
 
   const canonicalPageUrl =
     config.isDev || !site || !recordMap
