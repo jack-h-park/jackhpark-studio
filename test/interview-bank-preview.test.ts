@@ -121,3 +121,55 @@ void describe("the preview surface is read-only", () => {
     assert.match(route, /previewInterviewBank/);
   });
 });
+
+void describe("the preview page inherits the admin surface", () => {
+  void it("composes the shared primitives instead of a bespoke list", () => {
+    // The first version hand-rolled a <ul> and its own CSS module, so it did not match any
+    // neighbouring admin page — inconsistent spacing, typography and badges. The vocabulary
+    // already existed; the fix was to use it, and this keeps it used.
+    const page = readFileSync(
+      path.join(repoRoot, "pages/admin/interview-bank.tsx"),
+      "utf8",
+    );
+    for (const shared of [
+      "AdminPageShell",
+      "IngestionSubNav",
+      "AiPageChrome",
+      "DataTable",
+      "StatusPill",
+      "DashboardStatTile",
+      "InlineAlert",
+    ]) {
+      assert.match(page, new RegExp(shared), `the page must use ${shared}`);
+    }
+    assert.doesNotMatch(
+      page,
+      /interview-bank\.module\.css/,
+      "a page-private stylesheet is how the surface drifts apart again",
+    );
+  });
+
+  void it("renders on the server so the table is not empty on arrival", () => {
+    // ~46 GitHub reads after paint left the page blank for seconds.
+    const page = readFileSync(
+      path.join(repoRoot, "pages/admin/interview-bank.tsx"),
+      "utf8",
+    );
+    assert.match(page, /export const getServerSideProps/);
+    assert.doesNotMatch(
+      page,
+      /fetch\("\/api\/admin\/interview-bank-preview"\)/,
+      "the page must not re-fetch its own data on the client",
+    );
+  });
+
+  void it("fetches the card files concurrently", () => {
+    // One round trip per file, serial, is latency not work.
+    const adapter = readFileSync(
+      path.join(repoRoot, "lib/rag/sources/interview-bank.ts"),
+      "utf8",
+    );
+    assert.match(adapter, /pMap\(/);
+    assert.match(adapter, /INTERVIEW_BANK_FETCH_CONCURRENCY/);
+  });
+});

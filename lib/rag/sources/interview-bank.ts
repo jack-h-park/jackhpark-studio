@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { load as parseYaml } from "js-yaml";
+import pMap from "p-map";
 
 import type { PreparedDocument } from "../pipeline";
 import { deriveDocIdentifiers } from "../../server/doc-identifiers";
@@ -24,6 +25,7 @@ import { applyDefaultDocMetadata, mergeRagDocumentMetadata } from "../metadata";
 const DEFAULT_REPO = "jack-h-park/product-management-wiki";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "interview-prep/questions";
+const INTERVIEW_BANK_FETCH_CONCURRENCY = 8;
 
 /**
  * Cards are only eligible once Jack has reviewed them *and* opted them in.
@@ -304,22 +306,28 @@ export async function fetchInterviewBankFiles(): Promise<InterviewBankFile[]> {
     (entry) => entry.type === "file" && entry.name.endsWith(".md"),
   );
 
-  const out: InterviewBankFile[] = [];
-  for (const file of files) {
-    if (!file.download_url) continue;
-    const response = await fetch(file.download_url, { headers });
-    if (!response.ok) {
-      throw new Error(
-        `Failed to read ${file.name}: ${response.status} ${response.statusText}`,
-      );
-    }
-    out.push({
-      slug: file.name.replace(/\.md$/, ""),
-      source: await response.text(),
-    });
-  }
-
-  return out;
+  // Fetched concurrently: one round trip per file, and the bank is ~46 of them. Serially
+  // that is five to nine seconds of a page load spent waiting on latency, not work — the
+  // preview is a thing you glance at before publishing, so it has to feel immediate.
+  //
+  // The cap is modest on purpose. These are raw.githubusercontent reads on a token that also
+  // serves the scheduled ingest; there is nothing to gain from opening 46 sockets at once.
+  return pMap(
+    files.filter((file) => Boolean(file.download_url)),
+    async (file) => {
+      const response = await fetch(file.download_url as string, { headers });
+      if (!response.ok) {
+        throw new Error(
+          `Failed to read ${file.name}: ${response.status} ${response.statusText}`,
+        );
+      }
+      return {
+        slug: file.name.replace(/\.md$/, ""),
+        source: await response.text(),
+      };
+    },
+    { concurrency: INTERVIEW_BANK_FETCH_CONCURRENCY },
+  );
 }
 
 /** List and fetch every card file, returning only the eligible ones. */
