@@ -27,7 +27,7 @@ real subpath, and refuses to publish if any load-bearing fact has drifted.
    # -> public/decks/pm-intelligence-system/  (default slug for core.html)
 
    scripts/publish-deck.sh /path/to/hermes-control-plane/docs/deck/frontend-slides/backup.html
-   # -> public/decks/pm-intelligence-system-backup/  (default slug for backup.html)
+   # -> public/decks/pm-intelligence-system-appendix/  (default slug for backup.html)
 
    # override the slug explicitly if needed:
    scripts/publish-deck.sh /path/to/some-other-track.html custom-slug
