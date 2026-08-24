@@ -133,24 +133,26 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
 
   const supabase = getSupabaseAdminClient();
   const pageSize = DEFAULT_RUNS_PAGE_SIZE;
-  const canonicalLookup = await loadCanonicalPageLookup();
-
-  const { data: snapshotRows } = await supabase
-    .from("rag_snapshot")
-    .select(
-      "id, captured_at, schema_version, run_id, run_status, run_started_at, run_ended_at, run_duration_ms, run_error_count, run_documents_skipped, embedding_provider, ingestion_mode, total_documents, total_chunks, total_characters, delta_documents, delta_chunks, delta_characters, error_count, skipped_documents, queue_depth, retry_count, pending_runs, metadata",
-    )
-    .order("captured_at", { ascending: false })
-    .limit(SNAPSHOT_HISTORY_LIMIT);
-
-  const { data: runsData, count: runsCount } = await supabase
-    .from("rag_ingest_runs")
-    .select(
-      "id, source, ingestion_type, partial_reason, status, started_at, ended_at, duration_ms, documents_processed, documents_added, documents_updated, documents_skipped, chunks_added, chunks_updated, characters_added, characters_updated, error_count, error_logs, metadata",
-      { count: "exact" },
-    )
-    .order("started_at", { ascending: false })
-    .range(0, pageSize - 1);
+  const canonicalLookupPromise = loadCanonicalPageLookup();
+  const [{ data: snapshotRows }, { data: runsData, count: runsCount }] =
+    await Promise.all([
+      supabase
+        .from("rag_snapshot")
+        .select(
+          "id, captured_at, schema_version, run_id, run_status, run_started_at, run_ended_at, run_duration_ms, run_error_count, run_documents_skipped, embedding_provider, ingestion_mode, total_documents, total_chunks, total_characters, delta_documents, delta_chunks, delta_characters, error_count, skipped_documents, queue_depth, retry_count, pending_runs, metadata",
+        )
+        .order("captured_at", { ascending: false })
+        .limit(SNAPSHOT_HISTORY_LIMIT),
+      supabase
+        .from("rag_ingest_runs")
+        .select(
+          "id, source, ingestion_type, partial_reason, status, started_at, ended_at, duration_ms, documents_processed, documents_added, documents_updated, documents_skipped, chunks_added, chunks_updated, characters_added, characters_updated, error_count, error_logs, metadata",
+          { count: "exact" },
+        )
+        .order("started_at", { ascending: false })
+        .range(0, pageSize - 1),
+    ]);
+  const canonicalLookup = await canonicalLookupPromise;
 
   const runs: RunRecord[] = (runsData ?? []).map((run: unknown) =>
     normalizeRunRecord(run),
@@ -192,17 +194,21 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async (
         run.status === "failed" || run.status === "completed_with_errors",
     ) ?? null;
 
-  const { data: statsData, error: statsError } = await supabase
-    .from("rag_documents")
-    .select("doc_id, metadata")
-    .order("last_ingested_at", { ascending: false })
-    .limit(2000);
-
-  const { data: docsData, error: docsError } = await supabase
-    .from("rag_documents")
-    .select("doc_id, status, last_sync_attempt_at, last_fetch_status")
-    .order("last_ingested_at", { ascending: false })
-    .limit(2000);
+  const [
+    { data: statsData, error: statsError },
+    { data: docsData, error: docsError },
+  ] = await Promise.all([
+    supabase
+      .from("rag_documents")
+      .select("doc_id, metadata")
+      .order("last_ingested_at", { ascending: false })
+      .limit(2000),
+    supabase
+      .from("rag_documents")
+      .select("doc_id, status, last_sync_attempt_at, last_fetch_status")
+      .order("last_ingested_at", { ascending: false })
+      .limit(2000),
+  ]);
 
   const documentsStats = statsError
     ? null

@@ -8,6 +8,8 @@ export default function AdminSignInPage() {
     <>
       <Head>
         <title>{`${PAGE_TITLE} — Jack H. Park`}</title>
+        <link rel="dns-prefetch" href="https://accounts.google.com" />
+        <link rel="preconnect" href="https://accounts.google.com" />
       </Head>
       <main className="flex min-h-screen items-center justify-center bg-[var(--ai-bg)] px-6 py-12">
         <section className="w-full max-w-md rounded-2xl border border-[var(--ai-role-border-muted)] bg-[var(--ai-role-surface-1)] p-8 shadow-ai">
