@@ -18,7 +18,7 @@
 #                 e.g. hermes-control-plane's docs/deck/frontend-slides/core.html)
 #     slug        deck folder under public/decks/ (default: derived from the
 #                 source filename — core.html -> pm-intelligence-system,
-#                 backup.html -> pm-intelligence-system-backup, anything else ->
+#                 backup.html -> pm-intelligence-system-appendix, anything else ->
 #                 its own basename)
 #
 # After a clean run: `git add public/decks/<slug>` -> commit -> PR -> Vercel
@@ -31,7 +31,7 @@ SRC="${1:?usage: publish-deck.sh <src.html> [slug]}"
 
 case "$(basename "$SRC")" in
   core.html)   DEFAULT_SLUG="pm-intelligence-system" ;;
-  backup.html) DEFAULT_SLUG="pm-intelligence-system-backup" ;;
+  backup.html) DEFAULT_SLUG="pm-intelligence-system-appendix" ;;
   *)           DEFAULT_SLUG="$(basename "$SRC" .html)" ;;
 esac
 SLUG="${2:-$DEFAULT_SLUG}"
