@@ -2,6 +2,22 @@
 
 This guide details the operational workflows for managing the AI Assistant's data and configuration. It covers the **Admin Dashboard** (Ingestion, Documents, Global Config) and the **User Chat Interface** (Session Settings).
 
+## Admin Dashboard Authentication
+
+The dashboard supports a Google OIDC pilot through Auth.js/NextAuth. Only the single email configured in `ADMIN_GOOGLE_EMAIL` is allowed to sign in. Configure the Google OAuth client's callback URI as:
+
+```text
+https://<admin-domain>/api/auth/callback/google
+```
+
+The callback URI must exactly match the URI registered in Google Cloud Console. Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and `ADMIN_GOOGLE_EMAIL` in the deployment environment.
+
+Use the `Sign out` control in the shared admin navigation to end the Google session. After sign-out, browser navigation to an admin page returns to `/admin/sign-in`, and admin API requests return `401`.
+
+Successful and failed state-changing administrator requests are recorded through the unified database logger with the authenticated actor, action, logical target, result, and request ID. Request bodies, source URLs, cookies, and credentials are intentionally excluded.
+
+Do not commit Google credentials or `NEXTAUTH_SECRET`. Preview deployments should not be treated as production-ready administrator entry points until their access policy has been confirmed.
+
 ---
 
 ## 1. Ingestion Dashboard
@@ -11,6 +27,7 @@ This guide details the operational workflows for managing the AI Assistant's dat
 The Ingestion Dashboard is the control center for updating the RAG knowledge base. It allows operators to trigger manual indexing runs and monitor system health.
 
 ### Interview Q&A Bank (`/admin/interview-bank`)
+
 ### Withdrawing a card
 
 Removing `publish_to_jackgpt: true` (or dropping the status below `reviewed`) makes the next
@@ -26,8 +43,6 @@ Two guards decide whether the sweep actually fires, and both can legitimately re
   half-failed run cannot wipe the corpus. **With fewer than four published cards, withdrawing
   one exceeds that fraction and will not sweep** — set the document's status by hand in
   `/admin/documents` if it needs to go immediately.
-
-
 
 What the next interview-bank ingest would publish to JackGPT, **before** it publishes it.
 Read-only: it fetches the card files, applies the same eligibility decision the ingest uses,

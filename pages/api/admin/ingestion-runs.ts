@@ -16,6 +16,7 @@ import {
   type RunRecord,
   type RunStatus,
 } from "../../../lib/admin/ingestion-runs";
+import { requireAdminApiAccess } from "../../../lib/server/admin-auth";
 import { getSupabaseAdminClient } from "../../../lib/supabase-admin";
 
 const UNKNOWN_EMBEDDING_FILTER_VALUE = "__unknown_embedding__";
@@ -192,6 +193,10 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<RunsResponse | { error: string }>,
 ): Promise<void> {
+  if (!(await requireAdminApiAccess(req, res))) {
+    return;
+  }
+
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
     res.status(405).json({ error: "Method Not Allowed" });

@@ -107,6 +107,7 @@
     "langfuse-langchain": "^3.38.20",
     "lqip-modern": "^2.2.1",
     "next": "^15.5.7",
+    "next-auth": "4.24.15",
     "notion-client": "7.7.1",
     "notion-types": "7.7.1",
     "notion-utils": "7.7.1",

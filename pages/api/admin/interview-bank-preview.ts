@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import { previewInterviewBank } from "@/lib/rag/sources/interview-bank";
+import { requireAdminApiAccess } from "@/lib/server/admin-auth";
 
 /**
  * What the next interview-bank ingest would publish, without publishing it.
@@ -12,12 +13,16 @@ import { previewInterviewBank } from "@/lib/rag/sources/interview-bank";
  * `## Gaps` or an internal repo path reaching the assistant breaks nothing and announces
  * nothing. Reading the exact text before it is embedded is the only cheap way to catch it.
  *
- * Auth is the dashboard's HTTP Basic (middleware matches /api/admin/*).
+ * Auth is enforced by the shared Google OIDC session guard.
  */
 export default async function handler(
   request: NextApiRequest,
   response: NextApiResponse,
 ) {
+  if (!(await requireAdminApiAccess(request, response))) {
+    return;
+  }
+
   if (request.method !== "GET") {
     response.setHeader("Allow", "GET");
     response.status(405).json({ ok: false, error: "Method not allowed" });

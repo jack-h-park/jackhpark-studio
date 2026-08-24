@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 
 import { useRouteLoading } from "@/hooks/use-route-loading";
 import { cn } from "@/lib/utils";
@@ -117,6 +118,16 @@ export function AdminTopNav({
           </svg>
         </button>
       )}
+
+      <button
+        type="button"
+        onClick={() => {
+          void signOut({ callbackUrl: "/admin/sign-in" });
+        }}
+        className="ai-selectable ai-selectable--hoverable inline-flex items-center justify-center rounded-full px-3 py-0.5 text-xs font-medium uppercase tracking-[0.1em] text-[color:var(--ai-text-muted)] transition focus-ring"
+      >
+        Sign out
+      </button>
 
       {isLoading && (
         <span className="flex items-center">

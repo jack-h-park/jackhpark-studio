@@ -7,6 +7,11 @@ import {
   PERSONA_TYPE_OPTIONS,
   type RagDocumentMetadata,
 } from "@/lib/rag/metadata";
+import {
+  auditAdminMutation,
+  requireAdminApiAccess,
+  requireSameOriginMutation,
+} from "@/lib/server/admin-auth";
 import { getSupabaseAdminClient } from "@/lib/supabase-admin";
 
 type UpdateMetadataBody = {
@@ -67,9 +72,24 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ): Promise<void> {
+  const admin = await requireAdminApiAccess(req, res);
+  if (!admin) {
+    return;
+  }
+
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     res.status(405).json({ error: "Method Not Allowed" });
+    return;
+  }
+
+  if (!requireSameOriginMutation(req, res)) {
+    auditAdminMutation({
+      ...admin,
+      action: "update",
+      target: "document-metadata",
+      result: "failure",
+    });
     return;
   }
 
@@ -81,6 +101,12 @@ export default async function handler(
       ? body.docId.trim()
       : null;
   if (!docId) {
+    auditAdminMutation({
+      ...admin,
+      action: "update",
+      target: "document-metadata",
+      result: "failure",
+    });
     res.status(400).json({ error: "Missing docId." });
     return;
   }
@@ -95,11 +121,23 @@ export default async function handler(
     .maybeSingle();
 
   if (fetchError) {
+    auditAdminMutation({
+      ...admin,
+      action: "update",
+      target: "document-metadata",
+      result: "failure",
+    });
     res.status(500).json({ error: fetchError.message });
     return;
   }
 
   if (!existing) {
+    auditAdminMutation({
+      ...admin,
+      action: "update",
+      target: "document-metadata",
+      result: "failure",
+    });
     res.status(404).json({ error: "Document not found." });
     return;
   }
@@ -122,11 +160,23 @@ export default async function handler(
     .single();
 
   if (updateError) {
+    auditAdminMutation({
+      ...admin,
+      action: "update",
+      target: "document-metadata",
+      result: "failure",
+    });
     res.status(500).json({ error: updateError.message });
     return;
   }
 
   res.status(200).json({
     document: updated,
+  });
+  auditAdminMutation({
+    ...admin,
+    action: "update",
+    target: "document-metadata",
+    result: "success",
   });
 }
