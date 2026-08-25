@@ -135,6 +135,8 @@ export type InterviewCardVerdict =
       question: string | null;
       status: string | null;
       optedIn: boolean;
+      category: string | null;
+      lastReviewed: string | null;
     };
 
 /**
@@ -154,7 +156,14 @@ export function inspectInterviewCard(
   const status = asString(frontmatter.status);
   const question = asString(frontmatter.question);
   const optedIn = frontmatter[OPT_IN_FIELD] === true;
-  const known = { slug, question, status, optedIn };
+  const known = {
+    slug,
+    question,
+    status,
+    optedIn,
+    category: asString(frontmatter.category),
+    lastReviewed: asString(frontmatter.last_reviewed),
+  };
 
   if (!status || !PUBLISHABLE_STATUSES.has(status)) {
     return { eligible: false, reason: "status-not-review-complete", ...known };
@@ -345,6 +354,8 @@ export type InterviewBankPreviewEntry = {
   slug: string;
   question: string | null;
   status: string | null;
+  category: string | null;
+  lastReviewed: string | null;
   optedIn: boolean;
   eligible: boolean;
   reason: InterviewCardExclusion | null;
@@ -376,6 +387,8 @@ export async function previewInterviewBank(): Promise<InterviewBankPreview> {
         slug: verdict.card.slug,
         question: verdict.card.question,
         status: verdict.card.status,
+        category: verdict.card.category,
+        lastReviewed: verdict.card.lastReviewed,
         optedIn: true,
         eligible: true,
         reason: null,
@@ -387,6 +400,8 @@ export async function previewInterviewBank(): Promise<InterviewBankPreview> {
       slug: verdict.slug,
       question: verdict.question,
       status: verdict.status,
+      category: verdict.category,
+      lastReviewed: verdict.lastReviewed,
       optedIn: verdict.optedIn,
       eligible: false,
       reason: verdict.reason,
