@@ -36,6 +36,16 @@ const REASON_LABEL: Record<string, string> = {
   "no-answer-sections": "No answer sections",
 };
 
+// Categories are slugs in the frontmatter ("ai-security-enterprise-risk-and-operations").
+// The longest is 42 characters, so the column is sized to hold it on one line.
+function humanizeCategory(value: string | null): string {
+  if (!value) return "—";
+  return value
+    .replaceAll("-", " ")
+    .replace(/^./, (c) => c.toUpperCase())
+    .replaceAll(/\b(ai|pm)\b/gi, (word) => word.toUpperCase());
+}
+
 const REASON_HINT: Record<string, string> = {
   "status-not-review-complete":
     "Drill it up to reviewed before it can be published.",
@@ -95,21 +105,34 @@ export default function InterviewBankPage({
         render: (entry) => entry.question ?? entry.slug,
       },
       {
+        header: "Category",
+        align: "left",
+        variant: "muted",
+        width: "270px",
+        render: (entry) => humanizeCategory(entry.category),
+      },
+      {
         header: "Status",
         align: "left",
         variant: "muted",
-        width: "150px",
+        width: "140px",
         render: (entry) => entry.status ?? "—",
+      },
+      {
+        header: "Reviewed",
+        align: "left",
+        variant: "muted",
+        width: "120px",
+        render: (entry) => entry.lastReviewed ?? "—",
       },
       {
         // "Why not" and a character count are mutually exclusive — a published question has
         // a size and no reason, a held-back one has a reason and no size — so as two columns
-        // each sat half empty and the table filled with em dashes. One column, and the
-        // left-aligned run is unbroken until the expander.
+        // each sat half empty and the table filled with em dashes.
         header: "Detail",
         align: "left",
         variant: "muted",
-        width: "240px",
+        width: "180px",
         render: (entry) =>
           entry.eligible
             ? `${(entry.characters ?? 0).toLocaleString("en-US")} chars`
