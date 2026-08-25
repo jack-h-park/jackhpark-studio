@@ -8,6 +8,14 @@ export type DataTableColumn<T> = {
   render: (item: T) => React.ReactNode;
   align?: "left" | "center" | "right";
   className?: string;
+  /**
+   * Hard width — the table is `table-fixed`, so a column never grows to fit. Size it against
+   * the HEADER, not just the cells: headers render uppercase with wide letter-spacing, so a
+   * short label like "Duration" measures ~82px, and 2rem of horizontal padding has to fit
+   * beside it. Too narrow and the header silently wraps to two lines while the data below
+   * looks fine. The default (light) theme is the one to size for; the jp theme's header type
+   * is smaller and always fits inside it.
+   */
   width?: string;
   variant?: "primary" | "muted" | "numeric" | "code";
   size?: "sm" | "xs";

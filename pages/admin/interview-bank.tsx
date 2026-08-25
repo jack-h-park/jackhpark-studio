@@ -92,7 +92,7 @@ export default function InterviewBankPage({
       {
         header: "Published",
         align: "left",
-        width: "112px",
+        width: "132px",
         render: (entry) =>
           entry.eligible ? (
             <StatusPill variant="success">Yes</StatusPill>
