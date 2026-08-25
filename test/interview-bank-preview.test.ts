@@ -67,7 +67,7 @@ void describe("preview and ingest share one decision", () => {
 
   void it("names why a card is held back", () => {
     const reasons = {
-      "status-not-review-complete": card({ status: "drafted" }),
+      "status-not-publishable": card({ status: "needs_evidence" }),
       "not-opted-in": card({ optIn: false }),
       "no-answer-sections": card({ sections: [["Gaps", "x"]] }),
     } as const;

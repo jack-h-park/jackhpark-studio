@@ -43,9 +43,9 @@ filesystem access and ingestion runs serverless, so the pushed git state is the 
 it can see. It is also the better one: the commit reconciler pushes every 30 minutes, and a
 working tree would make ingestion depend on which machine ran it.
 
-Two gates, both required: `status` in `reviewed`/`delivery_ready`, **and** an explicit
-`publish_to_jackgpt: true` in the card's frontmatter. Status alone is not enough — it means
-the answer is good, not that it should be publicly retrievable.
+Two gates, both required: `status` in `drafted`/`reviewed`/`delivery_ready`, **and** an
+explicit `publish_to_jackgpt: true` in the card's frontmatter. Status alone is not enough —
+it means the answer has a supported draft, not that it should be publicly retrievable.
 
 Only `## Short Version` and `## Answer Draft` are embedded, and the list is an **allow-list**:
 `## Evidence Notes`, `## Gaps`, `## Improvement Notes` and anything added later stay private
@@ -54,7 +54,7 @@ internal repo paths into a public assistant fails silently.
 
 `doc_id` is a synthetic 32-hex digest of the slug (these have no external id, and
 `deriveDocIdentifiers` only strips dashes). The sweep is scoped by the source's URL prefix,
-so a card demoted below `reviewed`, or opted out, is retired without touching any other
+so a card demoted below `drafted`, or opted out, is retired without touching any other
 document. Requires `INTERVIEW_BANK_GITHUB_TOKEN`; the repo is private.
 
 ---

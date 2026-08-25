@@ -30,7 +30,7 @@ const PAGE_TAB_TITLE = "Admin · Ingestion · Interview Q&A Bank — Jack H. Par
 
 // Phrased as what to do about it, not as an error code.
 const REASON_LABEL: Record<string, string> = {
-  "status-not-review-complete": "Not review-complete",
+  "status-not-publishable": "No supported draft",
   "not-opted-in": "Not opted in",
   "no-question": "No question in frontmatter",
   "no-answer-sections": "No answer sections",
@@ -47,8 +47,8 @@ function humanizeCategory(value: string | null): string {
 }
 
 const REASON_HINT: Record<string, string> = {
-  "status-not-review-complete":
-    "Drill it up to reviewed before it can be published.",
+  "status-not-publishable":
+    "Develop it to drafted before it can be published.",
   "not-opted-in": "Add publish_to_jackgpt: true to publish it.",
   "no-question": "Add a question: field.",
   "no-answer-sections": "Add a ## Short Version or ## Answer Draft.",
@@ -219,7 +219,8 @@ export default function InterviewBankPage({
             <CardTitle>Publication gate</CardTitle>
             <CardDescription>
               A question is published only when its status is{" "}
-              <code>reviewed</code> or <code>delivery_ready</code>{" "}
+              <code>drafted</code>, <code>reviewed</code>, or{" "}
+              <code>delivery_ready</code>{" "}
               <strong>and</strong> its frontmatter carries{" "}
               <code>publish_to_jackgpt: true</code>. Only{" "}
               <code>## Short Version</code> and <code>## Answer Draft</code> are
