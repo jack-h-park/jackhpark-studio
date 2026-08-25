@@ -28,13 +28,18 @@ const DEFAULT_PATH = "interview-prep/questions";
 const INTERVIEW_BANK_FETCH_CONCURRENCY = 8;
 
 /**
- * Cards are only eligible once Jack has reviewed them *and* opted them in.
+ * Cards are eligible once they have a supported draft *and* Jack has opted them in.
  *
- * The status gate alone is not enough: "reviewed" means the answer is good, not that he
- * wants it publicly retrievable. Requiring an explicit field keeps that a decision rather
- * than a side effect of the drill loop advancing a status.
+ * The status gate alone is not enough: "drafted" means the answer is coherent and
+ * evidence-backed enough to improve in public, not that he wants it publicly retrievable.
+ * Requiring an explicit field keeps that a decision rather than a side effect of the drill
+ * loop advancing a status.
  */
-const PUBLISHABLE_STATUSES = new Set(["reviewed", "delivery_ready"]);
+const PUBLISHABLE_STATUSES = new Set([
+  "drafted",
+  "reviewed",
+  "delivery_ready",
+]);
 const OPT_IN_FIELD = "publish_to_jackgpt";
 
 /** Sections that carry the answer. Everything else in a card stays private — see below. */
@@ -120,7 +125,7 @@ function asString(value: unknown): string | null {
  */
 /** Why a card is not published. Ordinary states, not errors — most of the bank is mid-drill. */
 export type InterviewCardExclusion =
-  | "status-not-review-complete"
+  | "status-not-publishable"
   | "not-opted-in"
   | "no-question"
   | "no-answer-sections";
@@ -166,7 +171,7 @@ export function inspectInterviewCard(
   };
 
   if (!status || !PUBLISHABLE_STATUSES.has(status)) {
-    return { eligible: false, reason: "status-not-review-complete", ...known };
+    return { eligible: false, reason: "status-not-publishable", ...known };
   }
   if (!optedIn) {
     return { eligible: false, reason: "not-opted-in", ...known };

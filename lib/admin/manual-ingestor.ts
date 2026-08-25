@@ -1036,7 +1036,7 @@ async function runUrlIngestion(
  *
  * Unlike the Notion path there is no traversal to be incomplete: the card list is the whole
  * directory, fetched in one call. So the sweep runs on every successful listing rather than
- * only on `full` runs — a card demoted below `reviewed`, or opted out, simply stops being
+ * only on `full` runs — a card demoted below `drafted`, or opted out, simply stops being
  * returned, and the sweep is what makes it stop being retrieved. (That only has an effect
  * once the status-filtered RPCs are enabled; see RAG_MATCH_RPC_VERSION.)
  */
@@ -1088,7 +1088,7 @@ async function runInterviewBankIngestion({
     await emit({
       type: "log",
       level: "info",
-      message: `${cards.length} card(s) are review-complete and opted in.`,
+      message: `${cards.length} card(s) have a supported draft and are opted in.`,
     });
     await emit({ type: "progress", step: "collected", percent: 20 });
 
@@ -1145,7 +1145,7 @@ async function runInterviewBankIngestion({
     const updated = stats.documentsAdded + stats.documentsUpdated;
     finalMessage =
       cards.length === 0
-        ? "No interview cards are review-complete and opted in; nothing ingested."
+        ? "No interview cards have a supported draft and are opted in; nothing ingested."
         : `Processed ${cards.length} interview card(s); updated ${updated}, skipped ${stats.documentsSkipped}.`;
   } catch (err) {
     status = "failed";

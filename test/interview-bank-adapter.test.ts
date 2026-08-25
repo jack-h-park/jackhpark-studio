@@ -56,13 +56,17 @@ void describe("interview card eligibility", () => {
     assert.ok(parseInterviewCard("x", card({ status: "delivery_ready" })));
   });
 
+  void it("accepts an opted-in supported draft", () => {
+    assert.ok(parseInterviewCard("x", card({ status: "drafted" })));
+  });
+
   void it("rejects a reviewed card that is not opted in", () => {
     // "reviewed" means the answer is good, not that Jack wants it publicly retrievable.
     assert.equal(parseInterviewCard("x", card({ optIn: false })), null);
   });
 
-  void it("rejects an opted-in card that is not review-complete", () => {
-    for (const status of ["drafted", "needs_evidence", "new"]) {
+  void it("rejects an opted-in card that does not have a supported draft", () => {
+    for (const status of ["needs_evidence", "new"]) {
       assert.equal(
         parseInterviewCard("x", card({ status, optIn: true })),
         null,

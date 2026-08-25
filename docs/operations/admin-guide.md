@@ -30,7 +30,7 @@ The Ingestion Dashboard is the control center for updating the RAG knowledge bas
 
 ### Withdrawing a card
 
-Removing `publish_to_jackgpt: true` (or dropping the status below `reviewed`) makes the next
+Removing `publish_to_jackgpt: true` (or dropping the status below `drafted`) makes the next
 ingest stop returning the card, and the missing-document sweep then retires its document so
 retrieval stops seeing it.
 
@@ -55,7 +55,7 @@ allow-list ever let something through, nothing would break and nothing would ann
 the assistant would simply start quoting Jack's notes on his own answers. Reading the exact
 embedded text is the cheap way to catch it.
 
-Each card shows whether it publishes and, if not, why: status not review-complete, no
+Each card shows whether it publishes and, if not, why: no supported draft, no
 `publish_to_jackgpt: true`, no question, or no answer sections. Eligible cards expand to the
 verbatim text that would be embedded — rendered as preformatted text on purpose, since
 markdown rendering would hide whitespace and stray headings.
