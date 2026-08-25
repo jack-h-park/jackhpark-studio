@@ -1,4 +1,5 @@
 import type { GetServerSideProps } from "next";
+import { FiChevronDown } from "@react-icons/all-files/fi/FiChevronDown";
 import { FiMessageSquare } from "@react-icons/all-files/fi/FiMessageSquare";
 import Head from "next/head";
 import { type JSX, useMemo, useState } from "react";
@@ -7,6 +8,7 @@ import { AdminPageShell } from "@/components/admin/layout/AdminPageShell";
 import { IngestionSubNav } from "@/components/admin/navigation/IngestionSubNav";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { InlineAlert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   CardContent,
   CardDescription,
@@ -21,6 +23,7 @@ import {
   previewInterviewBank,
 } from "@/lib/rag/sources/interview-bank";
 import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
+import { cn } from "@/lib/utils";
 
 const PAGE_TITLE = "Interview Q&A Bank";
 const PAGE_TAB_TITLE = "Admin · Ingestion · Interview Q&A Bank — Jack H. Park";
@@ -78,7 +81,8 @@ export default function InterviewBankPage({
     () => [
       {
         header: "Published",
-        width: "9rem",
+        align: "left",
+        width: "112px",
         render: (entry) =>
           entry.eligible ? (
             <StatusPill variant="success">Yes</StatusPill>
@@ -88,43 +92,65 @@ export default function InterviewBankPage({
       },
       {
         header: "Question",
-        variant: "primary",
         render: (entry) => entry.question ?? entry.slug,
       },
       {
         header: "Status",
-        width: "10rem",
+        align: "left",
         variant: "muted",
-        size: "sm",
+        width: "150px",
         render: (entry) => entry.status ?? "—",
       },
       {
         header: "Why not",
+        align: "left",
         variant: "muted",
-        size: "sm",
+        width: "190px",
         render: (entry) =>
-          entry.eligible ? "—" : (REASON_LABEL[entry.reason ?? ""] ?? entry.reason),
+          entry.eligible
+            ? "—"
+            : (REASON_LABEL[entry.reason ?? ""] ?? entry.reason),
       },
       {
-        header: "Published text",
+        // A plain count, so it takes the numeric treatment the other tables give numbers.
+        header: "Chars",
         align: "right",
-        width: "11rem",
         variant: "numeric",
-        size: "sm",
-        render: (entry) =>
-          entry.eligible ? (
-            <button
+        width: "90px",
+        render: (entry) => (entry.eligible ? entry.characters : "—"),
+      },
+      {
+        // The expand affordance is an icon button on the right, as in the runs table —
+        // text in this position reads as another data column and pulls away from its row.
+        header: <span className="sr-only">Published text</span>,
+        align: "right",
+        width: "72px",
+        render: (entry) => {
+          if (!entry.eligible) return null;
+          const isExpanded = expanded === entry.slug;
+          return (
+            <Button
               type="button"
-              className="underline underline-offset-2"
-              onClick={() =>
-                setExpanded(expanded === entry.slug ? null : entry.slug)
+              variant="ghost"
+              size="icon"
+              onClick={() => setExpanded(isExpanded ? null : entry.slug)}
+              aria-expanded={isExpanded}
+              aria-label={
+                isExpanded
+                  ? "Hide the published text"
+                  : "Show the published text"
               }
             >
-              {expanded === entry.slug ? "Hide" : `${entry.characters} chars`}
-            </button>
-          ) : (
-            "—"
-          ),
+              <FiChevronDown
+                aria-hidden="true"
+                className={cn(
+                  "h-4 w-4 transition-transform duration-150",
+                  isExpanded && "rotate-180",
+                )}
+              />
+            </Button>
+          );
+        },
       },
     ],
     [expanded],
