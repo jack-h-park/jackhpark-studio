@@ -231,14 +231,31 @@ export async function markSuccess(
       await logLifecycleError("markSuccess.successAt", docId, successError);
     }
 
-    const { error: statusError } = await supabase
-      .from(DOCUMENTS_TABLE)
-      .update({ status: "active" })
-      .eq("doc_id", docId)
-      .eq("status", "missing")
-      .neq("status", "soft_deleted");
+    const applyStatusUpdate = () =>
+      supabase
+        .from(DOCUMENTS_TABLE)
+        .update({ status: "active" })
+        .eq("doc_id", docId)
+        .in("status", ["active", "missing"])
+        .select("doc_id");
+
+    let { data: statusData, error: statusError } = await applyStatusUpdate();
+    if (statusError || !statusData || statusData.length === 0) {
+      // A successful fetch must revive a previously missing document in the same
+      // invocation. Production has exhibited the same silent zero-row PATCH that
+      // markMissing already guards against, so verify and retry symmetrically.
+      ({ data: statusData, error: statusError } = await applyStatusUpdate());
+    }
     if (statusError) {
+      console.warn("[rag:lifecycle] markSuccess status update failed", {
+        docId,
+        dbError: statusError.message,
+      });
       await logLifecycleError("markSuccess.status", docId, statusError);
+    } else if (!statusData || statusData.length === 0) {
+      // Zero rows after both attempts means the row is absent or deliberately
+      // outside the active/missing set (for example soft_deleted).
+      debugIngestionLog("markSuccess-status-unchanged", { docId });
     }
   } catch (err) {
     await logLifecycleError("markSuccess", docId, err);

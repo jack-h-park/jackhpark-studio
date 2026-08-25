@@ -44,6 +44,7 @@ The ingestion pipeline updates lifecycle fields on every fetch attempt:
 - Sets `last_fetch_status = 200` (or actual status).
 - Clears `last_fetch_error`.
 - If current status is `missing`, set status to `active`.
+- Verifies that reactivation PATCH and retries once if it silently affects zero rows.
 - Sets `last_sync_success_at = now()` **only if** status is not `soft_deleted`.
 
 ### markMissing
