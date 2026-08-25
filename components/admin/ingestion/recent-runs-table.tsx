@@ -187,7 +187,7 @@ export function RecentRunsTable({
         variant: "numeric",
         size: "xs",
         className: recentStyles.numericColumn,
-        width: "90px",
+        width: "124px",
       },
       {
         header: "Chunks (+ / ~)",
@@ -218,7 +218,7 @@ export function RecentRunsTable({
         variant: "muted",
         size: "xs",
         className: cn(recentStyles.numericColumn, recentStyles.chunksCell),
-        width: "140px",
+        width: "164px",
       },
       {
         header: "Docs (+ / ~ / −)",
@@ -253,7 +253,7 @@ export function RecentRunsTable({
         variant: "muted",
         size: "xs",
         className: cn(recentStyles.numericColumn, recentStyles.docsCell),
-        width: "140px",
+        width: "172px",
       },
       {
         header: "Data Added",
@@ -278,7 +278,7 @@ export function RecentRunsTable({
         variant: "numeric",
         size: "xs",
         className: cn(recentStyles.numericColumn, recentStyles.numericDataCell),
-        width: "110px",
+        width: "142px",
       },
       {
         header: "Data Updated",
@@ -303,7 +303,7 @@ export function RecentRunsTable({
         variant: "numeric",
         size: "xs",
         className: cn(recentStyles.numericColumn, recentStyles.numericDataCell),
-        width: "110px",
+        width: "160px",
       },
       {
         header: "Actions",

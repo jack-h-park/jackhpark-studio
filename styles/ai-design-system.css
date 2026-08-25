@@ -1144,7 +1144,11 @@ body.dark-mode {
 
 .ai-table__header {
   @apply ai-label-overline;
-  padding: 0.65rem 0.5rem;
+  /* Horizontal padding MUST equal .ai-table__cell's. A header is read as the label of the
+     column beneath it, so any difference reads as the column being crooked: at 0.5rem
+     against the cell's 1rem every left-aligned header sat 8px to the left of its own data,
+     on every table on the site. Change these two together or not at all. */
+  padding: 0.65rem 1rem;
   text-align: left;
   letter-spacing: 0.2em;
 }
@@ -1167,6 +1171,7 @@ body.dark-mode {
 }
 
 .ai-table__cell {
+  /* Paired with .ai-table__header — see the note there. */
   padding: 0.65rem 1rem;
   vertical-align: top;
 }
