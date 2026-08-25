@@ -102,22 +102,18 @@ export default function InterviewBankPage({
         render: (entry) => entry.status ?? "—",
       },
       {
-        header: "Why not",
+        // "Why not" and a character count are mutually exclusive — a published question has
+        // a size and no reason, a held-back one has a reason and no size — so as two columns
+        // each sat half empty and the table filled with em dashes. One column, and the
+        // left-aligned run is unbroken until the expander.
+        header: "Detail",
         align: "left",
         variant: "muted",
-        width: "190px",
+        width: "240px",
         render: (entry) =>
           entry.eligible
-            ? "—"
+            ? `${(entry.characters ?? 0).toLocaleString("en-US")} chars`
             : (REASON_LABEL[entry.reason ?? ""] ?? entry.reason),
-      },
-      {
-        // A plain count, so it takes the numeric treatment the other tables give numbers.
-        header: "Chars",
-        align: "right",
-        variant: "numeric",
-        width: "90px",
-        render: (entry) => (entry.eligible ? entry.characters : "—"),
       },
       {
         // The expand affordance is an icon button on the right, as in the runs table —
