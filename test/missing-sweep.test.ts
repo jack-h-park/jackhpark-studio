@@ -10,7 +10,10 @@ import {
   planMissingSweep,
   sweepUnvisitedDocuments,
 } from "@/lib/rag/missing-sweep";
-import { markMissing } from "@/lib/rag/rag-document-lifecycle";
+import {
+  markMissing,
+  markSuccess,
+} from "@/lib/rag/rag-document-lifecycle";
 
 const RUN_STARTED_AT = "2026-07-16T10:00:00.000Z";
 const BEFORE_RUN = "2026-07-01T00:00:00.000Z";
@@ -50,11 +53,15 @@ function notionRow(overrides: Partial<FakeRow> & { doc_id: string }): FakeRow {
  */
 function createFakeSupabase(
   rows: FakeRow[],
-  options: { dropStatusUpdates?: number } = {},
+  options: {
+    dropStatusUpdates?: number;
+    dropActiveStatusUpdates?: number;
+  } = {},
 ): { client: SupabaseClient; rows: FakeRow[] } {
   const state = {
     rows,
     dropStatusUpdates: options.dropStatusUpdates ?? 0,
+    dropActiveStatusUpdates: options.dropActiveStatusUpdates ?? 0,
   };
 
   function makeQuery(
@@ -75,6 +82,14 @@ function createFakeSupabase(
           state.dropStatusUpdates > 0
         ) {
           state.dropStatusUpdates -= 1;
+          return Promise.resolve({ data: [], error: null });
+        }
+        if (
+          payload &&
+          payload.status === "active" &&
+          state.dropActiveStatusUpdates > 0
+        ) {
+          state.dropActiveStatusUpdates -= 1;
           return Promise.resolve({ data: [], error: null });
         }
         for (const row of matched) {
@@ -103,6 +118,10 @@ function createFakeSupabase(
       },
       is(key: keyof FakeRow, value: null) {
         filters.push((row) => row[key] === value);
+        return builder;
+      },
+      in(key: keyof FakeRow, values: unknown[]) {
+        filters.push((row) => values.includes(row[key]));
         return builder;
       },
       like(key: keyof FakeRow, pattern: string) {
@@ -338,6 +357,46 @@ void describe("markMissing", () => {
     });
     assert.equal(rows[0]!.status, "soft_deleted");
     assert.equal(rows[0]!.missing_detected_at, null);
+  });
+});
+
+void describe("markSuccess", () => {
+  void it("reactivates a missing document", async () => {
+    const { client, rows } = createFakeSupabase([
+      notionRow({
+        doc_id: "doc-1",
+        status: "missing",
+        missing_detected_at: BEFORE_RUN,
+      }),
+    ]);
+
+    await markSuccess(client, "doc-1", 200);
+    assert.equal(rows[0]!.status, "active");
+  });
+
+  void it("retries a silently dropped reactivation PATCH", async () => {
+    const { client, rows } = createFakeSupabase(
+      [
+        notionRow({
+          doc_id: "doc-1",
+          status: "missing",
+          missing_detected_at: BEFORE_RUN,
+        }),
+      ],
+      { dropActiveStatusUpdates: 1 },
+    );
+
+    await markSuccess(client, "doc-1", 200);
+    assert.equal(rows[0]!.status, "active");
+  });
+
+  void it("never revives a soft-deleted document", async () => {
+    const { client, rows } = createFakeSupabase([
+      notionRow({ doc_id: "doc-1", status: "soft_deleted" }),
+    ]);
+
+    await markSuccess(client, "doc-1", 200);
+    assert.equal(rows[0]!.status, "soft_deleted");
   });
 });
 
