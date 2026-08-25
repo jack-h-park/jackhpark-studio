@@ -418,7 +418,7 @@ table.walk strong { color: var(--text-primary); }
         <h2 class="slide-title cue">In practice — Intake &amp; Direction</h2>
         <p class="lede cue tight" style="font-size:24px; font-family:var(--font-mono); color:var(--text-tertiary);"><code>sense &lt;url&gt;</code> → Gate 0 alert → <code>submit &lt;file&gt;</code> → S1→S2 → Gate 1 → <code>decide</code></p>
         <ul class="stack">
-          <li class="cue"><strong>Gate 0</strong> (Iris, the ops agent) — fetch + parse → sensing file in <code>wiki/raw/</code>, Discord alert: submit or skip?</li>
+          <li class="cue"><strong>Gate 0</strong> (Iris, the ops agent) — fetch + parse → sensing file in <code>wiki/raw/</code>, Discord alert (interaction-required; awareness-only notifications go through Telegram instead): submit or skip?</li>
           <li class="cue"><strong>S1→S2</strong> — classified <code>competitive_threat</code>; relevance <strong>4.8/5</strong>, recommended depth <code>decide</code>.</li>
           <li class="cue"><strong>Gate 1</strong> — Jack @mentions Jax, the advisor agent, for a direction read. Consulting Jax is <strong>opt-in</strong>, not automatic.</li>
         </ul>
