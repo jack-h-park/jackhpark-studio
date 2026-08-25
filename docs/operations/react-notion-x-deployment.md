@@ -13,7 +13,7 @@ The deployment scripts assume the `react-notion-x` fork exists at a path relativ
 ```text
 workspace/code/
   core/
-    nextjs-react-notion-x/
+    jackhpark-studio/
   forks/
     react-notion-x/
 ```
