@@ -220,9 +220,9 @@ async function captureGoldenTelemetryPayload() {
       citationsCount: 2,
     },
   });
-  const llmTiming = buildTiming("answer:llm");
+  const llmTiming = buildTiming("answer:summary");
   await trace.observation({
-    name: "answer:llm",
+    name: "answer:summary",
     metadata: llmMetadata,
     input: { tokens: 64 },
     output: { finish_reason: "success", citations: 2 },

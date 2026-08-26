@@ -1,6 +1,4 @@
-import { randomUUID } from "node:crypto";
-
-import { langfuse, type LangfuseTrace } from "@/lib/langfuse";
+import { type LangfuseTrace } from "@/lib/langfuse";
 import { telemetryLogger } from "@/lib/logging/logger";
 import { type ChatGuardrailConfig } from "@/lib/server/chat-guardrails";
 import { buildGenerationInput as buildLangfuseGenerationInput } from "@/lib/server/telemetry/langfuse-metadata";
@@ -110,16 +108,26 @@ const buildAnswerSummaryOutput = (
 };
 
 /**
- * Emits the `answer:llm` observation: a PII-safe summary of the answer stage
+ * Emits the `answer:summary` observation: a PII-safe summary of the answer stage
  * (config snapshot in, finish semantics out) timed over the LLM generation.
  *
  * This is a SPAN, not a GENERATION, on purpose. Token usage and cost for the
- * answer call are owned solely by the LangChain CallbackHandler's generation on
- * the linked `answer:root` trace, which reports the provider's real usage. This
- * observation never carries `model`: a GENERATION without usage makes Langfuse
- * infer tokens by tokenizing input/output, which here are JSON summaries — that
- * produced fabricated token counts and double-counted cost against the real
- * generation.
+ * answer call are owned solely by the LangChain CallbackHandler's generation,
+ * which reports the provider's real usage. This observation never carries
+ * `model`: a GENERATION without usage makes Langfuse infer tokens by tokenizing
+ * input/output, which here are JSON summaries — that produced fabricated token
+ * counts and double-counted cost against the real generation.
+ *
+ * Named `answer:summary`, not `answer:llm`. The LangChain answer chain already
+ * emits an `answer:llm` runnable that parents the real generation. Today the two
+ * only avoid colliding because they land in different traces; once Phase 5 puts
+ * them in one tree, one name would shadow the other and a consumer deduplicating
+ * by name would drop whichever it saw second — silently losing either the real
+ * cost or the finish semantics the digest reads.
+ *
+ * Emitted through `trace.observation()` rather than the ingestion API directly,
+ * so it follows whichever backend `LANGFUSE_OTEL_TRACING` selects instead of
+ * pinning itself to legacy transport.
  */
 export async function emitAnswerSummarySpan(
   options: EmitAnswerSummarySpanOptions,
@@ -128,30 +136,12 @@ export async function emitAnswerSummarySpan(
   if (!trace) {
     return;
   }
-  const client = langfuse.client;
-  if (!client) {
-    return;
-  }
 
-  const traceId = trace.traceId;
-  if (!traceId) {
-    return;
-  }
-
-  const startTime = new Date(options.startTimeMs).toISOString();
-  const endTime = new Date(options.endTimeMs).toISOString();
-
-  const ingestionEvent = {
-    type: "span-create" as const,
-    id: randomUUID(),
-    timestamp: new Date().toISOString(),
-    body: {
-      id: randomUUID(),
-      traceId,
-      name: "answer:llm",
-      startTime,
-      endTime,
-      environment: trace.environment,
+  try {
+    await trace.observation({
+      name: "answer:summary",
+      startTime: new Date(options.startTimeMs).toISOString(),
+      endTime: new Date(options.endTimeMs).toISOString(),
       metadata: {
         requestId: options.requestId ?? null,
         provider: options.provider,
@@ -159,11 +149,7 @@ export async function emitAnswerSummarySpan(
       },
       input: buildAnswerSummaryInput(options),
       output: buildAnswerSummaryOutput(options),
-    },
-  };
-
-  try {
-    await client.api.ingestion.batch({ batch: [ingestionEvent] });
+    });
   } catch (err) {
     telemetryLogger.debug("langfuse answer summary span emission failed", {
       requestId: options.requestId ?? null,

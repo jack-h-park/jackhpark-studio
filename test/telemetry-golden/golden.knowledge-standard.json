@@ -16,7 +16,7 @@
   ],
   "observations": [
     {
-      "name": "answer:llm",
+      "name": "answer:summary",
       "metadata": {
         "citationsCount": 2,
         "finishReason": "success",
@@ -76,9 +76,9 @@
             "tokenBudget": 600
           },
           "engine": {
-            "safeMode": false,
             "embeddingModel": "text-embedding-ada-002",
-            "llmModel": "gpt-4o-mini"
+            "llmModel": "gpt-4o-mini",
+            "safeMode": false
           },
           "guardrails": {
             "route": "normal"
@@ -149,9 +149,9 @@
             "tokenBudget": 600
           },
           "engine": {
-            "safeMode": false,
             "embeddingModel": "text-embedding-ada-002",
-            "llmModel": "gpt-4o-mini"
+            "llmModel": "gpt-4o-mini",
+            "safeMode": false
           },
           "guardrails": {
             "route": "normal"
