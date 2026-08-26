@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { getAppEnv } from "@/lib/langfuse";
+
 import { TtlCache } from "./ttl-cache";
 
 const LANGFUSE_SETTINGS_CACHE_TTL_MS = 60_000;
@@ -13,11 +15,10 @@ export type LangfuseSettings = {
   };
 };
 
-const DEFAULT_LANGFUSE_ENV_TAG =
-  process.env.LANGFUSE_ENV_TAG ??
-  process.env.APP_ENV ??
-  process.env.NODE_ENV ??
-  "dev";
+// Falls back to getAppEnv() rather than APP_ENV/NODE_ENV directly: on Vercel
+// both Preview and Production build with NODE_ENV=production, so the raw
+// fallback tagged preview deployments as "prod".
+const DEFAULT_LANGFUSE_ENV_TAG = process.env.LANGFUSE_ENV_TAG ?? getAppEnv();
 const DEFAULT_LANGFUSE_ATTACH_PROVIDER_METADATA =
   (process.env.LANGFUSE_ATTACH_PROVIDER_METADATA ?? "true").toLowerCase() !==
   "false";
