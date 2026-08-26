@@ -2,9 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import type { LangfuseClient } from "@langfuse/client";
 
+import { getAppEnv } from "@/lib/app-env";
 import { pushIngestionBatch } from "@/lib/server/telemetry/telemetry-test-sink";
-
-export type AppEnv = "dev" | "preview" | "prod";
 
 const TRACE_IMPORT = process.env.LANGFUSE_IMPORT_TRACE === "1";
 const traceImport = (msg: string) =>
@@ -110,50 +109,6 @@ export async function ensureLangfuseClient(): Promise<LangfuseClient | null> {
   const result = await langfuseInitPromise;
   langfuseInitPromise = null;
   return result;
-}
-
-export function getAppEnv(): AppEnv {
-  const fromAppEnv = process.env.APP_ENV?.toLowerCase();
-
-  if (
-    fromAppEnv === "dev" ||
-    fromAppEnv === "preview" ||
-    fromAppEnv === "prod"
-  ) {
-    return fromAppEnv;
-  }
-
-  // Vercel sets NODE_ENV=production for Preview builds as well as Production
-  // ones, so falling straight through to NODE_ENV tags every preview trace as
-  // "prod" and mixes migration/test traffic into the production environment
-  // view and the weekly digest. VERCEL_ENV is the only signal that separates
-  // the two deploy targets.
-  const fromVercelEnv = process.env.VERCEL_ENV?.toLowerCase();
-  if (fromVercelEnv === "production") {
-    return "prod";
-  }
-  if (fromVercelEnv === "preview") {
-    return "preview";
-  }
-  if (fromVercelEnv === "development") {
-    return "dev";
-  }
-
-  const normalizedNodeEnv = process.env.NODE_ENV?.toLowerCase();
-  if (normalizedNodeEnv === "production") {
-    return "prod";
-  }
-  if (normalizedNodeEnv === "preview") {
-    return "preview";
-  }
-  if (normalizedNodeEnv === "development" || normalizedNodeEnv === "dev") {
-    return "dev";
-  }
-  if (normalizedNodeEnv === "test") {
-    return "dev";
-  }
-
-  return "dev";
 }
 
 export type LangfuseMetadata = Record<string, unknown>;
@@ -403,3 +358,5 @@ export const telemetry = {
   isConfigured: () => Boolean(readLangfuseConfig()),
   isTraceActive: () => false,
 };
+
+export { type AppEnv, getAppEnv } from "@/lib/app-env";
