@@ -37,10 +37,11 @@ export default class MyDocument extends Document {
 
             {process.env.NEXT_PUBLIC_GA_ID && (
               <>
-                <script
-                  async
-                  src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
-                />
+                {/* gtag.js is loaded from _app on the first user interaction.
+                    Evaluating it here cost ~150ms of script evaluation plus a
+                    ~110ms timer callback inside the hydration window. The
+                    dataLayer shim below stays inline and is cheap, so queued
+                    hits (including the initial pageview) are not lost. */}
                 <script
                   dangerouslySetInnerHTML={{
                     __html: `
