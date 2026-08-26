@@ -37,6 +37,13 @@ export function ChatAdvancedSettingsDrawer({
 }: DrawerProps) {
   const { adminConfig, sessionConfig, setSessionConfig } = useChatConfig();
   const [mounted, setMounted] = useState(false);
+  // The drawer body is ~234 elements. Rendering it while closed cost a ~200ms
+  // forced layout inside the hydration commit, so it is not mounted until the
+  // first open; after that it stays mounted so reopening is cheap.
+  const [everOpened, setEverOpened] = useState(false);
+  // Drives the slide transform separately from `open` so the first open can
+  // mount in the closed position and animate on the next frame.
+  const [slidIn, setSlidIn] = useState(false);
   const isPresetActive = Boolean(
     sessionConfig.appliedPreset ?? sessionConfig.presetId,
   );
@@ -44,6 +51,22 @@ export function ChatAdvancedSettingsDrawer({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (open) {
+      setEverOpened(true);
+      return;
+    }
+    setSlidIn(false);
+  }, [open]);
+
+  // Runs after the closed markup is committed, so the transform has a frame to
+  // transition from. Without this the first open would appear with no animation.
+  useEffect(() => {
+    if (!open || !everOpened) return;
+    const frame = requestAnimationFrame(() => setSlidIn(true));
+    return () => cancelAnimationFrame(frame);
+  }, [open, everOpened]);
 
   useEffect(() => {
     if (!open) {
@@ -86,17 +109,21 @@ export function ChatAdvancedSettingsDrawer({
     }));
   };
 
-  if (!mounted) return null;
+  if (!mounted || !everOpened) return null;
 
   return createPortal(
     <>
       <div
-        className={`${styles.overlay} ${open ? styles.overlayVisible : ""}`}
+        className={`${styles.overlay} ${slidIn ? styles.overlayVisible : ""}`}
         onClick={onClose}
         aria-hidden="true"
       />
       <div
-        className={`${styles.drawer} ${open ? styles.drawerVisible : ""}`}
+        className={`${styles.drawer} ${slidIn ? styles.drawerVisible : ""}`}
+        // The drawer stays mounted after its first open, so without `inert` its
+        // ~17 controls remain focusable and in the tab order while it sits
+        // off-screen. `inert` also hides the subtree from assistive tech.
+        inert={!slidIn}
         role="dialog"
         aria-modal="true"
         aria-label="Chat settings"

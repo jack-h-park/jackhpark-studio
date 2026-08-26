@@ -1,7 +1,7 @@
 "use client";
 
 import { AiOutlineInfoCircle } from "@react-icons/all-files/ai/AiOutlineInfoCircle";
-import { useState } from "react";
+import { memo, useState } from "react";
 
 import type {
   ChatMessage,
@@ -56,7 +56,7 @@ export type ChatMessageItemProps = {
   chatSessionId?: string | null;
 };
 
-export function ChatMessageItem({
+function ChatMessageItemImpl({
   message: m,
   isLoading = false,
   loadingAssistantId = null,
@@ -756,3 +756,8 @@ export function ChatMessageItem({
     </div>
   );
 }
+
+// A keystroke in the chat input re-renders the whole shell, and without this
+// every message re-rendered with it. Props are stable per message, so a shallow
+// compare keeps typing off the transcript's render path.
+export const ChatMessageItem = memo(ChatMessageItemImpl);
