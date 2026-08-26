@@ -76,9 +76,11 @@ whole request**, so no single trace can carry a complete root observation, which
 is what the v4 model expects. Merging them onto one OTel trace context is the
 concrete goal.
 
-Before Phase 4 changes anything here, establish whether the paired `hyde` /
-`answer:llm` spans measure the same work or different stages. Merging traces
-deduplicates them in the first case and drops one in the second.
+**Resolved 2026-08-26** from the source, and the two pairs need opposite
+handling. `hyde` is one operation at two nesting levels, so merging makes it a
+correct parent/child. `answer:llm` is one stage emitted twice with complementary
+payloads — both must survive, and one must be renamed. See
+[langfuse-v4-phase45-trace-consolidation.md](langfuse-v4-phase45-trace-consolidation.md).
 
 ## Blocking Defect Found During Planning
 
@@ -207,6 +209,8 @@ deprecated. **No change required.**
 
 ### Phase 4 — Ingestion rewrite
 
+> Full design: [langfuse-v4-phase45-trace-consolidation.md](langfuse-v4-phase45-trace-consolidation.md)
+
 **Risk: high.** This is the breaking change.
 
 - Reimplement `lib/langfuse.node.ts` internals over OTLP while preserving the
@@ -250,12 +254,12 @@ and the feedback API path need **no migration**.
 
 ## Status
 
-| Phase                      | Status                         |
-| -------------------------- | ------------------------------ |
-| 0 — Environment separation | **Done** — merged in #108      |
-| 1 — Preview enablement     | **Done** — verified 2026-08-26 |
-| 2 — Read endpoints         | **Done** — merged in #108      |
-| 3 — OTel bootstrap         | Designed, not implemented      |
-| 4 — Ingestion rewrite      | Not started                    |
-| 5 — LangChain handler      | Not started                    |
-| 6 — Docs and verification  | Not started                    |
+| Phase                      | Status                                      |
+| -------------------------- | ------------------------------------------- |
+| 0 — Environment separation | **Done** — merged in #108                   |
+| 1 — Preview enablement     | **Done** — verified 2026-08-26              |
+| 2 — Read endpoints         | **Done** — merged in #108                   |
+| 3 — OTel bootstrap         | **Done** — merged in #110, verified in prod |
+| 4 — Ingestion rewrite      | Designed, not implemented                   |
+| 5 — LangChain handler      | Designed, not implemented                   |
+| 6 — Docs and verification  | Not started                                 |
