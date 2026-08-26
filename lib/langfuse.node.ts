@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { LangfuseClient } from "@langfuse/client";
 
 import { getAppEnv } from "@/lib/app-env";
+import { createOtelTrace } from "@/lib/server/telemetry/otel-trace-backend";
 import { pushIngestionBatch } from "@/lib/server/telemetry/telemetry-test-sink";
 
 const TRACE_IMPORT = process.env.LANGFUSE_IMPORT_TRACE === "1";
@@ -202,6 +203,12 @@ export interface LangfuseTrace {
   environment: string;
   observation: (options: LangfuseObservationOptions) => Promise<void>;
   update: (options: Partial<LangfuseTraceOptions>) => Promise<void>;
+  /**
+   * Closes the root observation and exports it. Only the OTel backend needs
+   * this: the legacy backend writes the trace record on every update, so it has
+   * nothing to close. Callers must treat it as optional.
+   */
+  end?: () => void;
 }
 
 function buildTraceEvent(
@@ -230,6 +237,15 @@ function buildTraceEvent(
   };
 }
 
+/**
+ * Phase 4 rollout switch for the Langfuse v4 migration. With it unset the
+ * legacy `/api/public/ingestion` backend below stays in charge, so preview can
+ * exercise the OTel path without changing production behaviour.
+ */
+export function isOtelTracingEnabled(): boolean {
+  return process.env.LANGFUSE_OTEL_TRACING === "1";
+}
+
 export function createTrace(
   options: LangfuseTraceOptions,
 ): LangfuseTrace | undefined {
@@ -238,6 +254,10 @@ export function createTrace(
   }
 
   const env = getAppEnv();
+
+  if (isOtelTracingEnabled()) {
+    return createOtelTrace(options, options.environment ?? env);
+  }
   const traceId = options.id ?? options.sessionId ?? randomUUID();
   const traceEnvironment = options.environment ?? env;
   let currentTraceFields: LangfuseTraceOptions & {
