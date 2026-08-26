@@ -48,29 +48,37 @@ answer:root   (id: t-01a037ad-…)  isRootObservation: true, parent: null
 `t-<traceId>` from the legacy trace record and nests the real root span beneath
 it. This duplication disappears once spans are exported over OTLP.
 
-### Trace topology is fragmented (measured 2026-08-26)
+### Trace topology is fragmented (re-measured 2026-08-26 on preview)
 
-A single chat request on the preview deployment produced **three separate
-traces**:
+One chat request produces **20 observations across three separate traces**:
 
-| Trace             | Observations                                                                       |
-| ----------------- | ---------------------------------------------------------------------------------- |
-| `01a03cc3-c69b-…` | `rewrite`, `hyde`, `retrieve`, `rerank`, `context`                                 |
-| `ac448088-eefa-…` | `hyde`, `context:selection`, `answer:llm`, `answer:stream`, `response-summary`     |
-| `01a03cc3-d42a-…` | `answer:root` (+ synthetic `t-` root), `answer:prompt`, `answer:llm`, `ChatOpenAI` |
+| Trace             | Root observation                                                            | Contents                                                                                   |
+| ----------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `1f0db900-…`      | `langchain-chat` (synthetic `t-`)                                           | `rag:root`, `hyde`, `context:selection`, `answer:llm`, `answer:stream`, `response-summary` |
+| `01a03e53-f277-…` | `rag-retrieval-graph` (synthetic `t-` **and** a real span of the same name) | `__start__`, `rewrite`, `hyde`, `retrieve`, `rerank`, `context`                            |
+| `01a03e54-0059-…` | `answer:root` (synthetic `t-` **and** a real span of the same name)         | `answer:prompt`, `answer:llm`, `ChatOpenAI`                                                |
 
-Spans named `hyde` and `answer:llm` each appear in two of the three traces under
-different observation IDs. Whether those represent the same work emitted twice
-or genuinely distinct stages has to be established before Phase 4 — the answer
-decides whether merging traces deduplicates them or silently drops one.
+Two distinct problems, and they are independent:
 
-No single trace holds the whole request, so no single trace can carry a complete
-root observation. Consolidating these into one OTel trace is the concrete goal
-of Phase 5, and it is what makes the v4 root-observation model workable here.
+1. **Legacy-shim duplication.** v4 synthesizes a `t-<traceId>` root from each
+   legacy trace record. Where the app also emits a real root span under the same
+   name, that name appears twice in the tree (`rag-retrieval-graph`,
+   `answer:root`). This disappears once Phase 4 exports real OTLP spans — already
+   confirmed by the Phase 3 probe, which produced a single genuine root.
+2. **Genuine fan-out.** The three traces are real, not an artifact.
+   `lib/langfuse.node.ts` opens the custom `langchain-chat` trace, while the
+   LangChain `CallbackHandler` opens its own for each graph invocation. `hyde`
+   and `answer:llm` appear in two traces under different observation IDs —
+   the custom span and the LangChain span for the same stage.
 
-(An earlier revision of this plan recorded that `answer:llm` and `answer:root`
-shared one trace ID. That reading came from a partial listing; the table above
-supersedes it.)
+The second point is what Phase 5 has to resolve. **No single trace holds the
+whole request**, so no single trace can carry a complete root observation, which
+is what the v4 model expects. Merging them onto one OTel trace context is the
+concrete goal.
+
+Before Phase 4 changes anything here, establish whether the paired `hyde` /
+`answer:llm` spans measure the same work or different stages. Merging traces
+deduplicates them in the first case and drops one in the second.
 
 ## Blocking Defect Found During Planning
 
