@@ -18,7 +18,7 @@
     "overrides": {}
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "type": "module",
   "scripts": {
@@ -55,7 +55,6 @@
     "lint:css-guardrails": "node scripts/check-css-guardrails.mjs",
     "typecheck": "tsc --noEmit",
     "test:prettier": "prettier '**/*.{js,jsx,ts,tsx}' --check",
-    "build:instrumentation": "esbuild instrumentation.ts --platform=node --format=esm --outfile=instrumentation.js",
     "check:katex": "node --import=tsx scripts/check-katex-usage.ts",
     "telemetry:digest": "node --import=tsx --env-file=.env.local scripts/telemetry/weekly-digest.ts",
     "telemetry:sync": "node --import=tsx --env-file=.env.local scripts/telemetry/sync-analytics.ts",
@@ -83,10 +82,14 @@
     "@langchain/google-genai": "^2.1.31",
     "@langchain/langgraph": "^1.4.1",
     "@langchain/openai": "^1.0.0",
-    "@langfuse/client": "^4.4.2",
+    "@langfuse/client": "^5.10.1",
+    "@langfuse/otel": "^5.10.1",
+    "@langfuse/tracing": "^5.10.1",
     "@mozilla/readability": "^0.6.0",
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/sdk-trace-node": "^1.29.0",
+    "@opentelemetry/core": "^2.10.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
+    "@opentelemetry/sdk-trace-node": "^2.10.0",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@react-icons/all-files": "^4.1.0",
     "@supabase/supabase-js": "^2.76.1",

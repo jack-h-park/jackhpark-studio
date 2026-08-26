@@ -4,6 +4,7 @@
 
 - `admin-guide.md` for day-to-day admin workflows
 - `local-llm-operations-checklist.md` for local backend setup and smoke readiness
+- `preview-verification.md` for reaching and verifying preview deployments behind Vercel Authentication
 - `react-notion-x-deployment.md` for local fork dependency switching and Vercel deployment flow
 
 ## Related Operational Docs
