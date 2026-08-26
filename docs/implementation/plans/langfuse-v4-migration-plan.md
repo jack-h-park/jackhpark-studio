@@ -19,15 +19,15 @@ configuration changes or deployment by itself.
 
 Checked against the live project on 2026-08-25:
 
-| Fact | Value | Source |
-| --- | --- | --- |
-| Langfuse server version | `4.19.0` | `getHealth` |
-| Observations API v2 | Responds, cursor pagination works | `listObservations` on project `cmi0opra1032lad07bxq2iaar` |
-| Legacy ingestion | Still accepted until 2026-11-16 | Langfuse deprecation notice |
-| `@langfuse/client` | `^4.4.2` (v4) — needs `>=5.4.0` | `package.json` |
-| `langfuse-langchain` | `^3.38.20` (v3 SDK) — package replaced by `@langfuse/langchain` 5.x | `package.json` |
-| OpenTelemetry bootstrap | **None.** `@opentelemetry/api` and `sdk-trace-node` are declared but unused | repo grep |
-| `instrumentation.ts` | Exists, but is a debug stub that **returns early when `NODE_ENV === "production"`** | file read |
+| Fact                    | Value                                                                               | Source                                                    |
+| ----------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| Langfuse server version | `4.19.0`                                                                            | `getHealth`                                               |
+| Observations API v2     | Responds, cursor pagination works                                                   | `listObservations` on project `cmi0opra1032lad07bxq2iaar` |
+| Legacy ingestion        | Still accepted until 2026-11-16                                                     | Langfuse deprecation notice                               |
+| `@langfuse/client`      | `^4.4.2` (v4) — needs `>=5.4.0`                                                     | `package.json`                                            |
+| `langfuse-langchain`    | `^3.38.20` (v3 SDK) — package replaced by `@langfuse/langchain` 5.x                 | `package.json`                                            |
+| OpenTelemetry bootstrap | **None.** `@opentelemetry/api` and `sdk-trace-node` are declared but unused         | repo grep                                                 |
+| `instrumentation.ts`    | Exists, but is a debug stub that **returns early when `NODE_ENV === "production"`** | file read                                                 |
 
 The server side is already v4, so migration work can begin immediately and can
 land incrementally. There is no need for a big-bang cutover.
@@ -53,10 +53,10 @@ it. This duplication disappears once spans are exported over OTLP.
 A single chat request on the preview deployment produced **three separate
 traces**:
 
-| Trace | Observations |
-| --- | --- |
-| `01a03cc3-c69b-…` | `rewrite`, `hyde`, `retrieve`, `rerank`, `context` |
-| `ac448088-eefa-…` | `hyde`, `context:selection`, `answer:llm`, `answer:stream`, `response-summary` |
+| Trace             | Observations                                                                       |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| `01a03cc3-c69b-…` | `rewrite`, `hyde`, `retrieve`, `rerank`, `context`                                 |
+| `ac448088-eefa-…` | `hyde`, `context:selection`, `answer:llm`, `answer:stream`, `response-summary`     |
 | `01a03cc3-d42a-…` | `answer:root` (+ synthetic `t-` root), `answer:prompt`, `answer:llm`, `ChatOpenAI` |
 
 Spans named `hyde` and `answer:llm` each appear in two of the three traces under
@@ -122,8 +122,8 @@ has never been used, so no deployment has been exercised or verified.
 
 1. Preview deployments are served behind **Vercel Deployment Protection (SSO)** —
    an unauthenticated request 302s to `vercel.com/sso-api`. Preview URLs cannot
-   be curled or shared without either signing in or enabling *Protection Bypass
-   for Automation* (`x-vercel-protection-bypass` header). Enabling the bypass is
+   be curled or shared without either signing in or enabling _Protection Bypass
+   for Automation_ (`x-vercel-protection-bypass` header). Enabling the bypass is
    a prerequisite for scripted verification in Phases 3–5.
 2. Langfuse held **zero observations under `environment=preview`** for the month
    preceding the fix, despite several preview deployments in that window —
@@ -178,6 +178,8 @@ deprecated. **No change required.**
 ### Phase 3 — OpenTelemetry bootstrap
 
 **Risk: medium.** Additive; can coexist with legacy ingestion.
+
+> Full design: [langfuse-v4-phase3-otel-bootstrap.md](langfuse-v4-phase3-otel-bootstrap.md)
 
 - Add `@langfuse/tracing`, `@langfuse/otel`, bump `@langfuse/client` to 5.x.
 - Rewrite [instrumentation.ts](../../../instrumentation.ts) to register
@@ -240,12 +242,12 @@ and the feedback API path need **no migration**.
 
 ## Status
 
-| Phase | Status |
-| --- | --- |
-| 0 — Environment separation | **Done** — commit `b3f5a05` |
-| 1 — Preview enablement | **Done** — verified 2026-08-26 |
-| 2 — Read endpoints | **Done** — commit `22b991d` |
-| 3 — OTel bootstrap | Not started |
-| 4 — Ingestion rewrite | Not started |
-| 5 — LangChain handler | Not started |
-| 6 — Docs and verification | Not started |
+| Phase                      | Status                         |
+| -------------------------- | ------------------------------ |
+| 0 — Environment separation | **Done** — merged in #108      |
+| 1 — Preview enablement     | **Done** — verified 2026-08-26 |
+| 2 — Read endpoints         | **Done** — merged in #108      |
+| 3 — OTel bootstrap         | Designed, not implemented      |
+| 4 — Ingestion rewrite      | Not started                    |
+| 5 — LangChain handler      | Not started                    |
+| 6 — Docs and verification  | Not started                    |
