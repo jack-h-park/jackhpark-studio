@@ -48,11 +48,29 @@ answer:root   (id: t-01a037ad-…)  isRootObservation: true, parent: null
 `t-<traceId>` from the legacy trace record and nests the real root span beneath
 it. This duplication disappears once spans are exported over OTLP.
 
-Note: the code comment in `lib/server/langchain/langfuse-callbacks.ts` describes
-the LangChain spans as landing in a *separate* trace correlated by
-`linkedTraceId`. The live data shows `answer:llm` and `answer:root` sharing one
-`traceId`. The documented topology and the observed topology disagree; this must
-be re-measured before Phase 3.
+### Trace topology is fragmented (measured 2026-08-26)
+
+A single chat request on the preview deployment produced **three separate
+traces**:
+
+| Trace | Observations |
+| --- | --- |
+| `01a03cc3-c69b-…` | `rewrite`, `hyde`, `retrieve`, `rerank`, `context` |
+| `ac448088-eefa-…` | `hyde`, `context:selection`, `answer:llm`, `answer:stream`, `response-summary` |
+| `01a03cc3-d42a-…` | `answer:root` (+ synthetic `t-` root), `answer:prompt`, `answer:llm`, `ChatOpenAI` |
+
+Spans named `hyde` and `answer:llm` each appear in two of the three traces under
+different observation IDs. Whether those represent the same work emitted twice
+or genuinely distinct stages has to be established before Phase 4 — the answer
+decides whether merging traces deduplicates them or silently drops one.
+
+No single trace holds the whole request, so no single trace can carry a complete
+root observation. Consolidating these into one OTel trace is the concrete goal
+of Phase 5, and it is what makes the v4 root-observation model workable here.
+
+(An earlier revision of this plan recorded that `answer:llm` and `answer:root`
+shared one trace ID. That reading came from a partial listing; the table above
+supersedes it.)
 
 ## Blocking Defect Found During Planning
 
@@ -111,8 +129,20 @@ has never been used, so no deployment has been exercised or verified.
    preceding the fix, despite several preview deployments in that window —
    confirming the Phase 0 defect empirically.
 
-Remaining manual step: sign in to the preview URL, send one chat message, and
-confirm a trace appears under `environment=preview`.
+**Verified 2026-08-26.** A chat request against `/studio` on the preview
+deployment produced 15 observations, **all tagged `environment: "preview"`** —
+the full pipeline (`rewrite` → `hyde` → `retrieve` → `rerank` → `context` →
+`answer:prompt` → `answer:llm` → `ChatOpenAI` → `answer:stream` →
+`response-summary`). Preview is now a usable telemetry test bed.
+
+Preview telemetry env matches production exactly (`TELEMETRY_ENABLED=true`,
+`TELEMETRY_SAMPLE_RATE_MAX=1`, `TELEMETRY_DETAIL_MAX=standard`), and neither
+`TELEMETRY_SAMPLE_RATE_OVERRIDE` nor `TELEMETRY_DETAIL_OVERRIDE` exists in any
+scope — so the Phase 0 change that lets overrides apply outside production has
+nothing to act on today. Worth re-checking if either variable is ever added.
+
+Operational note: observations took roughly 8 minutes to become queryable. Do
+not treat a fast empty query as a dropped trace.
 
 ### Phase 2 — Read-endpoint migration (scripts only)
 
@@ -213,7 +243,7 @@ and the feedback API path need **no migration**.
 | Phase | Status |
 | --- | --- |
 | 0 — Environment separation | **Done** — commit `b3f5a05` |
-| 1 — Preview enablement | **Blocked on manual check** — preview deployed, see below |
+| 1 — Preview enablement | **Done** — verified 2026-08-26 |
 | 2 — Read endpoints | **Done** — commit `22b991d` |
 | 3 — OTel bootstrap | Not started |
 | 4 — Ingestion rewrite | Not started |
