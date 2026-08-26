@@ -59,6 +59,9 @@ importers:
       '@opentelemetry/exporter-trace-otlp-http':
         specifier: ^0.221.0
         version: 0.221.0(@opentelemetry/api@1.9.0)
+      '@opentelemetry/sdk-trace-base':
+        specifier: ^2.10.0
+        version: 2.10.0(@opentelemetry/api@1.9.0)
       '@opentelemetry/sdk-trace-node':
         specifier: ^2.10.0
         version: 2.10.0(@opentelemetry/api@1.9.0)
@@ -115,7 +118,7 @@ importers:
         version: 1.14.3
       langfuse-langchain:
         specifier: ^3.38.20
-        version: 3.38.20(langchain@0.3.37(5387721280e0385a4216acf5d703b692))
+        version: 3.38.20(langchain@0.3.37(0d364ff29ca3a35045174be9b4ea4775))
       lqip-modern:
         specifier: ^2.2.1
         version: 2.2.1
@@ -8367,7 +8370,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.17.0(debug@4.4.3))
+      retry-axios: 2.6.0(axios@1.17.0)
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -8683,7 +8686,7 @@ snapshots:
 
   ky@1.14.3: {}
 
-  langchain@0.3.37(5387721280e0385a4216acf5d703b692):
+  langchain@0.3.37(0d364ff29ca3a35045174be9b4ea4775):
     dependencies:
       '@langchain/core': 1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(ws@8.21.0)(zod@4.3.6))(ws@8.21.0)
       '@langchain/openai': 0.6.17(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(ws@8.21.0)(zod@4.3.6))(ws@8.21.0))(ws@8.21.0)
@@ -8713,9 +8716,9 @@ snapshots:
     dependencies:
       mustache: 4.2.0
 
-  langfuse-langchain@3.38.20(langchain@0.3.37(5387721280e0385a4216acf5d703b692)):
+  langfuse-langchain@3.38.20(langchain@0.3.37(0d364ff29ca3a35045174be9b4ea4775)):
     dependencies:
-      langchain: 0.3.37(5387721280e0385a4216acf5d703b692)
+      langchain: 0.3.37(0d364ff29ca3a35045174be9b4ea4775)
       langfuse: 3.38.20
       langfuse-core: 3.38.20
 
@@ -9594,7 +9597,7 @@ snapshots:
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
 
-  retry-axios@2.6.0(axios@1.17.0(debug@4.4.3)):
+  retry-axios@2.6.0(axios@1.17.0):
     dependencies:
       axios: 1.17.0(debug@4.4.3)
 

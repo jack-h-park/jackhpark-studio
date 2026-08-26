@@ -198,6 +198,11 @@ export async function handleLangchainChat(
     // dropped whole traces and events (a request could answer fine and reach
     // neither Langfuse nor PostHog). waitUntil no-ops off-Vercel, so local and
     // dev behaviour is unchanged.
+    // Close the OTel root observation before draining. No-op on the legacy
+    // backend, which has no root to close. Must happen before forceFlush or the
+    // root would still be open and would not be exported.
+    traceState.trace?.end?.();
+
     const flushed = new Promise<void>((resolve) => {
       setImmediate(() => {
         void Promise.allSettled([
