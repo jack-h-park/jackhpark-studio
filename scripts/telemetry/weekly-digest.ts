@@ -71,16 +71,35 @@ function coerceNumber(v: unknown): number | null {
   return typeof n === "number" && Number.isFinite(n) ? n : null;
 }
 
-type LangfuseScoresPage = {
-  data: Array<{
-    name: string;
-    value: number | null;
-    traceId?: string | null;
-    timestamp?: string | null;
-    comment?: string | null;
-  }>;
-  meta: { page: number; totalPages: number };
+type LangfuseScoreRow = {
+  name: string;
+  value: number | boolean | string | null;
+  dataType?: string | null;
+  timestamp?: string | null;
+  comment?: string | null;
+  subject?: { kind?: string | null; id?: string | null } | null;
 };
+
+type LangfuseScoresPage = {
+  data: LangfuseScoreRow[];
+  meta?: { cursor?: string | null };
+};
+
+/**
+ * Scores API v3 returns a single `value` typed by `dataType`, so BOOLEAN scores
+ * (`user_feedback`) now arrive as true/false where v2 sent 1/0. The aggregation
+ * layer compares `value === 1`, which a boolean silently fails — every 👍 would
+ * be counted as 👎. Collapse booleans back to numbers here so `digest.ts` and
+ * its unit tests stay untouched.
+ */
+function normalizeScoreValue(row: LangfuseScoreRow): number | null {
+  if (typeof row.value === "boolean") {
+    return row.value ? 1 : 0;
+  }
+  return typeof row.value === "number" && Number.isFinite(row.value)
+    ? row.value
+    : null;
+}
 
 async function fetchScores(
   baseUrl: string,
@@ -88,13 +107,17 @@ async function fetchScores(
   fromTimestamp: string,
 ): Promise<DigestScore[]> {
   const scores: DigestScore[] = [];
-  let page = 1;
-  let totalPages = 1;
+  let cursor: string | null = null;
   do {
-    const url = new URL("/api/public/v2/scores", baseUrl);
+    const url = new URL("/api/public/v3/scores", baseUrl);
     url.searchParams.set("fromTimestamp", fromTimestamp);
     url.searchParams.set("limit", "100");
-    url.searchParams.set("page", String(page));
+    // v3 returns only core fields by default: `comment` lives in the `details`
+    // group and the trace reference moved into the `subject` object.
+    url.searchParams.set("fields", "details,subject");
+    if (cursor) {
+      url.searchParams.set("cursor", cursor);
+    }
     const res = await fetch(url, {
       headers: { Authorization: `Basic ${auth}` },
     });
@@ -107,15 +130,14 @@ async function fetchScores(
     for (const s of body.data) {
       scores.push({
         name: s.name,
-        value: s.value,
-        traceId: s.traceId ?? null,
+        value: normalizeScoreValue(s),
+        traceId: s.subject?.kind === "trace" ? (s.subject.id ?? null) : null,
         timestamp: s.timestamp ?? null,
         comment: s.comment ?? null,
       });
     }
-    totalPages = body.meta?.totalPages ?? 1;
-    page += 1;
-  } while (page <= totalPages);
+    cursor = body.meta?.cursor ?? null;
+  } while (cursor);
   return scores;
 }
 
@@ -130,16 +152,20 @@ async function fetchLangfuseMetrics(
   fromTimestamp: string,
   toTimestamp: string,
 ): Promise<LangfuseEngineeringMetrics | null> {
-  const query = (view: string, metrics: unknown[]) => {
-    const url = new URL("/api/public/metrics", baseUrl);
+  const query = (view: string, metrics: unknown[], filters: unknown[]) => {
+    const url = new URL("/api/public/v2/metrics", baseUrl);
     url.searchParams.set(
       "query",
-      JSON.stringify({ view, metrics, fromTimestamp, toTimestamp }),
+      JSON.stringify({ view, metrics, filters, fromTimestamp, toTimestamp }),
     );
     return url;
   };
-  const run = async (view: string, metrics: unknown[]) => {
-    const res = await fetch(query(view, metrics), {
+  const run = async (
+    view: string,
+    metrics: unknown[],
+    filters: unknown[] = [],
+  ) => {
+    const res = await fetch(query(view, metrics, filters), {
       headers: { Authorization: `Basic ${auth}` },
     });
     if (!res.ok) {
@@ -149,9 +175,26 @@ async function fetchLangfuseMetrics(
     return body.data[0] ?? {};
   };
 
-  const traces = await run("traces", [
-    { measure: "count", aggregation: "count" },
-  ]);
+  // Metrics API v2 removed the "traces" view: a trace is no longer an entity,
+  // just the observations sharing a trace ID. Trace volume becomes the count of
+  // root observations. Cross-checked against the v1 "traces" view over
+  // 2026-08-18..25 — both report 21.
+  const traces = await run(
+    "observations",
+    [{ measure: "count", aggregation: "count" }],
+    [
+      {
+        column: "isRootObservation",
+        operator: "=",
+        value: true,
+        type: "boolean",
+      },
+    ],
+  );
+  // Expect observationCount to step up by roughly the trace count relative to
+  // the v1 numbers (119 → 140 over the window above). While ingestion is still
+  // legacy, Langfuse v4 synthesizes a `t-<traceId>` root observation per trace,
+  // and v2 counts those. The gap closes once Phase 4 exports real root spans.
   const obs = await run("observations", [
     { measure: "count", aggregation: "count" },
     { measure: "totalCost", aggregation: "sum" },
