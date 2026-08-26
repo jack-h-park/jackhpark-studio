@@ -123,6 +123,22 @@ export function getAppEnv(): AppEnv {
     return fromAppEnv;
   }
 
+  // Vercel sets NODE_ENV=production for Preview builds as well as Production
+  // ones, so falling straight through to NODE_ENV tags every preview trace as
+  // "prod" and mixes migration/test traffic into the production environment
+  // view and the weekly digest. VERCEL_ENV is the only signal that separates
+  // the two deploy targets.
+  const fromVercelEnv = process.env.VERCEL_ENV?.toLowerCase();
+  if (fromVercelEnv === "production") {
+    return "prod";
+  }
+  if (fromVercelEnv === "preview") {
+    return "preview";
+  }
+  if (fromVercelEnv === "development") {
+    return "dev";
+  }
+
   const normalizedNodeEnv = process.env.NODE_ENV?.toLowerCase();
   if (normalizedNodeEnv === "production") {
     return "prod";

@@ -1,0 +1,196 @@
+# Langfuse v4 Migration Plan
+
+## Purpose
+
+Langfuse Cloud becomes v4-only on **2026-11-16**. After that date the legacy
+`/api/public/ingestion` trace and observation events, and the legacy read
+endpoints this repository depends on, are removed.
+
+This repository does not use the Langfuse SDK's tracing API. It hand-assembles
+`trace-create` / `span-create` ingestion events and posts them through
+`client.api.ingestion.batch()`. That transport is exactly what v4 removes, so
+the migration is a rewrite of the telemetry transport layer rather than a
+dependency bump.
+
+This document records the plan and its status. It does not authorize production
+configuration changes or deployment by itself.
+
+## Verified Starting State
+
+Checked against the live project on 2026-08-25:
+
+| Fact | Value | Source |
+| --- | --- | --- |
+| Langfuse server version | `4.19.0` | `getHealth` |
+| Observations API v2 | Responds, cursor pagination works | `listObservations` on project `cmi0opra1032lad07bxq2iaar` |
+| Legacy ingestion | Still accepted until 2026-11-16 | Langfuse deprecation notice |
+| `@langfuse/client` | `^4.4.2` (v4) — needs `>=5.4.0` | `package.json` |
+| `langfuse-langchain` | `^3.38.20` (v3 SDK) — package replaced by `@langfuse/langchain` 5.x | `package.json` |
+| OpenTelemetry bootstrap | **None.** `@opentelemetry/api` and `sdk-trace-node` are declared but unused | repo grep |
+| `instrumentation.ts` | Exists, but is a debug stub that **returns early when `NODE_ENV === "production"`** | file read |
+
+The server side is already v4, so migration work can begin immediately and can
+land incrementally. There is no need for a big-bang cutover.
+
+### Legacy shim artifact visible today
+
+Trace `01a037ad-9a94-763e-b8f0-fb228a516204` currently renders as:
+
+```
+answer:root   (id: t-01a037ad-…)  isRootObservation: true, parent: null
+└─ answer:root   (id: 01a037ad-…)
+   ├─ answer:prompt
+   └─ answer:llm
+      └─ ChatOpenAI  (GENERATION)
+```
+
+`answer:root` appears twice. The v4 server synthesizes a root observation
+`t-<traceId>` from the legacy trace record and nests the real root span beneath
+it. This duplication disappears once spans are exported over OTLP.
+
+Note: the code comment in `lib/server/langchain/langfuse-callbacks.ts` describes
+the LangChain spans as landing in a *separate* trace correlated by
+`linkedTraceId`. The live data shows `answer:llm` and `answer:root` sharing one
+`traceId`. The documented topology and the observed topology disagree; this must
+be re-measured before Phase 3.
+
+## Blocking Defect Found During Planning
+
+`getAppEnv()` ([lib/langfuse.node.ts](../../../lib/langfuse.node.ts)) resolves
+the environment tag as `APP_ENV ?? NODE_ENV`. `APP_ENV` is **not set in any
+Vercel scope**, and Vercel sets `NODE_ENV=production` for Preview builds as well
+as Production builds.
+
+Consequence: **Preview deployments emit Langfuse traces tagged
+`environment: "prod"`.** The same fallback chain drives
+`DEFAULT_LANGFUSE_ENV_TAG` in
+[lib/server/settings/langfuse-settings.ts](../../../lib/server/settings/langfuse-settings.ts).
+
+This makes Preview unusable as a telemetry test bed — migration test traffic
+would land in the production environment view and in the weekly digest. It must
+be fixed before any other phase.
+
+`VERCEL_ENV` is the correct signal and is already used elsewhere in this
+repository (`lib/dev/devFlags.ts`, `pages/robots.txt.tsx`,
+`pages/api/internal/chat/history-preview.ts`).
+
+## Phases
+
+Ordered by ascending risk. Each phase is independently shippable.
+
+### Phase 0 — Environment separation (config + one function)
+
+**Risk: minimal.** Production behavior is unchanged; only Preview changes.
+
+- Derive the app environment from `VERCEL_ENV` when `APP_ENV` is absent.
+- Keep `APP_ENV` as an explicit override that still wins.
+- Verify: Production stays `prod`, Preview becomes `preview`, local stays `dev`.
+
+### Phase 1 — Preview deployment enablement
+
+**Risk: minimal.** No application code.
+
+Preview already has nearly all required environment variables (`LANGFUSE_*`,
+`SUPABASE_*`, `OPENAI_API_KEY`, `TELEMETRY_*`). The gap is operational: Preview
+has never been used, so no deployment has been exercised or verified.
+
+- Open a branch PR to produce a Preview deployment.
+- Verify the Preview URL serves chat and that traces arrive under
+  `environment=preview`.
+- Record the workflow in `docs/operations/`.
+- Confirm `POSTHOG_PERSONAL_API_KEY` remains absent from Preview.
+
+### Phase 2 — Read-endpoint migration (scripts only)
+
+**Risk: low.** Analysis scripts only; no application runtime, no ingestion.
+
+[scripts/telemetry/weekly-digest.ts](../../../scripts/telemetry/weekly-digest.ts):
+
+- `/api/public/v2/scores` → `/api/public/v3/scores`
+  - `page` → `cursor` pagination
+  - single typed `value` field; no `value` / `stringValue` split
+  - `traceId` and `comment` require `fields=details,subject`
+  - `toTimestamp` becomes exclusive — re-check weekly boundaries
+- `/api/public/metrics` → `/api/public/v2/metrics`
+  - `view: "traces"` is removed; use `view: "observations"` with filter
+    `isRootObservation = true` for trace counts
+  - `observations` view measures are unchanged
+
+`scripts/telemetry/sync-analytics.ts` uses `/api/public/score-configs` and
+`lib/server/notifications/telegram.ts` uses `/api/public/projects`. Neither is
+deprecated. **No change required.**
+
+### Phase 3 — OpenTelemetry bootstrap
+
+**Risk: medium.** Additive; can coexist with legacy ingestion.
+
+- Add `@langfuse/tracing`, `@langfuse/otel`, bump `@langfuse/client` to 5.x.
+- Rewrite [instrumentation.ts](../../../instrumentation.ts) to register
+  `LangfuseSpanProcessor`. **It currently returns early when
+  `NODE_ENV === "production"`**, which on Vercel covers both Preview and
+  Production. Registering OTel inside that stub without removing the guard would
+  silently produce no traces in exactly the environments being migrated.
+  `build:instrumentation` in `package.json` bundles this file with esbuild —
+  verify that path still works after the rewrite.
+- Resolve the serverless flush contract: `waitUntil(processor.forceFlush())`.
+  This is the highest-risk detail in the whole migration — see the incident
+  history behind the flush comment in `langfuse-callbacks.ts`.
+- Audit `shouldExportSpan`. v5 filters non-LLM spans by default, which would
+  silently drop custom spans such as `rag:retrieval`. Compose with
+  `isDefaultExportSpan` if needed.
+- Validate on Preview before any production exposure.
+
+### Phase 4 — Ingestion rewrite
+
+**Risk: high.** This is the breaking change.
+
+- Reimplement `lib/langfuse.node.ts` internals over OTLP while preserving the
+  `LangfuseTrace` and `withSpan` public signatures, so the ~12 call sites stay
+  untouched.
+- Replace the accumulate-and-resend `trace.update()` pattern (11 call sites)
+  with in-memory accumulation and a single export on span end. Re-ingesting the
+  same ID to update it is explicitly disallowed in v4.
+- Move trace-level `input` / `output` to the **root observation**. v4 has no
+  trace-level input/output; leaving them where they are means losing them.
+- Replace the `environment` / `release` attributes with
+  `LANGFUSE_TRACING_ENVIRONMENT` / `LANGFUSE_RELEASE`.
+- Serialize metadata to `Record<string, string>`, values ≤200 characters.
+- Rewrite `emitAnswerSummarySpan` to use `startObservation`.
+- Rewrite the `TELEMETRY_TEST_SINK` harness against an in-memory OTel exporter
+  and refresh the telemetry golden snapshots.
+
+### Phase 5 — LangChain handler replacement
+
+**Risk: high.** Depends on Phase 3 and 4.
+
+- `langfuse-langchain` → `@langfuse/langchain`.
+- `handler.langfuse.on("error", …)` and `handler.flushAsync()` no longer exist;
+  flushing consolidates into the span processor.
+- The `LANGFUSE_BASEURL` / EU-region trap and its explicit host/key workaround
+  become unnecessary.
+- Decide whether to merge the LangChain spans into the primary trace via shared
+  OTel context, removing the `linkedTraceId` correlation.
+
+### Phase 6 — Documentation and verification
+
+- Update `docs/telemetry/setup.md`, `docs/telemetry/langfuse-guide.md`, and the
+  trace-topology section of the architecture doc.
+- Confirm the weekly digest produces comparable numbers across the cutover.
+
+## Score Writes Are Not Affected
+
+Langfuse explicitly commits to keeping `score-create` events on
+`POST /ingestion` after the v4 cutover. `lib/server/telemetry/langfuse-scores.ts`
+and the feedback API path need **no migration**.
+
+## Status
+
+| Phase | Status |
+| --- | --- |
+| 0 — Environment separation | In progress |
+| 1 — Preview enablement | Not started |
+| 2 — Read endpoints | Not started |
+| 3 — OTel bootstrap | Not started |
+| 4 — Ingestion rewrite | Not started |
+| 5 — LangChain handler | Not started |
+| 6 — Docs and verification | Not started |
