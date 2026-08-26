@@ -100,6 +100,20 @@ has never been used, so no deployment has been exercised or verified.
 - Record the workflow in `docs/operations/`.
 - Confirm `POSTHOG_PERSONAL_API_KEY` remains absent from Preview.
 
+**Status.** PR #108 produced a Preview deployment. Two findings:
+
+1. Preview deployments are served behind **Vercel Deployment Protection (SSO)** —
+   an unauthenticated request 302s to `vercel.com/sso-api`. Preview URLs cannot
+   be curled or shared without either signing in or enabling *Protection Bypass
+   for Automation* (`x-vercel-protection-bypass` header). Enabling the bypass is
+   a prerequisite for scripted verification in Phases 3–5.
+2. Langfuse held **zero observations under `environment=preview`** for the month
+   preceding the fix, despite several preview deployments in that window —
+   confirming the Phase 0 defect empirically.
+
+Remaining manual step: sign in to the preview URL, send one chat message, and
+confirm a trace appears under `environment=preview`.
+
 ### Phase 2 — Read-endpoint migration (scripts only)
 
 **Risk: low.** Analysis scripts only; no application runtime, no ingestion.
@@ -115,6 +129,17 @@ has never been used, so no deployment has been exercised or verified.
   - `view: "traces"` is removed; use `view: "observations"` with filter
     `isRootObservation = true` for trace counts
   - `observations` view measures are unchanged
+
+**Verified against the live project** over 2026-08-18..25 before and after:
+traces 21 = 21, `sum_totalCost` and `p95_latency` byte-identical, scores 19 = 19.
+Observation count steps 119 → 140 because v4 synthesizes a `t-<traceId>` root
+observation per legacy-ingested trace; expect that gap to close after Phase 4.
+
+**Breaking difference found:** v3 returns one `value` typed by `dataType`, so
+BOOLEAN scores (`user_feedback`) arrive as `true`/`false` where v2 sent `1`/`0`.
+`digest.ts` compares `value === 1`, which a boolean fails under JS strict
+equality — all ratings would flip to 👎 and the proxy/human correlation sample
+would drop to zero. Normalized in the fetch layer so `digest.ts` is unchanged.
 
 `scripts/telemetry/sync-analytics.ts` uses `/api/public/score-configs` and
 `lib/server/notifications/telegram.ts` uses `/api/public/projects`. Neither is
@@ -187,9 +212,9 @@ and the feedback API path need **no migration**.
 
 | Phase | Status |
 | --- | --- |
-| 0 — Environment separation | In progress |
-| 1 — Preview enablement | Not started |
-| 2 — Read endpoints | Not started |
+| 0 — Environment separation | **Done** — commit `b3f5a05` |
+| 1 — Preview enablement | **Blocked on manual check** — preview deployed, see below |
+| 2 — Read endpoints | **Done** — commit `22b991d` |
 | 3 — OTel bootstrap | Not started |
 | 4 — Ingestion rewrite | Not started |
 | 5 — LangChain handler | Not started |
