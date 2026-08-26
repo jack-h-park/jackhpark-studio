@@ -24,7 +24,12 @@ import {
 import { resolveLlmModel } from "@/lib/core/llm-registry";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
 import { getAppEnv } from "@/lib/langfuse";
-import { getLoggingConfig, llmLogger, ragLogger } from "@/lib/logging/logger";
+import {
+  getLoggingConfig,
+  llmLogger,
+  ragLogger,
+  telemetryLogger,
+} from "@/lib/logging/logger";
 import { buildChatConfigSnapshot } from "@/lib/rag/telemetry";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import { computeHistorySummaryHash } from "@/lib/server/api/chat-cache-keys";
@@ -83,6 +88,7 @@ import {
   attachLangfuseTraceTags,
   buildStableLangfuseTags,
 } from "@/lib/server/telemetry/langfuse-tags";
+import { flushLangfuseSpans } from "@/lib/server/telemetry/otel-runtime";
 import {
   clearRequestTrace,
   createTelemetryBuffer,
@@ -202,6 +208,13 @@ export async function handleLangchainChat(
           // The LangChain handlers hold their own Langfuse client and queue;
           // traceState is populated by now, so read the id at call time.
           flushLinkedLangfuseCallbacks(traceState.trace?.traceId),
+          // OTel spans. No-ops until Phase 4 starts creating them, but the
+          // flush path has to be proven before real telemetry depends on it.
+          flushLangfuseSpans().catch((err) => {
+            telemetryLogger.error("[otel] span flush failed", {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }),
         ]).finally(resolve);
       });
     });
@@ -814,8 +827,10 @@ export async function handleLangchainChat(
           ragMultiQueryMaxQueries,
         },
         resolvedProvider: provider,
-        resolvedModelId: runtime.resolvedLlmModelId ?? runtime.llmModelId ?? llmModel,
-        requestedModelId: runtime.requestedLlmModelId ?? runtime.llmModelId ?? null,
+        resolvedModelId:
+          runtime.resolvedLlmModelId ?? runtime.llmModelId ?? llmModel,
+        requestedModelId:
+          runtime.requestedLlmModelId ?? runtime.llmModelId ?? null,
         summaryHash: historySummaryHash,
       },
       includeVerboseDetails,
