@@ -36,6 +36,12 @@ export function clearRequestTrace(requestId: string) {
 export function createTelemetryBuffer(context: TelemetryContext = {}) {
   const events: TelemetryEvent[] = [];
   const currentContext: TelemetryContext = { ...context };
+  // The buffer owns the request's trace for its own lifetime. The shared
+  // registry cannot be the only handle: the handler clears it in its `finally`,
+  // which runs before the deferred flush, so ensureTrace() would miss and build
+  // a *second* root that nobody ever ends — leaving `response-summary` parented
+  // to an unexported span.
+  let ownTrace: LangfuseTrace | null = null;
 
   const push = (name: string, detail?: Record<string, unknown>) => {
     events.push({ name, detail, ts: Date.now() });
@@ -53,8 +59,12 @@ export function createTelemetryBuffer(context: TelemetryContext = {}) {
     if (!requestId) {
       return null;
     }
+    if (ownTrace) {
+      return ownTrace;
+    }
     const existing = getRequestTrace(requestId);
     if (existing) {
+      ownTrace = existing;
       return existing;
     }
 
@@ -92,6 +102,7 @@ export function createTelemetryBuffer(context: TelemetryContext = {}) {
     };
     const trace = langfuseModule.createTrace(traceOptions);
     if (trace) {
+      ownTrace = trace;
       setRequestTrace(requestId, trace);
       return trace;
     }
