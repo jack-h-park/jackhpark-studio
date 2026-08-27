@@ -98,6 +98,16 @@ the legacy endpoint is supported until 2026-11-16.
 
 ## What Phase 4 must do
 
+Phase 4 was split during implementation:
+
+- **4a** (#113): the OTel backend added behind `LANGFUSE_OTEL_TRACING`, default off.
+- **4b** (#114): `answer:llm` summary renamed to `answer:summary` and routed
+  through `trace.observation()`; root closed after the buffer flush.
+- **4c** (#114): a second golden snapshot driven by the OTel backend, kept
+  alongside the legacy one. The two come out byte-identical.
+- **4d**: flip the default, remove the legacy backend and its golden. Blocked on
+  the duplicate-createTrace defect above.
+
 Carried from the migration plan, now with the answers above folded in:
 
 1. Reimplement `lib/langfuse.node.ts` internals over `@langfuse/tracing` while
@@ -126,6 +136,35 @@ Carried from the migration plan, now with the answers above folded in:
 4. Confirm `__start__` and other LangGraph internals still pass the v5 default
    span filter. They are LangChain-scope spans, not `langfuse-sdk` spans, so
    this is worth verifying rather than assuming.
+
+## Blocker for Phase 4d: createTrace runs twice per request
+
+Found on preview 2026-08-27 with `LANGFUSE_OTEL_TRACING=1`. One chat produced
+the expected tree — root `langchain-chat` (`801be2b30d84f57d`) with five
+children correctly parented to it — except `response-summary`, whose parent
+`640db40b44e0fa72` **does not exist in the trace**.
+
+`createOtelTrace().observation()` always passes the root's span context as
+`parentSpanContext`, so a child cannot end up under anything else. The only way
+to get that parent is a **second root span**, created by a second `createTrace()`
+call during the same request, never ended, and therefore never exported —
+leaving its one child orphaned. It shares the trace id because the second
+`startObservation` inherited the ambient context of the first.
+
+**This is pre-existing, not caused by the migration.** The legacy backend passes
+`id: requestId` to `createTrace`, so two calls collapse onto one trace id and
+look like a single trace. The OTel backend mints a fresh span per call, which
+makes the duplication visible.
+
+Fix this before flipping the default in Phase 4d. Ordering is not the cause: an
+earlier attempt moved `trace.end?.()` after the buffer flush, which correctly
+re-parented the other five children but left `response-summary` unchanged.
+
+Start at `ensureTrace()` in
+[telemetry-buffer.ts](../../../lib/server/telemetry/telemetry-buffer.ts), which
+guards on `getRequestTrace(requestId)`. Either that guard is missed (a null
+`requestId` on the first call), or the registry module is instantiated twice by
+the bundler so the two call sites do not share it.
 
 ## Incidental finding: dead code
 
