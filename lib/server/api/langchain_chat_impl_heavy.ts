@@ -198,31 +198,38 @@ export async function handleLangchainChat(
     // dropped whole traces and events (a request could answer fine and reach
     // neither Langfuse nor PostHog). waitUntil no-ops off-Vercel, so local and
     // dev behaviour is unchanged.
-    // Close the OTel root observation before draining. No-op on the legacy
-    // backend, which has no root to close. Must happen before forceFlush or the
-    // root would still be open and would not be exported.
-    traceState.trace?.end?.();
-
     const flushed = new Promise<void>((resolve) => {
       setImmediate(() => {
-        void Promise.allSettled([
-          telemetryBuffer?.flush().catch((err) => {
+        void (async () => {
+          // Ordering matters, and only the first step is ordered on purpose:
+          // telemetryBuffer.flush() emits the last child observation
+          // (response-summary) through trace.observation(), so the root has to
+          // still be open. Closing it first put that span outside the root and
+          // it re-parented onto whatever ambient span was current.
+          await telemetryBuffer?.flush().catch((err) => {
             console.error("[telemetry] flush error", err);
-          }),
-          flushPostHog(),
-          // The LangChain handlers hold their own Langfuse client and queue;
-          // traceState is populated by now, so read the id at call time.
-          flushLinkedLangfuseCallbacks(traceState.trace?.traceId),
-          // OTel spans. No-ops until Phase 4 starts creating them, but the
-          // flush path has to be proven before real telemetry depends on it.
-          flushLangfuseSpans().catch((err) => {
-            telemetryLogger.error("[otel] span flush failed", {
-              error: err instanceof Error ? err.message : String(err),
-            });
-          }),
-        ]).finally(resolve);
+          });
+
+          // Now close the root. No-op on the legacy backend, which has no root.
+          // Must happen before forceFlush, or the root is still open when the
+          // exporter drains and never ships.
+          traceState.trace?.end?.();
+
+          await Promise.allSettled([
+            flushPostHog(),
+            // The LangChain handlers hold their own Langfuse client and queue;
+            // traceState is populated by now, so read the id at call time.
+            flushLinkedLangfuseCallbacks(traceState.trace?.traceId),
+            flushLangfuseSpans().catch((err) => {
+              telemetryLogger.error("[otel] span flush failed", {
+                error: err instanceof Error ? err.message : String(err),
+              });
+            }),
+          ]);
+        })().finally(resolve);
       });
     });
+
     waitUntil(flushed);
   };
   if (telemetryBuffer || isPostHogEnabled()) {
