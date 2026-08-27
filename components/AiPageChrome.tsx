@@ -88,7 +88,13 @@ export function AiPageChrome({
             <div className="notion-nav-header">
               <div className="breadcrumbs">
                 <div className="breadcrumb active">
-                  <Link href="/studio" className="breadcrumb-link">
+                  <Link
+                    href="/studio"
+                    className="breadcrumb-link"
+                    // Prefetching a Notion route pulls in the 316kB renderer chunk and
+                    // evaluates it mid-hydration. Next still prefetches on hover.
+                    prefetch={false}
+                  >
                     {site.name}
                   </Link>
                 </div>

@@ -38,18 +38,25 @@ export function useChatScroll({ messages, isLoading }: UseChatScrollProps) {
     }
   }, [autoScrollEnabled]);
 
-  // Auto-scroll when messages change or loading state changes, IF enabled
+  // Auto-scroll when messages change or loading state changes, IF enabled.
+  // Deferred to the next frame: reading scrollHeight straight from the commit
+  // forced a synchronous layout of the whole tree inside React's hydration
+  // task, which showed up as input delay on the first keystroke.
   useEffect(() => {
-    if (autoScrollEnabled) {
-      scrollToBottom();
+    if (!autoScrollEnabled) {
+      return;
     }
+    const frame = requestAnimationFrame(() => scrollToBottom());
+    return () => cancelAnimationFrame(frame);
   }, [messages, isLoading, autoScrollEnabled, scrollToBottom]);
 
   // Force scroll to bottom on initial mount if there are messages
   useEffect(() => {
-    if (messages.length > 0) {
-      scrollToBottom("auto");
+    if (messages.length === 0) {
+      return;
     }
+    const frame = requestAnimationFrame(() => scrollToBottom("auto"));
+    return () => cancelAnimationFrame(frame);
   }, []); // Run only once on mount
 
   return {

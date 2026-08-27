@@ -15,7 +15,6 @@ import { EmbeddedTweet, TweetNotFound, TweetSkeleton } from "react-tweet";
 import { useSearchParam } from "react-use";
 
 import type * as types from "@/lib/types";
-import { ChatFloatingWidget } from "@/components/chat/ChatFloatingWidget";
 import { NotionHeaderPropertiesPortal } from "@/components/NotionHeaderProperties/NotionHeaderPropertiesPortal";
 import * as config from "@/lib/config";
 import { debugNotionXEnabled, debugNotionXLogger } from "@/lib/debug-notion-x";
@@ -112,6 +111,17 @@ const markPreviewEligibleCollections = () => {
 // -----------------------------------------------------------------------------
 // dynamic imports for optional components
 // -----------------------------------------------------------------------------
+
+// The chat widget is client-only and never part of first paint. Statically
+// imported, its chunk hydrated in the same window as the 316kB Notion renderer
+// and pushed first-keystroke input delay into the hundreds of ms.
+const ChatFloatingWidget = dynamic(
+  () =>
+    import("@/components/chat/ChatFloatingWidget").then(
+      (m) => m.ChatFloatingWidget,
+    ),
+  { ssr: false },
+);
 
 const Code = dynamic(() =>
   import("react-notion-x/build/third-party/code").then(async (m) => {

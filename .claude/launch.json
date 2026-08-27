@@ -15,6 +15,13 @@
       "autoPort": false
     },
     {
+      "name": "nextjs-prod",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["start", "--port", "3011"],
+      "port": 3011,
+      "autoPort": false
+    },
+    {
       "name": "nextjs-dev-worktree",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev", "--port", "3010"],
