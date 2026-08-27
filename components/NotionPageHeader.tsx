@@ -75,6 +75,7 @@ export function NotionPageHeader({
               <div className="breadcrumb active">
                 <Link
                   href={mapPageUrl(root.pageId)}
+                  prefetch={false}
                   className="breadcrumb-link"
                   style={{
                     display: "flex",
@@ -121,6 +122,7 @@ export function NotionPageHeader({
                   return (
                     <Link
                       href={mapPageUrl(link.pageId)}
+                      prefetch={false}
                       key={index}
                       className={cs(styles.navLink, "breadcrumb", "button")}
                     >
@@ -176,6 +178,7 @@ export function NotionPageHeader({
                 return (
                   <Link
                     href={mapPageUrl(link.pageId)}
+                    prefetch={false}
                     key={index}
                     className={headerStyles.mobileMenuLink}
                     onClick={closeMobileMenu}
