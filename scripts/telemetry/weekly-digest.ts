@@ -6,10 +6,15 @@
  * takeaways. The heavy lifting lives in `lib/server/telemetry/digest.ts` so the
  * aggregation is unit-testable; this file is just I/O.
  *
- * Run: `pnpm telemetry:digest` (loads .env.local). Optional flags:
+ * Run: `pnpm telemetry:digest` (loads .env.local when present). Optional flags:
  *   --days <n>     lookback window in days (default 7)
  *   --out <path>   also write the markdown to a file
  *   --env <name>   PostHog env to report on (default "prod"; "all" for no filter)
+ *
+ * `.env.local` is loaded with --env-file-if-exists, and an env var already set in
+ * the process wins over the file. That is what lets the same command run unattended
+ * on a host that has no .env.local and supplies the credentials some other way (the
+ * Hermes `telemetry-digest` cron reads them from its profile .env).
  *
  * PostHog product metrics (latency p50/p95/p99, volume, error/abort/cache rates)
  * are folded in when POSTHOG_PERSONAL_API_KEY + POSTHOG_PROJECT_ID are set —
