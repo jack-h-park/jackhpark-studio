@@ -55,4 +55,4 @@ Without the personal key the section is skipped silently and the digest stays La
 
 ## Known limits / extension points
 
-- **Rule-based, not LLM-written.** Takeaways are deterministic flags by design. For prose interpretation, run the digest from the `weekly-telemetry-digest` scheduled routine and let the model narrate over the structured output.
+- **Rule-based, not LLM-written.** Takeaways are deterministic flags by design. Prose interpretation is layered on top by the Hermes `telemetry-digest` cron, which narrates over this output without recomputing it and writes the result to [`digests/`](digests/).
