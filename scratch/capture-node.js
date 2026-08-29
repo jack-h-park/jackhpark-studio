@@ -10,12 +10,21 @@ async function main() {
   // Set viewport size
   await page.setViewportSize({ width: 1280, height: 1000 });
 
-  const destDir = "/Users/jackpark/.gemini/antigravity/brain/dbd377ad-3d86-4f69-8f71-8dd323765d10";
+  // This is a CLI-only capture script; configuration is intentionally supplied by the process environment.
+  // eslint-disable-next-line no-process-env
+  const destDir = process.env.DEST_DIR ?? "output/admin-visuals";
   if (!fs.existsSync(destDir)) {
     fs.mkdirSync(destDir, { recursive: true });
   }
 
-  const credentials = "http://jackpark:QWer%21%4034@localhost:3000";
+  // eslint-disable-next-line no-process-env
+  const smokeUser = process.env.ADMIN_SMOKE_USER;
+  // eslint-disable-next-line no-process-env
+  const smokePassword = process.env.ADMIN_SMOKE_PASSWORD;
+  if (!smokeUser || !smokePassword) {
+    throw new Error("Set ADMIN_SMOKE_USER and ADMIN_SMOKE_PASSWORD before running the capture script");
+  }
+  const credentials = `http://${encodeURIComponent(smokeUser)}:${encodeURIComponent(smokePassword)}@localhost:3000`;
 
   // 1. Visit Ingestion Dashboard (Light mode)
   console.log("Navigating to Ingestion Dashboard (Light)...");

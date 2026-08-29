@@ -5,7 +5,10 @@ export CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 export PWCLI="${PWCLI:-$CODEX_HOME/skills/playwright/scripts/playwright_cli.sh}"
 
 SESSION="admin-qa"
-DEST_DIR="/Users/jackpark/.gemini/antigravity/brain/dbd377ad-3d86-4f69-8f71-8dd323765d10"
+DEST_DIR="${DEST_DIR:-output/admin-visuals}"
+
+: "${ADMIN_SMOKE_USER:?Set ADMIN_SMOKE_USER before running the capture script}"
+: "${ADMIN_SMOKE_PASSWORD:?Set ADMIN_SMOKE_PASSWORD before running the capture script}"
 
 mkdir -p "$DEST_DIR"
 
@@ -13,8 +16,8 @@ pw() {
   "$PWCLI" --session "$SESSION" "$@"
 }
 
-AUTH_URL_INGESTION="http://jackpark:QWer%21%4034@localhost:3000/admin/ingestion"
-AUTH_URL_CHAT_CONFIG="http://jackpark:QWer%21%4034@localhost:3000/admin/chat-config"
+AUTH_URL_INGESTION="http://${ADMIN_SMOKE_USER}:${ADMIN_SMOKE_PASSWORD}@localhost:3000/admin/ingestion"
+AUTH_URL_CHAT_CONFIG="http://${ADMIN_SMOKE_USER}:${ADMIN_SMOKE_PASSWORD}@localhost:3000/admin/chat-config"
 
 echo "Starting session..."
 pw open "$AUTH_URL_INGESTION"
