@@ -133,7 +133,7 @@ importers:
         version: 1.14.3
       langfuse-langchain:
         specifier: ^3.38.20
-        version: 3.38.20(langchain@0.3.37(02b9a34d53e8b3b1cfb3cd7cc0870503))
+        version: 3.38.20(langchain@0.3.37(f6f66f044aaf005ff8de9448ae5137c3))
       lqip-modern:
         specifier: ^2.2.1
         version: 2.2.1
@@ -1076,6 +1076,7 @@ packages:
   '@langchain/community@1.1.24':
     resolution: {integrity: sha512-8mL4qs49Adi3sYk4s/t84Z3ewPDAnRvUKyAecTe7UvK/3jymfmG4hX2Tac3Bule0KQZvgKiQGUe4BA2ytJlQVQ==}
     engines: {node: '>=20'}
+    deprecated: This package has been deprecated. See https://github.com/langchain-ai/langchainjs-community/issues/61 for more info
     peerDependencies:
       '@arcjet/redact': ^v1.2.0
       '@aws-crypto/sha256-js': ^5.0.0
@@ -1772,6 +1773,10 @@ packages:
 
   '@opentelemetry/semantic-conventions@1.40.0':
     resolution: {integrity: sha512-cifvXDhcqMwwTlTK04GBNeIe7yyo28Mfby85QXFe1Yk8nmi36Ab/5UQwptOx84SsoGNRg+EVSjwzfSZMy6pmlw==}
+    engines: {node: '>=14'}
+
+  '@opentelemetry/semantic-conventions@1.43.0':
+    resolution: {integrity: sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg==}
     engines: {node: '>=14'}
 
   '@panva/hkdf@1.2.1':
@@ -3076,6 +3081,7 @@ packages:
   eslint@9.39.4:
     resolution: {integrity: sha512-XoMjdBOwe/esVgEvLmNsD3IRHkm7fbKIUGvrleloJXUZgDHig2IPWNniv+GwjyJXzuNqVjlr5+4yVUZjycJwfQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -5147,6 +5153,7 @@ packages:
 
   uuid@10.0.0:
     resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   uuid@11.1.1:
@@ -6223,17 +6230,17 @@ snapshots:
   '@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.0)':
     dependencies:
       '@opentelemetry/api': 1.9.0
-      '@opentelemetry/semantic-conventions': 1.40.0
+      '@opentelemetry/semantic-conventions': 1.43.0
 
   '@opentelemetry/core@2.2.0(@opentelemetry/api@1.9.0)':
     dependencies:
       '@opentelemetry/api': 1.9.0
-      '@opentelemetry/semantic-conventions': 1.40.0
+      '@opentelemetry/semantic-conventions': 1.43.0
 
   '@opentelemetry/core@2.6.0(@opentelemetry/api@1.9.0)':
     dependencies:
       '@opentelemetry/api': 1.9.0
-      '@opentelemetry/semantic-conventions': 1.40.0
+      '@opentelemetry/semantic-conventions': 1.43.0
 
   '@opentelemetry/exporter-logs-otlp-http@0.208.0(@opentelemetry/api@1.9.0)':
     dependencies:
@@ -6302,13 +6309,13 @@ snapshots:
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 2.2.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/semantic-conventions': 1.40.0
+      '@opentelemetry/semantic-conventions': 1.43.0
 
   '@opentelemetry/resources@2.6.0(@opentelemetry/api@1.9.0)':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 2.6.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/semantic-conventions': 1.40.0
+      '@opentelemetry/semantic-conventions': 1.43.0
 
   '@opentelemetry/sdk-logs@0.208.0(@opentelemetry/api@1.9.0)':
     dependencies:
@@ -6323,7 +6330,7 @@ snapshots:
       '@opentelemetry/api-logs': 0.221.0
       '@opentelemetry/core': 2.10.0(@opentelemetry/api@1.9.0)
       '@opentelemetry/resources': 2.10.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/semantic-conventions': 1.40.0
+      '@opentelemetry/semantic-conventions': 1.43.0
 
   '@opentelemetry/sdk-metrics@2.10.0(@opentelemetry/api@1.9.0)':
     dependencies:
@@ -6350,7 +6357,7 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 2.2.0(@opentelemetry/api@1.9.0)
       '@opentelemetry/resources': 2.2.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/semantic-conventions': 1.40.0
+      '@opentelemetry/semantic-conventions': 1.43.0
 
   '@opentelemetry/sdk-trace-node@2.10.0(@opentelemetry/api@1.9.0)':
     dependencies:
@@ -6364,9 +6371,11 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 2.10.0(@opentelemetry/api@1.9.0)
       '@opentelemetry/resources': 2.10.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/semantic-conventions': 1.40.0
+      '@opentelemetry/semantic-conventions': 1.43.0
 
   '@opentelemetry/semantic-conventions@1.40.0': {}
+
+  '@opentelemetry/semantic-conventions@1.43.0': {}
 
   '@panva/hkdf@1.2.1': {}
 
@@ -8167,7 +8176,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.20.0)
+      retry-axios: 2.6.0(axios@1.20.0(debug@4.4.3))
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -8485,7 +8494,7 @@ snapshots:
 
   ky@1.14.3: {}
 
-  langchain@0.3.37(02b9a34d53e8b3b1cfb3cd7cc0870503):
+  langchain@0.3.37(f6f66f044aaf005ff8de9448ae5137c3):
     dependencies:
       '@langchain/core': 1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(ws@8.21.3)(zod@4.3.6))(ws@8.21.3)
       '@langchain/openai': 0.6.17(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(ws@8.21.3)(zod@4.3.6))(ws@8.21.3))(ws@8.21.3)
@@ -8515,9 +8524,9 @@ snapshots:
     dependencies:
       mustache: 4.2.0
 
-  langfuse-langchain@3.38.20(langchain@0.3.37(02b9a34d53e8b3b1cfb3cd7cc0870503)):
+  langfuse-langchain@3.38.20(langchain@0.3.37(f6f66f044aaf005ff8de9448ae5137c3)):
     dependencies:
-      langchain: 0.3.37(02b9a34d53e8b3b1cfb3cd7cc0870503)
+      langchain: 0.3.37(f6f66f044aaf005ff8de9448ae5137c3)
       langfuse: 3.38.20
       langfuse-core: 3.38.20
 
@@ -9370,7 +9379,7 @@ snapshots:
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
 
-  retry-axios@2.6.0(axios@1.20.0):
+  retry-axios@2.6.0(axios@1.20.0(debug@4.4.3)):
     dependencies:
       axios: 1.20.0(debug@4.4.3)
 
