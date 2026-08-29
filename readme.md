@@ -2,6 +2,11 @@
 
 Production-oriented personal portfolio platform built on top of the `nextjs-notion-starter-kit` lineage and extended with RAG ingestion, admin tooling, and configurable chat runtimes.
 
+This is a public portfolio codebase and reference implementation. It is not a
+drop-in hosted service: running the full application requires your own Notion,
+Supabase, and model-provider accounts. Do not commit production credentials or
+private Notion content.
+
 ## What This Repo Is
 
 - Public portfolio site rendered from Notion content via `react-notion-x`
@@ -73,6 +78,10 @@ pnpm smoke:langchain-chat
 pnpm smoke:admin-ui
 pnpm check:ai-docs
 ```
+
+The production build requires reachable content and configuration for the
+configured Notion source. Use the environment variables documented in
+`.env.example` when running it locally.
 
 ## Architecture Snapshot
 
