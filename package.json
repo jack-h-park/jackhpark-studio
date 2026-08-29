@@ -6,6 +6,8 @@
   "author": "Jack H. Park",
   "repository": "jack-h-park/jackhpark-studio",
   "license": "MIT",
+  "homepage": "https://www.jackhpark.com",
+  "bugs": "https://github.com/jack-h-park/jackhpark-studio/issues",
   "packageManager": "pnpm@10.29.3",
   "pnpm": {
     "onlyBuiltDependencies": [
