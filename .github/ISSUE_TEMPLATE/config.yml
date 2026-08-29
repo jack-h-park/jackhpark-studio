@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/jack-h-park/jackhpark-studio/security/policy
+    about: Report security issues privately; do not include credentials or private Notion content.
+  - name: Support and setup questions
+    url: https://github.com/jack-h-park/jackhpark-studio/blob/main/SUPPORT.md
+    about: Read the support guide before opening a general issue.
