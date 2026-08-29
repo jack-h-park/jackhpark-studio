@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a reproducible problem in the public codebase.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include API keys, OAuth secrets, service-role credentials, private Notion content, or personal data.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and the expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest safe set of steps or a public test case.
+      placeholder: |
+        1. Run ...
+        2. Open ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, Node.js version, pnpm version, and browser when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste redacted logs only. Remove URLs, tokens, identifiers, and user content.
+      render: text
