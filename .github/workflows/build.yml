@@ -27,10 +27,5 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm check:server-only-pages
-
-      # TODO Enable those lines below if you use a Redis cache, you'll also need to configure GitHub Repository Secrets
-      # env:
-      #   REDIS_HOST: ${{ secrets.REDIS_HOST }}
-      #   REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
-      # - name: Build
-      #   run: pnpm build
+      - name: Build
+        run: pnpm build
