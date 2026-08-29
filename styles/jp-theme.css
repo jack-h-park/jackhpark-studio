@@ -28,7 +28,16 @@
   /* 3.3 · Text */
   --text-primary:   #37352F;
   --text-secondary: #6B6A65;
-  --text-tertiary:  #9B9A97;
+  /* Was #9B9A97 — 2.81:1 on #FFFFFF and 2.60:1 on --bg-surface, against the
+     4.5:1 WCAG AA asks of normal text. This token carries the small labels and
+     hints, so the smallest text was also the least legible. #72716B is 4.90:1
+     on white and 4.53:1 on surface, and stays a step lighter than
+     --text-secondary. The dark-mode value needs no lift: #9B9A97 is 5.45:1 on
+     #252525.
+     The same value is used in jackhpark-stock-observatory. jackhpark-pm-console
+     fixed this token separately to #767570, which is 4.62:1 on white but only
+     4.27:1 on the #F7F6F3 surface all three share. */
+  --text-tertiary:  #72716B;
 
   /* 3.3 · Borders */
   --border-subtle:  rgba(55, 53, 47, 0.09);
