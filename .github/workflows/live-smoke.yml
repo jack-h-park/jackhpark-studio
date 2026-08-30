@@ -5,10 +5,18 @@ on:
   schedule:
     - cron: "0 10 * * *"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: live-smoke-${{ github.workflow }}
+  cancel-in-progress: true
+
 jobs:
   live-smoke:
     name: Live Notion/RAG smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     if: ${{ vars.ENABLE_LIVE_SMOKE == '1' }}
 
     steps:
