@@ -585,15 +585,17 @@ const getCachedRecordMapFromMemory = (cacheKey: string) => {
 const setCachedRecordMapInMemory = (
   cacheKey: string,
   recordMap: ExtendedRecordMap,
+  { extendDeadline = true }: { extendDeadline?: boolean } = {},
 ) => {
   if (!isNotionPageCacheEnabled) {
     return;
   }
 
-  memoryPageCache.set(cacheKey, {
-    recordMap,
-    expiresAt: getCacheExpiry(),
-  });
+  const existing = memoryPageCache.get(cacheKey);
+  const expiresAt =
+    !extendDeadline && existing ? existing.expiresAt : getCacheExpiry();
+
+  memoryPageCache.set(cacheKey, { recordMap, expiresAt });
 };
 
 const readCachedRecordMap = async (
@@ -606,7 +608,10 @@ const readCachedRecordMap = async (
   try {
     const cached = (await db.get(cacheKey)) as ExtendedRecordMap | undefined;
     if (cached) {
-      setCachedRecordMapInMemory(cacheKey, cached);
+      // Mirror into memory, but do NOT extend the deadline: the persistent
+      // entry keeps its own TTL, and a memory copy that outlives it would
+      // re-introduce the sliding expiry this path exists to avoid.
+      setCachedRecordMapInMemory(cacheKey, cached, { extendDeadline: false });
       return cached;
     }
   } catch (err: any) {
@@ -1061,32 +1066,44 @@ const finalizeRecordMap = async (
   return hydrated;
 };
 
+/**
+ * Test-only handles on the page cache. Exported because the expiry rule this
+ * module enforces — a deadline set on write and never moved by a read — is only
+ * observable over time, and a test that cannot advance the clock past it would
+ * assert the comment rather than the behaviour.
+ */
+export const __pageCacheInternals = {
+  getPageCacheKey,
+  getCachedRecordMapFromMemory,
+  setCachedRecordMapInMemory,
+  clear: () => memoryPageCache.clear(),
+  size: () => memoryPageCache.size,
+};
+
 export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
   const cacheKey = getPageCacheKey(pageId);
 
   if (isNotionPageCacheEnabled) {
+    // A cache HIT must never re-write the entry. Re-writing restarts the TTL,
+    // which turns an N-second cache into a sliding one: while the page is
+    // requested more often than N — and ISR alone re-renders every 60s — the
+    // entry never expires and Notion is never read again. That is how
+    // jackhpark.com served a mindmap revision months after Notion had moved on,
+    // and why a Notion edit on 2026-08-30 had still not appeared 10 minutes and
+    // a dozen requests later. The deadline has to be absolute: set on write,
+    // untouched by reads.
     const memoryCached = getCachedRecordMapFromMemory(cacheKey);
     if (memoryCached) {
-      if (enableGroupedCollectionHydration) {
-        const hydratedCached = await finalizeRecordMap(memoryCached);
-        setCachedRecordMapInMemory(cacheKey, hydratedCached);
-        await writeCachedRecordMap(cacheKey, hydratedCached);
-        return hydratedCached;
-      }
-
-      return memoryCached;
+      return enableGroupedCollectionHydration
+        ? finalizeRecordMap(memoryCached)
+        : memoryCached;
     }
 
     const persistentCached = await readCachedRecordMap(cacheKey);
     if (persistentCached) {
-      if (enableGroupedCollectionHydration) {
-        const hydratedPersistent = await finalizeRecordMap(persistentCached);
-        setCachedRecordMapInMemory(cacheKey, hydratedPersistent);
-        await writeCachedRecordMap(cacheKey, hydratedPersistent);
-        return hydratedPersistent;
-      }
-
-      return persistentCached;
+      return enableGroupedCollectionHydration
+        ? finalizeRecordMap(persistentCached)
+        : persistentCached;
     }
   }
 
