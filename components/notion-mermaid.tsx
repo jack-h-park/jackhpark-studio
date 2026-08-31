@@ -5,13 +5,20 @@ import * as React from "react";
 const MERMAID_CDN_URL =
   "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
 
-let mermaidModulePromise: Promise<any> | null = null;
+type MermaidRenderResult = { svg: string };
 
-async function loadMermaid() {
+interface MermaidApi {
+  initialize: (config: Record<string, unknown>) => void;
+  render: (id: string, code: string) => Promise<MermaidRenderResult>;
+}
+
+let mermaidModulePromise: Promise<MermaidApi> | null = null;
+
+async function loadMermaid(): Promise<MermaidApi> {
   if (!mermaidModulePromise) {
     mermaidModulePromise = import(
       /* webpackIgnore: true */ MERMAID_CDN_URL
-    ).then((mod) => mod.default ?? mod);
+    ).then((mod) => (mod.default ?? mod) as MermaidApi);
   }
   return mermaidModulePromise;
 }
@@ -21,337 +28,340 @@ interface MermaidDiagramProps {
   blockId?: string;
 }
 
+function isMindmap(code: string): boolean {
+  return code.trimStart().startsWith("mindmap");
+}
+
+function isStudioIdentityMindmap(code: string): boolean {
+  return isMindmap(code) && /root\(\([^)]*Jack H\. Park/.test(code);
+}
+
+function getMindmapBranches(code: string): string[] {
+  const lines = code.split("\n");
+  const rootIndex = lines.findIndex((line) =>
+    line.trimStart().startsWith("root"),
+  );
+
+  if (rootIndex === -1) {
+    return [];
+  }
+
+  return lines.slice(rootIndex + 1).flatMap((line) => {
+    const match = /^ {4}(?! )(.+?)\s*$/.exec(line);
+    return match ? [match[1]] : [];
+  });
+}
+
+function getThemeValue(styles: CSSStyleDeclaration, name: string): string {
+  return styles.getPropertyValue(name).trim() || "currentColor";
+}
+
+function getMermaidColor(
+  container: HTMLDivElement,
+  styles: CSSStyleDeclaration,
+  name: string,
+): string {
+  const sample = document.createElement("span");
+  sample.style.color = getThemeValue(styles, name);
+  container.append(sample);
+  const computedColor = getComputedStyle(sample).color;
+  sample.remove();
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    return computedColor;
+  }
+
+  context.fillStyle = computedColor;
+  context.fillRect(0, 0, 1, 1);
+  const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
+  return `rgba(${red}, ${green}, ${blue}, ${alpha / 255})`;
+}
+
+function getMermaidConfig(container: HTMLDivElement): Record<string, unknown> {
+  const styles = getComputedStyle(container);
+
+  return {
+    startOnLoad: false,
+    theme: "base",
+    mindmap: {
+      padding: 20,
+      useMaxWidth: true,
+    },
+    themeVariables: {
+      primaryColor: getMermaidColor(container, styles, "--m-root-bg"),
+      primaryTextColor: getMermaidColor(container, styles, "--m-root-fg"),
+      primaryBorderColor: getMermaidColor(container, styles, "--m-root-border"),
+      secondaryColor: getMermaidColor(container, styles, "--m-bg"),
+      secondaryTextColor: getMermaidColor(container, styles, "--m-fg"),
+      secondaryBorderColor: getMermaidColor(container, styles, "--m-border"),
+      tertiaryColor: getMermaidColor(container, styles, "--m-bg"),
+      tertiaryTextColor: getMermaidColor(container, styles, "--m-fg"),
+      tertiaryBorderColor: getMermaidColor(container, styles, "--m-border"),
+      lineColor: getMermaidColor(container, styles, "--m-line"),
+      background: "transparent",
+      fontSize: getThemeValue(styles, "--m-font-size"),
+      fontFamily: getThemeValue(styles, "--m-font-family"),
+    },
+  };
+}
+
+function createSvgOverride(
+  svgId: string,
+  styles: CSSStyleDeclaration,
+  identityMap: boolean,
+): string {
+  const rootBg = getThemeValue(styles, "--m-root-bg");
+  const rootBorder = getThemeValue(styles, "--m-root-border");
+  const rootFg = getThemeValue(styles, "--m-root-fg");
+  const bg = getThemeValue(styles, "--m-bg");
+  const border = getThemeValue(styles, "--m-border");
+  const fg = getThemeValue(styles, "--m-fg");
+  const line = getThemeValue(styles, "--m-line");
+  const fontSize = getThemeValue(styles, "--m-font-size");
+  const rootFontSize = getThemeValue(styles, "--m-root-font-size");
+  const fontWeight = getThemeValue(styles, "--m-font-weight");
+  const rootFontWeight = getThemeValue(styles, "--m-root-font-weight");
+  const branchTokens = identityMap
+    ? ["leadership", "platform", "proof", "craft", "ecosystem"]
+    : [];
+  const branchStyles = branchTokens
+    .map((token, index) => {
+      const branchColor = getThemeValue(styles, `--m-branch-${token}`);
+
+      return `
+      #${svgId} .mindmap-node.section-${index} rect,
+      #${svgId} .mindmap-node.section-${index} circle,
+      #${svgId} .mindmap-node.section-${index} ellipse,
+      #${svgId} .mindmap-node.section-${index} polygon,
+      #${svgId} .mindmap-node.section-${index} path {
+        stroke: ${branchColor} !important;
+      }
+    `;
+    })
+    .join("\n");
+
+  return `
+    #${svgId} .mindmap-node rect,
+    #${svgId} .mindmap-node circle,
+    #${svgId} .mindmap-node ellipse,
+    #${svgId} .mindmap-node polygon,
+    #${svgId} .mindmap-node path {
+      fill: ${bg} !important;
+      stroke: ${border} !important;
+    }
+
+    #${svgId} .mindmap-edges path,
+    #${svgId} .mindmap-edges line {
+      fill: none !important;
+      stroke: ${line} !important;
+    }
+
+    #${svgId} .mindmap-node text,
+    #${svgId} .mindmap-node tspan {
+      fill: ${fg} !important;
+      font-size: ${fontSize} !important;
+      font-weight: ${fontWeight} !important;
+    }
+
+    #${svgId} .mindmap-node foreignObject,
+    #${svgId} .mindmap-node foreignObject * {
+      color: ${fg} !important;
+    }
+
+    #${svgId} .mindmap-node.section-root rect,
+    #${svgId} .mindmap-node.section-root circle,
+    #${svgId} .mindmap-node.section-root ellipse,
+    #${svgId} .mindmap-node.section-root polygon,
+    #${svgId} .mindmap-node.section-root path {
+      fill: ${rootBg} !important;
+      stroke: ${rootBorder} !important;
+    }
+
+    #${svgId} .mindmap-node.section-root text,
+    #${svgId} .mindmap-node.section-root tspan {
+      fill: ${rootFg} !important;
+      font-size: ${rootFontSize} !important;
+      font-weight: ${rootFontWeight} !important;
+    }
+
+    #${svgId} .mindmap-node.section-root foreignObject,
+    #${svgId} .mindmap-node.section-root foreignObject * {
+      color: ${rootFg} !important;
+    }
+
+    ${branchStyles}
+  `;
+}
+
 export function MermaidDiagram({ code, blockId }: MermaidDiagramProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
+  const [isCompact, setIsCompact] = React.useState(false);
+  const [isMapOpen, setIsMapOpen] = React.useState(false);
+  const mindmap = isMindmap(code);
+  const identityMap = isStudioIdentityMindmap(code);
+  const branches = React.useMemo(() => getMindmapBranches(code), [code]);
 
   React.useEffect(() => {
+    if (!identityMap) {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia("(max-width: 640px)");
+    const updateCompactState = () => setIsCompact(mediaQuery.matches);
+
+    updateCompactState();
+    mediaQuery.addEventListener("change", updateCompactState);
+    return () => mediaQuery.removeEventListener("change", updateCompactState);
+  }, [identityMap]);
+
+  React.useEffect(() => {
+    if (!isCompact) {
+      setIsMapOpen(false);
+    }
+  }, [isCompact]);
+
+  const shouldRenderMap = !identityMap || !isCompact || isMapOpen;
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !shouldRenderMap || !code) {
+      return;
+    }
+
     let isMounted = true;
-    let svgObserver: MutationObserver | null = null;
     const themeObservers: MutationObserver[] = [];
 
     const renderMermaid = async () => {
-      if (!code) {
-        return;
-      }
-
       try {
         const mermaid = await loadMermaid();
-
-        const initDark =
-          document.body?.classList.contains("dark-mode") ||
-          document.documentElement?.dataset.theme === "dark" ||
-          !!containerRef.current?.closest(".dark-mode, .notion-dark-theme, [data-theme='dark']");
-
-        mermaid.initialize?.({
-          startOnLoad: false,
-          theme: "base",
-          mindmap: {
-            padding: 16,
-            useMaxWidth: true,
-          },
-          themeVariables: initDark
-            ? {
-                primaryColor: "#412454",
-                primaryTextColor: "#f2f0ea",
-                primaryBorderColor: "#b439df",
-                secondaryColor: "#252525",
-                secondaryTextColor: "#f2f0ea",
-                secondaryBorderColor: "#5b8def",
-                tertiaryColor: "#252525",
-                tertiaryTextColor: "#b4b2a9",
-                tertiaryBorderColor: "#4b4842",
-                lineColor: "#4b4842",
-                background: "#191919",
-                fontSize: "13px",
-                fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif",
-              }
-            : {
-                primaryColor: "#eae4f2",
-                primaryTextColor: "#191919",
-                primaryBorderColor: "#b439df",
-                secondaryColor: "#ddebf1",
-                secondaryTextColor: "#191919",
-                secondaryBorderColor: "#5b8def",
-                tertiaryColor: "#f7f6f3",
-                tertiaryTextColor: "#191919",
-                tertiaryBorderColor: "#efeeea",
-                lineColor: "#9b9a97",
-                background: "#ffffff",
-                fontSize: "13px",
-                fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif",
-              },
-        });
+        mermaid.initialize(getMermaidConfig(container));
 
         const sanitizedId = `mermaid-${(blockId ?? "unknown").replaceAll("-", "")}`;
         const { svg } = await mermaid.render(sanitizedId, code);
 
-        if (isMounted && containerRef.current) {
-          containerRef.current.innerHTML = svg;
-          const svgElement = containerRef.current.querySelector("svg");
-
-          if (svgElement) {
-            const sanitizeSvg = () => {
-              svgElement.dataset.processedMermaid = "";
-
-              const shapeNodes = svgElement.querySelectorAll(
-                "rect, circle, ellipse, polygon, polyline, path",
-              );
-              for (const shape of shapeNodes) {
-                shape.removeAttribute("fill");
-                shape.removeAttribute("stroke");
-                if (shape instanceof SVGElement) {
-                  shape.style.removeProperty("fill");
-                  shape.style.removeProperty("stroke");
-                }
-              }
-
-              const textNodes = svgElement.querySelectorAll("text, tspan");
-              for (const textNode of textNodes) {
-                textNode.removeAttribute("fill");
-                if (textNode instanceof SVGElement) {
-                  textNode.style.removeProperty("fill");
-                }
-              }
-
-              const svgId = svgElement.getAttribute("id") ?? sanitizedId;
-              const container = containerRef.current;
-              const styles = container ? getComputedStyle(container) : null;
-
-              const isDarkMode = Boolean(
-                document.body?.classList.contains("dark-mode") ||
-                document.documentElement?.dataset.theme === "dark" ||
-                svgElement.closest(".dark-mode, .notion-dark-theme, [data-theme='dark']"),
-              );
-
-              const defaultPalette = isDarkMode
-                ? {
-                    bg: "#252525",
-                    border: "#4b4842",
-                    fg: "#f2f0ea",
-                  }
-                : {
-                    bg: "#f7f6f3",
-                    border: "#c2bdb0",
-                    fg: "#191919",
-                  };
-
-              const getColor = (
-                name: string,
-                fallback: string = defaultPalette.bg,
-              ) => {
-                const value = styles?.getPropertyValue(name)?.trim();
-                return value && value.length > 0 ? value : fallback;
-              };
-
-              const baseFontSize =
-                styles?.getPropertyValue("--m-font-size")?.trim() || "1rem";
-              const baseRootFontSize =
-                styles?.getPropertyValue("--m-root-font-size")?.trim() ||
-                baseFontSize ||
-                "1.05rem";
-              const baseFontWeight =
-                styles?.getPropertyValue("--m-font-weight")?.trim() || "600";
-              const baseRootFontWeight =
-                styles?.getPropertyValue("--m-root-font-weight")?.trim() ||
-                baseFontWeight ||
-                "600";
-
-              const colors = {
-                bg: getColor("--m-bg", defaultPalette.bg),
-                border: getColor("--m-border", defaultPalette.border),
-                fg: getColor("--m-fg", defaultPalette.fg),
-                rootBg: getColor(
-                  "--m-root-bg",
-                  getColor("--m-bg", defaultPalette.bg),
-                ),
-                rootBorder: getColor(
-                  "--m-root-border",
-                  getColor("--m-border", defaultPalette.border),
-                ),
-                rootFg: getColor(
-                  "--m-root-fg",
-                  getColor("--m-fg", defaultPalette.fg),
-                ),
-                fontSize: baseFontSize,
-                rootFontSize: baseRootFontSize,
-                fontWeight: baseFontWeight,
-                rootFontWeight: baseRootFontWeight,
-              };
-
-              let overrideStyle = svgElement.querySelector<SVGStyleElement>(
-                "style[data-mermaid-override]",
-              );
-
-              const overrideCss = `
-                #${svgId} {
-                  fill: ${colors.bg} !important;
-                }
-
-                #${svgId} rect,
-                #${svgId} circle,
-                #${svgId} ellipse,
-                #${svgId} polygon,
-                #${svgId} polyline {
-                  fill: ${colors.bg} !important;
-                  stroke: ${colors.border} !important;
-                }
-
-                #${svgId} .node path,
-                #${svgId} .label-container {
-                  fill: ${colors.bg} !important;
-                  stroke: ${colors.border} !important;
-                }
-
-                #${svgId} .flowchart-link,
-                #${svgId} .edgePaths path,
-                #${svgId} .arrowMarkerPath,
-                #${svgId} line {
-                  fill: none !important;
-                  stroke: ${colors.border} !important;
-                }
-
-                #${svgId} text,
-                #${svgId} tspan {
-                  fill: ${colors.fg} !important;
-                  font-size: ${colors.fontSize} !important;
-                  font-weight: ${colors.fontWeight} !important;
-                }
-
-                #${svgId} foreignObject .label,
-                #${svgId} foreignObject span,
-                #${svgId} foreignObject p,
-                #${svgId} foreignObject div {
-                  color: ${colors.fg} !important;
-                }
-
-                #${svgId} foreignObject .edgeLabel,
-                #${svgId} foreignObject .labelBkg {
-                  background-color: transparent !important;
-                }
-
-                #${svgId} .section-root rect,
-                #${svgId} .section-root circle,
-                #${svgId} .section-root ellipse,
-                #${svgId} .section-root path,
-                #${svgId} .section-root polygon,
-                #${svgId} .section-root polyline {
-                  fill: ${colors.rootBg} !important;
-                  stroke: ${colors.rootBorder} !important;
-                }
-
-                #${svgId} .section-root text,
-                #${svgId} .section-root tspan {
-                  fill: ${colors.rootFg} !important;
-                  font-size: ${colors.rootFontSize} !important;
-                  font-weight: ${colors.rootFontWeight} !important;
-                }
-
-                #${svgId} .section-root foreignObject .label,
-                #${svgId} .section-root foreignObject span,
-                #${svgId} .section-root foreignObject p,
-                #${svgId} .section-root foreignObject div {
-                  color: ${colors.rootFg} !important;
-                }
-              `;
-
-              if (!overrideStyle) {
-                overrideStyle = document.createElementNS(
-                  "http://www.w3.org/2000/svg",
-                  "style",
-                );
-                overrideStyle.dataset.mermaidOverride = "true";
-                svgElement.append(overrideStyle);
-              }
-
-              overrideStyle.textContent = overrideCss;
-
-              // When Mermaid sets a natural max-width (e.g. mindmaps), the CSS
-              // width:100% compresses nodes together causing overlap. Scale to
-              // 72% of the natural width so the diagram fits more compactly;
-              // the container's overflow-x:auto handles any remaining overflow.
-              const naturalMaxWidth = svgElement.style.maxWidth;
-              if (naturalMaxWidth) {
-                const naturalPx = Number.parseFloat(naturalMaxWidth);
-                const containerPx = containerRef.current?.getBoundingClientRect().width ?? 0;
-                if (!Number.isNaN(naturalPx) && naturalPx > containerPx) {
-                  const scaledPx = Math.round(naturalPx * 0.72);
-                  svgElement.style.width = `${scaledPx}px`;
-                }
-              }
-            };
-
-            sanitizeSvg();
-
-            svgObserver = new MutationObserver(() => {
-              sanitizeSvg();
-            });
-
-            svgObserver.observe(svgElement, {
-              subtree: true,
-              attributes: true,
-              attributeFilter: ["style", "fill", "stroke", "class"],
-            });
-
-            const watchThemeChanges = (target: Element | null) => {
-              if (!target) {
-                return;
-              }
-
-              const themeObserver = new MutationObserver(() => {
-                sanitizeSvg();
-              });
-
-              themeObserver.observe(target, {
-                attributes: true,
-                attributeFilter: ["class", "data-theme"],
-              });
-
-              themeObservers.push(themeObserver);
-            };
-
-            watchThemeChanges(containerRef.current);
-            watchThemeChanges(containerRef.current?.parentElement);
-            watchThemeChanges(containerRef.current?.closest(".notion"));
-            watchThemeChanges(containerRef.current?.closest("[data-theme]"));
-            watchThemeChanges(document.body);
-            watchThemeChanges(document.documentElement);
-          }
+        if (!isMounted) {
+          return;
         }
+
+        container.innerHTML = svg;
+        const svgElement = container.querySelector("svg");
+        if (!svgElement) {
+          return;
+        }
+
+        const applyTheme = () => {
+          const svgId = svgElement.getAttribute("id") ?? sanitizedId;
+          let overrideStyle = svgElement.querySelector<SVGStyleElement>(
+            "style[data-mermaid-override]",
+          );
+
+          if (!overrideStyle) {
+            overrideStyle = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "style",
+            );
+            overrideStyle.dataset.mermaidOverride = "true";
+            svgElement.append(overrideStyle);
+          }
+
+          overrideStyle.textContent = createSvgOverride(
+            svgId,
+            getComputedStyle(container),
+            identityMap,
+          );
+        };
+
+        applyTheme();
+
+        const watchThemeChanges = (target: Element | null) => {
+          if (!target) {
+            return;
+          }
+
+          const observer = new MutationObserver(applyTheme);
+          observer.observe(target, {
+            attributes: true,
+            attributeFilter: ["class", "data-theme"],
+          });
+          themeObservers.push(observer);
+        };
+
+        watchThemeChanges(container.closest(".notion"));
+        watchThemeChanges(document.body);
+        watchThemeChanges(document.documentElement);
       } catch (err) {
-        console.error("Failed to render mermaid diagram.", err);
-        if (isMounted && containerRef.current) {
-          containerRef.current.innerHTML = "";
-          const pre = document.createElement("pre");
-          pre.textContent = code;
-          containerRef.current.append(pre);
+        console.error("Failed to render Mermaid diagram.", err);
+        if (isMounted) {
+          container.textContent = code;
         }
       }
     };
 
-    if (containerRef.current) {
-      containerRef.current.innerHTML = "";
-    }
-
+    container.innerHTML = "";
     void renderMermaid();
 
     return () => {
       isMounted = false;
-      if (svgObserver) {
-        svgObserver.disconnect();
-        svgObserver = null;
-      }
       for (const observer of themeObservers) {
         observer.disconnect();
       }
     };
-  }, [blockId, code]);
+  }, [blockId, code, identityMap, shouldRenderMap]);
+
+  const className = [
+    "notion-mermaid",
+    mindmap ? "notion-mermaid--mindmap" : "",
+    identityMap ? "notion-mermaid--identity-map" : "",
+    isMapOpen ? "notion-mermaid--expanded" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
-    <div
-      aria-label="Mermaid diagram"
-      className="notion-mermaid"
-      ref={containerRef}
-      role="img"
-    />
+    <figure className={className}>
+      {identityMap && isCompact ? (
+        <div className="notion-mermaid__summary">
+          <p className="notion-mermaid__eyebrow">Professional profile</p>
+          <ul aria-label="Mindmap overview">
+            {branches.map((branch) => (
+              <li key={branch}>{branch}</li>
+            ))}
+          </ul>
+          <button
+            aria-expanded={isMapOpen}
+            className="notion-mermaid__expand"
+            onClick={() => setIsMapOpen((open) => !open)}
+            type="button"
+          >
+            {isMapOpen ? "Hide full map" : "Explore full map"}
+          </button>
+        </div>
+      ) : null}
+      <div
+        aria-hidden={mindmap}
+        aria-label={mindmap ? undefined : "Mermaid diagram"}
+        className="notion-mermaid__canvas"
+        ref={containerRef}
+        role={mindmap ? undefined : "img"}
+      />
+      {mindmap ? (
+        <>
+          <figcaption className="notion-mermaid__caption">
+            A concise map of Jack H. Park&apos;s product leadership, platform
+            work, outcomes, and partners.
+          </figcaption>
+          <ul className="notion-mermaid__accessible-summary">
+            {branches.map((branch) => (
+              <li key={branch}>{branch}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </figure>
   );
 }

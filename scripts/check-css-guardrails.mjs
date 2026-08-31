@@ -22,6 +22,7 @@ const featureCssFiles = [
   "components/chat/settings/SettingsSectionOptionalOverrides.module.css",
   "components/chat/settings/SettingsSectionPresets.module.css",
   "components/landing/landing.module.css",
+  "styles/notion-mermaid.css",
 ];
 
 // Theme token files — intentionally excluded from featureCssFiles.
