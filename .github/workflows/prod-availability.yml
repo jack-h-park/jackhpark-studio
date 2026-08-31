@@ -1,0 +1,49 @@
+name: Prod Availability
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Use full for low-frequency extended route checks"
+        required: false
+        default: core
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prod-availability
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Canonical Prod smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Run canonical route checks
+        env:
+          PROD_BASE_URL: https://www.jackhpark.com
+          SMOKE_SCOPE: ${{ inputs.scope || 'core' }}
+        run: node scripts/smoke/prod-availability.mjs
+      - name: Notify Telegram on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram notification skipped: repository secrets are not configured."
+            exit 0
+          fi
+          curl --fail-with-body --silent --show-error \
+            --request POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --header 'Content-Type: application/json' \
+            --data "{\"chat_id\":\"${TELEGRAM_CHAT_ID}\",\"text\":\"🚨 Prod availability check failed\\nURL: https://www.jackhpark.com/chat\\nRun: ${GITHUB_RUN_URL}\"}"
