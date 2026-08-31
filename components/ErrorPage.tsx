@@ -14,7 +14,11 @@ export function ErrorPage({ statusCode }: { statusCode: number }) {
 
           {statusCode && <p>Error code: {statusCode}</p>}
 
-          <img src="/error.png" alt="Error" className={styles.errorImage} />
+          <img
+            src="/assets/avatar-favicon/error.png"
+            alt="Illustration of an astronaut drifting in space"
+            className={styles.errorImage}
+          />
         </main>
       </div>
     </>
