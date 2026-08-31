@@ -80,6 +80,9 @@ export default withBundleAnalyzer({
   // webpack cache files should never ship to Lambda.
   // NOTE: sharp linux binaries must NOT be excluded — lqip-modern (via lib/notion.ts) depends on
   // sharp at runtime and excluding its native module causes a Lambda crash.
+  // Keep sharp external so Vercel preserves the platform-specific libvips
+  // package instead of trying to bundle the native loader into the function.
+  serverExternalPackages: ["sharp"],
   outputFileTracingExcludes: {
     "*": [
       "node_modules/canvas/**",
