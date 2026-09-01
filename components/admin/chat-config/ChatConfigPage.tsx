@@ -8,6 +8,7 @@ import {
   CollapsibleSection,
 } from "@/components/admin/chat-config/ChatConfigHelpers";
 import { CoreBehaviorCard } from "@/components/admin/chat-config/CoreBehaviorCard";
+import { GenerationControlsCard } from "@/components/admin/chat-config/GenerationControlsCard";
 import { GuardrailCard } from "@/components/admin/chat-config/GuardrailCard";
 import { NumericLimitsCard } from "@/components/admin/chat-config/NumericLimitsCard";
 import { RagRankingCard } from "@/components/admin/chat-config/RagRankingCard";
@@ -191,6 +192,11 @@ export function ChatConfigPage({
               />
               <CachingCard
                 cache={config.cache}
+                isFormBusy={isFormBusy}
+                updateConfig={updateConfig}
+              />
+              <GenerationControlsCard
+                generation={config.generation ?? { reasoningEffort: "provider-default" }}
                 isFormBusy={isFormBusy}
                 updateConfig={updateConfig}
               />
