@@ -24,7 +24,7 @@ const config = defineConfig({
     checkMatch: '**/__checks__/**/*.check.ts',
     /* Global configuration option for Browser and Multistep checks. See https://www.checklyhq.com/docs/browser-checks/playwright-test/#global-configuration */
     playwrightConfig: {
-      timeout: 30000,
+      timeout: 30_000,
       use: {
           baseURL: 'https://www.jackhpark.com',
         viewport: { width: 1280, height: 720 },

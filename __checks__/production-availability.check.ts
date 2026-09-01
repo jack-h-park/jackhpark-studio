@@ -10,7 +10,7 @@ const productionLocations = ['ap-northeast-2', 'us-east-1'] as const
 const retryStrategy = RetryStrategyBuilder.singleRetry({
   baseBackoffSeconds: 30,
 })
-const emailAlert = AlertChannel.fromId(322164)
+const emailAlert = AlertChannel.fromId(322_164)
 
 function monitor(
   logicalId: string,
@@ -25,7 +25,7 @@ function monitor(
     retryStrategy,
     alertChannels: [emailAlert],
     degradedResponseTime: 2000,
-    maxResponseTime: 30000,
+    maxResponseTime: 30_000,
     request: {
       url: `https://www.jackhpark.com${path}`,
       followRedirects: true,
