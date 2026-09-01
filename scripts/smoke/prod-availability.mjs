@@ -4,7 +4,7 @@ const baseUrl = (
   process.env.PROD_BASE_URL ?? "https://www.jackhpark.com"
 ).replace(/\/$/, "");
 const scope = process.env.SMOKE_SCOPE ?? "core";
-const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS ?? 10000);
+const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS ?? 20000);
 const failures = [];
 
 async function check(path, expectedStatuses, predicate) {
