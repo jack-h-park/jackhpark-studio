@@ -77,3 +77,18 @@ The `/` check validates the rewrite to the chat experience.
 - The external monitor registration, deduplicated recovery notifications,
   extended sitemap checks, and notification secret configuration remain as
   deployment/operations follow-up.
+- Checkly project authoring is now present in `checkly.config.ts` and
+  `__checks__/production-availability.check.ts`. It defines 10 public URL
+  monitors for the canonical production origin, matching the free Hobby
+  monitor allowance, using Seoul and N. Virginia,
+  five-minute scheduling, and one retry. The Checkly test session passed all
+  checks; `/chat` was reported as degraded because the observed response took
+  about 11 seconds, which is a performance signal rather than an availability
+  failure.
+- The Checkly project is deployed to the `jackpark.kr@gmail.com` Checkly
+  account. The existing verified email alert channel is attached to all 9
+  monitors for failure and recovery notifications. Negative HTTP
+  contracts (`/api/chat` = 405 and `/404` = 404) remain in the repository smoke
+  runner because Checkly URL monitors classify non-2xx responses as failed even
+  when a matching status assertion is present. The extended `/landing`,
+  `/robots.txt`, and `/sitemap.xml` checks remain in that smoke runner as well.
