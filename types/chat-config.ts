@@ -13,6 +13,12 @@ export type SummaryLevel = "off" | "low" | "medium" | "high";
 
 export type RagAutoMode = "off" | "on" | "auto";
 export type RagMultiQueryMode = "off" | "auto";
+export type AdminReasoningEffort =
+  | "provider-default"
+  | "none"
+  | "low"
+  | "medium"
+  | "high";
 
 export interface AdminNumericLimit {
   min: number;
@@ -154,6 +160,9 @@ export interface AdminChatConfig {
   ragRanking?: RagRankingConfig;
   telemetry: AdminTelemetryConfig;
   cache: AdminCacheConfig;
+  generation?: {
+    reasoningEffort: AdminReasoningEffort;
+  };
 }
 
 export interface AdminPresetConfig extends SessionChatConfigPreset {

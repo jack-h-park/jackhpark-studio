@@ -15,6 +15,8 @@ import { requireProviderApiKey, resolveLlmModel } from "@/lib/core/model-provide
 import { getOllamaRuntimeConfig } from "@/lib/core/ollama";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 
+type ReasoningEffort = "none" | "low" | "medium" | "high";
+
 export async function createEmbeddingsInstance(
   selection: EmbeddingSpace,
 ): Promise<EmbeddingsInterface> {
@@ -42,15 +44,25 @@ export async function createChatModel(
   modelName: string,
   temperature: number,
   maxTokens: number,
+  reasoningEffort?: ReasoningEffort,
 ): Promise<BaseLanguageModelInterface> {
   switch (provider) {
     case "openai": {
       const { ChatOpenAI } = await import("@langchain/openai");
       const apiKey = requireProviderApiKey("openai");
+      const supportsSampling =
+        resolveLlmModel({ modelId: modelName, model: modelName })
+          .supportsSampling !== false;
+      const supportsReasoningEffort =
+        resolveLlmModel({ modelId: modelName, model: modelName })
+          .supportsReasoningEffort === true;
       return new ChatOpenAI({
         model: modelName,
         apiKey,
-        temperature,
+        ...(supportsSampling ? { temperature } : {}),
+        ...(supportsReasoningEffort && reasoningEffort
+          ? { reasoning: { effort: reasoningEffort } }
+          : {}),
         streaming: true,
         maxTokens,
       });
@@ -70,10 +82,9 @@ export async function createChatModel(
     case "anthropic": {
       const { ChatAnthropic } = await import("@langchain/anthropic");
       const apiKey = requireProviderApiKey("anthropic");
-      // Opus 4.8/4.7 (and Fable) reject sampling params with HTTP 400. The
+      // Some Anthropic models reject sampling params with HTTP 400. The
       // catalog marks them supportsSampling=false; omit temperature so the
-      // LangChain client does not forward it. @langchain/anthropic only
-      // auto-strips for opus-4-7, so 4.8 must be handled here explicitly.
+      // LangChain client does not forward it.
       const supportsSampling =
         resolveLlmModel({ modelId: modelName, model: modelName })
           .supportsSampling !== false;
