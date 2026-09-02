@@ -30,6 +30,12 @@ async function waitForEventLoop() {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
+// Pins the legacy backend. Since Phase 4d the OTel backend is the default, and
+// this file is also picked up by `test:unit`'s glob, so an env var set only in
+// the `test:telemetry-golden` script would be bypassed there — the sink would
+// stay empty and the snapshot would silently compare against nothing.
+process.env.LANGFUSE_OTEL_TRACING = "0";
+
 async function captureGoldenTelemetryPayload() {
   await resetIngestionBatches();
 
