@@ -22,6 +22,7 @@ import { db } from "./db";
 import { debugNotionXEnabled, debugNotionXLogger } from "./debug-notion-x";
 import { getTweetsMap } from "./get-tweets";
 import { notion } from "./notion-api";
+import { withRateLimitRetry } from "./notion-rate-limit";
 import { getPreviewImageMap } from "./preview-images";
 import {
   resolveCollectionDataId,
@@ -688,51 +689,35 @@ const fetchCollectionCardCalloutChildren = async (
 const loadPageFromNotion = async (
   pageId: string,
 ): Promise<ExtendedRecordMap> => {
-  // Retry up to 3 times with exponential backoff on 429 rate-limit responses.
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) {
-      const delayMs = 1000 * 2 ** attempt; // 2s, 4s
-      console.warn(
-        `[notion] 429 rate limit on page "${pageId}", retrying in ${delayMs}ms (attempt ${attempt + 1}/3)`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
-    }
-    try {
-      let recordMap = await notion.getPage(pageId, {
-        fetchCollections: true,
-        fetchMissingBlocks: true,
-        fetchRelationPages: true,
-      });
+  // A production build prerenders every page, which reliably trips Notion's
+  // rate limiter. Callers now rethrow instead of publishing a 404, so a 429
+  // that outlives the retry budget fails the build rather than quietly
+  // dropping the page from the site.
+  return withRateLimitRetry(async () => {
+    let recordMap = await notion.getPage(pageId, {
+      fetchCollections: true,
+      fetchMissingBlocks: true,
+      fetchRelationPages: true,
+    });
 
-      await fetchCollectionCardCalloutChildren(recordMap);
+    await fetchCollectionCardCalloutChildren(recordMap);
 
-      if (navigationStyle !== "default") {
-        const navigationLinkRecordMaps = await getNavigationLinkPages();
+    if (navigationStyle !== "default") {
+      const navigationLinkRecordMaps = await getNavigationLinkPages();
 
-        if (navigationLinkRecordMaps?.length) {
-          recordMap = navigationLinkRecordMaps.reduce(
-            (map, navigationLinkRecordMap) =>
-              mergeRecordMaps(map, navigationLinkRecordMap),
-            recordMap,
-          );
-        }
+      if (navigationLinkRecordMaps?.length) {
+        recordMap = navigationLinkRecordMaps.reduce(
+          (map, navigationLinkRecordMap) =>
+            mergeRecordMaps(map, navigationLinkRecordMap),
+          recordMap,
+        );
       }
-
-      await getTweetsMap(recordMap);
-
-      return recordMap;
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : String(err);
-      if (message.includes("429")) {
-        lastError = err;
-        continue;
-      }
-      throw err;
     }
-  }
-  throw lastError;
+
+    await getTweetsMap(recordMap);
+
+    return recordMap;
+  });
 };
 
 const hydrateGroupedCollectionData = async (

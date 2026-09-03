@@ -27,12 +27,15 @@ export const getStaticProps: GetStaticProps<PageProps, Params> = async (
   } catch (err) {
     console.error("page error", domain, rawPageId, err);
 
-    // we don't want to publish the error version of this page, so
-    // fall back to 404 to avoid failing the build on transient fetch errors
-    return {
-      notFound: true,
-      revalidate: 60,
-    };
+    // A thrown error means the fetch failed (Notion 429s during a build that
+    // prerenders every page, a network blip), NOT that the page is gone.
+    // Returning notFound here writes a 404 into the prerender/ISR cache, where
+    // it long outlives the outage that caused it: a 429 storm during one build
+    // took 48 live pages off the site until the next deploy happened to succeed.
+    // Rethrowing keeps the failure uncached — a background revalidation keeps
+    // serving the last good page, and an on-demand render fails only that one
+    // request and is retried on the next.
+    throw err;
   }
 };
 
