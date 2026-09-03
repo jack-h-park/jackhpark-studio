@@ -94,8 +94,18 @@ export default withBundleAnalyzer({
   // tracing cannot discover statically. Without this the sitemap crawled at
   // build time never reaches the serverless bundle and getSiteMap() fails at
   // runtime (it refuses to re-crawl inside a function).
+  // Vercel's file tracer (@vercel/nft) cannot statically follow sharp's
+  // dynamic require() of its platform-specific @img/sharp-* optional
+  // dependencies inside pnpm's virtual store, so the libvips shared object
+  // was silently dropped from the deployed function (ERR_DLOPEN_FAILED).
+  // Force-include the whole @img/* tree so the linux-x64 binaries ship.
   outputFileTracingIncludes: {
-    "*": [".next/cache/notion-sitemap.json"],
+    "*": [
+      ".next/cache/notion-sitemap.json",
+      "node_modules/@img/**",
+      "node_modules/.pnpm/@img+sharp-libvips-linux-x64@*/node_modules/@img/sharp-libvips-linux-x64/**",
+      "node_modules/.pnpm/@img+sharp-linux-x64@*/node_modules/@img/sharp-linux-x64/**",
+    ],
   },
 });
 /* eslint-enable no-process-env */
