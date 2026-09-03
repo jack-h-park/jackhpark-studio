@@ -49,15 +49,44 @@ fi
 
 # ESLint: autofix then verify on .ts/.tsx files in commits about to be pushed.
 # Uses @{push}..HEAD to scope to only new commits; falls back to HEAD~1..HEAD.
-CHANGED_TS=$(git diff --name-only "@{push}..HEAD" 2>/dev/null | grep -E '\.(ts|tsx)$' || git diff --name-only HEAD~1..HEAD 2>/dev/null | grep -E '\.(ts|tsx)$' || true)
+# --diff-filter=ACMR excludes deletions so ESLint never receives a path that no
+# longer exists on disk (a deleted/renamed-away file would abort the push).
+CHANGED_TS=$(git diff --name-only --diff-filter=ACMR "@{push}..HEAD" 2>/dev/null | grep -E '\.(ts|tsx)$' || git diff --name-only --diff-filter=ACMR HEAD~1..HEAD 2>/dev/null | grep -E '\.(ts|tsx)$' || true)
 if [ -n "$CHANGED_TS" ]; then
+  # Resolve ESLint by path rather than through `pnpm`, which only looks in the
+  # current directory. A git worktree has no node_modules of its own, so fall
+  # back to the main checkout's install — the parent of the shared git dir.
+  # Without this, every push from a worktree died on "Command eslint not found"
+  # under a banner that reads like a lint failure.
+  ESLINT_BIN=""
+  for candidate in \
+    "$(git rev-parse --show-toplevel)/node_modules/.bin/eslint" \
+    "$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd)")/node_modules/.bin/eslint"; do
+    if [ -x "$candidate" ]; then
+      ESLINT_BIN="$candidate"
+      break
+    fi
+  done
+
+  if [ -z "$ESLINT_BIN" ]; then
+    echo ""
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    echo "║  ❌  Push blocked — ESLint could not be found                 ║"
+    echo "║                                                               ║"
+    echo "║  Dependencies are not installed, so the changed files cannot  ║"
+    echo "║  be verified. Run 'pnpm install', then re-run git push.       ║"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
+    echo ""
+    exit 1
+  fi
+
   echo "Running ESLint autofix on changed .ts/.tsx files..."
   # shellcheck disable=SC2086
-  pnpm eslint --fix $CHANGED_TS 2>&1 || true
+  "$ESLINT_BIN" --fix $CHANGED_TS 2>&1 || true
 
   echo "Verifying no remaining ESLint errors..."
   # shellcheck disable=SC2086
-  if ! pnpm eslint $CHANGED_TS 2>&1; then
+  if ! "$ESLINT_BIN" $CHANGED_TS 2>&1; then
     echo ""
     echo "╔═══════════════════════════════════════════════════════════════╗"
     echo "║  ❌  Push blocked — ESLint errors remain after autofix        ║"
