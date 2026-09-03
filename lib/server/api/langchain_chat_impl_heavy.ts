@@ -1130,6 +1130,9 @@ export async function handleLangchainChat(
         candidate,
         temperature,
         MAX_TOKENS,
+        adminConfig.generation?.reasoningEffort === "provider-default"
+          ? undefined
+          : adminConfig.generation?.reasoningEffort,
       );
 
       try {

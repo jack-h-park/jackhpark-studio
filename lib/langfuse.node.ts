@@ -238,12 +238,16 @@ function buildTraceEvent(
 }
 
 /**
- * Phase 4 rollout switch for the Langfuse v4 migration. With it unset the
- * legacy `/api/public/ingestion` backend below stays in charge, so preview can
- * exercise the OTel path without changing production behaviour.
+ * Phase 4d of the Langfuse v4 migration: the OTel backend is now the default.
+ *
+ * Deliberately an opt-*out* (`=== "0"`), not an opt-in. Reverting is then a
+ * single environment variable on the Production scope — no revert commit, no
+ * rebuild — which matters because this selects the transport for every chat
+ * request. The legacy backend below stays in the tree until the switch has held
+ * in production; Phase 4d step 2 removes it.
  */
 export function isOtelTracingEnabled(): boolean {
-  return process.env.LANGFUSE_OTEL_TRACING === "1";
+  return process.env.LANGFUSE_OTEL_TRACING !== "0";
 }
 
 export function createTrace(

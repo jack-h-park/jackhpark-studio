@@ -17,7 +17,10 @@ import {
 } from "@/types/chat-config";
 
 export const ADMIN_CHAT_CONFIG_KEY = "admin_chat_config";
-const DEFAULT_ADMIN_CHAT_CONFIG: Pick<AdminChatConfig, "telemetry" | "cache"> =
+const DEFAULT_ADMIN_CHAT_CONFIG: Pick<
+  AdminChatConfig,
+  "telemetry" | "cache" | "generation"
+> =
   {
     telemetry: {
       sampleRate: 1,
@@ -26,6 +29,9 @@ const DEFAULT_ADMIN_CHAT_CONFIG: Pick<AdminChatConfig, "telemetry" | "cache"> =
     cache: {
       responseTtlSeconds: 300,
       retrievalTtlSeconds: 60,
+    },
+    generation: {
+      reasoningEffort: "provider-default",
     },
   };
 
@@ -341,6 +347,13 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     cache: {
       ...DEFAULT_ADMIN_CHAT_CONFIG.cache,
       ...(config as AdminChatConfig).cache,
+    },
+    generation: {
+      ...DEFAULT_ADMIN_CHAT_CONFIG.generation,
+      ...(config as AdminChatConfig).generation,
+      reasoningEffort:
+        (config as AdminChatConfig).generation?.reasoningEffort ??
+        "provider-default",
     },
   };
 

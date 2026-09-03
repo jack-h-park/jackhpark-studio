@@ -13,10 +13,10 @@ export interface LlmModelDefinition {
   subtitle?: string;
   ollamaModel?: string;
   lmstudioModel?: string;
-  // Anthropic thinking-only models (Opus 4.8/4.7, Fable) reject sampling
-  // parameters (temperature/top_p/top_k) with HTTP 400. Set false on those so
-  // the provider factory omits temperature. Defaults to true when unset.
+  // Some reasoning-oriented models reject non-default sampling parameters.
+  // Set false so the provider factory omits temperature. Defaults to true.
   supportsSampling?: boolean;
+  supportsReasoningEffort?: boolean;
   // Superseded models kept resolvable for back-compat but de-emphasized in the
   // admin allowlist UI. Defaults to false (active) when unset.
   deprecated?: boolean;
@@ -103,6 +103,40 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
     ],
     location: "cloud",
     isLocal: false,
+  },
+  {
+    id: "gpt-5.6-luna",
+    label: "OpenAI GPT-5.6 Luna",
+    displayName: "OpenAI GPT-5.6 Luna",
+    provider: "openai",
+    model: "gpt-5.6-luna",
+    aliases: [
+      "gpt-5.6-luna",
+      "gpt 5.6 luna",
+      "openai gpt-5.6-luna",
+      "openai_gpt-5.6-luna",
+    ],
+    location: "cloud",
+    isLocal: false,
+    supportsSampling: false,
+    supportsReasoningEffort: true,
+  },
+  {
+    id: "gpt-5.6-terra",
+    label: "OpenAI GPT-5.6 Terra",
+    displayName: "OpenAI GPT-5.6 Terra",
+    provider: "openai",
+    model: "gpt-5.6-terra",
+    aliases: [
+      "gpt-5.6-terra",
+      "gpt 5.6 terra",
+      "openai gpt-5.6-terra",
+      "openai_gpt-5.6-terra",
+    ],
+    location: "cloud",
+    isLocal: false,
+    supportsSampling: false,
+    supportsReasoningEffort: true,
   },
   {
     id: "gpt-5-4-mini",
