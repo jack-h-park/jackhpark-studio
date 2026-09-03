@@ -105,8 +105,15 @@ Phase 4 was split during implementation:
   through `trace.observation()`; root closed after the buffer flush.
 - **4c** (#114): a second golden snapshot driven by the OTel backend, kept
   alongside the legacy one. The two come out byte-identical.
-- **4d**: flip the default, remove the legacy backend and its golden. Blocked on
-  the duplicate-createTrace defect above.
+- **4d step 1** (#143, 2026-09-02): flipped the default. The duplicate-createTrace
+  blocker was cleared first by #116. Verified in production — one trace, one real
+  root, no synthetic `t-<traceId>` duplicate. Rollback is
+  `LANGFUSE_OTEL_TRACING=0`, which works only while the legacy backend is still
+  in the tree.
+- **4d step 2** (not started): remove the legacy backend, its golden, and the now
+  redundant Preview-scope `LANGFUSE_OTEL_TRACING=1`. Deliberately held for a few
+  days of production traffic, because deleting the legacy path gives up the
+  one-line rollback.
 
 Carried from the migration plan, now with the answers above folded in:
 
