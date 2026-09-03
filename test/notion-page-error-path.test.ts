@@ -22,8 +22,14 @@ void describe("page render error path", () => {
   void it("rethrows fetch failures instead of publishing a 404", async () => {
     const source = await readRepoFile("pages/[pageId].tsx");
 
-    const catchBlock = source.slice(source.indexOf("} catch (err) {"));
-    assert.ok(catchBlock.length > 0, "getStaticProps must keep a catch block");
+    const catchStart = source.indexOf("} catch (err) {");
+    assert.ok(catchStart !== -1, "getStaticProps must keep a catch block");
+
+    // Bound the slice to the end of getStaticProps and drop comments, so the
+    // assertions below read code rather than prose that merely mentions it.
+    const catchBlock = source
+      .slice(catchStart, source.indexOf("\n};", catchStart))
+      .replaceAll(/\/\/.*$/gm, "");
 
     assert.doesNotMatch(
       catchBlock,

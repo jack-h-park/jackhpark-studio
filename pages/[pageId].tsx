@@ -1,7 +1,7 @@
 import { type GetStaticProps } from "next";
 
 import { NotionPage } from "@/components/NotionPage";
-import { domain, isDev, pageUrlOverrides } from "@/lib/config";
+import { domain } from "@/lib/config";
 import { getSiteMap } from "@/lib/get-site-map";
 import { resolveNotionPage } from "@/lib/resolve-notion-page";
 import { type PageProps, type Params } from "@/lib/types";
@@ -40,38 +40,24 @@ export const getStaticProps: GetStaticProps<PageProps, Params> = async (
 };
 
 export async function getStaticPaths() {
-  if (isDev) {
-    return {
-      paths: [],
-      fallback: 'blocking',
-    };
-  }
-
-  let siteMap;
-  try {
-    siteMap = await getSiteMap();
-  } catch (err) {
-    console.error("site map error", domain, err);
-    return {
-      paths: [],
-      fallback: 'blocking',
-    };
-  }
-
-  const allPageIds = [
-    ...new Set([
-      ...Object.keys(siteMap.canonicalPageMap),
-      ...Object.keys(pageUrlOverrides),
-    ]),
-  ];
-
-  const staticPaths = {
-    paths: allPageIds.map((pageId) => ({ params: { pageId } })),
-    fallback: 'blocking',
+  // Deliberately prerender nothing and let every page generate on demand.
+  //
+  // The unofficial Notion API rate-limits a bulk traversal even at concurrency
+  // 1 once it passes a few dozen pages (see lib/notion-rate-limit.ts), so a
+  // build that prerenders all ~170 pages always draws 429s. That used to be
+  // survivable only because the renderer swallowed them into `notFound: true`,
+  // which is what silently took 48 live pages off the site. Now that a failed
+  // fetch correctly fails instead of publishing a 404, prerendering the whole
+  // site would just move the outage to the build.
+  //
+  // On-demand generation spreads those fetches over real traffic instead of
+  // firing them in one burst, and `fallback: "blocking"` still serves crawlers
+  // a fully rendered page. The first hit on a cold page pays the Notion fetch;
+  // ISR caches it from then on.
+  return {
+    paths: [],
+    fallback: "blocking",
   };
-
-  console.log(staticPaths.paths);
-  return staticPaths;
 }
 
 export default function NotionDomainDynamicPage(props: PageProps) {
