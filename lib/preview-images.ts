@@ -1,5 +1,4 @@
 import ky from "ky";
-import lqip from "lqip-modern";
 import {
   type ExtendedRecordMap,
   type PreviewImage,
@@ -159,6 +158,13 @@ async function createPreviewImage(
     const body = await ky(url, {
       headers: NOTION_IMAGE_FETCH_HEADERS,
     }).arrayBuffer();
+    // Dynamic import on purpose: lqip-modern requires sharp at module load
+    // time, and sharp's platform binary can fail to dlopen in production
+    // (e.g. a broken libvips build). A static top-level import would crash
+    // this page's entire SSR render before this try/catch ever runs; a
+    // dynamic import lets that failure be caught here like every other
+    // preview-image error.
+    const { default: lqip } = await import("lqip-modern");
     const result = await lqip(body);
     //console.log('lqip', { ...result.metadata, url, cacheKey })
 
