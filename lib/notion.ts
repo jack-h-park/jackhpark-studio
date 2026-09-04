@@ -29,31 +29,82 @@ import {
   unwrapRecordValue,
 } from "./rag/notion-record-value";
 
-const normalizeGroupValue = (group: any) => {
-  if (!group || typeof group !== "object") return group;
+/**
+ * Notion's wire JSON, which this module narrows at runtime rather than trusting
+ * by shape. `unknown` is deliberate: it forces each access through a guard, and
+ * an unguarded one stops compiling. That is the whole point here — a silent
+ * shape change in a recordMap is what gutted the RAG corpus before.
+ */
+type JsonRecord = Record<string, unknown>;
 
-  const normalized = { ...group };
+/**
+ * Exactly the `value && typeof value === "object"` test this file already used,
+ * arrays included, so narrowing changes no runtime behavior.
+ */
+const isObject = (value: unknown): value is JsonRecord =>
+  value !== null && typeof value === "object";
+
+/** `value?.property`, for grouping descriptors whose shape is not guaranteed. */
+const readProperty = (value: unknown): unknown =>
+  isObject(value) ? value.property : undefined;
+
+/** Message for log-only catch sites, without asserting the thrown value's type. */
+const errorMessage = (err: unknown): string =>
+  err instanceof Error ? err.message : String(err);
+
+/** `viewValue.format`, narrowed — all grouping metadata hangs off it. */
+const readFormat = (viewValue: unknown): JsonRecord | undefined => {
+  const format = isObject(viewValue) ? viewValue.format : undefined;
+  return isObject(format) ? format : undefined;
+};
+
+/**
+ * Length of a reducer bucket's `results`. Notion returns these at the top level
+ * on some responses and nested under `reducerResults`/`reducers` on others, so
+ * every read has to try all three.
+ */
+const countReducerResults = (result: unknown, reducerKey: string): number => {
+  if (!isObject(result)) return 0;
+
+  // First non-empty wins: an earlier bag carrying an empty `results` should not
+  // mask a later one that actually has groups.
+  for (const bag of [result, result.reducerResults, result.reducers]) {
+    if (!isObject(bag)) continue;
+    const bucket = bag[reducerKey];
+    if (isObject(bucket) && Array.isArray(bucket.results)) {
+      if (bucket.results.length > 0) return bucket.results.length;
+    }
+  }
+
+  return 0;
+};
+
+const normalizeGroupValue = (group: unknown): unknown => {
+  if (!isObject(group)) return group;
+
+  const normalized: JsonRecord = { ...group };
   const groupValue = normalized.value;
 
   if (
-    groupValue &&
-    typeof groupValue === "object" &&
+    isObject(groupValue) &&
     "value" in groupValue &&
     groupValue.value &&
-    typeof (groupValue as any).value === "object"
+    typeof groupValue.value === "object"
   ) {
-    const inner = (groupValue as any).value;
+    // Widened back to unknown so the string check below stays reachable to the
+    // compiler; it is defensive against a shape Notion has not returned yet.
+    const inner: unknown = groupValue.value;
 
     if (typeof inner === "string") {
       return normalized;
     }
 
-    if (inner && typeof inner === "object" && "group" in inner) {
+    if (isObject(inner) && "group" in inner) {
       normalized.value = {
         ...groupValue,
         value: inner.group,
       };
-    } else if (inner && typeof inner === "object" && "value" in inner) {
+    } else if (isObject(inner) && "value" in inner) {
       normalized.value = {
         ...groupValue,
         value: inner.value,
@@ -64,25 +115,27 @@ const normalizeGroupValue = (group: any) => {
   return normalized;
 };
 
-const sanitizeCollectionViewForGrouping = (viewValue: any) => {
-  if (!viewValue || typeof viewValue !== "object") {
+const sanitizeCollectionViewForGrouping = (viewValue: unknown): unknown => {
+  if (!isObject(viewValue)) {
     return viewValue;
   }
 
   const format = viewValue.format;
-  if (!format || typeof format !== "object") {
+  if (!isObject(format)) {
     return viewValue;
   }
 
-  const patchedFormat: any = { ...format };
+  const patchedFormat: JsonRecord = { ...format };
 
+  const declaredId = viewValue.collection_id ?? viewValue.collectionId;
   let collectionId: string | undefined =
-    viewValue.collection_id ?? (viewValue as any).collectionId;
+    typeof declaredId === "string" ? declaredId : undefined;
 
-  const pointer =
-    (viewValue as any).collection_pointer ?? (format as any).collection_pointer;
-  if (!collectionId && pointer && typeof pointer === "object") {
-    collectionId = pointer.id ?? pointer.collectionId ?? pointer.collection_id;
+  const pointer = viewValue.collection_pointer ?? format.collection_pointer;
+  if (!collectionId && isObject(pointer)) {
+    const pointerId =
+      pointer.id ?? pointer.collectionId ?? pointer.collection_id;
+    collectionId = typeof pointerId === "string" ? pointerId : undefined;
   }
 
   if (Array.isArray(format.collection_groups)) {
@@ -120,7 +173,7 @@ const sanitizeCollectionViewForGrouping = (viewValue: any) => {
   return sanitized;
 };
 
-const sanitizeForJSON = (value: any): any => {
+const sanitizeForJSON = (value: unknown): unknown => {
   if (value === undefined) {
     return null;
   }
@@ -130,7 +183,7 @@ const sanitizeForJSON = (value: any): any => {
   }
 
   if (value && typeof value === "object") {
-    const output: Record<string, any> = {};
+    const output: JsonRecord = {};
     for (const [key, val] of Object.entries(value)) {
       const sanitized = sanitizeForJSON(val);
       if (sanitized !== undefined) {
@@ -143,8 +196,8 @@ const sanitizeForJSON = (value: any): any => {
   return value;
 };
 
-const collectBlockIdsFromResultsBuckets = (entry: any): string[] => {
-  if (!entry || typeof entry !== "object") {
+const collectBlockIdsFromResultsBuckets = (entry: unknown): string[] => {
+  if (!isObject(entry)) {
     return [];
   }
 
@@ -153,7 +206,7 @@ const collectBlockIdsFromResultsBuckets = (entry: any): string[] => {
 
   for (const [key, value] of Object.entries(entry)) {
     if (!key.startsWith("results:")) continue;
-    const ids = (value as any)?.blockIds;
+    const ids = isObject(value) ? value.blockIds : undefined;
     if (!Array.isArray(ids)) continue;
     for (const id of ids) {
       if (typeof id !== "string" || id.length === 0 || seen.has(id)) continue;
@@ -165,21 +218,20 @@ const collectBlockIdsFromResultsBuckets = (entry: any): string[] => {
   return blockIds;
 };
 
-const normalizeCollectionQueryEntry = (entry: any): Record<string, any> => {
-  if (!entry || typeof entry !== "object") {
+const normalizeCollectionQueryEntry = (entry: unknown): JsonRecord => {
+  if (!isObject(entry)) {
     return {};
   }
 
-  const reducerResults =
-    entry.reducerResults && typeof entry.reducerResults === "object"
-      ? entry.reducerResults
-      : entry.reducers && typeof entry.reducers === "object"
-        ? entry.reducers
-        : null;
+  const reducerResults = isObject(entry.reducerResults)
+    ? entry.reducerResults
+    : isObject(entry.reducers)
+      ? entry.reducers
+      : null;
 
   // react-notion-x grouped renderers read results:* keys from top-level.
   // Ensure reducer payloads are flattened to that shape.
-  const normalized: Record<string, any> = {
+  const normalized: JsonRecord = {
     ...(reducerResults ?? entry),
   };
 
@@ -204,8 +256,9 @@ const normalizeCollectionQueryEntry = (entry: any): Record<string, any> => {
         blockIds: groupedBlockIds,
       };
     } else if (
-      !Array.isArray(normalized.collection_group_results.blockIds) ||
-      normalized.collection_group_results.blockIds.length === 0
+      isObject(normalized.collection_group_results) &&
+      (!Array.isArray(normalized.collection_group_results.blockIds) ||
+        normalized.collection_group_results.blockIds.length === 0)
     ) {
       normalized.collection_group_results = {
         ...normalized.collection_group_results,
@@ -221,27 +274,35 @@ const normalizeCollectionQueryEntry = (entry: any): Record<string, any> => {
     }
   }
 
-  return sanitizeForJSON(normalized);
+  // sanitizeForJSON only ever widens values in place, so the object shape it
+  // returns is the JsonRecord it was handed.
+  return sanitizeForJSON(normalized) as JsonRecord;
 };
 
-const getQueryBlockCount = (entry: any): number => {
-  if (!entry || typeof entry !== "object") return 0;
+const getQueryBlockCount = (entry: unknown): number => {
+  if (!isObject(entry)) return 0;
 
-  const groupCount = entry.collection_group_results?.blockIds?.length;
-  if (typeof groupCount === "number" && groupCount > 0) return groupCount;
+  // Array.isArray rather than a bare `.length`: these are block-id counts, so a
+  // value that merely happens to have a length (a string) is not one.
+  const groupResults = entry.collection_group_results;
+  if (isObject(groupResults) && Array.isArray(groupResults.blockIds)) {
+    const groupCount = groupResults.blockIds.length;
+    if (groupCount > 0) return groupCount;
+  }
 
-  const blockCount = entry.blockIds?.length;
-  if (typeof blockCount === "number" && blockCount > 0) return blockCount;
+  if (Array.isArray(entry.blockIds) && entry.blockIds.length > 0) {
+    return entry.blockIds.length;
+  }
 
   return collectBlockIdsFromResultsBuckets(entry).length;
 };
 
-const hasGroupedBlocks = (entry: any): boolean => {
-  if (!entry || typeof entry !== "object") return false;
+const hasGroupedBlocks = (entry: unknown): boolean => {
+  if (!isObject(entry)) return false;
 
   const collectionGroupResults = entry.collection_group_results;
   if (
-    collectionGroupResults &&
+    isObject(collectionGroupResults) &&
     Array.isArray(collectionGroupResults.blockIds)
   ) {
     if (collectionGroupResults.blockIds.length > 0) {
@@ -249,15 +310,12 @@ const hasGroupedBlocks = (entry: any): boolean => {
     }
   }
 
-  const bucketSources: Array<Record<string, any> | undefined> = [
-    entry.reducerResults,
-    entry.reducers,
-  ];
+  const bucketSources: unknown[] = [entry.reducerResults, entry.reducers];
 
   for (const source of bucketSources) {
-    if (!source || typeof source !== "object") continue;
+    if (!isObject(source)) continue;
     for (const value of Object.values(source)) {
-      const blockIds = (value as any)?.blockIds;
+      const blockIds = isObject(value) ? value.blockIds : undefined;
       if (Array.isArray(blockIds) && blockIds.length > 0) {
         return true;
       }
@@ -267,54 +325,57 @@ const hasGroupedBlocks = (entry: any): boolean => {
   return false;
 };
 
-const getGroupedResultBucketKeys = (entry: any): string[] => {
-  if (!entry || typeof entry !== "object") return [];
+const getGroupedResultBucketKeys = (entry: unknown): string[] => {
+  if (!isObject(entry)) return [];
   return Object.keys(entry).filter((key) => key.startsWith("results:"));
 };
 
 const buildGroupedFormatEntriesFromV2Reducer = (
-  result: any,
-  viewValue: any,
-): Array<Record<string, any>> => {
-  if (!result || typeof result !== "object") return [];
-  if (!viewValue || typeof viewValue !== "object") return [];
+  result: unknown,
+  viewValue: unknown,
+): JsonRecord[] => {
+  if (!isObject(result)) return [];
+  if (!isObject(viewValue)) return [];
 
-  const isBoardType = viewValue?.type === "board";
-  const reducerKey = isBoardType ? "board_columns" : `${viewValue?.type}_groups`;
+  const isBoardType = viewValue.type === "board";
+  const reducerKey = isBoardType ? "board_columns" : `${viewValue.type}_groups`;
+  const reducerResultsBag = isObject(result.reducerResults)
+    ? result.reducerResults
+    : undefined;
+  const reducersBag = isObject(result.reducers) ? result.reducers : undefined;
   const reducer =
-    result?.[reducerKey] ??
-    result?.reducerResults?.[reducerKey] ??
-    result?.reducers?.[reducerKey];
-  const reducerResults = Array.isArray(reducer?.results) ? reducer.results : [];
+    result[reducerKey] ??
+    reducerResultsBag?.[reducerKey] ??
+    reducersBag?.[reducerKey];
+  const reducerResults =
+    isObject(reducer) && Array.isArray(reducer.results) ? reducer.results : [];
 
+  const format = readFormat(viewValue);
   const propertyKey =
-    viewValue?.format?.collection_group_by?.property ??
-    viewValue?.format?.board_columns_by?.property;
+    readProperty(format?.collection_group_by) ??
+    readProperty(format?.board_columns_by);
   if (typeof propertyKey !== "string" || propertyKey.length === 0) {
     return [];
   }
 
   return reducerResults
-    .map((group: any) =>
+    .map((group: unknown) =>
       normalizeGroupValue({
         property: propertyKey,
-        hidden: group?.visible === false,
-        value: group?.value,
+        hidden: isObject(group) && group.visible === false,
+        value: isObject(group) ? group.value : undefined,
       }),
     )
-    .filter(
-      (group: any) =>
-        group &&
-        typeof group === "object" &&
-        group.value &&
-        typeof group.value === "object" &&
-        typeof group.value.type === "string",
-    );
+    .filter((group): group is JsonRecord => {
+      if (!isObject(group)) return false;
+      const value = group.value;
+      return isObject(value) && typeof value.type === "string";
+    });
 };
 
-const hasEmptyGroupedFormatEntries = (viewValue: any): boolean => {
-  const format = viewValue?.format;
-  if (!format || typeof format !== "object") return false;
+const hasEmptyGroupedFormatEntries = (viewValue: unknown): boolean => {
+  const format = readFormat(viewValue);
+  if (!format) return false;
 
   if (format.collection_group_by) {
     return !Array.isArray(format.collection_groups) || format.collection_groups.length === 0;
@@ -325,11 +386,14 @@ const hasEmptyGroupedFormatEntries = (viewValue: any): boolean => {
   return false;
 };
 
-const applyGroupedFormatEntriesToView = (viewValue: any, groups: any[]) => {
-  if (!viewValue || typeof viewValue !== "object") return viewValue;
+const applyGroupedFormatEntriesToView = (
+  viewValue: unknown,
+  groups: unknown[],
+): unknown => {
+  if (!isObject(viewValue)) return viewValue;
   if (!Array.isArray(groups) || groups.length === 0) return viewValue;
 
-  const format = viewValue?.format ?? {};
+  const format = isObject(viewValue.format) ? viewValue.format : {};
   if (format.collection_group_by) {
     return {
       ...viewValue,
@@ -352,32 +416,38 @@ const applyGroupedFormatEntriesToView = (viewValue: any, groups: any[]) => {
   return viewValue;
 };
 
-const getGroupQueryLabelFromFormatEntry = (entry: any): string | undefined => {
-  const rawValue = entry?.value?.value;
+const getGroupQueryLabelFromFormatEntry = (entry: unknown): unknown => {
+  const entryValue = isObject(entry) ? entry.value : undefined;
+  const rawValue = isObject(entryValue) ? entryValue.value : undefined;
   if (rawValue === undefined) return "uncategorized";
 
-  if (rawValue && typeof rawValue === "object" && "range" in rawValue) {
-    return rawValue.range?.start_date || rawValue.range?.end_date;
+  if (isObject(rawValue) && "range" in rawValue) {
+    const range = rawValue.range;
+    return isObject(range) ? range.start_date || range.end_date : undefined;
   }
 
-  if (rawValue && typeof rawValue === "object" && "value" in rawValue) {
+  if (isObject(rawValue) && "value" in rawValue) {
     return rawValue.value;
   }
 
   return rawValue;
 };
 
-const formatGroupEntryToBucketKey = (entry: any): string | null => {
-  const type = entry?.value?.type;
+const formatGroupEntryToBucketKey = (entry: unknown): string | null => {
+  const entryValue = isObject(entry) ? entry.value : undefined;
+  const type = isObject(entryValue) ? entryValue.type : undefined;
   const queryLabel = getGroupQueryLabelFromFormatEntry(entry);
   if (typeof type !== "string" || type.length === 0) return null;
   if (typeof queryLabel !== "string" || queryLabel.length === 0) return null;
   return `results:${type}:${queryLabel}`;
 };
 
-const syncGroupedViewFormatFromResultBuckets = (view: any, result: any) => {
-  const format = view?.format;
-  if (!format || typeof format !== "object") return;
+const syncGroupedViewFormatFromResultBuckets = (
+  view: unknown,
+  result: unknown,
+) => {
+  const format = readFormat(view);
+  if (!format) return;
 
   const bucketKeys = getGroupedResultBucketKeys(result);
   if (bucketKeys.length === 0) return;
@@ -389,15 +459,21 @@ const syncGroupedViewFormatFromResultBuckets = (view: any, result: any) => {
     : boardGroupBy
       ? "board_columns"
       : null;
-  const propertyKey = collectionGroupBy?.property ?? boardGroupBy?.property;
+  const propertyKey =
+    readProperty(collectionGroupBy) ?? readProperty(boardGroupBy);
 
-  if (!targetKey || typeof propertyKey !== "string" || propertyKey.length === 0) {
+  if (
+    !targetKey ||
+    typeof propertyKey !== "string" ||
+    propertyKey.length === 0
+  ) {
     return;
   }
 
-  const existingGroups = Array.isArray(format[targetKey]) ? format[targetKey] : [];
+  const target = format[targetKey];
+  const existingGroups: unknown[] = Array.isArray(target) ? target : [];
   const visibleExistingGroups = existingGroups.filter(
-    (group: any) => group?.hidden !== true,
+    (group) => !(isObject(group) && group.hidden === true),
   );
   const visibleExistingBucketKeys = new Set(
     visibleExistingGroups
@@ -415,7 +491,7 @@ const syncGroupedViewFormatFromResultBuckets = (view: any, result: any) => {
     bucketKeys.some((bucketKey) => hiddenExistingBucketKeys.has(bucketKey));
   const allGroupsHidden =
     existingGroups.length > 0 &&
-    existingGroups.every((group: any) => group?.hidden === true);
+    existingGroups.every((group) => isObject(group) && group.hidden === true);
 
   // Rebuild when groups are absent, all hidden, or only hidden groups match.
   if (
@@ -440,17 +516,24 @@ const syncGroupedViewFormatFromResultBuckets = (view: any, result: any) => {
   });
 };
 
-const isGroupedQueryPayloadUsableForView = (entry: any, viewValue: any) => {
-  if (!entry || typeof entry !== "object") return false;
+const isGroupedQueryPayloadUsableForView = (
+  entry: unknown,
+  viewValue: unknown,
+) => {
+  if (!isObject(entry)) return false;
   if (!hasGroupedBlocks(entry)) return false;
 
-  const format = viewValue?.format;
+  const format = readFormat(viewValue);
   const groupProperty =
-    format?.collection_group_by?.property ?? format?.board_columns_by?.property;
+    readProperty(format?.collection_group_by) ??
+    readProperty(format?.board_columns_by);
 
   const bucketKeys = getGroupedResultBucketKeys(entry);
-  const hasListGroups = Array.isArray(entry?.list_groups?.results);
-  const hasBoardColumns = Array.isArray(entry?.board_columns);
+  const listGroups = isObject(entry.list_groups)
+    ? entry.list_groups.results
+    : undefined;
+  const hasListGroups = Array.isArray(listGroups);
+  const hasBoardColumns = Array.isArray(entry.board_columns);
 
   // Grouped views need either reducer buckets or a view-specific grouped payload.
   // `collection_group_results.blockIds` alone can be stale and produce an empty render.
@@ -474,17 +557,20 @@ const isGroupedQueryPayloadUsableForView = (entry: any, viewValue: any) => {
   return true;
 };
 
+type CollectionQueryEntry =
+  ExtendedRecordMap["collection_query"][string][string];
+
 const mergeCollectionQuery = (
-  target: any,
-  source: any,
+  target: ExtendedRecordMap,
+  source: unknown,
   collectionId: string,
   viewId: string,
-) => {
+): ExtendedRecordMap => {
   if (!source) {
     return target;
   }
 
-  const clone = {
+  const clone: ExtendedRecordMap = {
     ...target,
     collection_query: {
       ...target?.collection_query,
@@ -500,7 +586,7 @@ const mergeCollectionQuery = (
   clone.collection_query[collectionId][viewId] = sanitizeForJSON({
     ...existing,
     ...normalizedSource,
-  });
+  }) as CollectionQueryEntry;
 
   return clone;
 };
@@ -615,8 +701,8 @@ const readCachedRecordMap = async (
       setCachedRecordMapInMemory(cacheKey, cached, { extendDeadline: false });
       return cached;
     }
-  } catch (err: any) {
-    console.warn(`redis error get "${cacheKey}"`, err.message);
+  } catch (err: unknown) {
+    console.warn(`redis error get "${cacheKey}"`, errorMessage(err));
   }
 
   return null;
@@ -637,8 +723,8 @@ const writeCachedRecordMap = async (
       await db.set(cacheKey, recordMap);
     }
     setCachedRecordMapInMemory(cacheKey, recordMap);
-  } catch (err: any) {
-    console.warn(`redis error set "${cacheKey}"`, err.message);
+  } catch (err: unknown) {
+    console.warn(`redis error set "${cacheKey}"`, errorMessage(err));
   }
 };
 
@@ -648,19 +734,28 @@ const writeCachedRecordMap = async (
  * This function finds those missing grandchildren and fetches them so that
  * collection card cover thumbnails can use their text content (e.g. eyebrow labels).
  */
+/** Caller-side view of the block fields this traversal reads. */
+type ContentBlockView = {
+  parent_table?: string;
+  type?: string;
+  content?: string[];
+};
+
 const fetchCollectionCardCalloutChildren = async (
   recordMap: ExtendedRecordMap,
 ): Promise<void> => {
   const missingChildIds = new Set<string>();
 
   for (const blockId of Object.keys(recordMap.block)) {
-    const b = unwrapRecordValue<any>(recordMap.block[blockId]);
+    const b = unwrapRecordValue<ContentBlockView>(recordMap.block[blockId]);
     if (!b || b.parent_table !== "collection") continue;
     if (b.type !== "page" && b.type !== "collection_view_page") continue;
     if (!Array.isArray(b.content)) continue;
 
     for (const childId of b.content) {
-      const child = unwrapRecordValue<any>(recordMap.block[childId]);
+      const child = unwrapRecordValue<ContentBlockView>(
+        recordMap.block[childId],
+      );
       if (!child || (child.type !== "callout" && child.type !== "toggle"))
         continue;
       if (!Array.isArray(child.content)) continue;
@@ -681,8 +776,8 @@ const fetchCollectionCardCalloutChildren = async (
     if (newBlocks) {
       recordMap.block = { ...recordMap.block, ...newBlocks };
     }
-  } catch (err: any) {
-    console.warn("fetchCollectionCardCalloutChildren error", err?.message);
+  } catch (err: unknown) {
+    console.warn("fetchCollectionCardCalloutChildren error", errorMessage(err));
   }
 };
 
@@ -736,16 +831,24 @@ const hydrateGroupedCollectionData = async (
       }
 
       const typedView = view as { role: Role; value: CollectionView };
-      const rawView = unwrapRecordValue<any>(view) ?? typedView.value;
+      const rawView: unknown = unwrapRecordValue(view) ?? typedView.value;
       if (!rawView) return null;
 
       const sanitizedView = sanitizeCollectionViewForGrouping(rawView);
       recordMap.collection_view[viewId] = {
         ...typedView,
-        value: sanitizedView,
+        // The sanitizer only rewrites grouping metadata in place; the record it
+        // returns is still the CollectionView it was given.
+        value: sanitizedView as CollectionView,
       };
-      const collectionId = sanitizedView?.collection_id as string | undefined;
-      const format = sanitizedView?.format;
+
+      if (!isObject(sanitizedView)) return null;
+
+      const collectionId =
+        typeof sanitizedView.collection_id === "string"
+          ? sanitizedView.collection_id
+          : undefined;
+      const format = readFormat(sanitizedView);
 
       if (!collectionId) {
         return null;
@@ -770,8 +873,10 @@ const hydrateGroupedCollectionData = async (
         if (!recordMap.collection_query[collectionId]) {
           recordMap.collection_query[collectionId] = {};
         }
+        // Wire JSON asserted into notion-types' shape: the normalizer works in
+        // terms of the keys react-notion-x reads, not the declared interface.
         recordMap.collection_query[collectionId][viewId] =
-          normalizedExisting as any;
+          normalizedExisting as unknown as CollectionQueryEntry;
 
         if (
           !hasGrouping ||
@@ -786,10 +891,10 @@ const hydrateGroupedCollectionData = async (
             {
               viewId,
               collectionId,
-              viewType: sanitizedView?.type,
+              viewType: sanitizedView.type,
               groupBy:
-                sanitizedView?.format?.collection_group_by?.property ??
-                sanitizedView?.format?.board_columns_by?.property ??
+                readProperty(format?.collection_group_by) ??
+                readProperty(format?.board_columns_by) ??
                 null,
               existingQueryKeys: Object.keys(normalizedExisting ?? {}),
               resultBucketKeys: getGroupedResultBucketKeys(normalizedExisting),
@@ -820,8 +925,8 @@ const hydrateGroupedCollectionData = async (
     viewId: string;
     collectionId: string;
     fetchCollectionId: string;
-    viewValue: any;
-    existingEntry: any;
+    viewValue: JsonRecord;
+    existingEntry: unknown;
   }>;
 
   if (!targets.length) {
@@ -837,6 +942,8 @@ const hydrateGroupedCollectionData = async (
       viewValue,
       existingEntry,
     }) => {
+      const viewFormat = readFormat(viewValue);
+
       try {
         let data = await notion.getCollectionData(
           fetchCollectionId,
@@ -851,30 +958,20 @@ const hydrateGroupedCollectionData = async (
           viewId,
           collectionId,
           fetchCollectionId,
-          viewType: viewValue?.type,
-          hasCollectionGroups: Array.isArray(viewValue?.format?.collection_groups),
-          collectionGroupsLen: Array.isArray(viewValue?.format?.collection_groups)
-            ? viewValue.format.collection_groups.length
+          viewType: viewValue.type,
+          hasCollectionGroups: Array.isArray(viewFormat?.collection_groups),
+          collectionGroupsLen: Array.isArray(viewFormat?.collection_groups)
+            ? viewFormat.collection_groups.length
             : null,
-          hasBoardColumns: Array.isArray(viewValue?.format?.board_columns),
-          boardColumnsLen: Array.isArray(viewValue?.format?.board_columns)
-            ? viewValue.format.board_columns.length
+          hasBoardColumns: Array.isArray(viewFormat?.board_columns),
+          boardColumnsLen: Array.isArray(viewFormat?.board_columns)
+            ? viewFormat.board_columns.length
             : null,
           resultKeys: data?.result ? Object.keys(data.result) : null,
           resultBucketKeys: getGroupedResultBucketKeys(data?.result),
           hasGalleryGroups:
-            !!(
-              (data?.result as any)?.gallery_groups?.results?.length ||
-              (data?.result as any)?.reducerResults?.gallery_groups?.results
-                ?.length ||
-              (data?.result as any)?.reducers?.gallery_groups?.results?.length
-            ),
-          galleryGroupsLen:
-            (data?.result as any)?.gallery_groups?.results?.length ??
-            (data?.result as any)?.reducerResults?.gallery_groups?.results
-              ?.length ??
-            (data?.result as any)?.reducers?.gallery_groups?.results?.length ??
-            0,
+            countReducerResults(data?.result, "gallery_groups") > 0,
+          galleryGroupsLen: countReducerResults(data?.result, "gallery_groups"),
         });
 
         const bootstrapGroups = buildGroupedFormatEntriesFromV2Reducer(
@@ -891,13 +988,17 @@ const hydrateGroupedCollectionData = async (
             viewValue,
             bootstrapGroups,
           );
+          const bootstrappedFormatOwner = isObject(bootstrappedViewValue)
+            ? bootstrappedViewValue
+            : undefined;
+          const bootstrappedFormat = readFormat(bootstrappedFormatOwner);
 
           const currentViewEntry = recordMap.collection_view?.[viewId];
           if (currentViewEntry?.value) {
             recordMap.collection_view[viewId] = {
               ...currentViewEntry,
-              value: bootstrappedViewValue,
-            } as any;
+              value: bootstrappedViewValue as CollectionView,
+            };
           }
 
           console.warn("[grouped-collection] bootstrap refetch from v2 groups", {
@@ -923,39 +1024,31 @@ const hydrateGroupedCollectionData = async (
             viewId,
             collectionId,
             fetchCollectionId,
-            viewType: bootstrappedViewValue?.type,
+            viewType: bootstrappedFormatOwner?.type,
             collectionGroupsLen: Array.isArray(
-              bootstrappedViewValue?.format?.collection_groups,
+              bootstrappedFormat?.collection_groups,
             )
-              ? bootstrappedViewValue.format.collection_groups.length
+              ? bootstrappedFormat.collection_groups.length
               : null,
-            boardColumnsLen: Array.isArray(
-              bootstrappedViewValue?.format?.board_columns,
-            )
-              ? bootstrappedViewValue.format.board_columns.length
+            boardColumnsLen: Array.isArray(bootstrappedFormat?.board_columns)
+              ? bootstrappedFormat.board_columns.length
               : null,
             resultKeys: data?.result ? Object.keys(data.result) : null,
             resultBucketKeys: getGroupedResultBucketKeys(data?.result),
             hasGalleryGroups:
-              !!(
-                (data?.result as any)?.gallery_groups?.results?.length ||
-                (data?.result as any)?.reducerResults?.gallery_groups?.results
-                  ?.length ||
-                (data?.result as any)?.reducers?.gallery_groups?.results
-                  ?.length
-              ),
-            galleryGroupsLen:
-              (data?.result as any)?.gallery_groups?.results?.length ??
-              (data?.result as any)?.reducerResults?.gallery_groups?.results
-                ?.length ??
-              (data?.result as any)?.reducers?.gallery_groups?.results
-                ?.length ??
-              0,
+              countReducerResults(data?.result, "gallery_groups") > 0,
+            galleryGroupsLen: countReducerResults(
+              data?.result,
+              "gallery_groups",
+            ),
           });
         }
 
         if (data?.recordMap) {
-          recordMap = mergeRecordMaps(recordMap, data.recordMap as any);
+          recordMap = mergeRecordMaps(
+            recordMap,
+            data.recordMap as ExtendedRecordMap,
+          );
 
           const fetchedEntry =
             (data.recordMap as ExtendedRecordMap).collection_query?.[
@@ -991,34 +1084,38 @@ const hydrateGroupedCollectionData = async (
           // Keep previous query when fetched grouped payload is empty.
           if (!(fetchedBlockCount === 0 && existingBlockCount > 0)) {
             recordMap.collection_query[collectionId][viewId] =
-              normalizedResult as any;
+              normalizedResult as unknown as CollectionQueryEntry;
           }
 
           const hydratedView = recordMap.collection_view?.[viewId]?.value;
           syncGroupedViewFormatFromResultBuckets(hydratedView, normalizedResult);
 
-          const listGroups = normalizedResult?.list_groups?.results;
+          const listGroupsContainer = normalizedResult.list_groups;
+          const listGroups = isObject(listGroupsContainer)
+            ? listGroupsContainer.results
+            : undefined;
           if (Array.isArray(listGroups) && listGroups.length > 0) {
             const view = recordMap.collection_view?.[viewId];
-            const propertyKey =
+            const propertyKey = readProperty(
               recordMap.collection_view?.[viewId]?.value?.format
-                ?.collection_group_by?.property;
+                ?.collection_group_by,
+            );
             if (view?.value?.format) {
               view.value.format.collection_groups = listGroups.map(
-                (group: any) =>
+                (group: unknown) =>
                   normalizeGroupValue({
-                    value: group?.value,
+                    value: isObject(group) ? group.value : undefined,
                     property: propertyKey,
-                    hidden: group?.visible === false,
+                    hidden: isObject(group) && group.visible === false,
                   }),
               );
             }
           }
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.warn(
           `[grouped-collection] fetch failed ${collectionId}:${viewId}`,
-          err?.message ?? err,
+          errorMessage(err),
         );
       }
     },

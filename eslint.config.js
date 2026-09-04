@@ -50,4 +50,13 @@ export default [
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
+  {
+    // Cleared of `any` and held there. Add each path as it is cleaned, so the
+    // repo-wide "warn" ratchets to "error" one directory at a time instead of
+    // staying advisory forever.
+    files: ["lib/notion.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "error",
+    },
+  },
 ];
