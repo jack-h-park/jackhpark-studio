@@ -7,7 +7,10 @@ import {
   WebhookAlertChannel,
 } from 'checkly/constructs'
 
-const productionLocations = ['ap-northeast-2', 'us-east-1'] as const
+// ONE location. A second region mostly confirms the first behind a global CDN,
+// and it doubles the run count — which is the binding constraint now (see the
+// budget note below). Seoul because it is where the site is actually read from.
+const productionLocations = ['ap-northeast-2'] as const
 const retryStrategy = RetryStrategyBuilder.singleRetry({
   baseBackoffSeconds: 30,
 })
@@ -69,7 +72,7 @@ function monitor(
 ) {
   new UrlMonitor(logicalId, {
     name,
-    frequency: Frequency.EVERY_5M,
+    frequency: Frequency.EVERY_15M,
     locations: [...productionLocations],
     retryStrategy,
     alertChannels: [emailAlert, telegramAlert],
@@ -83,23 +86,32 @@ function monitor(
   })
 }
 
+// ─── Why only two, and why fifteen minutes ──────────────────────────────────
+//
+// The .github/workflows/prod-availability.yml smoke run is the PRIMARY monitor:
+// it covers every route below plus body assertions Checkly's UrlMonitor cannot
+// make (`<title>` contains "Ask JackGPT"), it runs every five minutes, and it is
+// free because this repository is public. Checkly duplicated nine of its ten
+// checks — one cause, two alerts — while being the only one of the pair that
+// costs anything.
+//
+// What Checkly still uniquely provides is a probe from OUTSIDE GitHub: real DNS,
+// real CDN, a real client in Seoul. That is worth two monitors, not twelve.
+//
+// The budget is the Hobby tier's 10,000 API runs/month, and it is a hard cap —
+// Hobby STOPS EXECUTING once it is exhausted, so overshooting does not cost
+// money, it costs monitoring, silently, for the rest of the month:
+//
+//   12 monitors x 2 locations x 5m  = 207,360 runs/month   (20.7x the cap)
+//    9 monitors x 2 locations x 5m  = 155,520 runs/month   (15.5x — what was live)
+//    2 monitors x 1 location  x 15m =   5,760 runs/month   (58% — this)
+//
+// The headroom is deliberate: singleRetry spends an extra run per failure, and a
+// bad week must not be what silences the monitor.
+//
+// Coverage given up here did NOT disappear. The nine duplicated routes were
+// already in the smoke run, and the three Notion content canaries moved into it —
+// see the comment beside them there for the 2026-09-03 incident they exist for.
+
 monitor('production-home', 'Prod · Home', '/')
 monitor('production-chat', 'Prod · Chat', '/chat')
-monitor('production-studio', 'Prod · Studio', '/studio')
-monitor('production-feed', 'Prod · Feed', '/feed')
-monitor('production-admin-sign-in', 'Prod · Admin sign-in', '/admin/sign-in')
-monitor('production-ping-api', 'Prod · Ping API', '/api/ping')
-monitor('production-chat-config-api', 'Prod · Chat config API', '/api/chat-config')
-monitor('production-chat-runtime-api', 'Prod · Chat runtime API', '/api/chat-runtime')
-monitor('production-error-asset', 'Prod · Error asset', '/assets/avatar-favicon/error.png')
-
-// Notion content pages. Every monitor above sits on a top-level route, and on
-// 2026-09-03 all of them stayed green while 48 leaf pages served 404 for days:
-// a rate-limited build had cached `notFound` for pages nothing was watching.
-// One canary per depth, each of which was actually dead in that incident.
-// Full coverage is the post-deploy sitemap sweep, not more monitors here —
-// these pages are generated on demand, so polling all 162 every five minutes
-// would rebuild the same rate-limit storm against live traffic.
-monitor('production-content-experience', 'Prod · Content · Experience', '/experience-background')
-monitor('production-content-tool-leaf', 'Prod · Content · Tool leaf', '/aws')
-monitor('production-content-gallery-leaf', 'Prod · Content · Gallery leaf', '/beluga')
