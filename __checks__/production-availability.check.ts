@@ -9,9 +9,15 @@ import {
 
 // ONE location. A second region mostly confirms the first behind a global CDN,
 // and it doubles the run count — which is the binding constraint (see the budget
-// note below). N. Virginia because this is a portfolio read by US recruiters;
-// behind a CDN the region barely changes whether a page is UP, but it decides
-// whose latency the degradedResponseTime threshold is actually measuring.
+// note below).
+//
+// N. Virginia, and this is measured rather than assumed: PostHog $pageview over
+// the 30 days to 2026-09-04 was 94.2% United States (130/138 views, 20 of 25
+// visitors); South Korea was 4 views from a single visitor. The probe ran from
+// Seoul until then, on the stated grounds that Seoul was "where the site is
+// actually read from" — it was not. Behind a CDN the region barely changes
+// whether a page is UP, but it decides whose latency degradedResponseTime is
+// measuring, and it was measuring an audience of one.
 const productionLocations = ['us-east-1'] as const
 const retryStrategy = RetryStrategyBuilder.singleRetry({
   baseBackoffSeconds: 30,
