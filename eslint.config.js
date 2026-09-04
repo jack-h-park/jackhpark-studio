@@ -18,6 +18,14 @@ export default [
       "simple-import-sort/imports": "error", // <-- 3. Enable the import sort rule.
       "@typescript-eslint/no-unused-vars": "error", // <-- Also enable the no-unused-vars rule.
 
+      // CLAUDE.md bans `any`, but the rule ships off in the shared config, so
+      // the ban was convention only and ~180 uses accumulated. Warn rather than
+      // error: this surfaces new ones in review without blocking on the
+      // existing backlog. tsconfig `strict` already catches *implicit* any —
+      // what this covers is the explicit escape hatch. Promote to "error" per
+      // directory as each is cleaned up.
+      "@typescript-eslint/no-explicit-any": "warn",
+
       // --- Rules that were previously turned off ---
       "react/prop-types": "off",
       "unicorn/no-array-reduce": "off",
@@ -31,6 +39,15 @@ export default [
       "jsx-a11y/interactive-supports-focus": "off",
       "jsx-a11y/anchor-is-valid": "off",
       "@typescript-eslint/naming-convention": "off",
+    },
+  },
+  {
+    // Tests use `any` deliberately: partial recordMap fixtures, intentionally
+    // invalid inputs fed to validators, and stubbed globals like Date.now.
+    // Typing those fully would describe the fixture rather than the contract.
+    files: ["test/**/*.ts", "test/**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
 ];
