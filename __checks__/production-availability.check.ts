@@ -4,6 +4,7 @@ import {
   RetryStrategyBuilder,
   UrlAssertionBuilder,
   UrlMonitor,
+  WebhookAlertChannel,
 } from 'checkly/constructs'
 
 const productionLocations = ['ap-northeast-2', 'us-east-1'] as const
@@ -11,6 +12,46 @@ const retryStrategy = RetryStrategyBuilder.singleRetry({
   baseBackoffSeconds: 30,
 })
 const emailAlert = AlertChannel.fromId(322_164)
+
+// Deliberately NOT using checkly/constructs' TelegramAlertChannel: its
+// constructor hardcodes `&parse_mode=HTML` onto the template regardless of
+// what `payload` contains (the SDK source even admits "For historical
+// reasons the payload is not escaped even though it should be"). With HTML
+// parsing on, a stray `<`/`>` in the free-form AI_ANALYSIS_ROOT_CAUSE text
+// (e.g. "latency <2s") makes Telegram silently 400 the whole message — this
+// is exactly what caused the alert channel to go quiet during the
+// 2026-09-03 incident. Building the request via the generic
+// WebhookAlertChannel instead, with no parse_mode at all, sidesteps entity
+// parsing entirely. Verified against the exact payload that broke before.
+const telegramApiKey = process.env.CHECKLY_TELEGRAM_BOT_TOKEN
+const telegramChatId = process.env.CHECKLY_TELEGRAM_CHAT_ID
+if (!telegramApiKey || !telegramChatId) {
+  throw new Error(
+    'CHECKLY_TELEGRAM_BOT_TOKEN and CHECKLY_TELEGRAM_CHAT_ID must be set ' +
+      '(see .env.local) to deploy production-availability.check.ts.',
+  )
+}
+
+const telegramAlert = new WebhookAlertChannel('jackhpark-com-telegram-ops', {
+  name: 'jackhpark.com Alert Channel',
+  webhookType: 'WEBHOOK_TELEGRAM',
+  url: `https://api.telegram.org/bot${telegramApiKey}/sendMessage`,
+  method: 'POST',
+  template: `chat_id=${telegramChatId}&text={{ALERT_TITLE}} at {{RUN_LOCATION}} ({{RESPONSE_TIME}}ms)
+{{#if AI_ANALYSIS_CLASSIFICATION}}
+AI Analysis: {{AI_ANALYSIS_CLASSIFICATION}}
+
+{{AI_ANALYSIS_ROOT_CAUSE}}
+Read full analysis: {{AI_ANALYSIS_LINK}}
+{{/if}}
+
+Tags: {{#each TAGS}} {{this}} {{#unless @last}},{{/unless}} {{/each}}
+View check result: {{RESULT_LINK}}
+`,
+  sendRecovery: true,
+  sendFailure: true,
+  sendDegraded: false,
+})
 
 function monitor(
   logicalId: string,
@@ -23,7 +64,7 @@ function monitor(
     frequency: Frequency.EVERY_5M,
     locations: [...productionLocations],
     retryStrategy,
-    alertChannels: [emailAlert],
+    alertChannels: [emailAlert, telegramAlert],
     degradedResponseTime: 2000,
     maxResponseTime: 30_000,
     request: {

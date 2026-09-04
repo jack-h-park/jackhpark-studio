@@ -1,4 +1,11 @@
 import { defineConfig } from 'checkly'
+import { config as loadEnv } from 'dotenv'
+
+// `checkly deploy`/`test` run this file directly with Node, outside Next.js,
+// so .env.local is not picked up automatically the way it is for the app.
+// Loaded here (not in the check file) so it's available before any
+// __checks__ file that reads process.env for alert-channel secrets.
+loadEnv({ path: '.env.local' })
 
 /**
  * See https://www.checklyhq.com/docs/cli/project-structure/
