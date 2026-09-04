@@ -22,7 +22,7 @@ const config = defineConfig({
     /* A default for how often your Check should run in minutes */
     frequency: 5,
     /* Checkly data centers to run your Checks as monitors */
-    locations: ['ap-northeast-2', 'us-east-1'],
+    locations: ['us-east-1', 'ap-northeast-2'],
     /** The Checkly Runtime identifier, determining npm packages and the Node.js version available at runtime.
      * See https://www.checklyhq.com/docs/cli/npm-packages/
      */
@@ -46,7 +46,7 @@ const config = defineConfig({
   },
   cli: {
     /* The default datacenter location to use when running npx checkly test */
-    runLocation: 'ap-northeast-2',
+    runLocation: 'us-east-1',
     /* An array of default reporters to use when a reporter is not specified with the "--reporter" flag */
     reporters: ['list'],
     /* How many times to retry a failing test run when running `npx checkly test` or `npx checkly trigger` (max. 3) */

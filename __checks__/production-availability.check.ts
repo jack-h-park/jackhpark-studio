@@ -8,9 +8,11 @@ import {
 } from 'checkly/constructs'
 
 // ONE location. A second region mostly confirms the first behind a global CDN,
-// and it doubles the run count — which is the binding constraint now (see the
-// budget note below). Seoul because it is where the site is actually read from.
-const productionLocations = ['ap-northeast-2'] as const
+// and it doubles the run count — which is the binding constraint (see the budget
+// note below). N. Virginia because this is a portfolio read by US recruiters;
+// behind a CDN the region barely changes whether a page is UP, but it decides
+// whose latency the degradedResponseTime threshold is actually measuring.
+const productionLocations = ['us-east-1'] as const
 const retryStrategy = RetryStrategyBuilder.singleRetry({
   baseBackoffSeconds: 30,
 })
@@ -72,7 +74,7 @@ function monitor(
 ) {
   new UrlMonitor(logicalId, {
     name,
-    frequency: Frequency.EVERY_15M,
+    frequency: Frequency.EVERY_30M,
     locations: [...productionLocations],
     retryStrategy,
     alertChannels: [emailAlert, telegramAlert],
@@ -86,32 +88,53 @@ function monitor(
   })
 }
 
-// ─── Why only two, and why fifteen minutes ──────────────────────────────────
+// ─── Why five, and why thirty minutes ───────────────────────────────────────
 //
-// The .github/workflows/prod-availability.yml smoke run is the PRIMARY monitor:
-// it covers every route below plus body assertions Checkly's UrlMonitor cannot
-// make (`<title>` contains "Ask JackGPT"), it runs every five minutes, and it is
-// free because this repository is public. Checkly duplicated nine of its ten
-// checks — one cause, two alerts — while being the only one of the pair that
-// costs anything.
+// #158 cut this file to two monitors on the premise that
+// .github/workflows/prod-availability.yml is the primary monitor and "runs every
+// five minutes". Measured afterwards, it does not: its cron says `*/5` but
+// GitHub delivers scheduled workflows on a best-effort basis for public repos,
+// and across 28 consecutive runs the MEDIAN interval was 212 minutes. No runs
+// were cancelled — GitHub simply does not fire the schedule. So the routes moved
+// there did not get five-minute detection, they got roughly three-and-a-half
+// hours of it.
 //
-// What Checkly still uniquely provides is a probe from OUTSIDE GitHub: real DNS,
-// real CDN, a real client in Seoul. That is worth two monitors, not twelve.
+// The three Notion content canaries are the ones that matter. They exist because
+// on 2026-09-03 a rate-limited build cached `notFound` for 48 leaf pages, which
+// served 404 for days while every top-level route stayed green. Leaving the one
+// signal that can see that failure on a schedule that fires every ~3.5 hours put
+// it back out of reach.
+//
+// So they come back here, where the cadence is actually honoured, and the budget
+// pays for it by halving the frequency rather than by dropping monitors.
 //
 // The budget is the Hobby tier's 10,000 API runs/month, and it is a hard cap —
-// Hobby STOPS EXECUTING once it is exhausted, so overshooting does not cost
-// money, it costs monitoring, silently, for the rest of the month:
+// Hobby STOPS EXECUTING once exhausted, so overshooting does not cost money, it
+// costs monitoring, silently, for the rest of the month:
 //
-//   12 monitors x 2 locations x 5m  = 207,360 runs/month   (20.7x the cap)
-//    9 monitors x 2 locations x 5m  = 155,520 runs/month   (15.5x — what was live)
-//    2 monitors x 1 location  x 15m =   5,760 runs/month   (58% — this)
+//    9 monitors x 2 locations x  5m = 155,520 runs/month   (15.5x — what was live)
+//    5 monitors x 1 location  x 15m =  14,400 runs/month   (1.4x — still over)
+//    5 monitors x 1 location  x 30m =   7,200 runs/month   (72% — this)
 //
-// The headroom is deliberate: singleRetry spends an extra run per failure, and a
-// bad week must not be what silences the monitor.
+// Note the account is on Trial today, where the limit is a monitor COUNT
+// (UPTIME_CHECKS: 75) and none of this binds. These numbers are for the Hobby
+// plan the trial lapses into, which is when getting it wrong goes quiet.
 //
-// Coverage given up here did NOT disappear. The nine duplicated routes were
-// already in the smoke run, and the three Notion content canaries moved into it —
-// see the comment beside them there for the 2026-09-03 incident they exist for.
+// The remaining headroom is deliberate: singleRetry spends an extra run per
+// failure, and a bad week must not be what silences the monitor.
+//
+// The smoke run keeps the other six routes and its body assertions
+// (`<title>` contains "Ask JackGPT"), which a UrlMonitor cannot make. It stays
+// the free backstop; it is no longer load-bearing for the canaries.
 
 monitor('production-home', 'Prod · Home', '/')
 monitor('production-chat', 'Prod · Chat', '/chat')
+
+// Notion content canaries, one per depth — each was actually dead in the
+// 2026-09-03 incident. Full coverage is the post-deploy sitemap sweep
+// (.github/workflows/sitemap-availability.yml); these three only have to notice
+// that the content layer as a whole has gone missing between deploys. Polling
+// all 162 here would rebuild the rate-limit storm that caused the incident.
+monitor('production-content-experience', 'Prod · Content · Experience', '/experience-background')
+monitor('production-content-tool-leaf', 'Prod · Content · Tool leaf', '/aws')
+monitor('production-content-gallery-leaf', 'Prod · Content · Gallery leaf', '/beluga')

@@ -73,11 +73,14 @@ await check("/assets/avatar-favicon/error.png", [200], ({ contentType }) =>
 // 404 for days: a rate-limited build had cached `notFound` for pages nothing was
 // watching. These three were each actually dead in that incident.
 //
-// They moved here from Checkly when Checkly was cut to fit the free tier and this
-// smoke run became the primary monitor. Load is unchanged — three pages at the
-// same five-minute cadence — which matters, because these are generated on demand
-// and polling all 162 would rebuild the same rate-limit storm against live
-// traffic. Full coverage is the post-deploy sitemap sweep, not more checks here.
+// Checkly monitors the same three, and is the one to trust on timing: this
+// workflow's cron says `*/5` but GitHub fires scheduled workflows on a
+// best-effort basis for public repos — measured median interval across 28 runs
+// was 212 minutes. These stay here anyway because the duplication is free and
+// the canaries must not disappear again if Checkly is ever trimmed a second
+// time. Full coverage is the post-deploy sitemap sweep, not more checks here:
+// these pages are generated on demand, and polling all 162 would rebuild the
+// rate-limit storm that caused the incident.
 await check("/experience-background", [200]);
 await check("/aws", [200]);
 await check("/beluga", [200]);
