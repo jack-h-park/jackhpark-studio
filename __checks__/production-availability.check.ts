@@ -25,6 +25,14 @@ const emailAlert = AlertChannel.fromId(322_164)
 // parsing entirely. Verified against the exact payload that broke before.
 const telegramApiKey = process.env.CHECKLY_TELEGRAM_BOT_TOKEN
 const telegramChatId = process.env.CHECKLY_TELEGRAM_CHAT_ID
+// Optional forum topic inside a Telegram supergroup. Sent as a separate
+// `message_thread_id` parameter, NOT appended to chat_id: Telegram rejects
+// `chat_id=-100…:17` with a 400 and delivers nothing. Unset = the group root,
+// which is also the correct value for a plain group with no topics.
+const telegramThreadId = process.env.CHECKLY_TELEGRAM_THREAD_ID?.trim()
+const telegramThreadParam = telegramThreadId
+  ? `&message_thread_id=${telegramThreadId}`
+  : ''
 if (!telegramApiKey || !telegramChatId) {
   throw new Error(
     'CHECKLY_TELEGRAM_BOT_TOKEN and CHECKLY_TELEGRAM_CHAT_ID must be set ' +
@@ -37,7 +45,7 @@ const telegramAlert = new WebhookAlertChannel('jackhpark-com-telegram-ops', {
   webhookType: 'WEBHOOK_TELEGRAM',
   url: `https://api.telegram.org/bot${telegramApiKey}/sendMessage`,
   method: 'POST',
-  template: `chat_id=${telegramChatId}&text={{ALERT_TITLE}} at {{RUN_LOCATION}} ({{RESPONSE_TIME}}ms)
+  template: `chat_id=${telegramChatId}${telegramThreadParam}&text={{ALERT_TITLE}} at {{RUN_LOCATION}} ({{RESPONSE_TIME}}ms)
 {{#if AI_ANALYSIS_CLASSIFICATION}}
 AI Analysis: {{AI_ANALYSIS_CLASSIFICATION}}
 
