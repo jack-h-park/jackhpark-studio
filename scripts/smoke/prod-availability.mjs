@@ -68,6 +68,23 @@ await check("/assets/avatar-favicon/error.png", [200], ({ contentType }) =>
   contentType.includes("image/png"),
 );
 
+// Notion content canaries, one per depth. Every check above sits on a top-level
+// route, and on 2026-09-03 all of them stayed green while 48 leaf pages served
+// 404 for days: a rate-limited build had cached `notFound` for pages nothing was
+// watching. These three were each actually dead in that incident.
+//
+// Checkly monitors the same three, and is the one to trust on timing: this
+// workflow's cron says `*/5` but GitHub fires scheduled workflows on a
+// best-effort basis for public repos — measured median interval across 28 runs
+// was 212 minutes. These stay here anyway because the duplication is free and
+// the canaries must not disappear again if Checkly is ever trimmed a second
+// time. Full coverage is the post-deploy sitemap sweep, not more checks here:
+// these pages are generated on demand, and polling all 162 would rebuild the
+// rate-limit storm that caused the incident.
+await check("/experience-background", [200]);
+await check("/aws", [200]);
+await check("/beluga", [200]);
+
 if (scope === "full") {
   await check("/landing", [200, 301, 302, 307, 308]);
   await check("/robots.txt", [200]);
