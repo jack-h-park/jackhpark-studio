@@ -70,7 +70,18 @@ export default [
     // Cleared of `any` and held there. Add each path as it is cleaned, so the
     // repo-wide "warn" ratchets to "error" one directory at a time instead of
     // staying advisory forever.
-    files: ["lib/notion.ts"],
+    files: [
+      "lib/notion.ts",
+      "lib/error-message.ts",
+      "lib/notion/getPageCollectionId.ts",
+      "lib/resolve-notion-page.ts",
+      "lib/get-social-image-url.ts",
+      "lib/server/ollama-provider.ts",
+      "components/NotionPage.tsx",
+      "components/NotionPageRenderer.tsx",
+      "pages/api/chat-config.ts",
+      "pages/api/chat-runtime.ts",
+    ],
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
     },
