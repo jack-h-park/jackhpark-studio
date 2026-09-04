@@ -3,6 +3,7 @@ import {
   getOllamaRuntimeConfig,
   type OllamaRuntimeConfig,
 } from "@/lib/core/ollama";
+import { isAbortError } from "@/lib/error-message";
 
 export const OLLAMA_UNAVAILABLE_ERROR_CODE = "OLLAMA_UNAVAILABLE";
 export const OLLAMA_UNAVAILABLE_ERROR_MESSAGE =
@@ -98,11 +99,11 @@ export async function* streamOllamaChat(
     for (const chunk of finalChunks) {
       yield chunk;
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof OllamaUnavailableError) {
       throw err;
     }
-    if (err && typeof err === "object" && err.name === "AbortError") {
+    if (isAbortError(err)) {
       throw createUnavailableError("Ollama chat request timed out.", {
         baseUrl: config.baseUrl,
         model: resolvedModel,

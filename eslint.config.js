@@ -45,7 +45,23 @@ export default [
     // Tests use `any` deliberately: partial recordMap fixtures, intentionally
     // invalid inputs fed to validators, and stubbed globals like Date.now.
     // Typing those fully would describe the fixture rather than the contract.
-    files: ["test/**/*.ts", "test/**/*.tsx"],
+    // Colocated tests get the same exemption as test/ — the original glob
+    // missed them, e.g. components/chat/rendering/parse/*.test.ts.
+    files: [
+      "test/**/*.ts",
+      "test/**/*.tsx",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+    ],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
+  {
+    // Ambient module declarations for third-party packages that ship no usable
+    // types. `any` is the shim here: the alternative is inventing a shape for
+    // someone else's runtime and being wrong about it.
+    files: ["**/*.d.ts"],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
     },

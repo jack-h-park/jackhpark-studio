@@ -20,6 +20,7 @@ import {
 } from "./config";
 import { db } from "./db";
 import { debugNotionXEnabled, debugNotionXLogger } from "./debug-notion-x";
+import { errorMessage } from "./error-message";
 import { getTweetsMap } from "./get-tweets";
 import { notion } from "./notion-api";
 import { withRateLimitRetry } from "./notion-rate-limit";
@@ -47,10 +48,6 @@ const isObject = (value: unknown): value is JsonRecord =>
 /** `value?.property`, for grouping descriptors whose shape is not guaranteed. */
 const readProperty = (value: unknown): unknown =>
   isObject(value) ? value.property : undefined;
-
-/** Message for log-only catch sites, without asserting the thrown value's type. */
-const errorMessage = (err: unknown): string =>
-  err instanceof Error ? err.message : String(err);
 
 /** `viewValue.format`, narrowed — all grouping metadata hangs off it. */
 const readFormat = (viewValue: unknown): JsonRecord | undefined => {

@@ -11,6 +11,7 @@ import {
   site,
 } from "./config";
 import { db } from "./db";
+import { errorMessage } from "./error-message";
 import { getSiteMap } from "./get-site-map";
 import { getPage } from "./notion";
 
@@ -57,8 +58,8 @@ export async function resolveNotionPage(
     if (!pageId && useUriToPageIdCache) {
       try {
         pageId = await db.get(cacheKey);
-      } catch (err: any) {
-        console.warn(`redis error get "${cacheKey}"`, err.message);
+      } catch (err: unknown) {
+        console.warn(`redis error get "${cacheKey}"`, errorMessage(err));
       }
     }
 
@@ -77,8 +78,8 @@ export async function resolveNotionPage(
         if (useUriToPageIdCache) {
           try {
             await db.set(cacheKey, pageId, cacheTTL);
-          } catch (err: any) {
-            console.warn(`redis error set "${cacheKey}"`, err.message);
+          } catch (err: unknown) {
+            console.warn(`redis error set "${cacheKey}"`, errorMessage(err));
           }
         }
       } else {
