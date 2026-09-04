@@ -6,6 +6,7 @@ import { getTweet as getTweetData } from "react-tweet/api";
 
 import type { ExtendedTweetRecordMap } from "./types";
 import { db } from "./db";
+import { errorMessage } from "./error-message";
 
 export async function getTweetsMap(
   recordMap: ExtendedRecordMap,
@@ -27,7 +28,9 @@ export async function getTweetsMap(
   (recordMap as ExtendedTweetRecordMap).tweets = tweetsMap;
 }
 
-async function getTweetImpl(tweetId: string): Promise<any> {
+type TweetData = Awaited<ReturnType<typeof getTweetData>> | null;
+
+async function getTweetImpl(tweetId: string): Promise<TweetData> {
   if (!tweetId) return null;
 
   const cacheKey = `tweet:${tweetId}`;
@@ -38,23 +41,23 @@ async function getTweetImpl(tweetId: string): Promise<any> {
       if (cachedTweet || cachedTweet === null) {
         return cachedTweet;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // ignore redis errors
-      console.warn(`redis error get "${cacheKey}"`, err.message);
+      console.warn(`redis error get "${cacheKey}"`, errorMessage(err));
     }
 
     const tweetData = (await getTweetData(tweetId)) || null;
 
     try {
       await db.set(cacheKey, tweetData);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // ignore redis errors
-      console.warn(`redis error set "${cacheKey}"`, err.message);
+      console.warn(`redis error set "${cacheKey}"`, errorMessage(err));
     }
 
     return tweetData;
-  } catch (err: any) {
-    console.warn("failed to get tweet", tweetId, err.message);
+  } catch (err: unknown) {
+    console.warn("failed to get tweet", tweetId, errorMessage(err));
     return null;
   }
 }

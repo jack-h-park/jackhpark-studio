@@ -16,6 +16,8 @@ import { getLocalLlmClient } from "@/lib/local-llm";
 import { llmLogger } from "@/lib/logging/logger";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 
+import { isAbortError } from "../error-message";
+
 const logOllamaTiming = (durationMs: number, completed: boolean) => {
   llmLogger.debug("[chat-ollama] response time", {
     durationMs,
@@ -122,11 +124,11 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
         yield generation;
         await runManager?.handleLLMNewToken(content);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err instanceof OllamaUnavailableError) {
         throw err;
       }
-      if (err && typeof err === "object" && err.name === "AbortError") {
+      if (isAbortError(err)) {
         throw new OllamaUnavailableError("Ollama chat request timed out.", {
           cause: err,
         });
@@ -182,7 +184,7 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
           if (
             typeof part === "object" &&
             "text" in part &&
-            typeof (part as any).text === "string"
+            typeof (part as { text?: unknown }).text === "string"
           ) {
             return (part as { text: string }).text;
           }

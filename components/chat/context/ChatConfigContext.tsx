@@ -133,7 +133,10 @@ const sanitizeNumericConfig = (
     presetId: candidate.presetId ?? candidate.appliedPreset ?? "default",
     additionalSystemPrompt: additionalPrompt,
     llmModel: llmResolution.resolvedModelId as SessionChatConfig["llmModel"],
-    embeddingModel: sanitizedEmbeddingSpaceId as any,
+    // Mirrors the llmModel line above: the sanitizer returns a plain string,
+    // and the config field is the narrower branded id.
+    embeddingModel:
+      sanitizedEmbeddingSpaceId as SessionChatConfig["embeddingModel"],
     embeddingSpaceId: sanitizedEmbeddingSpaceId,
     embeddingProvider: finalEmbeddingSpace.provider,
     embeddingModelId: resolvedEmbeddingModelId,

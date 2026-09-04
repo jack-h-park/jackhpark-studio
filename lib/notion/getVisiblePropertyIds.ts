@@ -5,7 +5,7 @@ import {
 
 import { getPageCollectionId } from "./getPageCollectionId";
 
-type PropertyEntry = string | Record<string, any>;
+type PropertyEntry = string | Record<string, unknown>;
 
 const normalizeId = (id?: string | null): string | undefined =>
   id?.replaceAll("-", "");
@@ -16,13 +16,9 @@ const normalizeName = (value?: string): string =>
 const getPropertyId = (entry: PropertyEntry): string | undefined => {
   if (!entry) return undefined;
   if (typeof entry === "string") return entry;
-  return (
-    entry.property ??
-    entry.property_id ??
-    entry.propertyId ??
-    entry.id ??
-    undefined
-  );
+  const candidate =
+    entry.property ?? entry.property_id ?? entry.propertyId ?? entry.id;
+  return typeof candidate === "string" ? candidate : undefined;
 };
 
 const isHiddenEntry = (entry: PropertyEntry): boolean => {
@@ -136,7 +132,7 @@ export function getVisiblePropertyIdsForPage(
   if (!targetView) {
     targetView = Object.values(recordMap.collection_view ?? {})
       .map((entry) => entry?.value)
-      .find(Boolean) as any;
+      .find(Boolean);
   }
 
   if (!targetView) {

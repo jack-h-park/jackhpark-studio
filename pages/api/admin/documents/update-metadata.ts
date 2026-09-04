@@ -44,14 +44,15 @@ function parseMetadata(input: unknown): RagDocumentMetadata {
   }
   if (typeof data.doc_type === "string" && data.doc_type) {
     if ((DOC_TYPE_OPTIONS as readonly string[]).includes(data.doc_type)) {
-      metadata.doc_type = data.doc_type as any;
+      metadata.doc_type = data.doc_type as (typeof DOC_TYPE_OPTIONS)[number];
     }
   }
   if (typeof data.persona_type === "string" && data.persona_type) {
     if (
       (PERSONA_TYPE_OPTIONS as readonly string[]).includes(data.persona_type)
     ) {
-      metadata.persona_type = data.persona_type as any;
+      metadata.persona_type =
+        data.persona_type as (typeof PERSONA_TYPE_OPTIONS)[number];
     }
   }
   if (typeof data.is_public === "boolean") {

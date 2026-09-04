@@ -1,15 +1,15 @@
 import type { ExtendedRecordMap, PageBlock } from "notion-types";
 import { getBlockCollectionId } from "notion-utils";
 
-function findCollectionIdFromViewBlock(
-  recordMap: ExtendedRecordMap,
-  viewBlock: Partial<PageBlock> | undefined | null,
-): string | null {
-  if (!(viewBlock as any)?.collection_id) {
-    return null;
-  }
-
-  return (viewBlock as any).collection_id;
+/**
+ * `collection_id` is present on collection-backed blocks and on collection_view
+ * values, but notion-types does not declare it on every variant, so it has to
+ * be read defensively rather than asserted.
+ */
+function readCollectionId(value: unknown): string | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const id = (value as { collection_id?: unknown }).collection_id;
+  return typeof id === "string" && id.length > 0 ? id : undefined;
 }
 
 export function getPageCollectionId(
@@ -26,7 +26,7 @@ export function getPageCollectionId(
   const parentTable = block?.parent_table ?? null;
   const parentId = block?.parent_id ?? null;
   const blockCollectionId =
-    (block as any)?.collection_id ??
+    readCollectionId(block) ??
     (block ? getBlockCollectionId(block, recordMap) : undefined);
 
   if (blockCollectionId) {
@@ -54,17 +54,17 @@ export function getPageCollectionId(
 
   if (parentTable === "collection_view" && parentId) {
     const viewEntry = recordMap.collection_view?.[parentId];
-    const viewValue = viewEntry?.value;
-    if ((viewValue as any)?.collection_id) {
+    const viewCollectionId = readCollectionId(viewEntry?.value);
+    if (viewCollectionId) {
       if (process.env.NODE_ENV !== "production") {
         console.log("[getPageCollectionId] collection_view parent", {
           pageId,
           parent_table: parentTable,
           parent_id: parentId,
-          collectionId: (viewValue as any).collection_id,
+          collectionId: viewCollectionId,
         });
       }
-      return (viewValue as any).collection_id;
+      return viewCollectionId;
     }
   }
 
@@ -75,10 +75,7 @@ export function getPageCollectionId(
   );
 
   if (viewPageBlocks.length === 1) {
-    const foundId = findCollectionIdFromViewBlock(
-      recordMap,
-      viewPageBlocks[0]?.value as any,
-    );
+    const foundId = readCollectionId(viewPageBlocks[0]?.value);
     if (foundId) {
       if (process.env.NODE_ENV !== "production") {
         console.log("[getPageCollectionId] fallback single view page", {
@@ -92,10 +89,7 @@ export function getPageCollectionId(
 
   for (const entry of Object.values(recordMap.block ?? {})) {
     if (entry?.value?.type === "collection_view_page") {
-      const candidate = findCollectionIdFromViewBlock(
-        recordMap,
-        entry.value as any,
-      );
+      const candidate = readCollectionId(entry.value);
       if (candidate) {
         if (process.env.NODE_ENV !== "production") {
           console.log("[getPageCollectionId] fallback any view page", {

@@ -1,5 +1,10 @@
 "use client";
-import type { CollectionQueryResult, ExtendedRecordMap } from "notion-types";
+import type {
+  Block,
+  CollectionQueryResult,
+  Decoration,
+  ExtendedRecordMap,
+} from "notion-types";
 import dynamic from "next/dynamic";
 import router from "next/router";
 import { idToUuid, parsePageId } from "notion-utils";
@@ -38,12 +43,26 @@ const Pdf = dynamic(
 
 let modalInitialized = false;
 
-function CollectionWithDescription(props: any) {
+/** Exactly what react-notion-x hands its Collection override. */
+type CollectionProps = React.ComponentProps<typeof Collection>;
+
+function CollectionWithDescription(props: CollectionProps) {
   const { recordMap, components } = useNotionContext();
-  const collectionId = props.block?.collection_id;
-  const collection = recordMap?.collection?.[collectionId]?.value as any;
-  const description = collection?.description;
-  const Text = (components as any).Text;
+  // collection_id is absent from some block variants in notion-types.
+  const collectionId = (props.block as { collection_id?: string } | undefined)
+    ?.collection_id;
+  const collection = collectionId
+    ? recordMap?.collection?.[collectionId]?.value
+    : undefined;
+  // Notion collections carry a description; notion-types omits it.
+  const description = (collection as { description?: unknown } | undefined)
+    ?.description;
+  // react-notion-x exposes Text on the components map without declaring it.
+  const Text = (
+    components as {
+      Text?: React.ComponentType<{ value: unknown; block?: unknown }>;
+    }
+  ).Text;
 
   const containerRef = React.useRef<HTMLDivElement>(null);
   const descRef = React.useRef<HTMLDivElement>(null);
@@ -195,13 +214,15 @@ export function NotionPageRenderer({
     }
 
     for (const [viewId, view] of Object.entries(recordMap.collection_view)) {
-      const viewValue: any = view?.value;
+      const viewValue = view?.value;
       if (!viewValue) {
         console.log("[CollectionDebug] missing view value", { viewId });
         continue;
       }
 
-      const collectionId: string | undefined = viewValue.collection_id;
+      const collectionId: string | undefined = (
+        viewValue as { collection_id?: string }
+      ).collection_id;
       const queryEntry =
         collectionId && recordMap.collection_query?.[collectionId]?.[viewId];
 
@@ -219,7 +240,7 @@ export function NotionPageRenderer({
         queryResult &&
         queryResult.reducerResults &&
         typeof queryResult.reducerResults === "object"
-          ? (queryResult.reducerResults as Record<string, any>)
+          ? (queryResult.reducerResults as Record<string, unknown>)
           : null;
 
       const blockIdsLength = queryResult?.blockIds?.length ?? null;
@@ -240,15 +261,19 @@ export function NotionPageRenderer({
         reducerKeys: reducerResults ? Object.keys(reducerResults) : null,
         resultsBuckets: reducerResults
           ? Object.entries(reducerResults)
-              .filter(([key, value]: [string, any]) => {
+              .filter(([key, value]: [string, unknown]) => {
+                const blockIds = (value as { blockIds?: unknown[] } | null)
+                  ?.blockIds;
                 return (
                   key.startsWith("results:") &&
-                  Boolean(value?.blockIds?.length ?? 0)
+                  Boolean(blockIds?.length ?? 0)
                 );
               })
-              .map(([key, value]: [string, any]) => ({
+              .map(([key, value]: [string, unknown]) => ({
                 key,
-                count: value?.blockIds?.length ?? 0,
+                count:
+                  (value as { blockIds?: unknown[] } | null)?.blockIds?.length ??
+                  0,
               }))
           : null,
         fallbackBlockIdsLength: blockIdsLength,
@@ -267,17 +292,24 @@ export function NotionPageRenderer({
     const pageBlock = sanitizedRecordMap.block[blockId]?.value;
     if (!pageBlock) return undefined;
 
-    const rawCoverUrl = (pageBlock as any).format?.page_cover as
-      | string
-      | undefined;
+    // page_cover lives on the block format; notion-types does not declare it
+    // on every block variant this renderer may receive.
+    const blockFormat = (
+      pageBlock as { format?: Record<string, unknown> } | undefined
+    )?.format;
+    const rawCoverUrl =
+      typeof blockFormat?.page_cover === "string"
+        ? blockFormat.page_cover
+        : undefined;
     if (!rawCoverUrl) return undefined;
 
-    const coverUrl = mapImageUrl(rawCoverUrl, pageBlock as any);
+    const coverUrl = mapImageUrl(rawCoverUrl, pageBlock);
     if (!coverUrl) return undefined;
 
     const coverPosition =
-      ((pageBlock as any).format?.page_cover_position as number | undefined) ??
-      0.5;
+      typeof blockFormat?.page_cover_position === "number"
+        ? blockFormat.page_cover_position
+        : 0.5;
 
     return (
       <NotionCoverBlurFill coverUrl={coverUrl} coverPosition={coverPosition} />
@@ -288,7 +320,7 @@ export function NotionPageRenderer({
   // Notion select/multi_select values that don't match any schema option are stray
   // data that Notion silently hides. Skip rendering them to match Notion's behavior.
   const propertySelectValue = React.useCallback(
-    (props: any, defaultRenderer: () => React.ReactNode) => {
+    (props: { option?: unknown }, defaultRenderer: () => React.ReactNode) => {
       if (!props?.option) return null;
       return defaultRenderer();
     },
@@ -299,11 +331,16 @@ export function NotionPageRenderer({
   // app silently hides but react-notion-x renders verbatim. This override keeps
   // only the page-reference (‣) segments so only the actual linked entries show.
   const propertyRelationValue = React.useCallback(
-    (props: any, defaultRenderer: () => React.ReactNode) => {
-      const data: unknown = props?.data;
+    (
+      // react-notion-x always supplies block to a property renderer; Text
+      // requires it, and the previous `any` was hiding that it could be missing.
+      props: { data?: Decoration[]; block: Block },
+      defaultRenderer: () => React.ReactNode,
+    ) => {
+      const data = props?.data;
       if (!Array.isArray(data)) return defaultRenderer();
 
-      const pageRefOnly = data.filter((segment: unknown) => {
+      const pageRefOnly = data.filter((segment: Decoration) => {
         if (!Array.isArray(segment) || segment[0] !== "‣") return false;
         const decorators = segment[1];
         return (
@@ -316,7 +353,7 @@ export function NotionPageRenderer({
       });
 
       if (pageRefOnly.length === 0) return defaultRenderer();
-      return <Text value={pageRefOnly as any} block={props.block} />;
+      return <Text value={pageRefOnly} block={props.block} />;
     },
     [],
   );
@@ -331,7 +368,12 @@ export function NotionPageRenderer({
       Modal,
       propertySelectValue,
       propertyRelationValue,
-      PageLink: ({ href, children, className, ...props }: any) => {
+      PageLink: ({
+        href,
+        children,
+        className,
+        ...props
+      }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
         if (!href) {
           return (
             <a className={className} {...props}>
@@ -440,10 +482,10 @@ export function NotionPageRenderer({
             rootPageId={rootPageId}
             mapPageUrl={mapPageUrl}
             mapImageUrl={mapImageUrl}
-            pageAside={pageAside as any}
-            footer={footer as any}
+            pageAside={pageAside}
+            footer={footer}
             components={components}
-            pageCover={pageCoverNode as any}
+            pageCover={pageCoverNode}
             forceCustomImages={true}
             // Same flag that makes the server build `recordMap.preview_images`.
             // Without it react-notion-x defaults to false and never reads the

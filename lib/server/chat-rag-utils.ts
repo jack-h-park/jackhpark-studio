@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import type { RagRankingConfig } from "@/lib/server/admin-chat-config";
 import type { RankerMode, ReverseRagMode } from "@/lib/shared/rag-config";
 import { startDbQuery } from "@/lib/logging/db-logger";
 import { ragLogger } from "@/lib/logging/logger";
@@ -75,7 +76,7 @@ export async function fetchRefinedMetadata(
       .select("doc_id, metadata")
       .in("doc_id", docIds);
     if (data) {
-      metadataRows = data as any;
+      metadataRows = data as typeof metadataRows;
     }
     tracker.done({ rowCount: data?.length ?? 0 });
   }
@@ -149,7 +150,8 @@ export function extractDocIdsFromBaseDocs(docs: BaseRetrievalItem[]): string[] {
 export function enrichAndFilterDocs<T extends BaseRetrievalItem>(
   baseDocs: T[],
   metadataMap: Map<string, RagDocumentMetadata | null>,
-  ragRanking: any, // passed from adminConfig
+  // Same shape computeMetadataWeight consumes; passed through from adminConfig.
+  ragRanking: RagRankingConfig | null | undefined,
   options?: {
     /**
      * When the question asks for visuals, image-caption chunks get a weight

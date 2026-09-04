@@ -93,14 +93,17 @@ const getRawPropertyValue = (
     return null;
   }
 
-  const direct = (block.properties as any)?.[propertyId];
+  const properties = block.properties as
+    | Record<string, unknown>
+    | undefined;
+  const direct = properties?.[propertyId];
   if (direct !== undefined) {
     return direct;
   }
 
   const normalized = normalizeId(propertyId);
   if (normalized && normalized !== propertyId) {
-    return (block.properties as any)?.[normalized] ?? null;
+    return properties?.[normalized] ?? null;
   }
 
   return null;
@@ -111,7 +114,7 @@ const getRawFromBlockProperties = (
   schemaName: string,
 ): unknown | null => {
   if (!block?.properties) return null;
-  const props = block.properties as any;
+  const props = block.properties as Record<string, unknown>;
   // Try exact match first
   if (props[schemaName]) return props[schemaName];
 

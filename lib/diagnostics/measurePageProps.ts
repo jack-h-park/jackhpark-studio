@@ -1,4 +1,6 @@
-type SerializableProps = Record<string, any>;
+// Any props object; page prop types are plain interfaces without an index
+// signature, so Record<string, unknown> would reject them.
+type SerializableProps = object;
 
 export function logPagePropsSize(pageId: string, props: SerializableProps) {
   if (process.env.NODE_ENV === "production") {
@@ -10,7 +12,7 @@ export function logPagePropsSize(pageId: string, props: SerializableProps) {
     const totalBytes = Buffer.byteLength(json, "utf8");
     const totalKb = totalBytes / 1024;
 
-    const perKeySummary: Record<string, any> = {};
+    const perKeySummary: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(props)) {
       try {
         const keyJson = JSON.stringify(value);

@@ -25,7 +25,9 @@ async function searchNotionImpl(
       }
 
       // convert non-2xx HTTP responses into errors
-      const error: any = new Error(res.statusText);
+      // Carries the response for callers that inspect it; Error has no such
+      // field, so the shape is declared rather than assumed.
+      const error: Error & { response?: Response } = new Error(res.statusText);
       error.response = res;
       throw error;
     })

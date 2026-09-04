@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
+import type { ChatRuntimeRequest } from "@/lib/server/chat-runtime-request";
 import { llmLogger } from "@/lib/logging/logger";
 import { loadChatModelSettings } from "@/lib/server/chat-settings";
 
@@ -21,7 +22,7 @@ export default async function handler(
     const runtime = await loadChatModelSettings({
       sessionConfig: req.body?.config,
     });
-    (req as any).chatRuntime = runtime;
+    (req as ChatRuntimeRequest).chatRuntime = runtime;
     engine = runtime.engine;
 
     llmLogger.debug("[api/chat] dispatch", {

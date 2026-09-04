@@ -7,7 +7,11 @@ import type {
   ChatMessage,
   ChatRetryPreset,
 } from "@/components/chat/hooks/useChatSession";
-import { MetaCard, MetaChip } from "@/components/ui/meta-card";
+import {
+  MetaCard,
+  type MetaCardItem,
+  MetaChip,
+} from "@/components/ui/meta-card";
 import {
   Tooltip,
   TooltipContent,
@@ -55,6 +59,16 @@ export type ChatMessageItemProps = {
   citationLinkLength?: number;
   chatSessionId?: string | null;
 };
+
+/**
+ * Meta rows are written as `condition && { … }`, so the falsy branches have to
+ * be dropped before the card sees them. Taking the array as a parameter gives
+ * the object literals a contextual type, which a bare `.filter(Boolean)` on an
+ * inline array cannot do — that is what the `as any` here was papering over.
+ */
+const compactMetaItems = (
+  items: Array<MetaCardItem | false | 0 | "" | null | undefined>,
+): MetaCardItem[] => items.filter(Boolean) as MetaCardItem[];
 
 function ChatMessageItemImpl({
   message: m,
@@ -363,8 +377,7 @@ function ChatMessageItemImpl({
                   <MetaCard
                     title="Performance"
                     variant="default"
-                    items={
-                      [
+                    items={compactMetaItems([
                         m.metrics?.totalMs && {
                           label: "LATENCY",
                           value: `${(m.metrics.totalMs / 1000).toFixed(2)}s`,
@@ -400,7 +413,7 @@ function ChatMessageItemImpl({
                             </div>
                           ),
                         },
-                      ].filter(Boolean) as any
+                      ])
                     }
                   />
                 )}
@@ -408,8 +421,7 @@ function ChatMessageItemImpl({
                   <MetaCard
                     title="Engine & Model"
                     variant="runtime"
-                    items={
-                      [
+                    items={compactMetaItems([
                         runtimeEngineLabel && {
                           label: "ENGINE",
                           value: runtimeEngineLabel,
@@ -422,7 +434,7 @@ function ChatMessageItemImpl({
                           label: "EMBEDDING",
                           value: runtimeEmbeddingModelLabel,
                         },
-                      ].filter(Boolean) as any
+                      ])
                     }
                   />
                 )}
@@ -430,8 +442,7 @@ function ChatMessageItemImpl({
                   <MetaCard
                     title="Guardrails"
                     variant="guardrail"
-                    items={
-                      [
+                    items={compactMetaItems([
                         {
                           label: "ROUTE",
                           value: m.meta!.reason ?? m.meta!.intent,
@@ -467,7 +478,7 @@ function ChatMessageItemImpl({
                           ),
                           isWarning: contextStats.insufficient,
                         },
-                      ].filter(Boolean) as any
+                      ])
                     }
                     footer={
                       <>

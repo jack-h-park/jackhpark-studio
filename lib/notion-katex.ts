@@ -1,5 +1,7 @@
 import type { ExtendedRecordMap } from "notion-types";
 
+import { unwrapRecordValue } from "./rag/notion-record-value";
+
 const MATH_LIKE_PATTERN = /\\(frac|int|sum|sqrt|begin\{align)/i;
 
 /**
@@ -13,7 +15,10 @@ export function hasKaTeXContent(recordMap: ExtendedRecordMap): boolean {
   }
 
   for (const block of Object.values(recordMap.block)) {
-    const value = (block as any)?.value;
+    const value = unwrapRecordValue<{
+      type?: string;
+      properties?: Record<string, unknown>;
+    }>(block);
     if (!value) {
       continue;
     }

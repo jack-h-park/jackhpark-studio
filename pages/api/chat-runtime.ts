@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
+import { errorMessageOrUndefined } from "@/lib/error-message";
 import { loadChatModelSettings } from "@/lib/server/chat-settings";
 
 export default async function handler(
@@ -14,10 +15,10 @@ export default async function handler(
   try {
     const runtime = await loadChatModelSettings({ forceRefresh: true });
     return res.status(200).json({ runtime });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[api/chat-runtime] failed to load chat runtime", err);
-    return res
-      .status(500)
-      .json({ error: err?.message ?? "Failed to load chat runtime." });
+    return res.status(500).json({
+      error: errorMessageOrUndefined(err) ?? "Failed to load chat runtime.",
+    });
   }
 }

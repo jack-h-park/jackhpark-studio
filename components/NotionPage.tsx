@@ -43,9 +43,7 @@ import { SidePeek } from "./SidePeek";
 // IDs may include dashes; they will be normalized (dashes removed) before comparison.
 const normalizeId = (id?: string | null) => (id ? id.replaceAll("-", "") : "");
 const PREVIEW_DATABASE_IDS = new Set<string>(
-  ((config as any)?.galleryPreviewDatabaseIds ?? []).map((id: string) =>
-    normalizeId(id),
-  ),
+  (config.galleryPreviewDatabaseIds ?? []).map((id) => normalizeId(id)),
 );
 
 if (debugNotionXEnabled) {
@@ -231,7 +229,10 @@ function Tweet({ id }: { id: string }) {
 }
 
 const propertyLastEditedTimeValue = (
-  { block, pageHeader }: any,
+  {
+    block,
+    pageHeader,
+  }: { block?: { last_edited_time?: number }; pageHeader?: unknown },
   defaultFn: () => React.ReactNode,
 ) => {
   if (pageHeader && block?.last_edited_time) {
@@ -244,7 +245,19 @@ const propertyLastEditedTimeValue = (
 };
 
 const propertyTextValue = (
-  { schema, pageHeader, data, block, value }: any,
+  {
+    schema,
+    pageHeader,
+    data,
+    block,
+    value,
+  }: {
+    schema?: { id?: string; name?: string };
+    pageHeader?: unknown;
+    data?: unknown;
+    block?: { properties?: Record<string, unknown> };
+    value?: unknown;
+  },
   defaultFn: () => React.ReactNode,
 ) => {
   // ✅ Bold the 'author' field in the page header
@@ -256,7 +269,7 @@ const propertyTextValue = (
   const raw =
     value ??
     data ??
-    block?.properties?.[schema?.id] ??
+    (schema?.id ? block?.properties?.[schema.id] : undefined) ??
     schema?.name ??
     defaultFn()?.toString() ??
     "";
@@ -277,7 +290,7 @@ const stripBoldFromNode = (node: React.ReactNode): React.ReactNode => {
     return node;
   }
 
-  const props = (node.props ?? {}) as Record<string, any>;
+  const props = (node.props ?? {}) as Record<string, unknown>;
   const childArray = React.Children.toArray(
     props.children as React.ReactNode | React.ReactNode[] | undefined,
   );
@@ -307,31 +320,32 @@ const stripBoldFromNode = (node: React.ReactNode): React.ReactNode => {
     );
   }
 
-  const hasDangerousHtml =
-    typeof (props.dangerouslySetInnerHTML as any)?.__html === "string";
+  const dangerousHtml = (props.dangerouslySetInnerHTML as
+    | { __html?: unknown }
+    | undefined)?.__html;
+  const hasDangerousHtml = typeof dangerousHtml === "string";
   const sanitizedHtml = hasDangerousHtml
-    ? (props.dangerouslySetInnerHTML as any).__html.replaceAll(
-        /<\/?(b|strong)>/gi,
-        "",
-      )
+    ? dangerousHtml.replaceAll(/<\/?(b|strong)>/gi, "")
     : null;
 
-  let resultNode: React.ReactElement<any, any> = node;
+  let resultNode: React.ReactElement = node;
 
-  if (
-    hasDangerousHtml &&
-    sanitizedHtml !== (props.dangerouslySetInnerHTML as any).__html
-  ) {
+  if (hasDangerousHtml && sanitizedHtml !== dangerousHtml) {
     const {
       children: _ignoredChildren,
       dangerouslySetInnerHTML: _ignoredInnerHtml,
       ...restProps
     } = props;
 
-    resultNode = React.cloneElement(resultNode, {
-      ...restProps,
-      dangerouslySetInnerHTML: { __html: sanitizedHtml },
-    } as any);
+    resultNode = React.cloneElement(
+      resultNode,
+      {
+        ...restProps,
+        dangerouslySetInnerHTML: { __html: sanitizedHtml },
+        // cloneElement cannot know the concrete element's prop type here; the
+        // props being spread came off this same element.
+      } as React.HTMLAttributes<HTMLElement>,
+    );
   }
 
   const childrenChanged =
@@ -349,7 +363,16 @@ const stripBoldFromNode = (node: React.ReactNode): React.ReactNode => {
   return resultNode;
 };
 
-const propertyTitleValue = (props: any, defaultFn: () => React.ReactNode) => {
+type PropertyRenderProps = {
+  pageHeader?: unknown;
+  schema?: { type?: string };
+  block?: { type?: string; parent_table?: string };
+};
+
+const propertyTitleValue = (
+  props: PropertyRenderProps | undefined,
+  defaultFn: () => React.ReactNode,
+) => {
   const { pageHeader, schema, block } = props ?? {};
 
   const isCollectionPageRow =
@@ -369,9 +392,11 @@ const propertyTitleValue = (props: any, defaultFn: () => React.ReactNode) => {
 
 debugNotionXLogger.log("[Injecting CleanText]");
 // Safer text renderer: normalize react-notion-x rich text → plain inline text
-function renderRichText(item: any): string {
+function renderRichText(item: unknown): string {
   if (!Array.isArray(item)) return typeof item === "string" ? item : "";
-  const [text, decorations]: [string, any[]] = item as [string, any[]];
+  // Notion rich text is [text, decorations?]; decorations are themselves
+  // [type, value?] tuples, which is what the switch below walks.
+  const [text, decorations] = item as [string, unknown[] | undefined];
   if (!decorations || !Array.isArray(decorations) || decorations.length === 0)
     return text;
 
@@ -403,8 +428,8 @@ function renderRichText(item: any): string {
   return html;
 }
 
-function CleanText(props: any) {
-  const raw: any = props?.value ?? props?.text ?? props?.children ?? "";
+function CleanText(props: { value?: unknown; text?: unknown; children?: unknown }) {
+  const raw: unknown = props?.value ?? props?.text ?? props?.children ?? "";
   debugNotionXLogger.log("[CleanText called]", props);
   let html = "";
   try {
@@ -415,9 +440,9 @@ function CleanText(props: any) {
     } else if (
       raw &&
       typeof raw === "object" &&
-      typeof (raw as any).plain_text === "string"
+      typeof (raw as { plain_text?: unknown }).plain_text === "string"
     ) {
-      html = (raw as any).plain_text;
+      html = (raw as { plain_text: string }).plain_text;
     } else {
       html = String(raw);
     }
@@ -718,7 +743,7 @@ export function NotionPage({
   const { isDarkMode } = useDarkMode();
 
   const siteMapPageUrl = React.useMemo(() => {
-    const params: any = {};
+    const params: Record<string, string> = {};
     if (lite) params.lite = lite;
 
     const searchParams = new URLSearchParams(params);
@@ -954,7 +979,8 @@ export function NotionPage({
 
   if (!config.isServer) {
     // add important objects to the window global for easy debugging
-    const g = window as any;
+    // Debug handles hung off window; deliberately untyped surface.
+    const g = window as unknown as Record<string, unknown>;
     g.pageId = pageId;
     g.recordMap = recordMap;
     g.block = block;
@@ -979,8 +1005,8 @@ export function NotionPage({
           fullPage={!isLiteMode}
           darkMode={isDarkMode}
           components={components}
-          mapPageUrl={siteMapPageUrl as any}
-          mapImageUrl={mapImageUrl as any}
+          mapPageUrl={siteMapPageUrl}
+          mapImageUrl={mapImageUrl}
           pageAside={pageAside}
           footer={footer}
           onOpenPeek={handleOpenPeek}
@@ -1067,8 +1093,8 @@ export function NotionPage({
             fullPage={!isLiteMode}
             darkMode={isDarkMode}
             components={peekComponents}
-            mapPageUrl={siteMapPageUrl as any}
-            mapImageUrl={mapImageUrl as any}
+            mapPageUrl={siteMapPageUrl}
+            mapImageUrl={mapImageUrl}
           />
         )}
       </SidePeek>

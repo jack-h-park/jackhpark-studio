@@ -18,13 +18,12 @@ export default [
       "simple-import-sort/imports": "error", // <-- 3. Enable the import sort rule.
       "@typescript-eslint/no-unused-vars": "error", // <-- Also enable the no-unused-vars rule.
 
-      // CLAUDE.md bans `any`, but the rule ships off in the shared config, so
-      // the ban was convention only and ~180 uses accumulated. Warn rather than
-      // error: this surfaces new ones in review without blocking on the
-      // existing backlog. tsconfig `strict` already catches *implicit* any —
-      // what this covers is the explicit escape hatch. Promote to "error" per
-      // directory as each is cleaned up.
-      "@typescript-eslint/no-explicit-any": "warn",
+      // CLAUDE.md bans `any`; the rule ships off in the shared config, so the
+      // ban was convention only and ~185 uses accumulated. Those are now gone,
+      // so this is an error. tsconfig `strict` already catches *implicit* any —
+      // what this covers is the explicit escape hatch. Two exemptions follow
+      // below: tests and ambient .d.ts shims.
+      "@typescript-eslint/no-explicit-any": "error",
 
       // --- Rules that were previously turned off ---
       "react/prop-types": "off",
@@ -45,18 +44,25 @@ export default [
     // Tests use `any` deliberately: partial recordMap fixtures, intentionally
     // invalid inputs fed to validators, and stubbed globals like Date.now.
     // Typing those fully would describe the fixture rather than the contract.
-    files: ["test/**/*.ts", "test/**/*.tsx"],
+    // Colocated tests get the same exemption as test/ — the original glob
+    // missed them, e.g. components/chat/rendering/parse/*.test.ts.
+    files: [
+      "test/**/*.ts",
+      "test/**/*.tsx",
+      "**/*.test.ts",
+      "**/*.test.tsx",
+    ],
     rules: {
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
   {
-    // Cleared of `any` and held there. Add each path as it is cleaned, so the
-    // repo-wide "warn" ratchets to "error" one directory at a time instead of
-    // staying advisory forever.
-    files: ["lib/notion.ts"],
+    // Ambient module declarations for third-party packages that ship no usable
+    // types. `any` is the shim here: the alternative is inventing a shape for
+    // someone else's runtime and being wrong about it.
+    files: ["**/*.d.ts"],
     rules: {
-      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
 ];

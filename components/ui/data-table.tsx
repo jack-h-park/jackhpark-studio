@@ -64,7 +64,7 @@ export function DataTable<T>({
 }: DataTableProps<T>) {
   const hasData = data.length > 0;
   const variantClassMap: Record<
-    NonNullable<DataTableColumn<any>["variant"]>,
+    NonNullable<DataTableColumn<unknown>["variant"]>,
     string
   > = {
     primary: "text-[color:var(--ai-text-soft)]",
@@ -73,7 +73,7 @@ export function DataTable<T>({
     code: "font-mono text-[color:var(--ai-text-soft)]",
   };
   const sizeClassMap: Record<
-    NonNullable<DataTableColumn<any>["size"]>,
+    NonNullable<DataTableColumn<unknown>["size"]>,
     string
   > = {
     sm: "text-sm",

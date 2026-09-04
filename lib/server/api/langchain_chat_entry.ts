@@ -38,7 +38,8 @@ export async function handleLangchainChatEntry(
       "ms",
     );
 
-    const handleLangchainChat = (mod as any).handleLangchainChat;
+    const handleLangchainChat = (mod as Record<string, unknown>)
+    .handleLangchainChat;
     if (typeof handleLangchainChat !== "function") {
       return res.status(500).json({
         error: "Impl handler export is not a function",

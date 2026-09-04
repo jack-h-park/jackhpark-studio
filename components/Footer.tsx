@@ -23,7 +23,7 @@ export function FooterImpl() {
   const currentYear = new Date().getFullYear();
 
   const onToggleDarkMode = React.useCallback(
-    (e: any) => {
+    (e: React.MouseEvent) => {
       e.preventDefault();
       toggleDarkMode();
     },

@@ -103,7 +103,7 @@ export async function handleLangchainChat(
     );
     logResourceSnapshot("shim:after-import-heavy");
 
-    const heavy = (mod as any).handleLangchainChat;
+    const heavy = (mod as Record<string, unknown>).handleLangchainChat;
     if (typeof heavy !== "function") {
       res.status(500).json({
         error: "Heavy handler export is not a function",

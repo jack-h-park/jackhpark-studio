@@ -67,7 +67,7 @@ export default async function handler(
         typeof msg === "object" &&
         msg !== null &&
         "content" in msg &&
-        typeof (msg as any).content === "string"
+        typeof (msg as { content?: unknown }).content === "string"
         // role is optional in some contexts or defaults to user, but let's check string if present
       ) {
         // Ensure we construct clean objects that preserve reference identity for our mapping phase,
