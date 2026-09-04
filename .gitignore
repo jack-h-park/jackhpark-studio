@@ -41,6 +41,17 @@ jack-rag-logs/
 .env.test.local
 .env.production.local
 
+# Copies of the files above. The rules match exact names, so a copy inherits
+# none of them: workspace-governance's secret-rotate leaves a .bak-YYYYMMDD
+# beside the original for a ~7-day soak so a bad rotation can be undone, and
+# .env.local.bak-20260904 sat here untracked-but-unignored — one `git add -A`
+# from committing 75 live credentials to a public repository.
+.env*.bak
+.env*.bak-*
+.env*.backup*
+.env*.orig
+.env*.save
+
 # vercel
 .vercel
 
