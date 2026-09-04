@@ -31,11 +31,15 @@ const baseUrl = (
 const timeoutMs = Number(process.env.SITEMAP_TIMEOUT_MS ?? 60000);
 const concurrency = Number(process.env.SITEMAP_CONCURRENCY ?? 4);
 const retryDelayMs = Number(process.env.SITEMAP_RETRY_DELAY_MS ?? 5000);
+const sitemapAttempts = Number(process.env.SITEMAP_INDEX_ATTEMPTS ?? 4);
+const sitemapRetryDelayMs = Number(
+  process.env.SITEMAP_INDEX_RETRY_DELAY_MS ?? 10000,
+);
 
 const userAgent = "jackhpark-sitemap-smoke/1.0";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function fetchStatus(path) {
+async function request(path, { withBody = false } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
@@ -45,7 +49,8 @@ async function fetchStatus(path) {
       signal: controller.signal,
       headers: { "User-Agent": userAgent },
     });
-    return { status: response.status, latencyMs: Date.now() - startedAt };
+    const body = withBody ? await response.text() : undefined;
+    return { status: response.status, latencyMs: Date.now() - startedAt, body };
   } catch (error) {
     return {
       status: null,
@@ -58,19 +63,36 @@ async function fetchStatus(path) {
 }
 
 async function readSitemapPaths() {
-  const result = await fetchStatus("/sitemap.xml");
+  // /sitemap.xml is server-rendered and crawls Notion to build the map, which
+  // makes it both the first request after a deploy and by far the most
+  // expensive — the worst possible thing to give a single attempt. It gets its
+  // own, more patient retry: content URLs recover in seconds, a cold sitemap
+  // crawl does not. Fetched once, body included, because doing it twice meant
+  // two full crawls back to back.
+  let result;
+  for (let attempt = 1; attempt <= sitemapAttempts; attempt++) {
+    result = await request("/sitemap.xml", { withBody: true });
+    if (result.status === 200) break;
+
+    if (attempt < sitemapAttempts) {
+      const waitMs = sitemapRetryDelayMs * attempt;
+      console.log(
+        `retrying /sitemap.xml in ${waitMs}ms (attempt ${attempt}/${sitemapAttempts}, got ${result.status ?? result.error})`,
+      );
+      await sleep(waitMs);
+    }
+  }
+
   if (result.status !== 200) {
     console.error(
-      `FAIL /sitemap.xml ${result.status ?? result.error} — cannot enumerate pages`,
+      `FAIL /sitemap.xml ${result.status ?? result.error} after ${sitemapAttempts} attempts — cannot enumerate pages`,
     );
     process.exit(1);
   }
 
-  const response = await fetch(`${baseUrl}/sitemap.xml`, {
-    headers: { "User-Agent": userAgent },
-  });
-  const xml = await response.text();
-  const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  const locs = [...result.body.matchAll(/<loc>([^<]+)<\/loc>/g)].map(
+    (m) => m[1],
+  );
 
   // Compare by pathname so the sweep can run against a preview deployment even
   // though the sitemap always advertises the production host.
@@ -97,13 +119,13 @@ let index = 0;
 async function worker() {
   while (index < paths.length) {
     const path = paths[index++];
-    let result = await fetchStatus(path);
+    let result = await request(path);
 
     if (result.status !== 200) {
       // Retry once: a cold page that lost a race with the rate limiter returns
       // an uncached 500 and recovers, unlike a page that is genuinely missing.
       await sleep(retryDelayMs);
-      const retry = await fetchStatus(path);
+      const retry = await request(path);
       if (retry.status === 200) {
         console.log(
           `PASS ${path} 200 ${retry.latencyMs}ms (recovered on retry, first: ${result.status ?? result.error})`,
