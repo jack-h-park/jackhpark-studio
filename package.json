@@ -88,6 +88,7 @@
     "dev:trace:turbo": "REQUIRE_TRACE=1 NODE_OPTIONS=\"--require ./scripts/require-trace.cjs\" pnpm next dev --turbo",
     "smoke:admin-ui": "node scripts/smoke/admin-pages-smoke.mjs",
     "smoke:prod-availability": "node scripts/smoke/prod-availability.mjs",
+    "smoke:sitemap-availability": "node scripts/smoke/sitemap-availability.mjs",
     "smoke:langchain-chat": "tsx scripts/smoke/smoke-langchain-chat.ts",
     "smoke:chat": "tsx scripts/smoke/chat-api-smoke.ts",
     "qa:notion-polish": "bash scripts/playwright/notion-polish-visual-regression.sh",

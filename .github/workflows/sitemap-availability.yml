@@ -1,0 +1,51 @@
+name: Sitemap Availability
+
+# Runs after a production deployment goes live, which is both when the risk is
+# real and when the ISR cache is cold. A build that quietly dropped pages is
+# invisible to Prod Availability — that watches nine top-level routes, and the
+# 2026-09-03 incident killed 48 leaf pages while all nine stayed green.
+#
+# Deliberately not on a schedule. Pages are generated on demand, so every cold
+# URL costs a Notion fetch; sweeping all of them every few minutes would rebuild
+# the same rate-limit storm that caused the incident and aim it at live traffic.
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL to sweep"
+        required: false
+        default: https://www.jackhpark.com
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sitemap-availability
+  cancel-in-progress: true
+
+jobs:
+  sweep:
+    name: Sitemap sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # deployment_status fires for previews and for every non-success state too.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment_status.environment == 'Production')
+
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+
+      - name: Sweep every sitemap URL
+        env:
+          PROD_BASE_URL: ${{ inputs.base_url || 'https://www.jackhpark.com' }}
+          # Low on purpose: this must not become the thing that rate-limits
+          # Notion. See the header comment in the script.
+          SITEMAP_CONCURRENCY: "4"
+        run: node scripts/smoke/sitemap-availability.mjs

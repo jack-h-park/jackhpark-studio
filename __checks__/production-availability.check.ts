@@ -84,3 +84,14 @@ monitor('production-ping-api', 'Prod · Ping API', '/api/ping')
 monitor('production-chat-config-api', 'Prod · Chat config API', '/api/chat-config')
 monitor('production-chat-runtime-api', 'Prod · Chat runtime API', '/api/chat-runtime')
 monitor('production-error-asset', 'Prod · Error asset', '/assets/avatar-favicon/error.png')
+
+// Notion content pages. Every monitor above sits on a top-level route, and on
+// 2026-09-03 all of them stayed green while 48 leaf pages served 404 for days:
+// a rate-limited build had cached `notFound` for pages nothing was watching.
+// One canary per depth, each of which was actually dead in that incident.
+// Full coverage is the post-deploy sitemap sweep, not more monitors here —
+// these pages are generated on demand, so polling all 162 every five minutes
+// would rebuild the same rate-limit storm against live traffic.
+monitor('production-content-experience', 'Prod · Content · Experience', '/experience-background')
+monitor('production-content-tool-leaf', 'Prod · Content · Tool leaf', '/aws')
+monitor('production-content-gallery-leaf', 'Prod · Content · Gallery leaf', '/beluga')
