@@ -59,7 +59,10 @@ export async function resolveNotionPage(
       try {
         pageId = await db.get(cacheKey);
       } catch (err: unknown) {
-        console.warn(`redis error get "${cacheKey}"`, errorMessage(err));
+        console.warn("redis error on cache get", {
+          cacheKey,
+          error: errorMessage(err),
+        });
       }
     }
 
@@ -79,7 +82,10 @@ export async function resolveNotionPage(
           try {
             await db.set(cacheKey, pageId, cacheTTL);
           } catch (err: unknown) {
-            console.warn(`redis error set "${cacheKey}"`, errorMessage(err));
+            console.warn("redis error on cache set", {
+              cacheKey,
+              error: errorMessage(err),
+            });
           }
         }
       } else {
