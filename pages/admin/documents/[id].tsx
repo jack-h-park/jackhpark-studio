@@ -1,4 +1,5 @@
 import type { GetServerSideProps } from "next";
+import type { ExtendedRecordMap } from "notion-types";
 import { FiExternalLink } from "@react-icons/all-files/fi/FiExternalLink";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -136,7 +137,7 @@ function isRetrievalEligible(status: RagDocumentRecord["status"]): boolean {
 
 type PageProps = {
   document: RagDocumentRecord;
-  headerRecordMap: any;
+  headerRecordMap: ExtendedRecordMap | null;
   headerBlockId: string;
 };
 

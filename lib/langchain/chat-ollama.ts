@@ -184,7 +184,7 @@ export class ChatOllama extends SimpleChatModel<BaseChatModelCallOptions> {
           if (
             typeof part === "object" &&
             "text" in part &&
-            typeof (part as any).text === "string"
+            typeof (part as { text?: unknown }).text === "string"
           ) {
             return (part as { text: string }).text;
           }

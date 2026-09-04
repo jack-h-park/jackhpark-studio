@@ -90,8 +90,8 @@ export default async function handler(
     clearWatcher();
 
     const handle =
-      (entryModule as any).handleLangchainChatEntry ??
-      (entryModule as any).default ??
+      (entryModule as Record<string, unknown>).handleLangchainChatEntry ??
+      (entryModule as Record<string, unknown>).default ??
       entryModule;
 
     if (typeof handle !== "function") {

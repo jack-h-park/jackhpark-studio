@@ -51,6 +51,8 @@ export function getSupabaseClient(): SupabaseClient {
  */
 export const supabaseClient: SupabaseClient = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
-    return (getSupabaseClient() as any)[prop as any];
+    // A lazy-instantiation Proxy over a client the ambient declaration types
+    // as `any`; the trap forwards arbitrary property names by design.
+    return (getSupabaseClient() as Record<string | symbol, unknown>)[prop];
   },
 });

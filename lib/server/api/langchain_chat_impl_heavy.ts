@@ -5,6 +5,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { waitUntil } from "@vercel/functions";
 
 import type { GuardrailRoute } from "@/lib/rag/types";
+import type { ChatRuntimeRequest } from "@/lib/server/chat-runtime-request";
 import type {
   RagAutoMode,
   RagMultiQueryMode,
@@ -23,6 +24,7 @@ import {
 } from "@/lib/core/gemini";
 import { resolveLlmModel } from "@/lib/core/llm-registry";
 import { getLcChunksView, getLcMatchFunction } from "@/lib/core/rag-tables";
+import { errorMessageOrUndefined } from "@/lib/error-message";
 import { getAppEnv } from "@/lib/langfuse";
 import {
   getLoggingConfig,
@@ -318,7 +320,7 @@ export async function handleLangchainChat(
     });
     const ragRanking = adminConfig.ragRanking;
     const runtime =
-      (req as any).chatRuntime ??
+      (req as ChatRuntimeRequest).chatRuntime ??
       (await runStage("runtime", () =>
         loadChatModelSettings({
           forceRefresh: false, // rely on cached runtime to avoid repeated heavy reloads
@@ -1173,7 +1175,7 @@ export async function handleLangchainChat(
     if (lastGeminiError) {
       throw lastGeminiError;
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     pushTelemetryEvent("handler-error", {
       stage: http.getLastStage(),
       message: err instanceof Error ? err.message : String(err),
@@ -1228,7 +1230,9 @@ export async function handleLangchainChat(
       logReturn("error-rate-limited");
       return;
     }
-    respondJson(500, { error: err?.message || "Internal Server Error" });
+    respondJson(500, {
+      error: errorMessageOrUndefined(err) || "Internal Server Error",
+    });
     logReturn("error-generic-500");
     return;
   } finally {

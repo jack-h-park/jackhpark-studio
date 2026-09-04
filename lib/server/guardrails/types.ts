@@ -42,8 +42,15 @@ export type RagDocument = {
   chunk?: string | null;
   similarity?: number | null;
   score?: number | null;
+  // Deliberately `any`, not `unknown`. RagDocument is a structurally open bag:
+  // CandidateDoc and the retrieval rows are assigned to and from it in both
+  // directions, and consumers such as lib/types/citation.ts read named fields
+  // straight off metadata. `unknown` breaks all of those at once. Tightening
+  // this means redesigning the RAG document types, which is its own change.
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   metadata?: Record<string, any> | null;
   [key: string]: any;
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 };
 
 export type SelectionUnit = "chunk" | "doc";

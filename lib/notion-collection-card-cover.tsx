@@ -113,12 +113,30 @@ function getBlockChildren(block: Block | undefined): string[] {
 
 // Consumer-local block unboxer. notion-utils@7.7.1 (pinned here) predates
 // getBlockValue, and some Notion records are doubly-nested {value:{value}}.
-function unwrapBlock(box: any): Block | undefined {
-  let node: any = box
-  while (node && typeof node === 'object' && 'value' in node && node.value) {
-    node = node.value
+function unwrapBlock(box: unknown): Block | undefined {
+  let node: unknown = box
+  while (
+    node &&
+    typeof node === 'object' &&
+    'value' in node &&
+    (node as { value?: unknown }).value
+  ) {
+    node = (node as { value?: unknown }).value
   }
-  return node && node.id ? (node as Block) : undefined
+  return node && typeof node === 'object' && (node as { id?: unknown }).id
+    ? (node as Block)
+    : undefined
+}
+
+/**
+ * Read a string field off a block's `format`. notion-types types `format` per
+ * block variant, and display_source / page_cover are not declared on all of
+ * them even though Notion sets them.
+ */
+function readFormatString(block: Block, key: string): string | undefined {
+  const format = (block as { format?: Record<string, unknown> }).format
+  const value = format?.[key]
+  return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
 function traversePageContent(
@@ -219,7 +237,7 @@ function getBlockPlainText(block: Block): string {
 function getBlockSource(block: Block): string | null {
   return (
     block.properties?.source?.[0]?.[0] ??
-    (block.format as any)?.display_source ??
+    readFormatString(block, 'display_source') ??
     null
   )
 }
@@ -279,7 +297,7 @@ function resolveVisualCandidate(
   }
 
   if (block.type === 'video') {
-    const displaySource = (block.format as any)?.display_source
+    const displaySource = readFormatString(block, 'display_source')
     if (!displaySource || !isImageLikeUrl(displaySource)) return null
 
     const src = mapImageUrl(displaySource, block)
@@ -615,7 +633,7 @@ export function getCollectionCardCoverCandidate({
     }
   }
 
-  const pageCover = (block.format as any)?.page_cover
+  const pageCover = readFormatString(block, 'page_cover')
   if (pageCover) {
     const src = mapImageUrl(pageCover, block)
     if (src) {

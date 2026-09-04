@@ -3,6 +3,7 @@ import { parsePageId } from "notion-utils";
 
 import { rootNotionPageId } from "@/lib/config";
 import { getPage } from "@/lib/notion";
+import { unwrapRecordValue } from "@/lib/rag/notion-record-value";
 
 export type NotionNavigationHeader = {
   headerRecordMap: ExtendedRecordMap | null;
@@ -22,22 +23,15 @@ export async function loadNotionNavigationHeader(): Promise<NotionNavigationHead
       recordMap.block?.[rootNotionPageId];
 
     if (rawBlockEntry) {
-      const rawValue = (rawBlockEntry as any).value;
-      const normalizedValue =
-        rawValue &&
-        typeof rawValue === "object" &&
-        rawValue.value &&
-        typeof rawValue.value === "object"
-          ? rawValue.value
-          : rawValue;
+      // Was a second, local copy of the {value:{value}} unwrap. That is what
+      // lib/rag/notion-record-value.ts exists to be the single owner of — two
+      // copies is how the double-nesting bug got missed the first time.
+      const normalizedValue = unwrapRecordValue<{ id?: string }>(rawBlockEntry);
       const blockEntry = {
-        ...(rawBlockEntry as any),
+        ...rawBlockEntry,
         value: {
-          ...(normalizedValue as any),
-          id:
-            (normalizedValue as any)?.id ??
-            canonicalRootPageId ??
-            rootNotionPageId,
+          ...normalizedValue,
+          id: normalizedValue?.id ?? canonicalRootPageId ?? rootNotionPageId,
         },
       } as typeof rawBlockEntry;
 

@@ -1,6 +1,7 @@
 import "@/styles/admin-doc-preview.css";
 
 import type { GetServerSideProps } from "next";
+import type { ExtendedRecordMap } from "notion-types";
 import { FiDatabase } from "@react-icons/all-files/fi/FiDatabase";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -47,7 +48,7 @@ type PageProps = {
     isPublic: string;
     status: string[];
   };
-  headerRecordMap: any;
+  headerRecordMap: ExtendedRecordMap | null;
   headerBlockId: string;
 };
 

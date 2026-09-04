@@ -28,7 +28,9 @@ export async function getTweetsMap(
   (recordMap as ExtendedTweetRecordMap).tweets = tweetsMap;
 }
 
-async function getTweetImpl(tweetId: string): Promise<any> {
+type TweetData = Awaited<ReturnType<typeof getTweetData>> | null;
+
+async function getTweetImpl(tweetId: string): Promise<TweetData> {
   if (!tweetId) return null;
 
   const cacheKey = `tweet:${tweetId}`;

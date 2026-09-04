@@ -1,6 +1,7 @@
 import { type ParsedUrlQuery } from "node:querystring";
 
 import { type ExtendedRecordMap, type PageMap } from "notion-types";
+import { type Tweet } from "react-tweet/api";
 
 export * from "notion-types";
 
@@ -20,7 +21,8 @@ export interface PageProps {
 }
 
 export interface ExtendedTweetRecordMap extends ExtendedRecordMap {
-  tweets: Record<string, any>;
+  // A tweet can be absent or fail to load; callers check before rendering.
+  tweets: Record<string, Tweet | null | undefined>;
 }
 
 export interface Params extends ParsedUrlQuery {

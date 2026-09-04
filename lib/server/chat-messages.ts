@@ -12,10 +12,12 @@ export function sanitizeMessages(raw: unknown[]): ChatMessage[] {
       typeof entry === "object" &&
       "role" in entry &&
       "content" in entry &&
-      (entry as any).role !== "system"
+      (entry as { role?: unknown }).role !== "system"
     ) {
-      const role = (entry as any).role;
-      const content = (entry as any).content;
+      const { role, content } = entry as {
+        role?: unknown;
+        content?: unknown;
+      };
       if (
         (role === "user" || role === "assistant") &&
         typeof content === "string" &&
