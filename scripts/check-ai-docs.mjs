@@ -111,8 +111,18 @@ for (const filePath of skillFiles) {
     errors.push(`${relative(filePath)} is missing a frontmatter description — without one the skill cannot be matched`)
   }
 
-  if (!content.includes('# Method') && !content.includes('# Workflow')) {
-    errors.push(`${relative(filePath)} has no Method or Workflow section — it is a pointer, not a skill`)
+  // The failure this catches is a skill that defers its content elsewhere — the wiki's
+  // ingest skill was a 12-line shim whose body said "run the workflow defined in CLAUDE.md".
+  // Test for substance, not for a particular heading: third-party skills carry real
+  // procedure under their own headings and must not be rejected for naming it differently.
+  const body = content.replace(/^---[\s\S]*?\n---\n/, '')
+  const substantiveLines = body.split('\n').filter((line) => line.trim().length > 0).length
+  const MIN_BODY_LINES = 25
+
+  if (substantiveLines < MIN_BODY_LINES) {
+    errors.push(
+      `${relative(filePath)} has only ${substantiveLines} lines of body — a skill that defers its content elsewhere is a pointer, not a skill`
+    )
   }
 
   const companions = [...content.matchAll(/\((\.\.\/[^)]*docs\/[^)]+\.md)\)/g)].map((match) => match[1])
