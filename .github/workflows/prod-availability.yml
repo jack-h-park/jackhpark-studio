@@ -8,6 +8,20 @@ on:
         required: false
         default: core
   schedule:
+    # GitHub does not honour this, and the number is kept only because asking
+    # for less does not make it fire sooner. Measured over 38 scheduled runs
+    # between 2026-09-01 and 2026-09-06: median interval 192 minutes, fastest
+    # 104, slowest 332, and NOT ONE interval at or under six minutes. No runs
+    # were cancelled — scheduled workflows on public repos are best-effort, and
+    # this is what best-effort turns out to mean here.
+    #
+    # So do not read this as five-minute coverage, and do not delete a monitor
+    # elsewhere on the grounds that this already covers it — that reasoning is
+    # what left three Notion content pages on a ~3.5 hour signal until
+    # __checks__/production-availability.check.ts took them back. Checkly is
+    # what delivers an actual cadence (30m, and it holds); this is the free
+    # backstop that runs a wider set of routes with body assertions a
+    # UrlMonitor cannot make.
     - cron: "*/5 * * * *"
 
 permissions:
