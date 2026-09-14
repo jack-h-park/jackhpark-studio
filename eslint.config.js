@@ -5,7 +5,11 @@ export default [
   {
     // Static, self-contained deck bundles published under public/ (minified
     // runtime + design-system JS from Claude Design) are not source we lint.
-    ignores: ["instrumentation.js", "public/decks/**"],
+    // .obsidian/ (a personal vault, gitignored) and .claude/worktrees/
+    // (git-excluded local worktrees) sit inside this directory but aren't
+    // this project's source either -- without this, a vendored/minified
+    // Obsidian plugin bundle alone produced ~45,800 lint "errors".
+    ignores: ["instrumentation.js", "public/decks/**", ".obsidian/**", ".claude/**"],
   },
   ...config,
   {
