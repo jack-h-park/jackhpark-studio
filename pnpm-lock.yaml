@@ -49,7 +49,7 @@ importers:
         version: 1.4.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))
       '@langchain/community':
         specifier: ^1.0.0
-        version: 1.1.24(@browserbasehq/sdk@2.19.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.58.2)(deepmerge@4.3.1)(dotenv@17.3.1)(openai@6.32.0(zod@4.3.6))(zod@4.3.6))(@ibm-cloud/watsonx-ai@1.7.10(typescript@5.9.3))(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))(@mozilla/readability@0.6.0)(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(@supabase/supabase-js@2.99.3)(cohere-ai@8.0.0)(ibm-cloud-sdk-core@5.4.9)(ignore@7.0.5)(ioredis@5.3.2)(jsdom@26.1.0(canvas@3.2.2))(jsonwebtoken@9.0.3)(lodash@4.18.1)(openai@6.32.0(zod@4.3.6))(playwright@1.60.0)
+        version: 1.1.24(@browserbasehq/sdk@2.20.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.58.2)(deepmerge@4.3.1)(dotenv@17.3.1)(openai@6.32.0(zod@4.3.6))(zod@4.3.6))(@ibm-cloud/watsonx-ai@1.7.10(typescript@5.9.3))(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))(@mozilla/readability@0.6.0)(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(@supabase/supabase-js@2.99.3)(cohere-ai@8.0.0)(ibm-cloud-sdk-core@5.4.9)(ignore@7.0.5)(ioredis@5.3.2)(jsdom@26.1.0(canvas@3.2.2))(jsonwebtoken@9.0.3)(lodash@4.18.1)(openai@6.32.0(zod@4.3.6))(playwright@1.60.0)
       '@langchain/core':
         specifier: ^1.1.48
         version: 1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))
@@ -142,7 +142,7 @@ importers:
         version: 1.14.3
       langfuse-langchain:
         specifier: ^3.38.20
-        version: 3.38.20(langchain@0.3.37(@langchain/anthropic@1.4.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))(@langchain/google-genai@2.1.31(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(axios@1.20.0)(handlebars@4.7.9)(openai@6.32.0(zod@4.3.6)))
+        version: 3.38.20(langchain@0.3.37(@langchain/anthropic@1.4.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))(@langchain/google-genai@2.1.31(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(axios@1.20.0(debug@4.4.3))(handlebars@4.7.9)(openai@6.32.0(zod@4.3.6)))
       lqip-modern:
         specifier: ^2.2.1
         version: 2.2.1
@@ -263,7 +263,7 @@ importers:
         version: 2.10.10
       checkly:
         specifier: latest
-        version: 9.0.0(typescript@5.9.3)
+        version: 9.3.0(typescript@5.9.3)
       cross-env:
         specifier: ^10.0.0
         version: 10.1.0
@@ -420,8 +420,8 @@ packages:
   '@borewit/text-codec@0.2.2':
     resolution: {integrity: sha512-DDaRehssg1aNrH4+2hnj1B7vnUGEjU6OIlyRdkMd0aUdIUvKXrJfXsy8LVtXAy7DRvYVluWbMspsRhz2lcW0mQ==}
 
-  '@browserbasehq/sdk@2.19.0':
-    resolution: {integrity: sha512-Fiehnkt0q9ItPnkVyi16fQLNtzUMi5KsAFYLzLcDXKWQV6kXhBNVHOa+v9BqqzSxHIS2Nbzk4E1XRKvphLh1eA==}
+  '@browserbasehq/sdk@2.20.0':
+    resolution: {integrity: sha512-zDDsgrwF6/iF+Ob0LIqe6EPBa4n7m+5YfKn0g0+kZR5jIncTXBPmJSW6tAsu9go3wA9tQQP+zm6qUOPVi1Gutw==}
 
   '@browserbasehq/stagehand@1.14.0':
     resolution: {integrity: sha512-Hi/EzgMFWz+FKyepxHTrqfTPjpsuBS4zRy3e9sbMpBgLPv+9c0R+YZEvS7Bw4mTS66QtvvURRT6zgDGFotthVQ==}
@@ -2046,6 +2046,9 @@ packages:
   '@types/node@24.13.3':
     resolution: {integrity: sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==}
 
+  '@types/node@24.13.4':
+    resolution: {integrity: sha512-YJ7EqCstVTzIr0fMr7qul/977en+pQHrfmuKIo6Zr9i75Be21dr3MovcfvGtyvi2HAUrRerWps5sMO9I7WaxDw==}
+
   '@types/phoenix@1.6.7':
     resolution: {integrity: sha512-oN9ive//QSBkf19rfDv45M7eZPi0eEXylht2OLEXicu5b4KoQ1OzXIw+xDSGWxSxe1JmepRR/ZH283vsu518/Q==}
 
@@ -2666,8 +2669,8 @@ packages:
   change-case@5.4.4:
     resolution: {integrity: sha512-HRQyTk2/YPEkt9TnUPbOpr64Uw3KOicFWPVBb+xiHvd6eBx/qPr9xqfBFDT8P2vWsvvz4jbEkfDe71W3VyNu2w==}
 
-  checkly@9.0.0:
-    resolution: {integrity: sha512-4jFpJO4aKmk8XAA4/M1fmk3Kq88353hX9GmMkx1hKVU7/tYpS+Att/2p0xT3Ec8NMJ6EBSQ5GRHLVV2y4lUhqg==}
+  checkly@9.3.0:
+    resolution: {integrity: sha512-Ry/tJjqr8O2iYWjkDvSvsfV0stVz6kMIEbeKxDYuoOtXSXy+EBA8wQwbo/hHYV/PF71kZ5r/8V4BpMUHsh+KEg==}
     engines: {node: '>=22.13.0'}
     hasBin: true
 
@@ -6012,7 +6015,7 @@ snapshots:
 
   '@borewit/text-codec@0.2.2': {}
 
-  '@browserbasehq/sdk@2.19.0':
+  '@browserbasehq/sdk@2.20.0':
     dependencies:
       '@types/node': 18.19.130
       '@types/node-fetch': 2.6.13
@@ -6027,7 +6030,7 @@ snapshots:
   '@browserbasehq/stagehand@1.14.0(@playwright/test@1.58.2)(deepmerge@4.3.1)(dotenv@17.3.1)(openai@6.32.0(zod@4.3.6))(zod@4.3.6)':
     dependencies:
       '@anthropic-ai/sdk': 0.27.3
-      '@browserbasehq/sdk': 2.19.0
+      '@browserbasehq/sdk': 2.20.0
       '@playwright/test': 1.58.2
       deepmerge: 4.3.1
       dotenv: 17.3.1
@@ -6473,7 +6476,7 @@ snapshots:
       - openai
       - ws
 
-  '@langchain/community@1.1.24(@browserbasehq/sdk@2.19.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.58.2)(deepmerge@4.3.1)(dotenv@17.3.1)(openai@6.32.0(zod@4.3.6))(zod@4.3.6))(@ibm-cloud/watsonx-ai@1.7.10(typescript@5.9.3))(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))(@mozilla/readability@0.6.0)(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(@supabase/supabase-js@2.99.3)(cohere-ai@8.0.0)(ibm-cloud-sdk-core@5.4.9)(ignore@7.0.5)(ioredis@5.3.2)(jsdom@26.1.0(canvas@3.2.2))(jsonwebtoken@9.0.3)(lodash@4.18.1)(openai@6.32.0(zod@4.3.6))(playwright@1.60.0)':
+  '@langchain/community@1.1.24(@browserbasehq/sdk@2.20.0)(@browserbasehq/stagehand@1.14.0(@playwright/test@1.58.2)(deepmerge@4.3.1)(dotenv@17.3.1)(openai@6.32.0(zod@4.3.6))(zod@4.3.6))(@ibm-cloud/watsonx-ai@1.7.10(typescript@5.9.3))(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))(@mozilla/readability@0.6.0)(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(@supabase/supabase-js@2.99.3)(cohere-ai@8.0.0)(ibm-cloud-sdk-core@5.4.9)(ignore@7.0.5)(ioredis@5.3.2)(jsdom@26.1.0(canvas@3.2.2))(jsonwebtoken@9.0.3)(lodash@4.18.1)(openai@6.32.0(zod@4.3.6))(playwright@1.60.0)':
     dependencies:
       '@browserbasehq/stagehand': 1.14.0(@playwright/test@1.58.2)(deepmerge@4.3.1)(dotenv@17.3.1)(openai@6.32.0(zod@4.3.6))(zod@4.3.6)
       '@ibm-cloud/watsonx-ai': 1.7.10(typescript@5.9.3)
@@ -6490,7 +6493,7 @@ snapshots:
       uuid: 11.1.1
       zod: 4.3.6
     optionalDependencies:
-      '@browserbasehq/sdk': 2.19.0
+      '@browserbasehq/sdk': 2.20.0
       '@mozilla/readability': 0.6.0
       '@supabase/supabase-js': 2.99.3
       cohere-ai: 8.0.0
@@ -7200,7 +7203,7 @@ snapshots:
 
   '@types/node-fetch@2.6.13':
     dependencies:
-      '@types/node': 24.13.3
+      '@types/node': 24.13.4
       form-data: 4.0.6
 
   '@types/node@18.19.130':
@@ -7212,6 +7215,10 @@ snapshots:
       undici-types: 7.16.0
 
   '@types/node@24.13.3':
+    dependencies:
+      undici-types: 7.18.2
+
+  '@types/node@24.13.4':
     dependencies:
       undici-types: 7.18.2
 
@@ -7842,7 +7849,7 @@ snapshots:
 
   change-case@5.4.4: {}
 
-  checkly@9.0.0(typescript@5.9.3):
+  checkly@9.3.0(typescript@5.9.3):
     dependencies:
       '@oclif/core': 4.14.0
       '@oclif/plugin-help': 6.3.0
@@ -9019,7 +9026,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.20.0)
+      retry-axios: 2.6.0(axios@1.20.0(debug@4.4.3))
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -9381,7 +9388,7 @@ snapshots:
 
   ky@1.14.3: {}
 
-  langchain@0.3.37(@langchain/anthropic@1.4.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))(@langchain/google-genai@2.1.31(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(axios@1.20.0)(handlebars@4.7.9)(openai@6.32.0(zod@4.3.6)):
+  langchain@0.3.37(@langchain/anthropic@1.4.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))(@langchain/google-genai@2.1.31(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(axios@1.20.0(debug@4.4.3))(handlebars@4.7.9)(openai@6.32.0(zod@4.3.6)):
     dependencies:
       '@langchain/core': 1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))
       '@langchain/openai': 0.6.17(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))
@@ -9411,9 +9418,9 @@ snapshots:
     dependencies:
       mustache: 4.2.0
 
-  langfuse-langchain@3.38.20(langchain@0.3.37(@langchain/anthropic@1.4.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))(@langchain/google-genai@2.1.31(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(axios@1.20.0)(handlebars@4.7.9)(openai@6.32.0(zod@4.3.6))):
+  langfuse-langchain@3.38.20(langchain@0.3.37(@langchain/anthropic@1.4.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))(@langchain/google-genai@2.1.31(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(axios@1.20.0(debug@4.4.3))(handlebars@4.7.9)(openai@6.32.0(zod@4.3.6))):
     dependencies:
-      langchain: 0.3.37(@langchain/anthropic@1.4.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))(@langchain/google-genai@2.1.31(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(axios@1.20.0)(handlebars@4.7.9)(openai@6.32.0(zod@4.3.6))
+      langchain: 0.3.37(@langchain/anthropic@1.4.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6)))(@langchain/google-genai@2.1.31(@langchain/core@1.1.48(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(openai@6.32.0(zod@4.3.6))))(@opentelemetry/api@1.9.0)(@opentelemetry/exporter-trace-otlp-proto@0.221.0(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.0))(axios@1.20.0(debug@4.4.3))(handlebars@4.7.9)(openai@6.32.0(zod@4.3.6))
       langfuse: 3.38.20
       langfuse-core: 3.38.20
 
@@ -10401,7 +10408,7 @@ snapshots:
       path-parse: 1.0.7
       supports-preserve-symlinks-flag: 1.0.0
 
-  retry-axios@2.6.0(axios@1.20.0):
+  retry-axios@2.6.0(axios@1.20.0(debug@4.4.3)):
     dependencies:
       axios: 1.20.0(debug@4.4.3)
 
