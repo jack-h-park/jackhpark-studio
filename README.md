@@ -1,6 +1,6 @@
 # Jack H. Park Portfolio Platform
 
-Production-oriented personal portfolio platform built on top of the `nextjs-notion-starter-kit` lineage and extended with RAG ingestion, admin tooling, and configurable chat runtimes.
+Production-oriented personal portfolio platform built on top of the [`nextjs-notion-starter-kit`](https://github.com/transitive-bullshit/nextjs-notion-starter-kit) lineage and extended with RAG ingestion, admin tooling, and configurable chat runtimes.
 
 This is a public portfolio codebase and reference implementation. It is not a
 drop-in hosted service: running the full application requires your own Notion,
