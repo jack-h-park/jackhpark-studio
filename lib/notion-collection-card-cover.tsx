@@ -415,9 +415,13 @@ function normalizeIcon(icon: string | null | undefined): string | undefined {
 }
 
 // Remove a leading emoji from a heading so it doesn't duplicate the page icon.
+// A single flat class quantified once — not `(?:X+\s*)+`, whose nested
+// quantifiers let the engine partition a long emoji run across iterations in
+// exponentially many ways before failing (a real ReDoS shape; the trailing
+// .trim() below makes folding whitespace into the same class harmless).
 function stripLeadingEmoji(text: string): string {
   return text
-    .replace(/^(?:[\p{Emoji_Presentation}\p{Extended_Pictographic}️‍]+\s*)+/u, '')
+    .replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}️‍\s]+/u, '')
     .trim()
 }
 
@@ -483,9 +487,10 @@ function clipTextNoEllipsis(text: string, maxChars: number): string {
 
 // Trim a leading decorative emoji (e.g. a callout icon that ended up inline)
 // and any leftover short section label so the body opens on real prose.
+// See stripLeadingEmoji above for why this is one flat class, quantified once.
 function stripLeadingDecoration(text: string): string {
   let out = text.replace(
-    /^(?:[\p{Emoji_Presentation}\p{Extended_Pictographic}️‍]+\s*)+/u,
+    /^[\p{Emoji_Presentation}\p{Extended_Pictographic}️‍\s]+/u,
     ''
   )
   out = out.replace(
