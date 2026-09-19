@@ -438,10 +438,100 @@ svg[data-processed-mermaid] .section-root tspan {
   padding: 10px;
 }
 
-/* Gallery text-teaser thumbnail CSS ships with react-notion-x (styles.css,
-   imported above). The teaser content itself is built in
-   lib/notion-collection-card-cover.tsx and plugged in via the library's
-   `components.collectionCardCover` seam (see components/NotionPage.tsx). */
+/* Generated "thesis" cover for image-less gallery cards. Built in
+   lib/notion-collection-card-cover.tsx and plugged in via react-notion-x's
+   `components.collectionCardCover` seam (see components/NotionPage.tsx).
+   Colours come only from Notion palette tokens, which flip with dark mode. */
+.notion-collection-card-cover-thesis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 16px 18px;
+  overflow: hidden;
+  background: var(--thesis-bg);
+  color: var(--fg-color);
+}
+
+.notion-collection-card-cover-thesis[data-tint="blue"] {
+  --thesis-bg: var(--notion-blue_background);
+  --thesis-accent: var(--notion-blue);
+}
+
+.notion-collection-card-cover-thesis[data-tint="purple"] {
+  --thesis-bg: var(--notion-purple_background);
+  --thesis-accent: var(--notion-purple);
+}
+
+.notion-collection-card-cover-thesis[data-tint="pink"] {
+  --thesis-bg: var(--notion-pink_background);
+  --thesis-accent: var(--notion-pink);
+}
+
+.notion-collection-card-cover-thesis[data-tint="teal"] {
+  --thesis-bg: var(--notion-teal_background);
+  --thesis-accent: var(--notion-teal);
+}
+
+.notion-collection-card-cover-thesis[data-tint="orange"] {
+  --thesis-bg: var(--notion-orange_background);
+  --thesis-accent: var(--notion-orange);
+}
+
+.notion-collection-card-cover-thesis-icon {
+  flex: 0 0 auto;
+  font-size: 32px;
+  line-height: 1;
+}
+
+.notion-collection-card-cover-thesis-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+.notion-collection-card-cover-thesis-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  /* The raw accent is too light on its own tint for some hues (orange). */
+  color: color-mix(in srgb, var(--thesis-accent) 70%, var(--fg-color));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notion-collection-card-cover-thesis-quote {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  line-clamp: 3;
+  -webkit-line-clamp: 3;
+}
+
+.notion-collection-card-size-small .notion-collection-card-cover-thesis {
+  padding: 12px 14px;
+}
+
+.notion-collection-card-size-small .notion-collection-card-cover-thesis-icon {
+  font-size: 24px;
+}
+
+.notion-collection-card-size-small .notion-collection-card-cover-thesis-quote {
+  font-size: 14px;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+}
 
 .gallery-image-modal__overlay {
   position: fixed;

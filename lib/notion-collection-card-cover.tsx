@@ -1,6 +1,6 @@
 /**
- * Gallery collection-card cover content (image discovery + text "teaser"
- * thumbnails for image-less pages).
+ * Gallery collection-card cover content (image discovery + generated "thesis"
+ * covers for image-less pages).
  *
  * This used to live inside the react-notion-x fork. It now lives here so the
  * fork stays thin and upstream-rebaseable — the library only exposes a
@@ -8,8 +8,8 @@
  * `renderCollectionCardCover` (bottom of file).
  *
  * TUNABLES — content/language-specific knobs, tuned for mixed English + Korean:
- *   - `weakHeadingTexts`, `genericEyebrowTexts`, the inline callout regex in
- *     getCalloutOrToggleTexts: label lists (both languages included).
+ *   - `weakHeadingTexts` and the section-label regex in
+ *     stripLeadingDecoration: label lists (both languages included).
  *   - `isMetadataLikeText`: matches "LABEL: value" for English and, gated on
  *     Hangul, Korean "상태: 진행중" so metadata rows don't leak into the body.
  *   - `weightedLength`: CJK/Hangul characters count double, so the length gates
@@ -35,13 +35,21 @@ type ThumbnailImageCandidate = {
   objectPosition: string
 }
 
-type ThumbnailTeaserCandidate = {
-  kind: 'teaser'
-  tone: 'default' | 'callout' | 'quote'
-  eyebrow?: string
-  title?: string
-  body: string
+// Notion palette hues; their `_background` variants already flip with dark
+// mode. Yellow is left out: its accent is unreadable on its own tint.
+const coverTints = ['blue', 'purple', 'pink', 'teal', 'orange'] as const
+type CoverTint = (typeof coverTints)[number]
+
+// Image-less pages get a generated cover: a per-page tint, the page icon, and
+// the opening sentence as a one-line hook. It replaces the old text teaser,
+// which was a smaller, fainter copy of the article and made every card in an
+// all-text collection look identical.
+type ThumbnailThesisCandidate = {
+  kind: 'thesis'
+  tint: CoverTint
   icon?: string
+  eyebrow?: string
+  thesis: string
 }
 
 type ThumbnailEmptyCandidate = {
@@ -50,7 +58,7 @@ type ThumbnailEmptyCandidate = {
 
 export type CollectionCardCoverCandidate =
   | ThumbnailImageCandidate
-  | ThumbnailTeaserCandidate
+  | ThumbnailThesisCandidate
   | ThumbnailEmptyCandidate
 
 const headingBlockTypes = new Set(['header', 'sub_header', 'sub_sub_header'])
@@ -91,20 +99,6 @@ const weakHeadingTexts = new Set([
   '맥락',
   '환경',
   '실행 요약'
-])
-const genericEyebrowTexts = new Set([
-  'executive summary',
-  'overview',
-  'summary',
-  'key takeaways',
-  'highlights',
-  // Korean equivalents
-  '실행 요약',
-  '개요',
-  '요약',
-  '핵심 요약',
-  '핵심 정리',
-  '하이라이트'
 ])
 
 function getBlockChildren(block: Block | undefined): string[] {
@@ -432,7 +426,7 @@ function normalizeComparableText(text: string | undefined): string {
     .trim()
 }
 
-function shouldSuppressTeaserTitle(
+function shouldSuppressHeading(
   teaserTitle: string | undefined,
   pageTitle: string | undefined
 ): boolean {
@@ -447,43 +441,11 @@ function shouldSuppressTeaserTitle(
   )
 }
 
-function finalizeTeaserCandidate(
-  candidate: ThumbnailTeaserCandidate
-): ThumbnailTeaserCandidate {
-  const normalizedEyebrow = normalizeComparableText(candidate.eyebrow)
-
-  // Only suppress a generic eyebrow when there is no title AND no body to give it context.
-  // If body text exists, even a generic label like "Executive Summary" provides useful
-  // categorization for the reader and should be shown (matching Notion's reference behavior).
-  if (
-    !candidate.title &&
-    !candidate.body &&
-    genericEyebrowTexts.has(normalizedEyebrow)
-  ) {
-    return {
-      ...candidate,
-      eyebrow: undefined,
-      icon: undefined
-    }
-  }
-
-  return candidate
-}
-
-// Large enough that a full opening reads onto the cover and overflows it, so
-// the CSS fade — not a mid-word "…" — provides the visual truncation.
-const TEASER_BODY_BUDGET = 360
-
-// Clip to a budget at a word boundary, WITHOUT a trailing ellipsis. The teaser
-// body relies on the CSS fade mask for truncation, so we never inject "…".
-function clipTextNoEllipsis(text: string, maxChars: number): string {
-  const normalized = text.replaceAll(/\s+/g, ' ').trim()
-  if (normalized.length <= maxChars) return normalized
-
-  const slice = normalized.slice(0, maxChars)
-  const lastSpace = slice.lastIndexOf(' ')
-  return (lastSpace > maxChars * 0.6 ? slice.slice(0, lastSpace) : slice).trimEnd()
-}
+// Enough opening text to get past a leading series note such as
+// "(Part 2 of a two-part pair …)" and still have sentences to choose from.
+const THESIS_SOURCE_BUDGET = 900
+const THESIS_MIN_LENGTH = 40
+const THESIS_MAX_SENTENCES = 2
 
 // Trim a leading decorative emoji (e.g. a callout icon that ended up inline)
 // and any leftover short section label so the body opens on real prose.
@@ -500,13 +462,14 @@ function stripLeadingDecoration(text: string): string {
   return out.trim()
 }
 
-// Collect body text from the given blocks in document order, expanding
+// Collect block texts from the given blocks in document order, expanding
 // callout/toggle so their inner text is included, up to a character budget.
-function collectTeaserBody(
+// Kept per block: a block boundary is also a sentence boundary.
+function collectOpeningText(
   blocks: Block[],
   recordMap: ExtendedRecordMap,
   budget: number
-): string {
+): string[] {
   const parts: string[] = []
   let total = 0
 
@@ -534,17 +497,75 @@ function collectTeaserBody(
     }
   }
 
-  return clipTextNoEllipsis(stripLeadingDecoration(parts.join(' ')), budget)
+  return parts
 }
 
-// Build a text teaser with a CONSISTENT, predictable source: always the page's
-// opening content read top-to-bottom. A heading is used as the teaser title
-// only when it is the very first content block — never a mid-page section
-// heading — so the teaser can't skip the real intro and jump elsewhere.
-function buildTeaserCandidate(
+// Drop a leading parenthetical aside such as "(Part 2 of a two-part pair …)":
+// it is navigation between posts, not the post's argument.
+function stripLeadingParenthetical(text: string): string {
+  return text.replace(/^\([^()]*\)\s*/, '').trim()
+}
+
+function splitSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+(?=\P{Ll})/u)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+}
+
+const trailingDecorationChar = /[\p{Extended_Pictographic}\uFE0F\u200D\s]/u
+
+// Walks back one code point at a time instead of an end-anchored `[…]+$`,
+// which backtracks quadratically on long emoji runs (see stripLeadingEmoji).
+function stripTrailingDecoration(text: string): string {
+  const chars = Array.from(text)
+  let end = chars.length
+  while (end > 0 && trailingDecorationChar.test(chars[end - 1]!)) end--
+  return chars.slice(0, end).join('')
+}
+
+// The cover's hook is the opening sentence, extended by the next one when the
+// first is too short to carry meaning alone ("It's 2:14 AM."). These notes
+// lead with their claim, so the opening sentence is the thesis far more often
+// than any heading is.
+function extractThesis(openingBlocks: string[]): string {
+  const sentences = openingBlocks.flatMap((text, index) => {
+    const cleaned = stripLeadingDecoration(text)
+    return splitSentences(
+      index === 0 ? stripLeadingParenthetical(cleaned) : cleaned
+    )
+  })
+
+  let thesis = ''
+  for (const sentence of sentences.slice(0, THESIS_MAX_SENTENCES)) {
+    thesis = thesis ? `${thesis} ${sentence}` : sentence
+    if (weightedLength(thesis) >= THESIS_MIN_LENGTH) break
+  }
+
+  // A sentence that introduces a list ends on a colon; on a cover the list
+  // never follows, so let it trail off instead of dangling.
+  return stripTrailingDecoration(thesis).replace(/:$/, '…')
+}
+
+// Stable per page (FNV-1a over the block id), so a note keeps its colour across
+// renders, reorderings and additions to the collection.
+function pickCoverTint(blockId: string): CoverTint {
+  let hash = 0x81_1c_9d_c5
+  for (const char of blockId) {
+    hash ^= char.codePointAt(0)!
+    hash = Math.imul(hash, 0x01_00_01_93)
+  }
+  return coverTints[(hash >>> 0) % coverTints.length]!
+}
+
+// Build the thesis from a CONSISTENT, predictable source: always the page's
+// opening content read top-to-bottom. A heading is used as the eyebrow only
+// when it sits in the first few content blocks — never a mid-page section
+// heading — so the cover can't skip the real intro and jump elsewhere.
+function buildThesisCandidate(
   rootBlock: Block,
   recordMap: ExtendedRecordMap
-): ThumbnailTeaserCandidate | null {
+): ThumbnailThesisCandidate | null {
   const previewBlocks = getFlattenedPreviewBlocks(rootBlock, recordMap)
   if (!previewBlocks.length) return null
 
@@ -560,12 +581,10 @@ function buildTeaserCandidate(
   })
   if (!meaningful.length) return null
 
-  // A heading near the top becomes the teaser's title (a topic "hook"), and the
-  // body is the prose that follows it — a coherent section, not a random jump.
-  // We only look within the first few blocks so the teaser can't skip deep into
-  // the page; beyond that we fall back to the plain opening paragraph.
+  // A heading near the top becomes the eyebrow (the section the thesis opens),
+  // and the thesis is taken from the prose that follows it.
   const HEADING_LOOKAHEAD = 4
-  let title: string | undefined
+  let heading: string | undefined
   let bodyStart = 0
   const headingIdx = meaningful
     .slice(0, HEADING_LOOKAHEAD)
@@ -573,34 +592,31 @@ function buildTeaserCandidate(
       (block) => headingBlockTypes.has(block.type) && !!getHeadingText(block)
     )
   if (headingIdx !== -1) {
-    const heading = stripLeadingEmoji(getHeadingText(meaningful[headingIdx]!) ?? '')
-    if (heading && !shouldSuppressTeaserTitle(heading, rootPageTitle)) {
-      title = heading
+    const text = stripLeadingEmoji(getHeadingText(meaningful[headingIdx]!) ?? '')
+    if (text && !shouldSuppressHeading(text, rootPageTitle)) {
+      heading = text
     }
     bodyStart = headingIdx + 1
   }
 
-  // The page's own icon (usually an emoji) — a consistent splash of colour that
-  // reads even when the page has no heading to promote.
-  const icon = normalizeIcon(getBlockIcon(rootBlock, recordMap))
-
-  const toneSource = meaningful[bodyStart] ?? meaningful[0]!
-  const tone: 'default' | 'callout' | 'quote' =
-    toneSource.type === 'quote'
-      ? 'quote'
-      : toneSource.type === 'callout'
-        ? 'callout'
-        : 'default'
-
-  const body = collectTeaserBody(
-    meaningful.slice(bodyStart),
-    recordMap,
-    TEASER_BODY_BUDGET
+  const thesis = extractThesis(
+    collectOpeningText(
+      meaningful.slice(bodyStart),
+      recordMap,
+      THESIS_SOURCE_BUDGET
+    )
   )
 
-  if (!body && !title) return null
+  const tint = pickCoverTint(rootBlock.id)
+  const icon = normalizeIcon(getBlockIcon(rootBlock, recordMap))
 
-  return finalizeTeaserCandidate({ kind: 'teaser', tone, icon, title, body })
+  if (thesis) {
+    return { kind: 'thesis', tint, icon, eyebrow: heading, thesis }
+  }
+
+  // No prose to quote: promote the heading itself so the cover still says
+  // something beyond the title underneath it.
+  return heading ? { kind: 'thesis', tint, icon, thesis: heading } : null
 }
 
 export function getCollectionCardCoverCandidate({
@@ -651,9 +667,9 @@ export function getCollectionCardCoverCandidate({
     }
   }
 
-  const teaserCandidate = buildTeaserCandidate(block, recordMap)
-  if (teaserCandidate) {
-    return teaserCandidate
+  const thesisCandidate = buildThesisCandidate(block, recordMap)
+  if (thesisCandidate) {
+    return thesisCandidate
   }
 
   return {
@@ -670,51 +686,36 @@ export function getCollectionCardCoverCandidate({
 /*  the consumer so the library keeps zero opinionated cover logic.           */
 /* -------------------------------------------------------------------------- */
 
-function cx(...parts: Array<string | false | null | undefined>): string {
-  return parts.filter(Boolean).join(' ')
-}
-
-function CollectionCardCoverTeaser({
+// Styled in styles/notion.css; `data-tint` selects the Notion palette hue.
+function CollectionCardCoverThesis({
   candidate
 }: {
-  candidate: ThumbnailTeaserCandidate
+  candidate: ThumbnailThesisCandidate
 }) {
   return (
-    <div className='notion-collection-card-cover-teaser'>
-      <div
-        className={cx(
-          'notion-collection-card-cover-teaser-panel',
-          candidate.tone === 'callout' &&
-            'notion-collection-card-cover-teaser-panel-callout',
-          candidate.tone === 'quote' &&
-            'notion-collection-card-cover-teaser-panel-quote'
-        )}
-      >
-        {(candidate.icon || candidate.eyebrow) && (
-          <div className='notion-collection-card-cover-teaser-header'>
-            {candidate.icon && (
-              <div className='notion-collection-card-cover-teaser-icon'>
-                {candidate.icon}
-              </div>
-            )}
-
-            {candidate.eyebrow && (
-              <div className='notion-collection-card-cover-teaser-eyebrow'>
-                {candidate.eyebrow}
-              </div>
-            )}
-          </div>
-        )}
-
-        {candidate.title && (
-          <div className='notion-collection-card-cover-teaser-title'>
-            {candidate.title}
-          </div>
-        )}
-
-        <div className='notion-collection-card-cover-teaser-body'>
-          {candidate.body}
+    <div
+      className='notion-collection-card-cover-thesis'
+      data-tint={candidate.tint}
+    >
+      {candidate.icon && (
+        <div
+          className='notion-collection-card-cover-thesis-icon'
+          aria-hidden='true'
+        >
+          {candidate.icon}
         </div>
+      )}
+
+      <div className='notion-collection-card-cover-thesis-text'>
+        {candidate.eyebrow && (
+          <div className='notion-collection-card-cover-thesis-eyebrow'>
+            {candidate.eyebrow}
+          </div>
+        )}
+
+        <p className='notion-collection-card-cover-thesis-quote'>
+          {candidate.thesis}
+        </p>
       </div>
     </div>
   )
@@ -792,8 +793,8 @@ export function createCollectionCardCoverRenderer({
       )
     }
 
-    if (candidate.kind === 'teaser') {
-      return <CollectionCardCoverTeaser candidate={candidate} />
+    if (candidate.kind === 'thesis') {
+      return <CollectionCardCoverThesis candidate={candidate} />
     }
 
     // kind === 'empty' — let the library render its own empty cover.
