@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-19
 **Branch:** `claude/notion-full-width-layout-acfce6`
-**Status:** Phase 1 in progress
+**Status:** Phases 1–2 done; Phases 3–5 open
 
 ## Problem
 
@@ -42,7 +42,18 @@ Rejected alternatives:
 
 ## Phases
 
-### Phase 1 — breakout tokens and block selectors (CSS only)
+### Phase 1 — breakout tokens and block selectors — DONE
+
+Shipped as committed. Two things the plan did not anticipate:
+
+- The collection-with-description wrapper carried an inline `width: 100%`, which
+  beat the breakout rule. It is redundant for a block-level div and is now a class.
+- A collection reaches the reading column in **two** DOM shapes. With a description
+  it sits inside one wrapper; without one, react-notion-x returns a fragment, so the
+  header div and `.notion-collection` land as separate siblings. The first pass only
+  matched the wrapped shape, which is why `/personal-craft` did not widen at first.
+
+Original scope:
 
 - Add a wide token (`--np-wide-max-width`) to `styles/notion-parity.css`. It is screen-specific, so
   it must not go into `styles/ai-design-system.css` (primitive-only per
@@ -54,11 +65,23 @@ Rejected alternatives:
 - Below 1200px nothing changes.
 - Guardrail: `pnpm lint:css-guardrails`.
 
-### Phase 2 — root page
+### Phase 2 — root page — DONE
 
-- Wire the `index-page` class so the documented root-page width actually applies
-  ([components/NotionPageRenderer.tsx](../../../components/NotionPageRenderer.tsx)).
-- Allow the hero column row to break out on the root page.
+The root page's reading column is 1040px above 1200px, matching the column-row
+breakout, so the page title lines up with the hero row (16px apart, which is the
+page's own padding). Measured alternatives at 1920px: 744px leaves a 164px offset,
+900px leaves 86px, 1040px leaves 16px.
+
+1040px costs nothing in readability here because the root page has **no** plain
+text blocks in its reading column — the intro prose lives inside the hero row,
+which Phase 1 already pinned at 1040px. Only images, the mermaid diagram and one
+callout widen.
+
+The documented `.index-page { --notion-max-width: 900px }` rules were never
+reachable, since nothing applied the class. They are replaced rather than revived:
+an unscoped 900px would also apply below the breakpoint and overflow narrow
+screens. The width now lives only in the wide-viewport section of
+`styles/notion-parity.css`.
 
 ### Phase 3 — make Notion's Full width toggle usable
 

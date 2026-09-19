@@ -85,9 +85,8 @@
   line-height: 1.5;
 }
 
-.notion-polish-balanced .index-page {
-  --notion-max-width: 900px;
-}
+/* The root page's own width lives in the wide-viewport section at the end of
+   this file: below that breakpoint it reads like any other page. */
 
 .notion-polish-balanced .notion-page .notion-title {
   text-align: left;
@@ -886,14 +885,28 @@
        comfortable measure. */
     --np-wide-row-max-width: 1040px;
     --np-wide-gutter: clamp(32px, 5vw, 120px);
-    --np-wide-width: max(
-      100%,
-      min(var(--np-wide-max-width), calc(100vw - 2 * var(--np-wide-gutter)))
+    /* The caps are plain widths, usable anywhere. The *-width values add the
+       `max(100%, …)` floor, which only makes sense for a block sitting inside
+       the reading column: there 100% is that column. On the page element
+       itself 100% would be the viewport, so the page uses the cap. */
+    --np-wide-cap: min(
+      var(--np-wide-max-width),
+      calc(100vw - 2 * var(--np-wide-gutter))
     );
-    --np-wide-row-width: max(
-      100%,
-      min(var(--np-wide-row-max-width), calc(100vw - 2 * var(--np-wide-gutter)))
+    --np-wide-row-cap: min(
+      var(--np-wide-row-max-width),
+      calc(100vw - 2 * var(--np-wide-gutter))
     );
+    --np-wide-width: max(100%, var(--np-wide-cap));
+    --np-wide-row-width: max(100%, var(--np-wide-row-cap));
+  }
+
+  /* The root page is the studio home — a hero row and galleries, with no prose
+     blocks in the reading column itself — so its column matches the column-row
+     breakout width. That lines the page title up with the hero row below it
+     (the remaining offset is the page's own padding). */
+  .notion-polish-balanced .index-page.notion-page {
+    --notion-max-width: var(--np-wide-row-cap);
   }
 
   .notion-polish-balanced .notion-page-content-inner > .notion-row {
@@ -903,6 +916,11 @@
     margin-inline: calc((100% - var(--np-wide-row-width)) / 2);
   }
 
+  /* A collection reaches the reading column in one of two shapes. With a
+     description it sits inside `.notion-collection-container`; without one,
+     react-notion-x returns a fragment, so its header div and `.notion-collection`
+     land side by side as separate children. Both shapes are matched, and the
+     bare header div is reached through its collection sibling. */
   .notion-polish-balanced
     .notion-page-content-inner
     > .notion-asset-wrapper-full,
@@ -911,7 +929,19 @@
     > div:has(> .notion-collection .notion-gallery),
   .notion-polish-balanced
     .notion-page-content-inner
-    > div:has(> .notion-collection .notion-list-collection) {
+    > div:has(> .notion-collection .notion-list-collection),
+  .notion-polish-balanced
+    .notion-page-content-inner
+    > .notion-collection:has(.notion-gallery),
+  .notion-polish-balanced
+    .notion-page-content-inner
+    > .notion-collection:has(.notion-list-collection),
+  .notion-polish-balanced
+    .notion-page-content-inner
+    > div:has(+ .notion-collection .notion-gallery),
+  .notion-polish-balanced
+    .notion-page-content-inner
+    > div:has(+ .notion-collection .notion-list-collection) {
     box-sizing: border-box;
     width: var(--np-wide-width);
     max-width: var(--np-wide-width);

@@ -46,9 +46,9 @@
   padding-top: 70px !important;
 }
 
-.index-page {
-  --notion-max-width: 900px;
-}
+/* The root page's reading column is set per polish profile in
+   styles/notion-parity.css. An unscoped 900px rule here would also apply below
+   the wide-viewport breakpoint, where a 900px column overflows narrow screens. */
 
 .notion-text {
   /* keep text blocks compact so dividers stay close to surrounding copy */
