@@ -100,7 +100,10 @@ function CollectionWithDescription(props: CollectionProps) {
   }, [description]);
 
   return (
-    <div ref={containerRef} style={{ width: "100%" }}>
+    // No inline width: a block-level div already fills its parent, and an
+    // inline width would override the wide-viewport breakout rules that widen
+    // this wrapper past the reading column.
+    <div ref={containerRef} className="notion-collection-container">
       <div
         ref={descRef}
         className="notion-collection-description"

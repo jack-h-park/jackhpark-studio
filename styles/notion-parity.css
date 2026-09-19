@@ -862,3 +862,59 @@
   flex-shrink: 0 !important;
   max-width: 100% !important;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Wide-viewport breakout                                                     */
+/* -------------------------------------------------------------------------- */
+/* Prose keeps the reading measure (--np-page-max-width). Blocks that gain from
+   width — gallery/list collections, column rows, full-width assets — break out
+   of the reading column instead.
+
+   The breakout margin and the width both resolve their percentages against the
+   same containing block, so the block stays centered on the page no matter how
+   wide the reading column is. `max(100%, …)` guarantees a breakout block is
+   never narrower than the column it breaks out of.
+
+   Table and board views are deliberately excluded: react-notion-x computes
+   their left/right padding in JS from the viewport width against a hard-coded
+   708px body, so widening their container would fight that calculation. */
+@media only screen and (min-width: 1200px) {
+  .notion-polish-balanced .notion-page {
+    --np-wide-max-width: 1280px;
+    /* Column rows hold prose, so they stop short of the full breakout width —
+       at 1280px a two-column row gives an ~800px text column, which is past a
+       comfortable measure. */
+    --np-wide-row-max-width: 1040px;
+    --np-wide-gutter: clamp(32px, 5vw, 120px);
+    --np-wide-width: max(
+      100%,
+      min(var(--np-wide-max-width), calc(100vw - 2 * var(--np-wide-gutter)))
+    );
+    --np-wide-row-width: max(
+      100%,
+      min(var(--np-wide-row-max-width), calc(100vw - 2 * var(--np-wide-gutter)))
+    );
+  }
+
+  .notion-polish-balanced .notion-page-content-inner > .notion-row {
+    box-sizing: border-box;
+    width: var(--np-wide-row-width);
+    max-width: var(--np-wide-row-width);
+    margin-inline: calc((100% - var(--np-wide-row-width)) / 2);
+  }
+
+  .notion-polish-balanced
+    .notion-page-content-inner
+    > .notion-asset-wrapper-full,
+  .notion-polish-balanced
+    .notion-page-content-inner
+    > div:has(> .notion-collection .notion-gallery),
+  .notion-polish-balanced
+    .notion-page-content-inner
+    > div:has(> .notion-collection .notion-list-collection) {
+    box-sizing: border-box;
+    width: var(--np-wide-width);
+    max-width: var(--np-wide-width);
+    margin-inline: calc((100% - var(--np-wide-width)) / 2);
+  }
+}
