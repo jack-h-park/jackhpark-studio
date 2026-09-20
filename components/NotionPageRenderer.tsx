@@ -100,7 +100,10 @@ function CollectionWithDescription(props: CollectionProps) {
   }, [description]);
 
   return (
-    <div ref={containerRef} style={{ width: "100%" }}>
+    // No inline width: a block-level div already fills its parent, and an
+    // inline width would override the wide-viewport breakout rules that widen
+    // this wrapper past the reading column.
+    <div ref={containerRef} className="notion-collection-container">
       <div
         ref={descRef}
         className="notion-collection-description"
@@ -206,6 +209,16 @@ export function NotionPageRenderer({
   }, [recordMap]);
 
   const hasCustomHeader = Boolean(recordMap && pageId && showCustomHeader);
+
+  // The studio home carries a hero row and galleries rather than prose, so it
+  // gets its own reading-column width on wide viewports (`.index-page` in
+  // styles/notion-parity.css). Page ids reach this component both with and
+  // without dashes, so compare them stripped.
+  const isRootPage = React.useMemo(() => {
+    if (!pageId || !rootPageId) return false;
+    const normalize = (id: string) => id.replaceAll("-", "").toLowerCase();
+    return normalize(pageId) === normalize(rootPageId);
+  }, [pageId, rootPageId]);
 
   React.useEffect(() => {
     if (!recordMap?.collection_view) {
@@ -480,6 +493,7 @@ export function NotionPageRenderer({
             darkMode={darkMode}
             fullPage={fullPage}
             rootPageId={rootPageId}
+            bodyClassName={isRootPage ? "index-page" : undefined}
             mapPageUrl={mapPageUrl}
             mapImageUrl={mapImageUrl}
             pageAside={pageAside}
