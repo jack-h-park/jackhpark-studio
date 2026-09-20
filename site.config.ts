@@ -39,8 +39,9 @@ export default siteConfig({
   // images remain available through the existing image path.
   isPreviewImageSupportEnabled: false,
 
-  // default TTL (in seconds) for cached Notion pages; can be overridden via env
-  notionPageCacheTTLSeconds: 60,
+  // Keep cache expiry aligned with ISR so repeated page requests do not
+  // rehydrate Notion collections more than once per five-minute window.
+  notionPageCacheTTLSeconds: 300,
 
   includeNotionIdInUrls: false,
 
