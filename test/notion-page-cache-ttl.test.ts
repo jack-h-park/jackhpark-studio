@@ -8,7 +8,7 @@ import { __pageCacheInternals, getPage } from "@/lib/notion";
  * and never moved by a read.
  *
  * Before this was fixed, every cache hit re-wrote the entry with a fresh TTL.
- * With ISR re-rendering /studio every 60s and a 60s cache TTL, the entry was
+ * With ISR re-rendering /studio every five minutes and a five-minute cache TTL, the entry was
  * refreshed more often than it could expire, so Notion was never re-read —
  * jackhpark.com served a Notion revision months out of date, and an edit made
  * on 2026-08-30 had still not appeared ten minutes and a dozen requests later.
@@ -30,7 +30,7 @@ void test("a read does not extend the cache deadline", (t) => {
   __pageCacheInternals.clear();
   __pageCacheInternals.setCachedRecordMapInMemory(KEY, recordMap);
 
-  const ttlMs = Number(process.env.__TEST_TTL_MS ?? 60_000);
+  const ttlMs = Number(process.env.__TEST_TTL_MS ?? 300_000);
 
   // A read well inside the window is a hit.
   t.mock.timers.tick(ttlMs / 2);
@@ -59,7 +59,7 @@ void test("mirroring a persistent hit into memory keeps the original deadline", 
   __pageCacheInternals.clear();
   __pageCacheInternals.setCachedRecordMapInMemory(KEY, recordMap);
 
-  const ttlMs = Number(process.env.__TEST_TTL_MS ?? 60_000);
+  const ttlMs = Number(process.env.__TEST_TTL_MS ?? 300_000);
 
   t.mock.timers.tick(ttlMs / 2);
   // This is what readCachedRecordMap does on a persistent hit.
@@ -85,7 +85,7 @@ void test("a fresh write does start a new deadline", (t) => {
   __pageCacheInternals.clear();
   __pageCacheInternals.setCachedRecordMapInMemory(KEY, recordMap);
 
-  const ttlMs = Number(process.env.__TEST_TTL_MS ?? 60_000);
+  const ttlMs = Number(process.env.__TEST_TTL_MS ?? 300_000);
 
   t.mock.timers.tick(ttlMs / 2);
   __pageCacheInternals.setCachedRecordMapInMemory(KEY, recordMap); // re-fetched
@@ -109,12 +109,12 @@ void test("getPage on a cache hit does not extend the deadline", async (t) => {
 
   const pageId = "28299029c0b481ce8999d425287d3db6";
   const key = __pageCacheInternals.getPageCacheKey(pageId);
-  const ttlMs = Number(process.env.__TEST_TTL_MS ?? 60_000);
+  const ttlMs = Number(process.env.__TEST_TTL_MS ?? 300_000);
 
   __pageCacheInternals.clear();
   __pageCacheInternals.setCachedRecordMapInMemory(key, recordMap);
 
-  // Serve the page from cache repeatedly, the way ISR does every 60s.
+  // Serve the page from cache repeatedly, the way ISR does every five minutes.
   t.mock.timers.tick(ttlMs / 2);
   await getPage(pageId);
   t.mock.timers.tick(ttlMs / 2 + 1);
