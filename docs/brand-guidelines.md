@@ -14,9 +14,29 @@
 
 ---
 
+## Current application note — 2026-09-10
+
+The v1.0 text below is historical source material. The richer HTML guide linked above owns
+current visual rules. Its v1.2 visual-locked JHP logo supersedes the J-P construction formulas,
+reference SVG, and computed-hyphen instructions in section 2. Use approved logo assets from
+the current guide; do not reconstruct a mark from this historical specification.
+
+The current guide's presentation application defines a 1920 × 1080 reference canvas and
+separates slide dimensions from the website type scale. The old section 7.2 sizes are a compact
+mockup example, not projection-ready slide coordinates. Current application and contrast
+corrections take precedence over the original examples below.
+
+Agent portraits follow the existing
+agent visual identity guide in the `hermes-control-plane` repo
+(`docs/hermes/agent-visual-identity.md`).
+Studio owns the hosting surface; the agent registry and manifest own identities and approved
+assets. Jack's published voice is owned by the
+writing contract in that same repo (`writing/README.md`).
+Do not copy personal identity or voice guidance into a new deck-specific source of truth.
+
 ## 0 · How to use this document
 
-This guide is the single source of truth for the Jack H. Park Studio visual identity. Use it when designing slides, writing emails, building product surfaces, or commissioning external work. Every value below is a token — copy it as-is.
+This is the original v1.0 source specification. For new work, use the current HTML guide and the application note above. Historical token values and examples below require that precedence check.
 
 When in doubt: **the system is quiet by default, the signature appears once per surface, and the logo is never reconstructed by hand.**
 
@@ -216,18 +236,15 @@ These are status tokens, not brand tokens. They communicate state in UI surfaces
 
 ### 3.5 Accessibility
 
-All foreground/background combinations must meet WCAG 2.1 AA contrast (4.5:1 for body, 3:1 for large text). Verified pairings:
+Check the foreground against the actual background behind the text. A brighter portion of a
+gradient is not compensated by a darker portion elsewhere. For a label over a gradient, check
+the lowest-contrast area behind its glyphs in every rendered state, or use a solid readable
+label surface with the gradient reserved for the surrounding accent.
 
-| Foreground | Background | Contrast | Pass |
-|---|---|---|---|
-| `--text-primary` light | `--bg-page` light | 12.9:1 | AAA |
-| `--text-secondary` light | `--bg-page` light | 6.4:1 | AAA |
-| `--text-primary` dark | `--bg-page` dark | 13.2:1 | AAA |
-| White on `--brand-purple` | — | 4.8:1 | AA |
-| White on `--brand-blue` | — | 3.1:1 | AA large |
-| White on `--brand-cyan` | — | 2.4:1 | **Fail** — never place white text on cyan alone; the gradient compensates because pink and purple do pass |
-
-When using the Full gradient as a button fill, white text is acceptable because the perceived contrast is dominated by the purple-pink portion. Do not place white text on a solid cyan button.
+The original contrast table contained incorrect values and has been replaced by recomputed
+solid-color examples in the current HTML guide. Do not infer a readable text color from a
+brand or agent accent token. Use primary or secondary neutral text for small labels, and
+verify the actual size and background before release.
 
 ---
 
