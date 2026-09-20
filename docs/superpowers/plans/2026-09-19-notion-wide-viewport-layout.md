@@ -83,11 +83,22 @@ an unscoped 900px would also apply below the breakpoint and overflow narrow
 screens. The width now lives only in the wide-viewport section of
 `styles/notion-parity.css`.
 
-### Phase 3 — make Notion's Full width toggle usable
+### Phase 3 — make Notion's Full width toggle usable — DEFERRED, not dropped
+
+Held on 2026-09-20: nothing currently needs a page wider than the Phase 1 breakout,
+so this is work to do when a page actually wants it.
 
 - Cap the text measure for text blocks under `.notion-full-width`.
 - Fix the hero icon position (rules near [styles/notion.css:1122](../../../styles/notion.css)).
 - Outcome: per-page Full width becomes a real option in Notion, not a broken one.
+
+**Until then the toggle is a trap.** Turning on Full width in Notion needs no
+deploy, and measured at 1920px it takes body text to ~1037px lines (~180
+characters) and pushes the hero icon into the site header. Leave it off.
+
+Worth doing eventually on principle: it is the one item here that *returns*
+control to Notion rather than taking it, which is the direction
+[the layout principle](../../principles/guiding-principles.md) points.
 
 ### Phase 4 — verify interactions
 
