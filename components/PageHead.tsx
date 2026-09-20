@@ -4,6 +4,10 @@ import type * as types from "@/lib/types";
 import * as config from "@/lib/config";
 import { debugNotionXLogger } from "@/lib/debug-notion-x";
 import { getSocialImageUrl } from "@/lib/get-social-image-url";
+import {
+  COVER_IMAGE_SIZES,
+  getNotionCoverImage,
+} from "@/lib/notion-cover-image";
 
 export function PageHead({
   site,
@@ -11,16 +15,30 @@ export function PageHead({
   description,
   pageId,
   image,
+  coverImage,
   url,
   isBlogPost,
 }: types.PageProps & {
   title?: string;
   description?: string;
   image?: string;
+  /** Upstream page cover, when the page has one. Preloaded, not rendered. */
+  coverImage?: string;
   url?: string;
   isBlogPost?: boolean;
 }) {
   const rssFeedUrl = `${config.host}/feed`;
+
+  // The whole Notion tree is client-rendered (`NotionRenderer` is
+  // `dynamic({ ssr: false })`), so the cover <img> does not exist for the
+  // preload scanner to find and its request could not start until hydration
+  // finished — the band sat empty for seconds. This head is server-rendered, so
+  // the hint is in the HTML and the fetch starts at parse time instead.
+  //
+  // The variants must match what NotionCoverBlurFill renders, which is why both
+  // read them from the same helper: a hint that names bytes nothing goes on to
+  // use is worse than no hint at all.
+  const coverPreload = coverImage ? getNotionCoverImage(coverImage) : null;
 
   debugNotionXLogger.log("[Header] rendered");
 
@@ -92,6 +110,18 @@ export function PageHead({
           <meta property="og:url" content={url} />
           <meta property="twitter:url" content={url} />
         </>
+      )}
+
+      {coverPreload && (
+        <link
+          key="notion-page-cover-preload"
+          rel="preload"
+          as="image"
+          href={coverPreload.src}
+          imageSrcSet={coverPreload.srcSet}
+          imageSizes={COVER_IMAGE_SIZES}
+          fetchPriority="high"
+        />
       )}
 
       <link

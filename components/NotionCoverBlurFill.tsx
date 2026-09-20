@@ -1,6 +1,9 @@
 import * as React from "react";
 
-import { getNextImageProxyUrl } from "@/lib/next-image-proxy";
+import {
+  COVER_IMAGE_SIZES,
+  getNotionCoverImage,
+} from "@/lib/notion-cover-image";
 
 interface Props {
   coverUrl: string;
@@ -26,29 +29,36 @@ export function NotionCoverBlurFill({ coverUrl, coverPosition = 0.5 }: Props) {
   // page_cover_position=0 → 100% (bottom), =1 → 0% (top), =0.5 → 50% (center)
   const objectPosition = `center ${(1 - coverPosition) * 100}%`;
 
-  // Both layers share one src so the blurred background can never diverge from
-  // the sharp foreground: when the direct notion.so fetch fails (firewall,
-  // expired signed URL) the foreground <img> reports it and both switch to the
-  // server-side /_next/image proxy. The background is a CSS url() and cannot
-  // report failure on its own.
-  const [proxyUrl, setProxyUrl] = React.useState<string | null>(null);
-  const resolvedUrl = proxyUrl ?? coverUrl;
+  // Served through the /_next/image optimizer: the raw Notion asset is the
+  // untouched original (1.6 MB for one cover) and the band is full-bleed, so a
+  // srcSet is what the layout actually wants. Being same-origin, this path is
+  // also immune to the firewalls that used to block notion.so directly.
+  //
+  // `optimized` is null only for sources the optimizer rejects (a local default
+  // cover), in which case the upstream URL is used unchanged.
+  const optimized = React.useMemo(
+    () => getNotionCoverImage(coverUrl),
+    [coverUrl],
+  );
+
+  // Both layers fall back together so the blurred background can never diverge
+  // from the sharp foreground. The background is a CSS url() and cannot report
+  // failure on its own, so the foreground <img> speaks for both: if the
+  // optimizer itself fails (upstream 403, expired signed URL) both drop to the
+  // raw Notion URL, which is where they stood before optimization.
+  const [degraded, setDegraded] = React.useState(false);
+  const useOptimized = optimized !== null && !degraded;
 
   React.useEffect(() => {
-    setProxyUrl(null);
+    setDegraded(false);
   }, [coverUrl]);
 
-  const handleError = React.useCallback(
-    (event: React.SyntheticEvent<HTMLImageElement>) => {
-      if (proxyUrl) return;
-      const proxied = getNextImageProxyUrl(
-        coverUrl,
-        event.currentTarget.getBoundingClientRect().width,
-      );
-      if (proxied) setProxyUrl(proxied);
-    },
-    [coverUrl, proxyUrl],
-  );
+  const handleError = React.useCallback(() => {
+    setDegraded(true);
+  }, []);
+
+  const foregroundSrc = useOptimized ? optimized.src : coverUrl;
+  const backgroundSrc = useOptimized ? optimized.backdropSrc : coverUrl;
 
   return (
     <div className="notion-page-cover-wrapper notion-yt-cover">
@@ -57,7 +67,7 @@ export function NotionCoverBlurFill({ coverUrl, coverPosition = 0.5 }: Props) {
         aria-hidden="true"
         className="notion-yt-cover__bg"
         style={{
-          backgroundImage: `url(${JSON.stringify(resolvedUrl)})`,
+          backgroundImage: `url(${JSON.stringify(backgroundSrc)})`,
           backgroundPosition: objectPosition,
         }}
       />
@@ -65,11 +75,14 @@ export function NotionCoverBlurFill({ coverUrl, coverPosition = 0.5 }: Props) {
       {/* Layer 2 — foreground: sharp image capped at content column width */}
       <div className="notion-yt-cover__fg" aria-hidden="true">
         <img
-          src={resolvedUrl}
+          src={foregroundSrc}
+          srcSet={useOptimized ? optimized.srcSet : undefined}
+          sizes={useOptimized ? COVER_IMAGE_SIZES : undefined}
           alt=""
           className="notion-yt-cover__img"
           style={{ objectPosition }}
           loading="eager"
+          fetchPriority="high"
           decoding="async"
           onError={handleError}
         />

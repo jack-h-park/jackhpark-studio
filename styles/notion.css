@@ -861,6 +861,15 @@ svg[data-processed-mermaid] .section-root tspan {
   padding-bottom: 1em;
 }
 
+/* The `.notion-collection-page-properties` wrapper further down owns the single
+   divider under the property table. react-notion-x draws one on the row inside
+   it as well, so both were painting: two hairlines ~24px apart, separated by the
+   row's own margin-bottom plus the wrapper's padding-bottom. Drop the inner one
+   and leave the spacing alone, so the surviving line stays where it is today. */
+.notion-collection-page-properties .notion-collection-row {
+  border-bottom: none;
+}
+
 .notion-collection-page-properties .notion-collection-column-title {
   display: none;
 }
