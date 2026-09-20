@@ -39,8 +39,9 @@ When implementing any change, **always prioritize the following principles**:
 
   Before changing layout, three questions:
   1. **Does the document change?** Content, order, and hierarchy must not.
-  2. **Is the rule predictable from the block type alone?** If it needs a
-     per-page or per-database exception, reconsider — an author who cannot
+  2. **Is the rule predictable from the block itself?** Its type, or the kinds
+     of blocks it holds, are both fair game — an author can see either one in
+     Notion. A per-page or per-database exception is not: an author who cannot
      predict the result from Notion has lost the CMS.
   3. **Does it narrow what Notion controls?** Moving authoring decisions into
      code is the expensive direction; prefer changes that leave them in Notion.
@@ -49,5 +50,11 @@ When implementing any change, **always prioritize the following principles**:
   Gallery column count was never an authored value — Notion authors card size,
   and the count is derived from the available width. Widening the container fed
   a new input to a rule that already existed rather than adding one.
+
+  The criterion that fell out of it: **width goes to blocks whose layout
+  reflows.** A gallery grid gains columns, an asset scales, a table gets wider
+  columns. A list view is a stack of short rows and reflows into nothing, so
+  width only stretches its rows and leaves a gap — it keeps the reading measure,
+  and so does a column row that holds nothing but text and lists.
 
 > If there is a trade-off, always favor long-term clarity and consistency over short-term speed.

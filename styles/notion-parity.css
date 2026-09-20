@@ -121,7 +121,10 @@
    page_cover_position from the block and applies it as an inline style, which
    must be allowed to take precedence. */
 .notion-polish-balanced .notion-page-cover-wrapper:not(.notion-yt-cover) img,
-.notion-polish-balanced .notion-page-cover-wrapper:not(.notion-yt-cover) span img {
+.notion-polish-balanced
+  .notion-page-cover-wrapper:not(.notion-yt-cover)
+  span
+  img {
   width: 100% !important;
   max-width: none !important;
   height: 100% !important;
@@ -146,7 +149,7 @@
 .notion-polish-balanced .notion-yt-cover__bg {
   display: none;
   position: absolute;
-  inset: -12% -6%;   /* outset hides blur fringe; wrapper overflow:hidden clips */
+  inset: -12% -6%; /* outset hides blur fringe; wrapper overflow:hidden clips */
   background-size: cover;
   filter: blur(32px) brightness(0.85) saturate(1.2);
 }
@@ -865,9 +868,11 @@
 /* -------------------------------------------------------------------------- */
 /* Wide-viewport breakout                                                     */
 /* -------------------------------------------------------------------------- */
-/* Prose keeps the reading measure (--np-page-max-width). Blocks that gain from
-   width — gallery/list collections, column rows, full-width assets — break out
-   of the reading column instead.
+/* Prose keeps the reading measure (--np-page-max-width). Only blocks whose
+   layout *reflows* with width break out of the reading column: a gallery grid
+   gains columns, an asset scales. A list view is a stack of short rows and
+   reflows into nothing, so extra width only stretches its rows and leaves a
+   gap on the right — it stays at the reading measure, wherever it sits.
 
    The breakout margin and the width both resolve their percentages against the
    same containing block, so the block stays centered on the page no matter how
@@ -919,7 +924,13 @@
     --np-wide-row-cap: 100%;
   }
 
-  .notion-polish-balanced .notion-page-content-inner > .notion-row {
+  /* A column row only widens when it carries something visual — an image,
+     video, embed, PDF or gallery. A row of text and list views gains nothing
+     from the width: the columns just get wider with the same short rows in
+     them, which reads worse than the reading measure it started at. */
+  .notion-polish-balanced
+    .notion-page-content-inner
+    > .notion-row:has(.notion-asset-wrapper, .notion-gallery) {
     box-sizing: border-box;
     width: var(--np-wide-row-width);
     max-width: var(--np-wide-row-width);
@@ -939,19 +950,10 @@
     > div:has(> .notion-collection .notion-gallery),
   .notion-polish-balanced
     .notion-page-content-inner
-    > div:has(> .notion-collection .notion-list-collection),
-  .notion-polish-balanced
-    .notion-page-content-inner
     > .notion-collection:has(.notion-gallery),
   .notion-polish-balanced
     .notion-page-content-inner
-    > .notion-collection:has(.notion-list-collection),
-  .notion-polish-balanced
-    .notion-page-content-inner
-    > div:has(+ .notion-collection .notion-gallery),
-  .notion-polish-balanced
-    .notion-page-content-inner
-    > div:has(+ .notion-collection .notion-list-collection) {
+    > div:has(+ .notion-collection .notion-gallery) {
     box-sizing: border-box;
     width: var(--np-wide-width);
     max-width: var(--np-wide-width);
