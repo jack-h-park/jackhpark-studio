@@ -909,6 +909,16 @@
     --notion-max-width: var(--np-wide-row-cap);
   }
 
+  /* The side peek renders a full page inside a fixed 960px panel, so a cap
+     measured against the viewport overflows it — and the panel hides the
+     overflow, silently clipping the block instead of scrolling it. Collapsing
+     both caps to 100% makes every breakout rule below a no-op in there:
+     the width falls back to the column and the margin computes to zero. */
+  .notion-polish-balanced .notion-side-peek .notion-page {
+    --np-wide-cap: 100%;
+    --np-wide-row-cap: 100%;
+  }
+
   .notion-polish-balanced .notion-page-content-inner > .notion-row {
     box-sizing: border-box;
     width: var(--np-wide-row-width);

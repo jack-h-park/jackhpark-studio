@@ -112,7 +112,14 @@ export function SidePeek({ isOpen, onClose, children }: SidePeekProps) {
           {/* Side panel */}
           <motion.div
             ref={panelRef}
-            className={cs(styles.panel, isMobile && styles.mobile)}
+            // `notion-side-peek` is a stable global hook: the wide-viewport
+            // breakout in styles/notion-parity.css sizes blocks against the
+            // viewport, which overflows this panel, so it resets itself here.
+            className={cs(
+              styles.panel,
+              "notion-side-peek",
+              isMobile && styles.mobile,
+            )}
             drag={isMobile ? "y" : false}
             dragListener={false}
             dragControls={dragControls}
