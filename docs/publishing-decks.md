@@ -14,7 +14,34 @@ published to `public/decks/<slug>/`, served at `https://jackhpark.com/decks/<slu
 `scripts/publish-deck.sh` places the generated file, verifies it serves correctly at the
 real subpath, and refuses to publish if any load-bearing fact has drifted.
 
-## Flow
+## Current Overview release
+
+The fifteen-slide Studio Overview now owns `/decks/pm-intelligence-system`.
+Its content source is `hermes-control-plane/docs/deck/design-pilot/source/overview-pilot.json`;
+`docs/deck/design-pilot/build-studio-preview.mjs` generates the self-contained HTML.
+The Marp workflow below remains the legacy track and appendix workflow.
+
+```bash
+# In the control-plane checkout:
+node docs/deck/design-pilot/build-studio-preview.mjs
+
+# In this Studio checkout, use explicit source and facts paths:
+DECK_FACTS=/path/to/hermes-control-plane/docs/deck/deck-facts.json \
+  scripts/publish-deck.sh \
+  /path/to/hermes-control-plane/docs/deck/design-pilot/output/studio-creative-review.html \
+  pm-intelligence-system
+```
+
+Internal evidence IDs stay in the source JSON; public slides show reader-facing
+notes. Approved portraits are embedded, and presentation motion makes no platform
+API calls. Motion pause and reduced-motion support are included. The separate
+Product Decision pilot and the legacy appendix are not changed by this release.
+
+Validate the published bytes against the generated artifact, then check all fifteen
+slides, image loading, navigation, interactive selections, and motion at the live
+canonical URL. A local publish-script success is not a production deployment.
+
+## Legacy track flow
 
 1. **Generate the HTML** in `hermes-control-plane` (a Claude Code session there, via the
    `frontend-slides` skill, from the Marp skeleton). Output lands at
@@ -88,7 +115,7 @@ script only places the file, verifies it serves, and checks facts.
 
 ## Source-of-truth split
 
-- **Facts / structure / wording** live in the Marp skeleton in `hermes-control-plane`
+- **Legacy track facts / structure / wording** live in the Marp skeleton in `hermes-control-plane`
   (`docs/deck/pm-intelligence-system.md`) — change facts there first, then regenerate.
 - The generated HTML (`core.html`, `backup.html`) is a **build artifact**, git-tracked in
   that repo, never hand-edited — regenerate from the skeleton instead.
