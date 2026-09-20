@@ -36,9 +36,47 @@ type ThumbnailImageCandidate = {
 }
 
 // Notion palette hues; their `_background` variants already flip with dark
-// mode. Yellow is left out: its accent is unreadable on its own tint.
-const coverTints = ['blue', 'purple', 'pink', 'teal', 'orange'] as const
-type CoverTint = (typeof coverTints)[number]
+// mode. The full set is reachable through a topic property's own colour.
+type CoverTint =
+  | 'blue'
+  | 'purple'
+  | 'pink'
+  | 'teal'
+  | 'orange'
+  | 'red'
+  | 'yellow'
+  | 'brown'
+  | 'gray'
+
+// The subset the id hash may pick when a page has no topic. Yellow, red, brown
+// and gray are left out: as an arbitrary assignment they read as a status
+// (warning, error, disabled) that the page does not actually carry.
+const fallbackCoverTints: readonly CoverTint[] = [
+  'blue',
+  'purple',
+  'pink',
+  'teal',
+  'orange'
+]
+
+// Notion's select-option colours. 'green' has no `--notion-green_background`
+// in the stylesheet, so it lands on the nearest hue that does.
+const notionColorToTint: Record<string, CoverTint> = {
+  blue: 'blue',
+  purple: 'purple',
+  pink: 'pink',
+  green: 'teal',
+  orange: 'orange',
+  red: 'red',
+  yellow: 'yellow',
+  brown: 'brown',
+  gray: 'gray'
+}
+
+// The collection property whose value colours the card. Matched by name, case
+// and spacing insensitively, so renaming the column in Notion is what changes
+// the binding — not a code edit.
+const topicPropertyNames = new Set(['topic', 'topics'])
 
 // Image-less pages get a generated cover. It keeps Notion's own card anatomy —
 // the page's opening content, read top-to-bottom — and adds hierarchy on top:
@@ -120,6 +158,23 @@ function unwrapBlock(box: unknown): Block | undefined {
   }
   return node && typeof node === 'object' && (node as { id?: unknown }).id
     ? (node as Block)
+    : undefined
+}
+
+// Same {value:{value}} unboxing, for the collection record that carries the
+// property schema.
+function unwrapCollection(box: unknown): { schema?: unknown } | undefined {
+  let node: unknown = box
+  while (
+    node &&
+    typeof node === 'object' &&
+    'value' in node &&
+    (node as { value?: unknown }).value
+  ) {
+    node = (node as { value?: unknown }).value
+  }
+  return node && typeof node === 'object' && 'schema' in node
+    ? (node as { schema?: unknown })
     : undefined
 }
 
@@ -577,14 +632,61 @@ function splitOpening(openingBlocks: string[]): {
 }
 
 // Stable per page (FNV-1a over the block id), so a note keeps its colour across
-// renders, reorderings and additions to the collection.
-function pickCoverTint(blockId: string): CoverTint {
+// renders, reorderings and additions to the collection. Used only when the page
+// has no topic — the colour is then decorative, not meaningful.
+function pickFallbackTint(blockId: string): CoverTint {
   let hash = 0x81_1c_9d_c5
   for (const char of blockId) {
     hash ^= char.codePointAt(0)!
     hash = Math.imul(hash, 0x01_00_01_93)
   }
-  return coverTints[(hash >>> 0) % coverTints.length]!
+  return fallbackCoverTints[(hash >>> 0) % fallbackCoverTints.length]!
+}
+
+type CollectionSchemaProperty = {
+  name?: string
+  type?: string
+  options?: Array<{ value?: string; color?: string }>
+}
+
+/**
+ * Resolve the card tint from the page's topic property, using the colour Notion
+ * itself stores on the selected option. That keeps the mapping editable where
+ * the taxonomy lives: recolouring an option in Notion recolours the cards.
+ */
+function resolveTopicTint(
+  block: Block,
+  recordMap: ExtendedRecordMap
+): CoverTint | undefined {
+  const collectionId = block.parent_id
+  if (!collectionId) return undefined
+
+  const collection = unwrapCollection(recordMap.collection?.[collectionId])
+  const schema = collection?.schema as
+    | Record<string, CollectionSchemaProperty>
+    | undefined
+  if (!schema) return undefined
+
+  const entry = Object.entries(schema).find(([, property]) =>
+    topicPropertyNames.has(
+      (property?.name ?? '').trim().toLowerCase().replaceAll(/\s+/g, ' ')
+    )
+  )
+  if (!entry) return undefined
+
+  const [propertyId, property] = entry
+  if (property.type !== 'select' && property.type !== 'multi_select') {
+    return undefined
+  }
+
+  // multi_select values arrive comma-joined; the first one colours the card.
+  const rawValue = getTextContent(block.properties?.[propertyId])
+    .split(',')[0]
+    ?.trim()
+  if (!rawValue) return undefined
+
+  const option = property.options?.find((candidate) => candidate.value === rawValue)
+  return option?.color ? notionColorToTint[option.color] : undefined
 }
 
 // Build the cover from a CONSISTENT, predictable source: always the page's
@@ -637,7 +739,8 @@ function buildThesisCandidate(
     )
   )
 
-  const tint = pickCoverTint(rootBlock.id)
+  const tint =
+    resolveTopicTint(rootBlock, recordMap) ?? pickFallbackTint(rootBlock.id)
   const icon = normalizeIcon(getBlockIcon(rootBlock, recordMap))
 
   if (lead) {

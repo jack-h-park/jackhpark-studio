@@ -14,14 +14,34 @@ import {
 
 type TestBlock = { type: string; text: string };
 
-function buildPage(blocks: TestBlock[], pageId = "page-1") {
+type TopicFixture = {
+  /** The page's value for the property, or undefined to leave it unset. */
+  value?: string;
+  /** Notion's colour on that option. */
+  color?: string;
+  /** Defaults to "Topic". */
+  propertyName?: string;
+};
+
+const COLLECTION_ID = "collection-1";
+const TOPIC_PROPERTY_ID = "t0p;";
+
+function buildPage(
+  blocks: TestBlock[],
+  pageId = "page-1",
+  topic?: TopicFixture,
+) {
   const block: Record<string, { value: unknown }> = {
     [pageId]: {
       value: {
         id: pageId,
         type: "page",
+        parent_id: COLLECTION_ID,
         content: blocks.map((_, index) => `b${index}`),
-        properties: { title: [["Page title"]] },
+        properties: {
+          title: [["Page title"]],
+          ...(topic?.value ? { [TOPIC_PROPERTY_ID]: [[topic.value]] } : {}),
+        },
         format: { page_icon: "🧠" },
       },
     },
@@ -38,7 +58,25 @@ function buildPage(blocks: TestBlock[], pageId = "page-1") {
 
   const recordMap = {
     block,
-    collection: {},
+    collection: topic
+      ? {
+          [COLLECTION_ID]: {
+            value: {
+              id: COLLECTION_ID,
+              schema: {
+                title: { name: "Name", type: "title" },
+                [TOPIC_PROPERTY_ID]: {
+                  name: topic.propertyName ?? "Topic",
+                  type: "select",
+                  options: [
+                    { id: "o1", value: topic.value, color: topic.color },
+                  ],
+                },
+              },
+            },
+          },
+        }
+      : {},
     collection_view: {},
     notion_user: {},
     collection_query: {},
@@ -51,8 +89,9 @@ function buildPage(blocks: TestBlock[], pageId = "page-1") {
 function coverFor(
   blocks: TestBlock[],
   pageId?: string,
+  topic?: TopicFixture,
 ): CollectionCardCoverCandidate | null {
-  const { root, recordMap } = buildPage(blocks, pageId);
+  const { root, recordMap } = buildPage(blocks, pageId, topic);
   return getCollectionCardCoverCandidate({
     block: root,
     cover: { type: "page_content" } as unknown as CollectionCardCover,
@@ -156,6 +195,50 @@ void describe("collection card thesis cover", () => {
       "Reversible decisions deserve speed and real signal every time.",
     );
     assert.equal(candidate.icon, "🧠");
+  });
+
+  void it("takes the tint from the topic option's own Notion colour", () => {
+    const blocks = [
+      {
+        type: "text",
+        text: "Most product work gets celebrated on the way in.",
+      },
+    ];
+    const candidate = coverFor(blocks, "page-topic", {
+      value: "AI Products",
+      color: "purple",
+    });
+    assert.equal(candidate?.kind === "thesis" && candidate.tint, "purple");
+
+    // Notion's green has no matching background token; it lands on teal.
+    const green = coverFor(blocks, "page-topic", {
+      value: "Craft & Career",
+      color: "green",
+    });
+    assert.equal(green?.kind === "thesis" && green.tint, "teal");
+  });
+
+  void it("falls back to the id hash when the topic is unset or unrecognized", () => {
+    const blocks = [
+      {
+        type: "text",
+        text: "Most product work gets celebrated on the way in.",
+      },
+    ];
+    const untinted = coverFor(blocks, "page-topic");
+    const unknownColor = coverFor(blocks, "page-topic", {
+      value: "AI Products",
+      color: "chartreuse",
+    });
+    const wrongProperty = coverFor(blocks, "page-topic", {
+      value: "AI Products",
+      color: "purple",
+      propertyName: "Category",
+    });
+
+    assert.equal(untinted?.kind, "thesis");
+    assert.deepEqual(unknownColor, untinted);
+    assert.deepEqual(wrongProperty, untinted);
   });
 
   void it("keeps the tint stable for the same page id", () => {

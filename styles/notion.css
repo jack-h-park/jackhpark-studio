@@ -480,6 +480,28 @@ svg[data-processed-mermaid] .section-root tspan {
   --thesis-accent: var(--notion-orange);
 }
 
+/* Reachable only through a topic option's own Notion colour, never through the
+   id-hash fallback. */
+.notion-collection-card-cover-thesis[data-tint="red"] {
+  --thesis-bg: var(--notion-red_background);
+  --thesis-accent: var(--notion-red);
+}
+
+.notion-collection-card-cover-thesis[data-tint="yellow"] {
+  --thesis-bg: var(--notion-yellow_background);
+  --thesis-accent: var(--notion-yellow);
+}
+
+.notion-collection-card-cover-thesis[data-tint="brown"] {
+  --thesis-bg: var(--notion-brown_background);
+  --thesis-accent: var(--notion-brown);
+}
+
+.notion-collection-card-cover-thesis[data-tint="gray"] {
+  --thesis-bg: var(--notion-gray_background);
+  --thesis-accent: var(--notion-gray);
+}
+
 .notion-collection-card-cover-thesis-icon {
   flex: 0 0 auto;
   font-size: 24px;
