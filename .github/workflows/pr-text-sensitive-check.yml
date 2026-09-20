@@ -1,0 +1,85 @@
+name: PR text sensitive-term check
+
+# Catches real product identifiers / private companion-repo names that landed in
+# a PR title or description instead of their public-safe alias. This is the
+# backstop for the case a git-history rewrite can never fix: a PR's own
+# title/description is GitHub metadata, not a git object, so a force-push never
+# reaches it — that gap is how six merged pm-intelligence-engine PR descriptions
+# kept real product identifiers months after the commits had been cleaned.
+#
+# workspace-governance's docs/public-safe-aliases.md had this repo listed as
+# "not applied — this class of leak is unlikely to reach it, add if it ever
+# does". It did: a 2026-09-10 edit to docs/brand-guidelines.md carried a private
+# companion repo's local path form. docs/path-leak-guardrail.md covers file
+# contents; this covers the PR text that no file check can see.
+#
+# Requires a repo secret PR_SENSITIVE_TERMS: one real identifier per line, drawn
+# from the "Real value" column of public-safe-aliases.md. Kept as a secret (not
+# committed here) specifically so this public workflow file doesn't itself have
+# to name the values it is checking for. Until it is set, this check skips.
+#
+#   gh secret set PR_SENSITIVE_TERMS --repo jack-h-park/jackhpark-studio
+#
+# Two blind spots, documented rather than fixed:
+#
+#  - A PR created or edited through the raw REST API (`gh api -X PATCH
+#    .../pulls/N`) does not reliably fire the `pull_request` webhook, so the
+#    check never runs and says nothing. Found 2026-09-11 on
+#    pm-intelligence-engine PR #92, which carried a real local path for two days
+#    without the check firing on either its `opened` or a later `edited` event.
+#  - A PR from a fork gets no secrets, so SENSITIVE_TERMS is empty and the check
+#    skips. Real coverage for the normal `gh pr create` / `gh pr edit` / web-UI
+#    path from this repo; not a substitute for reading a PR body before it goes
+#    anywhere.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  check:
+    # GitHub-hosted, deliberately, and it must stay that way while this repo is
+    # public. Hosted minutes are free for public repos, so there is nothing to
+    # save — and a self-hosted runner must never serve a public repo: a pull
+    # request from a fork can edit this file, GitHub runs the PR's version of
+    # it, and that would execute arbitrary code on the runner's machine.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title and description
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          SENSITIVE_TERMS: ${{ secrets.PR_SENSITIVE_TERMS }}
+        run: |
+          if [ -z "$SENSITIVE_TERMS" ]; then
+            echo "PR_SENSITIVE_TERMS secret is not set — nothing to check against. Skipping."
+            exit 0
+          fi
+
+          # $RUNNER_TEMP rather than /tmp: the runner's own scratch space, cleared
+          # after each job on any kind of runner. This file holds exactly the PR
+          # text that may contain a term this check exists to keep out of
+          # circulation, so it should not outlive the job anywhere.
+          pr_text="$RUNNER_TEMP/pr_text.txt"
+          printf '%s\n%s\n' "$PR_TITLE" "$PR_BODY" > "$pr_text"
+
+          # The matched term is deliberately not echoed. The sibling repos' copies
+          # print it, which relies on GitHub masking every line of a multiline
+          # secret in the log; the annotation is just as actionable without
+          # betting a real identifier on that behaviour.
+          found=0
+          while IFS= read -r term; do
+            [ -z "$term" ] && continue
+            if grep -qF -- "$term" "$pr_text"; then
+              found=$((found + 1))
+            fi
+          done <<< "$SENSITIVE_TERMS"
+
+          if [ "$found" -gt 0 ]; then
+            echo "::error::PR title/description contains $found real identifier(s) that need their public-safe alias (see workspace-governance/docs/public-safe-aliases.md)."
+            echo ""
+            echo "This check exists because a git-history rewrite never reaches a PR's own title/description — only its commits. Edit the PR text to use the alias, not the real value, and this check will re-run automatically."
+            exit 1
+          fi
+
+          echo "Clean."
