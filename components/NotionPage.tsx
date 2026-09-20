@@ -23,6 +23,7 @@ import { mapImageUrl } from "@/lib/map-image-url";
 import { getCanonicalPageUrl, mapPageUrl } from "@/lib/map-page-url";
 import { getPageCollectionId } from "@/lib/notion/getPageCollectionId";
 import { createCollectionCardCoverRenderer } from "@/lib/notion-collection-card-cover";
+import { getBlockValue } from "@/lib/rag/notion-record-value";
 import { useDarkMode } from "@/lib/use-dark-mode";
 import { useSidePeek } from "@/lib/use-side-peek";
 
@@ -856,6 +857,21 @@ export function NotionPage({
         ) || mapImageUrl(config.defaultPageCover, block)
       : config.defaultPageCover;
 
+  // The page's own cover, for the preload hint in PageHead — deliberately not
+  // the `socialImage` chain above, which falls back to a Social Image property
+  // and then the site default; preloading either would fetch bytes the cover
+  // band never renders. Read through getBlockValue because the record map this
+  // component receives is doubly nested (`block[id].value.value`), the shape
+  // that quietly emptied the RAG corpus once; NotionPageRenderer only sees the
+  // sanitized copy.
+  const pageCoverImage = React.useMemo(() => {
+    if (!recordMap || !pageId) return undefined;
+    const value = getBlockValue(recordMap.block?.[pageId]);
+    const cover = (value as PageBlock | undefined)?.format?.page_cover;
+    if (!value || !cover) return undefined;
+    return mapImageUrl(cover, value) ?? undefined;
+  }, [recordMap, pageId]);
+
   const socialDescription =
     (block &&
       recordMap &&
@@ -870,6 +886,7 @@ export function NotionPage({
         title={title}
         description={socialDescription}
         image={socialImage}
+        coverImage={pageCoverImage}
         url={canonicalPageUrl}
         isBlogPost={isBlogPost}
       />
@@ -880,6 +897,7 @@ export function NotionPage({
       title,
       socialDescription,
       socialImage,
+      pageCoverImage,
       canonicalPageUrl,
       isBlogPost,
     ],
