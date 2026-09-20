@@ -62,27 +62,31 @@ function coverFor(
   });
 }
 
-function thesisOf(blocks: TestBlock[]): string | undefined {
+function leadOf(blocks: TestBlock[]): string | undefined {
   const candidate = coverFor(blocks);
-  return candidate?.kind === "thesis" ? candidate.thesis : undefined;
+  return candidate?.kind === "thesis" ? candidate.lead : undefined;
+}
+
+function bodyOf(blocks: TestBlock[]): string | undefined {
+  const candidate = coverFor(blocks);
+  return candidate?.kind === "thesis" ? candidate.body : undefined;
 }
 
 void describe("collection card thesis cover", () => {
-  void it("uses the opening sentence, not the whole paragraph", () => {
-    assert.equal(
-      thesisOf([
-        {
-          type: "text",
-          text: "As products scale, complexity compounds. New features pile up.",
-        },
-      ]),
-      "As products scale, complexity compounds.",
-    );
+  void it("promotes the opening sentence to the lead and keeps the rest as body", () => {
+    const blocks = [
+      {
+        type: "text",
+        text: "As products scale, complexity compounds. New features pile up.",
+      },
+    ];
+    assert.equal(leadOf(blocks), "As products scale, complexity compounds.");
+    assert.equal(bodyOf(blocks), "New features pile up.");
   });
 
   void it("extends a too-short opening sentence with the next one", () => {
     assert.equal(
-      thesisOf([
+      leadOf([
         {
           type: "text",
           text: "It's 2:14 AM. A security analyst gets an alert. Nobody knows why.",
@@ -94,7 +98,7 @@ void describe("collection card thesis cover", () => {
 
   void it("skips a leading series note in parentheses", () => {
     assert.equal(
-      thesisOf([
+      leadOf([
         {
           type: "text",
           text: "(Part 2 of a two-part pair on trust in AI security products.)",
@@ -108,14 +112,29 @@ void describe("collection card thesis cover", () => {
     );
   });
 
-  void it("treats block boundaries as sentence boundaries and trails off a list lead-in", () => {
+  void it("treats a block boundary as a sentence boundary and keeps the list as body", () => {
+    const blocks = [
+      {
+        type: "text",
+        text: "Fine-tuning is the better fit when the goal is default behavior:",
+      },
+      { type: "bulleted_list", text: "Fixed style, tone, or format" },
+    ];
+    // The colon is kept because the list it introduces is right there below it.
     assert.equal(
-      thesisOf([
+      leadOf(blocks),
+      "Fine-tuning is the better fit when the goal is default behavior:",
+    );
+    assert.equal(bodyOf(blocks), "Fixed style, tone, or format");
+  });
+
+  void it("trails off a list lead-in that has nothing under it", () => {
+    assert.equal(
+      leadOf([
         {
           type: "text",
           text: "Fine-tuning is the better fit when the goal is default behavior:",
         },
-        { type: "bulleted_list", text: "Fixed style, tone, or format" },
       ]),
       "Fine-tuning is the better fit when the goal is default behavior…",
     );
@@ -132,6 +151,10 @@ void describe("collection card thesis cover", () => {
     assert.equal(candidate?.kind, "thesis");
     if (candidate?.kind !== "thesis") return;
     assert.equal(candidate.eyebrow, "Is this reversible? A useful test");
+    assert.equal(
+      candidate.lead,
+      "Reversible decisions deserve speed and real signal every time.",
+    );
     assert.equal(candidate.icon, "🧠");
   });
 

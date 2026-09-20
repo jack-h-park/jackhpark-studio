@@ -40,16 +40,17 @@ type ThumbnailImageCandidate = {
 const coverTints = ['blue', 'purple', 'pink', 'teal', 'orange'] as const
 type CoverTint = (typeof coverTints)[number]
 
-// Image-less pages get a generated cover: a per-page tint, the page icon, and
-// the opening sentence as a one-line hook. It replaces the old text teaser,
-// which was a smaller, fainter copy of the article and made every card in an
-// all-text collection look identical.
+// Image-less pages get a generated cover. It keeps Notion's own card anatomy —
+// the page's opening content, read top-to-bottom — and adds hierarchy on top:
+// a per-page tint, the page icon, and the opening sentence promoted to a lead
+// line so the card has something to catch on before the prose continues.
 type ThumbnailThesisCandidate = {
   kind: 'thesis'
   tint: CoverTint
   icon?: string
   eyebrow?: string
-  thesis: string
+  lead: string
+  body?: string
 }
 
 type ThumbnailEmptyCandidate = {
@@ -442,10 +443,13 @@ function shouldSuppressHeading(
 }
 
 // Enough opening text to get past a leading series note such as
-// "(Part 2 of a two-part pair …)" and still have sentences to choose from.
-const THESIS_SOURCE_BUDGET = 900
-const THESIS_MIN_LENGTH = 40
-const THESIS_MAX_SENTENCES = 2
+// "(Part 2 of a two-part pair …)" and still fill the cover after the lead.
+const OPENING_SOURCE_BUDGET = 1200
+// What is shown under the lead. Deliberately larger than the cover can hold:
+// the CSS fade, not a mid-word "…", provides the visual truncation.
+const PREVIEW_BODY_BUDGET = 420
+const LEAD_MIN_LENGTH = 40
+const LEAD_MAX_SENTENCES = 2
 
 // Trim a leading decorative emoji (e.g. a callout icon that ended up inline)
 // and any leftover short section label so the body opens on real prose.
@@ -524,11 +528,24 @@ function stripTrailingDecoration(text: string): string {
   return chars.slice(0, end).join('')
 }
 
-// The cover's hook is the opening sentence, extended by the next one when the
-// first is too short to carry meaning alone ("It's 2:14 AM."). These notes
-// lead with their claim, so the opening sentence is the thesis far more often
-// than any heading is.
-function extractThesis(openingBlocks: string[]): string {
+// Clip at a word boundary WITHOUT a trailing ellipsis — the body relies on the
+// CSS fade mask for truncation, so we never inject "…" mid-preview.
+function clipAtWordBoundary(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text
+
+  const slice = text.slice(0, maxChars)
+  const lastSpace = slice.lastIndexOf(' ')
+  return (lastSpace > maxChars * 0.6 ? slice.slice(0, lastSpace) : slice).trimEnd()
+}
+
+// Split the opening into a lead and the prose that continues it. The lead is
+// the opening sentence, extended by the next one when the first is too short to
+// carry meaning alone ("It's 2:14 AM."); everything after it stays on the card
+// as the content preview Notion itself shows.
+function splitOpening(openingBlocks: string[]): {
+  lead: string
+  body?: string
+} {
   const sentences = openingBlocks.flatMap((text, index) => {
     const cleaned = stripLeadingDecoration(text)
     return splitSentences(
@@ -536,15 +553,27 @@ function extractThesis(openingBlocks: string[]): string {
     )
   })
 
-  let thesis = ''
-  for (const sentence of sentences.slice(0, THESIS_MAX_SENTENCES)) {
-    thesis = thesis ? `${thesis} ${sentence}` : sentence
-    if (weightedLength(thesis) >= THESIS_MIN_LENGTH) break
+  let lead = ''
+  let taken = 0
+  for (const sentence of sentences.slice(0, LEAD_MAX_SENTENCES)) {
+    lead = lead ? `${lead} ${sentence}` : sentence
+    taken++
+    if (weightedLength(lead) >= LEAD_MIN_LENGTH) break
   }
 
-  // A sentence that introduces a list ends on a colon; on a cover the list
-  // never follows, so let it trail off instead of dangling.
-  return stripTrailingDecoration(thesis).replace(/:$/, '…')
+  const body = clipAtWordBoundary(
+    stripTrailingDecoration(sentences.slice(taken).join(' ')),
+    PREVIEW_BODY_BUDGET
+  )
+
+  return {
+    // A lead that introduces a list ends on a colon. That dangles only when
+    // nothing follows it on the card; when the list is right there, keep it.
+    lead: body
+      ? stripTrailingDecoration(lead)
+      : stripTrailingDecoration(lead).replace(/:$/, '…'),
+    body: body || undefined
+  }
 }
 
 // Stable per page (FNV-1a over the block id), so a note keeps its colour across
@@ -558,10 +587,11 @@ function pickCoverTint(blockId: string): CoverTint {
   return coverTints[(hash >>> 0) % coverTints.length]!
 }
 
-// Build the thesis from a CONSISTENT, predictable source: always the page's
-// opening content read top-to-bottom. A heading is used as the eyebrow only
-// when it sits in the first few content blocks — never a mid-page section
-// heading — so the cover can't skip the real intro and jump elsewhere.
+// Build the cover from a CONSISTENT, predictable source: always the page's
+// opening content read top-to-bottom, the same content Notion's own gallery
+// card previews. A heading is used as the eyebrow only when it sits in the
+// first few content blocks — never a mid-page section heading — so the cover
+// can't skip the real intro and jump elsewhere.
 function buildThesisCandidate(
   rootBlock: Block,
   recordMap: ExtendedRecordMap
@@ -599,24 +629,24 @@ function buildThesisCandidate(
     bodyStart = headingIdx + 1
   }
 
-  const thesis = extractThesis(
+  const { lead, body } = splitOpening(
     collectOpeningText(
       meaningful.slice(bodyStart),
       recordMap,
-      THESIS_SOURCE_BUDGET
+      OPENING_SOURCE_BUDGET
     )
   )
 
   const tint = pickCoverTint(rootBlock.id)
   const icon = normalizeIcon(getBlockIcon(rootBlock, recordMap))
 
-  if (thesis) {
-    return { kind: 'thesis', tint, icon, eyebrow: heading, thesis }
+  if (lead) {
+    return { kind: 'thesis', tint, icon, eyebrow: heading, lead, body }
   }
 
-  // No prose to quote: promote the heading itself so the cover still says
+  // No prose to preview: promote the heading itself so the cover still says
   // something beyond the title underneath it.
-  return heading ? { kind: 'thesis', tint, icon, thesis: heading } : null
+  return heading ? { kind: 'thesis', tint, icon, lead: heading } : null
 }
 
 export function getCollectionCardCoverCandidate({
@@ -713,9 +743,15 @@ function CollectionCardCoverThesis({
           </div>
         )}
 
-        <p className='notion-collection-card-cover-thesis-quote'>
-          {candidate.thesis}
+        <p className='notion-collection-card-cover-thesis-lead'>
+          {candidate.lead}
         </p>
+
+        {candidate.body && (
+          <p className='notion-collection-card-cover-thesis-body'>
+            {candidate.body}
+          </p>
+        )}
       </div>
     </div>
   )
