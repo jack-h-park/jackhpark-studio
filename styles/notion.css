@@ -445,12 +445,11 @@ svg[data-processed-mermaid] .section-root tspan {
 .notion-collection-card-cover-thesis {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
   height: 100%;
   box-sizing: border-box;
-  padding: 16px 18px;
+  padding: 14px 16px;
   overflow: hidden;
   background: var(--thesis-bg);
   color: var(--fg-color);
@@ -481,20 +480,45 @@ svg[data-processed-mermaid] .section-root tspan {
   --thesis-accent: var(--notion-orange);
 }
 
+/* Reachable only through a topic option's own Notion colour, never through the
+   id-hash fallback. */
+.notion-collection-card-cover-thesis[data-tint="red"] {
+  --thesis-bg: var(--notion-red_background);
+  --thesis-accent: var(--notion-red);
+}
+
+.notion-collection-card-cover-thesis[data-tint="yellow"] {
+  --thesis-bg: var(--notion-yellow_background);
+  --thesis-accent: var(--notion-yellow);
+}
+
+.notion-collection-card-cover-thesis[data-tint="brown"] {
+  --thesis-bg: var(--notion-brown_background);
+  --thesis-accent: var(--notion-brown);
+}
+
+.notion-collection-card-cover-thesis[data-tint="gray"] {
+  --thesis-bg: var(--notion-gray_background);
+  --thesis-accent: var(--notion-gray);
+}
+
 .notion-collection-card-cover-thesis-icon {
   flex: 0 0 auto;
-  font-size: 32px;
+  font-size: 24px;
   line-height: 1;
 }
 
 .notion-collection-card-cover-thesis-text {
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
   min-height: 0;
+  overflow: hidden;
 }
 
 .notion-collection-card-cover-thesis-eyebrow {
+  flex: 0 0 auto;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.3;
@@ -507,9 +531,10 @@ svg[data-processed-mermaid] .section-root tspan {
   text-overflow: ellipsis;
 }
 
-.notion-collection-card-cover-thesis-quote {
+.notion-collection-card-cover-thesis-lead {
+  flex: 0 0 auto;
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.4;
   display: -webkit-box;
@@ -519,15 +544,43 @@ svg[data-processed-mermaid] .section-root tspan {
   -webkit-line-clamp: 3;
 }
 
+/* The prose that follows the lead — the same opening content Notion's own card
+   previews. It takes the remaining height and fades out rather than ending on
+   a mid-word ellipsis. */
+.notion-collection-card-cover-thesis-body {
+  flex: 1 1 auto;
+  margin: 0;
+  min-height: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  /* One step back from the lead in BOTH modes. --fg-color-3 collapses onto
+     --fg-color in dark, which would flatten the two into one weight. */
+  color: color-mix(in srgb, var(--fg-color) 78%, var(--thesis-bg));
+  overflow: hidden;
+  word-break: break-word;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - 1.5em),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - 1.5em),
+    transparent 100%
+  );
+}
+
 .notion-collection-card-size-small .notion-collection-card-cover-thesis {
   padding: 12px 14px;
 }
 
 .notion-collection-card-size-small .notion-collection-card-cover-thesis-icon {
-  font-size: 24px;
+  font-size: 20px;
 }
 
-.notion-collection-card-size-small .notion-collection-card-cover-thesis-quote {
+.notion-collection-card-size-small .notion-collection-card-cover-thesis-lead {
   font-size: 14px;
   line-clamp: 2;
   -webkit-line-clamp: 2;
