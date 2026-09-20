@@ -27,6 +27,7 @@ This codebase is part of an interview. Favor clarity, consistency, and explainab
 
 - All logging must follow [docs/telemetry/implementation/telemetry-logging.md](docs/telemetry/implementation/telemetry-logging.md) and [docs/telemetry/langfuse-guide.md](docs/telemetry/langfuse-guide.md). Do not add ad-hoc logs.
 - All UI changes must follow [docs/canonical/design-system/ai-design-system.md](docs/canonical/design-system/ai-design-system.md), [docs/css-guardrails.md](docs/css-guardrails.md), and [docs/ui/drawer-ui-contract.md](docs/ui/drawer-ui-contract.md).
+- This repository is public. Paths that only resolve on one machine — a relative link escaping the repo, a home directory, the workspace-root convention — are rejected by [docs/path-leak-guardrail.md](docs/path-leak-guardrail.md) (`pnpm lint:path-leaks`). For private repo and product names in any published text, use the aliases in workspace-governance's public-safe-aliases doc.
 - [styles/ai-design-system.css](styles/ai-design-system.css) is primitive-only. Keep feature- or screen-specific styling out of it, and consume role tokens rather than hard-coded colors or legacy tokens.
 
 ## Debugging Guidance

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 
 import { chromium } from "playwright";
 
@@ -9,7 +10,11 @@ async function main() {
   // Set viewport size
   await page.setViewportSize({ width: 1280, height: 1000 });
 
-  const destDir = "/Users/jackpark/.gemini/antigravity/brain/dbd377ad-3d86-4f69-8f71-8dd323765d10";
+  // Local screenshot run: pass a destination as the first argument, otherwise
+  // write inside the repo's own scratch dir. A hardcoded home path would
+  // publish this machine's layout and be useless to anyone else.
+  const destDir =
+    process.argv[2] ?? path.join(process.cwd(), "scratch", "captures");
   if (!fs.existsSync(destDir)) {
     fs.mkdirSync(destDir, { recursive: true });
   }

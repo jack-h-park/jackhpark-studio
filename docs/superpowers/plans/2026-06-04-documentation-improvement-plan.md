@@ -21,7 +21,7 @@
 
 ### Primary gaps
 
-1. The root [`readme.md`](../../../../readme.md) is the weakest entrypoint.
+1. The root [`README.md`](../../../README.md) is the weakest entrypoint.
    - It contains duplicated narratives.
    - It mixes portfolio overview, setup, and architecture without a clear role boundary.
    - It includes at least one broken local docs link (`./docs/telemetry-logging.md`).
