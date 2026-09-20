@@ -28,4 +28,26 @@ When implementing any change, **always prioritize the following principles**:
   - `docs/design-system/ai-design-system.md`  
     Reuse existing primitives, tokens, and patterns instead of creating new ones.
 
+- **Notion rendering preserves the document, not the canvas**  
+  Notion is the CMS, so what must survive rendering is the *document*: content,
+  order, hierarchy, block semantics, and the author's ability to change all of it
+  from Notion. What may differ is the *canvas* — how much space a block gets at a
+  given viewport. Notion's editor column is sized for a window with a sidebar and
+  editing chrome; this site is read at 1920px and wider. Matching it pixel for
+  pixel is not the goal, and never was: the `balanced` profile was written against
+  notion.site, Notion's own publishing output, not the Notion app.
+
+  Before changing layout, three questions:
+  1. **Does the document change?** Content, order, and hierarchy must not.
+  2. **Is the rule predictable from the block type alone?** If it needs a
+     per-page or per-database exception, reconsider — an author who cannot
+     predict the result from Notion has lost the CMS.
+  3. **Does it narrow what Notion controls?** Moving authoring decisions into
+     code is the expensive direction; prefer changes that leave them in Notion.
+
+  Worked example: wide-viewport breakout (`styles/notion-parity.css`, PR #179).
+  Gallery column count was never an authored value — Notion authors card size,
+  and the count is derived from the available width. Widening the container fed
+  a new input to a rule that already existed rather than adding one.
+
 > If there is a trade-off, always favor long-term clarity and consistency over short-term speed.
