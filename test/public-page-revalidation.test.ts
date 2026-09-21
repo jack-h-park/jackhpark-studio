@@ -6,6 +6,14 @@ import { resolvePublicPageRevalidationTarget } from "@/lib/server/public-page-re
 const canonicalPageMap = { beluga: "notion-page-id" };
 
 void describe("public page revalidation targets", () => {
+  void it("does not read inherited getters when resolving a public target", () => {
+    const map = Object.create({
+      get inherited() {
+        throw new Error("must not read inherited properties");
+      },
+    }) as Record<string, string>;
+    assert.equal(resolvePublicPageRevalidationTarget("/inherited", map), null);
+  });
   void it("accepts only studio or a canonical single-segment slug", () => {
     assert.deepEqual(
       resolvePublicPageRevalidationTarget("/studio", canonicalPageMap),

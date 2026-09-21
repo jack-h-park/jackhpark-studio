@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { ExtendedRecordMap } from "notion-types";
+
+import { notionPageCacheTTL } from "@/lib/config";
 import { __pageCacheInternals, getPage } from "@/lib/notion";
 
 /**
@@ -18,7 +21,9 @@ import { __pageCacheInternals, getPage } from "@/lib/notion";
  */
 
 const KEY = "notion-page:test:gh-on:ttl-fixture";
-const recordMap = { block: {}, collection: {} } as any;
+const recordMap = { block: {}, collection: {} } as ExtendedRecordMap;
+assert.equal(typeof notionPageCacheTTL, "number");
+const ttlMs = notionPageCacheTTL!;
 
 void test("a read does not extend the cache deadline", (t) => {
   t.mock.timers.enable({ apis: ["Date"], now: 0 });
@@ -29,8 +34,6 @@ void test("a read does not extend the cache deadline", (t) => {
 
   __pageCacheInternals.clear();
   __pageCacheInternals.setCachedRecordMapInMemory(KEY, recordMap);
-
-  const ttlMs = Number(process.env.__TEST_TTL_MS ?? 300_000);
 
   // A read well inside the window is a hit.
   t.mock.timers.tick(ttlMs / 2);
@@ -59,8 +62,6 @@ void test("mirroring a persistent hit into memory keeps the original deadline", 
   __pageCacheInternals.clear();
   __pageCacheInternals.setCachedRecordMapInMemory(KEY, recordMap);
 
-  const ttlMs = Number(process.env.__TEST_TTL_MS ?? 300_000);
-
   t.mock.timers.tick(ttlMs / 2);
   // This is what readCachedRecordMap does on a persistent hit.
   __pageCacheInternals.setCachedRecordMapInMemory(KEY, recordMap, {
@@ -85,8 +86,6 @@ void test("a fresh write does start a new deadline", (t) => {
   __pageCacheInternals.clear();
   __pageCacheInternals.setCachedRecordMapInMemory(KEY, recordMap);
 
-  const ttlMs = Number(process.env.__TEST_TTL_MS ?? 300_000);
-
   t.mock.timers.tick(ttlMs / 2);
   __pageCacheInternals.setCachedRecordMapInMemory(KEY, recordMap); // re-fetched
   t.mock.timers.tick(ttlMs * 0.75);
@@ -109,12 +108,11 @@ void test("getPage on a cache hit does not extend the deadline", async (t) => {
 
   const pageId = "28299029c0b481ce8999d425287d3db6";
   const key = __pageCacheInternals.getPageCacheKey(pageId);
-  const ttlMs = Number(process.env.__TEST_TTL_MS ?? 300_000);
 
   __pageCacheInternals.clear();
   __pageCacheInternals.setCachedRecordMapInMemory(key, recordMap);
 
-  // Serve the page from cache repeatedly, the way ISR does every five minutes.
+  // Serve the page before expiry, as an ordinary ISR render can do.
   t.mock.timers.tick(ttlMs / 2);
   await getPage(pageId);
   t.mock.timers.tick(ttlMs / 2 + 1);

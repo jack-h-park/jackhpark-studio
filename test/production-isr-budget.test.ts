@@ -14,7 +14,10 @@ void describe("production ISR budget", () => {
     const [siteConfig, studioPage, notionPage, revalidationRoute] =
       await Promise.all([
         readFile(path.join(repoRoot, "site.config.ts"), "utf8"),
-        readFile(path.join(repoRoot, "pages", "studio.tsx"), "utf8"),
+        readFile(
+          path.join(repoRoot, "lib", "server", "studio-static-props.ts"),
+          "utf8",
+        ),
         readFile(path.join(repoRoot, "pages", "[pageId].tsx"), "utf8"),
         readFile(
           path.join(

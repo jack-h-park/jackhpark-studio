@@ -1150,10 +1150,15 @@ export const __pageCacheInternals = {
   size: () => memoryPageCache.size,
 };
 
-export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
+export type NotionPageFetchOptions = { forceRefresh?: boolean };
+
+export async function getPage(
+  pageId: string,
+  { forceRefresh = false }: NotionPageFetchOptions = {},
+): Promise<ExtendedRecordMap> {
   const cacheKey = getPageCacheKey(pageId);
 
-  if (isNotionPageCacheEnabled) {
+  if (isNotionPageCacheEnabled && !forceRefresh) {
     // A cache HIT must never re-write the entry. Re-writing restarts the TTL,
     // which turns an N-second cache into a sliding one: while the page is
     // requested more often than N — and ISR alone re-renders every 60s — the
@@ -1179,7 +1184,7 @@ export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
 
   const existingFetch = inFlightPageFetches.get(cacheKey);
 
-  if (existingFetch) {
+  if (existingFetch && !forceRefresh) {
     return existingFetch;
   }
 
@@ -1191,6 +1196,10 @@ export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
 
     return finalRecordMap;
   })();
+
+  // Next marks on-demand regeneration in the rendering instance itself.
+  // That request must not join a fetch that started before the admin refresh.
+  if (forceRefresh) return fetchPromise;
 
   inFlightPageFetches.set(cacheKey, fetchPromise);
 

@@ -14,11 +14,10 @@ export function resolvePublicPageRevalidationTarget(
 
   const slug = input.slice(1).toLowerCase();
   if (slug === "admin" || slug === "api") return null;
+  if (!Object.hasOwn(canonicalPageMap, slug)) return null;
 
   const pageId = canonicalPageMap[slug];
-  return Object.hasOwn(canonicalPageMap, slug) &&
-    typeof pageId === "string" &&
-    pageId.trim().length > 0
+  return typeof pageId === "string" && pageId.trim().length > 0
     ? { path: `/${slug}` }
     : null;
 }
