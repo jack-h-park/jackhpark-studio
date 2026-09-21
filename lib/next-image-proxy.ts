@@ -18,6 +18,9 @@ const NEXT_IMAGE_WIDTHS = [
   3840,
 ] as const;
 
+/** A width the optimizer accepts. Anything else is a 400. */
+export type NextImageWidth = (typeof NEXT_IMAGE_WIDTHS)[number];
+
 const DEFAULT_WIDTH = 1080;
 // Ceiling on the requested variant: the fallback is a degraded path, not a
 // reason to make the optimizer produce 3840px renditions of every cover.
@@ -54,7 +57,7 @@ function isOptimizable(src: string): boolean {
  */
 export function getNextImageUrlForWidth(
   src: string,
-  width: (typeof NEXT_IMAGE_WIDTHS)[number],
+  width: NextImageWidth,
   quality: number = QUALITY,
 ): string | null {
   if (!isOptimizable(src)) return null;

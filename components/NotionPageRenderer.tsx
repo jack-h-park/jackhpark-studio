@@ -177,11 +177,17 @@ export function NotionPageRenderer({
       );
       if (!isIconImage) return;
 
-      // A blocked image host is not a missing icon: retry through the
-      // server-side proxy first, and only treat the icon as unavailable once
-      // that attempt has failed too. Without this, environments that block
-      // notion.so hide every inline icon on the first error.
-      if (retryImageThroughProxy(target)) return;
+      // A failed request is not a missing icon, so nothing here may run while
+      // the icon still has a stage to try. NotionImage marks its own elements
+      // and owns their optimizer→upstream fallback; this listener sits on the
+      // document in the capture phase, so without the check it would reach the
+      // element first and pin the default icon over a retry that then
+      // succeeds. Anything NotionImage does not render — a library-rendered
+      // icon, an icon injected into the DOM — still gets the proxy retry.
+      if (target.dataset.notionImageRetry === "pending") return;
+      if (!target.dataset.notionImageRetry && retryImageThroughProxy(target)) {
+        return;
+      }
 
       if (target.dataset.iconFallbackApplied === "1") return;
 
