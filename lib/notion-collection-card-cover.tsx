@@ -28,6 +28,8 @@ import type { CollectionCardCoverOverrideFn, MapImageUrlFn } from 'react-notion-
 import { getBlockIcon, getTextContent, normalizeUrl } from 'notion-utils'
 import React from 'react'
 
+import type { NotionImageRole } from './notion-image-delivery'
+
 type ThumbnailImageCandidate = {
   kind: 'image'
   src: string
@@ -868,6 +870,11 @@ function CollectionCardCoverThesis({
 type CoverImageProps = React.ImgHTMLAttributes<HTMLImageElement> & {
   placeholder?: 'blur' | string
   blurDataURL?: string
+  /**
+   * Which width ladder the image component should serve. Cards know their own
+   * size; the component cannot work it out from the class name alone.
+   */
+  imageRole?: NotionImageRole
 }
 
 type CoverImageComponent = React.ComponentType<CoverImageProps>
@@ -893,7 +900,12 @@ export function createCollectionCardCoverRenderer({
   Image?: CoverImageComponent
 } = {}): CollectionCardCoverOverrideFn {
   const CoverImage: CoverImageComponent =
-    Image ?? ((props) => <img loading='lazy' decoding='async' {...props} />)
+    Image ??
+    // `imageRole` is this contract's prop, not an <img> attribute: React would
+    // warn about it on a real DOM node.
+    (({ imageRole: _imageRole, ...props }) => (
+      <img loading='lazy' decoding='async' {...props} />
+    ))
 
   return ({ block, cover, coverAspect, recordMap, mapImageUrl, coverPosition }, defaultCover) => {
     const candidate = getCollectionCardCoverCandidate({
@@ -916,6 +928,7 @@ export function createCollectionCardCoverRenderer({
       return (
         <CoverImage
           className='notion-collection-card-cover-image'
+          imageRole='card-cover'
           src={candidate.src}
           alt={candidate.alt}
           style={{

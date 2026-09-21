@@ -12,41 +12,97 @@ Notion page images are not embedded in the JSON payload returned by the Notion A
 Browser
   │
   ▼
-① <img src="notion.so/image/...">   ← direct request, no server involvement
+① <img src="/_next/image?..." srcset="…384w, …640w, …828w" sizes="…">
+  │     ← same-origin; the server fetches from notion.so, resizes, AVIF/WebP
   │
-  ├── success ──────────────────────► render (zero cost, no proxy)
+  ├── success ──────────────────────► render (Vercel: 1 optimization per
+  │                                     unique url+width, then cached 90 days)
   │
   └── failure (onError)
         │
         ▼
-      ② same <img>, src → /_next/image  ← Next.js optimizer as a proxy
+      ② same <img>, src → notion.so/image/...  ← the original, unsized
           │
-          ├── server fetches image from notion.so on client's behalf
-          ├── resizes + converts to WebP/AVIF
-          └── serves result to browser
-                │
-                ├── success ─────────► render (Vercel: counts as 1 optimization)
-                │
-                └── failure ─────────► broken image icon (no further retry)
+          ├── success ─────────────► render
+          │
+          └── failure ─────────────► broken image icon (no further retry)
 ```
 
-### Stage 1 — Direct load
+### Stage 1 — Optimizer, at the width the layout uses
 
-The `NotionImage` component (`components/NotionImage.tsx`) renders a plain `<img>` tag pointing to the Notion-hosted URL. This path has no server involvement and incurs no Vercel image optimization charge.
+The `NotionImage` component (`components/NotionImage.tsx`) points the `<img>` at
+`/_next/image`, with the width ladder its **role** implies —
+`lib/notion-image-delivery.ts` turns a role into `src`/`srcSet`/`sizes`.
 
-**Failure triggers:** firewall blocking `notion.so`, expired signed S3 URL, network error.
+**Why roles and not measured widths.** The component would have to be laid out
+before it could measure itself, which is one request too late. What the layout
+does guarantee ahead of time is the role: an icon is small wherever it appears,
+a card cover is bounded by the gallery grid, body copy is bounded by the
+reading column.
 
-### Stage 2 — Next.js image proxy (fallback)
+| role         | ladder            | `sizes`                           | surface                  |
+| ------------ | ----------------- | --------------------------------- | ------------------------ |
+| `icon`       | 256 (single)      | —                                 | page icons, inline icons |
+| `card-cover` | 384 / 640 / 828   | `(max-width: 640px) 100vw, 360px` | gallery card covers      |
+| `content`    | 828 / 1200 / 1920 | `(max-width: 768px) 100vw, 720px` | body images              |
 
-On `onError`, the component swaps **only the `src`** to `/_next/image?url=<encoded>&w=<width>&q=75` (built by `getNextImageProxyUrl` in `lib/next-image-proxy.ts`). Next.js fetches the image server-side, optimizes it, and caches the result.
+The full-bleed page cover band is the one role kept elsewhere
+(`lib/notion-cover-image.ts`): it also needs a blurred backdrop variant and it
+feeds a preload hint in `PageHead`.
 
-The element itself — tag, classes, inline styles, `ref` — is unchanged, so the fallback can never alter page layout, and `medium-zoom` keeps working.
+Surfaces this repo renders itself pass `imageRole` explicitly. react-notion-x
+routes every image through the one `components.Image` seam, so there the role is
+inferred from the class name — `notion-page-icon` as a whole class token, since
+`notion-page-icon-inline` names the _wrapper_ around an inline icon.
 
-**Why not render `next/image` here.** react-notion-x calls `components.Image` with `width: null, height: null`, so a `next/image` fallback would always have to run in `fill` mode. `fill` makes the element `position: absolute`, which collapses it to zero height inside Notion's unsized wrappers and stretches page icons to the full content column. Requesting the optimizer endpoint directly gets the same proxying without the layout contract.
+`content` deliberately ladders past the 720px reading column: these are the
+images `medium-zoom` opens full-screen, so the retina rung has to stay close to
+the source. It costs little — the optimizer never upscales, and the AVIF
+conversion rather than the downscale is where most of the saving comes from
+(a 2354px screenshot: 1,032 kB original → 52 kB at `w=1920`, → 12 kB at `w=640`).
 
-The requested `w` is derived from the element's rendered width × DPR, snapped up to an allowed optimizer bucket and capped at 2048. `NEXT_IMAGE_WIDTHS` in that module must stay in sync with `images.deviceSizes`/`images.imageSizes` in `next.config.js` — the optimizer returns 400 for any other width.
+### Stage 2 — The original Notion URL (fallback)
 
-The server must be able to reach `notion.so` for this to work. If the server is behind the same firewall as the browser, stage 2 also fails.
+On `onError`, the component drops `srcSet`/`sizes` and swaps `src` to the
+Notion-hosted URL — the unsized original, which is what every surface shipped
+before. This covers the optimizer being unable to fetch the source at all
+(upstream 403, a host missing from `remotePatterns`, a self-hosted server that
+cannot reach notion.so).
+
+The element itself — tag, classes, inline styles, `ref` — is unchanged, so the
+fallback can never alter page layout, and `medium-zoom` keeps working.
+
+### Why the stages run this way round
+
+They used to run the other way: direct first, optimizer only on failure, to keep
+Vercel optimization charges at zero. That traded charges for bytes with no
+ceiling, because Notion serves the untouched original at every surface.
+Measured on `/studio` before the change: 32 of 33 images were unoptimized
+originals, including a 3705px photo in a 21px avatar (1,368 kB), a 900px icon in
+a 22px box (1,093 kB) and 2354px screenshots in 269px cards (1,032 kB) — six
+images totalling ~5.2 MB.
+
+Putting the optimizer first also removes the reason stage 2 originally existed:
+`/_next/image` is same-origin, so a firewall that blocks `notion.so` no longer
+blocks the image.
+
+**Why not render `next/image` here.** react-notion-x calls `components.Image` with `width: null, height: null`, so `next/image` would always have to run in `fill` mode. `fill` makes the element `position: absolute`, which collapses it to zero height inside Notion's unsized wrappers and stretches page icons to the full content column. Requesting the optimizer endpoint directly gets the same optimization without the layout contract — and lets each surface state its own `sizes`, which is what `fill` would have taken away.
+
+`getNextImageProxyUrl` (`lib/next-image-proxy.ts`) still derives a `w` from an
+element's rendered width × DPR for callers that only learn their size at error
+time — the icon handler below. `NEXT_IMAGE_WIDTHS` in that module must stay in
+sync with `images.deviceSizes`/`images.imageSizes` in `next.config.js`; the
+optimizer returns 400 for any other width.
+
+The server must be able to reach `notion.so` for stage 1 to work.
+
+**`next dev` cannot.** Its built-in optimizer fetches with Node's global
+`fetch`, and notion.so's bot filter answers a `user-agent: node` with 403 —
+the same failure `lib/notion-image-fetch.ts` documents, and the optimizer sends
+no user-agent we can configure. Probed 2026-09-20: only the literal `node`
+agent is rejected; no agent at all, `undici` and a browser string all get the 302. So locally **every** image takes stage 2 and renders the original. That is
+the degraded path working, not a regression — never measure optimized sizes
+against `next dev`. Vercel's optimizer fetches the same URLs fine.
 
 ### Coverage
 
@@ -59,28 +115,44 @@ Everything that renders a Notion-hosted image participates in the chain:
 | Gallery preview modal                    | `NotionImage`                                                                                            |
 | AI page header (`AiPageChrome`)          | `NotionImage` registered on the `NotionContextProvider`                                                  |
 
-`NotionPageRenderer` also installs a document-level capture listener that replaces broken **icons** with `defaultPageIcon` (or hides them). That handler retries through the proxy first and only treats an icon as missing once the proxied attempt has failed — otherwise a blocked host would silently hide every inline icon before the fallback ran.
+`NotionPageRenderer` also installs a document-level capture listener that
+replaces broken **icons** with `defaultPageIcon` (or hides them). A failed
+request is not a missing icon, so that handler must not run while the icon still
+has a stage to try.
 
----
-
-## Why the Two-Stage Approach
-
-|                                     | Stage 1 (`<img>`)   | Stage 2 (`NextImage`)       |
-| ----------------------------------- | ------------------- | --------------------------- |
-| Who fetches                         | Browser             | Next.js server              |
-| Vercel charge                       | None                | 1 unit per unique URL+size  |
-| Requires server access to notion.so | No                  | Yes                         |
-| Use case                            | Normal environments | Firewall-restricted clients |
-
-Defaulting to stage 1 avoids Vercel image optimization charges for users who can reach `notion.so` directly, which is the common case.
+It sits on the document in the capture phase, which means it reaches the element
+before React's own `onError`. `NotionImage` therefore marks every image it
+renders with `data-notion-image-retry`, and the handler returns early while that
+reads `pending`. Without the check it would pin the default icon over a stage 2
+that then succeeds — which is precisely what happens in `next dev`, where every
+image fails stage 1. Images `NotionImage` does not render carry no marker and
+still get the old proxy retry.
 
 ---
 
 ## Vercel Image Optimization Limits
 
-Stage 2 uses Vercel's image optimization service. Charges apply per **unique (source URL + output size) pair generated**. Subsequent requests for the same pair are served from cache and do not count.
+Stage 1 uses Vercel's image optimization service. Charges apply per **unique
+(source URL + output size) pair generated**. Subsequent requests for the same
+pair are served from cache and do not count.
 
-**Notion-specific caveat:** Notion image URLs include expiring AWS Signature parameters (`X-Amz-Expires`, `X-Amz-Signature`). When a URL expires (typically every 1 hour), a new signed URL is generated. Vercel treats this as a new source URL and generates a new optimization — resetting the cache. High-traffic pages with many images can accumulate charges quickly.
+**How many pairs this is.** Measured 2026-09-20 across 41 of the 167 pages in
+the sitemap: 191 distinct image files, and `/studio` alone accounts for 182 of
+them because the collection views carry nearly the whole corpus. Call it ~220
+site-wide, times up to three rungs per ladder — a few hundred optimizations,
+generated once. Optimized responses come back with
+`cache-control: public, max-age=7776000` (90 days), so this is not a recurring
+monthly bill.
+
+**The signed-URL caveat no longer applies.** Notion used to hand out S3 URLs
+carrying `X-Amz-Expires` / `X-Amz-Signature`; each re-signing looked like a new
+source URL to Vercel and reset the cache, which is why this document previously
+warned that high-traffic pages could accumulate charges quickly. The current
+URLs are the stable `www.notion.so/image/attachment:<id>?table=block&id=…`
+redirect endpoint — the expiring token is on the _redirect target_, not on what
+we hand the optimizer. `/studio` carries 0 `X-Amz-Signature` occurrences today.
+If Notion ever reverts to signed source URLs, this becomes a live concern again
+and the stage order is worth revisiting.
 
 ### Behavior at the limit
 
@@ -91,7 +163,7 @@ Stage 2 uses Vercel's image optimization service. Charges apply per **unique (so
 
 **To set a hard cap on Pro:** Vercel Dashboard → Settings → Billing → Spend Management → Image Optimization.
 
-When the limit is hit, Vercel serves the original (unoptimized) image directly rather than erroring. The image still loads; only optimization is skipped.
+When the limit is hit, Vercel serves the original (unoptimized) image directly rather than erroring. The image still loads; only optimization is skipped — which is exactly the behaviour every surface had before the stages were reordered, so the failure mode is a return to the old baseline rather than a broken page.
 
 ---
 
@@ -119,12 +191,14 @@ Add a new entry here whenever a new Notion image host is encountered in producti
 
 ### `NotionImage` component — `components/NotionImage.tsx`
 
-The component is registered as `Image: NotionImage` in the `NotionRenderer` components map. It manages the stage 1 → stage 2 transition via `React.useState<string | null>(null)` (`proxySrc`).
+The component is registered as `Image: NotionImage` in the `NotionRenderer` components map. It manages the stage 1 → stage 2 transition via a `degraded` flag.
 
 Key behaviors:
 
-- Exactly one retry. Once `src` is already a `/_next/image` URL the error is final — retrying would loop forever against a host the server can't reach either.
-- A changed `src` prop resets `proxySrc`, so a re-signed Notion URL gets a fresh direct attempt.
+- Exactly one retry. Stage 2 is the original URL, so there is nothing left to fall back to.
+- A changed `src` prop clears `degraded`, so a new image gets a fresh optimized attempt.
+- `imageRole` overrides the class-name inference. Pass it wherever the surface knows its own size.
+- `data-notion-image-retry` (`pending` / `exhausted`) is what the icon handler above reads. It is part of the contract, not a debugging aid.
 - `blurDataURL` / `placeholder="blur"` is applied as a CSS background on the `<img>` in both stages, and cleared on `load`. The background sits _behind_ the image, so leaving it in place makes a transparent PNG show its own blurred copy through the transparent pixels forever.
 - The forwarded `ref` stays attached across both stages.
 
