@@ -23,6 +23,10 @@ void test("public site refresh UI submits one explicit public path", async () =>
   assert.match(panel, /Public site refresh/);
   assert.match(panel, /\/studio/);
   assert.match(panel, /Refresh this page/);
+  assert.match(
+    panel,
+    /disabled=\{isPathEmpty \|\| refresh\.isRefreshing\}/,
+  );
   assert.match(hook, /fetch\("\/api\/admin\/revalidate-public-page"/);
   assert.match(hook, /method:\s*"POST"/);
   assert.match(hook, /JSON\.stringify\(\{ path \}\)/);
@@ -32,9 +36,8 @@ void test("public site refresh UI submits one explicit public path", async () =>
     ingestionPage,
     /import \{ PublicSiteRefreshPanel \} from "@\/components\/admin\/ingestion\/PublicSiteRefreshPanel";/,
   );
-  const refreshPanelIndex = ingestionPage.indexOf("<PublicSiteRefreshPanel />");
-  const manualPanelIndex = ingestionPage.indexOf("<ManualIngestionPanel />");
-  assert.ok(refreshPanelIndex !== -1);
-  assert.ok(manualPanelIndex !== -1);
-  assert.ok(refreshPanelIndex < manualPanelIndex);
+  assert.match(
+    ingestionPage,
+    /<div className="mb-6 space-y-8">[\s\S]*?<PublicSiteRefreshPanel \/>\s*<ManualIngestionPanel \/>/,
+  );
 });

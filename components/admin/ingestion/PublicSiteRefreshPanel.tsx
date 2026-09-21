@@ -72,7 +72,7 @@ export function PublicSiteRefreshPanel(): JSX.Element {
           <Button
             type="submit"
             loading={refresh.isRefreshing}
-            disabled={isPathEmpty}
+            disabled={isPathEmpty || refresh.isRefreshing}
           >
             Refresh this page
           </Button>
