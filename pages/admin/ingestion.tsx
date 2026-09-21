@@ -11,6 +11,7 @@ import type {
 } from "@/lib/admin/ingestion-types";
 import { LifecycleSummarySection } from "@/components/admin/ingestion/LifecycleSummarySection";
 import { ManualIngestionPanel } from "@/components/admin/ingestion/ManualIngestionPanel";
+import { PublicSiteRefreshPanel } from "@/components/admin/ingestion/PublicSiteRefreshPanel";
 import { RagDocumentsOverview } from "@/components/admin/ingestion/RagDocumentsOverview";
 import { RecentRunsSection } from "@/components/admin/ingestion/RecentRunsSection";
 import { SnapshotPreviewPanel } from "@/components/admin/ingestion/SnapshotPreviewPanel";
@@ -116,6 +117,7 @@ function IngestionDashboard({
               <RagDocumentsOverview stats={documentsStats} />
             </div>
 
+            <PublicSiteRefreshPanel />
             <ManualIngestionPanel />
             <RecentRunsSection initial={recentRuns} />
           </div>
