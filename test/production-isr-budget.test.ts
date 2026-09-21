@@ -36,5 +36,13 @@ void describe("production ISR budget", () => {
     assert.match(revalidationRoute, /requireSameOriginMutation/);
     assert.match(revalidationRoute, /auditAdminMutation/);
     assert.match(revalidationRoute, /await res\.revalidate\(target\.path\)/);
+    assert.match(
+      revalidationRoute,
+      /try \{\s+const siteMap = await getSiteMap\(\);\s+target = resolvePublicPageRevalidationTarget\(/,
+    );
+    assert.match(
+      revalidationRoute,
+      /target: target\?\.path \?\? "public-page"/,
+    );
   });
 });

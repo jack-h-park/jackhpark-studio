@@ -1,7 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import { getSiteMap } from "@/lib/get-site-map";
-import { resolvePublicPageRevalidationTarget } from "@/lib/server/public-page-revalidation";
+import {
+  resolvePublicPageRevalidationTarget,
+  type PublicPageRevalidationTarget,
+} from "@/lib/server/public-page-revalidation";
 import {
   auditAdminMutation,
   requireAdminApiAccess,
@@ -40,24 +43,26 @@ export default async function handler(
     body && typeof body === "object"
       ? (body as Record<string, unknown>).path
       : undefined;
-  const siteMap = await getSiteMap();
-  const target = resolvePublicPageRevalidationTarget(
-    requestedPath,
-    siteMap.canonicalPageMap,
-  );
-
-  if (!target) {
-    auditAdminMutation({
-      ...admin,
-      action: "revalidate",
-      target: "public-page",
-      result: "failure",
-    });
-    res.status(400).json({ error: "Invalid public page target." });
-    return;
-  }
+  let target: PublicPageRevalidationTarget | null = null;
 
   try {
+    const siteMap = await getSiteMap();
+    target = resolvePublicPageRevalidationTarget(
+      requestedPath,
+      siteMap.canonicalPageMap,
+    );
+
+    if (!target) {
+      auditAdminMutation({
+        ...admin,
+        action: "revalidate",
+        target: "public-page",
+        result: "failure",
+      });
+      res.status(400).json({ error: "Invalid public page target." });
+      return;
+    }
+
     await res.revalidate(target.path);
     const revalidatedAt = new Date().toISOString();
     auditAdminMutation({
@@ -71,7 +76,7 @@ export default async function handler(
     auditAdminMutation({
       ...admin,
       action: "revalidate",
-      target: target.path,
+      target: target?.path ?? "public-page",
       result: "failure",
     });
     res.status(500).json({ error: "Unable to refresh the public page." });

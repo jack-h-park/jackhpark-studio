@@ -13,5 +13,12 @@ export function resolvePublicPageRevalidationTarget(
   }
 
   const slug = input.slice(1).toLowerCase();
-  return canonicalPageMap[slug] ? { path: `/${slug}` } : null;
+  if (slug === "admin" || slug === "api") return null;
+
+  const pageId = canonicalPageMap[slug];
+  return Object.hasOwn(canonicalPageMap, slug) &&
+    typeof pageId === "string" &&
+    pageId.trim().length > 0
+    ? { path: `/${slug}` }
+    : null;
 }

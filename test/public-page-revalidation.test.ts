@@ -23,6 +23,7 @@ void describe("public page revalidation targets", () => {
       "/beluga?x=1",
       "/beluga#x",
       "/admin",
+      "/api",
       "/api/ping",
       "/.env",
       "/photo.jpg",
@@ -31,6 +32,22 @@ void describe("public page revalidation targets", () => {
     ]) {
       assert.equal(
         resolvePublicPageRevalidationTarget(target, canonicalPageMap),
+        null,
+        target,
+      );
+    }
+  });
+
+  void it("rejects prototype and reserved names even when they appear allowed", () => {
+    const reservedPageMap = {
+      admin: "notion-admin-id",
+      api: "notion-api-id",
+      beluga: "notion-page-id",
+    };
+
+    for (const target of ["/constructor", "/admin", "/api"]) {
+      assert.equal(
+        resolvePublicPageRevalidationTarget(target, reservedPageMap),
         null,
         target,
       );
