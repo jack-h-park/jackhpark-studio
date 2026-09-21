@@ -13,7 +13,7 @@ import {
 import { db } from "./db";
 import { errorMessage } from "./error-message";
 import { getSiteMap } from "./get-site-map";
-import { getPage } from "./notion";
+import { getPage, type NotionPageFetchOptions } from "./notion";
 
 /**
  * Resolve a Notion page based on domain + rawPageId
@@ -22,6 +22,7 @@ import { getPage } from "./notion";
 export async function resolveNotionPage(
   domain: string,
   rawPageId?: string,
+  options: NotionPageFetchOptions = {},
 ): Promise<PageProps> {
   let pageId: string | undefined;
   let recordMap: ExtendedRecordMap;
@@ -68,7 +69,7 @@ export async function resolveNotionPage(
 
     // Step 4: Direct page load
     if (pageId) {
-      recordMap = await getPage(pageId);
+      recordMap = await getPage(pageId, options);
     } else {
       // Step 5: canonicalPageMap fallback (siteMap lookup)
       const siteMap = await getSiteMap();
@@ -76,7 +77,7 @@ export async function resolveNotionPage(
       pageId = findPageIdFromCanonicalMap(canonicalPageMap, rawPageId);
 
       if (pageId) {
-        recordMap = await getPage(pageId);
+        recordMap = await getPage(pageId, options);
 
         if (useUriToPageIdCache) {
           try {
@@ -105,7 +106,7 @@ export async function resolveNotionPage(
     const siteMap = await getSiteMap();
     canonicalPageMap = siteMap.canonicalPageMap;
     pageId = site.rootNotionPageId;
-    recordMap = await getPage(pageId);
+    recordMap = await getPage(pageId, options);
   }
 
   /**

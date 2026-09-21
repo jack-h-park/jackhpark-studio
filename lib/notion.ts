@@ -629,6 +629,8 @@ const getNavigationLinkPages = pMemoize(
 );
 
 const inFlightPageFetches = new Map<string, Promise<ExtendedRecordMap>>();
+const pageFetchOwners = new Map<string, symbol>();
+const pageCacheWrites = new Map<string, Promise<void>>();
 const enableGroupedCollectionHydration =
   process.env.NOTION_GROUP_HYDRATION !== "0";
 
@@ -689,6 +691,12 @@ const readCachedRecordMap = async (
 
   try {
     const cached = (await db.get(cacheKey)) as ExtendedRecordMap | undefined;
+    // A refresh may have started or completed while this read was in flight.
+    // Its result takes precedence over the earlier persistent snapshot.
+    const activeFetch = inFlightPageFetches.get(cacheKey);
+    if (activeFetch) return activeFetch;
+    const memoryCached = getCachedRecordMapFromMemory(cacheKey);
+    if (memoryCached) return memoryCached;
     if (cached) {
       // Mirror into memory, but do NOT extend the deadline: the persistent
       // entry keeps its own TTL, and a memory copy that outlives it would
@@ -706,20 +714,38 @@ const readCachedRecordMap = async (
 const writeCachedRecordMap = async (
   cacheKey: string,
   recordMap: ExtendedRecordMap,
+  owner: symbol,
 ) => {
   if (!isNotionPageCacheEnabled) {
     return;
   }
 
-  try {
-    if (typeof notionPageCacheTTL === "number") {
-      await db.set(cacheKey, recordMap, notionPageCacheTTL);
-    } else {
-      await db.set(cacheKey, recordMap);
+  // Serialize the persistent boundary too: an older set may already be in
+  // flight when a manual refresh starts and cannot be cancelled.
+  const previousWrite = pageCacheWrites.get(cacheKey);
+  const write = (async () => {
+    await previousWrite;
+    if (pageFetchOwners.get(cacheKey) !== owner) return;
+    try {
+      if (typeof notionPageCacheTTL === "number") {
+        await db.set(cacheKey, recordMap, notionPageCacheTTL);
+      } else {
+        await db.set(cacheKey, recordMap);
+      }
+      if (pageFetchOwners.get(cacheKey) === owner) {
+        setCachedRecordMapInMemory(cacheKey, recordMap);
+      }
+    } catch (err: unknown) {
+      console.warn(`redis error set "${cacheKey}"`, errorMessage(err));
     }
-    setCachedRecordMapInMemory(cacheKey, recordMap);
-  } catch (err: unknown) {
-    console.warn(`redis error set "${cacheKey}"`, errorMessage(err));
+  })();
+  pageCacheWrites.set(cacheKey, write);
+  try {
+    await write;
+  } finally {
+    if (pageCacheWrites.get(cacheKey) === write) {
+      pageCacheWrites.delete(cacheKey);
+    }
   }
 };
 
@@ -778,6 +804,7 @@ const fetchCollectionCardCalloutChildren = async (
 
 const loadPageFromNotion = async (
   pageId: string,
+  { forceRefresh = false }: NotionPageFetchOptions = {},
 ): Promise<ExtendedRecordMap> => {
   // A production build prerenders every page, which reliably trips Notion's
   // rate limiter. Callers now rethrow instead of publishing a 404, so a 429
@@ -796,9 +823,13 @@ const loadPageFromNotion = async (
       const navigationLinkRecordMaps = await getNavigationLinkPages();
 
       if (navigationLinkRecordMaps?.length) {
+        // Memoized navigation can contain the target page itself. A manual
+        // refresh must keep its freshly fetched records on every collision.
         recordMap = navigationLinkRecordMaps.reduce(
           (map, navigationLinkRecordMap) =>
-            mergeRecordMaps(map, navigationLinkRecordMap),
+            forceRefresh
+              ? mergeRecordMaps(navigationLinkRecordMap, map)
+              : mergeRecordMaps(map, navigationLinkRecordMap),
           recordMap,
         );
       }
@@ -1150,10 +1181,17 @@ export const __pageCacheInternals = {
   size: () => memoryPageCache.size,
 };
 
-export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
-  const cacheKey = getPageCacheKey(pageId);
+export type NotionPageFetchOptions = { forceRefresh?: boolean };
 
-  if (isNotionPageCacheEnabled) {
+export async function getPage(
+  pageId: string,
+  { forceRefresh = false }: NotionPageFetchOptions = {},
+): Promise<ExtendedRecordMap> {
+  const cacheKey = getPageCacheKey(pageId);
+  const activeFetch = inFlightPageFetches.get(cacheKey);
+  if (activeFetch && !forceRefresh) return activeFetch;
+
+  if (isNotionPageCacheEnabled && !forceRefresh) {
     // A cache HIT must never re-write the entry. Re-writing restarts the TTL,
     // which turns an N-second cache into a sliding one: while the page is
     // requested more often than N — and ISR alone re-renders every 60s — the
@@ -1179,25 +1217,34 @@ export async function getPage(pageId: string): Promise<ExtendedRecordMap> {
 
   const existingFetch = inFlightPageFetches.get(cacheKey);
 
-  if (existingFetch) {
+  if (existingFetch && !forceRefresh) {
     return existingFetch;
   }
 
+  const owner = Symbol();
+  pageFetchOwners.set(cacheKey, owner);
   const fetchPromise = (async () => {
-    const recordMap = await loadPageFromNotion(pageId);
+    const recordMap = await loadPageFromNotion(pageId, { forceRefresh });
     const finalRecordMap = await finalizeRecordMap(recordMap);
 
-    await writeCachedRecordMap(cacheKey, finalRecordMap);
+    await writeCachedRecordMap(cacheKey, finalRecordMap, owner);
 
     return finalRecordMap;
   })();
 
+  // Next marks on-demand regeneration in the rendering instance itself.
+  // That request must not join a fetch that started before the admin refresh.
   inFlightPageFetches.set(cacheKey, fetchPromise);
 
   try {
     return await fetchPromise;
   } finally {
-    inFlightPageFetches.delete(cacheKey);
+    if (inFlightPageFetches.get(cacheKey) === fetchPromise) {
+      inFlightPageFetches.delete(cacheKey);
+    }
+    if (pageFetchOwners.get(cacheKey) === owner) {
+      pageFetchOwners.delete(cacheKey);
+    }
   }
 }
 

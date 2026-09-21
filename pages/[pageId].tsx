@@ -13,7 +13,9 @@ export const getStaticProps: GetStaticProps<PageProps, Params> = async (
 
   try {
     const [props, siteMap] = await Promise.all([
-      resolveNotionPage(domain, rawPageId),
+      resolveNotionPage(domain, rawPageId, {
+        forceRefresh: context.revalidateReason === "on-demand",
+      }),
       getSiteMap(),
     ]);
 
@@ -22,7 +24,7 @@ export const getStaticProps: GetStaticProps<PageProps, Params> = async (
         ...props,
         canonicalPageMap: siteMap?.canonicalPageMap || null,
       },
-      revalidate: 300,
+      revalidate: 3600,
     };
   } catch (err) {
     console.error("page error", domain, rawPageId, err);

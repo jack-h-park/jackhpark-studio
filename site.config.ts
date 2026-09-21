@@ -40,8 +40,8 @@ export default siteConfig({
   isPreviewImageSupportEnabled: false,
 
   // Keep cache expiry aligned with ISR so repeated page requests do not
-  // rehydrate Notion collections more than once per five-minute window.
-  notionPageCacheTTLSeconds: 300,
+  // rehydrate Notion collections more than once per one-hour window.
+  notionPageCacheTTLSeconds: 3600,
 
   includeNotionIdInUrls: false,
 
