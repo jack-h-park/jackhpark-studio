@@ -13,7 +13,7 @@ export const getStaticProps = async () => {
 
     logPagePropsSize("/studio", props);
 
-    return { props, revalidate: 300 };
+    return { props, revalidate: 3600 };
   } catch (err) {
     console.error("page error", domain, err);
 

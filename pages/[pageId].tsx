@@ -22,7 +22,7 @@ export const getStaticProps: GetStaticProps<PageProps, Params> = async (
         ...props,
         canonicalPageMap: siteMap?.canonicalPageMap || null,
       },
-      revalidate: 300,
+      revalidate: 3600,
     };
   } catch (err) {
     console.error("page error", domain, rawPageId, err);

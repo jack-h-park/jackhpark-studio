@@ -7,15 +7,16 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 void describe("production ISR budget", () => {
-  void it("keeps public Notion pages and their cache on a five-minute cadence", async () => {
+  void it("keeps public Notion pages and their cache on a one-hour cadence", async () => {
     const [siteConfig, studioPage, notionPage] = await Promise.all([
       readFile(path.join(repoRoot, "site.config.ts"), "utf8"),
       readFile(path.join(repoRoot, "pages", "studio.tsx"), "utf8"),
       readFile(path.join(repoRoot, "pages", "[pageId].tsx"), "utf8"),
     ]);
 
-    assert.match(siteConfig, /notionPageCacheTTLSeconds:\s*300/);
-    assert.match(studioPage, /revalidate:\s*300/);
-    assert.match(notionPage, /revalidate:\s*300/);
+    assert.match(siteConfig, /notionPageCacheTTLSeconds:\s*3600/);
+    assert.match(studioPage, /return \{ props, revalidate: 3600 \}/);
+    assert.match(notionPage, /revalidate:\s*3600/);
+    assert.match(studioPage, /notFound: true,\s*revalidate: 10/);
   });
 });
