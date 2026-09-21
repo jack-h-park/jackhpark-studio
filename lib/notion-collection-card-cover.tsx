@@ -191,6 +191,12 @@ function readFormatString(block: Block, key: string): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }
 
+function readFormatNumber(block: Block, key: string, fallback: number): number {
+  const format = (block as { format?: Record<string, unknown> }).format
+  const value = format?.[key]
+  return typeof value === 'number' ? value : fallback
+}
+
 function traversePageContent(
   rootBlock: Block,
   recordMap: ExtendedRecordMap
@@ -770,6 +776,34 @@ export function getCollectionCardCoverCandidate({
   // `page_content` / `page_content_first` are real Notion cover types but are
   // missing from the pinned notion-types union, so compare as strings.
   const coverType = cover.type as string
+
+  // A view set to "Page cover" names its image outright, so none of the content
+  // analysis below applies. It still has to resolve here rather than fall to the
+  // library's own branch, because this seam is the only place that can tell the
+  // image component it is rendering a card: the library's <img> carries no class
+  // name, so the role inference in `notion-image-delivery` reads it as body copy
+  // and asks for a 1920px rendition to fill a 276px card. Returning null defers
+  // to the library, which is what a page with no cover should still do.
+  if (coverType === 'page_cover') {
+    const pageCover = readFormatString(block, 'page_cover')
+    if (!pageCover) return null
+
+    const src = mapImageUrl(pageCover, block)
+    if (!src) return null
+
+    // `page_cover_position`, not the `card_cover_position` this function is
+    // handed: the library positions a page cover by the former, and the two
+    // differ on any page that sets its own crop.
+    const position = (1 - readFormatNumber(block, 'page_cover_position', 0.5)) * 100
+
+    return {
+      kind: 'image',
+      src,
+      alt: getBlockPlainText(block),
+      objectPosition: `center ${position}%`
+    }
+  }
+
   if (coverType !== 'page_content' && coverType !== 'page_content_first') {
     return null
   }

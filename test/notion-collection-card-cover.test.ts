@@ -254,3 +254,98 @@ void describe("collection card thesis cover", () => {
     assert.deepEqual(first, second);
   });
 });
+
+/**
+ * A view set to "Page cover" used to fall straight through to react-notion-x,
+ * whose <img> carries no class name — so the role inference in
+ * `notion-image-delivery` read those cards as body copy and asked for a 1920px
+ * rendition to fill a 276px card.
+ */
+function pageCoverCandidate({
+  pageCover,
+  pageCoverPosition,
+  cardCoverPosition = 50,
+}: {
+  pageCover?: string;
+  pageCoverPosition?: number;
+  cardCoverPosition?: number;
+}): CollectionCardCoverCandidate | null {
+  const { root, recordMap } = buildPage([
+    { type: "text", text: "Body copy that must not win here." },
+  ]);
+  const block = {
+    ...root,
+    format: {
+      ...(root as { format?: Record<string, unknown> }).format,
+      ...(pageCover === undefined ? {} : { page_cover: pageCover }),
+      ...(pageCoverPosition === undefined
+        ? {}
+        : { page_cover_position: pageCoverPosition }),
+    },
+  } as unknown as Block;
+
+  return getCollectionCardCoverCandidate({
+    block,
+    cover: { type: "page_cover" } as unknown as CollectionCardCover,
+    recordMap,
+    mapImageUrl: (url) => url ?? "",
+    cardCoverPosition,
+  });
+}
+
+void describe("collection card cover for a page_cover view", () => {
+  void it("resolves the page cover instead of deferring to the library", () => {
+    const candidate = pageCoverCandidate({
+      pageCover: "https://www.notion.so/image/attachment%3Aabc%3Acard.png",
+    });
+
+    assert.equal(candidate?.kind, "image");
+    assert.equal(
+      candidate?.kind === "image" ? candidate.src : null,
+      "https://www.notion.so/image/attachment%3Aabc%3Acard.png",
+    );
+  });
+
+  void it("never falls through to the page's body content", () => {
+    // That body block would produce a thesis cover for a page_content view. A
+    // page_cover view must not silently change what its cards show.
+    const candidate = pageCoverCandidate({
+      pageCover: "https://www.notion.so/image/attachment%3Aabc%3Acard.png",
+    });
+
+    assert.notEqual(candidate?.kind, "thesis");
+  });
+
+  void it("positions by page_cover_position, not card_cover_position", () => {
+    // react-notion-x's own page_cover branch reads page_cover_position; this
+    // function is handed card_cover_position, and the two differ on any page
+    // that sets its own crop.
+    const candidate = pageCoverCandidate({
+      pageCover: "https://www.notion.so/image/attachment%3Aabc%3Acard.png",
+      pageCoverPosition: 0.2,
+      cardCoverPosition: 50,
+    });
+
+    assert.equal(
+      candidate?.kind === "image" ? candidate.objectPosition : null,
+      "center 80%",
+    );
+  });
+
+  void it("centres when the page sets no cover position", () => {
+    const candidate = pageCoverCandidate({
+      pageCover: "https://www.notion.so/image/attachment%3Aabc%3Acard.png",
+    });
+
+    assert.equal(
+      candidate?.kind === "image" ? candidate.objectPosition : null,
+      "center 50%",
+    );
+  });
+
+  void it("defers to the library when the page has no cover at all", () => {
+    // Returning null keeps react-notion-x's own empty cover, rather than
+    // promoting a thesis cover into a view that never asked for one.
+    assert.equal(pageCoverCandidate({}), null);
+  });
+});
