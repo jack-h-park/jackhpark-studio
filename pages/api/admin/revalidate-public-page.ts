@@ -2,14 +2,14 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 import { getSiteMap } from "@/lib/get-site-map";
 import {
-  resolvePublicPageRevalidationTarget,
-  type PublicPageRevalidationTarget,
-} from "@/lib/server/public-page-revalidation";
-import {
   auditAdminMutation,
   requireAdminApiAccess,
   requireSameOriginMutation,
 } from "@/lib/server/admin-auth";
+import {
+  type PublicPageRevalidationTarget,
+  resolvePublicPageRevalidationTarget,
+} from "@/lib/server/public-page-revalidation";
 
 type RevalidationResponse =
   | { revalidatedPath: string; revalidatedAt: string }
