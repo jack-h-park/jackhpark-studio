@@ -319,7 +319,7 @@ export async function streamAnswerWithPrompt({
 
           if (candidateModelId !== requestedModelId) {
             llmLogger.info(
-              `[langchain_chat] Gemini model "${candidateModelId}" succeeded after falling back from "${requestedModelId}".`,
+              `[langchain_chat] Model "${candidateModelId}" succeeded after falling back from "${requestedModelId}".`,
             );
           }
 

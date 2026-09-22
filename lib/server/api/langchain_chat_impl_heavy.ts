@@ -54,6 +54,10 @@ import {
   finalizeChatTrace,
 } from "@/lib/server/api/chat-trace-state";
 import {
+  getGpt6FallbackModel,
+  shouldFallbackBeforeStreaming,
+} from "@/lib/server/api/gpt6-fallback-policy";
+import {
   createChatModel,
   createEmbeddingsInstance,
 } from "@/lib/server/api/llm-provider-factory";
@@ -970,6 +974,8 @@ export async function handleLangchainChat(
       queryName: string,
       llmInstance: BaseLanguageModelInterface,
       candidateModelId: string,
+      generationProvider: typeof provider,
+      allowResponseCache = true,
     ): Promise<boolean> => {
       mark("before-rag-context");
       const includeSelectionTelemetry = Boolean(
@@ -986,8 +992,8 @@ export async function handleLangchainChat(
           presetId,
         },
         runtime: {
-          provider,
-          llmModel,
+          provider: generationProvider,
+          llmModel: candidateModelId,
           embeddingModel,
           embeddingSelection,
           chatConfigSnapshot,
@@ -1051,6 +1057,7 @@ export async function handleLangchainChat(
 
       if (
         autoOrMultiEnabled &&
+        allowResponseCache &&
         responseCacheTtl > 0 &&
         (await responseCache.tryServeFromCache(
           ragResult.decisionSignature ?? null,
@@ -1077,12 +1084,12 @@ export async function handleLangchainChat(
             routingDecision,
           },
           runtime: {
-            provider,
-            model: llmModel,
+            provider: generationProvider,
+            model: candidateModelId,
             requestedModelId: llmModel,
             candidateModelId,
             responseCacheKey: responseCache.getKey(),
-            responseCacheTtl,
+            responseCacheTtl: allowResponseCache ? responseCacheTtl : 0,
             abortSignal: requestAbortSignal,
             chainRunContext,
             initialStreamStarted: http.wasEarlyStreamStarted(),
@@ -1144,6 +1151,7 @@ export async function handleLangchainChat(
           primaryFunction,
           llm,
           candidate,
+          provider,
         );
         if (!streamSucceeded) {
           return;
@@ -1164,6 +1172,52 @@ export async function handleLangchainChat(
           shouldRetryGeminiModel(candidate, err);
 
         if (!shouldRetry) {
+          const fallbackModel =
+            provider === "openai" ? getGpt6FallbackModel(candidate) : null;
+          if (
+            fallbackModel &&
+            shouldFallbackBeforeStreaming(
+              err,
+              res.headersSent || res.writableEnded || http.wasEarlyStreamStarted(),
+            )
+          ) {
+            llmLogger.info(
+              `[langchain_chat] ${candidate} failed before streaming; retrying with Anthropic ${fallbackModel}.`,
+            );
+            const fallbackLlm = await createChatModel(
+              "anthropic",
+              fallbackModel,
+              temperature,
+              MAX_TOKENS,
+            );
+            traceState.provider = "anthropic";
+            traceState.llmModel = fallbackModel;
+            updateTrace?.({
+              metadata: {
+                provider: "anthropic",
+                model: fallbackModel,
+                fallbackFrom: candidate,
+              },
+            });
+            const fallbackSucceeded = await executeWithResources(
+              primaryTable,
+              primaryFunction,
+              fallbackLlm,
+              fallbackModel,
+              "anthropic",
+              false,
+            );
+            if (!fallbackSucceeded) return;
+            capturePosthogEvent?.("success", null);
+            pushTelemetryEvent("stream-success", {
+              provider: "anthropic",
+              candidate: fallbackModel,
+              fallbackFrom: candidate,
+              table: primaryTable,
+            });
+            logReturn("stream-success");
+            return;
+          }
           throw err;
         }
 
