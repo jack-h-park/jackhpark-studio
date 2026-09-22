@@ -359,6 +359,7 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
     aliases: ["claude-sonnet-5", "claude sonnet 5", "sonnet-5"],
     location: "cloud",
     isLocal: false,
+    supportsSampling: false,
   },
   {
     id: "claude-sonnet-4-6",
