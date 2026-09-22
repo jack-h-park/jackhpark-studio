@@ -13,12 +13,13 @@ void test("each GPT-6 tier has its designated Anthropic fallback", () => {
 });
 
 void test("fallback is limited to retryable failures before response bytes", () => {
-  assert.equal(shouldFallbackBeforeStreaming({ status: 429 }, false), true);
-  assert.equal(shouldFallbackBeforeStreaming({ status: 503 }, false), true);
+  assert.equal(shouldFallbackBeforeStreaming({ status: 429 }, false, true), true);
+  assert.equal(shouldFallbackBeforeStreaming({ status: 503 }, false, true), true);
   assert.equal(
-    shouldFallbackBeforeStreaming({ code: "ETIMEDOUT" }, false),
+    shouldFallbackBeforeStreaming({ code: "ETIMEDOUT" }, false, true),
     true,
   );
-  assert.equal(shouldFallbackBeforeStreaming({ status: 400 }, false), false);
-  assert.equal(shouldFallbackBeforeStreaming({ status: 429 }, true), false);
+  assert.equal(shouldFallbackBeforeStreaming({ status: 400 }, false, true), false);
+  assert.equal(shouldFallbackBeforeStreaming({ status: 429 }, true, true), false);
+  assert.equal(shouldFallbackBeforeStreaming({ status: 503 }, false, false), false);
 });

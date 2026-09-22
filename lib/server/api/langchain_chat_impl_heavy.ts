@@ -969,6 +969,7 @@ export async function handleLangchainChat(
       Promise.resolve(getSupabaseAdminClient()),
     );
 
+    let generationFailed = false;
     const executeWithResources = async (
       tableName: string,
       queryName: string,
@@ -977,6 +978,7 @@ export async function handleLangchainChat(
       generationProvider: typeof provider,
       allowResponseCache = true,
     ): Promise<boolean> => {
+      generationFailed = false;
       mark("before-rag-context");
       const includeSelectionTelemetry = Boolean(
         trace &&
@@ -1088,7 +1090,7 @@ export async function handleLangchainChat(
             model: candidateModelId,
             requestedModelId: llmModel,
             candidateModelId,
-            responseCacheKey: responseCache.getKey(),
+            responseCacheKey: allowResponseCache ? responseCache.getKey() : null,
             responseCacheTtl: allowResponseCache ? responseCacheTtl : 0,
             abortSignal: requestAbortSignal,
             chainRunContext,
@@ -1115,6 +1117,7 @@ export async function handleLangchainChat(
           traceState.answerText = streamResult.finalOutput;
         }
       } catch (streamErr) {
+        generationFailed = true;
         traceState.llmGenerationEndMs = Date.now();
         throw streamErr;
       }
@@ -1179,6 +1182,7 @@ export async function handleLangchainChat(
             shouldFallbackBeforeStreaming(
               err,
               res.headersSent || res.writableEnded || http.wasEarlyStreamStarted(),
+              generationFailed,
             )
           ) {
             llmLogger.info(
@@ -1192,6 +1196,10 @@ export async function handleLangchainChat(
             );
             traceState.provider = "anthropic";
             traceState.llmModel = fallbackModel;
+            analyticsModelState.provider = "anthropic";
+            analyticsModelState.model = fallbackModel;
+            chainRunContext.provider = "anthropic";
+            chainRunContext.llmModel = fallbackModel;
             updateTrace?.({
               metadata: {
                 provider: "anthropic",

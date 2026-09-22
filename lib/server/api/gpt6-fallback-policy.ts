@@ -10,8 +10,9 @@ export function getGpt6FallbackModel(model: string): string | null {
 export function shouldFallbackBeforeStreaming(
   error: unknown,
   responseStarted: boolean,
+  generationFailed: boolean,
 ): boolean {
-  if (responseStarted) return false;
+  if (responseStarted || !generationFailed) return false;
   if (!error || typeof error !== "object") return false;
   const failure = error as {
     status?: unknown;
@@ -29,6 +30,6 @@ export function shouldFallbackBeforeStreaming(
     );
   }
   return failure.cause
-    ? shouldFallbackBeforeStreaming(failure.cause, false)
+    ? shouldFallbackBeforeStreaming(failure.cause, false, true)
     : false;
 }
