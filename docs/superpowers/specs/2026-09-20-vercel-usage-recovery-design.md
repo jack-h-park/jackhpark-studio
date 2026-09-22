@@ -36,6 +36,31 @@ cross-region CDN cache. The full configuration is passed to browser code, so a
 cache policy must not be added before the browser contract is narrowed and
 tested.
 
+Image delivery changed independently in PRs #187, #188, and #190. Page covers
+and Notion images now use `/_next/image` as the normal delivery stage, with
+the raw Notion URL retained only as an error fallback. Icons use a 256px
+variant; card covers use 384px, 640px, and 828px variants; content images use
+828px, 1200px, and 1920px variants. Gallery page-cover cards use the card
+ladder rather than the content ladder. This moves steady-state work from Fast
+Data Transfer to the separate Image Optimization meter; it does not add image
+processing to the application's serverless functions, so it is not expected
+to change ISR Writes or Fluid Active CPU.
+
+The Vercel Usage dashboard recorded 712 Image Transformations, 3,473 Image
+Cache Write Units, and 1,666 Image Cache Read Units in the rolling 30-day
+window ending 2026-09-22. These are new usage lines to observe separately from
+the ISR and compute recovery target. They are not evidence of a present
+allowance breach because the dashboard did not expose a corresponding included
+limit in this view.
+
+The image optimizer cache key is based on the stable Notion attachment URL and
+requested width. The temporary signed URL is behind that attachment redirect,
+not in the optimizer source URL; `/studio` contains no `X-Amz-Signature` value.
+Consequently, an on-demand ISR refresh normally reuses image variants instead
+of generating a new transformation. If Notion changes back to signed source
+URLs, revisit the delivery-stage order documented in
+`docs/architecture/notion-image-loading.md` before assuming that property.
+
 ## Architecture
 
 ### 1. Public-page freshness boundary
@@ -115,7 +140,8 @@ does not log the rejected value as a Notion fetch failure.
 
 ## Non-Goals
 
-- Reintroducing Preview deployments or Preview image processing.
+- Reintroducing Preview deployments. Preview deployments remain suppressed, so
+  they do not create Preview image transformations.
 - Rebuilding all content after every Notion edit.
 - Moving further public assets to R2; that reduces deployment storage, not the
   ISR/CPU issue addressed here.
@@ -151,7 +177,10 @@ path-leak guardrail, and production build. After production is Ready, verify:
 3. the unauthenticated and cross-origin endpoint cases fail safely;
 4. Preview deployments remain cancelled; and
 5. Vercel Usage shows a falling daily ISR Write and Fluid Active CPU rate over
-   at least seven post-release days.
+   at least seven post-release days; and
+6. Image Optimization transformations, cache writes, and cache reads remain
+   separately observed after the Notion image-delivery rollout. An on-demand
+   public-page refresh must not cause a site-wide transformation burst.
 
 The operational target is a projected rolling-30-day rate below 70% of each
 included ISR Write and Fluid Active CPU allowance, leaving room for an unusual
