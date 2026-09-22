@@ -56,15 +56,19 @@ export async function createChatModel(
       const supportsReasoningEffort =
         resolveLlmModel({ modelId: modelName, model: modelName })
           .supportsReasoningEffort === true;
+      const tokenLimit =
+        modelName === "gpt-6-sol" || modelName === "gpt-6-luna"
+          ? { modelKwargs: { max_completion_tokens: maxTokens } }
+          : { maxTokens };
       return new ChatOpenAI({
         model: modelName,
         apiKey,
         ...(supportsSampling ? { temperature } : {}),
+        ...tokenLimit,
         ...(supportsReasoningEffort && reasoningEffort
           ? { reasoning: { effort: reasoningEffort } }
           : {}),
         streaming: true,
-        maxTokens,
       });
     }
     case "gemini": {
