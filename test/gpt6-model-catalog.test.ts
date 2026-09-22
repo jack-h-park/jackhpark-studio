@@ -16,7 +16,7 @@ void test("GPT-6 tiers are selectable without sampling parameters", () => {
 void test("the designated Anthropic fallbacks remain resolvable", () => {
   assert.equal(getLlmModelDefinition("claude-sonnet-5")?.provider, "anthropic");
   assert.equal(
-    getLlmModelDefinition("claude-haiku-4-5")?.provider,
+    getLlmModelDefinition("claude-haiku-4-5-20251001")?.provider,
     "anthropic",
   );
 });

@@ -8,7 +8,7 @@ import {
 
 void test("each GPT-6 tier has its designated Anthropic fallback", () => {
   assert.equal(getGpt6FallbackModel("gpt-6-sol"), "claude-sonnet-5");
-  assert.equal(getGpt6FallbackModel("gpt-6-luna"), "claude-haiku-4-5");
+  assert.equal(getGpt6FallbackModel("gpt-6-luna"), "claude-haiku-4-5-20251001");
   assert.equal(getGpt6FallbackModel("gpt-4o-mini"), null);
 });
 

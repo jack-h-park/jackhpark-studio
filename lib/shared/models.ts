@@ -376,6 +376,16 @@ export const LLM_MODEL_DEFINITIONS: readonly LlmModelDefinition[] = [
     isLocal: false,
   },
   {
+    id: "claude-haiku-4-5-20251001",
+    label: "Anthropic Claude Haiku 4.5 (2025-10-01)",
+    displayName: "Anthropic Claude Haiku 4.5 (2025-10-01)",
+    provider: "anthropic",
+    model: "claude-haiku-4-5-20251001",
+    aliases: ["claude-haiku-4-5-20251001"],
+    location: "cloud",
+    isLocal: false,
+  },
+  {
     id: "claude-haiku-4-5",
     label: "Anthropic Claude Haiku 4.5",
     displayName: "Anthropic Claude Haiku 4.5",
