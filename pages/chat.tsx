@@ -54,7 +54,7 @@ export default function ChatPage({
 
 export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
   const [adminConfig, header] = await Promise.all([
-    getAdminChatConfig(),
+    getAdminChatConfig({ forceRefresh: true }),
     loadNotionNavigationHeader(),
   ]);
   const runtimeMeta: AdminChatRuntimeMeta = {
