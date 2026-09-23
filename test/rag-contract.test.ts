@@ -86,6 +86,41 @@ void describe("RAG contract fixtures", () => {
     );
   });
 
+  void it("does not cite excerpts below the retrieval confidence threshold", () => {
+    const lowConfidence = buildCitationPayload(
+      [
+        {
+          chunk: "A project unrelated to the question",
+          similarity: 0.368,
+          metadata: { doc_id: "unrelated", title: "Unrelated project" },
+        },
+      ],
+      { minimumSimilarity: 0.4 },
+    );
+    assert.deepEqual(lowConfidence.citations, []);
+    assert.equal(lowConfidence.citationMeta.uniqueDocs, 0);
+
+    const mixed = buildCitationPayload(
+      [
+        {
+          chunk: "A relevant Android Enterprise passage",
+          similarity: 0.853,
+          metadata: { doc_id: "relevant", title: "Relevant profile" },
+        },
+        {
+          chunk: "A project unrelated to the question",
+          similarity: 0.368,
+          metadata: { doc_id: "unrelated", title: "Unrelated project" },
+        },
+      ],
+      { minimumSimilarity: 0.4 },
+    );
+    assert.deepEqual(
+      mixed.citations.map((citation) => citation.docId),
+      ["relevant"],
+    );
+  });
+
   void it("captures cache key dimensions that affect RAG behavior", () => {
     const responseKey = hashPayload(
       buildResponseCacheKeyPayload(
