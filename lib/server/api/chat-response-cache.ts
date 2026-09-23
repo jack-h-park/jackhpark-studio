@@ -47,7 +47,11 @@ export type ResponseCacheCoordinatorDeps = {
   updateTrace: (updates: TraceUpdate) => void;
   updateTraceCacheMetadata: () => void;
   pushTelemetryEvent: (name: string, detail?: Record<string, unknown>) => void;
-  capturePosthog: (status: "success" | "error", errorType?: string | null) => void;
+  capturePosthog: (
+    status: "success" | "error",
+    errorType?: string | null,
+  ) => void;
+  onCacheHit?: (answer: string) => void;
 };
 
 export type ResponseCacheCoordinator = {
@@ -71,9 +75,7 @@ export type ResponseCacheCoordinator = {
 export function createResponseCacheCoordinator(
   deps: ResponseCacheCoordinatorDeps,
 ): ResponseCacheCoordinator {
-  const strategy: "early" | "late" = deps.autoOrMultiEnabled
-    ? "late"
-    : "early";
+  const strategy: "early" | "late" = deps.autoOrMultiEnabled ? "late" : "early";
   let responseCacheKey: string | null = null;
 
   const buildKey = (decision: RagDecisionSignature | null): string | null => {
@@ -158,6 +160,7 @@ export function createResponseCacheCoordinator(
       }),
     });
     deps.capturePosthog("success", null);
+    deps.onCacheHit?.(snapshot.output);
     deps.logReturn("response-cache-hit");
   };
 
