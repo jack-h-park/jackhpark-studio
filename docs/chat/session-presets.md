@@ -49,10 +49,10 @@ key the row omits.
 
 ## Balanced (Default)
 
-Balanced is the standard preset for everyday use. It keeps retrieval enabled, uses `gpt-4o`, and applies moderate context/history budgets.
+Balanced is the standard preset for everyday use. It keeps retrieval enabled, uses `gpt-6-luna`, and applies moderate context/history budgets.
 
 - **Additional system prompt:** "Answer concisely and accurately. Avoid speculation. Use retrieved context only when it clearly improves correctness."
-- **LLM model:** OpenAI `gpt-4o`
+- **LLM model:** OpenAI `gpt-6-luna`
 - **Embedding model:** default embedding space (`text-embedding-3-small` unless admin config changes it)
 - **Require local backend:** false
 - **Safe mode:** false
@@ -70,10 +70,10 @@ Balanced is the standard preset for everyday use. It keeps retrieval enabled, us
 
 ## Precision
 
-Precision is for correctness-sensitive questions. It tightens retrieval and disables summaries by default so the model leans on a narrower context window.
+Precision is for correctness-sensitive questions. It uses `gpt-6-luna`, tightens retrieval, and disables summaries by default so the model leans on a narrower context window.
 
 - **Additional system prompt:** "Answer concisely and accurately. Avoid speculation. Use retrieved context only when it clearly improves correctness."
-- **LLM model:** OpenAI `gpt-4o`
+- **LLM model:** OpenAI `gpt-6-luna`
 - **Embedding model:** default embedding space (`text-embedding-3-small` unless admin config changes it)
 - **Require local backend:** false
 - **Safe mode:** false
@@ -91,10 +91,10 @@ Precision is for correctness-sensitive questions. It tightens retrieval and disa
 
 ## High Recall
 
-High Recall is for exploratory or coverage-heavy questions. It widens retrieval, enables Reverse RAG, and applies MMR reranking.
+High Recall is for exploratory or coverage-heavy questions. It uses `gpt-6-luna`, widens retrieval, enables Reverse RAG, and applies MMR reranking.
 
 - **Additional system prompt:** "Prioritize completeness and coverage. It is acceptable to include multiple perspectives or partially relevant context if it improves recall."
-- **LLM model:** OpenAI `gpt-4o`
+- **LLM model:** OpenAI `gpt-6-luna`
 - **Embedding model:** default embedding space (`text-embedding-3-small` unless admin config changes it)
 - **Require local backend:** false
 - **Safe mode:** false
@@ -112,10 +112,10 @@ High Recall is for exploratory or coverage-heavy questions. It widens retrieval,
 
 ## Fast
 
-Fast is tuned for lower latency. It uses `gpt-4o-mini` and keeps retrieval/context budgets smaller than the other presets.
+Fast is tuned for lower latency. It uses `gpt-6-luna` and keeps retrieval/context budgets smaller than the other presets.
 
 - **Additional system prompt:** "Focus on speed and brevity. Prefer short, direct answers. Avoid unnecessary explanations or deep reasoning."
-- **LLM model:** OpenAI `gpt-4o-mini`
+- **LLM model:** OpenAI `gpt-6-luna`
 - **Embedding model:** default embedding space (`text-embedding-3-small` unless admin config changes it)
 - **Require local backend:** false
 - **Safe mode:** false

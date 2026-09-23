@@ -32,7 +32,7 @@ Available presets:
 - **Balanced (Default):** General-purpose default with moderate retrieval and low summary frequency
 - **Precision:** Tighter retrieval for correctness-sensitive questions
 - **High Recall:** Broader retrieval with Reverse RAG enabled and MMR reranking
-- **Fast:** Smaller context budgets and `gpt-4o-mini` for lower latency
+- **Fast:** Smaller context budgets and `gpt-6-luna` for lower latency
 
 Preset definitions live in code under `lib/server/admin-chat-config.ts` and the reader-facing values are documented in [session-presets.md](./session-presets.md).
 
