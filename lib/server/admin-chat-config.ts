@@ -155,7 +155,7 @@ const SPEED_PROMPT =
 export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
   default: {
     additionalSystemPrompt: CONCISE_PROMPT,
-    llmModel: "gpt-4o",
+    llmModel: "gpt-6-luna",
     embeddingModel: FALLBACK_MINIMAL_EMBEDDING_MODEL,
     rag: {
       enabled: true,
@@ -181,7 +181,7 @@ export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
   },
   fast: {
     additionalSystemPrompt: SPEED_PROMPT,
-    llmModel: "gpt-4o-mini",
+    llmModel: "gpt-6-luna",
     embeddingModel: FALLBACK_MINIMAL_EMBEDDING_MODEL,
     rag: {
       enabled: true,
@@ -207,7 +207,7 @@ export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
   },
   highRecall: {
     additionalSystemPrompt: COMPLETE_PROMPT,
-    llmModel: "gpt-4o",
+    llmModel: "gpt-6-luna",
     embeddingModel: FALLBACK_MINIMAL_EMBEDDING_MODEL,
     rag: {
       enabled: true,
@@ -233,7 +233,7 @@ export const DEFAULT_ADMIN_CHAT_PRESETS: AdminChatPresetsConfig = {
   },
   precision: {
     additionalSystemPrompt: CONCISE_PROMPT,
-    llmModel: "gpt-4o",
+    llmModel: "gpt-6-luna",
     embeddingModel: FALLBACK_MINIMAL_EMBEDDING_MODEL,
     rag: {
       enabled: true,
