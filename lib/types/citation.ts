@@ -137,6 +137,7 @@ export function buildCitationPayload(
   options?: {
     topKChunks?: number;
     ragRanking?: RagRankingConfig | null;
+    minimumSimilarity?: number;
   },
 ): CitationPayload {
   const topKChunks = Math.max(0, options?.topKChunks ?? documents.length);
@@ -162,6 +163,12 @@ export function buildCitationPayload(
       typeof doc.similarity === "number" && Number.isFinite(doc.similarity)
         ? doc.similarity
         : 0;
+    if (
+      options?.minimumSimilarity !== undefined &&
+      similarity < options.minimumSimilarity
+    ) {
+      continue;
+    }
     const weight = computeDocWeight(doc, options?.ragRanking);
     const key = buildDocumentKey(
       pickDocId(doc),

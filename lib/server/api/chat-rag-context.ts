@@ -705,6 +705,7 @@ export async function computeRagContextAndCitations({
         citationPayload = buildCitationPayload(contextResult.included, {
           topKChunks,
           ragRanking,
+          minimumSimilarity: guardrails.similarityThreshold,
         });
         if (retrievalCacheWriteKey) {
           await memoryCacheClient.set(
@@ -880,6 +881,7 @@ export async function computeRagContextAndCitations({
     buildCitationPayload(contextResult.included, {
       topKChunks,
       ragRanking,
+      minimumSimilarity: guardrails.similarityThreshold,
     });
 
   if (autoOrMultiEnabled && !decisionSignature) {
