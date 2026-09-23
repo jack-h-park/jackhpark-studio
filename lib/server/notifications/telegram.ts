@@ -1,13 +1,14 @@
 import { telemetryLogger } from "@/lib/logging/logger";
 
-export type ChatStartedNotice = {
+export type ChatCompletedNotice = {
   question: string;
+  answer: string;
   sessionId: string | null;
   traceId: string | null;
   environment: string;
 };
 
-const QUESTION_PREVIEW_CHARS = 200;
+const TELEGRAM_MESSAGE_LIMIT = 4096;
 
 // Both config gates below are static per process, so log each reason once —
 // enough to diagnose a misconfigured deployment without repeating per request.
@@ -63,16 +64,69 @@ async function resolveLangfuseProjectId(): Promise<string | null> {
   return cachedProjectId;
 }
 
+function truncateUtf16(value: string, maxUnits: number): string {
+  if (value.length <= maxUnits) {
+    return value;
+  }
+  if (maxUnits <= 0) {
+    return "";
+  }
+
+  const contentLimit = maxUnits - 1;
+  let result = "";
+  let usedUnits = 0;
+  for (const character of value) {
+    if (usedUnits + character.length > contentLimit) {
+      break;
+    }
+    result += character;
+    usedUnits += character.length;
+  }
+  return `${result}…`;
+}
+
+function allocateTextBudgets(
+  question: string,
+  answer: string,
+  availableUnits: number,
+): [number, number] {
+  const lengths = [question.length, answer.length] as const;
+  const budgets = [0, 0];
+  let remaining = availableUnits;
+
+  while (remaining > 0) {
+    const unfinished = lengths
+      .map((length, index) => (budgets[index] < length ? index : -1))
+      .filter((index) => index >= 0);
+    if (unfinished.length === 0) {
+      break;
+    }
+
+    const share = Math.max(1, Math.floor(remaining / unfinished.length));
+    for (const index of unfinished) {
+      const allocation = Math.min(share, lengths[index] - budgets[index]);
+      budgets[index] += allocation;
+      remaining -= allocation;
+      if (remaining === 0) {
+        break;
+      }
+    }
+  }
+
+  return [budgets[0], budgets[1]];
+}
+
 /**
- * Fire-and-forget Telegram notification when a visitor starts a new chat.
- *
- * Enabled only when TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID are set, and only for
- * the environment named in CHAT_NOTIFY_ENV (default "prod") so local/dev runs
- * stay silent. The send is intentionally not awaited by callers — it has the
- * whole streaming window to complete, and failures are debug-logged without
- * ever affecting the request.
+ * Sends the new-conversation notice after the answer is ready. The caller
+ * registers this promise with Vercel's waitUntil so delivery can finish after
+ * the streamed response closes. The Telegram Bot API caps text at 4096
+ * characters; UTF-16 budgeting stays below that limit without splitting emoji.
+ * Notifications are enabled only when TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID
+ * are set and the environment matches CHAT_NOTIFY_ENV (default "prod").
  */
-export function notifyChatStarted(notice: ChatStartedNotice): void {
+export function notifyChatCompleted(
+  notice: ChatCompletedNotice,
+): Promise<void> {
   // Trim env values defensively — stray whitespace in .env files would
   // otherwise break the token or make the env gate silently never match.
   const botToken = process.env.TELEGRAM_BOT_TOKEN?.trim();
@@ -82,7 +136,7 @@ export function notifyChatStarted(notice: ChatStartedNotice): void {
       hasBotToken: Boolean(botToken),
       hasChatId: Boolean(chatId),
     });
-    return;
+    return Promise.resolve();
   }
   const notifyEnv = (process.env.CHAT_NOTIFY_ENV ?? "prod").trim();
   if (notice.environment !== notifyEnv) {
@@ -93,15 +147,10 @@ export function notifyChatStarted(notice: ChatStartedNotice): void {
       chatNotifyEnv: notifyEnv,
       chatNotifyEnvSet: process.env.CHAT_NOTIFY_ENV !== undefined,
     });
-    return;
+    return Promise.resolve();
   }
 
-  const preview =
-    notice.question.length > QUESTION_PREVIEW_CHARS
-      ? `${notice.question.slice(0, QUESTION_PREVIEW_CHARS)}…`
-      : notice.question;
-
-  void (async () => {
+  return (async () => {
     // Deep-link to the Langfuse trace; the project id is auto-resolved from
     // the API keys (or LANGFUSE_PROJECT_ID when set). Falls back to the bare
     // trace id when no link can be built.
@@ -109,20 +158,34 @@ export function notifyChatStarted(notice: ChatStartedNotice): void {
     const projectId = notice.traceId ? await resolveLangfuseProjectId() : null;
     // The Langfuse UI locates traces by time partition, so its trace URLs
     // carry a ?timestamp= anchor — without it the page can report "Trace not
-    // found" even for existing traces. The notice fires right after trace
-    // creation, so "now" is the trace's timestamp.
+    // found" even for existing traces.
     const traceUrl =
       notice.traceId && baseUrl && projectId
         ? `${baseUrl.replace(/\/$/, "")}/project/${projectId}/traces/${notice.traceId}?timestamp=${encodeURIComponent(new Date().toISOString())}`
         : null;
 
+    const sections = [
+      "💬 New JackGPT chat",
+      "Q: ",
+      "A: ",
+      notice.sessionId ? `Session: ${notice.sessionId}` : null,
+      traceUrl ?? (notice.traceId ? `Trace: ${notice.traceId}` : null),
+    ].filter((section): section is string => section !== null);
+    const fixedLength = sections.join("\n").length;
+    const availableUnits = Math.max(0, TELEGRAM_MESSAGE_LIMIT - fixedLength);
+    const [questionBudget, answerBudget] = allocateTextBudgets(
+      notice.question,
+      notice.answer,
+      availableUnits,
+    );
     const text = [
       "💬 New JackGPT chat",
-      `Q: ${preview}`,
+      `Q: ${truncateUtf16(notice.question, questionBudget)}`,
+      `A: ${truncateUtf16(notice.answer, answerBudget)}`,
       notice.sessionId ? `Session: ${notice.sessionId}` : null,
       traceUrl ?? (notice.traceId ? `Trace: ${notice.traceId}` : null),
     ]
-      .filter(Boolean)
+      .filter((section): section is string => section !== null)
       .join("\n");
 
     const res = await fetch(

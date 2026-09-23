@@ -85,7 +85,7 @@ import { createRequestAbortSignal } from "@/lib/server/langchain/abort";
 import { flushLinkedLangfuseCallbacks } from "@/lib/server/langchain/langfuse-callbacks";
 import { type ChainRunContext } from "@/lib/server/langchain/runnable-config";
 import { escapeForPromptTemplate } from "@/lib/server/langchain/stream-chunk";
-import { notifyChatStarted } from "@/lib/server/notifications/telegram";
+import { notifyChatCompleted } from "@/lib/server/notifications/telegram";
 import { respondWithOllamaUnavailable } from "@/lib/server/ollama-errors";
 import { OllamaUnavailableError } from "@/lib/server/ollama-provider";
 import {
@@ -507,17 +507,23 @@ export async function handleLangchainChat(
       presetKey: tracePresetForTag,
       environment: env,
     });
-    // Owner heads-up when a visitor starts a NEW conversation. First-turn
-    // detection is stateless (no prior assistant message in the history), so
-    // it needs no cross-instance dedup on serverless. Env-gated inside.
-    if (!messages.some((message) => message.role === "assistant")) {
-      notifyChatStarted({
-        question,
-        sessionId: sessionId ?? null,
-        traceId: traceState.trace?.traceId ?? null,
-        environment: env,
-      });
-    }
+    const isNewConversation = !messages.some(
+      (message) => message.role === "assistant",
+    );
+    const scheduleNewConversationNotice = (answer: string) => {
+      if (!isNewConversation) {
+        return;
+      }
+      waitUntil(
+        notifyChatCompleted({
+          question,
+          answer,
+          sessionId: sessionId ?? null,
+          traceId: traceState.trace?.traceId ?? null,
+          environment: env,
+        }),
+      );
+    };
     const responseCacheTtl = adminConfig.cache.responseTtlSeconds;
     const retrievalCacheTtl = adminConfig.cache.retrievalTtlSeconds;
     const responseCacheEnabled = responseCacheTtl > 0;
@@ -863,6 +869,7 @@ export async function handleLangchainChat(
       updateTrace,
       updateTraceCacheMetadata,
       pushTelemetryEvent,
+      onCacheHit: scheduleNewConversationNotice,
       capturePosthog: (status, errorType) =>
         capturePosthogEvent?.(status, errorType),
     });
@@ -1090,7 +1097,9 @@ export async function handleLangchainChat(
             model: candidateModelId,
             requestedModelId: llmModel,
             candidateModelId,
-            responseCacheKey: allowResponseCache ? responseCache.getKey() : null,
+            responseCacheKey: allowResponseCache
+              ? responseCache.getKey()
+              : null,
             responseCacheTtl: allowResponseCache ? responseCacheTtl : 0,
             abortSignal: requestAbortSignal,
             chainRunContext,
@@ -1122,6 +1131,13 @@ export async function handleLangchainChat(
         throw streamErr;
       }
       mark("after-streaming");
+
+      // Notify only after a new conversation has a completed answer. The
+      // request may already have closed its stream, so keep delivery alive
+      // with Vercel's post-response task mechanism.
+      if (!streamResult.handledEarlyExit) {
+        scheduleNewConversationNotice(streamResult.finalOutput);
+      }
 
       return !streamResult.handledEarlyExit;
     };
@@ -1181,7 +1197,9 @@ export async function handleLangchainChat(
             fallbackModel &&
             shouldFallbackBeforeStreaming(
               err,
-              res.headersSent || res.writableEnded || http.wasEarlyStreamStarted(),
+              res.headersSent ||
+                res.writableEnded ||
+                http.wasEarlyStreamStarted(),
               generationFailed,
             )
           ) {
