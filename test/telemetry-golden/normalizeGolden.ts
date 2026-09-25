@@ -1,4 +1,4 @@
-import type { GoldenTelemetry } from "./buildGoldenFromIngestion";
+import type { GoldenTelemetry } from "./goldenTypes";
 
 const VOLATILE_KEYS = new Set([
   "id",

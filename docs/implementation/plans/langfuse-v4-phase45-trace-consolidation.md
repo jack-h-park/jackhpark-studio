@@ -110,10 +110,23 @@ Phase 4 was split during implementation:
   root, no synthetic `t-<traceId>` duplicate. Rollback is
   `LANGFUSE_OTEL_TRACING=0`, which works only while the legacy backend is still
   in the tree.
-- **4d step 2** (not started): remove the legacy backend, its golden, and the now
-  redundant Preview-scope `LANGFUSE_OTEL_TRACING=1`. Deliberately held for a few
-  days of production traffic, because deleting the legacy path gives up the
-  one-line rollback.
+- **4d step 2** (2026-09-25): removed the legacy ingestion backend, the
+  `LANGFUSE_OTEL_TRACING` switch, the `TELEMETRY_TEST_SINK` harness and the
+  legacy golden. The OTel golden was renamed into the legacy one's path; the
+  two had been byte-identical, so the snapshot is unchanged and still passes,
+  which is the evidence the removal rests on. `LangfuseTrace.end()` is now
+  required rather than optional — there is no longer a backend without a root.
+
+  One call site needed migrating rather than deleting: the `request:error` /
+  `request:aborted` failure markers in `chat-trace-state.ts` called the free
+  `createObservation()`, which wrote straight to `/api/public/ingestion`. They
+  had stayed on legacy transport even after the default flipped, so they would
+  have stopped recording at the 2026-11-16 cutover. They now go through
+  `trace.observation()`. This is safe because `finalizeChatTrace` runs
+  synchronously in the request `finally`, while `trace.end()` runs later on the
+  deferred flush — the root is still open when the marker is emitted.
+
+  Rollback is now a revert commit, not an environment variable.
 
 Carried from the migration plan, now with the answers above folded in:
 

@@ -1,10 +1,7 @@
-import { randomUUID } from "node:crypto";
-
 import type { LangfuseClient } from "@langfuse/client";
 
 import { getAppEnv } from "@/lib/app-env";
 import { createOtelTrace } from "@/lib/server/telemetry/otel-trace-backend";
-import { pushIngestionBatch } from "@/lib/server/telemetry/telemetry-test-sink";
 
 const TRACE_IMPORT = process.env.LANGFUSE_IMPORT_TRACE === "1";
 const traceImport = (msg: string) =>
@@ -24,7 +21,6 @@ const LEGACY_SAMPLE_RATE_ENVS = [
 ] as const;
 
 let langfuseClient: LangfuseClient | null = null;
-let ingestionEnabled = false;
 let didLogLangfuseInit = false;
 let langfuseInitPromise: Promise<LangfuseClient | null> | null = null;
 
@@ -89,6 +85,12 @@ async function logLangfuseInitStatus(): Promise<void> {
   traceImport("langfuse:log-status-done");
 }
 
+/**
+ * The client no longer carries traces — those go out over OTLP via the span
+ * processor registered in `instrumentation.ts`. It remains the transport for
+ * the read and score APIs, and `createTrace` still gates on it because its
+ * presence is what says Langfuse is configured at all.
+ */
 export async function ensureLangfuseClient(): Promise<LangfuseClient | null> {
   if (langfuseClient) {
     return langfuseClient;
@@ -103,7 +105,6 @@ export async function ensureLangfuseClient(): Promise<LangfuseClient | null> {
   langfuseInitPromise = (async () => {
     const client = await buildLangfuseClient(config);
     langfuseClient = client;
-    ingestionEnabled = true;
     await logLangfuseInitStatus();
     return client;
   })();
@@ -147,56 +148,6 @@ export type LangfuseObservationOptions = {
   endTime?: string;
 };
 
-interface LangfuseTraceContext {
-  traceId: string;
-  environment: string;
-}
-
-interface TraceBody {
-  id: string;
-  timestamp: string;
-  name?: string;
-  userId?: string;
-  sessionId?: string;
-  input?: unknown;
-  output?: unknown;
-  metadata?: LangfuseMetadata;
-  tags?: string[];
-  release?: string;
-  version?: string;
-  environment?: string;
-  public?: boolean;
-}
-
-interface SpanBody {
-  id: string;
-  traceId: string;
-  name: string;
-  startTime?: string;
-  endTime?: string;
-  input?: unknown;
-  output?: unknown;
-  metadata?: LangfuseMetadata;
-  environment?: string;
-  level?: LangfuseObservationLevel;
-  statusMessage?: string;
-  version?: string;
-}
-
-type LangfuseIngestionEvent =
-  | {
-      type: "trace-create";
-      id: string;
-      timestamp: string;
-      body: TraceBody;
-    }
-  | {
-      type: "span-create";
-      id: string;
-      timestamp: string;
-      body: SpanBody;
-    };
-
 export interface LangfuseTrace {
   traceId: string;
   id: string;
@@ -204,50 +155,11 @@ export interface LangfuseTrace {
   observation: (options: LangfuseObservationOptions) => Promise<void>;
   update: (options: Partial<LangfuseTraceOptions>) => Promise<void>;
   /**
-   * Closes the root observation and exports it. Only the OTel backend needs
-   * this: the legacy backend writes the trace record on every update, so it has
-   * nothing to close. Callers must treat it as optional.
+   * Closes the root observation and exports it. Nothing reaches Langfuse until
+   * this runs, and observations created afterwards are dropped rather than
+   * orphaned, so the root must outlive every child.
    */
-  end?: () => void;
-}
-
-function buildTraceEvent(
-  fields: LangfuseTraceOptions & { id: string; environment: string },
-): LangfuseIngestionEvent {
-  const timestamp = new Date().toISOString();
-  return {
-    type: "trace-create",
-    id: randomUUID(),
-    timestamp,
-    body: {
-      id: fields.id,
-      timestamp,
-      name: fields.name,
-      userId: fields.userId,
-      sessionId: fields.sessionId,
-      input: fields.input,
-      output: fields.output,
-      metadata: fields.metadata,
-      tags: fields.tags,
-      release: fields.release,
-      version: fields.version,
-      environment: fields.environment,
-      public: fields.public,
-    },
-  };
-}
-
-/**
- * Phase 4d of the Langfuse v4 migration: the OTel backend is now the default.
- *
- * Deliberately an opt-*out* (`=== "0"`), not an opt-in. Reverting is then a
- * single environment variable on the Production scope — no revert commit, no
- * rebuild — which matters because this selects the transport for every chat
- * request. The legacy backend below stays in the tree until the switch has held
- * in production; Phase 4d step 2 removes it.
- */
-export function isOtelTracingEnabled(): boolean {
-  return process.env.LANGFUSE_OTEL_TRACING !== "0";
+  end: () => void;
 }
 
 export function createTrace(
@@ -256,106 +168,7 @@ export function createTrace(
   if (!langfuseClient) {
     return undefined;
   }
-
-  const env = getAppEnv();
-
-  if (isOtelTracingEnabled()) {
-    return createOtelTrace(options, options.environment ?? env);
-  }
-  const traceId = options.id ?? options.sessionId ?? randomUUID();
-  const traceEnvironment = options.environment ?? env;
-  let currentTraceFields: LangfuseTraceOptions & {
-    id: string;
-    environment: string;
-  } = {
-    ...options,
-    id: traceId,
-    environment: traceEnvironment,
-  };
-  const traceContext: LangfuseTraceContext = {
-    traceId,
-    environment: traceEnvironment,
-  };
-
-  void sendIngestionEvents([buildTraceEvent(currentTraceFields)]);
-
-  return {
-    traceId,
-    id: traceId,
-    environment: traceContext.environment,
-    observation: (observationOptions: LangfuseObservationOptions) =>
-      createObservation(traceContext, observationOptions),
-    update: async (updates: Partial<LangfuseTraceOptions>) => {
-      currentTraceFields = {
-        ...currentTraceFields,
-        ...updates,
-        environment: traceContext.environment,
-      };
-      await sendIngestionEvents([buildTraceEvent(currentTraceFields)]);
-    },
-  };
-}
-
-export async function createObservation(
-  trace: LangfuseTraceContext | undefined,
-  options: LangfuseObservationOptions,
-): Promise<void> {
-  if (!langfuseClient || !trace) {
-    return;
-  }
-
-  const timestamp = new Date().toISOString();
-  const observationId = randomUUID();
-  const observationEvent: LangfuseIngestionEvent = {
-    type: "span-create",
-    id: randomUUID(),
-    timestamp,
-    body: {
-      id: observationId,
-      traceId: trace.traceId,
-      name: options.name,
-      input: options.input,
-      output: options.output,
-      metadata: options.metadata,
-      environment: trace.environment,
-      level: options.level,
-      statusMessage: options.statusMessage,
-      version: options.version,
-      startTime: options.startTime ?? timestamp,
-      endTime: options.endTime ?? timestamp,
-    },
-  };
-
-  await sendIngestionEvents([observationEvent]);
-}
-
-async function sendIngestionEvents(
-  events: LangfuseIngestionEvent[],
-): Promise<void> {
-  traceImport("langfuse:send-ingestion-enter");
-  if (!langfuseClient || !ingestionEnabled) {
-    return;
-  }
-
-  const batchRequest = { batch: events };
-  if (process.env.TELEMETRY_TEST_SINK === "1") {
-    pushIngestionBatch(batchRequest);
-    return;
-  }
-
-  try {
-    await langfuseClient.api.ingestion.batch(batchRequest);
-  } catch (err) {
-    const { telemetryLogger } = await import("@/lib/logging/logger");
-    const statusCode = (err as { statusCode?: number }).statusCode;
-    if (statusCode === 401) {
-      ingestionEnabled = false;
-      telemetryLogger.error(
-        "[langfuse] disabled tracing because Langfuse ingestion is unauthorized",
-      );
-    }
-    telemetryLogger.error("[langfuse] failed to emit events", err);
-  }
+  return createOtelTrace(options, options.environment ?? getAppEnv());
 }
 
 export const langfuse = {
@@ -363,7 +176,6 @@ export const langfuse = {
     return langfuseClient;
   },
   trace: createTrace,
-  createObservation,
 };
 
 export function observe<T>(handler: T): T {

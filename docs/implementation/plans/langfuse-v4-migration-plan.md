@@ -225,7 +225,7 @@ deprecated. **No change required.**
   `LANGFUSE_TRACING_ENVIRONMENT` / `LANGFUSE_RELEASE`.
 - Serialize metadata to `Record<string, string>`, values ≤200 characters.
 - Rewrite `emitAnswerSummarySpan` to use `startObservation`.
-- Rewrite the `TELEMETRY_TEST_SINK` harness against an in-memory OTel exporter
+- Replace the `TELEMETRY_TEST_SINK` harness with an in-memory OTel exporter
   and refresh the telemetry golden snapshots.
 
 ### Phase 5 — LangChain handler replacement

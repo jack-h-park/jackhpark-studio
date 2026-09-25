@@ -18,6 +18,9 @@ const createTraceStub = () => {
     update: async (options: { tags?: string[] }) => {
       calls.push(options);
     },
+    end: () => {
+      // no-op
+    },
   };
   return { trace, calls };
 };

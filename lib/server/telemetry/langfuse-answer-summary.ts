@@ -125,9 +125,8 @@ const buildAnswerSummaryOutput = (
  * by name would drop whichever it saw second — silently losing either the real
  * cost or the finish semantics the digest reads.
  *
- * Emitted through `trace.observation()` rather than the ingestion API directly,
- * so it follows whichever backend `LANGFUSE_OTEL_TRACING` selects instead of
- * pinning itself to legacy transport.
+ * Emitted through `trace.observation()` so it lands under the request root,
+ * rather than opening a span of its own.
  */
 export async function emitAnswerSummarySpan(
   options: EmitAnswerSummarySpanOptions,

@@ -1,22 +1,26 @@
 // Golden telemetry smoke test for the knowledge->standard pipeline.
-// Run with `pnpm test:telemetry-golden`, and refresh snapshots via
+// Run with `pnpm test:telemetry-golden`, and refresh via
 // `UPDATE_GOLDEN=1 pnpm test:telemetry-golden`.
-// Catches regressions for `rag:root`, `context:selection`, and
-// `rag_retrieval_stage` telemetry contents without making Langfuse network calls.
+//
+// Catches regressions in `rag:root`, `context:selection` and
+// `rag_retrieval_stage` telemetry contents without making Langfuse network
+// calls: spans go to an in-memory exporter, not the Langfuse processor.
 
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { describe, it } from "node:test";
+import { before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { ensureLangfuseClient, langfuse } from "@/lib/langfuse";
 import {
-  drainIngestionBatches,
-  resetIngestionBatches,
-} from "@/lib/server/telemetry/telemetry-test-sink";
+  InMemorySpanExporter,
+  SimpleSpanProcessor,
+} from "@opentelemetry/sdk-trace-base";
+import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 
-import { buildGoldenFromIngestion } from "./buildGoldenFromIngestion";
+import { createOtelTrace } from "@/lib/server/telemetry/otel-trace-backend";
+
+import { buildGoldenFromSpans } from "./buildGoldenFromSpans";
 import { normalizeGolden } from "./normalizeGolden";
 import { GOLDEN_TRACE_OPTIONS, runGoldenScenario } from "./scenario";
 
@@ -25,76 +29,55 @@ const FIXTURE_PATH = path.join(
   "golden.knowledge-standard.json",
 );
 
-async function waitForEventLoop() {
-  await new Promise<void>((resolve) => setTimeout(resolve, 0));
-  await new Promise<void>((resolve) => setImmediate(resolve));
-}
+const exporter = new InMemorySpanExporter();
 
-// Pins the legacy backend. Since Phase 4d the OTel backend is the default, and
-// this file is also picked up by `test:unit`'s glob, so an env var set only in
-// the `test:telemetry-golden` script would be bypassed there — the sink would
-// stay empty and the snapshot would silently compare against nothing.
-process.env.LANGFUSE_OTEL_TRACING = "0";
+before(() => {
+  // A SimpleSpanProcessor, not the LangfuseSpanProcessor: this test asserts what
+  // the app puts on its spans, not that the exporter can reach Langfuse. No
+  // network calls.
+  new NodeTracerProvider({
+    spanProcessors: [new SimpleSpanProcessor(exporter)],
+  }).register();
+});
 
 async function captureGoldenTelemetryPayload() {
-  await resetIngestionBatches();
+  exporter.reset();
 
-  const client = await ensureLangfuseClient();
-  if (!client) {
-    throw new Error("langfuse client unavailable");
-  }
-
-  const trace = langfuse.trace(GOLDEN_TRACE_OPTIONS);
-  if (!trace) {
-    throw new Error("langfuse trace was not created");
-  }
+  // createOtelTrace directly rather than through langfuse.trace(): the backend
+  // choice is what this test pins, so it should not depend on an env var being
+  // set correctly by the runner.
+  const trace = createOtelTrace(GOLDEN_TRACE_OPTIONS, "dev");
   await runGoldenScenario(trace);
+  trace.end();
 
-  await waitForEventLoop();
-
-  const payload = buildGoldenFromIngestion(drainIngestionBatches());
-  return payload;
+  return buildGoldenFromSpans(exporter.getFinishedSpans());
 }
 
 void describe("golden telemetry payload", () => {
   void it("matches the knowledge intent standard snapshot", async () => {
-    process.env.TELEMETRY_TEST_SINK = "1";
     process.env.LANGFUSE_INCLUDE_PII = "false";
-    process.env.TELEMETRY_ENABLED = "1";
-    process.env.TELEMETRY_SAMPLE_RATE_DEFAULT = "1";
-    process.env.TELEMETRY_SAMPLE_RATE_MAX = "1";
-    process.env.TELEMETRY_DETAIL_DEFAULT = "standard";
-    process.env.TELEMETRY_DETAIL_MAX = "standard";
-    process.env.LANGFUSE_BASE_URL = "https://example.com";
-    process.env.LANGFUSE_PUBLIC_KEY = "golden-public";
-    process.env.LANGFUSE_SECRET_KEY = "golden-secret";
 
-    const originalDateNow = Date.now;
-    let fakeTime = 1_700_000_000_000;
+    const payload = normalizeGolden(await captureGoldenTelemetryPayload());
 
-    (Date as any).now = () => {
-      fakeTime += 1;
-      return fakeTime;
-    };
-
-    try {
-      const payload = await captureGoldenTelemetryPayload();
-      const normalized = normalizeGolden(payload);
-
-      if (process.env.UPDATE_GOLDEN === "1") {
-        await writeFile(
-          FIXTURE_PATH,
-          `${JSON.stringify(normalized, null, 2)}\n`,
-          "utf8",
-        );
-        return;
-      }
-
-      const expectedText = await readFile(FIXTURE_PATH, "utf8");
-      const expected = JSON.parse(expectedText);
-      assert.deepStrictEqual(normalized, expected);
-    } finally {
-      (Date as any).now = originalDateNow;
+    if (process.env.UPDATE_GOLDEN === "1") {
+      await writeFile(FIXTURE_PATH, `${JSON.stringify(payload, null, 2)}\n`);
+      return;
     }
+
+    const expected = JSON.parse(
+      await readFile(FIXTURE_PATH, "utf8"),
+    ) as unknown;
+    assert.deepEqual(payload, expected);
+  });
+
+  void it("puts the request-level record on a single root observation", async () => {
+    const payload = await captureGoldenTelemetryPayload();
+
+    // v4 has no trace entity. Exactly one root observation must carry the
+    // request-level input/output, or downstream consumers have nowhere to read
+    // the overall request from.
+    assert.equal(payload.traces.length, 1);
+    assert.equal(payload.traces[0]?.name, "langchain-chat");
+    assert.ok(payload.traces[0]?.input, "root must carry the request input");
   });
 });
