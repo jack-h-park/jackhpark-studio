@@ -219,10 +219,9 @@ export async function handleLangchainChat(
             console.error("[telemetry] flush error", err);
           });
 
-          // Now close the root. No-op on the legacy backend, which has no root.
-          // Must happen before forceFlush, or the root is still open when the
-          // exporter drains and never ships.
-          traceState.trace?.end?.();
+          // Now close the root. Must happen before forceFlush, or the root
+          // is still open when the exporter drains and never ships.
+          traceState.trace?.end();
 
           await Promise.allSettled([
             flushPostHog(),

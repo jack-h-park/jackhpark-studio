@@ -20,6 +20,9 @@ function makeTrace(): LangfuseTrace {
     update: async () => {
       // no-op
     },
+    end: () => {
+      // no-op
+    },
   };
 }
 

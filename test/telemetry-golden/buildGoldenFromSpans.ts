@@ -1,14 +1,11 @@
 import type { ReadableSpan } from "@opentelemetry/sdk-trace-base";
 
-import type {
-  GoldenObservation,
-  GoldenTelemetry,
-} from "./buildGoldenFromIngestion";
+import type { GoldenObservation, GoldenTelemetry } from "./goldenTypes";
 
 /**
- * Projects exported OTel spans into the same shape the legacy ingestion golden
- * uses, so the two backends can be diffed against each other while
- * LANGFUSE_OTEL_TRACING is being rolled out.
+ * Projects exported OTel spans into the golden snapshot shape. That shape
+ * predates the OTel backend — it was the legacy ingestion golden's — and is
+ * kept so the snapshot stayed comparable across the transport swap.
  *
  * The root span is emitted as the single `traces` entry. That is not a
  * translation convenience: in v4 there is no trace entity, and the root

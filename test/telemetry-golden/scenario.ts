@@ -1,11 +1,10 @@
 /**
  * The one knowledge->standard telemetry scenario, shared by both golden tests.
  *
- * Extracted so the legacy ingestion backend and the OTel backend are driven by
- * an identical sequence of trace/observation calls. If the scenario lived in
- * one test and were copied into the other, the two goldens could drift apart
- * and stop being comparable — which is the whole point of running both while
- * LANGFUSE_OTEL_TRACING is being rolled out.
+ * Extracted when two backends had to be driven by an identical sequence of
+ * trace/observation calls so their goldens could be diffed. Only the OTel
+ * backend remains, but the separation still keeps the scenario readable apart
+ * from the exporter plumbing that captures it.
  */
 import type { LangfuseTrace, LangfuseTraceOptions } from "@/lib/langfuse";
 import {

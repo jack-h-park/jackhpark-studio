@@ -4,7 +4,7 @@ import type {
 } from "@/lib/server/chat-guardrails";
 import type { ChainRunContext } from "@/lib/server/langchain/runnable-config";
 import type { buildTelemetryConfigSnapshot } from "@/lib/server/telemetry/telemetry-config-snapshot";
-import { createObservation, type LangfuseTrace } from "@/lib/langfuse";
+import { type LangfuseTrace } from "@/lib/langfuse";
 import { emitAnswerSummarySpan } from "@/lib/server/telemetry/langfuse-answer-summary";
 import {
   buildSafeTraceInputSummary,
@@ -115,7 +115,10 @@ export function createTraceUpdater(
       );
     }
     if (updates.metadata) {
-      state.metadata = mergeTraceMetadata(state.metadata ?? {}, updates.metadata);
+      state.metadata = mergeTraceMetadata(
+        state.metadata ?? {},
+        updates.metadata,
+      );
     }
     if (!state.trace) {
       return;
@@ -192,7 +195,7 @@ export function finalizeChatTrace(
   // instead of looking identical to successful ones until the tree is opened.
   const finalReason = state.outputSummary?.finish_reason;
   if (state.trace && (finalReason === "error" || finalReason === "aborted")) {
-    void createObservation(state.trace, {
+    void state.trace.observation({
       name: finalReason === "error" ? "request:error" : "request:aborted",
       level: finalReason === "error" ? "ERROR" : "WARNING",
       statusMessage:

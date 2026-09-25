@@ -14,9 +14,9 @@ import type {
 /**
  * OTel-backed implementation of the `LangfuseTrace` contract, for Langfuse v4.
  *
- * Deliberately mirrors the legacy signature rather than exposing the OTel API,
- * so the ~12 existing call sites stay untouched while the two backends run side
- * by side behind LANGFUSE_OTEL_TRACING.
+ * Deliberately mirrors the signature the legacy ingestion backend had rather
+ * than exposing the OTel API, so the ~12 existing call sites were never
+ * rewritten when the transport was replaced.
  *
  * Three differences from the legacy backend are load-bearing:
  *

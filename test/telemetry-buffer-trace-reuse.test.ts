@@ -18,7 +18,6 @@ const previousEnv = { ...process.env };
 
 before(() => {
   process.env.TELEMETRY_ENABLED = "1";
-  process.env.LANGFUSE_OTEL_TRACING = "1";
   process.env.LANGFUSE_BASE_URL = "http://langfuse.test";
   process.env.LANGFUSE_PUBLIC_KEY = "pk-test";
   process.env.LANGFUSE_SECRET_KEY = "sk-test";
