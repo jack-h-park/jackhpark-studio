@@ -751,6 +751,27 @@ svg[data-processed-mermaid] .section-root tspan {
   align-items: start;
 }
 
+/* The card cover is 190px tall at whatever width its grid track happens to be,
+   and the covers are 1536x1024. The library's track is minmax(260px, 1fr), so
+   in the single-column range the track takes the whole container and the card
+   reaches ~508px — a 2.67:1 box showing a 1.5:1 image, which object-fit: cover
+   resolves by throwing away more than half the frame's height. Measured live:
+   at 508px the visible band is y 225..799, which cut the bottom off twelve of
+   the thirteen strategy-note covers (up to 106px) and shaved the caps off the
+   first kicker line.
+
+   Capping the card rather than the track is deliberate: auto-fill counts tracks
+   using the max sizing function, so putting the cap there turned three columns
+   into two at desktop width. The track keeps 1fr and the card sits inside it.
+
+   360px keeps the visible band at y 107..917, which contains every cover's ink
+   (the widest span is y 199..905). Above ~371px the bottom starts clipping. */
+.notion-gallery-grid > .notion-collection-card {
+  width: 100%;
+  max-width: 360px;
+  margin-inline: auto;
+}
+
 .notion-gallery-view[data-gallery-preview="1"] .notion-gallery-grid .notion-collection-card-cover .notion-page-icon-wrapper,
 .notion-gallery-view[data-gallery-preview="1"] .notion-gallery-grid .notion-collection-card-cover .notion-page-icon {
   display: none !important;
