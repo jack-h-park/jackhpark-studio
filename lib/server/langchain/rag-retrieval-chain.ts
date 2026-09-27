@@ -297,12 +297,20 @@ async function hydeStage(
       provider: input.provider,
       model: input.llmModel,
     });
+  // Named `hyde:generate`, not `hyde`. The LangGraph node is already a span
+  // called `hyde`, and since the two traces merged they sit in one tree — at
+  // two depths, because observations made through LangfuseTrace parent to the
+  // request root rather than to the enclosing node span. Two spans sharing a
+  // name at different depths cannot be told apart when reading a trace, and a
+  // consumer deduplicating by name would drop one of them. They measure
+  // different things: the node covers the whole stage, this covers the
+  // generation call alone and carries its provider/model metadata.
   const hydeDocument = await maybeSpan(
     Boolean(input.trace),
     {
       trace: input.trace!,
       requestId: input.requestId,
-      name: "hyde",
+      name: "hyde:generate",
       input: allowPii ? rewrittenQuery : undefined,
       metadata: hydeMetadata,
     },

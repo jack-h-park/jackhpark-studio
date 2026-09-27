@@ -85,16 +85,16 @@ Expect HTTP 200 with a cited answer. Note the `requestId` from the server logs
 ### 4. Inspect via Langfuse MCP (acceptance criteria)
 Using the `mcp__langfuse__*` tools, confirm:
 1. **Exactly one trace** exists for the request, rooted at `langchain-chat`.
-2. It carries the `withSpan` detail spans (`reverse_rag`, `hyde`, `retrieval`,
-   `reranker`, `context:selection`) directly under the root.
+2. It carries the `withSpan` detail spans (`reverse_rag`, `hyde:generate`,
+   `retrieval`, `reranker`, `context:selection`) directly under the root.
 3. It carries a `rag-retrieval-graph` subtree with the LangGraph node spans
    (`__start__`, `rewrite`, `hyde`, `retrieve`, `rerank`, `context`), and an
    `answer:root` subtree containing `answer:prompt` and `answer:llm`, with the
    provider Generation under the latter.
 
-`hyde` legitimately appears twice, at two depths — once as a node span, once as
-a detail span. See the architecture note on why they are siblings rather than
-parent and child.
+The HyDE stage legitimately appears twice, at two depths: `hyde` as the node
+span, `hyde:generate` as the detail span covering the generation call. See the
+architecture note on why they are siblings rather than parent and child.
 
 ### 5. Decision recorded
 The separate-but-correlated topology was kept for a time and has since been

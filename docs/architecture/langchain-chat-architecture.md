@@ -116,7 +116,7 @@ flowchart LR
     context --> END((END))
 ```
 
-- **Observability (one tree).** Each LangGraph node emits a span via the `@langfuse/langchain` `CallbackHandler`, and the `withSpan()` calls inside each stage emit detail spans (`reverse_rag`, `hyde`, `retrieval`, `reranker`, `context:selection`). Both land in the request's single trace: the handler nests under the root because the invocation runs inside `trace.runInContext(...)`, while `withSpan()` detail spans are parented to the root directly. See [Trace topology](#trace-topology-langfuse--langsmith).
+- **Observability (one tree).** Each LangGraph node emits a span via the `@langfuse/langchain` `CallbackHandler`, and the `withSpan()` calls inside each stage emit detail spans (`reverse_rag`, `hyde:generate`, `retrieval`, `reranker`, `context:selection`). Both land in the request's single trace: the handler nests under the root because the invocation runs inside `trace.runInContext(...)`, while `withSpan()` detail spans are parented to the root directly. See [Trace topology](#trace-topology-langfuse--langsmith).
 - **LangSmith.** When `LANGSMITH_TRACING=true`, the same graph run is auto-traced to LangSmith (runName `rag-retrieval-graph`) with no extra code; Langfuse and LangSmith observe the run in parallel.
 - Graph state is a single accumulating object (`RagGraphAnnotation`); each node reads prior results and returns its slice. Per-node work still includes:
   - Telemetry metadata creation (`buildTelemetryMetadata`) per span.
@@ -177,14 +177,24 @@ handler opens a trace of its own and the request fragments again — silently,
 since nothing errors. `test/langfuse-langchain-v5-nesting.test.ts` pins both the
 nesting and that failure mode.
 
-### Why `hyde` appears at two depths
+### Why a stage can appear at two depths
 
 A stage instrumented both ways shows up twice: once as the LangGraph node span
 under `rag-retrieval-graph`, once as the `withSpan()` detail span under the
 root. They are **siblings at different depths, not parent and child**, because
 every observation created through `LangfuseTrace` is parented directly to the
-root via `parentSpanContext`. This is a property of the OTel backend, not of the
-handler; changing it means changing how the backend assigns parents.
+root via `parentSpanContext`.
+
+Nesting them properly is not available: the `CallbackHandler` does not make its
+spans active in OTel context — measured, the active span inside a node body is
+the request root, not the node — so it cannot be reached as a parent, and
+dropping the explicit `parentSpanContext` would simply re-derive the root.
+
+The pair must therefore be told apart by name. HyDE is the case where both
+exist: the node is `hyde`, the detail span is **`hyde:generate`**, which covers
+the generation call alone and carries its provider/model metadata. That
+separation is enforced by `test/telemetry-span-name-collisions.test.ts`; the
+same class of collision produced the `answer:llm` → `answer:summary` rename.
 
 ### Superseded decision: correlated-but-separate traces
 
