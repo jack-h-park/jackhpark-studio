@@ -59,7 +59,7 @@ For product-level interpretation and decision-making context (e.g., how alerts m
 - In Langfuse:
   - Knowledge traces exist during the alert window
   - Expected observations exist:
-    - `answer:llm` (span; the answer Generation lives on the linked `answer:root` trace)
+    - `answer:summary` (span; the answer Generation is nested at `answer:root` → `answer:llm` → `ChatOpenAI`)
     - `retrieval` (for knowledge)
 - In PostHog:
   - Incoming events in the last 15 minutes:

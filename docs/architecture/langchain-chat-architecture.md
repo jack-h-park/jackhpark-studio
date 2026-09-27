@@ -116,7 +116,7 @@ flowchart LR
     context --> END((END))
 ```
 
-- **Observability (two-level tree).** Each LangGraph node emits a span via the `langfuse-langchain` `CallbackHandler`, and the `withSpan()` calls inside each stage emit detail spans (`reverse_rag`, `hyde`, `retrieval`, `reranker`, `context:selection`). Because our custom `LangfuseTrace` is not a `LangfuseTraceClient`, the node spans land in a **separate** Langfuse trace correlated to the primary one by `sessionId` (requestId) and a `linkedTraceId` metadata field — not a single nested tree. See [Trace topology](#trace-topology-langfuse--langsmith) for the trade-off.
+- **Observability (one tree).** Each LangGraph node emits a span via the `@langfuse/langchain` `CallbackHandler`, and the `withSpan()` calls inside each stage emit detail spans (`reverse_rag`, `hyde`, `retrieval`, `reranker`, `context:selection`). Both land in the request's single trace: the handler nests under the root because the invocation runs inside `trace.runInContext(...)`, while `withSpan()` detail spans are parented to the root directly. See [Trace topology](#trace-topology-langfuse--langsmith).
 - **LangSmith.** When `LANGSMITH_TRACING=true`, the same graph run is auto-traced to LangSmith (runName `rag-retrieval-graph`) with no extra code; Langfuse and LangSmith observe the run in parallel.
 - Graph state is a single accumulating object (`RagGraphAnnotation`); each node reads prior results and returns its slice. Per-node work still includes:
   - Telemetry metadata creation (`buildTelemetryMetadata`) per span.
@@ -141,29 +141,64 @@ flowchart LR
 
 ## Trace topology (Langfuse + LangSmith)
 
-The RAG retrieval graph is observed by three layers at once:
+One chat request produces **one Langfuse trace**, plus a parallel LangSmith run.
 
 | Layer | Mechanism | Where it lands |
 | --- | --- | --- |
-| Node-level (LangGraph) | `langfuse-langchain` `CallbackHandler` | A **separate** Langfuse trace, correlated via `sessionId` + `linkedTraceId` |
-| Stage-detail | explicit `withSpan()` inside each stage | The **primary** Langfuse trace |
+| Request root | `createTrace()` → `startObservation` | The root observation, `langchain-chat` |
+| Node-level (LangGraph) and the answer chain | `@langfuse/langchain` `CallbackHandler` | Spans nested under the root |
+| Stage-detail | explicit `withSpan()` inside each stage | Spans parented directly to the root |
 | Full graph | LangChain auto-tracer (`LANGSMITH_TRACING`) | LangSmith run `rag-retrieval-graph` |
 
-### Why node spans are a separate Langfuse trace
+Measured on production 2026-09-27 — 18 observations, one root:
 
-`CallbackHandler` can only nest under a Langfuse `root` of type `LangfuseTraceClient`/`LangfuseSpanClient`. This project uses a thin custom `LangfuseTrace` (see `lib/langfuse.node.ts`) that is **not** that client type, so the handler opens its own trace instead of nesting. The two traces are joined by correlation fields, not by parent/child edges.
+```
+langchain-chat
+  ├ rag:root
+  ├ rag-retrieval-graph
+  │   ├ __start__  rewrite  hyde  retrieve  rerank  context
+  ├ hyde
+  ├ context:selection
+  ├ answer:summary
+  ├ answer:stream
+  ├ answer:root
+  │   ├ answer:prompt
+  │   └ answer:llm
+  │       └ ChatOpenAI        ← the Generation carrying real usage and cost
+  └ response-summary
+```
 
-### Decision: unify into one tree vs. keep correlated-but-separate
+### How the handler joins the trace
 
-| | **Unify (single nested tree)** | **Keep separate (current)** |
-| --- | --- | --- |
-| Langfuse UX | One trace; node → detail spans nested | Two traces; jump via `linkedTraceId`/`sessionId` |
-| Work required | Wrap our trace in a `LangfuseTraceClient` adapter **or** migrate the custom `LangfuseTrace` to the `@langfuse/client` v4 OTEL span API | None — already working |
-| SDK risk | Forces reconciling `@langfuse/client@4.x` (primary spans) with the `langfuse@3.x` bundled by `langfuse-langchain` | Each SDK stays in its lane; no version reconciliation |
-| Blast radius | Touches every existing `withSpan()` call site | Isolated to `runRagRetrieval` |
-| LangSmith | Unaffected — LangSmith already shows the full nested graph | Unaffected |
+The `CallbackHandler` takes its parent from **ambient OTel context**. The root is
+created with `startObservation`, which does not activate it, so the invocation
+sites wrap the call in `trace.runInContext(...)`. Without that wrapper the
+handler opens a trace of its own and the request fragments again — silently,
+since nothing errors. `test/langfuse-langchain-v5-nesting.test.ts` pins both the
+nesting and that failure mode.
 
-**Recommendation: keep separate for now.** LangSmith already provides the single, fully-nested view of the graph (which is the primary "see the whole structure" need), so the Langfuse-side unification buys mostly cosmetic consolidation at the cost of an SDK-version reconciliation that would ripple through every `withSpan()` call. Revisit unification only if/when the primary trace migrates to the `@langfuse/client` v4 OTEL span API, at which point `CallbackHandler` can nest under a real span `root` cheaply.
+### Why `hyde` appears at two depths
+
+A stage instrumented both ways shows up twice: once as the LangGraph node span
+under `rag-retrieval-graph`, once as the `withSpan()` detail span under the
+root. They are **siblings at different depths, not parent and child**, because
+every observation created through `LangfuseTrace` is parented directly to the
+root via `parentSpanContext`. This is a property of the OTel backend, not of the
+handler; changing it means changing how the backend assigns parents.
+
+### Superseded decision: correlated-but-separate traces
+
+Until the Langfuse v4 migration, node spans landed in a **separate** trace
+correlated by `sessionId` and a `linkedTraceId` metadata field, because the v3
+`CallbackHandler` could only nest under a `LangfuseTraceClient` and this project
+uses a thin custom `LangfuseTrace`. Three traces per request were joined by
+correlation fields rather than parent/child edges.
+
+That arrangement was kept deliberately, on the reasoning that LangSmith already
+offered the single nested view and unification would force reconciling two
+Langfuse SDK majors across every `withSpan()` call site. The migration removed
+the premise: the v5 handler carries no client, so there is no second SDK to
+reconcile, and `runInContext` cost two call sites rather than twelve.
 
 ## Caching & Observability Notes
 

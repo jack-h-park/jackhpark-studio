@@ -79,9 +79,10 @@ Exact trace metadata fields, `metadata.rag.*` structure, and summary field seman
 
 ### Canonical Local Observations
 
-- `answer:llm`
+- `answer:summary`
   - answer-stage summary span: generation lifecycle and terminal completion semantics
-  - carries no tokens/cost; the canonical Generation is on the linked `answer:root` trace
+  - carries no tokens/cost; the canonical Generation is nested at `answer:root` →
+    `answer:llm` → `ChatOpenAI` in the same trace
 - `answer:stream`
   - streaming-loop lifecycle span
 - `rag:root`

@@ -15,15 +15,18 @@ runs the RAG read path as a **LangGraph `StateGraph`** with five nodes:
 
 | Layer | Mechanism | Lands in |
 | --- | --- | --- |
-| Node-level | `langfuse-langchain` `CallbackHandler` | a **separate** Langfuse trace, tagged `rag:retrieval-graph` |
-| Stage-detail | `withSpan()` inside each stage | the **primary** Langfuse trace |
+| Node-level | `@langfuse/langchain` `CallbackHandler` | spans nested under the request root, tagged `rag:retrieval-graph` |
+| Stage-detail | `withSpan()` inside each stage | spans parented directly to the request root |
 | Full graph | LangChain auto-tracer (`LANGSMITH_*`) | LangSmith run `rag-retrieval-graph` |
 
-The node-span trace is **separate** (not nested) because the project's custom
-`LangfuseTrace` (`lib/langfuse.node.ts`) is not a `LangfuseTraceClient`, so the
-handler can't nest under it. The two Langfuse traces are correlated by:
-- `sessionId` == the request's `requestId`
-- `metadata.linkedTraceId` == the primary trace's `traceId`
+All of it is **one Langfuse trace**. The handler parents itself from ambient
+OTel context, and the invocation sites wrap the call in
+`trace.runInContext(...)` so the request root is the active span.
+
+> Until the v4 migration the node spans lived in a separate trace correlated by
+> `sessionId` and `metadata.linkedTraceId`, because the v3 handler could not
+> nest under the project's custom `LangfuseTrace`. Both the separate trace and
+> the correlation field are gone.
 
 **Already verified (2026-06-10):** LangSmith side works end-to-end (HTTP 200,
 all nodes execute, zero "circular JSON" warnings after the state was trimmed to
@@ -81,23 +84,24 @@ Expect HTTP 200 with a cited answer. Note the `requestId` from the server logs
 
 ### 4. Inspect via Langfuse MCP (acceptance criteria)
 Using the `mcp__langfuse__*` tools, confirm:
-1. A **primary trace** exists carrying the `withSpan` detail spans:
-   `reverse_rag`, `hyde`, `retrieval`, `reranker`, `context:selection`.
-2. A **separate trace** tagged `rag:retrieval-graph` carrying the five LangGraph
-   node spans (`rewrite`, `hyde`, `retrieve`, `rerank`, `context`).
-3. The two are correlated: the node-span trace's `sessionId` equals the primary
-   trace's `requestId`, and its `metadata.linkedTraceId` equals the primary
-   trace's `traceId`.
+1. **Exactly one trace** exists for the request, rooted at `langchain-chat`.
+2. It carries the `withSpan` detail spans (`reverse_rag`, `hyde`, `retrieval`,
+   `reranker`, `context:selection`) directly under the root.
+3. It carries a `rag-retrieval-graph` subtree with the LangGraph node spans
+   (`__start__`, `rewrite`, `hyde`, `retrieve`, `rerank`, `context`), and an
+   `answer:root` subtree containing `answer:prompt` and `answer:llm`, with the
+   provider Generation under the latter.
 
-### 5. Decision to record
-Judge whether the **separate-but-correlated** topology is acceptable in the
-Langfuse UI/MCP view, or whether to revisit **unifying into one nested tree**.
-The trade-off table is in
+`hyde` legitimately appears twice, at two depths — once as a node span, once as
+a detail span. See the architecture note on why they are siblings rather than
+parent and child.
+
+### 5. Decision recorded
+The separate-but-correlated topology was kept for a time and has since been
+**overturned** — the v4 migration unified everything into one nested tree. The
+reasoning that justified keeping it (two Langfuse SDK majors would have to be
+reconciled) stopped applying once the v5 handler dropped its own client. See
 [langchain-chat-architecture.md → Trace topology](../architecture/langchain-chat-architecture.md#trace-topology-langfuse--langsmith).
-Current recommendation there is "keep separate" (LangSmith already gives the
-single nested view; unifying Langfuse would force reconciling `@langfuse/client`
-v4 with the `langfuse@3.x` bundled by `langfuse-langchain`). Confirm or overturn
-that call based on what the MCP inspection actually shows.
 
 ## Done when
 - `langfuse` MCP tools are callable in the session.
