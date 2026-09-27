@@ -15,6 +15,15 @@ dependency bump.
 This document records the plan and its status. It does not authorize production
 configuration changes or deployment by itself.
 
+> **Status: complete as of 2026-09-27.** Phases 1–6 are merged and the legacy
+> transport is gone from the tree — no `/api/public/ingestion` trace or span
+> events, no `langfuse-langchain`, no rollout flags. One chat request now
+> produces one trace. The phase descriptions below are kept as the record of
+> what was decided and why, including the two premises that turned out wrong
+> (that the v5 handler would nest for free, and that a stage's detail span
+> would become a child of its LangGraph node span); both are corrected in the
+> Phase 5 design and the architecture doc rather than edited out here.
+
 ## Verified Starting State
 
 Checked against the live project on 2026-08-25:

@@ -14,7 +14,7 @@ The system uses a **Dual-Telemetry Strategy** to separate engineering debug data
 - **Implementation:** `lib/server/telemetry/telemetry-buffer.ts` (trace buffer); spans are emitted via `withSpan()` in `lib/server/telemetry/withSpan.ts`.
 - **Data Model:**
   - **Trace:** Maps 1:1 with a Chat Request (`requestId`).
-  - **Span / Observation:** Tracks individual stages. Actual names include `rag:root`, `context:selection`, `answer:llm`, and (verbose-only) `rag_retrieval_stage`. See [langfuse-guide.md](../langfuse-guide.md) for the full emission matrix.
+  - **Span / Observation:** Tracks individual stages. Actual names include `rag:root`, `context:selection`, `answer:summary`, and (verbose-only) `rag_retrieval_stage`. See [langfuse-guide.md](../langfuse-guide.md) for the full emission matrix.
   - **Tags:** Standardized via `langfuse-tags.ts` to include `intent`, `preset`, and `env`.
 - **Privacy:** PII (Personally Identifiable Information) in prompts is masked by default unless `LANGFUSE_INCLUDE_PII=true` is set.
 

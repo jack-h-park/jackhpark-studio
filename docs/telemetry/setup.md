@@ -28,7 +28,7 @@ Environment column legend: **App-server** = prod/dev Next.js server runtime · *
 | `LANGFUSE_ATTACH_PROVIDER_METADATA` | Attach provider metadata to traces | App-server | Optional |
 | `LANGFUSE_TIMEOUT` | Client timeout (ms) | App-server | Optional |
 
-> Note: `langfuse-langchain`'s `CallbackHandler` historically read `LANGFUSE_BASEURL` (no underscore) and defaulted to the EU host. The retrieval graph now passes host/keys explicitly, so `LANGFUSE_BASE_URL` is the source of truth — see [trace topology](../architecture/langchain-chat-architecture.md#trace-topology-langfuse--langsmith).
+> Note: the legacy `langfuse-langchain` `CallbackHandler` read `LANGFUSE_BASEURL` (no underscore) and otherwise defaulted to the EU host, so env autodiscovery silently shipped those spans to a region where they 401ed. `@langfuse/langchain` resolves no host at all — export is the `LangfuseSpanProcessor`'s job — so `LANGFUSE_BASE_URL` is the single source of truth and the mismatch can no longer happen.
 
 ### LangSmith (LangGraph graph-level observability)
 

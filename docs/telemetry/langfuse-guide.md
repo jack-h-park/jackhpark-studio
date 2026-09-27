@@ -45,20 +45,25 @@ To avoid Langfuse "missing input/output" warnings without storing raw prompts or
 
 Model response text is never stored on the trace itself. When
 `LANGFUSE_INCLUDE_PII="true"`, the full answer text is stored on the
-`answer:llm` **span output** (alongside the question on its input), so
+`answer:summary` **span output** (alongside the question on its input), so
 complete transcripts are readable per-generation without widening the trace
 summary contract.
 
-Additionally, the `answer:llm` observation spans the full generation lifecycle, including streaming. It always has a non-zero duration and closes correctly on success, abort, or error with appropriate `finishReason` and `aborted` fields to represent the completion semantics accurately. The `answer:stream` observation wraps the streaming loop itself and is emitted on every exit path (success, abort, error).
+Additionally, the `answer:summary` observation spans the full generation lifecycle, including streaming. It always has a non-zero duration and closes correctly on success, abort, or error with appropriate `finishReason` and `aborted` fields to represent the completion semantics accurately. The `answer:stream` observation wraps the streaming loop itself and is emitted on every exit path (success, abort, error).
 
 ## Answer Summary Observation
 
-Every request emits a Langfuse **Span** named `answer:llm` so that the Input/Output panels show a meaningful summary without storing raw prompts or retrieved content.
+Every request emits a Langfuse **Span** named `answer:summary` so that the Input/Output panels show a meaningful summary without storing raw prompts or retrieved content.
+
+> Renamed from `answer:llm`. The answer chain emits a span of its own under
+> that name, and once both landed in one tree the two would have collided —
+> a consumer deduplicating by name would have dropped whichever it saw second,
+> losing either the real cost or the finish semantics the digest reads.
 
 > **This span is deliberately not a Generation, and never carries `model`.**
 > Token usage and cost for the answer call are owned solely by the LangChain
-> `CallbackHandler` generation (`ChatOpenAI`, `ChatAnthropic`, …) on the linked
-> `answer:root` trace, which reports the provider's real usage. A Generation
+> `CallbackHandler` generation (`ChatOpenAI`, `ChatAnthropic`, …) nested under
+> `answer:root` → `answer:llm`, which reports the provider's real usage. A Generation
 > without explicit usage makes Langfuse infer tokens by tokenizing input/output —
 > here those are JSON summaries, which previously produced fabricated token counts
 > and double-counted cost against the real generation.
@@ -161,33 +166,40 @@ Configuration snapshots stay under `chatConfig`/`ragConfig`; runtime facts live 
 - **Observations**:
   - `rag:root` → retrieval quality summary (knowledge intent only)
   - `context:selection` → dedupe/quota/MMR selection stats (knowledge intent only)
-  - `answer:llm` → answer-stage summary span with streaming-safe timing and proper abort/error semantics (**not** a Generation; carries no tokens/cost)
+  - `answer:summary` → answer-stage summary span with streaming-safe timing and proper abort/error semantics (**not** a Generation; carries no tokens/cost)
   - `answer:stream` → streaming-loop lifecycle span
   - `rag_retrieval_stage` → verbose retrieval diagnostics
   - `request:error` / `request:aborted` → at-a-glance failure markers, emitted
     at finalization with level `ERROR` / `WARNING` so failed requests carry a
     visible level badge in the trace list instead of looking like successes
 
-### Linked LangChain traces
+### LangChain spans in the request tree
 
-The LangChain `CallbackHandler` cannot attach to our custom trace object, so LCEL/LangGraph
-runs land in **separate traces** correlated by `sessionId` (= `requestId`) and a
-`linkedTraceId` metadata field pointing back at the primary trace:
+LCEL and LangGraph runs are **nested in the request's own trace**, as subtrees of
+the root:
 
-- `rag-retrieval-graph` → LangGraph node spans (`rewrite`, `hyde`, `retrieve`, `rerank`, `context`)
+- `rag-retrieval-graph` → LangGraph node spans (`__start__`, `rewrite`, `hyde`, `retrieve`, `rerank`, `context`)
 - `answer:root` → the answer LCEL chain (`answer:prompt`, `answer:llm`), containing the
   **canonical Generation** (`ChatOpenAI` / `ChatAnthropic` / …) that carries the provider's
   real token usage and cost. This is the only place answer tokens/cost are recorded.
 
-Both handlers are constructed by `buildLinkedLangfuseCallbacks`, which passes `baseUrl`,
-keys, and `environment` explicitly (env autodiscovery would send them to the wrong region
-and to the `default` environment).
+Handlers come from `buildLinkedLangfuseCallbacks`. They carry no client and
+resolve no host: they start OTel spans from ambient context, which the
+process-wide `LangfuseSpanProcessor` exports. That is why the call sites invoke
+the chain inside `trace.runInContext(...)` — without it the root is not the
+active span and the handler opens a trace of its own.
+
+> Before the v4 migration these runs landed in **separate traces** correlated by
+> `sessionId` and a `linkedTraceId` metadata field, because the v3 handler could
+> not attach to the custom trace object. Both the correlation field and the
+> explicit `baseUrl`/keys/`environment` are gone; queries written against
+> `linkedTraceId` need updating.
 
 ## Emission Matrix by Intent and Detail Level
 
 The table below summarizes which observations are emitted based on **chat intent** and **telemetry detailLevel**. This matrix defines the expected telemetry contract and should be used as the source of truth for verification and dashboard design.
 
-| Intent    | Detail Level | rag:root                   | context:selection | rag_retrieval_stage | answer:llm |
+| Intent    | Detail Level | rag:root                   | context:selection | rag_retrieval_stage | answer:summary |
 | --------- | ------------ | -------------------------- | ----------------- | ------------------- | ---------- |
 | knowledge | minimal      | (implementation-dependent) | ❌                | ❌                  | ✅         |
 | knowledge | standard     | ✅                         | ✅                | ❌                  | ✅         |
@@ -199,7 +211,7 @@ The table below summarizes which observations are emitted based on **chat intent
 - `rag:root` and `context:selection` are only emitted for `intent="knowledge"` when a Langfuse trace exists.
 - `context:selection` is emitted in **standard** and **verbose** detail levels.
 - `rag_retrieval_stage` is **always verbose-only**, regardless of intent.
-- `answer:llm` is emitted for all intents when a trace exists.
+- `answer:summary` is emitted for all intents when a trace exists.
 - `detailLevel="minimal"` is intended for cost-sensitive production traffic and may omit most RAG-related observations.
 
 ## Retrieval Summary (Request-Level)
@@ -276,7 +288,7 @@ The `configHash` is a stable SHA256 hash representing a minimal, safe summary of
 
 - Raw question **and answer** text are excluded by default.
 - Both are included only when `LANGFUSE_INCLUDE_PII="true"` — question on the
-  `answer:llm` span input, answer on its output. When enabling this in a
+  `answer:summary` span input, answer on its output. When enabling this in a
   deployed environment, keep the recording notice visible in the chat UI
   (see `components/chat/ChatInputBar.tsx`).
 - No chunk text or URLs are included in retrieval telemetry.
