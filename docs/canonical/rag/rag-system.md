@@ -27,7 +27,7 @@ Unlike simple "vector lookup" implementations, this system treats retrieval as a
 
 ## 1. High-Level Architecture
 
-The system operates on two decoupled pipelines: a **Push-based Ingestion Pipeline** (Write Path) and a **Self-Correcting Retrieval Engine** (Read Path).
+The system operates on two decoupled pipelines: a **Triggered (Pull) Ingestion Pipeline** (Write Path) and a **Self-Correcting Retrieval Engine** (Read Path).
 
 - **Ingestion:** Focuses on data hygiene, normalization, and atomic updates. It ensures that the vector store reflects the current state of authoritative sources (Notion, External URLs) without duplication or stale states.
 - **Retrieval:** Focuses on semantic alignment. It acknowledges that user queries are often ambiguous, employing an "Auto-RAG" decision tree to rewrite or expand queries when initial retrieval quality is low.
@@ -132,7 +132,7 @@ The system generates a `Citations` payload alongside the prompt, mapping every s
 
 - **Latency vs. Accuracy:** The **Auto-RAG** loop introduces latency (multi-pass generation and search). We accept this trade-off because confident hallucinations are more damaging than a 500ms delay in a portfolio assistant context.
 - **Storage Normalization:** Splitting metadata (`rag_documents`) from vectors (`rag_chunks`) complicates writes but dramatically simplifies reads and analytics.
-- **Ingestion Freshness:** This is a "Pull" system (triggered indexing) rather than "Push" (webhook-driven), so a Notion edit is not immediately available in chat. The delay is now bounded by a daily scheduled ingest (`/api/internal/rag/ingest`, `vercel.json`) rather than by whoever remembers to run one — the corpus previously went a month without a refresh while the site updated within a minute. Eventual consistency is acceptable for this scope; unbounded staleness was not.
+- **Ingestion Freshness:** This is a "Pull" system (triggered indexing) rather than "Push" (webhook-driven), so a Notion edit is not immediately available in chat. The delay is now bounded by a daily scheduled ingest (`/api/internal/rag/ingest`, `vercel.json`) rather than by whoever remembers to run one; a page the portfolio publisher has just written is refreshed at once by a publish-coupled single-page ingest (`/api/internal/rag/ingest?pageId=…`). Before the schedule existed, the corpus went a month without a refresh while the site updated within a minute. Eventual consistency is acceptable for this scope; unbounded staleness was not.
 
 ---
 
