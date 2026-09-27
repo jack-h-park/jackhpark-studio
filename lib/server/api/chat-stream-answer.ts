@@ -299,21 +299,28 @@ export async function streamAnswerWithPrompt({
         try {
           markStage?.("before-llm-call");
           markStage?.("answer-chain-invoked");
-          const answerResult = await answerChain.invoke(
-            {
-              question: sanitizeLoneSurrogates(question),
-              guardrailMeta,
-              contextValue: sanitizeLoneSurrogates(contextValue),
-              memoryValue: sanitizeLoneSurrogates(memoryValue),
-              prompt,
-              llmInstance,
-            },
-            {
-              ...answerChainRunnableConfig,
-              runName: makeRunName("answer", "root"),
-              signal,
-            },
-          );
+          // See runRagRetrieval: the root must be the active span so that
+          // ambient-context instrumentation nests here rather than opening a
+          // trace of its own.
+          const invokeAnswerChain = () =>
+            answerChain.invoke(
+              {
+                question: sanitizeLoneSurrogates(question),
+                guardrailMeta,
+                contextValue: sanitizeLoneSurrogates(contextValue),
+                memoryValue: sanitizeLoneSurrogates(memoryValue),
+                prompt,
+                llmInstance,
+              },
+              {
+                ...answerChainRunnableConfig,
+                runName: makeRunName("answer", "root"),
+                signal,
+              },
+            );
+          const answerResult = await (trace
+            ? trace.runInContext(invokeAnswerChain)
+            : invokeAnswerChain());
           const { promptInput, stream } = answerResult;
           markStage?.("stream-loop-started");
 
@@ -331,7 +338,10 @@ export async function streamAnswerWithPrompt({
           ragLogger.trace("[langchain_chat] prompt input preview", {
             messages: promptInput.map((m) => ({
               role: m._getType(),
-              preview: (typeof m.content === "string" ? m.content : JSON.stringify(m.content))
+              preview: (typeof m.content === "string"
+                ? m.content
+                : JSON.stringify(m.content)
+              )
                 .slice(0, 500)
                 .replaceAll("\n", "\\n"),
             })),

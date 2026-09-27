@@ -160,6 +160,16 @@ export interface LangfuseTrace {
    * orphaned, so the root must outlive every child.
    */
   end: () => void;
+  /**
+   * Runs `fn` with the root observation as the active OTel span.
+   *
+   * The root is created without being activated, and our own observations are
+   * parented explicitly, so ambient context is empty for most of a request.
+   * Instrumentation that takes its parent from ambient context instead — the
+   * v5 LangChain CallbackHandler — would otherwise open a trace of its own.
+   * Wrap such a call in this to keep it inside the request's tree.
+   */
+  runInContext: <T>(fn: () => T) => T;
 }
 
 export function createTrace(
