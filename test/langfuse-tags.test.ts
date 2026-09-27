@@ -21,6 +21,7 @@ const createTraceStub = () => {
     end: () => {
       // no-op
     },
+    runInContext: <T>(fn: () => T): T => fn(),
   };
   return { trace, calls };
 };

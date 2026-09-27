@@ -774,7 +774,11 @@ function buildRetrievalGraph(input: RagRetrievalInput, allowPii: boolean) {
       ),
     }))
     .addNode("rerank", async (s: RagGraphState) => ({
-      rankingResult: await rankStage(input, s.retrievalResult!, s.rewrittenQuery),
+      rankingResult: await rankStage(
+        input,
+        s.retrievalResult!,
+        s.rewrittenQuery,
+      ),
     }))
     .addNode("context", (s: RagGraphState) => ({
       contextResult: contextStage(input, s.retrievalResult!, s.rankingResult!),
@@ -820,10 +824,22 @@ export async function runRagRetrieval(
   // runName labels the run in LangSmith (auto-traced via LANGSMITH_* env vars,
   // independent of the Langfuse callback above — both observe the same graph).
   const graph = buildRetrievalGraph(input, allowPii);
-  const result = await graph.invoke(
-    {},
-    { signal: signal ?? undefined, callbacks, runName: "rag-retrieval-graph" },
-  );
+  // Run inside the request root's OTel context. The v3 handler above ignores
+  // it — it owns a client and opens its own trace — but the v5 handler takes
+  // its parent from ambient context, and without this the root is not active,
+  // so those spans would open a trace of their own instead of nesting here.
+  const invokeGraph = () =>
+    graph.invoke(
+      {},
+      {
+        signal: signal ?? undefined,
+        callbacks,
+        runName: "rag-retrieval-graph",
+      },
+    );
+  const result = await (input.trace
+    ? input.trace.runInContext(invokeGraph)
+    : invokeGraph());
 
   const hyde = result.hydeResult!;
   const retrieval = result.retrievalResult!;

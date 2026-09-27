@@ -3,6 +3,10 @@ import {
   type LangfuseSpan,
   startObservation,
 } from "@langfuse/tracing";
+import {
+  context as otelContext,
+  trace as otelTraceApi,
+} from "@opentelemetry/api";
 
 import type {
   LangfuseMetadata,
@@ -28,6 +32,11 @@ import type {
  * 3. Trace-level attributes are copied onto every child span. v4 queries
  *    observations directly, so attributes that live only on the root cannot be
  *    used to filter its children.
+ *
+ * The root is deliberately started with `startObservation`, not
+ * `startActiveObservation`: activating it would require restructuring the
+ * request around a callback scope. The cost is that ambient OTel context stays
+ * empty, which `runInContext` exists to bridge for callers that need it.
  */
 
 type TraceLevelAttributes = {
@@ -164,6 +173,12 @@ export function createOtelTrace(
         ...(updates.version ? { version: updates.version } : {}),
       };
     },
+
+    runInContext: <T>(fn: () => T): T =>
+      otelContext.with(
+        otelTraceApi.setSpan(otelContext.active(), root.otelSpan),
+        fn,
+      ),
 
     end: (): void => {
       if (ended) {
