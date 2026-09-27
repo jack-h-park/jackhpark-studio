@@ -82,7 +82,6 @@ import {
   loadChatModelSettings,
 } from "@/lib/server/chat-settings";
 import { createRequestAbortSignal } from "@/lib/server/langchain/abort";
-import { flushLinkedLangfuseCallbacks } from "@/lib/server/langchain/langfuse-callbacks";
 import { type ChainRunContext } from "@/lib/server/langchain/runnable-config";
 import { escapeForPromptTemplate } from "@/lib/server/langchain/stream-chunk";
 import { notifyChatCompleted } from "@/lib/server/notifications/telegram";
@@ -225,9 +224,6 @@ export async function handleLangchainChat(
 
           await Promise.allSettled([
             flushPostHog(),
-            // The LangChain handlers hold their own Langfuse client and queue;
-            // traceState is populated by now, so read the id at call time.
-            flushLinkedLangfuseCallbacks(traceState.trace?.traceId),
             flushLangfuseSpans().catch((err) => {
               telemetryLogger.error("[otel] span flush failed", {
                 error: err instanceof Error ? err.message : String(err),

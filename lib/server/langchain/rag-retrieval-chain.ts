@@ -732,11 +732,15 @@ function contextStage(
 // ---------------------------------------------------------------------------
 // LangGraph state + per-request graph
 //
-// Each node name becomes a span in Langfuse (via langfuse-langchain
-// CallbackHandler) and a run in LangSmith. The existing withSpan() calls inside
-// each stage remain as child spans, giving a two-level trace tree:
-//   node span (LangGraph)
-//     └─ detail span (withSpan)
+// Each node name becomes a span in Langfuse (via the LangChain
+// CallbackHandler) and a run in LangSmith.
+//
+// The withSpan() calls inside each stage are NOT children of their node span,
+// although they cover the same work. Every observation created through
+// LangfuseTrace is parented directly to the request root, so a stage that is
+// instrumented both ways shows up at two depths under one name — `hyde` is the
+// visible case. Measured on production 2026-09-27; changing it means changing
+// how the backend assigns parents, not anything here.
 //
 // State channels hold ONLY serializable step outputs. The heavy, non-
 // serializable RagRetrievalInput (Supabase client, embeddings instance,
@@ -796,12 +800,11 @@ function buildRetrievalGraph(input: RagRetrievalInput, allowPii: boolean) {
  * Sequential retrieval pipeline: rewrite → HyDE → vector search → rerank →
  * context window, orchestrated as a LangGraph state machine.
  *
- * Node-level spans are emitted via langfuse-langchain CallbackHandler into a
- * SEPARATE Langfuse trace (the handler cannot attach to our custom
- * LangfuseTrace, which is not a LangfuseTraceClient). That trace is correlated
- * to the primary one by sessionId (requestId) and a linkedTraceId metadata
- * field. The withSpan() calls inside each stage still emit their detail spans
- * onto the primary trace. Abort is honored between nodes via the graph signal.
+ * Node-level spans are emitted by the LangChain CallbackHandler, which takes
+ * its parent from ambient OTel context — hence the runInContext wrapper on the
+ * invocation below, without which they would open a trace of their own. The
+ * withSpan() calls inside each stage emit their detail spans through the trace
+ * object instead. Abort is honored between nodes via the graph signal.
  */
 export async function runRagRetrieval(
   input: RagRetrievalInput,
@@ -824,10 +827,9 @@ export async function runRagRetrieval(
   // runName labels the run in LangSmith (auto-traced via LANGSMITH_* env vars,
   // independent of the Langfuse callback above — both observe the same graph).
   const graph = buildRetrievalGraph(input, allowPii);
-  // Run inside the request root's OTel context. The v3 handler above ignores
-  // it — it owns a client and opens its own trace — but the v5 handler takes
-  // its parent from ambient context, and without this the root is not active,
-  // so those spans would open a trace of their own instead of nesting here.
+  // Run inside the request root's OTel context. The handler takes its parent
+  // from ambient context, and without this the root is not active, so these
+  // spans would open a trace of their own instead of nesting here.
   const invokeGraph = () =>
     graph.invoke(
       {},

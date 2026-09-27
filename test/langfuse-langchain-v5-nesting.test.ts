@@ -27,7 +27,6 @@ import { createOtelTrace } from "@/lib/server/telemetry/otel-trace-backend";
 const exporter = new InMemorySpanExporter();
 
 before(() => {
-  process.env.LANGFUSE_LANGCHAIN_V5 = "1";
   new NodeTracerProvider({
     spanProcessors: [new SimpleSpanProcessor(exporter)],
   }).register();
