@@ -8,14 +8,16 @@ import { telemetryLogger } from "@/lib/logging/logger";
 /**
  * Phase 5 of the Langfuse v4 migration: selects the LangChain callback handler.
  *
- * Opt-*in* while the swap is being rolled out. The v5 handler changes where
- * every LangGraph and LCEL span lands — three traces per request become one —
- * and that is not something the golden can fully anticipate, so the ability to
- * revert with an environment variable is worth keeping until it has run. This
- * is the compensation for having no preview environment to soak it in.
+ * Now an opt-*out*. The v5 handler ran in production behind the opt-in form
+ * first: one chat produced a single trace of 18 observations under one root,
+ * with the retrieval graph and the answer chain nested as spans instead of
+ * standing as two separate traces, and ChatOpenAI still carrying real usage.
+ *
+ * Reverting is `LANGFUSE_LANGCHAIN_V5=0` — no commit, no rebuild — for as long
+ * as the v3 handler below stays in the tree. Removing it gives that up.
  */
 export function isLangchainV5Enabled(): boolean {
-  return process.env.LANGFUSE_LANGCHAIN_V5 === "1";
+  return process.env.LANGFUSE_LANGCHAIN_V5 !== "0";
 }
 
 /**
