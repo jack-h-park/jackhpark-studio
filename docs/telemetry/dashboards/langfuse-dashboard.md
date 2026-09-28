@@ -21,6 +21,17 @@
 
 All widgets below assume the signal names, semantics, and alert thresholds defined in `alerting-contract.md`; this page only documents their dashboard manifestations.
 
+### Widget Definitions Under Langfuse v4
+
+The widgets are built in the Langfuse UI, not from code, so the rules below are the only record of how they are defined. They were applied on 2026-09-27, when the chat request moved to one trace per request.
+
+- **Request-level widgets use the Observations view, filtered to `Observation Name = langchain-chat`.** That is the request root observation. It carries the request-level metadata (`intent`, `aborted`, `cache`, `responseCacheStrategy`), and its duration is the end-to-end latency. Child spans carry the trace name and tags but not that metadata, so a metadata filter without the root filter matches nothing on them.
+- **Do not use the Traces view.** Langfuse v4 no longer supports it and keeps such widgets on v3 definitions; the v4 query engine counts every request in it exactly twice. On a 17-week comparison the root-observation count matched the old traces-view count week for week, so switching loses no history.
+- **Nested metadata cannot be addressed with a dotted key.** `cache` is an object, and a `cache.responseHit` key never matches, which left the cache-latency widgets empty from the day they were created. Filter on the serialized value instead: key `cache`, operator `contains`, value `"responseHit":true` (or `false`), with no space after the colon.
+- **Cache hits are counted on the root, not on `answer:llm`.** A cache hit makes no LLM call, so a hit counted on the generation can never exist, and the v5 LangChain handler no longer puts `responseCacheHit` on the generation at all.
+
+**Reading C‑1 across the change:** the traces-view definition this replaced captured only the answer stage while a request spanned three traces, so it read about half the true end-to-end latency. The root-observation definition redraws the whole history on the corrected basis; the difference from old screenshots or notes is a correction, not a regression.
+
 ### Why Dashboard C Comes First
 
 This document intentionally starts with **Dashboard C (Latency, Cost & Observability Integrity)** rather than following alphabetical order.
