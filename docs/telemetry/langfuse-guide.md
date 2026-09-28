@@ -35,6 +35,8 @@ Raw question text is excluded by default. It is only included when `LANGFUSE_INC
 
 `metadata.cache.responseHit` and `metadata.cache.retrievalHit` are the canonical cache flags; the legacy top-level `responseCacheHit` mirrors the same value for backwards compatibility. Runtime facts (retrieval attempts/usage) belong under `metadata.rag.*`, keeping `chatConfig`/`ragConfig` configuration-only. For non-knowledge intents this runtime block is omitted so dashboards don’t misinterpret RAG state.
 
+The dotted paths above name where a value lives; they are not usable as dashboard filter keys. A Langfuse widget filter on key `cache.responseHit` never matches, because `cache` is a nested object — see [Widget Definitions Under Langfuse v4](dashboards/langfuse-dashboard.md#widget-definitions-under-langfuse-v4) for the form that does.
+
 ## Trace Input/Output (PII-Safe Summaries)
 
 To avoid Langfuse "missing input/output" warnings without storing raw prompts or responses:
