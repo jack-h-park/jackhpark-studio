@@ -70,7 +70,9 @@ it, so this is for when you have just opted a card in and do not want to wait.
 
 ## Manual Ingestion Panel
 
-Use this panel to "push" new content into the vector database immediately.
+Use this panel to trigger an ingest on demand, so new content reaches the vector database
+without waiting for the daily scheduled run. It pulls from the source through the same
+`runManualIngestion` path as every other trigger.
 
 #### Modes
 
