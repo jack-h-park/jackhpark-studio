@@ -10,6 +10,7 @@ export type NavigationStyle = "default" | "custom";
 export interface PageError {
   message?: string;
   statusCode: number;
+  code?: "UNKNOWN_ROUTE";
 }
 
 export interface PageProps {

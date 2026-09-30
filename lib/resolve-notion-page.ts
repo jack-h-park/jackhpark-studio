@@ -14,6 +14,7 @@ import { db } from "./db";
 import { errorMessage } from "./error-message";
 import { getSiteMap } from "./get-site-map";
 import { getPage, type NotionPageFetchOptions } from "./notion";
+import { isSupportedNotionRoute } from "./notion-route";
 
 /**
  * Resolve a Notion page based on domain + rawPageId
@@ -24,6 +25,9 @@ export async function resolveNotionPage(
   rawPageId?: string,
   options: NotionPageFetchOptions = {},
 ): Promise<PageProps> {
+  if (rawPageId !== undefined && !isSupportedNotionRoute(rawPageId)) {
+    return { error: { statusCode: 404, code: "UNKNOWN_ROUTE" } };
+  }
   let pageId: string | undefined;
   let recordMap: ExtendedRecordMap;
   let canonicalPageMap: PageProps["canonicalPageMap"];
@@ -95,6 +99,7 @@ export async function resolveNotionPage(
           error: {
             message: `Not found "${rawPageId}"`,
             statusCode: 404,
+            code: "UNKNOWN_ROUTE",
           },
         };
       }
