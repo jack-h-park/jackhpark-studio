@@ -39,7 +39,7 @@ function context(url = "/chat"): GetServerSidePropsContext {
   return {
     req,
     res: new ServerResponse(req),
-    query: { prompt: "REQUEST_SENTINEL" },
+    query: {},
     resolvedUrl: url,
   };
 }
@@ -65,11 +65,8 @@ function loader(
   });
 }
 
-for (const url of [
-  "/chat?prompt=REQUEST_SENTINEL",
-  "/_next/data/build/chat.json?prompt=REQUEST_SENTINEL",
-]) {
-  void test(`anonymous shell caches public props and ignores cookies/query for ${url}`, async () => {
+for (const url of ["/chat", "/_next/data/build/chat.json"]) {
+  void test(`empty-query anonymous shell is public and identical with cookies for ${url}`, async () => {
     const ctx = context(url);
     const result = await loader()(ctx);
     assert.equal(
@@ -87,6 +84,42 @@ for (const url of [
     assert.deepEqual(result, await loader()(plain));
   });
 }
+
+for (const url of [
+  "/chat?prompt=REQUEST_SENTINEL",
+  "/_next/data/build/chat.json?prompt=REQUEST_SENTINEL",
+]) {
+  void test(`query-bearing response is private because Next serializes query independently of props for ${url}`, async () => {
+    const ctx = context(url);
+    const query = { prompt: "REQUEST_SENTINEL" };
+    ctx.query = query;
+    ctx.res.setHeader("Vercel-Cache-Tag", "old-tag");
+    const result = await loader()(ctx);
+    assert.equal(ctx.res.getHeader("Cache-Control"), "private, no-store");
+    assert.equal(ctx.res.getHeader("Vercel-Cache-Tag"), undefined);
+    assert.equal(ctx.query, query);
+    assert.deepEqual(query, { prompt: "REQUEST_SENTINEL" });
+    assert.equal(ctx.req.url, url);
+    assert.equal(ctx.resolvedUrl, url);
+    assert.equal(JSON.stringify(result).includes("SENTINEL"), false);
+    assert.deepEqual(result, await loader()(context()));
+  });
+}
+
+void test("query presence bypasses cache without reading its values", async () => {
+  const ctx = context("/chat?flag");
+  Object.defineProperty(ctx.query, "flag", {
+    enumerable: true,
+    get() {
+      throw new Error(
+        "query values must never be consulted by the shell loader",
+      );
+    },
+  });
+  await loader()(ctx);
+  assert.equal(ctx.res.getHeader("Cache-Control"), "private, no-store");
+  assert.equal(ctx.res.getHeader("Vercel-Cache-Tag"), undefined);
+});
 
 for (const mode of [
   "authorization",

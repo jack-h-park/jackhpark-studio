@@ -46,6 +46,8 @@ export function createPublicChatPageLoader({
       context.req.headers.authorization ||
       context.draftMode ||
       context.preview ||
+      // Next serializes query in __NEXT_DATA__ independently of page props.
+      Object.keys(context.query).length > 0 ||
       isPersonalized?.(context),
     );
     const [config, header] = await Promise.all([
