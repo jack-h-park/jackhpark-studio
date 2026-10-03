@@ -8,11 +8,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import type {
   AdminChatConfig,
-  AdminChatRuntimeMeta,
   AdminPresetConfig,
   ModelResolution,
   SessionChatConfig,
 } from "@/types/chat-config";
+import type {
+  PublicChatConfig,
+  PublicChatRuntimeMeta,
+} from "@/types/public-chat-config";
 import { ChatConfigContext } from "@/components/chat/context/ChatConfigContext";
 import { AdvancedSettingsPresetEffects } from "@/components/chat/settings/AdvancedSettingsPresetEffects";
 import {
@@ -23,6 +26,10 @@ import { computeOverridesActive } from "@/components/chat/settings/preset-overri
 import { SettingsSectionOptionalOverrides } from "@/components/chat/settings/SettingsSectionOptionalOverrides";
 import { SettingsSectionRagRetrieval } from "@/components/chat/settings/SettingsSectionRagRetrieval";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  toPublicChatConfig,
+  toPublicChatRuntimeMeta,
+} from "@/lib/server/public-chat-config";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>");
 const globalAny = globalThis as Record<string, any>;
@@ -37,7 +44,7 @@ const createModelResolution = (modelId: string): ModelResolution => ({
   reason: "NONE",
 });
 
-const createAdminConfig = (): AdminChatConfig => {
+const createAdminConfig = (): PublicChatConfig => {
   const presetBase: AdminPresetConfig = {
     additionalSystemPrompt: "",
     llmModel: "gpt-4o-mini",
@@ -114,7 +121,7 @@ const createAdminConfig = (): AdminChatConfig => {
     },
   };
 
-  return config;
+  return toPublicChatConfig(config);
 };
 
 const createSessionConfig = (): SessionChatConfig => ({
@@ -146,8 +153,8 @@ const createSessionConfig = (): SessionChatConfig => ({
 });
 
 const createRuntimeMeta = (
-  adminConfig: AdminChatConfig,
-): AdminChatRuntimeMeta => {
+  adminConfig: PublicChatConfig,
+): PublicChatRuntimeMeta => {
   const presetKeys = Object.keys(adminConfig.presets) as Array<
     keyof AdminChatConfig["presets"]
   >;
@@ -158,14 +165,14 @@ const createRuntimeMeta = (
     }),
     {} as Record<keyof AdminChatConfig["presets"], ModelResolution>,
   );
-  return {
+  return toPublicChatRuntimeMeta({
     defaultLlmModelId: adminConfig.presets.default.llmModel,
     defaultLlmModelExplicit: true,
     ollamaConfigured: false,
     lmstudioConfigured: false,
     localLlmBackendEnv: null,
     presetResolutions,
-  };
+  });
 };
 
 const renderRagContent = (locked: boolean) => {
@@ -317,7 +324,9 @@ void test("optional overrides clear appliedPreset on change", () => {
 
   act(() => {
     select.value = adminConfig.allowlist.llmModels[0];
-    select.dispatchEvent(new globalAny.window.Event("change", { bubbles: true }));
+    select.dispatchEvent(
+      new globalAny.window.Event("change", { bubbles: true }),
+    );
   });
 
   assert.strictEqual(updates.length, 1);

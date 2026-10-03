@@ -5,6 +5,7 @@ import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import { useMemo } from "react";
 
 import type { LlmModelId } from "@/lib/shared/models";
+import type { PublicChatConfig } from "@/types/public-chat-config";
 import { useChatConfig } from "@/components/chat/context/ChatConfigContext";
 import { SelectableTile } from "@/components/shared/selectable-tile";
 import { SelectField } from "@/components/ui/field";
@@ -20,11 +21,7 @@ import {
 import { cn } from "@/components/ui/utils";
 import { listAllLlmModelOptions } from "@/lib/core/llm-registry";
 import { SUMMARY_LEVEL_LABELS } from "@/lib/shared/chat-labels";
-import {
-  type AdminChatConfig,
-  type SessionChatConfig,
-  type SummaryLevel,
-} from "@/types/chat-config";
+import { type SessionChatConfig, type SummaryLevel } from "@/types/chat-config";
 
 import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
 import {
@@ -35,7 +32,7 @@ import {
 import styles from "./SettingsSectionOptionalOverrides.module.css";
 
 type Props = {
-  adminConfig: AdminChatConfig;
+  adminConfig: PublicChatConfig;
   sessionConfig: SessionChatConfig;
   setSessionConfig: (
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
@@ -120,7 +117,6 @@ export function SettingsSectionOptionalOverrides({
     }));
   };
 
-
   return (
     <Section>
       <SectionHeader>
@@ -153,9 +149,7 @@ export function SettingsSectionOptionalOverrides({
                 LLM Model
               </Label>
               {llmDiffLabel && (
-                <span className={styles.diffPill}>
-                  Preset: {llmDiffLabel}
-                </span>
+                <span className={styles.diffPill}>Preset: {llmDiffLabel}</span>
               )}
             </div>
             <SelectField
@@ -207,10 +201,8 @@ export function SettingsSectionOptionalOverrides({
               })}
             </GridPanel>
           </div>
-
         </div>
       </SectionContent>
     </Section>
   );
 }
-

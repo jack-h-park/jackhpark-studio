@@ -11,21 +11,23 @@ import {
 } from "react";
 
 import type { EmbeddingModelId } from "@/lib/shared/models";
+import type {
+  PublicChatConfig,
+  PublicChatPreset,
+  PublicChatRuntimeMeta,
+  PublicNumericLimit,
+} from "@/types/public-chat-config";
 import { resolveEmbeddingSpace } from "@/lib/core/embedding-spaces";
 import { resolveLlmModelId } from "@/lib/shared/model-resolution";
 import {
-  type AdminChatConfig,
-  type AdminChatRuntimeMeta,
-  type AdminNumericLimit,
   type ModelResolution,
   type SessionChatConfig,
-  type SessionChatConfigPreset,
   type SummaryLevel,
 } from "@/types/chat-config";
 
 type ChatConfigContextValue = {
-  adminConfig: AdminChatConfig;
-  runtimeMeta: AdminChatRuntimeMeta;
+  adminConfig: PublicChatConfig;
+  runtimeMeta: PublicChatRuntimeMeta;
   sessionConfig: SessionChatConfig;
   setSessionConfig: (
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
@@ -40,7 +42,7 @@ export const ChatConfigContext = createContext<ChatConfigContextValue | null>(
 
 const summaryLevels = new Set<SummaryLevel>(["off", "low", "medium", "high"]);
 
-const clampValue = (value: number, limit: AdminNumericLimit): number =>
+const clampValue = (value: number, limit: PublicNumericLimit): number =>
   Math.min(limit.max, Math.max(limit.min, value));
 
 const sanitizeModel = <T extends string>(
@@ -62,7 +64,7 @@ const isFiniteNumber = (value: unknown): value is number =>
 
 const sanitizeNumericConfig = (
   candidate: SessionChatConfig,
-  adminConfig: AdminChatConfig,
+  adminConfig: PublicChatConfig,
   resolver: {
     resolveModel: (modelId: string) => ModelResolution;
   },
@@ -160,7 +162,6 @@ const sanitizeNumericConfig = (
     summaryLevel,
     appliedPreset: candidate.appliedPreset,
     safeMode: Boolean(candidate.safeMode),
-    requireLocal: Boolean(candidate.requireLocal),
     showTelemetry: Boolean(candidate.showTelemetry),
     showCitations: Boolean(candidate.showCitations),
   };
@@ -177,16 +178,13 @@ const sanitizeNumericConfig = (
 };
 
 const buildDefaultSessionConfig = (
-  preset: SessionChatConfigPreset,
+  preset: PublicChatPreset,
   presetName: ChatConfigContextValue["sessionConfig"]["appliedPreset"],
   resolution: ModelResolution | null,
 ): SessionChatConfig => ({
   ...preset,
   presetId: presetName ?? "default",
-  additionalSystemPrompt:
-    typeof (preset as SessionChatConfig).additionalSystemPrompt === "string"
-      ? (preset as SessionChatConfig).additionalSystemPrompt
-      : "",
+  additionalSystemPrompt: "",
   llmModel: (resolution?.resolvedModelId ??
     preset.llmModel) as SessionChatConfig["llmModel"],
   llmModelResolution:
@@ -198,7 +196,6 @@ const buildDefaultSessionConfig = (
       reason: "NONE",
     } satisfies ModelResolution),
   appliedPreset: presetName ?? undefined,
-  requireLocal: Boolean(preset.requireLocal),
 });
 
 export function ChatConfigProvider({
@@ -206,8 +203,8 @@ export function ChatConfigProvider({
   runtimeMeta,
   children,
 }: {
-  adminConfig: AdminChatConfig;
-  runtimeMeta: AdminChatRuntimeMeta;
+  adminConfig: PublicChatConfig;
+  runtimeMeta: PublicChatRuntimeMeta;
   children: ReactNode;
 }) {
   const resolveLlmModelForSession = useMemo(() => {

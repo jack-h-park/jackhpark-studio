@@ -1,10 +1,11 @@
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 
+import type { AdminChatRuntimeMeta } from "@/types/chat-config";
 import type {
-  AdminChatConfig,
-  AdminChatRuntimeMeta,
-} from "@/types/chat-config";
+  PublicChatConfig,
+  PublicChatRuntimeMeta,
+} from "@/types/public-chat-config";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { ChatFullPage } from "@/components/chat/ChatFullPage";
 import {
@@ -20,10 +21,14 @@ import {
   loadNotionNavigationHeader,
   type NotionNavigationHeader,
 } from "@/lib/server/notion-header";
+import {
+  toPublicChatConfig,
+  toPublicChatRuntimeMeta,
+} from "@/lib/server/public-chat-config";
 
 type PageProps = {
-  adminConfig: AdminChatConfig;
-  runtimeMeta: AdminChatRuntimeMeta;
+  adminConfig: PublicChatConfig;
+  runtimeMeta: PublicChatRuntimeMeta;
 } & NotionNavigationHeader;
 
 export default function ChatPage({
@@ -68,8 +73,8 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
   };
   return {
     props: {
-      adminConfig,
-      runtimeMeta,
+      adminConfig: toPublicChatConfig(adminConfig),
+      runtimeMeta: toPublicChatRuntimeMeta(runtimeMeta),
       ...header,
     },
   };

@@ -4,10 +4,8 @@ import { FiCopy } from "@react-icons/all-files/fi/FiCopy";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { RankerId } from "@/lib/shared/models";
-import type {
-  AdminChatConfig,
-  SessionChatConfig,
-} from "@/types/chat-config";
+import type { SessionChatConfig } from "@/types/chat-config";
+import type { PublicChatConfig } from "@/types/public-chat-config";
 import insetPanelStyles from "@/components/ui/inset-panel.module.css";
 import { cn } from "@/components/ui/utils";
 import { listEmbeddingModelOptions } from "@/lib/core/embedding-spaces";
@@ -46,7 +44,7 @@ const renderCapabilityState = (enabled: boolean) => (
 );
 
 type Props = {
-  adminConfig: AdminChatConfig;
+  adminConfig: PublicChatConfig;
   sessionConfig: SessionChatConfig;
 };
 
