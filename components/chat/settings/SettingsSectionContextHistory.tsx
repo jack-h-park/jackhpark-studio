@@ -3,7 +3,8 @@
 import { FiClock } from "@react-icons/all-files/fi/FiClock";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import type { SessionChatConfig } from "@/types/chat-config";
+import type { PublicChatConfig } from "@/types/public-chat-config";
 import { type ChatMessage } from "@/components/chat/hooks/useChatSession";
 import { SliderField } from "@/components/ui/field";
 import {
@@ -31,7 +32,7 @@ import { createSessionOverrideUpdater } from "./preset-overrides";
 type ContextBudgetKey = "tokenBudget" | "historyBudget" | "clipTokens";
 
 type Props = {
-  adminConfig: AdminChatConfig;
+  adminConfig: PublicChatConfig;
   sessionConfig: SessionChatConfig;
   setSessionConfig: (
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),
@@ -177,7 +178,7 @@ export function SettingsSectionContextHistory({
   const inputs: Array<{
     key: ContextBudgetKey;
     label: string;
-    limit: AdminChatConfig["numericLimits"][keyof AdminChatConfig["numericLimits"]];
+    limit: PublicChatConfig["numericLimits"][keyof PublicChatConfig["numericLimits"]];
   }> = [
     {
       key: "tokenBudget",

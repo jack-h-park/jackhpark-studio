@@ -7,10 +7,13 @@ import {
   requireSameOriginMutation,
 } from "@/lib/server/admin-auth";
 import { saveAdminChatConfig } from "@/lib/server/admin-chat-config";
+import { invalidatePublicChatShell } from "@/lib/server/public-chat-cache";
 
 type ApiResponse = {
   updatedAt?: string | null;
   error?: string;
+  cacheRefresh?: "invalidated" | "skipped-local" | "failed";
+  warning?: string;
 };
 
 export default async function handler(
@@ -59,7 +62,23 @@ export default async function handler(
       target: "chat-config",
       result: "success",
     });
-    return res.status(200).json({ updatedAt });
+    try {
+      const cacheRefresh = await invalidatePublicChatShell();
+      return res.status(200).json({ updatedAt, cacheRefresh });
+    } catch {
+      auditAdminMutation({
+        ...admin,
+        action: "invalidate",
+        target: "public-chat-shell-cache",
+        result: "failure",
+      });
+      return res.status(200).json({
+        updatedAt,
+        cacheRefresh: "failed",
+        warning:
+          "Settings saved, but the public chat cache refresh failed. Cached public settings may remain visible until the next refresh.",
+      });
+    }
   } catch (err: unknown) {
     auditAdminMutation({
       ...admin,

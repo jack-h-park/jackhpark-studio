@@ -10,9 +10,9 @@ import { useRouter } from "next/router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
-  AdminChatConfig,
-  AdminChatRuntimeMeta,
-} from "@/types/chat-config";
+  PublicChatConfig,
+  PublicChatRuntimeMeta,
+} from "@/types/public-chat-config";
 import { ChatEmptyState } from "@/components/chat/ChatEmptyState";
 import { ChatInputBar } from "@/components/chat/ChatInputBar";
 import { ChatMessagesPanel } from "@/components/chat/ChatMessagesPanel";
@@ -44,8 +44,8 @@ export function ChatFullPage({
   adminConfig,
   runtimeMeta,
 }: {
-  adminConfig: AdminChatConfig;
-  runtimeMeta: AdminChatRuntimeMeta;
+  adminConfig: PublicChatConfig;
+  runtimeMeta: PublicChatRuntimeMeta;
 }) {
   return (
     <ChatConfigProvider adminConfig={adminConfig} runtimeMeta={runtimeMeta}>
@@ -255,11 +255,9 @@ function ChatShellContent() {
       setLocalCid(null);
       setActiveCid(null);
       const { cid: _discarded, ...restQuery } = router.query;
-      void router.replace(
-        { pathname: "/chat", query: restQuery },
-        undefined,
-        { shallow: true },
-      );
+      void router.replace({ pathname: "/chat", query: restQuery }, undefined, {
+        shallow: true,
+      });
     }
     focusInput();
   }, [focusInput, resetSession, router, setActiveCid]);

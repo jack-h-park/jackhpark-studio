@@ -1,5 +1,6 @@
 import type { RankerId } from "@/lib/shared/models";
-import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import type { SessionChatConfig } from "@/types/chat-config";
+import type { PublicChatConfig } from "@/types/public-chat-config";
 import {
   formatRankerLabel as formatRankerLabelShared,
   PRESET_LABELS,
@@ -50,7 +51,7 @@ export type EffectiveSettingsPayload = {
 };
 
 type Params = {
-  adminConfig: AdminChatConfig;
+  adminConfig: PublicChatConfig;
   sessionConfig: SessionChatConfig;
   overridesActive: boolean;
   effectiveEmbeddingLabel: string;
