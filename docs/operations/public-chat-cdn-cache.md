@@ -94,11 +94,14 @@ After checking that the port is free, run `pnpm start --port 3127`. On localhost
    projected props without cookie values. Add a harmless query sentinel and
    require private/no-store with no tag on both. The sentinel may appear in
    framework HTML query data, but must not appear in page props.
-5. Without sending a chat, select/reset all four presets and edit a genuine
-   custom prompt. Verify public choices, summary controls, clamping, and reload
-   behavior. Use independent session-store fixtures for A/B settings; record
-   real browser context isolation only when the browser tool actually supports
-   and exercises separate contexts.
+5. Without sending a chat, select/reset all four presets. Verify the exposed
+   citation, summary, and model choices, draft entry/reset, and reload behavior.
+   The browser does not expose a custom system prompt field.
+6. Use the existing provider fixtures in `test/public-chat-config.test.ts` to
+   verify genuine custom prompt preservation, clamping, and independent A/B
+   session-store persistence. These fixtures do not establish isolation across
+   separate browser profiles. Record real browser context isolation only when
+   the browser tool actually supports and exercises separate contexts.
 
 Local Next can show the selected headers and safe serialization. It does not
 provide Vercel CDN MISS/HIT or tag propagation evidence. A successful local save

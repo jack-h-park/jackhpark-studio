@@ -124,7 +124,7 @@ export function ChatConfigPage({
       <>
         {cacheRefreshWarning && (
           <div role="status" aria-live="polite" className="ai-card">
-            <CardContent className="px-4 py-3 text-[color:var(--ai-warning)]">
+            <CardContent className="px-4 py-3 ai-text-warning">
               {cacheRefreshWarning}
             </CardContent>
           </div>
