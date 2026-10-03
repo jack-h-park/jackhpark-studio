@@ -124,6 +124,9 @@ function createAdminConfig(): AdminChatConfig {
     Object.assign(value, { unknownNested: secret });
   }
   config.presets.extra = structuredClone(config.presets.fast);
+  for (const key of presetKeys) {
+    config.presets[key].additionalSystemPrompt = `${secret}_PRESET_${key}`;
+  }
   return config;
 }
 
@@ -257,6 +260,28 @@ void test("public runtime metadata preserves model resolution and excludes backe
     reason: "NONE",
   });
   assert.equal(JSON.stringify(meta).includes(secret), false);
+});
+
+void test("legacy omitted public booleans serialize the existing effective false defaults", () => {
+  const legacyConfig = createAdminConfig();
+  for (const preset of Object.values(legacyConfig.presets)) {
+    Reflect.deleteProperty(preset.context, "enabled");
+    Reflect.deleteProperty(preset, "showTelemetry");
+    Reflect.deleteProperty(preset, "showCitations");
+  }
+  const serialized = JSON.stringify(toPublicChatConfig(legacyConfig));
+  const publicConfig = JSON.parse(serialized) as ReturnType<
+    typeof toPublicChatConfig
+  >;
+  for (const preset of Object.values(publicConfig.presets)) {
+    assert.equal(preset.context.enabled, false);
+    assert.equal(preset.showTelemetry, false);
+    assert.equal(preset.showCitations, false);
+  }
+  const configured = toPublicChatConfig(createAdminConfig()).presets.default;
+  assert.equal(configured.context.enabled, true);
+  assert.equal(configured.showTelemetry, false);
+  assert.equal(configured.showCitations, true);
 });
 
 void test("chat page props never serialize private configuration or unknown fields", async () => {
@@ -435,7 +460,7 @@ void test("initial session, selecting each preset, and resetting never seed a pr
           adminConfig: privateConfig,
           sessionConfig: current.sessionConfig,
         }),
-        `${secret}_BASE\n\n${secret}_PRESET\n\n${userPrompt}`,
+        `${secret}_BASE\n\n${secret}_PRESET_${key}\n\n${userPrompt}`,
       );
       const reset = Array.from(
         testWindow.document.querySelectorAll("button"),
@@ -460,5 +485,136 @@ void test("initial session, selecting each preset, and resetting never seed a pr
     } else {
       Object.assign(process.env, { NODE_ENV: previousNodeEnv });
     }
+  }
+});
+
+void test("independent session stores restore only their own custom settings from identical public props", () => {
+  const sessions = [
+    new JSDOM("<!doctype html><html><body></body></html>", {
+      url: "https://example.test/chat",
+    }),
+    new JSDOM("<!doctype html><html><body></body></html>", {
+      url: "https://example.test/chat",
+    }),
+  ];
+  const adminConfig = toPublicChatConfig(createAdminConfig());
+  const runtimeMeta = toPublicChatRuntimeMeta(createRuntimeMeta());
+  const publicPropsBefore = JSON.stringify({ adminConfig, runtimeMeta });
+  const previousNodeEnv = process.env.NODE_ENV;
+  Object.assign(process.env, { NODE_ENV: "production" });
+
+  function withSession(
+    dom: JSDOM,
+    verify: (context: () => ReturnType<typeof useChatConfig>) => void,
+  ) {
+    Object.defineProperties(globalThis, {
+      window: { configurable: true, value: dom.window },
+      document: { configurable: true, value: dom.window.document },
+      IS_REACT_ACT_ENVIRONMENT: { configurable: true, value: true },
+    });
+    let current: ReturnType<typeof useChatConfig> | undefined;
+    function Harness() {
+      current = useChatConfig();
+      return createElement(
+        "output",
+        null,
+        current.sessionConfig.additionalSystemPrompt,
+      );
+    }
+    const container = dom.window.document.createElement("div");
+    dom.window.document.body.append(container);
+    const root = createRoot(container);
+    try {
+      act(() =>
+        root.render(
+          createElement(ChatConfigProvider, {
+            adminConfig,
+            runtimeMeta,
+            children: createElement(Harness),
+          }),
+        ),
+      );
+      verify(() => {
+        assert.ok(current);
+        return current;
+      });
+      assert.equal(
+        container.textContent,
+        current?.sessionConfig.additionalSystemPrompt,
+      );
+    } finally {
+      act(() => root.unmount());
+      container.remove();
+    }
+  }
+
+  try {
+    withSession(sessions[0], (context) => {
+      assert.equal(context().sessionConfig.additionalSystemPrompt, "");
+      const update = createSessionOverrideUpdater(context().setSessionConfig);
+      act(() =>
+        update((previous) => ({
+          ...previous,
+          additionalSystemPrompt: "SESSION_A_CUSTOM_PROMPT",
+          summaryLevel: "high",
+          rag: { ...previous.rag, topK: 11 },
+        })),
+      );
+      assert.equal(
+        context().sessionConfig.additionalSystemPrompt,
+        "SESSION_A_CUSTOM_PROMPT",
+      );
+      assert.equal(context().sessionConfig.rag.topK, 11);
+    });
+    withSession(sessions[1], (context) => {
+      assert.equal(context().sessionConfig.additionalSystemPrompt, "");
+      assert.equal(context().sessionConfig.rag.topK, 6);
+      const update = createSessionOverrideUpdater(context().setSessionConfig);
+      act(() =>
+        update((previous) => ({
+          ...previous,
+          additionalSystemPrompt: "SESSION_B_CUSTOM_PROMPT",
+          summaryLevel: "off",
+          rag: { ...previous.rag, topK: 3 },
+        })),
+      );
+    });
+    withSession(sessions[0], (context) => {
+      assert.equal(
+        context().sessionConfig.additionalSystemPrompt,
+        "SESSION_A_CUSTOM_PROMPT",
+      );
+      assert.equal(context().sessionConfig.rag.topK, 11);
+      assert.equal(context().sessionConfig.summaryLevel, "high");
+    });
+    withSession(sessions[1], (context) => {
+      assert.equal(
+        context().sessionConfig.additionalSystemPrompt,
+        "SESSION_B_CUSTOM_PROMPT",
+      );
+      assert.equal(context().sessionConfig.rag.topK, 3);
+      assert.equal(context().sessionConfig.summaryLevel, "off");
+    });
+    assert.equal(
+      JSON.stringify({ adminConfig, runtimeMeta }),
+      publicPropsBefore,
+    );
+    for (const [index, dom] of sessions.entries()) {
+      const sessionWindow = dom.window as unknown as Window;
+      const stored =
+        sessionWindow.sessionStorage.getItem("chat-session-config") ?? "";
+      assert.equal(
+        stored.includes(
+          index === 0 ? "SESSION_B_CUSTOM_PROMPT" : "SESSION_A_CUSTOM_PROMPT",
+        ),
+        false,
+      );
+      assert.equal(sessionWindow.localStorage.length, 0);
+    }
+  } finally {
+    for (const dom of sessions) dom.window.close();
+    if (previousNodeEnv === undefined)
+      Reflect.deleteProperty(process.env, "NODE_ENV");
+    else Object.assign(process.env, { NODE_ENV: previousNodeEnv });
   }
 });

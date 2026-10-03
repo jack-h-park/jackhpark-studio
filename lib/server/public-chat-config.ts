@@ -30,7 +30,7 @@ const toPublicPreset = (preset: AdminPresetConfig): PublicChatPreset => ({
     similarity: preset.rag.similarity,
   },
   context: {
-    enabled: preset.context.enabled,
+    enabled: Boolean(preset.context.enabled),
     tokenBudget: preset.context.tokenBudget,
     historyBudget: preset.context.historyBudget,
     clipTokens: preset.context.clipTokens,
@@ -42,8 +42,8 @@ const toPublicPreset = (preset: AdminPresetConfig): PublicChatPreset => ({
   },
   summaryLevel: preset.summaryLevel,
   safeMode: Boolean(preset.safeMode),
-  showTelemetry: preset.showTelemetry,
-  showCitations: preset.showCitations,
+  showTelemetry: Boolean(preset.showTelemetry),
+  showCitations: Boolean(preset.showCitations),
 });
 
 export function toPublicChatConfig(config: AdminChatConfig): PublicChatConfig {
