@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { IncomingMessage, ServerResponse } from "node:http";
+import { Socket } from "node:net";
 import test from "node:test";
 
+import type { GetServerSidePropsContext } from "next";
 import { build } from "esbuild";
 import { JSDOM } from "jsdom";
 import { act, createElement } from "react";
@@ -274,6 +277,7 @@ void test("chat page props never serialize private configuration or unknown fiel
     "@/lib/server/model-resolution": `export const buildPresetModelResolutions = () => (${JSON.stringify(meta.presetResolutions)});`,
     "@/lib/server/notion-header":
       "export const loadNotionNavigationHeader = async () => ({ headerRecordMap: null, headerBlockId: null });",
+    "@vercel/functions": "export const invalidateByTag = async () => {};",
   };
   const bundle = await build({
     entryPoints: ["pages/chat.tsx"],
@@ -305,11 +309,19 @@ void test("chat page props never serialize private configuration or unknown fiel
   const page = (await import(
     `data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString("base64")}`
   )) as {
-    getServerSideProps: () => Promise<{
+    getServerSideProps: (context: GetServerSidePropsContext) => Promise<{
       props: { adminConfig: unknown; runtimeMeta: unknown };
     }>;
   };
-  const result = await page.getServerSideProps();
+  const req = new IncomingMessage(
+    new Socket(),
+  ) as GetServerSidePropsContext["req"];
+  const result = await page.getServerSideProps({
+    req,
+    res: new ServerResponse(req),
+    query: {},
+    resolvedUrl: "/chat",
+  });
   assert.equal(JSON.stringify(result.props).includes(secret), false);
   assert.equal(
     JSON.stringify(result.props).includes("localLlmBackendEnv"),

@@ -26,6 +26,8 @@ export type SaveStatus = "idle" | "saving" | "success" | "error";
 type SaveConfigResponse = {
   updatedAt?: string | null;
   error?: string;
+  cacheRefresh?: "invalidated" | "skipped-local" | "failed";
+  warning?: string;
 };
 
 export type UseAdminChatConfigParams = {
@@ -89,6 +91,9 @@ export function useAdminChatConfig({
   }));
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [cacheRefreshWarning, setCacheRefreshWarning] = useState<string | null>(
+    null,
+  );
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(lastUpdatedAt);
   const [isRawModalOpen, setIsRawModalOpen] = useState(false);
   const [isWordWrapEnabled, setIsWordWrapEnabled] = useState(false);
@@ -146,6 +151,7 @@ export function useAdminChatConfig({
     }
     setSaveStatus("saving");
     setErrorMessage(null);
+    setCacheRefreshWarning(null);
     try {
       const response = await fetch("/api/admin/chat-config", {
         method: "POST",
@@ -163,6 +169,12 @@ export function useAdminChatConfig({
       setLastSavedAt(payload?.updatedAt ?? new Date().toISOString());
       setSaveStatus("success");
       setSavedSnapshot(config);
+      if (payload?.cacheRefresh === "failed") {
+        setCacheRefreshWarning(
+          payload.warning ??
+            "Settings saved, but the public chat cache refresh failed.",
+        );
+      }
       setTimeout(() => setSaveStatus("idle"), 2500);
     } catch (err: unknown) {
       const message =
@@ -177,6 +189,7 @@ export function useAdminChatConfig({
   const handleReset = useCallback(() => {
     setConfig(savedSnapshot);
     setErrorMessage(null);
+    setCacheRefreshWarning(null);
     setSaveStatus("idle");
   }, [savedSnapshot]);
 
@@ -355,6 +368,7 @@ export function useAdminChatConfig({
     updateConfig,
     saveStatus,
     errorMessage,
+    cacheRefreshWarning,
     lastSavedAt,
     handleSave,
     isRawModalOpen,

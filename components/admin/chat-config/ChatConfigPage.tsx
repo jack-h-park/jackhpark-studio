@@ -42,6 +42,7 @@ export function ChatConfigPage({
     updateConfig,
     saveStatus,
     errorMessage,
+    cacheRefreshWarning,
     lastSavedAt,
     handleSave,
     isRawModalOpen,
@@ -121,6 +122,13 @@ export function ChatConfigPage({
       }
     >
       <>
+        {cacheRefreshWarning && (
+          <div role="status" aria-live="polite" className="ai-card">
+            <CardContent className="px-4 py-3 text-[color:var(--ai-warning)]">
+              {cacheRefreshWarning}
+            </CardContent>
+          </div>
+        )}
         {errorMessage && (
           <div className={styles.errorCard}>
             <CardContent className="px-4 py-3 text-[color:var(--ai-error)]">
@@ -136,10 +144,7 @@ export function ChatConfigPage({
             description="Define the base system prompt, summaries, cadence for responses, and guardrail fallback messaging."
           >
             <div className="space-y-5">
-              <CoreBehaviorCard
-                config={config}
-                updateConfig={updateConfig}
-              />
+              <CoreBehaviorCard config={config} updateConfig={updateConfig} />
               <SummaryPresetsCard
                 summaryPresets={config.summaryPresets}
                 updateConfig={updateConfig}
@@ -196,7 +201,9 @@ export function ChatConfigPage({
                 updateConfig={updateConfig}
               />
               <GenerationControlsCard
-                generation={config.generation ?? { reasoningEffort: "provider-default" }}
+                generation={
+                  config.generation ?? { reasoningEffort: "provider-default" }
+                }
                 isFormBusy={isFormBusy}
                 updateConfig={updateConfig}
               />

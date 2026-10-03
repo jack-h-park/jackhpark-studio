@@ -1,11 +1,6 @@
-import type { GetServerSideProps } from "next";
 import Head from "next/head";
 
 import type { AdminChatRuntimeMeta } from "@/types/chat-config";
-import type {
-  PublicChatConfig,
-  PublicChatRuntimeMeta,
-} from "@/types/public-chat-config";
 import { AiPageChrome } from "@/components/AiPageChrome";
 import { ChatFullPage } from "@/components/chat/ChatFullPage";
 import {
@@ -17,26 +12,18 @@ import { isOllamaConfigured } from "@/lib/core/ollama";
 import { getLocalLlmBackend } from "@/lib/local-llm";
 import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
 import { buildPresetModelResolutions } from "@/lib/server/model-resolution";
+import { loadNotionNavigationHeader } from "@/lib/server/notion-header";
 import {
-  loadNotionNavigationHeader,
-  type NotionNavigationHeader,
-} from "@/lib/server/notion-header";
-import {
-  toPublicChatConfig,
-  toPublicChatRuntimeMeta,
-} from "@/lib/server/public-chat-config";
-
-type PageProps = {
-  adminConfig: PublicChatConfig;
-  runtimeMeta: PublicChatRuntimeMeta;
-} & NotionNavigationHeader;
+  createPublicChatPageLoader,
+  type PublicChatPageProps,
+} from "@/lib/server/public-chat-page";
 
 export default function ChatPage({
   adminConfig,
   runtimeMeta,
   headerRecordMap,
   headerBlockId,
-}: PageProps) {
+}: PublicChatPageProps) {
   return (
     <>
       <Head>
@@ -57,12 +44,10 @@ export default function ChatPage({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
-  const [adminConfig, header] = await Promise.all([
-    getAdminChatConfig({ forceRefresh: true }),
-    loadNotionNavigationHeader(),
-  ]);
-  const runtimeMeta: AdminChatRuntimeMeta = {
+export const getServerSideProps = createPublicChatPageLoader({
+  loadConfig: getAdminChatConfig,
+  loadHeader: loadNotionNavigationHeader,
+  buildRuntimeMeta: (adminConfig): AdminChatRuntimeMeta => ({
     defaultLlmModelId:
       DEFAULT_LLM_MODEL_ID as AdminChatRuntimeMeta["defaultLlmModelId"],
     ollamaConfigured: isOllamaConfigured(),
@@ -70,12 +55,5 @@ export const getServerSideProps: GetServerSideProps<PageProps> = async () => {
     localLlmBackendEnv: getLocalLlmBackend(),
     presetResolutions: buildPresetModelResolutions(adminConfig),
     defaultLlmModelExplicit: IS_DEFAULT_MODEL_EXPLICIT,
-  };
-  return {
-    props: {
-      adminConfig: toPublicChatConfig(adminConfig),
-      runtimeMeta: toPublicChatRuntimeMeta(runtimeMeta),
-      ...header,
-    },
-  };
-};
+  }),
+});
