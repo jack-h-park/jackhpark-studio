@@ -368,24 +368,6 @@ const buildGroupedFormatEntriesFromV2Reducer = (
     });
 };
 
-const hasEmptyGroupedFormatEntries = (viewValue: unknown): boolean => {
-  const format = readFormat(viewValue);
-  if (!format) return false;
-
-  if (format.collection_group_by) {
-    return (
-      !Array.isArray(format.collection_groups) ||
-      format.collection_groups.length === 0
-    );
-  }
-  if (format.board_columns_by) {
-    return (
-      !Array.isArray(format.board_columns) || format.board_columns.length === 0
-    );
-  }
-  return false;
-};
-
 const applyGroupedFormatEntriesToView = (
   viewValue: unknown,
   groups: unknown[],
@@ -451,6 +433,19 @@ const formatGroupEntryToBucketKey = (
     return null;
   return `results:${type}:${queryLabel}`;
 };
+
+const hasMissingVisibleGroupResults = (
+  result: JsonRecord,
+  groups: JsonRecord[],
+  isBoard: boolean,
+): boolean =>
+  groups.some((group) => {
+    if (group.hidden === true) return false;
+    const key = formatGroupEntryToBucketKey(group, !isBoard);
+    if (!key) return false;
+    const bucket = result[key];
+    return !isObject(bucket) || !Array.isArray(bucket.blockIds);
+  });
 
 const syncGroupedViewFormatFromResultBuckets = (
   view: unknown,
@@ -551,6 +546,18 @@ const isGroupedQueryPayloadUsableForView = (
   // Grouped views need either reducer buckets or a view-specific grouped payload.
   // `collection_group_results.blockIds` alone can be stale and produce an empty render.
   if (bucketKeys.length === 0 && !hasListGroups && !hasBoardColumns) {
+    return false;
+  }
+
+  // A groups reducer can advertise rows not requested by stale view metadata.
+  // Missing buckets are incomplete data, not proof that those groups are empty.
+  if (
+    hasMissingVisibleGroupResults(
+      entry,
+      buildGroupedFormatEntriesFromV2Reducer(entry, viewValue),
+      isObject(viewValue) && viewValue.type === "board",
+    )
+  ) {
     return false;
   }
 
@@ -1060,6 +1067,7 @@ const hydrateGroupedCollectionData = async (
       existingEntry,
     }) => {
       const viewFormat = readFormat(viewValue);
+      let followupFailure: { error: unknown } | undefined;
 
       try {
         let data = await notion.getCollectionData(
@@ -1096,9 +1104,12 @@ const hydrateGroupedCollectionData = async (
           viewValue,
         );
         const shouldBootstrapGroupedRefetch =
-          hasEmptyGroupedFormatEntries(viewValue) &&
           bootstrapGroups.length > 0 &&
-          getGroupedResultBucketKeys(data?.result).length === 0;
+          hasMissingVisibleGroupResults(
+            normalizeCollectionQueryEntry(data?.result),
+            bootstrapGroups,
+            viewValue.type === "board",
+          );
 
         if (shouldBootstrapGroupedRefetch) {
           const bootstrappedViewValue = applyGroupedFormatEntriesToView(
@@ -1131,37 +1142,45 @@ const hydrateGroupedCollectionData = async (
             },
           );
 
-          data = await notion.getCollectionData(
-            fetchCollectionId,
-            viewId,
-            bootstrappedViewValue,
-            {
-              limit: 999,
-            },
-          );
-
-          console.warn("[grouped-collection] second fetch result", {
-            viewId,
-            collectionId,
-            fetchCollectionId,
-            viewType: bootstrappedFormatOwner?.type,
-            collectionGroupsLen: Array.isArray(
-              bootstrappedFormat?.collection_groups,
+          data = await notion
+            .getCollectionData(
+              fetchCollectionId,
+              viewId,
+              bootstrappedViewValue,
+              {
+                limit: 999,
+              },
             )
-              ? bootstrappedFormat.collection_groups.length
-              : null,
-            boardColumnsLen: Array.isArray(bootstrappedFormat?.board_columns)
-              ? bootstrappedFormat.board_columns.length
-              : null,
-            resultKeys: data?.result ? Object.keys(data.result) : null,
-            resultBucketKeys: getGroupedResultBucketKeys(data?.result),
-            hasGalleryGroups:
-              countReducerResults(data?.result, "gallery_groups") > 0,
-            galleryGroupsLen: countReducerResults(
-              data?.result,
-              "gallery_groups",
-            ),
-          });
+            .catch((err: unknown) => {
+              // Keep the successful partial response; report the failure through
+              // the existing error path after its rows have been merged.
+              followupFailure = { error: err };
+              return data;
+            });
+
+          if (!followupFailure)
+            console.warn("[grouped-collection] second fetch result", {
+              viewId,
+              collectionId,
+              fetchCollectionId,
+              viewType: bootstrappedFormatOwner?.type,
+              collectionGroupsLen: Array.isArray(
+                bootstrappedFormat?.collection_groups,
+              )
+                ? bootstrappedFormat.collection_groups.length
+                : null,
+              boardColumnsLen: Array.isArray(bootstrappedFormat?.board_columns)
+                ? bootstrappedFormat.board_columns.length
+                : null,
+              resultKeys: data?.result ? Object.keys(data.result) : null,
+              resultBucketKeys: getGroupedResultBucketKeys(data?.result),
+              hasGalleryGroups:
+                countReducerResults(data?.result, "gallery_groups") > 0,
+              galleryGroupsLen: countReducerResults(
+                data?.result,
+                "gallery_groups",
+              ),
+            });
         }
 
         if (data?.recordMap) {
@@ -1235,6 +1254,7 @@ const hydrateGroupedCollectionData = async (
             }
           }
         }
+        if (followupFailure) throw followupFailure.error;
       } catch (err: unknown) {
         console.warn(
           `[grouped-collection] fetch failed ${collectionId}:${viewId}`,
@@ -1262,7 +1282,9 @@ const finalizeRecordMap = async (
     ? await hydrateGroupedCollectionData(recordMap, pageId)
     : recordMap;
 
-  return hydrated;
+  // Hydration merges may replace top-level bags. Keep the cached object coherent
+  // with its repaired query without a cache write or a new expiry deadline.
+  return Object.assign(recordMap, hydrated);
 };
 
 /**

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import type { ExtendedRecordMap } from "notion-types";
 
+import { notionPageCacheTTL } from "@/lib/config";
 import { db } from "@/lib/db";
 import { __pageCacheInternals, getPage } from "@/lib/notion";
 import { notion } from "@/lib/notion-api";
@@ -70,6 +71,223 @@ function groupedPage(type: "gallery" | "list" | "board" = "gallery") {
     },
   } as unknown as ExtendedRecordMap["collection_query"][string];
   return map;
+}
+
+for (const type of ["list", "gallery"] as const) {
+  for (const mode of ["fresh", "memory", "persistent"] as const) {
+    void test(`${type} ${mode} read repairs newly advertised groups before caching`, async (t) => {
+      if (mode === "memory") {
+        t.mock.timers.enable({ apis: ["Date"], now: 0 });
+        t.after(() => t.mock.timers.reset());
+      }
+      const source = groupedPage(type);
+      const view = source.collection_view[fixtureViewId].value as unknown as {
+        format: { collection_groups: unknown[] };
+      };
+      view.format.collection_groups = view.format.collection_groups.slice(0, 1);
+      const partial = {
+        [`${type}_groups`]: {
+          type: "groups",
+          version: "v2",
+          hasMore: false,
+          results: ["profile", "operations"].map((value) => ({
+            value: { type: "select", value },
+            visible: true,
+          })),
+        },
+        "results:select:profile": {
+          type: "results",
+          blockIds: [fixtureImagePageId],
+          hasMore: false,
+        },
+      };
+      source.collection_query[fixtureCollectionId][fixtureViewId] = {
+        reducerResults: partial,
+      } as unknown as ExtendedRecordMap["collection_query"][string][string];
+      const key = __pageCacheInternals.getPageCacheKey(fixtureImagePageId);
+      __pageCacheInternals.clear();
+      await db.delete(key);
+      t.after(async () => {
+        __pageCacheInternals.clear();
+        await db.delete(key);
+      });
+      if (mode === "memory")
+        __pageCacheInternals.setCachedRecordMapInMemory(
+          key,
+          structuredClone(source),
+        );
+      if (mode === "persistent") await db.set(key, structuredClone(source));
+      if (mode === "memory") t.mock.timers.tick(Number(notionPageCacheTTL) / 2);
+      t.mock.method(notion, "getPage", async () => structuredClone(source));
+      let reads = 0;
+      t.mock.method(
+        notion,
+        "getCollectionData",
+        async (...args: Parameters<typeof notion.getCollectionData>) => {
+          reads++;
+          const requested = args[2]?.format as unknown as {
+            collection_groups: Array<{ value: { value: string } }>;
+          };
+          assert.deepEqual(
+            requested.collection_groups.map((group) => group.value.value),
+            reads === 1 ? ["profile"] : ["profile", "operations"],
+          );
+          assert.ok(reads <= 2, "repair is bounded to one follow-up query");
+          return {
+            result: {
+              reducerResults:
+                reads === 1
+                  ? partial
+                  : {
+                      ...partial,
+                      "results:select:operations": {
+                        type: "results",
+                        blockIds: ["new-operation"],
+                        hasMore: false,
+                      },
+                    },
+            },
+            recordMap: {
+              block: {
+                "new-operation": {
+                  value: {
+                    id: "new-operation",
+                    type: "page",
+                    properties: { title: [["New operation"]] },
+                  },
+                },
+              },
+            },
+          } as unknown as Awaited<ReturnType<typeof notion.getCollectionData>>;
+        },
+      );
+      const repaired = await getPage(fixtureImagePageId, {
+        forceRefresh: mode === "fresh",
+      });
+      assert.equal(reads, 2);
+      const output = repaired.collection_query[fixtureCollectionId][
+        fixtureViewId
+      ] as unknown as Record<string, { blockIds: string[] }>;
+      assert.deepEqual(output["results:select:operations"].blockIds, [
+        "new-operation",
+      ]);
+      assert.ok(repaired.block["new-operation"]);
+      const warm = await getPage(fixtureImagePageId);
+      assert.deepEqual(warm.collection_query, repaired.collection_query);
+      assert.ok(
+        warm.block["new-operation"],
+        "warm results retain newly fetched row blocks",
+      );
+      assert.equal(reads, 2, "the repaired warm page does not query again");
+      if (mode === "memory") {
+        t.mock.timers.tick(Number(notionPageCacheTTL) / 2 + 1);
+        assert.equal(
+          __pageCacheInternals.getCachedRecordMapFromMemory(key),
+          null,
+          "hydration must not restart the original cache deadline",
+        );
+      }
+    });
+  }
+}
+
+for (const mode of [
+  "complete-empty",
+  "hidden",
+  "incomplete",
+  "error",
+] as const) {
+  void test(`discovered ${mode} groups preserve truthful results and bounded repair`, async (t) => {
+    const source = groupedPage("list");
+    const view = source.collection_view[fixtureViewId].value as unknown as {
+      format: { collection_groups: unknown[] };
+    };
+    view.format.collection_groups = [];
+    source.collection_query[fixtureCollectionId][fixtureViewId] =
+      {} as ExtendedRecordMap["collection_query"][string][string];
+    const key = __pageCacheInternals.getPageCacheKey(fixtureImagePageId);
+    t.after(async () => {
+      __pageCacheInternals.clear();
+      await db.delete(key);
+    });
+    t.mock.method(notion, "getPage", async () => structuredClone(source));
+    let reads = 0;
+    t.mock.method(notion, "getCollectionData", async () => {
+      reads++;
+      assert.ok(reads <= 2);
+      if (mode === "error" && reads === 2)
+        throw new Error("Collection unavailable");
+      return {
+        result: {
+          reducerResults: {
+            list_groups: {
+              type: "groups",
+              version: "v2",
+              hasMore: false,
+              results: [
+                { value: { type: "select", value: "profile" }, visible: true },
+                {
+                  value: { type: "select", value: "operations" },
+                  visible: mode !== "hidden",
+                },
+              ],
+            },
+            "results:select:profile": {
+              type: "results",
+              blockIds: ["first-profile"],
+            },
+            ...(mode === "complete-empty"
+              ? {
+                  "results:select:operations": {
+                    type: "results",
+                    blockIds: [],
+                    hasMore: false,
+                  },
+                }
+              : {}),
+          },
+        },
+        recordMap: {
+          block: {
+            "first-profile": {
+              value: {
+                id: "first-profile",
+                type: "page",
+                properties: { title: [["First profile"]] },
+              },
+            },
+          },
+        },
+      } as unknown as Awaited<ReturnType<typeof notion.getCollectionData>>;
+    });
+    const result = await getPage(fixtureImagePageId, { forceRefresh: true });
+    assert.equal(reads, mode === "incomplete" || mode === "error" ? 2 : 1);
+    const query = result.collection_query[fixtureCollectionId][
+      fixtureViewId
+    ] as unknown as Record<string, { blockIds: string[] }>;
+    assert.deepEqual(
+      query["results:select:profile"].blockIds,
+      ["first-profile"],
+      "a failed follow-up retains the successful first response",
+    );
+    assert.ok(
+      result.block["first-profile"],
+      "first-response row blocks survive follow-up failure",
+    );
+    if (mode === "complete-empty")
+      assert.deepEqual(query["results:select:operations"].blockIds, []);
+    else
+      assert.equal(
+        query["results:select:operations"],
+        undefined,
+        "never fabricate an empty bucket for missing data",
+      );
+    if (mode === "hidden") {
+      const groups = result.collection_view[fixtureViewId].value
+        .format as unknown as { collection_groups: Array<{ hidden: boolean }> };
+      assert.equal(groups.collection_groups[1].hidden, true);
+    }
+  });
 }
 
 for (const mode of ["missing", "truncated"] as const) {
