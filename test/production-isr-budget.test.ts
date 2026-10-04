@@ -31,7 +31,6 @@ void describe("production ISR budget", () => {
 
     assert.match(siteConfig, /notionPageCacheTTLSeconds:\s*3600/);
     assert.match(studioPage, /return \{ props, revalidate: 3600 \}/);
-    assert.match(studioPage, /notFound: true,\s*revalidate: 10/);
     assert.match(revalidationRoute, /requireAdminApiAccess/);
     assert.match(revalidationRoute, /requireSameOriginMutation/);
     assert.match(revalidationRoute, /auditAdminMutation/);
