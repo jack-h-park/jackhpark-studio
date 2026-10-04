@@ -373,10 +373,15 @@ const hasEmptyGroupedFormatEntries = (viewValue: unknown): boolean => {
   if (!format) return false;
 
   if (format.collection_group_by) {
-    return !Array.isArray(format.collection_groups) || format.collection_groups.length === 0;
+    return (
+      !Array.isArray(format.collection_groups) ||
+      format.collection_groups.length === 0
+    );
   }
   if (format.board_columns_by) {
-    return !Array.isArray(format.board_columns) || format.board_columns.length === 0;
+    return (
+      !Array.isArray(format.board_columns) || format.board_columns.length === 0
+    );
   }
   return false;
 };
@@ -428,12 +433,22 @@ const getGroupQueryLabelFromFormatEntry = (entry: unknown): unknown => {
   return rawValue;
 };
 
-const formatGroupEntryToBucketKey = (entry: unknown): string | null => {
+const formatGroupEntryToBucketKey = (
+  entry: unknown,
+  allowScalarLabels = false,
+): string | null => {
   const entryValue = isObject(entry) ? entry.value : undefined;
   const type = isObject(entryValue) ? entryValue.type : undefined;
   const queryLabel = getGroupQueryLabelFromFormatEntry(entry);
   if (typeof type !== "string" || type.length === 0) return null;
-  if (typeof queryLabel !== "string" || queryLabel.length === 0) return null;
+  if (
+    !(
+      allowScalarLabels ? ["string", "number", "boolean"] : ["string"]
+    ).includes(typeof queryLabel) ||
+    queryLabel === "" ||
+    (typeof queryLabel === "number" && !Number.isFinite(queryLabel))
+  )
+    return null;
   return `results:${type}:${queryLabel}`;
 };
 
@@ -472,11 +487,13 @@ const syncGroupedViewFormatFromResultBuckets = (
   );
   const visibleExistingBucketKeys = new Set(
     visibleExistingGroups
-      .map(formatGroupEntryToBucketKey)
+      .map((group) => formatGroupEntryToBucketKey(group))
       .filter(Boolean) as string[],
   );
   const hiddenExistingBucketKeys = new Set(
-    existingGroups.map(formatGroupEntryToBucketKey).filter(Boolean) as string[],
+    existingGroups
+      .map((group) => formatGroupEntryToBucketKey(group))
+      .filter(Boolean) as string[],
   );
   const hasVisibleMatchingGroup =
     visibleExistingBucketKeys.size > 0 &&
@@ -491,7 +508,9 @@ const syncGroupedViewFormatFromResultBuckets = (
   // Rebuild when groups are absent, all hidden, or only hidden groups match.
   if (
     hasVisibleMatchingGroup ||
-    (hasAnyMatchingGroup && !allGroupsHidden && visibleExistingGroups.length > 0)
+    (hasAnyMatchingGroup &&
+      !allGroupsHidden &&
+      visibleExistingGroups.length > 0)
   ) {
     return;
   }
@@ -516,7 +535,6 @@ const isGroupedQueryPayloadUsableForView = (
   viewValue: unknown,
 ) => {
   if (!isObject(entry)) return false;
-  if (!hasGroupedBlocks(entry)) return false;
 
   const format = readFormat(viewValue);
   const groupProperty =
@@ -537,19 +555,38 @@ const isGroupedQueryPayloadUsableForView = (
   }
 
   if (typeof groupProperty === "string" && groupProperty.length > 0) {
-    if (
-      bucketKeys.length > 0 &&
-      !bucketKeys.some(
-        (key) =>
-          key === `results:${groupProperty}` ||
-          key.startsWith(`results:${groupProperty}:`),
-      )
-    ) {
-      return false;
+    if (bucketKeys.length > 0) {
+      const groups = format?.collection_group_by
+        ? format.collection_groups
+        : format?.board_columns;
+      if (!Array.isArray(groups) || groups.length === 0) return false;
+      const isBoard = isObject(viewValue) && viewValue.type === "board";
+      const boardResults = isObject(entry.board_columns)
+        ? entry.board_columns.results
+        : undefined;
+      if (isBoard && !Array.isArray(boardResults)) return false;
+
+      // Notion and the renderer key reducers by type/value, not property ID.
+      // Every visible group still needs its own bucket, including empty groups.
+      return groups.every((group: unknown, index: number) => {
+        if (!isObject(group)) return false;
+        if (group.hidden === true) return true;
+        if (group.property !== groupProperty) return false;
+        if (isBoard) {
+          if (!Array.isArray(boardResults) || !isObject(boardResults[index]))
+            return false;
+          // The installed board renderer does not unwrap scalar/date labels.
+          const label = isObject(group.value) ? group.value.value : undefined;
+          if (label !== undefined && typeof label !== "string") return false;
+        }
+        const key = formatGroupEntryToBucketKey(group, !isBoard);
+        const bucket = key ? entry[key] : undefined;
+        return isObject(bucket) && Array.isArray(bucket.blockIds);
+      });
     }
   }
 
-  return true;
+  return hasGroupedBlocks(entry);
 };
 
 type CollectionQueryEntry =
@@ -1027,15 +1064,18 @@ const hydrateGroupedCollectionData = async (
             };
           }
 
-          console.warn("[grouped-collection] bootstrap refetch from v2 groups", {
-            viewId,
-            collectionId,
-            fetchCollectionId,
-            viewType: viewValue?.type,
-            reducerKeys: Object.keys(data?.result ?? {}),
-            bootstrapGroupCount: bootstrapGroups.length,
-            bootstrapFirstGroup: bootstrapGroups[0] ?? null,
-          });
+          console.warn(
+            "[grouped-collection] bootstrap refetch from v2 groups",
+            {
+              viewId,
+              collectionId,
+              fetchCollectionId,
+              viewType: viewValue?.type,
+              reducerKeys: Object.keys(data?.result ?? {}),
+              bootstrapGroupCount: bootstrapGroups.length,
+              bootstrapFirstGroup: bootstrapGroups[0] ?? null,
+            },
+          );
 
           data = await notion.getCollectionData(
             fetchCollectionId,
@@ -1114,7 +1154,10 @@ const hydrateGroupedCollectionData = async (
           }
 
           const hydratedView = recordMap.collection_view?.[viewId]?.value;
-          syncGroupedViewFormatFromResultBuckets(hydratedView, normalizedResult);
+          syncGroupedViewFormatFromResultBuckets(
+            hydratedView,
+            normalizedResult,
+          );
 
           const listGroupsContainer = normalizedResult.list_groups;
           const listGroups = isObject(listGroupsContainer)
