@@ -353,6 +353,26 @@ const buildGroupedFormatEntriesFromV2Reducer = (
     return [];
   }
 
+  const declaredGroups = isBoardType
+    ? format?.board_columns
+    : format?.collection_groups;
+  const explicitlyHidden = new Set(
+    (["list", "gallery"].includes(String(viewValue.type)) &&
+    Array.isArray(declaredGroups)
+      ? declaredGroups
+      : []
+    )
+      .filter(
+        (group: unknown) =>
+          isObject(group) &&
+          group.property === propertyKey &&
+          group.hidden === true,
+      )
+      .map((group: unknown) =>
+        formatGroupEntryToBucketKey(group, !isBoardType),
+      ),
+  );
+
   return reducerResults
     .map((group: unknown) =>
       normalizeGroupValue({
@@ -365,25 +385,12 @@ const buildGroupedFormatEntriesFromV2Reducer = (
       if (!isObject(group)) return false;
       const value = group.value;
       return isObject(value) && typeof value.type === "string";
-    });
-};
-
-const hasEmptyGroupedFormatEntries = (viewValue: unknown): boolean => {
-  const format = readFormat(viewValue);
-  if (!format) return false;
-
-  if (format.collection_group_by) {
-    return (
-      !Array.isArray(format.collection_groups) ||
-      format.collection_groups.length === 0
+    })
+    .map((group) =>
+      explicitlyHidden.has(formatGroupEntryToBucketKey(group, !isBoardType))
+        ? { ...group, hidden: true }
+        : group,
     );
-  }
-  if (format.board_columns_by) {
-    return (
-      !Array.isArray(format.board_columns) || format.board_columns.length === 0
-    );
-  }
-  return false;
 };
 
 const applyGroupedFormatEntriesToView = (
@@ -399,7 +406,9 @@ const applyGroupedFormatEntriesToView = (
       ...viewValue,
       format: {
         ...format,
-        collection_groups: groups,
+        collection_groups: ["list", "gallery"].includes(String(viewValue.type))
+          ? appendDiscoveredGroups(format.collection_groups, groups, true)
+          : groups,
       },
     };
   }
@@ -450,6 +459,70 @@ const formatGroupEntryToBucketKey = (
   )
     return null;
   return `results:${type}:${queryLabel}`;
+};
+
+const appendDiscoveredGroups = (
+  declared: unknown,
+  discovered: unknown[],
+  allowScalarLabels: boolean,
+): unknown[] => {
+  const existing: unknown[] = Array.isArray(declared) ? declared : [];
+  const keys = new Set(
+    existing.map((group) =>
+      formatGroupEntryToBucketKey(group, allowScalarLabels),
+    ),
+  );
+  return [
+    ...existing,
+    ...discovered.filter((group) => {
+      const key = formatGroupEntryToBucketKey(group, allowScalarLabels);
+      if (key === null || keys.has(key)) return false;
+      keys.add(key);
+      return true;
+    }),
+  ];
+};
+
+const hasMissingVisibleGroupResults = (
+  result: JsonRecord,
+  groups: JsonRecord[],
+  isBoard: boolean,
+): boolean =>
+  groups.some((group) => {
+    if (group.hidden === true) return false;
+    const key = formatGroupEntryToBucketKey(group, !isBoard);
+    if (!key) return false;
+    const bucket = result[key];
+    return !isObject(bucket) || !Array.isArray(bucket.blockIds);
+  });
+
+const syncCompleteDiscoveredCollectionGroups = (
+  viewValue: unknown,
+  result: JsonRecord,
+) => {
+  if (
+    !isObject(viewValue) ||
+    !["gallery", "list"].includes(String(viewValue.type))
+  )
+    return;
+  const format = readFormat(viewValue);
+  if (!format?.collection_group_by) return;
+  const reducer = result[`${viewValue.type}_groups`];
+  if (
+    !isObject(reducer) ||
+    reducer.version !== "v2" ||
+    reducer.hasMore !== false
+  )
+    return;
+  const discovered = buildGroupedFormatEntriesFromV2Reducer(result, viewValue);
+  if (hasMissingVisibleGroupResults(result, discovered, false)) return;
+  // Preserve explicit order/visibility and empty groups; add only newly discovered
+  // groups whose complete response already contains renderable row buckets.
+  format.collection_groups = appendDiscoveredGroups(
+    format.collection_groups,
+    discovered,
+    true,
+  );
 };
 
 const syncGroupedViewFormatFromResultBuckets = (
@@ -515,7 +588,7 @@ const syncGroupedViewFormatFromResultBuckets = (
     return;
   }
 
-  format[targetKey] = bucketKeys.map((bucketKey) => {
+  const discoveredGroups = bucketKeys.map((bucketKey) => {
     const [, type = "text", ...labelParts] = bucketKey.split(":");
     const label = labelParts.join(":");
 
@@ -528,6 +601,12 @@ const syncGroupedViewFormatFromResultBuckets = (
       },
     };
   });
+  format[targetKey] =
+    targetKey === "collection_groups" &&
+    isObject(view) &&
+    ["list", "gallery"].includes(String(view.type))
+      ? appendDiscoveredGroups(existingGroups, discoveredGroups, true)
+      : discoveredGroups;
 };
 
 const isGroupedQueryPayloadUsableForView = (
@@ -551,6 +630,18 @@ const isGroupedQueryPayloadUsableForView = (
   // Grouped views need either reducer buckets or a view-specific grouped payload.
   // `collection_group_results.blockIds` alone can be stale and produce an empty render.
   if (bucketKeys.length === 0 && !hasListGroups && !hasBoardColumns) {
+    return false;
+  }
+
+  // A groups reducer can advertise rows not requested by stale view metadata.
+  // Missing buckets are incomplete data, not proof that those groups are empty.
+  if (
+    hasMissingVisibleGroupResults(
+      entry,
+      buildGroupedFormatEntriesFromV2Reducer(entry, viewValue),
+      isObject(viewValue) && viewValue.type === "board",
+    )
+  ) {
     return false;
   }
 
@@ -995,6 +1086,11 @@ const hydrateGroupedCollectionData = async (
         recordMap.collection_query[collectionId][viewId] =
           normalizedExisting as unknown as CollectionQueryEntry;
 
+        syncCompleteDiscoveredCollectionGroups(
+          sanitizedView,
+          normalizedExisting,
+        );
+
         if (
           !hasGrouping ||
           isGroupedQueryPayloadUsableForView(normalizedExisting, sanitizedView)
@@ -1060,6 +1156,7 @@ const hydrateGroupedCollectionData = async (
       existingEntry,
     }) => {
       const viewFormat = readFormat(viewValue);
+      let followupFailure: { error: unknown } | undefined;
 
       try {
         let data = await notion.getCollectionData(
@@ -1096,9 +1193,12 @@ const hydrateGroupedCollectionData = async (
           viewValue,
         );
         const shouldBootstrapGroupedRefetch =
-          hasEmptyGroupedFormatEntries(viewValue) &&
           bootstrapGroups.length > 0 &&
-          getGroupedResultBucketKeys(data?.result).length === 0;
+          hasMissingVisibleGroupResults(
+            normalizeCollectionQueryEntry(data?.result),
+            bootstrapGroups,
+            viewValue.type === "board",
+          );
 
         if (shouldBootstrapGroupedRefetch) {
           const bootstrappedViewValue = applyGroupedFormatEntriesToView(
@@ -1131,37 +1231,45 @@ const hydrateGroupedCollectionData = async (
             },
           );
 
-          data = await notion.getCollectionData(
-            fetchCollectionId,
-            viewId,
-            bootstrappedViewValue,
-            {
-              limit: 999,
-            },
-          );
-
-          console.warn("[grouped-collection] second fetch result", {
-            viewId,
-            collectionId,
-            fetchCollectionId,
-            viewType: bootstrappedFormatOwner?.type,
-            collectionGroupsLen: Array.isArray(
-              bootstrappedFormat?.collection_groups,
+          data = await notion
+            .getCollectionData(
+              fetchCollectionId,
+              viewId,
+              bootstrappedViewValue,
+              {
+                limit: 999,
+              },
             )
-              ? bootstrappedFormat.collection_groups.length
-              : null,
-            boardColumnsLen: Array.isArray(bootstrappedFormat?.board_columns)
-              ? bootstrappedFormat.board_columns.length
-              : null,
-            resultKeys: data?.result ? Object.keys(data.result) : null,
-            resultBucketKeys: getGroupedResultBucketKeys(data?.result),
-            hasGalleryGroups:
-              countReducerResults(data?.result, "gallery_groups") > 0,
-            galleryGroupsLen: countReducerResults(
-              data?.result,
-              "gallery_groups",
-            ),
-          });
+            .catch((err: unknown) => {
+              // Keep the successful partial response; report the failure through
+              // the existing error path after its rows have been merged.
+              followupFailure = { error: err };
+              return data;
+            });
+
+          if (!followupFailure)
+            console.warn("[grouped-collection] second fetch result", {
+              viewId,
+              collectionId,
+              fetchCollectionId,
+              viewType: bootstrappedFormatOwner?.type,
+              collectionGroupsLen: Array.isArray(
+                bootstrappedFormat?.collection_groups,
+              )
+                ? bootstrappedFormat.collection_groups.length
+                : null,
+              boardColumnsLen: Array.isArray(bootstrappedFormat?.board_columns)
+                ? bootstrappedFormat.board_columns.length
+                : null,
+              resultKeys: data?.result ? Object.keys(data.result) : null,
+              resultBucketKeys: getGroupedResultBucketKeys(data?.result),
+              hasGalleryGroups:
+                countReducerResults(data?.result, "gallery_groups") > 0,
+              galleryGroupsLen: countReducerResults(
+                data?.result,
+                "gallery_groups",
+              ),
+            });
         }
 
         if (data?.recordMap) {
@@ -1212,29 +1320,12 @@ const hydrateGroupedCollectionData = async (
             hydratedView,
             normalizedResult,
           );
-
-          const listGroupsContainer = normalizedResult.list_groups;
-          const listGroups = isObject(listGroupsContainer)
-            ? listGroupsContainer.results
-            : undefined;
-          if (Array.isArray(listGroups) && listGroups.length > 0) {
-            const view = recordMap.collection_view?.[viewId];
-            const propertyKey = readProperty(
-              recordMap.collection_view?.[viewId]?.value?.format
-                ?.collection_group_by,
-            );
-            if (view?.value?.format) {
-              view.value.format.collection_groups = listGroups.map(
-                (group: unknown) =>
-                  normalizeGroupValue({
-                    value: isObject(group) ? group.value : undefined,
-                    property: propertyKey,
-                    hidden: isObject(group) && group.visible === false,
-                  }),
-              );
-            }
-          }
+          syncCompleteDiscoveredCollectionGroups(
+            hydratedView,
+            normalizedResult,
+          );
         }
+        if (followupFailure) throw followupFailure.error;
       } catch (err: unknown) {
         console.warn(
           `[grouped-collection] fetch failed ${collectionId}:${viewId}`,
@@ -1262,7 +1353,30 @@ const finalizeRecordMap = async (
     ? await hydrateGroupedCollectionData(recordMap, pageId)
     : recordMap;
 
-  return hydrated;
+  // Hydration merges may replace top-level bags. Keep the cached object coherent
+  // with its repaired query without a cache write or a new expiry deadline.
+  return Object.assign(recordMap, hydrated);
+};
+
+const finalizeCachedRecordMap = async (
+  recordMap: ExtendedRecordMap,
+  pageId: string,
+  cacheKey: string,
+): Promise<ExtendedRecordMap> => {
+  if (!enableGroupedCollectionHydration) return recordMap;
+  const existing = inFlightPageFetches.get(cacheKey);
+  if (existing) return existing;
+  const repair = finalizeRecordMap(recordMap, pageId);
+  inFlightPageFetches.set(cacheKey, repair);
+  try {
+    return await repair;
+  } finally {
+    // A manual refresh can replace this ordinary repair while it is in flight.
+    // Never remove that newer fetch or claim its cache-write ownership.
+    if (inFlightPageFetches.get(cacheKey) === repair) {
+      inFlightPageFetches.delete(cacheKey);
+    }
+  }
 };
 
 /**
@@ -1300,16 +1414,12 @@ export async function getPage(
     // untouched by reads.
     const memoryCached = getCachedRecordMapFromMemory(cacheKey);
     if (memoryCached) {
-      return enableGroupedCollectionHydration
-        ? finalizeRecordMap(memoryCached, pageId)
-        : memoryCached;
+      return finalizeCachedRecordMap(memoryCached, pageId, cacheKey);
     }
 
     const persistentCached = await readCachedRecordMap(cacheKey);
     if (persistentCached) {
-      return enableGroupedCollectionHydration
-        ? finalizeRecordMap(persistentCached, pageId)
-        : persistentCached;
+      return finalizeCachedRecordMap(persistentCached, pageId, cacheKey);
     }
   }
 
