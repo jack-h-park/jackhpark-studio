@@ -891,6 +891,7 @@ const loadPageFromNotion = async (
 
 const hydrateGroupedCollectionData = async (
   recordMap: ExtendedRecordMap,
+  pageId: string,
 ): Promise<ExtendedRecordMap> => {
   const collectionViews = recordMap.collection_view;
 
@@ -898,7 +899,49 @@ const hydrateGroupedCollectionData = async (
     return recordMap;
   }
 
+  // Traverse rendered content and synced references only. notion-utils also
+  // follows rich-text page mentions, but those render as links, not bodies.
+  // Unwrap records on read so parent/menu metadata and wire shape are retained.
+  const rootId = parsePageId(pageId, { uuid: true }) ?? pageId;
+  const bodyViewIds = new Set<string>();
+  const visited = new Set<string>();
+  const pending = [rootId];
+  while (pending.length) {
+    const blockId = pending.pop()!;
+    if (visited.has(blockId)) continue;
+    visited.add(blockId);
+    const block = unwrapRecordValue(recordMap.block[blockId]);
+    if (!block) continue;
+    if (
+      blockId !== rootId &&
+      (block.type === "page" || block.type === "collection_view_page")
+    ) {
+      continue;
+    }
+    if (
+      (block.type === "collection_view" ||
+        block.type === "collection_view_page") &&
+      Array.isArray(block.view_ids)
+    ) {
+      for (const viewId of block.view_ids) {
+        if (typeof viewId === "string") bodyViewIds.add(viewId);
+      }
+    }
+    if (Array.isArray(block.content)) {
+      for (const childId of block.content) {
+        if (typeof childId === "string") pending.push(childId);
+      }
+    }
+    const pointer = isObject(block.format)
+      ? block.format.transclusion_reference_pointer
+      : undefined;
+    if (isObject(pointer) && typeof pointer.id === "string") {
+      pending.push(pointer.id);
+    }
+  }
+
   const targets = Object.entries(collectionViews)
+    .filter(([viewId]) => bodyViewIds.has(viewId))
     .map(([viewId, view]) => {
       if (!view || typeof view !== "object") {
         return null;
@@ -1213,9 +1256,10 @@ const hydrateGroupedCollectionData = async (
  */
 const finalizeRecordMap = async (
   recordMap: ExtendedRecordMap,
+  pageId: string,
 ): Promise<ExtendedRecordMap> => {
   const hydrated = enableGroupedCollectionHydration
-    ? await hydrateGroupedCollectionData(recordMap)
+    ? await hydrateGroupedCollectionData(recordMap, pageId)
     : recordMap;
 
   return hydrated;
@@ -1257,14 +1301,14 @@ export async function getPage(
     const memoryCached = getCachedRecordMapFromMemory(cacheKey);
     if (memoryCached) {
       return enableGroupedCollectionHydration
-        ? finalizeRecordMap(memoryCached)
+        ? finalizeRecordMap(memoryCached, pageId)
         : memoryCached;
     }
 
     const persistentCached = await readCachedRecordMap(cacheKey);
     if (persistentCached) {
       return enableGroupedCollectionHydration
-        ? finalizeRecordMap(persistentCached)
+        ? finalizeRecordMap(persistentCached, pageId)
         : persistentCached;
     }
   }
@@ -1279,7 +1323,7 @@ export async function getPage(
   pageFetchOwners.set(cacheKey, owner);
   const fetchPromise = (async () => {
     const recordMap = await loadPageFromNotion(pageId, { forceRefresh });
-    const finalRecordMap = await finalizeRecordMap(recordMap);
+    const finalRecordMap = await finalizeRecordMap(recordMap, pageId);
 
     await writeCachedRecordMap(cacheKey, finalRecordMap, owner);
 

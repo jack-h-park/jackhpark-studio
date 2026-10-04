@@ -16,6 +16,17 @@ import {
 
 function groupedPage(type: "gallery" | "list" | "board" = "gallery") {
   const map = buildImagePageRecordMap();
+  const blockId = "28299029-c0b4-81ce-8999-d425287d3dea";
+  map.block[fixtureImagePageId].value.content?.push(blockId);
+  map.block[blockId] = {
+    value: {
+      id: blockId,
+      type: "collection_view",
+      parent_id: fixtureImagePageId,
+      collection_id: fixtureCollectionId,
+      view_ids: [fixtureViewId],
+    },
+  } as unknown as ExtendedRecordMap["block"][string];
   const groups = ["profile", "operations"].map((label) => ({
     property: "docType",
     hidden: false,
