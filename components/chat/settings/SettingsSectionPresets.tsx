@@ -5,15 +5,13 @@ import { FiSliders } from "@react-icons/all-files/fi/FiSliders";
 import { FiTarget } from "@react-icons/all-files/fi/FiTarget";
 import { FiZap } from "@react-icons/all-files/fi/FiZap";
 
+import type { PublicChatConfig } from "@/types/public-chat-config";
 import { SelectableTile } from "@/components/shared/selectable-tile";
 import { GridPanel } from "@/components/ui/grid-panel";
 import { cn } from "@/components/ui/utils";
 import { setLastDiffReason } from "@/lib/chat/historyPreviewDiffTelemetry";
 import { PRESET_DISPLAY_ORDER } from "@/lib/shared/chat-labels";
-import {
-  type AdminChatConfig,
-  type SessionChatConfig,
-} from "@/types/chat-config";
+import { type SessionChatConfig } from "@/types/chat-config";
 
 import drawerStyles from "./ChatAdvancedSettingsDrawer.module.css";
 import {
@@ -31,14 +29,20 @@ const PRESET_TILE_CLASSES: Record<PresetKey, string> = {
 };
 
 const PRESET_ICONS: Record<PresetKey, React.ReactNode> = {
-  precision: <FiTarget size={14} className={styles.presetIcon} aria-hidden="true" />,
-  default: <FiSliders size={14} className={styles.presetIcon} aria-hidden="true" />,
-  highRecall: <FiLayers size={14} className={styles.presetIcon} aria-hidden="true" />,
+  precision: (
+    <FiTarget size={14} className={styles.presetIcon} aria-hidden="true" />
+  ),
+  default: (
+    <FiSliders size={14} className={styles.presetIcon} aria-hidden="true" />
+  ),
+  highRecall: (
+    <FiLayers size={14} className={styles.presetIcon} aria-hidden="true" />
+  ),
   fast: <FiZap size={14} className={styles.presetIcon} aria-hidden="true" />,
 };
 
 type Props = {
-  adminConfig: AdminChatConfig;
+  adminConfig: PublicChatConfig;
   sessionConfig: SessionChatConfig;
   helperText?: string;
   setSessionConfig: (
@@ -61,8 +65,7 @@ export function PresetSelectorTabs({
     setSessionConfig(() => ({
       ...adminConfig.presets[presetKey],
       presetId: presetKey,
-      additionalSystemPrompt:
-        adminConfig.presets[presetKey].additionalSystemPrompt ?? "",
+      additionalSystemPrompt: "",
       appliedPreset: presetKey,
     }));
     setLastDiffReason("preset");

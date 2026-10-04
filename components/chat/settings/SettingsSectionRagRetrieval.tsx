@@ -3,7 +3,8 @@
 import { FiTarget } from "@react-icons/all-files/fi/FiTarget";
 
 import type { RankerId } from "@/lib/shared/models";
-import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import type { SessionChatConfig } from "@/types/chat-config";
+import type { PublicChatConfig } from "@/types/public-chat-config";
 import { CheckboxChoice } from "@/components/ui/checkbox";
 import { SelectField, SliderField } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
@@ -20,9 +21,8 @@ import { isSettingLocked } from "@/lib/shared/chat-settings-policy";
 import { LockedByPresetNotice, ManagedByPresetBadge } from "./LockedByPreset";
 import { createSessionOverrideUpdater } from "./preset-overrides";
 
-
 type Props = {
-  adminConfig: AdminChatConfig;
+  adminConfig: PublicChatConfig;
   sessionConfig: SessionChatConfig;
   setSessionConfig: (
     value: SessionChatConfig | ((prev: SessionChatConfig) => SessionChatConfig),

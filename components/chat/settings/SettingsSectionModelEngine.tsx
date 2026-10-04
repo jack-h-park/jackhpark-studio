@@ -5,7 +5,8 @@ import { FiCpu } from "@react-icons/all-files/fi/FiCpu";
 import { useMemo } from "react";
 
 import type { EmbeddingModelId } from "@/lib/shared/models";
-import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import type { SessionChatConfig } from "@/types/chat-config";
+import type { PublicChatConfig } from "@/types/public-chat-config";
 import { SelectField } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import {
@@ -21,7 +22,7 @@ import { LockedByPresetNotice, ManagedByPresetBadge } from "./LockedByPreset";
 import { createSessionOverrideUpdater } from "./preset-overrides";
 
 type Props = {
-  adminConfig: AdminChatConfig;
+  adminConfig: PublicChatConfig;
   sessionConfig: SessionChatConfig;
   setSessionConfig: ChatConfigSetter;
 };

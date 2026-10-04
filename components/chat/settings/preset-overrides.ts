@@ -1,5 +1,6 @@
 import type { PresetKey } from "@/lib/shared/chat-labels";
-import type { AdminChatConfig, SessionChatConfig } from "@/types/chat-config";
+import type { SessionChatConfig } from "@/types/chat-config";
+import type { PublicChatConfig } from "@/types/public-chat-config";
 
 export { PRESET_LABELS, type PresetKey } from "@/lib/shared/chat-labels";
 
@@ -30,7 +31,7 @@ export function resolvePresetKey(sessionConfig: SessionChatConfig): PresetKey {
 }
 
 export function getPresetDefaults(
-  adminConfig: AdminChatConfig,
+  adminConfig: PublicChatConfig,
   presetKey: PresetKey,
 ) {
   return adminConfig.presets[presetKey] ?? adminConfig.presets.default;
@@ -40,16 +41,14 @@ export function computeOverridesActive({
   adminConfig,
   sessionConfig,
 }: {
-  adminConfig: AdminChatConfig;
+  adminConfig: PublicChatConfig;
   sessionConfig: SessionChatConfig;
 }) {
   const presetKey = resolvePresetKey(sessionConfig);
   const presetDefaults = getPresetDefaults(adminConfig, presetKey);
   const summaryMatches =
     sessionConfig.summaryLevel === presetDefaults.summaryLevel;
-  const promptMatches =
-    (sessionConfig.additionalSystemPrompt ?? "") ===
-    (presetDefaults.additionalSystemPrompt ?? "");
+  const promptMatches = (sessionConfig.additionalSystemPrompt ?? "") === "";
   const llmMatches = sessionConfig.llmModel === presetDefaults.llmModel;
   const telemetryMatches =
     sessionConfig.showTelemetry === (presetDefaults.showTelemetry ?? false);

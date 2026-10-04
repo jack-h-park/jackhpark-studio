@@ -103,8 +103,7 @@ export function ChatAdvancedSettingsDrawer({
     setSessionConfig(() => ({
       ...adminConfig.presets.default,
       presetId: "default",
-      additionalSystemPrompt:
-        adminConfig.presets.default.additionalSystemPrompt ?? "",
+      additionalSystemPrompt: "",
       appliedPreset: "default",
     }));
   };
