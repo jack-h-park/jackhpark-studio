@@ -648,13 +648,24 @@ const getNavigationLinkPages = pMemoize(
     if (navigationStyle !== "default" && navigationLinkPageIds.length) {
       return pMap(
         navigationLinkPageIds,
-        async (navigationLinkPageId) =>
-          notion.getPage(navigationLinkPageId, {
+        async (navigationLinkPageId) => {
+          const recordMap = await notion.getPage(navigationLinkPageId, {
             chunkLimit: 1,
             fetchMissingBlocks: false,
             fetchCollections: false,
+            fetchRelationPages: false,
             signFileUrls: false,
-          }),
+          });
+          // Navigation chunks can still contain collection metadata despite
+          // fetchCollections:false. Keep it out of the body hydration scope
+          // and never replace a body's current view or results with menu data.
+          return {
+            ...recordMap,
+            collection: {},
+            collection_view: {},
+            collection_query: {},
+          };
+        },
         {
           concurrency: 4,
         },

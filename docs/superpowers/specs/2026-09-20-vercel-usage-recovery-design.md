@@ -66,14 +66,29 @@ URLs, revisit the delivery-stage order documented in
 ### 1. Public-page freshness boundary
 
 Set the normal successful ISR interval for `/studio` and `/[pageId]` to 3600
-seconds. Keep the existing short `/studio` error fallback unchanged: a
-transient Notion failure must remain retryable rather than being published as a
-long-lived not-found page.
+seconds. Updated on 2026-10-04: transient `/studio` failures must propagate,
+preserving the last successful ISR artifact rather than publishing a
+not-found result with a short retry interval. Builds and administrator
+refreshes must report failure explicitly. Next.js can retry background
+regeneration on a subsequent request; this is not a retry-backoff mechanism.
 
 Notion record-map caching must use the same 3600-second normal interval. This
 prevents an on-demand regeneration from doing duplicate Notion work when a
 fresh record map already exists, while preserving a bounded maximum staleness
 if the manual refresh is missed.
+
+Custom navigation chunks must not add collections, collection views, or
+collection-query results to the requested page. `fetchCollections: false`
+alone does not guarantee that these bags are empty; discard those bags before
+memoizing and merging navigation records, and disable relation-page fetching
+for navigation. Preserve the body's own collection data and the existing
+navigation block/manual-refresh collision behavior. Already-cached maps from
+older code retire through their existing TTL; this change does not purge
+shared caches or force a site-wide regeneration.
+
+The current workspace restriction is disabled. If authoritative workspace or
+access-denial checks are enabled later, distinguish them from transient
+upstream failures before applying the preserve-last-artifact policy.
 
 ### 2. Authenticated targeted revalidation
 
