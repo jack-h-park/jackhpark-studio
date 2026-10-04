@@ -90,6 +90,36 @@ The current workspace restriction is disabled. If authoritative workspace or
 access-denial checks are enabled later, distinguish them from transient
 upstream failures before applying the preserve-last-artifact policy.
 
+#### Body-scoped collection hydration
+
+PR #218 removed navigation collection bags, but its production verification on
+2026-10-04 still showed an initial collection query on `/confluence`. The rendered
+page record has no body content; the fetched view belongs to its parent collection
+and is not rendered on that leaf page. Navigation filtering alone therefore does
+not bound the supplemental hydration pass.
+
+Supplemental hydration must select views referenced by collection blocks reachable
+from the requested page ID, rather than every entry in `collection_view`. Use the
+rendered `content` edges and synced-block pointers, unwrapping wire records on
+read from an explicit root ID. Do not follow rich-text page mentions: the renderer
+displays those as links, whereas the general-purpose page-content utility also
+traverses their targets. Include nested body collections and a root database's
+own views. Linked child pages and child databases are page links, not instructions
+to hydrate their contents. Retain unrelated metadata for breadcrumbs and other
+consumers; do not delete collection data from the returned record map.
+
+Apply this boundary to cold, memory-cached, persistent-cached, and manual-refresh
+reads. Preserve renderer-ready grouped results, empty groups, and the existing
+stale-group repair behavior for body views. This change scopes only supplemental
+hydration; it does not disable the initial Notion client's body collection fetch,
+relation-page fetching, or the post-deployment sitemap availability check.
+
+Production verification must distinguish query-count evidence from billing:
+observe a regenerated leaf such as `/confluence`, confirm its parent view is not
+supplementally queried, and verify grouped body pages still render. Compare CPU
+and ISR Writes in equivalent Usage-dashboard windows after deployment; neither a
+filtered runtime-log sample nor a cumulative quota alert proves cost savings.
+
 ### 2. Authenticated targeted revalidation
 
 Add a same-origin, authenticated administrator mutation endpoint under

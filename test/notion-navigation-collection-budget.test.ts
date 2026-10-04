@@ -129,6 +129,17 @@ void test("custom navigation never adds collection hydration targets to a page",
     "missing body group data is hydrated without importing an overlapping menu result",
     async () => {
       source = buildImagePageRecordMap();
+      const bodyBlockId = "28299029-c0b4-81ce-8999-d425287d3deb";
+      source.block[fixtureImagePageId].value.content?.push(bodyBlockId);
+      source.block[bodyBlockId] = {
+        value: {
+          id: bodyBlockId,
+          type: "collection_view",
+          parent_id: fixtureImagePageId,
+          collection_id: fixtureCollectionId,
+          view_ids: [fixtureViewId],
+        },
+      } as unknown as ExtendedRecordMap["block"][string];
       source.collection_view[fixtureViewId] = view(
         fixtureViewId,
         fixtureCollectionId,
