@@ -11,6 +11,7 @@ import { readJsonl } from "@/scripts/local-llm-bakeoff/results-store.mjs";
 import {
   BACKGROUND_PROMPT,
   msUntil,
+  restoreFromStateFile,
   runBakeoff,
 } from "@/scripts/local-llm-bakeoff/run-bakeoff.mjs";
 
@@ -26,6 +27,8 @@ interface FakeOptions {
   failAllChat?: boolean;
   /** Chat requests whose last message equals this never finish streaming. */
   stallContent?: string;
+  /** Called when a stalled request arrives, before it is left hanging. */
+  onStall?: () => void;
   /** Background (concurrency-pass) generations get HTTP 500. */
   failBackground?: boolean;
   /** Loading this model key answers HTTP 500. */
@@ -95,6 +98,7 @@ async function startFakeLmStudio(options: FakeOptions = {}) {
       if (content === options.stallContent) {
         res.writeHead(200, { "Content-Type": "text/event-stream" });
         res.flushHeaders();
+        options.onStall?.();
         return; // never ends; the runner's request timeout must cut it off
       }
       // The "thinking on" candidate (no kwargs) streams reasoning first.
@@ -407,11 +411,15 @@ void test("a stalled stream times out, is recorded as failed, and the run restor
 });
 
 void test("a run abort leaves the in-flight item unwritten", async () => {
-  const fake = await startFakeLmStudio({ stallContent: "second question" });
+  // The abort is triggered by the stalled request arriving, not by a timer, so
+  // it always lands while q2 is in flight and after q1 has been written.
+  const controller = new AbortController();
+  const fake = await startFakeLmStudio({
+    stallContent: "second question",
+    onStall: () => controller.abort(),
+  });
   const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
   try {
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 300);
     await runBakeoff(
       baseOptions(fake, dir, {
         variants: [{ ...variants[0], thinkingCandidates: undefined }],
@@ -419,6 +427,7 @@ void test("a run abort leaves the in-flight item unwritten", async () => {
       }),
     );
     const rows = await readJsonl(join(dir, "results.jsonl"));
+    assert.ok(rows.some((r) => r.itemId === "q1" && r.pass === "baseline"));
     assert.equal(
       rows.some((r) => r.itemId === "q2"),
       false,
@@ -493,4 +502,38 @@ void test("msUntil rejects an hour or minute out of range", () => {
   const from = new Date(2026, 8, 26, 23, 0, 0);
   assert.throws(() => msUntil("24:00", from), /HH:MM/);
   assert.throws(() => msUntil("12:60", from), /HH:MM/);
+});
+
+void test("restoreFromStateFile restores, stamps restoredAt, and the next run snapshots fresh", async () => {
+  const fake = await startFakeLmStudio({
+    initiallyLoaded: [["model-b", null]],
+  });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const statePath = join(dir, "state.json");
+  try {
+    const takenAt = "2026-10-01T00:00:00.000Z";
+    await writeFile(
+      statePath,
+      JSON.stringify({ takenAt, snapshot: snapshotA }),
+    );
+    await restoreFromStateFile({ baseUrl: fake.baseUrl }, statePath);
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+    const state = JSON.parse(await readFile(statePath, "utf8")) as {
+      takenAt: string;
+      snapshot: unknown;
+      restoredAt: unknown;
+    };
+    assert.equal(state.takenAt, takenAt);
+    assert.deepEqual(state.snapshot, snapshotA);
+    assert.equal(typeof state.restoredAt, "string");
+
+    // Something else is loaded by the next night; the run must not evict it.
+    fake.loaded.clear();
+    fake.loaded.set("model-c", null);
+    await runBakeoff(baseOptions(fake, dir));
+    assert.deepEqual([...fake.loaded.entries()], [["model-c", null]]);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
 });

@@ -16,6 +16,7 @@ import { measureChatStream } from "./stream-metrics.mjs";
  * @typedef {{ id: string; key: string; role: string; downloadRef: string | null; loadConfig: Record<string, unknown>; requestExtras: Record<string, unknown>; thinkingCandidates?: Record<string, unknown>[] }} Variant
  * @typedef {{ baseUrl: string; apiToken?: string; variants: Variant[]; items: FixtureItem[]; resultsPath: string; statePath: string; reps: number; requestTimeoutMs?: number; fetchImpl?: typeof fetch; now?: () => number; readMemory?: () => Promise<number>; signal?: AbortSignal; log?: (line: string) => void }} RunOptions
  * @typedef {Awaited<ReturnType<typeof openResultsStore>>} ResultsStore
+ * @typedef {import("./lmstudio-admin.mjs").LoadedInstance} LoadedInstance
  */
 
 const DEFAULT_MAX_TOKENS = 1024;
@@ -475,7 +476,7 @@ function assertRunnable(reps, items) {
  * file without `restoredAt` means a previous run died before restoring, so its
  * snapshot is kept instead of being replaced by the half-run state.
  * @param {string} statePath
- * @returns {Promise<{ takenAt: string; snapshot: Awaited<ReturnType<ReturnType<typeof createLmStudioAdmin>["loadedLlmInstances"]>> } | null>}
+ * @returns {Promise<{ takenAt: string; snapshot: LoadedInstance[] } | null>}
  */
 async function readUnrestoredState(statePath) {
   let text;
@@ -489,6 +490,42 @@ async function readUnrestoredState(statePath) {
   }
   const state = JSON.parse(text);
   return state.restoredAt ? null : state;
+}
+
+/**
+ * Reloads a snapshot and marks the state file as restored, so the next run
+ * takes a fresh snapshot instead of reusing this one.
+ * @param {ReturnType<typeof createLmStudioAdmin>} admin
+ * @param {string} statePath
+ * @param {string} takenAt
+ * @param {LoadedInstance[]} snapshot
+ */
+async function restoreAndStamp(admin, statePath, takenAt, snapshot) {
+  await admin.restore(snapshot);
+  await writeFile(
+    statePath,
+    JSON.stringify(
+      { takenAt, snapshot, restoredAt: new Date().toISOString() },
+      null,
+      2,
+    ),
+  );
+}
+
+/**
+ * The `--mode restore` path: put back what a killed run recorded in the state
+ * file.
+ * @param {Pick<RunOptions, "baseUrl" | "apiToken" | "fetchImpl">} options
+ * @param {string} statePath
+ */
+export async function restoreFromStateFile(options, statePath) {
+  const { takenAt, snapshot } = JSON.parse(await readFile(statePath, "utf8"));
+  await restoreAndStamp(
+    createLmStudioAdmin(options),
+    statePath,
+    takenAt,
+    snapshot,
+  );
 }
 
 /** @param {RunOptions} options */
@@ -530,15 +567,7 @@ export async function runBakeoff(options) {
     }
   } finally {
     log("restoring snapshot");
-    await admin.restore(snapshot);
-    await writeFile(
-      options.statePath,
-      JSON.stringify(
-        { takenAt, snapshot, restoredAt: new Date().toISOString() },
-        null,
-        2,
-      ),
-    );
+    await restoreAndStamp(admin, options.statePath, takenAt, snapshot);
     log("restored");
   }
 }
@@ -593,18 +622,6 @@ async function main() {
   const variants = manifest.variants.filter(
     /** @param {Variant} v */ (v) => only === null || only.has(v.id),
   );
-  const controller = new AbortController();
-  for (const signalName of ["SIGINT", "SIGTERM"]) {
-    process.on(signalName, () => {
-      // A second Ctrl-C must not kill the process mid-restore.
-      if (controller.signal.aborted) {
-        console.log("restore in progress; please wait");
-        return;
-      }
-      console.log(`${signalName}: stopping; the snapshot will be restored`);
-      controller.abort();
-    });
-  }
   const base = {
     baseUrl: values["base-url"] ?? "http://127.0.0.1:1234",
     apiToken: process.env.LMSTUDIO_API_TOKEN || undefined,
@@ -626,10 +643,7 @@ async function main() {
       return;
     }
     case "restore": {
-      const { snapshot } = JSON.parse(
-        await readFile(values.state ?? "state.json", "utf8"),
-      );
-      await createLmStudioAdmin(base).restore(snapshot);
+      await restoreFromStateFile(base, values.state ?? "state.json");
       console.log("restored");
       return;
     }
@@ -637,9 +651,25 @@ async function main() {
       if (!values.fixture) {
         throw new Error("--fixture is required for --mode run");
       }
-      const { items } = JSON.parse(await readFile(values.fixture, "utf8"));
+      const fixture = JSON.parse(await readFile(values.fixture, "utf8"));
+      if (!Array.isArray(fixture.items)) {
+        throw new Error("fixture has no items array");
+      }
+      const { items } = fixture;
       const reps = Number(values.reps);
       assertRunnable(reps, items);
+      const controller = new AbortController();
+      for (const signalName of ["SIGINT", "SIGTERM"]) {
+        process.on(signalName, () => {
+          // A second Ctrl-C must not kill the process mid-restore.
+          if (controller.signal.aborted) {
+            console.log("restore in progress; please wait");
+            return;
+          }
+          console.log(`${signalName}: stopping; the snapshot will be restored`);
+          controller.abort();
+        });
+      }
       if (values["start-at"]) {
         const waitMs = msUntil(values["start-at"], new Date());
         console.log(
