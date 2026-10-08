@@ -1,0 +1,63 @@
+// scripts/local-llm-bakeoff/fixture.mjs
+
+/**
+ * @typedef {{ role: "system" | "user" | "assistant"; content: string }} ChatMessage
+ * @typedef {{ id: string; lang: "en" | "ko"; kind: "project" | "out_of_scope" | "multi_turn"; turns: ChatMessage[] }} Question
+ * @typedef {{ label: string | null; seq: number; body: { stream?: boolean; temperature?: number; max_tokens?: number; max_completion_tokens?: number; messages: { role: string; content: unknown }[] } }} RecordedRequest
+ */
+
+/** @param {Question} question */
+function finalUserText(question) {
+  const last = question.turns.at(-1);
+  if (!last || last.role !== "user") {
+    throw new Error(`question ${question.id} must end with a user turn`);
+  }
+  return last.content;
+}
+
+/**
+ * For each question, keeps the request that produced the streamed answer: the
+ * last streamed call recorded under its label. Earlier calls under the same
+ * label are auxiliary (query rewrite, summary) and only counted.
+ * @param {Question[]} questions
+ * @param {RecordedRequest[]} recorded
+ */
+export function buildFixture(questions, recorded) {
+  const items = questions.map((question) => {
+    const calls = recorded.filter((request) => request.label === question.id);
+    const main = calls.filter((request) => request.body.stream === true).at(-1);
+    if (!main) {
+      throw new Error(
+        `no streamed request recorded for ${question.id}; the app did not route it to the recorder (check the model allowlist and LMSTUDIO_BASE_URL)`,
+      );
+    }
+    const last = main.body.messages.at(-1);
+    if (
+      !last ||
+      last.role !== "user" ||
+      typeof last.content !== "string" ||
+      !last.content.includes(finalUserText(question))
+    ) {
+      throw new Error(
+        `recorded answer request for ${question.id} does not end with its question`,
+      );
+    }
+    return {
+      id: question.id,
+      lang: question.lang,
+      kind: question.kind,
+      messages: main.body.messages.map((message) => ({
+        role: message.role,
+        content: String(message.content),
+      })),
+      temperature:
+        typeof main.body.temperature === "number"
+          ? main.body.temperature
+          : null,
+      maxTokens:
+        main.body.max_tokens ?? main.body.max_completion_tokens ?? null,
+      auxiliaryCalls: calls.length - 1,
+    };
+  });
+  return { items };
+}
