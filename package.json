@@ -165,6 +165,7 @@
     "three": "^0.184.0"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
     "@fisch0920/config": "^1.2.1",
     "@next/bundle-analyzer": "^15.3.3",
     "@types/dotenv": "^8.2.3",
