@@ -31,6 +31,13 @@ export function buildFixture(questions, recorded) {
         `no streamed request recorded for ${question.id}; the app did not route it to the recorder (check the model allowlist and LMSTUDIO_BASE_URL)`,
       );
     }
+    for (const message of main.body.messages) {
+      if (typeof message.content !== "string") {
+        throw new TypeError(
+          `recorded message in ${question.id} has non-string content`,
+        );
+      }
+    }
     const last = main.body.messages.at(-1);
     if (
       !last ||
@@ -48,7 +55,7 @@ export function buildFixture(questions, recorded) {
       kind: question.kind,
       messages: main.body.messages.map((message) => ({
         role: message.role,
-        content: String(message.content),
+        content: message.content,
       })),
       temperature:
         typeof main.body.temperature === "number"

@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 import { readChatResponseBody } from "../smoke/lib/chat-response";
-import { withAbortTimeout } from "../smoke/lib/smoke-core";
 import { buildFixture } from "./fixture.mjs";
 import { assertOutsideRepo } from "./private-path.mjs";
 import { STUB_ANSWER } from "./recorder.mjs";
@@ -43,24 +42,19 @@ async function askApp(
   turns: ChatTurn[],
   sessionConfig?: Record<string, string>,
 ) {
-  return withAbortTimeout(REQUEST_TIMEOUT_MS, async (signal) => {
-    const response = await fetch(`${values.app}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(
-        sessionConfig
-          ? { messages: turns, sessionConfig }
-          : { messages: turns },
-      ),
-      signal,
-    });
-    if (response.status !== 200) {
-      throw new Error(
-        `HTTP ${response.status} ${await response.text()}`.trim(),
-      );
-    }
-    return readChatResponseBody(response);
+  // The signal stays live while the body is read, so it bounds the stream too.
+  const response = await fetch(`${values.app}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(
+      sessionConfig ? { messages: turns, sessionConfig } : { messages: turns },
+    ),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
+  if (response.status !== 200) {
+    throw new Error(`HTTP ${response.status} ${await response.text()}`.trim());
+  }
+  return readChatResponseBody(response);
 }
 
 async function recordLocalPass(
@@ -69,10 +63,15 @@ async function recordLocalPass(
   recorderLog: string,
 ) {
   for (const question of questions) {
-    await fetch(`${values.recorder}/__label`, {
+    const labelResponse = await fetch(`${values.recorder}/__label`, {
       method: "POST",
       body: JSON.stringify({ label: question.id }),
     });
+    if (!labelResponse.ok) {
+      throw new Error(
+        `${question.id}: the recorder rejected the label (HTTP ${labelResponse.status})`,
+      );
+    }
     const result = await askApp(question.turns, { llmModel: LOCAL_MODEL_ID });
     if (!result.answerText.includes(STUB_ANSWER)) {
       throw new Error(
@@ -107,6 +106,9 @@ async function recordReferencePass(questions: Question[], outDir: string) {
     };
     try {
       const result = await askApp(question.turns);
+      if (result.answerText.trim() === "") {
+        throw new Error("empty answer");
+      }
       await appendFile(
         path,
         `${JSON.stringify({ ...identity, ok: true, text: result.answerText })}\n`,
@@ -138,6 +140,7 @@ async function main() {
     if (!values["recorder-log"]) {
       throw new Error("--recorder-log is required for --pass local");
     }
+    assertOutsideRepo(values["recorder-log"], repoRoot);
     await recordLocalPass(questions, outDir, values["recorder-log"]);
   } else if (values.pass === "reference") {
     await recordReferencePass(questions, outDir);

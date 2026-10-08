@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -48,6 +48,37 @@ void test("the recorder logs labelled requests and answers with the stub", async
         ["q1", 1],
         ["q1", 2],
       ],
+    );
+  } finally {
+    await recorder.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("the recorder starts a fresh log instead of appending to a stale one", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-rec-"));
+  const logPath = join(dir, "log.jsonl");
+  await writeFile(
+    logPath,
+    `${JSON.stringify({ label: "stale", seq: 41, body: {} })}\n`,
+  );
+  const recorder = await startRecorder({ port: 0, logPath });
+  try {
+    await fetch(`${recorder.url}/__label`, {
+      method: "POST",
+      body: JSON.stringify({ label: "q1" }),
+    });
+    await fetch(`${recorder.url}/v1/chat/completions`, {
+      method: "POST",
+      body: JSON.stringify({
+        stream: true,
+        messages: [{ role: "user", content: "hi" }],
+      }),
+    });
+    const log = await readJsonl(logPath);
+    assert.deepEqual(
+      log.map((row) => [row.label, row.seq]),
+      [["q1", 1]],
     );
   } finally {
     await recorder.close();
@@ -127,6 +158,29 @@ void test("buildFixture refuses a request that does not end with the question", 
         ],
       ),
     /does not end with its question/,
+  );
+});
+
+void test("buildFixture refuses a message whose content is not a string", () => {
+  assert.throws(
+    () =>
+      buildFixture(
+        [question],
+        [
+          {
+            label: "q1",
+            seq: 1,
+            body: {
+              stream: true,
+              messages: [
+                { role: "system", content: [{ type: "text", text: "ctx" }] },
+                { role: "user", content: "What did Jack build?" },
+              ],
+            },
+          },
+        ],
+      ),
+    /recorded message in q1 has non-string content/,
   );
 });
 

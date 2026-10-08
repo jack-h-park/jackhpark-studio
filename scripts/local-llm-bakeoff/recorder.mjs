@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // scripts/local-llm-bakeoff/recorder.mjs
 import { once } from "node:events";
-import { appendFile } from "node:fs/promises";
+import { appendFile, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
+
+import { assertOutsideRepo } from "./private-path.mjs";
 
 export const STUB_ANSWER = "Recorded.";
 const STUB_MODEL = "recorder-stub";
@@ -75,6 +77,8 @@ function stubCompletion() {
  * @param {{ port: number; logPath: string; host?: string }} options
  */
 export async function startRecorder({ port, logPath, host = "127.0.0.1" }) {
+  // A reused log would mix old rows into seq and auxiliary-call counts.
+  await writeFile(logPath, "");
   /** @type {string | null} */
   let label = null;
   let seq = 0;
@@ -136,6 +140,10 @@ async function main() {
   if (!values.log) {
     throw new Error("--log is required");
   }
+  assertOutsideRepo(
+    values.log,
+    fileURLToPath(new URL("../..", import.meta.url)),
+  );
   const recorder = await startRecorder({
     port: Number(values.port),
     logPath: values.log,
