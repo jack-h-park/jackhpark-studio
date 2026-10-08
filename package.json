@@ -139,7 +139,7 @@
     "jsdom": "^26.1.0",
     "ky": "^1.8.1",
     "lqip-modern": "^2.2.1",
-    "next": "^15.5.24",
+    "next": "^15.5.27",
     "next-auth": "4.24.15",
     "notion-client": "7.7.1",
     "notion-types": "7.7.1",
