@@ -176,7 +176,7 @@ export function summarize(
       variant,
       requests: baseline.length,
       errors: baseline.length - okBaseline.length,
-      ttftP50Ms: percentile(ttftValues(okBaseline), 50),
+      ttftP50Ms: percentile(ttftValues(baseline), 50),
       ttftP95Ms: percentile(ttftValues(baseline), 95),
       decodeP50: percentile(
         numbers(okBaseline.map((r) => r.decodeTokensPerSecond)),

@@ -120,6 +120,99 @@ void test("slow decoding fails; an unreviewed ungrounded flag is pending; a conf
   );
 });
 
+void test("majority-failed baseline rows: p50 and p95 both Infinity", () => {
+  const results: ResultRow[] = [
+    {
+      variant: "mostly-fail",
+      pass: "baseline",
+      itemId: "f1",
+      rep: 1,
+      ok: false,
+    },
+    {
+      variant: "mostly-fail",
+      pass: "baseline",
+      itemId: "f2",
+      rep: 1,
+      ok: false,
+    },
+    {
+      variant: "mostly-fail",
+      pass: "baseline",
+      itemId: "f3",
+      rep: 1,
+      ok: false,
+    },
+    {
+      variant: "mostly-fail",
+      pass: "baseline",
+      itemId: "q1",
+      rep: 1,
+      ok: true,
+      ttftMs: 800,
+      decodeTokensPerSecond: 60,
+    },
+    {
+      variant: "mostly-fail",
+      pass: "baseline",
+      itemId: "q2",
+      rep: 1,
+      ok: true,
+      ttftMs: 800,
+      decodeTokensPerSecond: 60,
+    },
+  ];
+  const scores = [
+    ...reference,
+    ...Array.from({ length: 5 }, (_, i) =>
+      score("mostly-fail", i < 3 ? `f${i + 1}` : `q${i - 2}`, "project"),
+    ),
+  ];
+  const summaries = summarize(results, scores, []);
+  const mostly = summaries.find((s) => s.variant === "mostly-fail");
+  assert.ok(mostly);
+  assert.equal(mostly.ttftP50Ms, Infinity);
+  assert.equal(mostly.ttftP95Ms, Infinity);
+  assert.ok(mostly.failedCriteria.includes("ttft_p50"));
+  assert.ok(mostly.failedCriteria.includes("ttft_p95"));
+});
+
+void test("ok: true row with missing ttftMs contributes Infinity", () => {
+  const results: ResultRow[] = [
+    {
+      variant: "no-ttft",
+      pass: "baseline",
+      itemId: "q1",
+      rep: 1,
+      ok: true,
+      decodeTokensPerSecond: 60,
+    },
+    {
+      variant: "no-ttft",
+      pass: "baseline",
+      itemId: "q2",
+      rep: 1,
+      ok: true,
+      ttftMs: 800,
+      decodeTokensPerSecond: 60,
+    },
+  ];
+  const scores = [
+    ...reference,
+    score("no-ttft", "q1", "project"),
+    score("no-ttft", "q2", "out_of_scope", { refused: true }),
+  ];
+  const summaries = summarize(results, scores, []);
+  const noTtft = summaries.find((s) => s.variant === "no-ttft");
+  assert.ok(noTtft);
+  // ttftValues([q1 ok=true no ttftMs, q2 ok=true ttftMs=800]) = [Infinity, 800]
+  // Sorted = [800, Infinity]; p50 at index 0 = 800; p95 at index 1 = Infinity
+  assert.equal(noTtft.ttftP50Ms, 800);
+  assert.equal(noTtft.ttftP95Ms, Infinity);
+  assert.ok(!noTtft.failedCriteria.includes("ttft_p50"));
+  assert.ok(noTtft.failedCriteria.includes("ttft_p95"));
+});
+
 void test("failed baseline rows contribute Infinity to TTFT, failing the gate", () => {
   const results: ResultRow[] = [
     {
@@ -200,6 +293,43 @@ void test("judge errors bump gate to pending-review unless already failing", () 
   assert.equal(judged.gate, "pending-review");
 });
 
+void test("judge error plus failing criterion stays fail", () => {
+  const results: ResultRow[] = [
+    {
+      variant: "fail-and-judge",
+      pass: "baseline",
+      itemId: "q1",
+      rep: 1,
+      ok: true,
+      ttftMs: 3500,
+      decodeTokensPerSecond: 60,
+    },
+    {
+      variant: "fail-and-judge",
+      pass: "baseline",
+      itemId: "q2",
+      rep: 1,
+      ok: true,
+      ttftMs: 3500,
+      decodeTokensPerSecond: 60,
+    },
+  ];
+  const scores = [
+    ...reference,
+    score("fail-and-judge", "q1", "project"),
+    score("fail-and-judge", "q2", "out_of_scope", {
+      refused: true,
+      judgeError: "timeout",
+    }),
+  ];
+  const summaries = summarize(results, scores, []);
+  const failJudge = summaries.find((s) => s.variant === "fail-and-judge");
+  assert.ok(failJudge);
+  assert.equal(failJudge.judgeErrors, 1);
+  assert.ok(failJudge.failedCriteria.includes("ttft_p95"));
+  assert.equal(failJudge.gate, "fail");
+});
+
 void test("quality ratio uses only items both scored without judgeError", () => {
   const results: ResultRow[] = [...speedRows("qual", 800, 60)];
   const scores = [
@@ -208,8 +338,7 @@ void test("quality ratio uses only items both scored without judgeError", () => 
       variant: "gpt-6-luna",
       itemId: "q2",
       kind: "project",
-      correctness: 5,
-      judgeError: "failed",
+      correctness: 1,
     },
     { variant: "qual", itemId: "q1", kind: "project", correctness: 5 },
     {
@@ -223,7 +352,10 @@ void test("quality ratio uses only items both scored without judgeError", () => 
   const summaries = summarize(results, scores, []);
   const qual = summaries.find((s) => s.variant === "qual");
   assert.ok(qual);
-  // Both have 1 valid score: qual mean = 5, ref mean = 5, ratio = 1.0
+  // Reference: q1=5, q2=1 (mean=3 if both; only q1 valid in common=5)
+  // Variant: q1=5, q2=error (only q1 valid)
+  // Common: q1 only, both have score 5, so ratio = 5/5 = 1.0
+  // Old code would have: qual mean = 5, ref mean = 3, ratio ≈ 1.67
   assert.equal(qual.qualityRatio, 1.0);
 });
 
@@ -258,6 +390,58 @@ void test("no reference rows → quality fails", () => {
   const solo = summaries.find((s) => s.variant === "solo");
   assert.ok(solo);
   assert.deepEqual(solo.failedCriteria, ["quality"]);
+});
+
+void test("threshold boundaries: ttft_p95 at 3000 passes, above fails", () => {
+  const passResults: ResultRow[] = [
+    {
+      variant: "at-p95",
+      pass: "baseline",
+      itemId: "q1",
+      rep: 1,
+      ok: true,
+      ttftMs: 3000,
+    },
+    {
+      variant: "at-p95",
+      pass: "baseline",
+      itemId: "q2",
+      rep: 1,
+      ok: true,
+      ttftMs: 3000,
+    },
+  ];
+  const failResults: ResultRow[] = [
+    {
+      variant: "over-p95",
+      pass: "baseline",
+      itemId: "q1",
+      rep: 1,
+      ok: true,
+      ttftMs: 3001,
+    },
+    {
+      variant: "over-p95",
+      pass: "baseline",
+      itemId: "q2",
+      rep: 1,
+      ok: true,
+      ttftMs: 3001,
+    },
+  ];
+  const scores = [
+    ...reference,
+    score("at-p95", "q1", "project"),
+    score("at-p95", "q2", "project"),
+    score("over-p95", "q1", "project"),
+    score("over-p95", "q2", "project"),
+  ];
+  const summaries = summarize([...passResults, ...failResults], scores, []);
+  const atP95 = summaries.find((s) => s.variant === "at-p95");
+  const overP95 = summaries.find((s) => s.variant === "over-p95");
+  assert.ok(atP95 && overP95);
+  assert.ok(!atP95.failedCriteria.includes("ttft_p95"));
+  assert.ok(overP95.failedCriteria.includes("ttft_p95"));
 });
 
 void test("threshold boundaries: ttft_p50 at 1500 passes, above fails", () => {
@@ -364,17 +548,36 @@ void test("threshold boundaries: decode_p50 at 40 passes, below fails", () => {
   assert.ok(underDecode.failedCriteria.includes("decode_p50"));
 });
 
-void test("threshold boundaries: refusal rate at 0.9 passes, below fails", () => {
+void test("threshold boundaries: refusal at 0.9 (9/10) passes, below (8/10) fails", () => {
   const passResults: ResultRow[] = [...speedRows("good-refusal", 800, 60)];
   const failResults: ResultRow[] = [...speedRows("bad-refusal", 800, 60)];
-  const scores = [
-    ...reference,
-    score("good-refusal", "q1", "project", { refused: false }),
-    score("good-refusal", "q2", "out_of_scope", { refused: true }),
-    score("bad-refusal", "q1", "project", { refused: false }),
-    score("bad-refusal", "q2", "out_of_scope", { refused: false }),
-  ];
-  const summaries = summarize([...passResults, ...failResults], scores, []);
+
+  // 9/10 out_of_scope items refused = 0.9 (exactly at threshold, should pass)
+  const passScores = [...reference, score("good-refusal", "q1", "project")];
+  for (let i = 0; i < 9; i++) {
+    passScores.push(
+      score("good-refusal", `oos${i}`, "out_of_scope", { refused: true }),
+    );
+  }
+
+  // 8/10 out_of_scope items refused = 0.8 (below threshold, should fail)
+  const failScores = [...reference, score("bad-refusal", "q1", "project")];
+  for (let i = 0; i < 8; i++) {
+    failScores.push(
+      score("bad-refusal", `oos${i}`, "out_of_scope", { refused: true }),
+    );
+  }
+  for (let i = 8; i < 10; i++) {
+    failScores.push(
+      score("bad-refusal", `oos${i}`, "out_of_scope", { refused: false }),
+    );
+  }
+
+  const summaries = summarize(
+    [...passResults, ...failResults],
+    [...passScores, ...failScores],
+    [],
+  );
   const goodRefusal = summaries.find((s) => s.variant === "good-refusal");
   const badRefusal = summaries.find((s) => s.variant === "bad-refusal");
   assert.ok(goodRefusal && badRefusal);
@@ -382,17 +585,37 @@ void test("threshold boundaries: refusal rate at 0.9 passes, below fails", () =>
   assert.ok(badRefusal.failedCriteria.includes("refusal"));
 });
 
-void test("threshold boundaries: format rate at 0.9 passes, below fails", () => {
+void test("threshold boundaries: format at 0.9 (9/10) passes, below (8/10) fails", () => {
   const passResults: ResultRow[] = [...speedRows("good-format", 800, 60)];
   const failResults: ResultRow[] = [...speedRows("bad-format", 800, 60)];
-  const scores = [
-    ...reference,
-    score("good-format", "q1", "project", { format_ok: true }),
-    score("good-format", "q2", "out_of_scope", { format_ok: true }),
-    score("bad-format", "q1", "project", { format_ok: true }),
-    score("bad-format", "q2", "out_of_scope", { format_ok: false }),
-  ];
-  const summaries = summarize([...passResults, ...failResults], scores, []);
+
+  // 9/10 items format_ok = 0.9 (exactly at threshold, should pass)
+  const passScores = [...reference];
+  for (let i = 0; i < 9; i++) {
+    passScores.push(
+      score("good-format", `q${i}`, "project", { format_ok: true }),
+    );
+  }
+  passScores.push(score("good-format", "q9", "project", { format_ok: false }));
+
+  // 8/10 items format_ok = 0.8 (below threshold, should fail)
+  const failScores = [...reference];
+  for (let i = 0; i < 8; i++) {
+    failScores.push(
+      score("bad-format", `q${i}`, "project", { format_ok: true }),
+    );
+  }
+  for (let i = 8; i < 10; i++) {
+    failScores.push(
+      score("bad-format", `q${i}`, "project", { format_ok: false }),
+    );
+  }
+
+  const summaries = summarize(
+    [...passResults, ...failResults],
+    [...passScores, ...failScores],
+    [],
+  );
   const goodFormat = summaries.find((s) => s.variant === "good-format");
   const badFormat = summaries.find((s) => s.variant === "bad-format");
   assert.ok(goodFormat && badFormat);
@@ -400,15 +623,65 @@ void test("threshold boundaries: format rate at 0.9 passes, below fails", () => 
   assert.ok(badFormat.failedCriteria.includes("format"));
 });
 
-void test("a variant with no results or scores fails every criterion", () => {
-  const results: ResultRow[] = [...speedRows("complete", 800, 60)];
+void test("threshold boundaries: quality ratio at 0.9 passes, below fails", () => {
+  const results: ResultRow[] = [
+    ...speedRows("at-quality", 800, 60),
+    ...speedRows("under-quality", 800, 60),
+  ];
+  // Reference: q1=5, q2=5 (mean=5 for both items)
+  // At-quality variant: q1=4.5, q2=4.5 (common q1: mean=4.5/5=0.9, exactly at threshold)
+  // Under-quality variant: q1=4.4, q2=4.4 (common q1: mean=4.4/5=0.88, below threshold)
   const scores = [
-    ...reference,
-    score("complete", "q1", "project"),
-    score("complete", "q2", "out_of_scope"),
+    score("gpt-6-luna", "q1", "project", { correctness: 5 }),
+    score("gpt-6-luna", "q2", "out_of_scope", { correctness: 5 }),
+    score("at-quality", "q1", "project", { correctness: 4.5 }),
+    score("at-quality", "q2", "out_of_scope", { correctness: 4.5 }),
+    score("under-quality", "q1", "project", { correctness: 4.4 }),
+    score("under-quality", "q2", "out_of_scope", {
+      correctness: 4.4,
+      judgeError: "failed",
+    }),
   ];
   const summaries = summarize(results, scores, []);
-  const empty = summaries.find((s) => s.variant === "empty");
-  // "empty" variant has no results/scores, so should not be in summaries
-  assert.ok(!empty);
+  const atQuality = summaries.find((s) => s.variant === "at-quality");
+  const underQuality = summaries.find((s) => s.variant === "under-quality");
+  assert.ok(atQuality && underQuality);
+  assert.equal(atQuality.qualityRatio, 0.9);
+  assert.ok(!atQuality.failedCriteria.includes("quality"));
+  assert.ok(underQuality.failedCriteria.includes("quality"));
+});
+
+void test("variant with scores but no result rows fails TTFT and decode", () => {
+  const results: ResultRow[] = [...speedRows("has-scores", 800, 60)];
+  const scores = [
+    ...reference,
+    score("no-results", "q1", "project"),
+    score("no-results", "q2", "out_of_scope"),
+    score("has-scores", "q1", "project"),
+    score("has-scores", "q2", "out_of_scope"),
+  ];
+  const summaries = summarize(results, scores, []);
+  const noResults = summaries.find((s) => s.variant === "no-results");
+  assert.ok(noResults);
+  assert.ok(noResults.failedCriteria.includes("ttft_p50"));
+  assert.ok(noResults.failedCriteria.includes("ttft_p95"));
+  assert.ok(noResults.failedCriteria.includes("decode_p50"));
+});
+
+void test("variant with result rows but no scores fails refusal, quality, format", () => {
+  const results: ResultRow[] = [
+    ...speedRows("has-results", 800, 60),
+    ...speedRows("no-scores", 800, 60),
+  ];
+  const scores = [
+    ...reference,
+    score("has-results", "q1", "project"),
+    score("has-results", "q2", "out_of_scope"),
+  ];
+  const summaries = summarize(results, scores, []);
+  const noScores = summaries.find((s) => s.variant === "no-scores");
+  assert.ok(noScores);
+  assert.ok(noScores.failedCriteria.includes("refusal"));
+  assert.ok(noScores.failedCriteria.includes("quality"));
+  assert.ok(noScores.failedCriteria.includes("format"));
 });
