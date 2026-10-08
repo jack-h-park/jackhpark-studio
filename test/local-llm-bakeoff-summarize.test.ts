@@ -687,3 +687,89 @@ void test("variant with result rows but no scores fails refusal, quality, format
   assert.ok(noScores.failedCriteria.includes("quality"));
   assert.ok(noScores.failedCriteria.includes("format"));
 });
+
+void test("coverage: a variant measured on 2 of 3 fixture items fails; one with every item does not", () => {
+  const results: ResultRow[] = [
+    ...speedRows("partial", 800, 60),
+    ...speedRows("complete", 800, 60),
+    {
+      variant: "complete",
+      pass: "baseline",
+      itemId: "q3",
+      rep: 1,
+      ok: true,
+      ttftMs: 800,
+      decodeTokensPerSecond: 60,
+    },
+  ];
+  const scores = [
+    ...reference,
+    score("gpt-6-luna", "q3", "project"),
+    score("partial", "q1", "project"),
+    score("partial", "q2", "out_of_scope"),
+    score("complete", "q1", "project"),
+    score("complete", "q2", "out_of_scope"),
+    score("complete", "q3", "project"),
+  ];
+  const fixtureItemIds = ["q1", "q2", "q3"];
+  const summaries = summarize(results, scores, [], fixtureItemIds);
+  const partial = summaries.find((s) => s.variant === "partial");
+  const complete = summaries.find((s) => s.variant === "complete");
+  assert.ok(partial && complete);
+  assert.equal(partial.coverage, "2/3");
+  assert.deepEqual(partial.failedCriteria, ["coverage"]);
+  assert.equal(partial.gate, "fail");
+  assert.equal(complete.coverage, "3/3");
+  assert.deepEqual(complete.failedCriteria, []);
+  assert.equal(complete.gate, "pass");
+
+  // Without the fixture ids the same partial variant passes: coverage is
+  // what catches it.
+  const unchecked = summarize(results, scores, []).find(
+    (s) => s.variant === "partial",
+  );
+  assert.equal(unchecked?.gate, "pass");
+  assert.equal(unchecked?.coverage, "—");
+});
+
+void test("coverage: a fixture item whose only score is a judge error is not covered", () => {
+  const results: ResultRow[] = [...speedRows("judged", 800, 60)];
+  const scores = [
+    ...reference,
+    score("judged", "q1", "project"),
+    score("judged", "q2", "out_of_scope", { judgeError: "timeout" }),
+  ];
+  const judged = summarize(results, scores, [], ["q1", "q2"]).find(
+    (s) => s.variant === "judged",
+  );
+  assert.ok(judged);
+  assert.equal(judged.coverage, "1/2");
+  assert.ok(judged.failedCriteria.includes("coverage"));
+  assert.equal(judged.gate, "fail");
+});
+
+void test("the report has a Coverage column and shows the reference TTFT as n/a (app)", () => {
+  const results: ResultRow[] = [
+    ...speedRows("fast", 800, 60),
+    // Reference rows come from the app and carry no ttftMs.
+    { variant: "gpt-6-luna", pass: "baseline", itemId: "q1", rep: 1, ok: true },
+    { variant: "gpt-6-luna", pass: "baseline", itemId: "q2", rep: 1, ok: true },
+  ];
+  const scores = [
+    ...reference,
+    score("fast", "q1", "project"),
+    score("fast", "q2", "out_of_scope"),
+  ];
+  const report = renderReport(summarize(results, scores, [], ["q1", "q2"]));
+  assert.match(report, /\| Variant \| Gate \| Coverage \| TTFT p50 ms \|/);
+  assert.match(report, /\| fast \| pass \| 2\/2 \| 800 \| 800 \|/);
+  assert.match(
+    report,
+    /\| gpt-6-luna \| reference \| 2\/2 \| n\/a \(app\) \| n\/a \(app\) \|/,
+  );
+  const header = report
+    .split("\n")
+    .find((line) => line.startsWith("| Variant"));
+  const divider = report.split("\n").find((line) => line.startsWith("| ---"));
+  assert.equal(header?.split("|").length, divider?.split("|").length);
+});

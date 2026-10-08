@@ -44,6 +44,8 @@ export type Review = {
 
 export type VariantSummary = {
   variant: string;
+  /** Fixture items with a baseline row and a valid score, e.g. "38/40"; "—" without fixture ids. */
+  coverage: string;
   requests: number;
   errors: number;
   ttftP50Ms: number | null;
@@ -103,6 +105,7 @@ export function summarize(
   results: ResultRow[],
   scores: ScoreRow[],
   reviews: Review[],
+  fixtureItemIds?: string[],
 ): VariantSummary[] {
   const validScores = scores.filter((s) => s.judgeError === undefined);
   const referenceScores = validScores.filter(
@@ -172,8 +175,20 @@ export function summarize(
       typeof memory?.deltaBytes === "number" ? memory.deltaBytes / GB : null;
     const judgeErrors = allOwn.filter((s) => s.judgeError !== undefined).length;
 
+    // Every fixture item needs a baseline row and a valid score, or the gate
+    // would be decided on whichever items happened to finish.
+    const measuredIds = new Set(baseline.map((r) => r.itemId));
+    const scoredIds = new Set(own.map((s) => s.itemId));
+    const coveredCount = fixtureItemIds?.filter(
+      (itemId) => measuredIds.has(itemId) && scoredIds.has(itemId),
+    ).length;
+
     const summary: VariantSummary = {
       variant,
+      coverage:
+        fixtureItemIds === undefined
+          ? "—"
+          : `${coveredCount ?? 0}/${fixtureItemIds.length}`,
       requests: baseline.length,
       errors: baseline.length - okBaseline.length,
       ttftP50Ms: percentile(ttftValues(baseline), 50),
@@ -208,6 +223,10 @@ export function summarize(
     }
     // A missing measurement fails its criterion: an unmeasured variant never passes.
     const checks: [string, boolean][] = [
+      [
+        "coverage",
+        fixtureItemIds !== undefined && coveredCount !== fixtureItemIds.length,
+      ],
       [
         "ttft_p50",
         summary.ttftP50Ms === null ||
@@ -270,14 +289,18 @@ function pct(value: number | null): string {
 
 export function renderReport(summaries: VariantSummary[]): string {
   const header =
-    "| Variant | Gate | TTFT p50 ms | TTFT p95 ms | Decode p50 tok/s | Quality ratio | Refusal | Over-refusal | Format | Language | Ungrounded (confirmed/pending) | Concurrent TTFT p95 ms | Memory Δ GB | Fits 40/20 GB | Errors |";
-  const divider = `|${" --- |".repeat(15)}`;
+    "| Variant | Gate | Coverage | TTFT p50 ms | TTFT p95 ms | Decode p50 tok/s | Quality ratio | Refusal | Over-refusal | Format | Language | Ungrounded (confirmed/pending) | Concurrent TTFT p95 ms | Memory Δ GB | Fits 40/20 GB | Errors |";
+  const divider = `|${" --- |".repeat(16)}`;
+  // Reference rows are recorded through the app, which reports no TTFT.
+  const ttft = (s: VariantSummary, value: number | null) =>
+    s.gate === "reference" ? "n/a (app)" : fmt(value);
   const rows = summaries.map((s) =>
     [
       s.variant,
       s.gate,
-      fmt(s.ttftP50Ms),
-      fmt(s.ttftP95Ms),
+      s.coverage,
+      ttft(s, s.ttftP50Ms),
+      ttft(s, s.ttftP95Ms),
       fmt(s.decodeP50, 1),
       fmt(s.qualityRatio, 2),
       pct(s.refusalCorrectRate),

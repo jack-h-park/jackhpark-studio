@@ -70,5 +70,5 @@ node --import=tsx --env-file=.env.local scripts/local-llm-bakeoff/score.ts --fix
 The first run prints the estimated judge cost; rerun with `--yes` once it is approved. Review every flagged item and record the verdicts in `$BAKEOFF_DATA_DIR/reviews.json`, then:
 
 ```bash
-pnpm exec tsx scripts/local-llm-bakeoff/report.ts --results "$BAKEOFF_DATA_DIR/results.jsonl" --results "$BAKEOFF_DATA_DIR/reference-results.jsonl" --scores "$BAKEOFF_DATA_DIR/scores.jsonl" --reviews "$BAKEOFF_DATA_DIR/reviews.json" --out "$BAKEOFF_DATA_DIR/report.md"
+pnpm exec tsx scripts/local-llm-bakeoff/report.ts --fixture "$BAKEOFF_DATA_DIR/fixture.json" --results "$BAKEOFF_DATA_DIR/results.jsonl" --results "$BAKEOFF_DATA_DIR/reference-results.jsonl" --scores "$BAKEOFF_DATA_DIR/scores.jsonl" --reviews "$BAKEOFF_DATA_DIR/reviews.json" --out "$BAKEOFF_DATA_DIR/report.md"
 ```
