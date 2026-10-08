@@ -145,13 +145,20 @@ void test("an unload failure in restore throws before anything is loaded", async
   );
 });
 
-/** A server that accepts the request and never answers until aborted. */
+/**
+ * A server that accepts the request and never answers until aborted. It holds
+ * a ref'd handle the way a real open socket does: `AbortSignal.timeout` timers
+ * are unref'd, so without one the event loop can drain before the timeout
+ * fires and node:test cancels the test.
+ */
 async function neverAnswers(
   _input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
   return new Promise<Response>((_resolve, reject) => {
+    const openSocket = setInterval(() => {}, 1000);
     init?.signal?.addEventListener("abort", () => {
+      clearInterval(openSocket);
       reject(init.signal?.reason);
     });
   });

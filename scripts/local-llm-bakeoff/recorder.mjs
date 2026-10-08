@@ -110,8 +110,10 @@ export async function startRecorder({ port, logPath, host = "127.0.0.1" }) {
         error: `recorder does not serve ${req.method} ${req.url}`,
       });
     } catch (error) {
+      // The detail goes to the operator's terminal, not back over HTTP.
+      console.error("[recorder] request failed", error);
       return sendJson(res, 500, {
-        error: error instanceof Error ? error.message : String(error),
+        error: "recorder failed to handle the request",
       });
     }
   });
