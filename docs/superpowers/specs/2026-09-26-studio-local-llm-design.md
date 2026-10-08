@@ -141,17 +141,20 @@ repo checkout or secrets) that:
 4. Writes one JSONL row per request and is resumable — a rerun skips completed
    rows.
 
-How models are switched (server CLI under the owning account, or just-in-time
-loading by model ID) is resolved in A1 against the server actually running;
-the harness must not assume one mechanism.
+Models are switched through LM Studio's REST API (`/api/v1/models/load` and
+`/unload`), which the host's server exposes. Each variant's thinking-control
+candidates are probed once at the start of its run, and the one producing the
+least reasoning is used for measurement, so the probe does not need a
+separate window.
 
 **Scoring** runs separately on the developer laptop, which holds the API keys:
 the cloud reference answers are generated from the same fixture, then a
 pinned judge model distinct from every candidate scores each answer on:
 groundedness (claims absent from the context are flagged), correctness against
-the reference, refusal correctness, the project-format rule, and language
+the input, refusal correctness, the project-format rule, and language
 match. The developer blind-reviews about ten items, plus every item the judge
-flags for groundedness.
+flags for groundedness. The gpt-6-luna answers are captured through the running app and graded with
+the same rubric and input, which is what the quality ratio compares.
 
 **Logistics.**
 

@@ -1,0 +1,64 @@
+{
+  "questions": [
+    {
+      "id": "sample-en-project",
+      "lang": "en",
+      "kind": "project",
+      "turns": [
+        {
+          "role": "user",
+          "content": "What kinds of AI systems has Jack built?"
+        }
+      ]
+    },
+    {
+      "id": "sample-en-experience",
+      "lang": "en",
+      "kind": "project",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Summarize Jack's background in enterprise mobility and security."
+        }
+      ]
+    },
+    {
+      "id": "sample-en-out-of-scope",
+      "lang": "en",
+      "kind": "out_of_scope",
+      "turns": [
+        { "role": "user", "content": "What is Jack's favorite breakfast?" }
+      ]
+    },
+    {
+      "id": "sample-multi-turn",
+      "lang": "en",
+      "kind": "multi_turn",
+      "turns": [
+        {
+          "role": "user",
+          "content": "Does Jack have experience with RAG systems?"
+        },
+        {
+          "role": "assistant",
+          "content": "Yes. This site's assistant is itself a retrieval-augmented system he built."
+        },
+        {
+          "role": "user",
+          "content": "How does it decide what context to retrieve?"
+        }
+      ]
+    },
+    {
+      "id": "sample-ko-experience",
+      "lang": "ko",
+      "kind": "project",
+      "turns": [
+        {
+          "role": "user",
+          "content": "잭의 엔터프라이즈 보안 경험을 요약해 줘."
+        }
+      ]
+    }
+  ]
+}
