@@ -33,13 +33,18 @@ async function main(): Promise<void> {
     await Promise.all(values.results.map((path) => readJsonl(path)))
   ).flat() as ResultRow[];
   const scores = (await readJsonl(values.scores)) as ScoreRow[];
-  const reviews: Review[] = values.reviews
-    ? (
-        JSON.parse(await readFile(values.reviews, "utf8")) as {
-          reviews: Review[];
-        }
-      ).reviews
-    : [];
+
+  let reviews: Review[] = [];
+  if (values.reviews) {
+    const parsed = JSON.parse(await readFile(values.reviews, "utf8")) as {
+      reviews?: unknown;
+    };
+    if (!Array.isArray(parsed.reviews)) {
+      throw new Error('reviews.json must contain a "reviews" array');
+    }
+    reviews = parsed.reviews as Review[];
+  }
+
   const summaries = summarize(results, scores, reviews);
   await writeFile(values.out, renderReport(summaries));
   for (const s of summaries) {

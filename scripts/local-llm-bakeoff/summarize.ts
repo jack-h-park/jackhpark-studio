@@ -82,6 +82,15 @@ function mean(values: number[]): number | null {
     : values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
+function ttftValues(baseline: ResultRow[]): number[] {
+  return baseline.map((r) => {
+    if (r.ok !== true || typeof r.ttftMs !== "number") {
+      return Number.POSITIVE_INFINITY;
+    }
+    return r.ttftMs;
+  });
+}
+
 function rate<T>(rows: T[], predicate: (row: T) => boolean): number | null {
   return rows.length === 0 ? null : rows.filter(predicate).length / rows.length;
 }
@@ -96,12 +105,8 @@ export function summarize(
   reviews: Review[],
 ): VariantSummary[] {
   const validScores = scores.filter((s) => s.judgeError === undefined);
-  const referenceMean = mean(
-    numbers(
-      validScores
-        .filter((s) => s.variant === REFERENCE_VARIANT)
-        .map((s) => s.correctness),
-    ),
+  const referenceScores = validScores.filter(
+    (s) => s.variant === REFERENCE_VARIANT,
   );
   const variants = [
     ...new Set([
@@ -128,6 +133,7 @@ export function summarize(
       (r) => r.variant === variant && r.pass === "memory",
     );
     const own = validScores.filter((s) => s.variant === variant);
+    const allOwn = scores.filter((s) => s.variant === variant);
     const outOfScope = own.filter((s) => s.kind === "out_of_scope");
     const inScope = own.filter((s) => s.kind !== "out_of_scope");
     const flagged = own
@@ -141,16 +147,37 @@ export function summarize(
     const pendingReview = flagged.filter(
       (itemId) => reviewFor(itemId) === undefined,
     ).length;
+
+    // Quality ratio: only items both variants scored without judgeError
+    let qualityRatio: number | null = null;
+    if (variant !== REFERENCE_VARIANT && referenceScores.length > 0) {
+      const referenceItemIds = new Set(referenceScores.map((s) => s.itemId));
+      const ownCommon = own.filter((s) => referenceItemIds.has(s.itemId));
+      const referenceCommon = referenceScores.filter((s) =>
+        ownCommon.some((o) => o.itemId === s.itemId),
+      );
+      if (ownCommon.length > 0 && referenceCommon.length > 0) {
+        const ownMean = mean(numbers(ownCommon.map((s) => s.correctness)));
+        const refMean = mean(
+          numbers(referenceCommon.map((s) => s.correctness)),
+        );
+        if (ownMean !== null && refMean !== null && refMean > 0) {
+          qualityRatio = ownMean / refMean;
+        }
+      }
+    }
+
     const meanCorrectness = mean(numbers(own.map((s) => s.correctness)));
     const memoryDeltaGb =
       typeof memory?.deltaBytes === "number" ? memory.deltaBytes / GB : null;
+    const judgeErrors = allOwn.filter((s) => s.judgeError !== undefined).length;
 
     const summary: VariantSummary = {
       variant,
       requests: baseline.length,
       errors: baseline.length - okBaseline.length,
-      ttftP50Ms: percentile(numbers(okBaseline.map((r) => r.ttftMs)), 50),
-      ttftP95Ms: percentile(numbers(okBaseline.map((r) => r.ttftMs)), 95),
+      ttftP50Ms: percentile(ttftValues(okBaseline), 50),
+      ttftP95Ms: percentile(ttftValues(baseline), 95),
       decodeP50: percentile(
         numbers(okBaseline.map((r) => r.decodeTokensPerSecond)),
         50,
@@ -163,14 +190,9 @@ export function summarize(
       fits40Gb: memoryDeltaGb === null ? null : memoryDeltaGb <= 40,
       fits20Gb: memoryDeltaGb === null ? null : memoryDeltaGb <= 20,
       scored: own.length,
-      judgeErrors: scores.filter(
-        (s) => s.variant === variant && s.judgeError !== undefined,
-      ).length,
+      judgeErrors,
       meanCorrectness,
-      qualityRatio:
-        meanCorrectness !== null && referenceMean
-          ? meanCorrectness / referenceMean
-          : null,
+      qualityRatio,
       refusalCorrectRate: rate(outOfScope, (s) => s.refused === true),
       overRefusalRate: rate(inScope, (s) => s.refused === true),
       formatRate: rate(own, (s) => s.format_ok === true),
@@ -188,11 +210,15 @@ export function summarize(
     const checks: [string, boolean][] = [
       [
         "ttft_p50",
-        summary.ttftP50Ms === null || summary.ttftP50Ms > GATE.ttftP50Ms,
+        summary.ttftP50Ms === null ||
+          !Number.isFinite(summary.ttftP50Ms) ||
+          summary.ttftP50Ms > GATE.ttftP50Ms,
       ],
       [
         "ttft_p95",
-        summary.ttftP95Ms === null || summary.ttftP95Ms > GATE.ttftP95Ms,
+        summary.ttftP95Ms === null ||
+          !Number.isFinite(summary.ttftP95Ms) ||
+          summary.ttftP95Ms > GATE.ttftP95Ms,
       ],
       [
         "decode_p50",
@@ -221,7 +247,7 @@ export function summarize(
     summary.gate =
       failed.length > 0
         ? "fail"
-        : pendingReview > 0
+        : judgeErrors > 0 || pendingReview > 0
           ? "pending-review"
           : "pass";
     return summary;
@@ -229,7 +255,13 @@ export function summarize(
 }
 
 function fmt(value: number | null, digits = 0): string {
-  return value === null ? "—" : value.toFixed(digits);
+  if (value === null) {
+    return "—";
+  }
+  if (!Number.isFinite(value)) {
+    return "∞";
+  }
+  return value.toFixed(digits);
 }
 
 function pct(value: number | null): string {
