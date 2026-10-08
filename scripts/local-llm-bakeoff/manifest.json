@@ -1,0 +1,64 @@
+{
+  "variants": [
+    {
+      "id": "qwen3-32b-4bit",
+      "key": "qwen3-32b-mlx",
+      "role": "previous-generation baseline",
+      "downloadRef": null,
+      "loadConfig": { "context_length": 16384 },
+      "requestExtras": {},
+      "thinkingCandidates": [
+        {},
+        { "chat_template_kwargs": { "enable_thinking": false } },
+        { "reasoning_effort": "low" }
+      ]
+    },
+    {
+      "id": "qwen3.6-35b-a3b-4bit",
+      "key": "qwen3.6-35b-a3b-mlx",
+      "role": "speed",
+      "downloadRef": null,
+      "loadConfig": { "context_length": 16384 },
+      "requestExtras": {},
+      "thinkingCandidates": [
+        {},
+        { "chat_template_kwargs": { "enable_thinking": false } },
+        { "reasoning_effort": "low" }
+      ]
+    },
+    {
+      "id": "gemma-4-26b-a4b-4bit",
+      "key": "google/gemma-4-26b-a4b",
+      "role": "speed",
+      "downloadRef": "google/gemma-4-26b-a4b",
+      "loadConfig": { "context_length": 16384 },
+      "requestExtras": {},
+      "thinkingCandidates": [
+        {},
+        { "chat_template_kwargs": { "enable_thinking": false } }
+      ]
+    },
+    {
+      "id": "gpt-oss-20b",
+      "key": "openai/gpt-oss-20b",
+      "role": "speed",
+      "downloadRef": "openai/gpt-oss-20b",
+      "loadConfig": { "context_length": 16384 },
+      "requestExtras": {},
+      "thinkingCandidates": [{ "reasoning_effort": "low" }, {}]
+    },
+    {
+      "id": "qwen3.8-27b-4bit",
+      "key": "qwen/qwen3.8-27b",
+      "role": "quality ceiling",
+      "downloadRef": "qwen/qwen3.8-27b",
+      "loadConfig": { "context_length": 16384 },
+      "requestExtras": {},
+      "thinkingCandidates": [
+        { "chat_template_kwargs": { "enable_thinking": false } },
+        { "reasoning_effort": "low" },
+        {}
+      ]
+    }
+  ]
+}
