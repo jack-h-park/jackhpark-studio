@@ -33,6 +33,10 @@ interface FakeOptions {
   failBackground?: boolean;
   /** Loading this model key answers HTTP 500. */
   failLoadKey?: string;
+  /** Loading this model key never answers. */
+  stallLoadKey?: string;
+  /** Called when a stalled load arrives, before it is left hanging. */
+  onStallLoad?: () => void;
   /** Models loaded when the server starts (default: model-a at 16_384). */
   initiallyLoaded?: [string, number | null][];
 }
@@ -65,6 +69,10 @@ async function startFakeLmStudio(options: FakeOptions = {}) {
       });
     }
     if (req.url === "/api/v1/models/load") {
+      if (body.model === options.stallLoadKey) {
+        options.onStallLoad?.();
+        return; // never answers; only an abort ends the request
+      }
       if (body.model === options.failLoadKey) {
         res.writeHead(500);
         return res.end("load boom");
@@ -173,6 +181,7 @@ const items = [item("q1", "first question"), item("q2", "second question")];
 void test("probes, measures both passes, records memory and restores the snapshot", async () => {
   const fake = await startFakeLmStudio();
   const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const lines: string[] = [];
   try {
     await runBakeoff({
       baseUrl: fake.baseUrl,
@@ -182,8 +191,9 @@ void test("probes, measures both passes, records memory and restores the snapsho
       statePath: join(dir, "state.json"),
       reps: 2,
       readMemory: async () => 1000,
-      log: () => {},
+      log: (line: string) => lines.push(line),
     });
+    assert.equal(lines.at(-1), "incomplete variants: none");
     const rows = await readJsonl(join(dir, "results.jsonl"));
     const baseline = rows.filter((r) => r.pass === "baseline");
     assert.equal(baseline.length, 4);
@@ -351,6 +361,7 @@ void test("an outage streak is not recorded as results", async () => {
     assert.ok(
       lines.some((l) => l.includes("server unhealthy: 3 consecutive failures")),
     );
+    assert.equal(lines.at(-1), "incomplete variants: b-4bit");
     const rows = await rowsOrEmpty(join(dir, "results.jsonl"));
     assert.equal(rows.filter((r) => r.pass === "baseline").length, 0);
     assert.equal(rows.filter((r) => r.pass === "memory").length, 0);
@@ -532,6 +543,62 @@ void test("restoreFromStateFile restores, stamps restoredAt, and the next run sn
     fake.loaded.set("model-c", null);
     await runBakeoff(baseOptions(fake, dir));
     assert.deepEqual([...fake.loaded.entries()], [["model-c", null]]);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("restoreFromStateFile refuses an already restored state unless forced", async () => {
+  const fake = await startFakeLmStudio({
+    initiallyLoaded: [["model-b", null]],
+  });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const statePath = join(dir, "state.json");
+  try {
+    const takenAt = "2026-10-01T00:00:00.000Z";
+    const restoredAt = "2026-10-01T06:00:00.000Z";
+    await writeFile(
+      statePath,
+      JSON.stringify({ takenAt, snapshot: snapshotA, restoredAt }),
+    );
+    await assert.rejects(
+      restoreFromStateFile({ baseUrl: fake.baseUrl }, statePath),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message.includes(takenAt) &&
+        error.message.includes(restoredAt) &&
+        error.message.includes("--force"),
+    );
+    assert.deepEqual([...fake.loaded.entries()], [["model-b", null]]);
+    await restoreFromStateFile({ baseUrl: fake.baseUrl }, statePath, {
+      force: true,
+    });
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("a run abort interrupts a model load that never answers, and the snapshot is restored", async () => {
+  const controller = new AbortController();
+  const fake = await startFakeLmStudio({
+    stallLoadKey: "model-b",
+    onStallLoad: () => controller.abort(),
+  });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const lines: string[] = [];
+  try {
+    await runBakeoff(
+      baseOptions(fake, dir, {
+        signal: controller.signal,
+        log: (line: string) => lines.push(line),
+      }),
+    );
+    assert.ok(lines.some((l) => l.startsWith("[b-4bit] aborted:")));
+    assert.ok(lines.includes("restored"));
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
   } finally {
     await fake.close();
     await rm(dir, { recursive: true, force: true });

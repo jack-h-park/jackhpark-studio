@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   measureChatStream,
+  readSseData,
   splitInlineThinking,
 } from "@/scripts/local-llm-bakeoff/stream-metrics.mjs";
 
@@ -103,4 +104,37 @@ void test("a partial opening tag is not yet visible text", () => {
     thinking: "",
     inline: false,
   });
+});
+
+void test("an error event mid-stream throws instead of returning a partial answer", async () => {
+  const body = sseBody(
+    sse([
+      delta({ content: "Hel" }),
+      { error: { message: "model crashed" } },
+      delta({ content: "lo" }),
+    ]),
+  );
+  await assert.rejects(
+    measureChatStream(body, 0, tickingClock()),
+    /stream error: model crashed/,
+  );
+  const bare = sseBody(sse([{ error: "out of memory" }]));
+  await assert.rejects(
+    measureChatStream(bare, 0, tickingClock()),
+    /stream error: "out of memory"/,
+  );
+});
+
+void test("bytes still held by the decoder at end of stream are flushed into the tail", async () => {
+  // A truncated multi-byte sequence with no trailing newline: only the final
+  // decoder flush turns it into a character instead of dropping it silently.
+  const body = (async function* () {
+    yield new TextEncoder().encode("data: x");
+    yield new Uint8Array([0xed, 0x95]);
+  })();
+  const lines: string[] = [];
+  for await (const line of readSseData(body)) {
+    lines.push(line);
+  }
+  assert.deepEqual(lines, ["x�"]);
 });

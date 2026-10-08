@@ -37,6 +37,7 @@ export async function* readSseData(body) {
       newline = buffer.indexOf("\n");
     }
   }
+  buffer += decoder.decode();
   const tail = buffer.trim();
   if (tail.startsWith("data:")) {
     yield tail.slice(5).trim();
@@ -103,6 +104,13 @@ export async function measureChatStream(
       break;
     }
     const event = JSON.parse(data);
+    // A server can fail after a 200 by sending an error event; without this
+    // the partial answer would be recorded as a success.
+    if (event.error !== undefined && event.error !== null) {
+      throw new Error(
+        `stream error: ${typeof event.error?.message === "string" ? event.error.message : JSON.stringify(event.error)}`,
+      );
+    }
     const at = now() - startedAtMs;
     if (typeof event.usage?.completion_tokens === "number") {
       usageTokens = event.usage.completion_tokens;

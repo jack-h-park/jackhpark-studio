@@ -93,21 +93,13 @@ const question = {
   turns: [{ role: "user" as const, content: "What did Jack build?" }],
 };
 
-void test("buildFixture keeps the last streamed request and counts auxiliary calls", () => {
+void test("buildFixture keeps the single streamed request with no auxiliary calls", () => {
   const fixture = buildFixture(
     [question],
     [
       {
         label: "q1",
         seq: 1,
-        body: {
-          stream: false,
-          messages: [{ role: "user", content: "rewrite this" }],
-        },
-      },
-      {
-        label: "q1",
-        seq: 2,
         body: {
           stream: true,
           temperature: 0.3,
@@ -130,8 +122,68 @@ void test("buildFixture keeps the last streamed request and counts auxiliary cal
     ],
     temperature: 0.3,
     maxTokens: 700,
-    auxiliaryCalls: 1,
+    auxiliaryCalls: 0,
   });
+});
+
+function streamed(label: string, seq: number, content: string) {
+  return {
+    label,
+    seq,
+    body: {
+      stream: true,
+      messages: [{ role: "user", content }],
+    },
+  };
+}
+
+void test("buildFixture refuses items whose recorded input was built from stub answers", () => {
+  const other = {
+    id: "q2",
+    lang: "en" as const,
+    kind: "project" as const,
+    turns: [{ role: "user" as const, content: "Where did Jack work?" }],
+  };
+  const third = {
+    id: "q3",
+    lang: "en" as const,
+    kind: "project" as const,
+    turns: [{ role: "user" as const, content: "What is JackGPT?" }],
+  };
+  assert.throws(
+    () =>
+      buildFixture(
+        [question, other, third],
+        [
+          {
+            label: "q1",
+            seq: 1,
+            body: {
+              stream: false,
+              messages: [{ role: "user", content: "rewrite this" }],
+            },
+          },
+          streamed("q1", 2, "What did Jack build?"),
+          streamed("q2", 3, "Where did Jack work?"),
+          {
+            label: "q3",
+            seq: 4,
+            body: {
+              stream: false,
+              messages: [{ role: "user", content: "summarize history" }],
+            },
+          },
+          streamed("q3", 5, "What is JackGPT?"),
+        ],
+      ),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.message.includes("q1, q3") &&
+      !error.message.includes("q2") &&
+      error.message.includes(
+        "the app made extra model calls (query rewrite, HyDE or history summary) that the recorder answered with a stub, so the recorded input is not production input; disable those features for the recording session or record these items another way",
+      ),
+  );
 });
 
 void test("buildFixture refuses a question the app never sent to the recorder", () => {

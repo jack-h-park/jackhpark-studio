@@ -9,7 +9,12 @@ type Call = {
   body: Record<string, unknown> | null;
 };
 
-function fakeLmStudio(initial: Record<string, number | null>) {
+function fakeLmStudio(
+  initial: Record<string, number | null>,
+  /** Model key -> how many load attempts answer HTTP 500 before one succeeds. */
+  failLoads: Record<string, number> = {},
+) {
+  const remainingFailures = new Map(Object.entries(failLoads));
   const loaded = new Map<string, number | null>(Object.entries(initial));
   const calls: Call[] = [];
   const fetchImpl = async (
@@ -33,6 +38,12 @@ function fakeLmStudio(initial: Record<string, number | null>) {
       });
     }
     if (url.pathname === "/api/v1/models/load") {
+      const key = String(body?.model);
+      const failures = remainingFailures.get(key) ?? 0;
+      if (failures > 0) {
+        remainingFailures.set(key, failures - 1);
+        return new Response(`cannot load ${key}`, { status: 500 });
+      }
       const contextLength = body?.context_length;
       loaded.set(
         String(body?.model),
@@ -84,4 +95,102 @@ void test("a non-2xx response throws with status and body", async () => {
     fetchImpl: async () => new Response("boom", { status: 500 }),
   });
   await assert.rejects(admin.load("x"), /HTTP 500 boom/);
+});
+
+void test("restore tries every snapshot instance and names each one that failed twice", async () => {
+  const fake = fakeLmStudio({}, { "model-a": 2, "model-b": 1 });
+  const admin = createLmStudioAdmin({
+    baseUrl: "http://lm",
+    fetchImpl: fake.fetchImpl,
+    restoreRetryDelayMs: 0,
+  });
+  await assert.rejects(
+    admin.restore([
+      { modelKey: "model-a", instanceId: "model-a", contextLength: 4096 },
+      { modelKey: "model-b", instanceId: "model-b", contextLength: 8192 },
+    ]),
+    (error: unknown) =>
+      error instanceof AggregateError &&
+      /model-a/.test(error.message) &&
+      !/model-b/.test(error.message) &&
+      error.errors.length === 1,
+  );
+  // model-b failed once, was retried, and is loaded despite model-a failing.
+  assert.deepEqual([...fake.loaded.entries()], [["model-b", 8192]]);
+  assert.equal(
+    fake.calls.filter((c) => c.path === "/api/v1/models/load").length,
+    4,
+  );
+});
+
+void test("an unload failure in restore throws before anything is loaded", async () => {
+  const fake = fakeLmStudio({ "model-a": null });
+  const admin = createLmStudioAdmin({
+    baseUrl: "http://lm",
+    fetchImpl: async (input, init) =>
+      new URL(String(input)).pathname === "/api/v1/models/unload"
+        ? new Response("busy", { status: 500 })
+        : fake.fetchImpl(input, init),
+    restoreRetryDelayMs: 0,
+  });
+  await assert.rejects(
+    admin.restore([
+      { modelKey: "model-b", instanceId: "model-b", contextLength: null },
+    ]),
+    /unload failed: HTTP 500 busy/,
+  );
+  assert.equal(
+    fake.calls.some((c) => c.path === "/api/v1/models/load"),
+    false,
+  );
+});
+
+/** A server that accepts the request and never answers until aborted. */
+async function neverAnswers(
+  _input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  return new Promise<Response>((_resolve, reject) => {
+    init?.signal?.addEventListener("abort", () => {
+      reject(init.signal?.reason);
+    });
+  });
+}
+
+function hangingFetch(): typeof fetch {
+  return neverAnswers;
+}
+
+void test("a load that never answers rejects after the load timeout", async () => {
+  const admin = createLmStudioAdmin({
+    baseUrl: "http://lm",
+    fetchImpl: hangingFetch(),
+    timeouts: { loadMs: 30, otherMs: 60_000 },
+  });
+  const startedAt = performance.now();
+  await assert.rejects(
+    admin.load("model-a"),
+    /POST \/api\/v1\/models\/load timed out after 30 ms/,
+  );
+  assert.ok(performance.now() - startedAt < 5000);
+});
+
+void test("other admin calls use their own timeout, and a caller signal also stops them", async () => {
+  const admin = createLmStudioAdmin({
+    baseUrl: "http://lm",
+    fetchImpl: hangingFetch(),
+    timeouts: { loadMs: 60_000, otherMs: 30 },
+  });
+  await assert.rejects(
+    admin.listModels(),
+    /GET \/api\/v1\/models timed out after 30 ms/,
+  );
+  const slow = createLmStudioAdmin({
+    baseUrl: "http://lm",
+    fetchImpl: hangingFetch(),
+  });
+  const controller = new AbortController();
+  const pending = slow.load("model-a", {}, { signal: controller.signal });
+  controller.abort(new Error("run stopped"));
+  await assert.rejects(pending, /run stopped/);
 });

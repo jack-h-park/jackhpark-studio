@@ -17,8 +17,10 @@ function finalUserText(question) {
 
 /**
  * For each question, keeps the request that produced the streamed answer: the
- * last streamed call recorded under its label. Earlier calls under the same
- * label are auxiliary (query rewrite, summary) and only counted.
+ * last streamed call recorded under its label. Any other call under the same
+ * label is auxiliary (query rewrite, HyDE, history summary); the recorder
+ * answered it with a stub, so the answer request was built from that stub and
+ * the whole fixture is refused.
  * @param {Question[]} questions
  * @param {RecordedRequest[]} recorded
  */
@@ -66,5 +68,13 @@ export function buildFixture(questions, recorded) {
       auxiliaryCalls: calls.length - 1,
     };
   });
+  const withAuxiliary = items
+    .filter((item) => item.auxiliaryCalls > 0)
+    .map((item) => item.id);
+  if (withAuxiliary.length > 0) {
+    throw new Error(
+      `${withAuxiliary.join(", ")}: the app made extra model calls (query rewrite, HyDE or history summary) that the recorder answered with a stub, so the recorded input is not production input; disable those features for the recording session or record these items another way`,
+    );
+  }
   return { items };
 }

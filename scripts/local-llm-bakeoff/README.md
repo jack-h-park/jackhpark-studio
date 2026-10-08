@@ -36,6 +36,8 @@ pnpm exec tsx scripts/local-llm-bakeoff/record-fixture.ts --pass reference --que
 
 The recorder.mjs script truncates its `--log` file on startup and refuses a `--log` path inside the repo; record-fixture.ts refuses `--out-dir` and `--recorder-log` inside the repo.
 
+The recorder answers every call with a stub, so the local pass refuses to build a fixture when the app made any model call besides the streamed answer (query rewrite, HyDE or history summary) and names those items: their recorded input would have been built from the stub. Turn those features off for the recording session or record those items another way.
+
 ## 2. Stage on the host
 
 ```bash
@@ -56,7 +58,7 @@ If the process dies, rerun the same command without `--start-at`: finished rows 
 ssh "$BAKEOFF_HOST" "cd $BAKEOFF_HOST_DIR && $BAKEOFF_NODE run-bakeoff.mjs --mode restore --manifest manifest.json --state state.json"
 ```
 
-A run reuses an existing `state.json` whose snapshot has no `restoredAt` instead of overwriting it, and stamps `restoredAt` after a successful restore; `--mode restore` also stamps it. The script aborts a variant after 3 consecutive failed requests without recording them (so a resume re-measures it), and every request has a 5-minute timeout.
+A run reuses an existing `state.json` whose snapshot has no `restoredAt` instead of overwriting it, and stamps `restoredAt` after a successful restore; `--mode restore` also stamps it, and refuses a state file that already has `restoredAt` (the server may have been changed on purpose since) unless you add `--force`. The script aborts a variant after 3 consecutive failed requests without recording them (so a resume re-measures it), and every request has a 5-minute timeout.
 
 ## 4. Score and report (laptop)
 

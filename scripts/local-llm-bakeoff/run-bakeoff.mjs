@@ -346,10 +346,13 @@ async function runVariant(options, admin, store, variant, readMemory, log) {
     log(`[${variant.id}] already complete, skipping`);
     return;
   }
-  await admin.unloadAllLlms();
+  // Ctrl-C must be able to interrupt a slow load; the final restore is not
+  // tied to the run signal, only to the admin client's own timeouts.
+  const adminCall = { signal: options.signal };
+  await admin.unloadAllLlms(adminCall);
   const idleBytes = await readMemory();
   log(`[${variant.id}] loading ${variant.key}`);
-  await admin.load(variant.key, variant.loadConfig ?? {});
+  await admin.load(variant.key, variant.loadConfig ?? {}, adminCall);
   let peakBytes = await readMemory();
   const sampleMemory = async () => {
     peakBytes = Math.max(peakBytes, await readMemory());
@@ -454,7 +457,7 @@ async function runVariant(options, admin, store, variant, readMemory, log) {
       background,
     });
   }
-  await admin.unloadAllLlms();
+  await admin.unloadAllLlms(adminCall);
   log(`[${variant.id}] done`);
 }
 
@@ -514,12 +517,25 @@ async function restoreAndStamp(admin, statePath, takenAt, snapshot) {
 
 /**
  * The `--mode restore` path: put back what a killed run recorded in the state
- * file.
+ * file. A snapshot already restored is refused unless forced: the server may
+ * have been changed on purpose since then.
  * @param {Pick<RunOptions, "baseUrl" | "apiToken" | "fetchImpl">} options
  * @param {string} statePath
+ * @param {{ force?: boolean }} [restoreOptions]
  */
-export async function restoreFromStateFile(options, statePath) {
-  const { takenAt, snapshot } = JSON.parse(await readFile(statePath, "utf8"));
+export async function restoreFromStateFile(
+  options,
+  statePath,
+  { force = false } = {},
+) {
+  const { takenAt, snapshot, restoredAt } = JSON.parse(
+    await readFile(statePath, "utf8"),
+  );
+  if (restoredAt && !force) {
+    throw new Error(
+      `${statePath} holds a snapshot taken ${takenAt} that was already restored at ${restoredAt}; rerun with --force to restore it again`,
+    );
+  }
   await restoreAndStamp(
     createLmStudioAdmin(options),
     statePath,
@@ -566,9 +582,16 @@ export async function runBakeoff(options) {
       }
     }
   } finally {
-    log("restoring snapshot");
-    await restoreAndStamp(admin, options.statePath, takenAt, snapshot);
-    log("restored");
+    try {
+      log("restoring snapshot");
+      await restoreAndStamp(admin, options.statePath, takenAt, snapshot);
+      log("restored");
+    } finally {
+      const incomplete = options.variants
+        .filter((variant) => !variantComplete(options, store, variant))
+        .map((variant) => variant.id);
+      log(`incomplete variants: ${incomplete.join(", ") || "none"}`);
+    }
   }
 }
 
@@ -611,6 +634,7 @@ async function main() {
       reps: { type: "string", default: "3" },
       only: { type: "string" },
       "start-at": { type: "string" },
+      force: { type: "boolean", default: false },
     },
   });
   if (!values.manifest) {
@@ -643,7 +667,9 @@ async function main() {
       return;
     }
     case "restore": {
-      await restoreFromStateFile(base, values.state ?? "state.json");
+      await restoreFromStateFile(base, values.state ?? "state.json", {
+        force: values.force,
+      });
       console.log("restored");
       return;
     }
