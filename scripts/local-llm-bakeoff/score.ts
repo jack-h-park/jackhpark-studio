@@ -7,12 +7,14 @@ import { parseArgs } from "node:util";
 import Anthropic from "@anthropic-ai/sdk";
 
 import {
+  type AnswerRow,
   buildJudgePrompt,
   type FixtureItem,
   JUDGE_MODEL,
   JUDGE_SCHEMA,
   JUDGE_SYSTEM,
   parseVerdict,
+  planJudging,
 } from "./judge";
 import { assertOutsideRepo } from "./private-path.mjs";
 import { readJsonl } from "./results-store.mjs";
@@ -22,9 +24,9 @@ import { readJsonl } from "./results-store.mjs";
 const INPUT_USD_PER_MTOK = 5;
 const OUTPUT_USD_PER_MTOK = 25;
 const ESTIMATED_OUTPUT_TOKENS = 3000;
+// The request's max_tokens, so pending x this bounds the output cost.
+const MAX_OUTPUT_TOKENS = 16_000;
 const CONCURRENCY = 4;
-
-type AnswerRow = { variant: string; itemId: string; text: string };
 
 const repoRoot = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -71,6 +73,20 @@ function toAnswerRows(rows: Record<string, unknown>[]): AnswerRow[] {
   );
 }
 
+/** Only a missing scores file means "nothing judged yet". */
+async function readExistingScores(
+  path: string,
+): Promise<Record<string, unknown>[]> {
+  try {
+    return await readJsonl(path);
+  } catch (err) {
+    if (err instanceof Error && "code" in err && err.code === "ENOENT") {
+      return [];
+    }
+    throw err;
+  }
+}
+
 async function main() {
   if (!values.fixture || !values.results?.length || !values.out) {
     throw new Error("--fixture, at least one --results and --out are required");
@@ -84,14 +100,21 @@ async function main() {
   const answers = (
     await Promise.all(values.results.map((path) => readJsonl(path)))
   ).flatMap(toAnswerRows);
-  const done = new Set(
-    (await readJsonl(outPath).catch(() => [])).map(
-      (row) => `${String(row.variant)}|${String(row.itemId)}`,
-    ),
-  );
-  const pending = answers.filter(
-    (answer) => !done.has(`${answer.variant}|${answer.itemId}`),
-  );
+  const { pending, unknownItemIds, duplicateCount } = planJudging({
+    items,
+    answers,
+    existingScores: await readExistingScores(outPath),
+  });
+  if (unknownItemIds.length > 0) {
+    throw new Error(
+      `results contain answers for items the fixture does not have: ${unknownItemIds.join(", ")}; check that --fixture matches the run`,
+    );
+  }
+  if (duplicateCount > 0) {
+    console.log(
+      `${duplicateCount} duplicate answers (same variant and item) ignored; the first of each is judged`,
+    );
+  }
 
   const inputTokens = pending.reduce((sum, answer) => {
     const item = itemsById.get(answer.itemId);
@@ -102,12 +125,16 @@ async function main() {
         : 0)
     );
   }, 0);
+  const inputUsd = (inputTokens * INPUT_USD_PER_MTOK) / 1_000_000;
   const usd =
-    (inputTokens * INPUT_USD_PER_MTOK +
-      pending.length * ESTIMATED_OUTPUT_TOKENS * OUTPUT_USD_PER_MTOK) /
-    1_000_000;
+    inputUsd +
+    (pending.length * ESTIMATED_OUTPUT_TOKENS * OUTPUT_USD_PER_MTOK) /
+      1_000_000;
+  const worstCaseUsd =
+    inputUsd +
+    (pending.length * MAX_OUTPUT_TOKENS * OUTPUT_USD_PER_MTOK) / 1_000_000;
   console.log(
-    `${pending.length} answers to judge with ${JUDGE_MODEL}; estimated cost ≈ $${usd.toFixed(2)}`,
+    `${pending.length} answers to judge with ${JUDGE_MODEL}; estimated cost ≈ $${usd.toFixed(2)} (worst case $${worstCaseUsd.toFixed(2)} at ${MAX_OUTPUT_TOKENS} output tokens each)`,
   );
   if (!values.yes) {
     console.log("Rerun with --yes to spend it.");
@@ -129,7 +156,7 @@ async function main() {
     try {
       const response = await client.beta.messages.create({
         model: JUDGE_MODEL,
-        max_tokens: 16_000,
+        max_tokens: MAX_OUTPUT_TOKENS,
         betas: ["server-side-fallback-2026-07-01"],
         fallbacks: "default",
         thinking: { type: "adaptive" },

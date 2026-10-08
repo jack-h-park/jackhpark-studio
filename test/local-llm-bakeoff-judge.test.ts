@@ -6,6 +6,7 @@ import {
   buildJudgePrompt,
   JUDGE_SCHEMA,
   parseVerdict,
+  planJudging,
 } from "@/scripts/local-llm-bakeoff/judge";
 
 const item = {
@@ -55,5 +56,69 @@ void test("parseVerdict accepts a complete verdict and rejects a broken one", ()
   assert.throws(
     () => parseVerdict(JSON.stringify({ ...verdict, correctness: 9 })),
     /out of range/,
+  );
+});
+
+const items = [item, { ...item, id: "q2" }];
+
+void test("planJudging judges each variant|itemId once, keeping the first answer", () => {
+  const plan = planJudging({
+    items,
+    answers: [
+      { variant: "a", itemId: "q1", text: "first" },
+      { variant: "a", itemId: "q1", text: "second" },
+      { variant: "b", itemId: "q1", text: "other variant" },
+      { variant: "a", itemId: "q2", text: "other item" },
+    ],
+    existingScores: [],
+  });
+  assert.deepEqual(plan.pending, [
+    { variant: "a", itemId: "q1", text: "first" },
+    { variant: "b", itemId: "q1", text: "other variant" },
+    { variant: "a", itemId: "q2", text: "other item" },
+  ]);
+  assert.equal(plan.duplicateCount, 1);
+  assert.deepEqual(plan.unknownItemIds, []);
+});
+
+void test("planJudging reports answers for items the fixture does not have", () => {
+  const plan = planJudging({
+    items,
+    answers: [
+      { variant: "a", itemId: "q1", text: "known" },
+      { variant: "a", itemId: "gone", text: "stale" },
+      { variant: "b", itemId: "gone", text: "stale" },
+      { variant: "a", itemId: "typo", text: "stale" },
+    ],
+    existingScores: [],
+  });
+  assert.deepEqual(plan.unknownItemIds, ["gone", "typo"]);
+  assert.deepEqual(
+    plan.pending.map((answer) => answer.itemId),
+    ["q1"],
+  );
+});
+
+void test("planJudging retries judge errors except refusals, and skips judged rows", () => {
+  const plan = planJudging({
+    items,
+    answers: [
+      { variant: "ok", itemId: "q1", text: "x" },
+      { variant: "refused", itemId: "q1", text: "x" },
+      { variant: "errored", itemId: "q1", text: "x" },
+      { variant: "recovered", itemId: "q1", text: "x" },
+      { variant: "new", itemId: "q1", text: "x" },
+    ],
+    existingScores: [
+      { variant: "ok", itemId: "q1", correctness: 5 },
+      { variant: "refused", itemId: "q1", judgeError: "refusal" },
+      { variant: "errored", itemId: "q1", judgeError: "overloaded" },
+      { variant: "recovered", itemId: "q1", judgeError: "timeout" },
+      { variant: "recovered", itemId: "q1", correctness: 4 },
+    ],
+  });
+  assert.deepEqual(
+    plan.pending.map((answer) => answer.variant),
+    ["errored", "new"],
   );
 });

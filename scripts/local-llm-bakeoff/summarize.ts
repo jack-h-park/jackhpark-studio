@@ -107,6 +107,34 @@ export function summarize(
   reviews: Review[],
   fixtureItemIds?: string[],
 ): VariantSummary[] {
+  return summarizeLatest(
+    results,
+    latestScores(scores),
+    reviews,
+    fixtureItemIds,
+  );
+}
+
+/**
+ * score.ts appends a retry after a judge error rather than rewriting the file,
+ * so the last row per variant|itemId is the current one.
+ */
+function latestScores(scores: ScoreRow[]): ScoreRow[] {
+  const latest = new Map<string, ScoreRow>();
+  for (const row of scores) {
+    const key = `${row.variant}|${row.itemId}`;
+    latest.delete(key);
+    latest.set(key, row);
+  }
+  return [...latest.values()];
+}
+
+function summarizeLatest(
+  results: ResultRow[],
+  scores: ScoreRow[],
+  reviews: Review[],
+  fixtureItemIds: string[] | undefined,
+): VariantSummary[] {
   const validScores = scores.filter((s) => s.judgeError === undefined);
   const referenceScores = validScores.filter(
     (s) => s.variant === REFERENCE_VARIANT,

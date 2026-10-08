@@ -72,6 +72,66 @@ export function buildJudgePrompt(item: FixtureItem, answer: string): string {
   ].join("\n");
 }
 
+export type AnswerRow = { variant: string; itemId: string; text: string };
+
+export type JudgingPlan = {
+  pending: AnswerRow[];
+  /** Answer item ids the fixture does not contain, in first-seen order. */
+  unknownItemIds: string[];
+  /** Answers dropped because an earlier one had the same variant|itemId. */
+  duplicateCount: number;
+};
+
+function answerKey(row: { variant?: unknown; itemId?: unknown }): string {
+  return `${String(row.variant)}|${String(row.itemId)}`;
+}
+
+/**
+ * Decides which answers still need a judge call. An existing score row counts
+ * as done when it has a verdict or the judge refused; any other judge error is
+ * retried, which is why the summary keeps the last row per variant|itemId.
+ */
+export function planJudging({
+  items,
+  answers,
+  existingScores,
+}: {
+  items: FixtureItem[];
+  answers: AnswerRow[];
+  existingScores: Record<string, unknown>[];
+}): JudgingPlan {
+  const itemIds = new Set(items.map((item) => item.id));
+  const done = new Set(
+    existingScores
+      .filter(
+        (row) => row.judgeError === undefined || row.judgeError === "refusal",
+      )
+      .map((row) => answerKey(row)),
+  );
+  const seen = new Set<string>();
+  const unknownItemIds: string[] = [];
+  const pending: AnswerRow[] = [];
+  let duplicateCount = 0;
+  for (const answer of answers) {
+    const key = answerKey(answer);
+    if (seen.has(key)) {
+      duplicateCount += 1;
+      continue;
+    }
+    seen.add(key);
+    if (!itemIds.has(answer.itemId)) {
+      if (!unknownItemIds.includes(answer.itemId)) {
+        unknownItemIds.push(answer.itemId);
+      }
+      continue;
+    }
+    if (!done.has(key)) {
+      pending.push(answer);
+    }
+  }
+  return { pending, unknownItemIds, duplicateCount };
+}
+
 export function parseVerdict(text: string): JudgeVerdict {
   const value: unknown = JSON.parse(text);
   if (typeof value !== "object" || value === null) {

@@ -773,3 +773,34 @@ void test("the report has a Coverage column and shows the reference TTFT as n/a 
   const divider = report.split("\n").find((line) => line.startsWith("| ---"));
   assert.equal(header?.split("|").length, divider?.split("|").length);
 });
+
+void test("the last score row per variant|itemId wins, so a retried success replaces its judge error", () => {
+  const results: ResultRow[] = [...speedRows("retried", 800, 60)];
+  const scores = [
+    ...reference,
+    score("retried", "q1", "project"),
+    score("retried", "q2", "out_of_scope", { judgeError: "overloaded" }),
+    score("retried", "q2", "out_of_scope"),
+  ];
+  const retried = summarize(results, scores, [], ["q1", "q2"]).find(
+    (s) => s.variant === "retried",
+  );
+  assert.ok(retried);
+  assert.equal(retried.judgeErrors, 0);
+  assert.equal(retried.scored, 2);
+  assert.equal(retried.coverage, "2/2");
+  assert.equal(retried.gate, "pass");
+
+  const regressed = summarize(
+    results,
+    [
+      ...reference,
+      score("retried", "q1", "project"),
+      score("retried", "q2", "out_of_scope"),
+      score("retried", "q2", "out_of_scope", { judgeError: "overloaded" }),
+    ],
+    [],
+  ).find((s) => s.variant === "retried");
+  assert.equal(regressed?.judgeErrors, 1);
+  assert.equal(regressed?.scored, 1);
+});
