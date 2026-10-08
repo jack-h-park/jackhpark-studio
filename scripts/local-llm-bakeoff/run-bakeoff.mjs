@@ -14,7 +14,7 @@ import { measureChatStream } from "./stream-metrics.mjs";
  * @typedef {{ role: "system" | "user" | "assistant"; content: string }} ChatMessage
  * @typedef {{ id: string; lang: string; kind: string; messages: ChatMessage[]; temperature: number | null; maxTokens: number | null }} FixtureItem
  * @typedef {{ id: string; key: string; role: string; downloadRef: string | null; loadConfig: Record<string, unknown>; requestExtras: Record<string, unknown>; thinkingCandidates?: Record<string, unknown>[] }} Variant
- * @typedef {{ baseUrl: string; apiToken?: string; variants: Variant[]; items: FixtureItem[]; resultsPath: string; statePath: string; reps: number; fetchImpl?: typeof fetch; now?: () => number; readMemory?: () => Promise<number>; signal?: AbortSignal; log?: (line: string) => void }} RunOptions
+ * @typedef {{ baseUrl: string; apiToken?: string; variants: Variant[]; items: FixtureItem[]; resultsPath: string; statePath: string; reps: number; requestTimeoutMs?: number; fetchImpl?: typeof fetch; now?: () => number; readMemory?: () => Promise<number>; signal?: AbortSignal; log?: (line: string) => void }} RunOptions
  * @typedef {Awaited<ReturnType<typeof openResultsStore>>} ResultsStore
  */
 
@@ -22,17 +22,26 @@ const DEFAULT_MAX_TOKENS = 1024;
 const WARMUP_REQUESTS = 2;
 const BACKGROUND_STREAMS = 2;
 const BACKGROUND_RETRY_MS = 250;
+// A stalled stream must fail rather than hang, or the restore in `finally`
+// is never reached.
+const REQUEST_TIMEOUT_MS = 300_000;
+// Consecutive failed measurements that mean the server is down, not that the
+// items are bad.
+const MAX_CONSECUTIVE_FAILURES = 3;
 export const BACKGROUND_PROMPT =
   "Write a detailed 1,500-word essay on the history of cartography.";
 
 /**
- * @param {Pick<RunOptions, "baseUrl" | "apiToken" | "fetchImpl" | "now">} options
+ * @param {Pick<RunOptions, "baseUrl" | "apiToken" | "fetchImpl" | "now" | "requestTimeoutMs">} options
  * @param {Variant} variant
  * @param {FixtureItem} item
  * @param {Record<string, unknown>} extras
  * @param {AbortSignal} [signal]
  */
 async function streamCompletion(options, variant, item, extras, signal) {
+  const timeout = AbortSignal.timeout(
+    options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS,
+  );
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? (() => performance.now());
   const startedAt = now();
@@ -53,7 +62,7 @@ async function streamCompletion(options, variant, item, extras, signal) {
       stream_options: { include_usage: true },
       ...extras,
     }),
-    signal,
+    signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
   });
   if (!response.ok || !response.body) {
     throw new Error(
@@ -109,19 +118,22 @@ function variantComplete(options, store, variant) {
  */
 async function chooseRequestExtras(options, store, variant, log) {
   const candidates = variant.thinkingCandidates ?? [];
+  const baseExtras = variant.requestExtras ?? {};
   if (candidates.length === 0) {
-    return variant.requestExtras ?? {};
+    return baseExtras;
   }
   const probeItem = options.items[0];
   /** @type {{ extras: Record<string, unknown>; reasoningChars: number } | null} */
   let best = null;
-  for (const [index, extras] of candidates.entries()) {
+  for (const [index, candidate] of candidates.entries()) {
+    const extras = { ...baseExtras, ...candidate };
     const identity = {
       variant: variant.id,
       pass: "probe",
       itemId: probeItem.id,
       rep: index,
     };
+    const startedAt = new Date().toISOString();
     try {
       const metrics = await streamCompletion(
         options,
@@ -134,6 +146,7 @@ async function chooseRequestExtras(options, store, variant, log) {
         await store.append({
           ...identity,
           key: variant.key,
+          startedAt,
           ok: true,
           extras,
           ...metrics,
@@ -143,10 +156,14 @@ async function chooseRequestExtras(options, store, variant, log) {
         best = { extras, reasoningChars: metrics.reasoningChars };
       }
     } catch (error) {
+      if (options.signal?.aborted) {
+        throw error; // no probe row: a resumed run probes this candidate again
+      }
       if (!store.has(identity)) {
         await store.append({
           ...identity,
           key: variant.key,
+          startedAt,
           ok: false,
           extras,
           error: messageOf(error),
@@ -166,6 +183,9 @@ async function chooseRequestExtras(options, store, variant, log) {
 }
 
 /**
+ * Measures one item. The row is returned rather than written so the caller can
+ * hold back a failure streak (see `createPassRecorder`).
+ * @typedef {{ status: "skipped" | "aborted" } | { status: "ok" | "failed"; row: Record<string, unknown> & { variant: string; pass: string; itemId: string; rep: number } }} Outcome
  * @param {RunOptions} options
  * @param {ResultsStore} store
  * @param {Variant} variant
@@ -174,6 +194,7 @@ async function chooseRequestExtras(options, store, variant, log) {
  * @param {"baseline" | "concurrent"} pass
  * @param {number} rep
  * @param {(line: string) => void} log
+ * @returns {Promise<Outcome>}
  */
 async function measureOne(
   options,
@@ -187,7 +208,7 @@ async function measureOne(
 ) {
   const identity = { variant: variant.id, pass, itemId: item.id, rep };
   if (store.has(identity)) {
-    return;
+    return { status: "skipped" };
   }
   const startedAt = new Date().toISOString();
   try {
@@ -198,30 +219,77 @@ async function measureOne(
       extras,
       options.signal,
     );
-    await store.append({
-      ...identity,
-      key: variant.key,
-      startedAt,
-      ok: true,
-      extras,
-      ...metrics,
-    });
+    return {
+      status: "ok",
+      row: {
+        ...identity,
+        key: variant.key,
+        startedAt,
+        ok: true,
+        extras,
+        ...metrics,
+      },
+    };
   } catch (error) {
     if (options.signal?.aborted) {
-      return; // left unwritten so a resumed run measures it
+      return { status: "aborted" }; // left unwritten so a resumed run measures it
     }
     log(
       `[${variant.id}] ${pass} ${item.id} rep ${rep} failed: ${messageOf(error)}`,
     );
-    await store.append({
-      ...identity,
-      key: variant.key,
-      startedAt,
-      ok: false,
-      extras,
-      error: messageOf(error),
-    });
+    return {
+      status: "failed",
+      row: {
+        ...identity,
+        key: variant.key,
+        startedAt,
+        ok: false,
+        extras,
+        error: messageOf(error),
+      },
+    };
   }
+}
+
+/**
+ * Failed rows are held until a later success proves the server is alive. A
+ * streak of MAX_CONSECUTIVE_FAILURES is an outage: the buffered rows are
+ * dropped and the error leaves the variant incomplete so a resume redoes it.
+ * @param {ResultsStore} store
+ */
+function createPassRecorder(store) {
+  /** @type {Extract<Outcome, { row: unknown }>["row"][]} */
+  let pending = [];
+  /** @param {Extract<Outcome, { row: unknown }>["row"]} row */
+  const write = async (row) => {
+    if (!store.has(row)) {
+      await store.append(row);
+    }
+  };
+  const flush = async () => {
+    const rows = pending;
+    pending = [];
+    for (const row of rows) {
+      await write(row);
+    }
+  };
+  return {
+    /** @param {Outcome} outcome */
+    async record(outcome) {
+      if (outcome.status === "ok") {
+        await flush();
+        await write(outcome.row);
+      } else if (outcome.status === "failed") {
+        pending.push(outcome.row);
+        if (pending.length >= MAX_CONSECUTIVE_FAILURES) {
+          const count = pending.length;
+          pending = [];
+          throw new Error(`server unhealthy: ${count} consecutive failures`);
+        }
+      }
+    },
+    flush,
+  };
 }
 
 /**
@@ -231,8 +299,9 @@ async function measureOne(
  * @param {Variant} variant
  * @param {Record<string, unknown>} extras
  * @param {AbortSignal} stopSignal
+ * @param {{ ok: number; failed: number; lastError: string | null }} stats
  */
-async function runBackground(options, variant, extras, stopSignal) {
+async function runBackground(options, variant, extras, stopSignal, stats) {
   const signal = options.signal
     ? AbortSignal.any([stopSignal, options.signal])
     : stopSignal;
@@ -248,7 +317,14 @@ async function runBackground(options, variant, extras, stopSignal) {
   while (!signal.aborted) {
     try {
       await streamCompletion(options, variant, item, extras, signal);
-    } catch {
+      if (!signal.aborted) {
+        stats.ok += 1;
+      }
+    } catch (error) {
+      if (!signal.aborted) {
+        stats.failed += 1;
+        stats.lastError = messageOf(error);
+      }
       await delay(BACKGROUND_RETRY_MS, undefined, { signal }).catch(() => {
         // Aborted while backing off; the loop condition ends the task.
       });
@@ -279,6 +355,9 @@ async function runVariant(options, admin, store, variant, readMemory, log) {
   };
 
   const extras = await chooseRequestExtras(options, store, variant, log);
+  if (options.signal?.aborted) {
+    return;
+  }
   for (let i = 0; i < WARMUP_REQUESTS; i += 1) {
     await streamCompletion(
       options,
@@ -291,49 +370,71 @@ async function runVariant(options, admin, store, variant, readMemory, log) {
     );
   }
 
+  const baselineRecorder = createPassRecorder(store);
   for (let rep = 1; rep <= options.reps; rep += 1) {
     for (const item of options.items) {
       if (options.signal?.aborted) {
-        return;
+        break;
       }
-      await measureOne(
-        options,
-        store,
-        variant,
-        item,
-        extras,
-        "baseline",
-        rep,
-        log,
+      await baselineRecorder.record(
+        await measureOne(
+          options,
+          store,
+          variant,
+          item,
+          extras,
+          "baseline",
+          rep,
+          log,
+        ),
       );
       await sampleMemory();
     }
   }
+  await baselineRecorder.flush();
+  if (options.signal?.aborted) {
+    return;
+  }
 
   const stop = new AbortController();
-  const background = Array.from({ length: BACKGROUND_STREAMS }, () =>
-    runBackground(options, variant, extras, stop.signal),
+  const background = {
+    ok: 0,
+    failed: 0,
+    lastError: /** @type {string | null} */ (null),
+  };
+  const backgroundTasks = Array.from({ length: BACKGROUND_STREAMS }, () =>
+    runBackground(options, variant, extras, stop.signal, background),
   );
+  const concurrentRecorder = createPassRecorder(store);
   try {
     for (const item of options.items) {
       if (options.signal?.aborted) {
-        return;
+        break;
       }
-      await measureOne(
-        options,
-        store,
-        variant,
-        item,
-        extras,
-        "concurrent",
-        1,
-        log,
+      await concurrentRecorder.record(
+        await measureOne(
+          options,
+          store,
+          variant,
+          item,
+          extras,
+          "concurrent",
+          1,
+          log,
+        ),
       );
       await sampleMemory();
     }
+    await concurrentRecorder.flush();
   } finally {
     stop.abort();
-    await Promise.all(background);
+    await Promise.all(backgroundTasks);
+  }
+  log(
+    `[${variant.id}] background ok=${background.ok} failed=${background.failed}`,
+  );
+  if (options.signal?.aborted) {
+    return;
   }
 
   const memoryRow = {
@@ -349,25 +450,70 @@ async function runVariant(options, admin, store, variant, readMemory, log) {
       idleBytes,
       peakBytes,
       deltaBytes: peakBytes - idleBytes,
+      background,
     });
   }
   await admin.unloadAllLlms();
   log(`[${variant.id}] done`);
 }
 
+/**
+ * @param {number} reps
+ * @param {FixtureItem[]} items
+ */
+function assertRunnable(reps, items) {
+  if (!Number.isInteger(reps) || reps < 1) {
+    throw new Error(`--reps must be a positive integer, got ${reps}`);
+  }
+  if (items.length === 0) {
+    throw new Error("the fixture has no items");
+  }
+}
+
+/**
+ * The state file is the only record of what else was loaded on the server. A
+ * file without `restoredAt` means a previous run died before restoring, so its
+ * snapshot is kept instead of being replaced by the half-run state.
+ * @param {string} statePath
+ * @returns {Promise<{ takenAt: string; snapshot: Awaited<ReturnType<ReturnType<typeof createLmStudioAdmin>["loadedLlmInstances"]>> } | null>}
+ */
+async function readUnrestoredState(statePath) {
+  let text;
+  try {
+    text = await readFile(statePath, "utf8");
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  }
+  const state = JSON.parse(text);
+  return state.restoredAt ? null : state;
+}
+
 /** @param {RunOptions} options */
 export async function runBakeoff(options) {
+  assertRunnable(options.reps, options.items);
   const log =
     options.log ??
     ((line) => console.log(`${new Date().toISOString()} ${line}`));
   const readMemory = options.readMemory ?? readUsedMemoryBytes;
   const admin = createLmStudioAdmin(options);
   const store = await openResultsStore(options.resultsPath);
-  const snapshot = await admin.loadedLlmInstances();
-  await writeFile(
-    options.statePath,
-    JSON.stringify({ takenAt: new Date().toISOString(), snapshot }, null, 2),
-  );
+  const unrestored = await readUnrestoredState(options.statePath);
+  let takenAt;
+  let snapshot;
+  if (unrestored) {
+    ({ takenAt, snapshot } = unrestored);
+    log(`reusing unrestored snapshot taken ${takenAt}`);
+  } else {
+    takenAt = new Date().toISOString();
+    snapshot = await admin.loadedLlmInstances();
+    await writeFile(
+      options.statePath,
+      JSON.stringify({ takenAt, snapshot }, null, 2),
+    );
+  }
   log(
     `snapshot: ${snapshot.map((s) => `${s.modelKey}@${s.contextLength}`).join(", ") || "(nothing loaded)"}`,
   );
@@ -385,6 +531,14 @@ export async function runBakeoff(options) {
   } finally {
     log("restoring snapshot");
     await admin.restore(snapshot);
+    await writeFile(
+      options.statePath,
+      JSON.stringify(
+        { takenAt, snapshot, restoredAt: new Date().toISOString() },
+        null,
+        2,
+      ),
+    );
     log("restored");
   }
 }
@@ -405,7 +559,7 @@ export async function preflight(options) {
  */
 export function msUntil(hhmm, from) {
   const match = /^(\d{2}):(\d{2})$/.exec(hhmm);
-  if (!match) {
+  if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) {
     throw new Error(`--start-at expects HH:MM, got "${hhmm}"`);
   }
   const target = new Date(from);
@@ -441,7 +595,12 @@ async function main() {
   );
   const controller = new AbortController();
   for (const signalName of ["SIGINT", "SIGTERM"]) {
-    process.once(signalName, () => {
+    process.on(signalName, () => {
+      // A second Ctrl-C must not kill the process mid-restore.
+      if (controller.signal.aborted) {
+        console.log("restore in progress; please wait");
+        return;
+      }
       console.log(`${signalName}: stopping; the snapshot will be restored`);
       controller.abort();
     });
@@ -479,6 +638,8 @@ async function main() {
         throw new Error("--fixture is required for --mode run");
       }
       const { items } = JSON.parse(await readFile(values.fixture, "utf8"));
+      const reps = Number(values.reps);
+      assertRunnable(reps, items);
       if (values["start-at"]) {
         const waitMs = msUntil(values["start-at"], new Date());
         console.log(
@@ -491,7 +652,7 @@ async function main() {
         items,
         resultsPath: values.out ?? "results.jsonl",
         statePath: values.state ?? "state.json",
-        reps: Number(values.reps),
+        reps,
         signal: controller.signal,
       });
       console.log("done");

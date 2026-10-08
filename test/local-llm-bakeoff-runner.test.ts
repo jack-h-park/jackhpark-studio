@@ -1,7 +1,7 @@
 // test/local-llm-bakeoff-runner.test.ts
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,8 +19,25 @@ function sendJson(res: ServerResponse, payload: unknown) {
   res.end(JSON.stringify(payload));
 }
 
-async function startFakeLmStudio(failContent?: string) {
-  const loaded = new Map<string, number | null>([["model-a", 16_384]]);
+interface FakeOptions {
+  /** Chat requests whose last message equals this get HTTP 500. */
+  failContent?: string;
+  /** Every foreground chat request gets HTTP 500 (a server outage). */
+  failAllChat?: boolean;
+  /** Chat requests whose last message equals this never finish streaming. */
+  stallContent?: string;
+  /** Background (concurrency-pass) generations get HTTP 500. */
+  failBackground?: boolean;
+  /** Loading this model key answers HTTP 500. */
+  failLoadKey?: string;
+  /** Models loaded when the server starts (default: model-a at 16_384). */
+  initiallyLoaded?: [string, number | null][];
+}
+
+async function startFakeLmStudio(options: FakeOptions = {}) {
+  const loaded = new Map<string, number | null>(
+    options.initiallyLoaded ?? [["model-a", 16_384]],
+  );
   const chatCalls: { model: string; content: string; extras: unknown }[] = [];
   const server = createServer(async (req, res) => {
     const chunks: Buffer[] = [];
@@ -45,6 +62,10 @@ async function startFakeLmStudio(failContent?: string) {
       });
     }
     if (req.url === "/api/v1/models/load") {
+      if (body.model === options.failLoadKey) {
+        res.writeHead(500);
+        return res.end("load boom");
+      }
       loaded.set(
         String(body.model),
         typeof body.context_length === "number" ? body.context_length : null,
@@ -63,9 +84,18 @@ async function startFakeLmStudio(failContent?: string) {
         content,
         extras: body.chat_template_kwargs ?? null,
       });
-      if (content === failContent) {
+      if (
+        content === options.failContent ||
+        (options.failAllChat && content !== BACKGROUND_PROMPT) ||
+        (options.failBackground && content === BACKGROUND_PROMPT)
+      ) {
         res.writeHead(500);
         return res.end("boom");
+      }
+      if (content === options.stallContent) {
+        res.writeHead(200, { "Content-Type": "text/event-stream" });
+        res.flushHeaders();
+        return; // never ends; the runner's request timeout must cut it off
       }
       // The "thinking on" candidate (no kwargs) streams reasoning first.
       const thinking = body.chat_template_kwargs === undefined;
@@ -168,7 +198,7 @@ void test("probes, measures both passes, records memory and restores the snapsho
 });
 
 void test("records a failed item, keeps going, and a rerun repeats nothing", async () => {
-  const fake = await startFakeLmStudio("second question");
+  const fake = await startFakeLmStudio({ failContent: "second question" });
   const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
   const options = {
     baseUrl: fake.baseUrl,
@@ -203,4 +233,264 @@ void test("msUntil waits for the next occurrence of a local wall-clock time", ()
   assert.equal(msUntil("01:30", lateEvening), 2.5 * 60 * 60 * 1000);
   assert.equal(msUntil("23:30", lateEvening), 30 * 60 * 1000);
   assert.throws(() => msUntil("1:30", lateEvening), /HH:MM/);
+});
+
+const snapshotA = [
+  { modelKey: "model-a", instanceId: "model-a", contextLength: 16_384 },
+];
+
+async function rowsOrEmpty(path: string) {
+  try {
+    return await readJsonl(path);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw err;
+  }
+}
+
+function baseOptions(
+  fake: { baseUrl: string },
+  dir: string,
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    baseUrl: fake.baseUrl,
+    variants,
+    items,
+    resultsPath: join(dir, "results.jsonl"),
+    statePath: join(dir, "state.json"),
+    reps: 1,
+    readMemory: async () => 1000,
+    log: () => {},
+    ...overrides,
+  };
+}
+
+void test("an unrestored state file is reused instead of overwritten", async () => {
+  const fake = await startFakeLmStudio({
+    initiallyLoaded: [["model-b", null]],
+  });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    const takenAt = "2026-10-01T00:00:00.000Z";
+    await writeFile(
+      join(dir, "state.json"),
+      JSON.stringify({ takenAt, snapshot: snapshotA }),
+    );
+    await runBakeoff(baseOptions(fake, dir));
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+    const state = JSON.parse(
+      await readFile(join(dir, "state.json"), "utf8"),
+    ) as { takenAt: string; snapshot: unknown; restoredAt: unknown };
+    assert.equal(state.takenAt, takenAt);
+    assert.deepEqual(state.snapshot, snapshotA);
+    assert.equal(typeof state.restoredAt, "string");
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("a restored state file is replaced by a fresh snapshot", async () => {
+  const fake = await startFakeLmStudio({
+    initiallyLoaded: [["model-b", null]],
+  });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    await writeFile(
+      join(dir, "state.json"),
+      JSON.stringify({
+        takenAt: "2026-10-01T00:00:00.000Z",
+        snapshot: snapshotA,
+        restoredAt: "2026-10-01T01:00:00.000Z",
+      }),
+    );
+    await runBakeoff(baseOptions(fake, dir));
+    assert.deepEqual([...fake.loaded.entries()], [["model-b", null]]);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("a load failure still restores the snapshot", async () => {
+  const fake = await startFakeLmStudio({ failLoadKey: "model-bad" });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    await runBakeoff(
+      baseOptions(fake, dir, {
+        variants: [{ ...variants[0], id: "bad", key: "model-bad" }],
+      }),
+    );
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+    const rows = await rowsOrEmpty(join(dir, "results.jsonl"));
+    assert.equal(rows.length, 0);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("an outage streak is not recorded as results", async () => {
+  const fake = await startFakeLmStudio({ failAllChat: true });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    const four = [...items, item("q3", "third"), item("q4", "fourth")];
+    const options = baseOptions(fake, dir, {
+      variants: [{ ...variants[0], thinkingCandidates: undefined }],
+      items: four,
+    });
+    const lines: string[] = [];
+    await runBakeoff({ ...options, log: (line: string) => lines.push(line) });
+    assert.ok(
+      lines.some((l) => l.includes("server unhealthy: 3 consecutive failures")),
+    );
+    const rows = await rowsOrEmpty(join(dir, "results.jsonl"));
+    assert.equal(rows.filter((r) => r.pass === "baseline").length, 0);
+    assert.equal(rows.filter((r) => r.pass === "memory").length, 0);
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("failures before a success are recorded in order", async () => {
+  const fake = await startFakeLmStudio({ failContent: "first question" });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    await runBakeoff(
+      baseOptions(fake, dir, {
+        variants: [{ ...variants[0], thinkingCandidates: undefined }],
+      }),
+    );
+    const baseline = (await readJsonl(join(dir, "results.jsonl"))).filter(
+      (r) => r.pass === "baseline",
+    );
+    assert.deepEqual(
+      baseline.map((r) => [r.itemId, r.ok]),
+      [
+        ["q1", false],
+        ["q2", true],
+      ],
+    );
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("a stalled stream times out, is recorded as failed, and the run restores", async () => {
+  const fake = await startFakeLmStudio({ stallContent: "second question" });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    await runBakeoff(
+      baseOptions(fake, dir, {
+        variants: [{ ...variants[0], thinkingCandidates: undefined }],
+        requestTimeoutMs: 200,
+      }),
+    );
+    const rows = await readJsonl(join(dir, "results.jsonl"));
+    const stalled = rows.find(
+      (r) => r.itemId === "q2" && r.pass === "baseline",
+    );
+    assert.equal(stalled?.ok, false);
+    assert.match(String(stalled?.error), /timeout|aborted/i);
+    assert.equal(rows.filter((r) => r.pass === "memory").length, 1);
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("a run abort leaves the in-flight item unwritten", async () => {
+  const fake = await startFakeLmStudio({ stallContent: "second question" });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 300);
+    await runBakeoff(
+      baseOptions(fake, dir, {
+        variants: [{ ...variants[0], thinkingCandidates: undefined }],
+        signal: controller.signal,
+      }),
+    );
+    const rows = await readJsonl(join(dir, "results.jsonl"));
+    assert.equal(
+      rows.some((r) => r.itemId === "q2"),
+      false,
+    );
+    assert.equal(rows.filter((r) => r.pass === "memory").length, 0);
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("background stream outcomes are counted in the memory row", async () => {
+  const fake = await startFakeLmStudio({ failBackground: true });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    await runBakeoff(baseOptions(fake, dir));
+    const memory = (await readJsonl(join(dir, "results.jsonl"))).find(
+      (r) => r.pass === "memory",
+    ) as { background: { ok: number; failed: number; lastError: string } };
+    assert.equal(memory.background.ok, 0);
+    assert.ok(memory.background.failed >= 1);
+    assert.match(memory.background.lastError, /HTTP 500/);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("probe rows carry startedAt and the candidate merged over requestExtras", async () => {
+  const fake = await startFakeLmStudio();
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    await runBakeoff(
+      baseOptions(fake, dir, {
+        variants: [{ ...variants[0], requestExtras: { top_p: 0.9 } }],
+      }),
+    );
+    const probes = (await readJsonl(join(dir, "results.jsonl"))).filter(
+      (r) => r.pass === "probe",
+    );
+    assert.ok(probes.every((r) => typeof r.startedAt === "string"));
+    assert.deepEqual(probes[1]?.extras, {
+      top_p: 0.9,
+      chat_template_kwargs: { enable_thinking: false },
+    });
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("runBakeoff rejects empty items and a non-positive reps", async () => {
+  const fake = await startFakeLmStudio();
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    await assert.rejects(
+      runBakeoff(baseOptions(fake, dir, { items: [] })),
+      /no items/,
+    );
+    await assert.rejects(
+      runBakeoff(baseOptions(fake, dir, { reps: 0 })),
+      /positive integer/,
+    );
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("msUntil rejects an hour or minute out of range", () => {
+  const from = new Date(2026, 8, 26, 23, 0, 0);
+  assert.throws(() => msUntil("24:00", from), /HH:MM/);
+  assert.throws(() => msUntil("12:60", from), /HH:MM/);
 });
