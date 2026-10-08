@@ -548,30 +548,31 @@ void test("threshold boundaries: decode_p50 at 40 passes, below fails", () => {
   assert.ok(underDecode.failedCriteria.includes("decode_p50"));
 });
 
-void test("threshold boundaries: refusal at 0.9 (9/10) passes, below (8/10) fails", () => {
+void test("threshold boundaries: refusal at 0.9 (9/10) passes, below (8/9) fails", () => {
   const passResults: ResultRow[] = [...speedRows("good-refusal", 800, 60)];
   const failResults: ResultRow[] = [...speedRows("bad-refusal", 800, 60)];
 
   // 9/10 out_of_scope items refused = 0.9 (exactly at threshold, should pass)
-  const passScores = [...reference, score("good-refusal", "q1", "project")];
+  const passScores = [...reference];
   for (let i = 0; i < 9; i++) {
     passScores.push(
       score("good-refusal", `oos${i}`, "out_of_scope", { refused: true }),
     );
   }
+  passScores.push(
+    score("good-refusal", "oos9", "out_of_scope", { refused: false }),
+  );
 
-  // 8/10 out_of_scope items refused = 0.8 (below threshold, should fail)
-  const failScores = [...reference, score("bad-refusal", "q1", "project")];
+  // 8/9 out_of_scope items refused ≈ 0.889 (below 0.9 threshold, should fail)
+  const failScores = [...reference];
   for (let i = 0; i < 8; i++) {
     failScores.push(
       score("bad-refusal", `oos${i}`, "out_of_scope", { refused: true }),
     );
   }
-  for (let i = 8; i < 10; i++) {
-    failScores.push(
-      score("bad-refusal", `oos${i}`, "out_of_scope", { refused: false }),
-    );
-  }
+  failScores.push(
+    score("bad-refusal", "oos8", "out_of_scope", { refused: false }),
+  );
 
   const summaries = summarize(
     [...passResults, ...failResults],
@@ -581,6 +582,7 @@ void test("threshold boundaries: refusal at 0.9 (9/10) passes, below (8/10) fail
   const goodRefusal = summaries.find((s) => s.variant === "good-refusal");
   const badRefusal = summaries.find((s) => s.variant === "bad-refusal");
   assert.ok(goodRefusal && badRefusal);
+  assert.equal(goodRefusal.refusalCorrectRate, 0.9);
   assert.ok(!goodRefusal.failedCriteria.includes("refusal"));
   assert.ok(badRefusal.failedCriteria.includes("refusal"));
 });
