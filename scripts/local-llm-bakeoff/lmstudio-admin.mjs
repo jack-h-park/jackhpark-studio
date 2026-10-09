@@ -224,9 +224,25 @@ export function createLmStudioAdmin({
       if (failures.some((failure) => failure.modelKey === instance.modelKey)) {
         continue;
       }
-      const actual = reloaded.find(
+      const instances = reloaded.filter(
         (candidate) => candidate.modelKey === instance.modelKey,
       );
+      const expectedCount = snapshot.filter(
+        (candidate) => candidate.modelKey === instance.modelKey,
+      ).length;
+      // Another client can load the same model while the restore runs (the
+      // host's residency loop does, within a minute of an unload), and the
+      // second copy doubles the model's memory.
+      if (instances.length > expectedCount) {
+        failures.push({
+          modelKey: instance.modelKey,
+          error: new Error(
+            `${instance.modelKey} has ${instances.length} loaded instances, snapshot had ${expectedCount}`,
+          ),
+        });
+        continue;
+      }
+      const actual = instances[0];
       const differences = Object.entries(snapshotLoadConfig(instance))
         .filter(([key, expected]) => actual?.loadConfig?.[key] !== expected)
         .map(

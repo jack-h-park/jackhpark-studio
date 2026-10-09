@@ -10,7 +10,8 @@ Measures candidate local models on frozen JackGPT inputs. Design:
 | `BAKEOFF_DATA_DIR`   | Private directory **outside this repo** for questions, fixtures, results, scores and reports |
 | `BAKEOFF_HOST`       | ssh alias of the model host                                                                  |
 | `BAKEOFF_HOST_DIR`   | Working directory on the host                                                                |
-| `BAKEOFF_NODE`       | Absolute path of Node 22 on the host                                                         |
+| `BAKEOFF_NODE`       | Absolute path of Node 22 or newer on the host                                                |
+| `BAKEOFF_HOLD`       | The host's preload hold file, which pauses its resident-model reload loop                    |
 | `LMSTUDIO_API_TOKEN` | Only if the host's LM Studio requires a token                                                |
 
 ## 1. Record the fixture (laptop, any time)
@@ -51,18 +52,26 @@ ssh "$BAKEOFF_HOST" "cd $BAKEOFF_HOST_DIR && $BAKEOFF_NODE run-bakeoff.mjs --mod
 ## 3. Run overnight (host, inside the agreed window)
 
 ```bash
-ssh "$BAKEOFF_HOST" "cd $BAKEOFF_HOST_DIR && nohup caffeinate -i $BAKEOFF_NODE run-bakeoff.mjs --mode run --manifest manifest.json --fixture fixture.json --start-at 01:30 >> run.log 2>&1 &"
+ssh "$BAKEOFF_HOST" "cd $BAKEOFF_HOST_DIR && nohup caffeinate -i $BAKEOFF_NODE run-bakeoff.mjs --mode run --manifest manifest.json --fixture fixture.json --preload-hold $BAKEOFF_HOLD --start-at 01:30 >> run.log 2>&1 &"
 ```
+
+Always pass `--preload-hold`. The host reloads its resident model within a minute of an unload unless that file holds an unexpired time, so without it the resident model comes back beside the candidate under test. The run writes a six-hour hold when it starts (it leaves a longer one it finds in place) and removes its own after the restore.
 
 The log is appended to, so a rerun keeps the earlier night's lines. If the process dies, rerun the same command: finished rows are skipped. A resume must also run inside an agreed window: drop `--start-at` only when you are inside one now, otherwise keep a `--start-at` for the next one. If it was killed hard, put the server back first:
 
 ```bash
-ssh "$BAKEOFF_HOST" "cd $BAKEOFF_HOST_DIR && $BAKEOFF_NODE run-bakeoff.mjs --mode restore --manifest manifest.json --state state.json"
+ssh "$BAKEOFF_HOST" "cd $BAKEOFF_HOST_DIR && $BAKEOFF_NODE run-bakeoff.mjs --mode restore --manifest manifest.json --state state.json --preload-hold $BAKEOFF_HOLD"
 ```
 
-A run reuses an existing `state.json` whose snapshot has no `restoredAt` instead of overwriting it, and stamps `restoredAt` after a successful restore; `--mode restore` also stamps it, and refuses a state file that already has `restoredAt` (the server may have been changed on purpose since) unless you add `--force`. The script aborts a variant after 3 consecutive failed requests without recording them (so a resume re-measures it), and every request has a 5-minute timeout (a model load 15 minutes, any other LM Studio admin call 1 minute). A restore tries every snapshot model, retrying each failed load once, and names every model it could not reload. It replays each model's load settings, including its slot count (`parallel`), then reads them back and reports any setting the server did not apply. The last log line, `incomplete variants: ...`, lists the variants a resume still has to measure.
+With `--preload-hold`, the restore also removes the hold the killed run left behind.
+
+A run reuses an existing `state.json` whose snapshot has no `restoredAt` instead of overwriting it, and stamps `restoredAt` after a successful restore; `--mode restore` also stamps it, and refuses a state file that already has `restoredAt` (the server may have been changed on purpose since) unless you add `--force`. The script aborts a variant after 3 consecutive failed requests without recording them (so a resume re-measures it), and every request has a 5-minute timeout (a model load 15 minutes, any other LM Studio admin call 1 minute). A restore tries every snapshot model, retrying each failed load once, and names every model it could not reload. It replays each model's load settings, including its slot count (`parallel`), then reads them back and reports any setting the server did not apply, and any model loaded more times than the snapshot had it. The last log line, `incomplete variants: ...`, lists the variants a resume still has to measure.
 
 The run follows the host's experiment stop rule: it refuses to start while free+inactive memory is under 12 GiB, and ends early (restoring the snapshot) if free+inactive drops under 12 GiB or swap grows by more than 1 GiB since the start. The log then shows `stop rule tripped: ...`, and a resume in a later window continues from there.
+
+Each variant first tries its `thinkingCandidates` on one item and keeps the one with the least reasoning. A candidate's fields are merged into the request, except `assistantPrefill`, which is sent as a trailing assistant turn for the model to continue. The Qwen MLX builds ignore `chat_template_kwargs` and `reasoning_effort` under LM Studio, and an empty think block prefilled this way is what turns their thinking off; an app that serves one of them has to send the same turn.
+
+LM Studio keeps a prompt cache for as long as a model stays loaded, so a prompt sent a second time answers its first token in a fraction of the time. Each measured row records `promptSeen`, and the report times TTFT only on prompts the loaded model had not seen: the first repetition of every item except the one the probe and warmup used. Failures count whether or not the prompt was seen.
 
 ## 4. Score and report (laptop)
 

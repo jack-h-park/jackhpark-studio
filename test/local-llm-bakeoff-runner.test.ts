@@ -1,7 +1,8 @@
 // test/local-llm-bakeoff-runner.test.ts
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
+import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { createServer, type ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -39,13 +40,21 @@ interface FakeOptions {
   onStallLoad?: () => void;
   /** Models loaded when the server starts (default: model-a at 16_384). */
   initiallyLoaded?: [string, number | null][];
+  /** Called on every load request, before the model is marked loaded. */
+  onLoad?: (model: string) => void;
 }
 
 async function startFakeLmStudio(options: FakeOptions = {}) {
   const loaded = new Map<string, number | null>(
     options.initiallyLoaded ?? [["model-a", 16_384]],
   );
-  const chatCalls: { model: string; content: string; extras: unknown }[] = [];
+  const chatCalls: {
+    model: string;
+    content: string;
+    extras: unknown;
+    lastRole: string;
+    bodyKeys: string[];
+  }[] = [];
   const server = createServer(async (req, res) => {
     const chunks: Buffer[] = [];
     for await (const chunk of req) {
@@ -69,6 +78,7 @@ async function startFakeLmStudio(options: FakeOptions = {}) {
       });
     }
     if (req.url === "/api/v1/models/load") {
+      options.onLoad?.(String(body.model));
       if (body.model === options.stallLoadKey) {
         options.onStallLoad?.();
         return; // never answers; only an abort ends the request
@@ -88,12 +98,15 @@ async function startFakeLmStudio(options: FakeOptions = {}) {
       return sendJson(res, { instance_id: body.instance_id });
     }
     if (req.url === "/v1/chat/completions") {
-      const messages = body.messages as { content: string }[];
+      const messages = body.messages as { role: string; content: string }[];
       const content = messages.at(-1)?.content ?? "";
+      const lastRole = messages.at(-1)?.role ?? "";
       chatCalls.push({
         model: String(body.model),
         content,
         extras: body.chat_template_kwargs ?? null,
+        lastRole,
+        bodyKeys: Object.keys(body),
       });
       if (
         content === options.failContent ||
@@ -109,8 +122,10 @@ async function startFakeLmStudio(options: FakeOptions = {}) {
         options.onStall?.();
         return; // never ends; the runner's request timeout must cut it off
       }
-      // The "thinking on" candidate (no kwargs) streams reasoning first.
-      const thinking = body.chat_template_kwargs === undefined;
+      // The "thinking on" candidate (no kwargs, no prefilled assistant turn)
+      // streams reasoning first.
+      const thinking =
+        body.chat_template_kwargs === undefined && lastRole !== "assistant";
       res.writeHead(200, { "Content-Type": "text/event-stream" });
       const pieces = thinking
         ? [
@@ -714,6 +729,141 @@ void test("swap growing by more than 1 GiB since the start ends the run", async 
       ),
     );
     assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+const PREFILL = "<think>\n\n</think>\n\n";
+
+void test("a prefill candidate is sent as a trailing assistant turn, never as a body field", async () => {
+  const fake = await startFakeLmStudio();
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    await runBakeoff(
+      baseOptions(fake, dir, {
+        variants: [
+          {
+            ...variants[0],
+            thinkingCandidates: [{}, { assistantPrefill: PREFILL }],
+          },
+        ],
+      }),
+    );
+    const rows = await readJsonl(join(dir, "results.jsonl"));
+    const baseline = rows.filter((r) => r.pass === "baseline");
+    assert.ok(baseline.length > 0);
+    assert.ok(baseline.every((r) => r.reasoningChars === 0));
+    assert.ok(
+      baseline.every(
+        (r) =>
+          (r.extras as Record<string, unknown>).assistantPrefill === PREFILL,
+      ),
+    );
+    const prefilled = fake.chatCalls.filter((c) => c.lastRole === "assistant");
+    assert.ok(prefilled.length > 0);
+    assert.ok(prefilled.every((c) => c.content === PREFILL));
+    assert.ok(
+      fake.chatCalls.every((c) => !c.bodyKeys.includes("assistantPrefill")),
+    );
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+async function exists(path: string) {
+  return stat(path).then(
+    () => true,
+    () => false,
+  );
+}
+
+void test("the run holds the host's preload during every load and releases it after the restore", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const holdPath = join(dir, "preload-hold");
+  const seenAtLoad: string[] = [];
+  const fake = await startFakeLmStudio({
+    onLoad: () => {
+      try {
+        seenAtLoad.push(readFileSync(holdPath, "utf8"));
+      } catch {
+        seenAtLoad.push("<missing>");
+      }
+    },
+  });
+  const startedSeconds = Math.floor(Date.now() / 1000);
+  try {
+    await runBakeoff(baseOptions(fake, dir, { preloadHoldPath: holdPath }));
+    // The variant load and the restore load both ran under the hold.
+    assert.ok(seenAtLoad.length >= 2);
+    for (const text of seenAtLoad) {
+      const expiry = Number(text.trim());
+      assert.ok(Number.isInteger(expiry), `hold file held ${text}`);
+      assert.ok(expiry > startedSeconds + 3600);
+    }
+    assert.equal(await exists(holdPath), false);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("a longer hold someone else wrote is left in place", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const holdPath = join(dir, "preload-hold");
+  const theirs = `${Math.floor(Date.now() / 1000) + 11 * 3600}\n`;
+  await writeFile(holdPath, theirs);
+  const fake = await startFakeLmStudio();
+  try {
+    await runBakeoff(baseOptions(fake, dir, { preloadHoldPath: holdPath }));
+    assert.equal(await readFile(holdPath, "utf8"), theirs);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("each measured row says whether the loaded model had already seen its prompt", async () => {
+  const fake = await startFakeLmStudio();
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    await runBakeoff(baseOptions(fake, dir, { reps: 2 }));
+    const rows = await readJsonl(join(dir, "results.jsonl"));
+    const seen = (pass: string, itemId: string, rep: number) =>
+      rows.find((r) => r.pass === pass && r.itemId === itemId && r.rep === rep)
+        ?.promptSeen;
+    // q1 is the probe and warmup item, so even its first measurement is a repeat.
+    assert.equal(seen("baseline", "q1", 1), true);
+    assert.equal(seen("baseline", "q2", 1), false);
+    assert.equal(seen("baseline", "q2", 2), true);
+    assert.equal(seen("concurrent", "q2", 1), true);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("a manual restore also clears the hold a killed run left behind", async () => {
+  const fake = await startFakeLmStudio({ initiallyLoaded: [] });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const statePath = join(dir, "state.json");
+  const holdPath = join(dir, "preload-hold");
+  try {
+    await writeFile(
+      statePath,
+      JSON.stringify({
+        takenAt: "2026-10-01T00:00:00.000Z",
+        snapshot: snapshotA,
+      }),
+    );
+    await writeFile(holdPath, `${Math.floor(Date.now() / 1000) + 3600}\n`);
+    await restoreFromStateFile({ baseUrl: fake.baseUrl }, statePath, {
+      preloadHoldPath: holdPath,
+    });
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+    assert.equal(await exists(holdPath), false);
   } finally {
     await fake.close();
     await rm(dir, { recursive: true, force: true });
