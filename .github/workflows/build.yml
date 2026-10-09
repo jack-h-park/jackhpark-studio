@@ -38,4 +38,6 @@ jobs:
       - run: pnpm lint
       - run: pnpm check:server-only-pages
       - name: Build
-        run: pnpm build
+        # Deterministic builds retain both runtime checks without crawling
+        # live Notion twice per PR and again on main beside Vercel's build.
+        run: node scripts/ci/build-with-notion-fixture.mjs

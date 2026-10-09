@@ -57,7 +57,7 @@ void test("main updates retain both required runtime build checks", () => {
     "pnpm typecheck",
     "pnpm lint",
     "pnpm check:server-only-pages",
-    "pnpm build",
+    "node scripts/ci/build-with-notion-fixture.mjs",
   ])
     assert.ok(commands.has(required), `retain verification gate ${required}`);
 });
