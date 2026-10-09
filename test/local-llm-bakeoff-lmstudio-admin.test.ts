@@ -67,7 +67,12 @@ void test("lists loaded LLM instances with their context length, skipping embedd
     fetchImpl: fake.fetchImpl,
   });
   assert.deepEqual(await admin.loadedLlmInstances(), [
-    { modelKey: "model-a", instanceId: "model-a", contextLength: 16_384 },
+    {
+      modelKey: "model-a",
+      instanceId: "model-a",
+      contextLength: 16_384,
+      loadConfig: { context_length: 16_384 },
+    },
   ]);
 });
 
@@ -82,11 +87,11 @@ void test("restore unloads what is loaded and reloads the snapshot with its cont
   await admin.load("model-b", { context_length: 8192 });
   await admin.restore(snapshot);
   assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
-  assert.deepEqual(fake.calls.at(-1)?.body, {
-    model: "model-a",
-    context_length: 16_384,
-    echo_load_config: true,
-  });
+  // The last call is restore's read-back; the last load is the snapshot's.
+  assert.deepEqual(
+    fake.calls.findLast((c) => c.path === "/api/v1/models/load")?.body,
+    { model: "model-a", context_length: 16_384, echo_load_config: true },
+  );
 });
 
 void test("a non-2xx response throws with status and body", async () => {

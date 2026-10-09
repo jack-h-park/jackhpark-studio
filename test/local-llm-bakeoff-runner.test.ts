@@ -178,6 +178,13 @@ function item(id: string, content: string) {
 
 const items = [item("q1", "first question"), item("q2", "second question")];
 
+const GIB = 1024 ** 3;
+
+/** A host with plenty of memory and no swap growth, so tests never read the real machine. */
+async function healthyHeadroom() {
+  return { freeInactiveBytes: 30 * GIB, swapUsedBytes: 3 * GIB };
+}
+
 void test("probes, measures both passes, records memory and restores the snapshot", async () => {
   const fake = await startFakeLmStudio();
   const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
@@ -191,6 +198,7 @@ void test("probes, measures both passes, records memory and restores the snapsho
       statePath: join(dir, "state.json"),
       reps: 2,
       readMemory: async () => 1000,
+      readHeadroom: healthyHeadroom,
       log: (line: string) => lines.push(line),
     });
     assert.equal(lines.at(-1), "incomplete variants: none");
@@ -222,6 +230,7 @@ void test("records a failed item, keeps going, and a rerun repeats nothing", asy
     statePath: join(dir, "state.json"),
     reps: 1,
     readMemory: async () => 1000,
+    readHeadroom: healthyHeadroom,
     log: () => {},
   };
   const foreground = () =>
@@ -277,6 +286,7 @@ function baseOptions(
     statePath: join(dir, "state.json"),
     reps: 1,
     readMemory: async () => 1000,
+    readHeadroom: healthyHeadroom,
     log: () => {},
     ...overrides,
   };
@@ -598,6 +608,111 @@ void test("a run abort interrupts a model load that never answers, and the snaps
     );
     assert.ok(lines.some((l) => l.startsWith("[b-4bit] aborted:")));
     assert.ok(lines.includes("restored"));
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+const twoVariants = [
+  { ...variants[0], thinkingCandidates: undefined },
+  {
+    ...variants[0],
+    id: "a-second",
+    key: "model-a",
+    thinkingCandidates: undefined,
+  },
+];
+
+void test("the run refuses to start when free+inactive memory is already under the stop line", async () => {
+  const fake = await startFakeLmStudio();
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  try {
+    await assert.rejects(
+      runBakeoff(
+        baseOptions(fake, dir, {
+          readHeadroom: async () => ({
+            freeInactiveBytes: 8 * GIB,
+            swapUsedBytes: 0,
+          }),
+        }),
+      ),
+      /stop rule: free\+inactive 8\.0 GiB is under 12 GiB; not starting/,
+    );
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+    assert.equal(fake.chatCalls.length, 0);
+    assert.deepEqual(await rowsOrEmpty(join(dir, "results.jsonl")), []);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("free+inactive falling under the stop line ends the run and restores the snapshot", async () => {
+  const fake = await startFakeLmStudio();
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const lines: string[] = [];
+  let reads = 0;
+  try {
+    // Healthy at the start and right after the first load, then memory runs low.
+    await runBakeoff(
+      baseOptions(fake, dir, {
+        variants: twoVariants,
+        readHeadroom: async () => {
+          reads += 1;
+          return {
+            freeInactiveBytes: reads <= 2 ? 30 * GIB : 11 * GIB,
+            swapUsedBytes: 3 * GIB,
+          };
+        },
+        log: (line: string) => lines.push(line),
+      }),
+    );
+    assert.ok(
+      lines.some((line) =>
+        /stop rule tripped: free\+inactive 11\.0 GiB is under 12 GiB/.test(
+          line,
+        ),
+      ),
+    );
+    assert.equal(lines.at(-1), "incomplete variants: b-4bit, a-second");
+    const rows = await readJsonl(join(dir, "results.jsonl"));
+    assert.equal(rows.filter((r) => r.variant === "a-second").length, 0);
+    assert.equal(rows.filter((r) => r.pass === "memory").length, 0);
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("swap growing by more than 1 GiB since the start ends the run", async () => {
+  const fake = await startFakeLmStudio();
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const lines: string[] = [];
+  let reads = 0;
+  try {
+    await runBakeoff(
+      baseOptions(fake, dir, {
+        variants: twoVariants,
+        readHeadroom: async () => {
+          reads += 1;
+          return {
+            freeInactiveBytes: 30 * GIB,
+            swapUsedBytes: reads <= 2 ? 3 * GIB : 4.5 * GIB,
+          };
+        },
+        log: (line: string) => lines.push(line),
+      }),
+    );
+    assert.ok(
+      lines.some((line) =>
+        /stop rule tripped: swap grew 1\.5 GiB since the run started/.test(
+          line,
+        ),
+      ),
+    );
     assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
   } finally {
     await fake.close();
