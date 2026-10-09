@@ -28,9 +28,9 @@
     },
     {
       "id": "gemma-4-26b-a4b-4bit",
-      "key": "google/gemma-4-26b-a4b",
+      "key": "gemma-4-26b-a4b-it-mlx",
       "role": "speed",
-      "downloadRef": "google/gemma-4-26b-a4b",
+      "downloadRef": "https://huggingface.co/lmstudio-community/gemma-4-26B-A4B-it-MLX-4bit",
       "loadConfig": { "context_length": 16384 },
       "requestExtras": {},
       "thinkingCandidates": [
@@ -40,18 +40,18 @@
     },
     {
       "id": "gpt-oss-20b",
-      "key": "openai/gpt-oss-20b",
+      "key": "gpt-oss-20b",
       "role": "speed",
-      "downloadRef": "openai/gpt-oss-20b",
+      "downloadRef": "https://huggingface.co/mlx-community/gpt-oss-20b-MXFP4-Q8",
       "loadConfig": { "context_length": 16384 },
       "requestExtras": {},
       "thinkingCandidates": [{ "reasoning_effort": "low" }, {}]
     },
     {
       "id": "qwen3.8-27b-4bit",
-      "key": "qwen/qwen3.8-27b",
+      "key": "qwen3.8-27b-mlx",
       "role": "quality ceiling",
-      "downloadRef": "qwen/qwen3.8-27b",
+      "downloadRef": "https://huggingface.co/lmstudio-community/Qwen3.8-27B-MLX-4bit",
       "loadConfig": { "context_length": 16384 },
       "requestExtras": {},
       "thinkingCandidates": [
