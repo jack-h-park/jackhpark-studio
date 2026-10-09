@@ -804,3 +804,45 @@ void test("the last score row per variant|itemId wins, so a retried success repl
   assert.equal(regressed?.judgeErrors, 1);
   assert.equal(regressed?.scored, 1);
 });
+
+void test("TTFT leaves out answers to prompts the loaded model had already seen, but not their failures", () => {
+  const row = (
+    itemId: string,
+    rep: number,
+    overrides: Partial<ResultRow>,
+  ): ResultRow => ({
+    variant: "cached",
+    pass: "baseline",
+    itemId,
+    rep,
+    ok: true,
+    decodeTokensPerSecond: 60,
+    ...overrides,
+  });
+  const results: ResultRow[] = [
+    // First sight of each prompt: the real time to first token.
+    row("q1", 1, { ttftMs: 6000, promptSeen: false }),
+    row("q2", 1, { ttftMs: 6200, promptSeen: false }),
+    // Repeats answered from the server's prompt cache.
+    row("q1", 2, { ttftMs: 250, promptSeen: true }),
+    row("q2", 2, { ttftMs: 260, promptSeen: true }),
+    row("q1", 3, { ttftMs: 240, promptSeen: true }),
+    row("q2", 3, { ok: false, promptSeen: true }),
+    {
+      variant: "cached",
+      pass: "concurrent",
+      itemId: "q1",
+      rep: 1,
+      ok: true,
+      ttftMs: 400,
+      promptSeen: true,
+    },
+  ];
+  const [summary] = summarize(results, [], []);
+  assert.equal(summary?.ttftP50Ms, 6200);
+  // The failed repeat still counts as a failure.
+  assert.equal(summary?.ttftP95Ms, Number.POSITIVE_INFINITY);
+  // Concurrent prompts are always repeats; their TTFT is reported as it is.
+  assert.equal(summary?.concurrentTtftP95Ms, 400);
+  assert.equal(summary?.requests, 6);
+});

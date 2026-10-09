@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // scripts/local-llm-bakeoff/run-bakeoff.mjs
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
 import { readMemoryHeadroom, readUsedMemoryBytes } from "./host-memory.mjs";
 import { createLmStudioAdmin } from "./lmstudio-admin.mjs";
+import { acquirePreloadHold } from "./preload-hold.mjs";
 import { openResultsStore } from "./results-store.mjs";
 import { measureChatStream } from "./stream-metrics.mjs";
 
@@ -14,7 +15,7 @@ import { measureChatStream } from "./stream-metrics.mjs";
  * @typedef {{ role: "system" | "user" | "assistant"; content: string }} ChatMessage
  * @typedef {{ id: string; lang: string; kind: string; messages: ChatMessage[]; temperature: number | null; maxTokens: number | null }} FixtureItem
  * @typedef {{ id: string; key: string; role: string; downloadRef: string | null; loadConfig: Record<string, unknown>; requestExtras: Record<string, unknown>; thinkingCandidates?: Record<string, unknown>[] }} Variant
- * @typedef {{ baseUrl: string; apiToken?: string; variants: Variant[]; items: FixtureItem[]; resultsPath: string; statePath: string; reps: number; requestTimeoutMs?: number; fetchImpl?: typeof fetch; now?: () => number; readMemory?: () => Promise<number>; readHeadroom?: () => Promise<Headroom>; signal?: AbortSignal; log?: (line: string) => void }} RunOptions
+ * @typedef {{ baseUrl: string; apiToken?: string; variants: Variant[]; items: FixtureItem[]; resultsPath: string; statePath: string; reps: number; requestTimeoutMs?: number; fetchImpl?: typeof fetch; now?: () => number; readMemory?: () => Promise<number>; readHeadroom?: () => Promise<Headroom>; preloadHoldPath?: string; signal?: AbortSignal; log?: (line: string) => void }} RunOptions
  * @typedef {{ freeInactiveBytes: number; swapUsedBytes: number }} Headroom
  * @typedef {Awaited<ReturnType<typeof openResultsStore>>} ResultsStore
  * @typedef {import("./lmstudio-admin.mjs").LoadedInstance} LoadedInstance
@@ -36,6 +37,9 @@ const GIB = 1024 ** 3;
 const STOP_FREE_INACTIVE_BYTES = 12 * GIB;
 const STOP_SWAP_GROWTH_BYTES = 1 * GIB;
 const STOP_FREE_INACTIVE_LABEL = `${STOP_FREE_INACTIVE_BYTES / GIB} GiB`;
+// Longer than the agreed five-hour window, so the hold outlives a full run;
+// the run releases it after its restore, and the host caps any hold anyway.
+const PRELOAD_HOLD_SECONDS = 6 * 3600;
 export const BACKGROUND_PROMPT =
   "Write a detailed 1,500-word essay on the history of cartography.";
 
@@ -52,6 +56,15 @@ async function streamCompletion(options, variant, item, extras, signal) {
   );
   const fetchImpl = options.fetchImpl ?? fetch;
   const now = options.now ?? (() => performance.now());
+  // `assistantPrefill` is not a request field: it becomes a trailing assistant
+  // turn that LM Studio continues. An empty think block there is the one
+  // thinking switch the Qwen MLX builds honor; LM Studio does not forward
+  // `chat_template_kwargs` to their templates.
+  const { assistantPrefill, ...bodyExtras } = extras;
+  const messages =
+    typeof assistantPrefill === "string"
+      ? [...item.messages, { role: "assistant", content: assistantPrefill }]
+      : item.messages;
   const startedAt = now();
   const response = await fetchImpl(`${options.baseUrl}/v1/chat/completions`, {
     method: "POST",
@@ -63,12 +76,12 @@ async function streamCompletion(options, variant, item, extras, signal) {
     },
     body: JSON.stringify({
       model: variant.key,
-      messages: item.messages,
+      messages,
       ...(item.temperature === null ? {} : { temperature: item.temperature }),
       max_tokens: item.maxTokens ?? DEFAULT_MAX_TOKENS,
       stream: true,
       stream_options: { include_usage: true },
-      ...extras,
+      ...bodyExtras,
     }),
     signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
   });
@@ -201,6 +214,7 @@ async function chooseRequestExtras(options, store, variant, log) {
  * @param {Record<string, unknown>} extras
  * @param {"baseline" | "concurrent"} pass
  * @param {number} rep
+ * @param {Set<string>} sentItems items already sent since this model loaded
  * @param {(line: string) => void} log
  * @returns {Promise<Outcome>}
  */
@@ -212,12 +226,18 @@ async function measureOne(
   extras,
   pass,
   rep,
+  sentItems,
   log,
 ) {
   const identity = { variant: variant.id, pass, itemId: item.id, rep };
   if (store.has(identity)) {
     return { status: "skipped" };
   }
+  // LM Studio keeps a prompt cache for the life of a load, so a prompt sent
+  // before answers its first token far sooner than a visitor's new question
+  // would. The flag lets the report keep those times out of TTFT.
+  const promptSeen = sentItems.has(item.id);
+  sentItems.add(item.id);
   const startedAt = new Date().toISOString();
   try {
     const metrics = await streamCompletion(
@@ -235,6 +255,7 @@ async function measureOne(
         startedAt,
         ok: true,
         extras,
+        promptSeen,
         ...metrics,
       },
     };
@@ -253,6 +274,7 @@ async function measureOne(
         startedAt,
         ok: false,
         extras,
+        promptSeen,
         error: messageOf(error),
       },
     };
@@ -421,6 +443,8 @@ async function runVariant(
       log(`[${variant.id}] warmup failed: ${messageOf(error)}`),
     );
   }
+  // The probe and the warmup both sent the first item.
+  const sentItems = new Set([options.items[0].id]);
 
   const baselineRecorder = createPassRecorder(store);
   for (let rep = 1; rep <= options.reps; rep += 1) {
@@ -437,6 +461,7 @@ async function runVariant(
           extras,
           "baseline",
           rep,
+          sentItems,
           log,
         ),
       );
@@ -472,6 +497,7 @@ async function runVariant(
           extras,
           "concurrent",
           1,
+          sentItems,
           log,
         ),
       );
@@ -566,15 +592,17 @@ async function restoreAndStamp(admin, statePath, takenAt, snapshot) {
 /**
  * The `--mode restore` path: put back what a killed run recorded in the state
  * file. A snapshot already restored is refused unless forced: the server may
- * have been changed on purpose since then.
+ * have been changed on purpose since then. A run killed hard also leaves its
+ * preload hold behind; with `preloadHoldPath` the restore removes it, so the
+ * host's residency loop watches its model again.
  * @param {Pick<RunOptions, "baseUrl" | "apiToken" | "fetchImpl">} options
  * @param {string} statePath
- * @param {{ force?: boolean }} [restoreOptions]
+ * @param {{ force?: boolean; preloadHoldPath?: string }} [restoreOptions]
  */
 export async function restoreFromStateFile(
   options,
   statePath,
-  { force = false } = {},
+  { force = false, preloadHoldPath } = {},
 ) {
   const { takenAt, snapshot, restoredAt } = JSON.parse(
     await readFile(statePath, "utf8"),
@@ -590,6 +618,9 @@ export async function restoreFromStateFile(
     takenAt,
     snapshot,
   );
+  if (preloadHoldPath) {
+    await rm(preloadHoldPath, { force: true });
+  }
 }
 
 /** @param {RunOptions} options */
@@ -626,6 +657,14 @@ export async function runBakeoff(options) {
   log(
     `snapshot: ${snapshot.map((s) => `${s.modelKey}@${s.contextLength}`).join(", ") || "(nothing loaded)"}`,
   );
+  const hold = options.preloadHoldPath
+    ? await acquirePreloadHold(options.preloadHoldPath, PRELOAD_HOLD_SECONDS)
+    : null;
+  if (hold) {
+    log(
+      `preload hold until ${new Date(hold.expiry * 1000).toISOString()}${hold.owned ? "" : " (an existing longer hold; left as is)"}`,
+    );
+  }
   try {
     for (const variant of options.variants) {
       if (options.signal?.aborted) {
@@ -655,6 +694,9 @@ export async function runBakeoff(options) {
       await restoreAndStamp(admin, options.statePath, takenAt, snapshot);
       log("restored");
     } finally {
+      // Released even when the restore failed: the host's residency loop
+      // reloading its model is then the better outcome.
+      await hold?.release();
       const incomplete = options.variants
         .filter((variant) => !variantComplete(options, store, variant))
         .map((variant) => variant.id);
@@ -702,6 +744,7 @@ async function main() {
       reps: { type: "string", default: "3" },
       only: { type: "string" },
       "start-at": { type: "string" },
+      "preload-hold": { type: "string" },
       force: { type: "boolean", default: false },
     },
   });
@@ -737,6 +780,7 @@ async function main() {
     case "restore": {
       await restoreFromStateFile(base, values.state ?? "state.json", {
         force: values.force,
+        preloadHoldPath: values["preload-hold"],
       });
       console.log("restored");
       return;
@@ -777,6 +821,7 @@ async function main() {
         resultsPath: values.out ?? "results.jsonl",
         statePath: values.state ?? "state.json",
         reps,
+        preloadHoldPath: values["preload-hold"],
         signal: controller.signal,
       });
       console.log("done");

@@ -13,8 +13,11 @@ type InstanceConfig = Record<string, unknown>;
 function fakeServer(
   initial: Record<string, InstanceConfig>,
   ignore: string[] = [],
+  /** Models that come back as two instances, as when another client loads one during the restore. */
+  duplicateOnLoad: string[] = [],
 ) {
   const loaded = new Map<string, InstanceConfig>(Object.entries(initial));
+  const duplicated = new Set<string>();
   const loadBodies: Record<string, unknown>[] = [];
   const fetchImpl = async (
     input: RequestInfo | URL,
@@ -30,7 +33,12 @@ function fakeServer(
           key,
           type: "llm",
           loaded_instances: loaded.has(key)
-            ? [{ id: key, config: loaded.get(key) }]
+            ? [
+                { id: key, config: loaded.get(key) },
+                ...(duplicated.has(key)
+                  ? [{ id: `${key}:2`, config: loaded.get(key) }]
+                  : []),
+              ]
             : [],
         })),
       });
@@ -45,6 +53,9 @@ function fakeServer(
         }
       }
       loaded.set(String(model), applied);
+      if (duplicateOnLoad.includes(String(model))) {
+        duplicated.add(String(model));
+      }
       return Response.json({ instance_id: model, status: "loaded" });
     }
     if (path === "/api/v1/models/unload") {
@@ -128,4 +139,17 @@ void test("a snapshot written before load settings were kept still restores by c
     context_length: 8192,
     echo_load_config: true,
   });
+});
+
+void test("restore fails when a snapshot model comes back as more instances than it had", async () => {
+  const fake = fakeServer({ "model-a": residentConfig }, [], ["model-a"]);
+  const admin = createLmStudioAdmin({
+    baseUrl: "http://lm",
+    fetchImpl: fake.fetchImpl,
+  });
+  const snapshot = await admin.loadedLlmInstances();
+  await assert.rejects(
+    admin.restore(snapshot),
+    /model-a has 2 loaded instances, snapshot had 1/,
+  );
 });

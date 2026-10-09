@@ -21,6 +21,8 @@ export type ResultRow = {
   decodeTokensPerSecond?: number | null;
   deltaBytes?: number;
   error?: string;
+  /** The loaded model had already been sent this prompt (its prompt cache answers it). */
+  promptSeen?: boolean;
 };
 
 export type ScoreRow = {
@@ -84,13 +86,21 @@ function mean(values: number[]): number | null {
     : values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
+/**
+ * A repeated prompt is answered from the server's prompt cache, while a
+ * visitor's question always brings new retrieved context (and an exact repeat
+ * is served by the app's response cache, not the model), so only first-seen
+ * prompts time the first token. A failure counts either way.
+ */
 function ttftValues(baseline: ResultRow[]): number[] {
-  return baseline.map((r) => {
-    if (r.ok !== true || typeof r.ttftMs !== "number") {
-      return Number.POSITIVE_INFINITY;
-    }
-    return r.ttftMs;
-  });
+  return baseline
+    .filter((r) => r.ok !== true || r.promptSeen !== true)
+    .map((r) => {
+      if (r.ok !== true || typeof r.ttftMs !== "number") {
+        return Number.POSITIVE_INFINITY;
+      }
+      return r.ttftMs;
+    });
 }
 
 function rate<T>(rows: T[], predicate: (row: T) => boolean): number | null {
@@ -225,6 +235,9 @@ function summarizeLatest(
         numbers(okBaseline.map((r) => r.decodeTokensPerSecond)),
         50,
       ),
+      // Every concurrent prompt was sent in the baseline pass, so this times
+      // the wait for a free slot beside the background streams, not prompt
+      // processing.
       concurrentTtftP95Ms: percentile(
         numbers(concurrent.map((r) => r.ttftMs)),
         95,
@@ -355,7 +368,7 @@ export function renderReport(summaries: VariantSummary[]): string {
   return [
     "# Local LLM bake-off report",
     "",
-    `Gate: TTFT p50 ≤ ${GATE.ttftP50Ms} ms, p95 ≤ ${GATE.ttftP95Ms} ms; decode p50 ≥ ${GATE.decodeP50} tok/s; zero confirmed ungrounded claims; refusal ≥ ${pct(GATE.refusalMin)}; quality ratio ≥ ${GATE.qualityRatioMin}; format ≥ ${pct(GATE.formatMin)}. Memory Δ is approximate (system-wide vm_stat).`,
+    `Gate: TTFT p50 ≤ ${GATE.ttftP50Ms} ms, p95 ≤ ${GATE.ttftP95Ms} ms; decode p50 ≥ ${GATE.decodeP50} tok/s; zero confirmed ungrounded claims; refusal ≥ ${pct(GATE.refusalMin)}; quality ratio ≥ ${GATE.qualityRatioMin}; format ≥ ${pct(GATE.formatMin)}. Memory Δ is approximate (system-wide vm_stat). TTFT counts only prompts the loaded model had not seen before; concurrent TTFT is on repeated prompts, so it measures waiting for a slot.`,
     "",
     header,
     divider,

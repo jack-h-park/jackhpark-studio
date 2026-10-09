@@ -8,6 +8,7 @@
       "loadConfig": { "context_length": 16384 },
       "requestExtras": {},
       "thinkingCandidates": [
+        { "assistantPrefill": "<think>\n\n</think>\n\n" },
         {},
         { "chat_template_kwargs": { "enable_thinking": false } },
         { "reasoning_effort": "low" }
@@ -21,6 +22,7 @@
       "loadConfig": { "context_length": 16384 },
       "requestExtras": {},
       "thinkingCandidates": [
+        { "assistantPrefill": "<think>\n\n</think>\n\n" },
         {},
         { "chat_template_kwargs": { "enable_thinking": false } },
         { "reasoning_effort": "low" }
@@ -55,6 +57,7 @@
       "loadConfig": { "context_length": 16384 },
       "requestExtras": {},
       "thinkingCandidates": [
+        { "assistantPrefill": "<think>\n\n</think>\n\n" },
         { "chat_template_kwargs": { "enable_thinking": false } },
         { "reasoning_effort": "low" },
         {}
