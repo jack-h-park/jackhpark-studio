@@ -39,12 +39,21 @@ export async function withAbortTimeout<T>(
   action: (signal: AbortSignal) => Promise<T>,
 ): Promise<T> {
   const controller = new AbortController();
-  const timeout = wait(timeoutMs).then(() => controller.abort());
+  // The timer gets its own controller so settling `action` can cancel it;
+  // otherwise every call would wait out the full `timeoutMs`.
+  const timerController = new AbortController();
+  const timeout = wait(timeoutMs, undefined, {
+    signal: timerController.signal,
+  }).then(
+    () => controller.abort(),
+    () => undefined,
+  );
   try {
     return await action(controller.signal);
   } finally {
+    timerController.abort();
     controller.abort();
-    await timeout.catch(() => undefined);
+    await timeout;
   }
 }
 
