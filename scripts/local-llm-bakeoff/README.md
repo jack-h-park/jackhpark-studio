@@ -34,6 +34,8 @@ pnpm exec tsx scripts/local-llm-bakeoff/record-fixture.ts --pass local --questio
 pnpm exec tsx scripts/local-llm-bakeoff/record-fixture.ts --pass reference --questions "$BAKEOFF_DATA_DIR/questions.json" --out-dir "$BAKEOFF_DATA_DIR"
 ```
 
+Restart both servers before recording again. The dev app keeps an in-memory response cache, so a question it has already answered never reaches the recorder, and the local pass then stops with `no streamed request recorded`. On a fresh dev app the first chat request can time out while it compiles; send a throwaway question first, not one from the set.
+
 The recorder.mjs script truncates its `--log` file on startup and refuses a `--log` path inside the repo; record-fixture.ts refuses `--out-dir` and `--recorder-log` inside the repo.
 
 The recorder answers every call with a stub, so the local pass refuses to build a fixture when the app made any model call besides the streamed answer (query rewrite, HyDE or history summary) and names those items: their recorded input would have been built from the stub. Turn those features off for the recording session or record those items another way.
