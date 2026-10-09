@@ -43,11 +43,16 @@ async function askApp(
   sessionConfig?: Record<string, string>,
 ) {
   // The signal stays live while the body is read, so it bounds the stream too.
+  // The session overrides go under `config`, the key the chat UI sends:
+  // pages/api/chat.ts resolves the runtime from it alone and ignores any
+  // other key, so a misnamed one silently answers with the default preset.
   const response = await fetch(`${values.app}/api/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(
-      sessionConfig ? { messages: turns, sessionConfig } : { messages: turns },
+      sessionConfig
+        ? { messages: turns, config: sessionConfig }
+        : { messages: turns },
     ),
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
