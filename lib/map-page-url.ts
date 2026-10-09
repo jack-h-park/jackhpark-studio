@@ -23,14 +23,14 @@ function buildInvertedMap(
   );
 }
 
-export const mapPageUrl =
-  (
-    site: Site,
-    recordMap: ExtendedRecordMap,
-    searchParams: URLSearchParams,
-    canonicalPageMap?: Record<string, string>,
-  ) =>
-  (pageId = "") => {
+export const mapPageUrl = (
+  site: Site,
+  recordMap: ExtendedRecordMap,
+  searchParams: URLSearchParams,
+  canonicalPageMap?: Record<string, string>,
+) => {
+  const inverted = uuid ? {} : buildInvertedMap(canonicalPageMap);
+  return (pageId = "") => {
     const pageUuid = parsePageId(pageId, { uuid: true })!;
     const rawId = uuidToId(pageUuid);
 
@@ -43,7 +43,6 @@ export const mapPageUrl =
       // Only use a slug if the page is resolvable via canonicalPageMap.
       // Pages absent from canonicalPageMap (e.g. deep collection items not yet
       // traversed) fall back to raw UUID, which always resolves via parsePageId.
-      const inverted = buildInvertedMap(canonicalPageMap);
       const slug = inverted[rawId];
       return createUrl(`/${slug ?? rawId}`, searchParams);
     }
@@ -53,6 +52,7 @@ export const mapPageUrl =
       searchParams,
     );
   };
+};
 
 export const getCanonicalPageUrl =
   (site: Site, recordMap: ExtendedRecordMap) =>
