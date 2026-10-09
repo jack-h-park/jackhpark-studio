@@ -1,10 +1,55 @@
 import { setTimeout as delay } from "node:timers/promises";
 
 /**
- * @typedef {{ modelKey: string; instanceId: string; contextLength: number | null }} LoadedInstance
- * @typedef {{ key: string; type: string; loaded_instances: { id: string; config?: { context_length?: number | null } }[] }} LmStudioModel
+ * @typedef {Record<string, string | number | boolean>} LoadConfig
+ * @typedef {{ modelKey: string; instanceId: string; contextLength: number | null; loadConfig?: LoadConfig }} LoadedInstance
+ * @typedef {{ key: string; type: string; loaded_instances: { id: string; config?: Record<string, unknown> }[] }} LmStudioModel
  * @typedef {{ signal?: AbortSignal }} CallOptions
  */
+
+// Instance settings that `/api/v1/models/load` accepts. The endpoint rejects
+// unknown keys, so a snapshot replays only these; `parallel` (the slot count)
+// is the one a resident model is easiest to lose on restore.
+const RESTORABLE_LOAD_KEYS = [
+  "context_length",
+  "parallel",
+  "reasoning_budget_message",
+  "eval_batch_size",
+  "flash_attention",
+  "num_experts",
+  "offload_kv_cache_to_gpu",
+];
+
+/**
+ * @param {Record<string, unknown> | undefined} config
+ * @returns {LoadConfig}
+ */
+function pickLoadConfig(config = {}) {
+  /** @type {LoadConfig} */
+  const picked = {};
+  for (const key of RESTORABLE_LOAD_KEYS) {
+    const value = config[key];
+    if (
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    ) {
+      picked[key] = value;
+    }
+  }
+  return picked;
+}
+
+/** @param {LoadedInstance} instance @returns {LoadConfig} */
+function snapshotLoadConfig(instance) {
+  if (instance.loadConfig) {
+    return instance.loadConfig;
+  }
+  // Snapshots written before load settings were kept carry only this.
+  return instance.contextLength === null
+    ? {}
+    : { context_length: instance.contextLength };
+}
 
 // A cold load of a large model from disk can take many minutes; any other
 // admin call that takes a minute means the server is stuck.
@@ -96,11 +141,18 @@ export function createLmStudioAdmin({
     return models
       .filter((model) => model.type === "llm")
       .flatMap((model) =>
-        model.loaded_instances.map((instance) => ({
-          modelKey: model.key,
-          instanceId: instance.id,
-          contextLength: instance.config?.context_length ?? null,
-        })),
+        model.loaded_instances.map((instance) => {
+          const loadConfig = pickLoadConfig(instance.config);
+          return {
+            modelKey: model.key,
+            instanceId: instance.id,
+            contextLength:
+              typeof loadConfig.context_length === "number"
+                ? loadConfig.context_length
+                : null,
+            loadConfig,
+          };
+        }),
       );
   }
 
@@ -145,7 +197,9 @@ export function createLmStudioAdmin({
    * unload failure throws at once (an empty server is safer than a half
    * state). Each load is retried once, and every instance is attempted before
    * the failures are reported together, so one bad model does not leave the
-   * rest of the snapshot unloaded.
+   * rest of the snapshot unloaded. Afterwards every reloaded instance is read
+   * back, and a setting the server did not apply is reported as a failure:
+   * a resident model that silently comes back with fewer slots is not restored.
    * @param {LoadedInstance[]} snapshot
    */
   async function restore(snapshot) {
@@ -153,10 +207,7 @@ export function createLmStudioAdmin({
     /** @type {{ modelKey: string; error: unknown }[]} */
     const failures = [];
     for (const instance of snapshot) {
-      const loadConfig =
-        instance.contextLength === null
-          ? {}
-          : { context_length: instance.contextLength };
+      const loadConfig = snapshotLoadConfig(instance);
       try {
         await load(instance.modelKey, loadConfig);
       } catch {
@@ -166,6 +217,31 @@ export function createLmStudioAdmin({
         } catch (err) {
           failures.push({ modelKey: instance.modelKey, error: err });
         }
+      }
+    }
+    const reloaded = await loadedLlmInstances();
+    for (const instance of snapshot) {
+      if (failures.some((failure) => failure.modelKey === instance.modelKey)) {
+        continue;
+      }
+      const actual = reloaded.find(
+        (candidate) => candidate.modelKey === instance.modelKey,
+      );
+      const differences = Object.entries(snapshotLoadConfig(instance))
+        .filter(([key, expected]) => actual?.loadConfig?.[key] !== expected)
+        .map(
+          ([key, expected]) =>
+            `${key}=${String(actual?.loadConfig?.[key])}, snapshot had ${key}=${String(expected)}`,
+        );
+      if (!actual || differences.length > 0) {
+        failures.push({
+          modelKey: instance.modelKey,
+          error: new Error(
+            actual
+              ? `${instance.modelKey} loaded with ${differences.join("; ")}`
+              : `${instance.modelKey} is not loaded after restore`,
+          ),
+        });
       }
     }
     if (failures.length > 0) {
