@@ -5,7 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
-import { readUsedMemoryBytes } from "./host-memory.mjs";
+import { readMemoryHeadroom, readUsedMemoryBytes } from "./host-memory.mjs";
 import { createLmStudioAdmin } from "./lmstudio-admin.mjs";
 import { openResultsStore } from "./results-store.mjs";
 import { measureChatStream } from "./stream-metrics.mjs";
@@ -14,7 +14,8 @@ import { measureChatStream } from "./stream-metrics.mjs";
  * @typedef {{ role: "system" | "user" | "assistant"; content: string }} ChatMessage
  * @typedef {{ id: string; lang: string; kind: string; messages: ChatMessage[]; temperature: number | null; maxTokens: number | null }} FixtureItem
  * @typedef {{ id: string; key: string; role: string; downloadRef: string | null; loadConfig: Record<string, unknown>; requestExtras: Record<string, unknown>; thinkingCandidates?: Record<string, unknown>[] }} Variant
- * @typedef {{ baseUrl: string; apiToken?: string; variants: Variant[]; items: FixtureItem[]; resultsPath: string; statePath: string; reps: number; requestTimeoutMs?: number; fetchImpl?: typeof fetch; now?: () => number; readMemory?: () => Promise<number>; signal?: AbortSignal; log?: (line: string) => void }} RunOptions
+ * @typedef {{ baseUrl: string; apiToken?: string; variants: Variant[]; items: FixtureItem[]; resultsPath: string; statePath: string; reps: number; requestTimeoutMs?: number; fetchImpl?: typeof fetch; now?: () => number; readMemory?: () => Promise<number>; readHeadroom?: () => Promise<Headroom>; signal?: AbortSignal; log?: (line: string) => void }} RunOptions
+ * @typedef {{ freeInactiveBytes: number; swapUsedBytes: number }} Headroom
  * @typedef {Awaited<ReturnType<typeof openResultsStore>>} ResultsStore
  * @typedef {import("./lmstudio-admin.mjs").LoadedInstance} LoadedInstance
  */
@@ -29,6 +30,12 @@ const REQUEST_TIMEOUT_MS = 300_000;
 // Consecutive failed measurements that mean the server is down, not that the
 // items are bad.
 const MAX_CONSECUTIVE_FAILURES = 3;
+// The host's stop rule for experiments: the machine also runs always-on ops
+// work, so a run ends as soon as either line is crossed.
+const GIB = 1024 ** 3;
+const STOP_FREE_INACTIVE_BYTES = 12 * GIB;
+const STOP_SWAP_GROWTH_BYTES = 1 * GIB;
+const STOP_FREE_INACTIVE_LABEL = `${STOP_FREE_INACTIVE_BYTES / GIB} GiB`;
 export const BACKGROUND_PROMPT =
   "Write a detailed 1,500-word essay on the history of cartography.";
 
@@ -333,15 +340,54 @@ async function runBackground(options, variant, extras, stopSignal, stats) {
   }
 }
 
+/** A memory stop-rule trip: ends the whole run, not just one variant. */
+class StopRuleError extends Error {}
+
+/** @param {number} bytes */
+function formatGib(bytes) {
+  return `${(bytes / GIB).toFixed(1)} GiB`;
+}
+
+/**
+ * @param {() => Promise<Headroom>} readHeadroom
+ * @param {number} startSwapBytes swap in use when the run started
+ * @returns {() => Promise<void>} throws StopRuleError when a line is crossed
+ */
+function createStopRule(readHeadroom, startSwapBytes) {
+  return async () => {
+    const { freeInactiveBytes, swapUsedBytes } = await readHeadroom();
+    if (freeInactiveBytes < STOP_FREE_INACTIVE_BYTES) {
+      throw new StopRuleError(
+        `free+inactive ${formatGib(freeInactiveBytes)} is under ${STOP_FREE_INACTIVE_LABEL}`,
+      );
+    }
+    const growth = swapUsedBytes - startSwapBytes;
+    if (growth > STOP_SWAP_GROWTH_BYTES) {
+      throw new StopRuleError(
+        `swap grew ${formatGib(growth)} since the run started`,
+      );
+    }
+  };
+}
+
 /**
  * @param {RunOptions} options
  * @param {ReturnType<typeof createLmStudioAdmin>} admin
  * @param {ResultsStore} store
  * @param {Variant} variant
  * @param {() => Promise<number>} readMemory
+ * @param {() => Promise<void>} checkStopRule
  * @param {(line: string) => void} log
  */
-async function runVariant(options, admin, store, variant, readMemory, log) {
+async function runVariant(
+  options,
+  admin,
+  store,
+  variant,
+  readMemory,
+  checkStopRule,
+  log,
+) {
   if (variantComplete(options, store, variant)) {
     log(`[${variant.id}] already complete, skipping`);
     return;
@@ -353,9 +399,11 @@ async function runVariant(options, admin, store, variant, readMemory, log) {
   const idleBytes = await readMemory();
   log(`[${variant.id}] loading ${variant.key}`);
   await admin.load(variant.key, variant.loadConfig ?? {}, adminCall);
+  await checkStopRule();
   let peakBytes = await readMemory();
   const sampleMemory = async () => {
     peakBytes = Math.max(peakBytes, await readMemory());
+    await checkStopRule();
   };
 
   const extras = await chooseRequestExtras(options, store, variant, log);
@@ -551,6 +599,14 @@ export async function runBakeoff(options) {
     options.log ??
     ((line) => console.log(`${new Date().toISOString()} ${line}`));
   const readMemory = options.readMemory ?? readUsedMemoryBytes;
+  const readHeadroom = options.readHeadroom ?? readMemoryHeadroom;
+  const start = await readHeadroom();
+  if (start.freeInactiveBytes < STOP_FREE_INACTIVE_BYTES) {
+    throw new Error(
+      `stop rule: free+inactive ${formatGib(start.freeInactiveBytes)} is under ${STOP_FREE_INACTIVE_LABEL}; not starting`,
+    );
+  }
+  const checkStopRule = createStopRule(readHeadroom, start.swapUsedBytes);
   const admin = createLmStudioAdmin(options);
   const store = await openResultsStore(options.resultsPath);
   const unrestored = await readUnrestoredState(options.statePath);
@@ -576,8 +632,20 @@ export async function runBakeoff(options) {
         break;
       }
       try {
-        await runVariant(options, admin, store, variant, readMemory, log);
+        await runVariant(
+          options,
+          admin,
+          store,
+          variant,
+          readMemory,
+          checkStopRule,
+          log,
+        );
       } catch (error) {
+        if (error instanceof StopRuleError) {
+          log(`stop rule tripped: ${error.message}; stopping the run`);
+          break;
+        }
         log(`[${variant.id}] aborted: ${messageOf(error)}`);
       }
     }

@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { parseVmStatUsedBytes } from "@/scripts/local-llm-bakeoff/host-memory.mjs";
+import {
+  parseSwapUsedBytes,
+  parseVmStatFreeInactiveBytes,
+  parseVmStatUsedBytes,
+} from "@/scripts/local-llm-bakeoff/host-memory.mjs";
 import {
   openResultsStore,
   readJsonl,
@@ -59,4 +63,35 @@ void test("vm_stat used memory is wired + active + compressor pages", () => {
   ].join("\n");
   assert.equal(parseVmStatUsedBytes(text), 540_000 * 16_384);
   assert.throws(() => parseVmStatUsedBytes("garbage"), /page size/);
+});
+
+void test("free+inactive is the free plus inactive pages", () => {
+  const text = [
+    "Mach Virtual Memory Statistics: (page size of 16384 bytes)",
+    "Pages free:                               515788.",
+    "Pages active:                            1452859.",
+    "Pages inactive:                          1470009.",
+    "Pages speculative:                         32702.",
+  ].join("\n");
+  assert.equal(
+    parseVmStatFreeInactiveBytes(text),
+    (515_788 + 1_470_009) * 16_384,
+  );
+  assert.throws(() => parseVmStatFreeInactiveBytes("garbage"), /page size/);
+});
+
+void test("swap used is read from sysctl vm.swapusage in its own unit", () => {
+  assert.equal(
+    parseSwapUsedBytes(
+      "vm.swapusage: total = 5120.00M  used = 3800.94M  free = 1319.06M  (encrypted)",
+    ),
+    3800.94 * 1024 ** 2,
+  );
+  assert.equal(
+    parseSwapUsedBytes(
+      "vm.swapusage: total = 8.00G  used = 1.50G  free = 6.50G",
+    ),
+    1.5 * 1024 ** 3,
+  );
+  assert.throws(() => parseSwapUsedBytes("nothing here"), /no used figure/);
 });
