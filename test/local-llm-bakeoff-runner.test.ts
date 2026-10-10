@@ -799,9 +799,12 @@ void test("the run holds the host's preload during every load and releases it af
     // The variant load and the restore load both ran under the hold.
     assert.ok(seenAtLoad.length >= 2);
     for (const text of seenAtLoad) {
-      const expiry = Number(text.trim());
+      // The host reads only the first line; the second names the owner.
+      const [first, owner] = text.split("\n");
+      const expiry = Number(first);
       assert.ok(Number.isInteger(expiry), `hold file held ${text}`);
       assert.ok(expiry > startedSeconds + 3600);
+      assert.equal(owner, "local-llm-bakeoff");
     }
     assert.equal(await exists(holdPath), false);
   } finally {
@@ -810,15 +813,49 @@ void test("the run holds the host's preload during every load and releases it af
   }
 });
 
-void test("a longer hold someone else wrote is left in place", async () => {
+void test("an active hold someone else wrote stops the run before anything is touched", async () => {
   const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
   const holdPath = join(dir, "preload-hold");
-  const theirs = `${Math.floor(Date.now() / 1000) + 11 * 3600}\n`;
+  // Another experiment renewing a short hold, as one does every 20 s.
+  const theirs = `${Math.floor(Date.now() / 1000) + 60}\n`;
   await writeFile(holdPath, theirs);
   const fake = await startFakeLmStudio();
   try {
-    await runBakeoff(baseOptions(fake, dir, { preloadHoldPath: holdPath }));
+    await assert.rejects(
+      runBakeoff(baseOptions(fake, dir, { preloadHoldPath: holdPath })),
+      /another preload hold is active until .*; not starting/,
+    );
     assert.equal(await readFile(holdPath, "utf8"), theirs);
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+    assert.equal(fake.chatCalls.length, 0);
+    assert.equal(await exists(join(dir, "state.json")), false);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("an expired hold is replaced, and a hold the bake-off left itself is taken over", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const holdPath = join(dir, "preload-hold");
+  const fake = await startFakeLmStudio();
+  try {
+    await writeFile(holdPath, `${Math.floor(Date.now() / 1000) - 60}\n`);
+    await runBakeoff(baseOptions(fake, dir, { preloadHoldPath: holdPath }));
+    assert.equal(await exists(holdPath), false);
+
+    // A run killed hard leaves its own hold; the resume must not refuse it.
+    await writeFile(
+      holdPath,
+      `${Math.floor(Date.now() / 1000) + 3600}\nlocal-llm-bakeoff\n`,
+    );
+    await runBakeoff(
+      baseOptions(fake, dir, {
+        preloadHoldPath: holdPath,
+        resultsPath: join(dir, "second.jsonl"),
+      }),
+    );
+    assert.equal(await exists(holdPath), false);
   } finally {
     await fake.close();
     await rm(dir, { recursive: true, force: true });
@@ -858,12 +895,40 @@ void test("a manual restore also clears the hold a killed run left behind", asyn
         snapshot: snapshotA,
       }),
     );
-    await writeFile(holdPath, `${Math.floor(Date.now() / 1000) + 3600}\n`);
+    await writeFile(
+      holdPath,
+      `${Math.floor(Date.now() / 1000) + 3600}\nlocal-llm-bakeoff\n`,
+    );
     await restoreFromStateFile({ baseUrl: fake.baseUrl }, statePath, {
       preloadHoldPath: holdPath,
     });
     assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
     assert.equal(await exists(holdPath), false);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("a manual restore leaves someone else's hold in place", async () => {
+  const fake = await startFakeLmStudio({ initiallyLoaded: [] });
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const statePath = join(dir, "state.json");
+  const holdPath = join(dir, "preload-hold");
+  const theirs = `${Math.floor(Date.now() / 1000) + 60}\n`;
+  try {
+    await writeFile(
+      statePath,
+      JSON.stringify({
+        takenAt: "2026-10-01T00:00:00.000Z",
+        snapshot: snapshotA,
+      }),
+    );
+    await writeFile(holdPath, theirs);
+    await restoreFromStateFile({ baseUrl: fake.baseUrl }, statePath, {
+      preloadHoldPath: holdPath,
+    });
+    assert.equal(await readFile(holdPath, "utf8"), theirs);
   } finally {
     await fake.close();
     await rm(dir, { recursive: true, force: true });
