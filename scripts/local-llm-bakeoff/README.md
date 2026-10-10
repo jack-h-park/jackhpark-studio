@@ -55,7 +55,7 @@ ssh "$BAKEOFF_HOST" "cd $BAKEOFF_HOST_DIR && $BAKEOFF_NODE run-bakeoff.mjs --mod
 ssh "$BAKEOFF_HOST" "cd $BAKEOFF_HOST_DIR && nohup caffeinate -i $BAKEOFF_NODE run-bakeoff.mjs --mode run --manifest manifest.json --fixture fixture.json --preload-hold $BAKEOFF_HOLD --start-at 01:30 >> run.log 2>&1 &"
 ```
 
-Always pass `--preload-hold`. The host reloads its resident model within a minute of an unload unless that file holds an unexpired time, so without it the resident model comes back beside the candidate under test. The run writes a six-hour hold when it starts (it leaves a longer one it finds in place) and removes its own after the restore.
+Always pass `--preload-hold`. The host reloads its resident model within a minute of an unload unless that file holds an unexpired time, so without it the resident model comes back beside the candidate under test. The run writes a six-hour hold when it starts, with a second line naming the bake-off as its owner, and removes its own after the restore. An unexpired hold without that line belongs to another experiment using the model server, so the run stops before touching anything: `another preload hold is active until ...; not starting`. Pick another night with that experiment's owner. A hold the bake-off left itself is taken over by the resume.
 
 The log is appended to, so a rerun keeps the earlier night's lines. If the process dies, rerun the same command: finished rows are skipped. A resume must also run inside an agreed window: drop `--start-at` only when you are inside one now, otherwise keep a `--start-at` for the next one. If it was killed hard, put the server back first:
 
@@ -63,7 +63,7 @@ The log is appended to, so a rerun keeps the earlier night's lines. If the proce
 ssh "$BAKEOFF_HOST" "cd $BAKEOFF_HOST_DIR && $BAKEOFF_NODE run-bakeoff.mjs --mode restore --manifest manifest.json --state state.json --preload-hold $BAKEOFF_HOLD"
 ```
 
-With `--preload-hold`, the restore also removes the hold the killed run left behind.
+With `--preload-hold`, the restore also removes the hold the killed run left behind. It leaves a hold another experiment wrote in place.
 
 A run reuses an existing `state.json` whose snapshot has no `restoredAt` instead of overwriting it, and stamps `restoredAt` after a successful restore; `--mode restore` also stamps it, and refuses a state file that already has `restoredAt` (the server may have been changed on purpose since) unless you add `--force`. The script aborts a variant after 3 consecutive failed requests without recording them (so a resume re-measures it), and every request has a 5-minute timeout (a model load 15 minutes, any other LM Studio admin call 1 minute). A restore tries every snapshot model, retrying each failed load once, and names every model it could not reload. It replays each model's load settings, including its slot count (`parallel`), then reads them back and reports any setting the server did not apply, and any model loaded more times than the snapshot had it. The last log line, `incomplete variants: ...`, lists the variants a resume still has to measure.
 

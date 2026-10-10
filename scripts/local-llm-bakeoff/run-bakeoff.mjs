@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // scripts/local-llm-bakeoff/run-bakeoff.mjs
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
 import { readMemoryHeadroom, readUsedMemoryBytes } from "./host-memory.mjs";
 import { createLmStudioAdmin } from "./lmstudio-admin.mjs";
-import { acquirePreloadHold } from "./preload-hold.mjs";
+import { acquirePreloadHold, clearOwnPreloadHold } from "./preload-hold.mjs";
 import { openResultsStore } from "./results-store.mjs";
 import { measureChatStream } from "./stream-metrics.mjs";
 
@@ -594,7 +594,8 @@ async function restoreAndStamp(admin, statePath, takenAt, snapshot) {
  * file. A snapshot already restored is refused unless forced: the server may
  * have been changed on purpose since then. A run killed hard also leaves its
  * preload hold behind; with `preloadHoldPath` the restore removes it, so the
- * host's residency loop watches its model again.
+ * host's residency loop watches its model again. A hold another experiment
+ * wrote is left alone.
  * @param {Pick<RunOptions, "baseUrl" | "apiToken" | "fetchImpl">} options
  * @param {string} statePath
  * @param {{ force?: boolean; preloadHoldPath?: string }} [restoreOptions]
@@ -619,7 +620,7 @@ export async function restoreFromStateFile(
     snapshot,
   );
   if (preloadHoldPath) {
-    await rm(preloadHoldPath, { force: true });
+    await clearOwnPreloadHold(preloadHoldPath);
   }
 }
 
@@ -638,33 +639,39 @@ export async function runBakeoff(options) {
     );
   }
   const checkStopRule = createStopRule(readHeadroom, start.swapUsedBytes);
-  const admin = createLmStudioAdmin(options);
-  const store = await openResultsStore(options.resultsPath);
-  const unrestored = await readUnrestoredState(options.statePath);
-  let takenAt;
-  let snapshot;
-  if (unrestored) {
-    ({ takenAt, snapshot } = unrestored);
-    log(`reusing unrestored snapshot taken ${takenAt}`);
-  } else {
-    takenAt = new Date().toISOString();
-    snapshot = await admin.loadedLlmInstances();
-    await writeFile(
-      options.statePath,
-      JSON.stringify({ takenAt, snapshot }, null, 2),
-    );
-  }
-  log(
-    `snapshot: ${snapshot.map((s) => `${s.modelKey}@${s.contextLength}`).join(", ") || "(nothing loaded)"}`,
-  );
+  // Taken before anything else touches the server or the state file, so a run
+  // that finds another experiment's hold leaves no trace.
   const hold = options.preloadHoldPath
     ? await acquirePreloadHold(options.preloadHoldPath, PRELOAD_HOLD_SECONDS)
     : null;
   if (hold) {
-    log(
-      `preload hold until ${new Date(hold.expiry * 1000).toISOString()}${hold.owned ? "" : " (an existing longer hold; left as is)"}`,
-    );
+    log(`preload hold until ${new Date(hold.expiry * 1000).toISOString()}`);
   }
+  const admin = createLmStudioAdmin(options);
+  let store;
+  let takenAt;
+  let snapshot;
+  try {
+    store = await openResultsStore(options.resultsPath);
+    const unrestored = await readUnrestoredState(options.statePath);
+    if (unrestored) {
+      ({ takenAt, snapshot } = unrestored);
+      log(`reusing unrestored snapshot taken ${takenAt}`);
+    } else {
+      takenAt = new Date().toISOString();
+      snapshot = await admin.loadedLlmInstances();
+      await writeFile(
+        options.statePath,
+        JSON.stringify({ takenAt, snapshot }, null, 2),
+      );
+    }
+  } catch (err) {
+    await hold?.release();
+    throw err;
+  }
+  log(
+    `snapshot: ${snapshot.map((s) => `${s.modelKey}@${s.contextLength}`).join(", ") || "(nothing loaded)"}`,
+  );
   try {
     for (const variant of options.variants) {
       if (options.signal?.aborted) {
