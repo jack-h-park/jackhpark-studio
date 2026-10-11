@@ -8,6 +8,9 @@ import {
   parseInterviewCard,
 } from "@/lib/rag/sources/interview-bank";
 
+// No names checked: these cases are about the other gates. The name gate has its own file.
+const NO_NAMES = [] as const;
+
 const repoRoot = process.cwd();
 
 function card({
@@ -51,8 +54,8 @@ void describe("preview and ingest share one decision", () => {
       card({ sections: [["Answer Draft", "draft only"]] }),
     ];
     for (const [index, source] of cases.entries()) {
-      const verdict = inspectInterviewCard(`case-${index}`, source);
-      const parsed = parseInterviewCard(`case-${index}`, source);
+      const verdict = inspectInterviewCard(`case-${index}`, source, NO_NAMES);
+      const parsed = parseInterviewCard(`case-${index}`, source, NO_NAMES);
       assert.equal(
         verdict.eligible,
         parsed !== null,
@@ -60,7 +63,11 @@ void describe("preview and ingest share one decision", () => {
       );
       if (verdict.eligible && parsed) {
         // Not just "both agree it publishes" — the same bytes.
-        assert.equal(verdict.card.answer, parsed.answer, `case ${index}: text differs`);
+        assert.equal(
+          verdict.card.answer,
+          parsed.answer,
+          `case ${index}: text differs`,
+        );
       }
     }
   });
@@ -72,7 +79,7 @@ void describe("preview and ingest share one decision", () => {
       "no-answer-sections": card({ sections: [["Gaps", "x"]] }),
     } as const;
     for (const [expected, source] of Object.entries(reasons)) {
-      const verdict = inspectInterviewCard("x", source);
+      const verdict = inspectInterviewCard("x", source, NO_NAMES);
       assert.equal(verdict.eligible, false);
       if (!verdict.eligible) assert.equal(verdict.reason, expected);
     }
@@ -81,7 +88,7 @@ void describe("preview and ingest share one decision", () => {
   void it("still reports what it knows about an excluded card", () => {
     // The preview has to be readable: "held back" with no status and no question is not
     // something an operator can act on.
-    const verdict = inspectInterviewCard("x", card({ optIn: false }));
+    const verdict = inspectInterviewCard("x", card({ optIn: false }), NO_NAMES);
     assert.equal(verdict.eligible, false);
     if (!verdict.eligible) {
       assert.equal(verdict.status, "reviewed");
@@ -91,7 +98,7 @@ void describe("preview and ingest share one decision", () => {
   });
 
   void it("never exposes a private section through the preview", () => {
-    const verdict = inspectInterviewCard("x", card());
+    const verdict = inspectInterviewCard("x", card(), NO_NAMES);
     assert.ok(verdict.eligible);
     if (verdict.eligible) {
       assert.doesNotMatch(verdict.card.answer, /PRIVATE/);

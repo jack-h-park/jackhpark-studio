@@ -34,6 +34,7 @@ const REASON_LABEL: Record<string, string> = {
   "not-opted-in": "Not opted in",
   "no-question": "No question in frontmatter",
   "no-answer-sections": "No answer sections",
+  "confidential-name": "Names an unannounced product",
 };
 
 // Categories are slugs in the frontmatter ("ai-security-enterprise-risk-and-operations").
@@ -47,11 +48,12 @@ function humanizeCategory(value: string | null): string {
 }
 
 const REASON_HINT: Record<string, string> = {
-  "status-not-publishable":
-    "Develop it to drafted before it can be published.",
+  "status-not-publishable": "Develop it to drafted before it can be published.",
   "not-opted-in": "Add publish_to_jackgpt: true to publish it.",
   "no-question": "Add a question: field.",
   "no-answer-sections": "Add a ## Short Version or ## Answer Draft.",
+  "confidential-name":
+    "Describe the product without its name, or mark it public in the wiki's confidential-names list once it is announced.",
 };
 
 type PageProps = {
@@ -78,6 +80,10 @@ export default function InterviewBankPage({
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const heldBack = total - eligible;
+  const withheld = useMemo(
+    () => entries.filter((entry) => entry.reason === "confidential-name"),
+    [entries],
+  );
   const byReason = useMemo(() => {
     const counts = new Map<string, number>();
     for (const entry of entries) {
@@ -133,10 +139,19 @@ export default function InterviewBankPage({
         align: "left",
         variant: "muted",
         width: "180px",
-        render: (entry) =>
-          entry.eligible
-            ? `${(entry.characters ?? 0).toLocaleString("en-US")} chars`
-            : (REASON_LABEL[entry.reason ?? ""] ?? entry.reason),
+        render: (entry) => {
+          if (entry.eligible) {
+            return `${(entry.characters ?? 0).toLocaleString("en-US")} chars`;
+          }
+          const label = REASON_LABEL[entry.reason ?? ""] ?? entry.reason;
+          if (entry.reason !== "confidential-name") return label;
+          // The one exclusion that is a defect rather than a state, so it says which words.
+          return (
+            <StatusPill variant="error">
+              {label}: {entry.confidentialMatches.join(", ")}
+            </StatusPill>
+          );
+        },
       },
       {
         // The expand affordance is an icon button on the right, as in the runs table —
@@ -201,7 +216,20 @@ export default function InterviewBankPage({
               {error}
               <br />
               The usual cause is a missing or expired{" "}
-              <code>INTERVIEW_BANK_GITHUB_TOKEN</code>.
+              <code>INTERVIEW_BANK_GITHUB_TOKEN</code>, or the wiki&apos;s{" "}
+              <code>confidential-names.yaml</code> missing or malformed —
+              nothing is published unchecked, so either one stops the ingest.
+            </InlineAlert>
+          ) : null}
+
+          {withheld.length > 0 ? (
+            <InlineAlert
+              severity="warning"
+              title={`${withheld.length} question(s) withheld: the published text names an unannounced product`}
+            >
+              {withheld.map((entry) => entry.slug).join(", ")}. The ingest
+              refuses these and withdraws any copy an earlier run published.{" "}
+              {REASON_HINT["confidential-name"]}
             </InlineAlert>
           ) : null}
 
@@ -220,13 +248,13 @@ export default function InterviewBankPage({
             <CardDescription>
               A question is published only when its status is{" "}
               <code>drafted</code>, <code>reviewed</code>, or{" "}
-              <code>delivery_ready</code>{" "}
-              <strong>and</strong> its frontmatter carries{" "}
-              <code>publish_to_jackgpt: true</code>. Only{" "}
+              <code>delivery_ready</code> <strong>and</strong> its frontmatter
+              carries <code>publish_to_jackgpt: true</code>. Only{" "}
               <code>## Short Version</code> and <code>## Answer Draft</code> are
               embedded — <code>## Evidence Notes</code>, <code>## Gaps</code>,{" "}
               <code>## Improvement Notes</code> and anything added later stay
-              private.
+              private. The embedded text must also carry no name from the
+              wiki&apos;s list of unannounced products.
               {byReason.length > 0 ? (
                 <>
                   {" "}

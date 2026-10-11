@@ -12,13 +12,16 @@ import {
   createEmptyRunStats,
   type EmbedBatchOptions,
   finishIngestRun,
+  getDocumentState,
   getPageTitle,
   getPageUrl,
   type IngestRunErrorLog,
   type IngestRunHandle,
   type IngestRunStats,
+  replaceChunks,
   startIngestRun,
 } from "../rag/index";
+import { withdrawWithheldCards } from "../rag/interview-bank-withdraw";
 import {
   appendSweepRunLogs,
   formatSweepSummary,
@@ -31,7 +34,11 @@ import {
   type IngestProgressStep,
   type IngestReporter,
 } from "../rag/pipeline";
-import { markAttempt, markFetchFailure } from "../rag/rag-document-lifecycle";
+import {
+  markAttempt,
+  markFetchFailure,
+  markMissing,
+} from "../rag/rag-document-lifecycle";
 import {
   fetchInterviewBankCards,
   INTERVIEW_BANK_SOURCE_URL_PREFIX,
@@ -1084,12 +1091,38 @@ async function runInterviewBankIngestion({
       message: "Reading the interview Q&A bank from GitHub...",
     });
 
-    const cards = await fetchInterviewBankCards();
+    const { cards, withheld } = await fetchInterviewBankCards();
     await emit({
       type: "log",
       level: "info",
       message: `${cards.length} card(s) have a supported draft and are opted in.`,
     });
+
+    // A withheld card is an error, not an ordinary exclusion: it was opted in and ready, and
+    // its published text names an unannounced product. The wiki's commit check should have
+    // stopped it, so reaching here means that check was bypassed or the list changed. The
+    // matched names are deliberately not logged; /admin/interview-bank shows them.
+    const withdrawals = await withdrawWithheldCards(
+      withheld,
+      interviewCardDocId,
+      {
+        hasDocument: async (docId) => Boolean(await getDocumentState(docId)),
+        deleteChunks: (docId) => replaceChunks(docId, [], embeddingOptions),
+        markWithdrawn: async (docId, reason) => {
+          await markMissing(supabaseClient, docId, null, reason);
+        },
+      },
+    );
+    for (const outcome of withdrawals) {
+      stats.errorCount += 1;
+      const message = outcome.error
+        ? `Withheld interview card ${outcome.slug}: it names an unannounced product, and withdrawing its earlier copy FAILED: ${outcome.error}`
+        : outcome.withdrawn
+          ? `Withheld interview card ${outcome.slug}: it names an unannounced product. Its earlier copy was withdrawn from retrieval.`
+          : `Withheld interview card ${outcome.slug}: it names an unannounced product. It was never published.`;
+      errorLogs.push({ context: "withheld", doc_id: outcome.slug, message });
+      await emit({ type: "log", level: "error", message });
+    }
     await emit({ type: "progress", step: "collected", percent: 20 });
 
     let position = 0;
