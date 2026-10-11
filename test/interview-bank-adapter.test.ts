@@ -8,6 +8,9 @@ import {
   prepareInterviewCardDocument,
 } from "@/lib/rag/sources/interview-bank";
 
+// No names checked: these cases are about the other gates. The name gate has its own file.
+const NO_NAMES = [] as const;
+
 // Shaped after a real card: quoted question containing a colon, list-valued frontmatter,
 // and the full canonical section order.
 function card({
@@ -46,29 +49,37 @@ function card({
 
 void describe("interview card eligibility", () => {
   void it("accepts a reviewed card that is opted in", () => {
-    const parsed = parseInterviewCard("saying-no", card());
+    const parsed = parseInterviewCard("saying-no", card(), NO_NAMES);
     assert.ok(parsed);
-    assert.equal(parsed.question, "The Hardest Part of Product Management: Saying No");
+    assert.equal(
+      parsed.question,
+      "The Hardest Part of Product Management: Saying No",
+    );
     assert.equal(parsed.category, "prioritization-uncertainty-kill-discipline");
   });
 
   void it("accepts delivery_ready as well as reviewed", () => {
-    assert.ok(parseInterviewCard("x", card({ status: "delivery_ready" })));
+    assert.ok(
+      parseInterviewCard("x", card({ status: "delivery_ready" }), NO_NAMES),
+    );
   });
 
   void it("accepts an opted-in supported draft", () => {
-    assert.ok(parseInterviewCard("x", card({ status: "drafted" })));
+    assert.ok(parseInterviewCard("x", card({ status: "drafted" }), NO_NAMES));
   });
 
   void it("rejects a reviewed card that is not opted in", () => {
     // "reviewed" means the answer is good, not that Jack wants it publicly retrievable.
-    assert.equal(parseInterviewCard("x", card({ optIn: false })), null);
+    assert.equal(
+      parseInterviewCard("x", card({ optIn: false }), NO_NAMES),
+      null,
+    );
   });
 
   void it("rejects an opted-in card that does not have a supported draft", () => {
     for (const status of ["needs_evidence", "new"]) {
       assert.equal(
-        parseInterviewCard("x", card({ status, optIn: true })),
+        parseInterviewCard("x", card({ status, optIn: true }), NO_NAMES),
         null,
         `status ${status} must not be publishable`,
       );
@@ -79,17 +90,19 @@ void describe("interview card eligibility", () => {
     const stripped = card({
       sections: [["Gaps", "Only private notes here."]],
     });
-    assert.equal(parseInterviewCard("x", stripped), null);
+    assert.equal(parseInterviewCard("x", stripped, NO_NAMES), null);
   });
 });
 
 void describe("interview card content", () => {
   void it("embeds the question with the answer", () => {
     // A visitor's phrasing matches the question far more often than the answer prose.
-    const parsed = parseInterviewCard("saying-no", card());
+    const parsed = parseInterviewCard("saying-no", card(), NO_NAMES);
     assert.ok(parsed);
     assert.ok(
-      parsed.answer.startsWith("Q: The Hardest Part of Product Management: Saying No"),
+      parsed.answer.startsWith(
+        "Q: The Hardest Part of Product Management: Saying No",
+      ),
     );
     assert.match(parsed.answer, /The one-paragraph version\./);
     assert.match(parsed.answer, /The long spoken answer/);
@@ -98,7 +111,7 @@ void describe("interview card content", () => {
   void it("never embeds the private sections", () => {
     // The failure this guards is silent and public: the assistant quoting Jack's notes on
     // the weaknesses of his own answers, or internal repo paths.
-    const parsed = parseInterviewCard("saying-no", card());
+    const parsed = parseInterviewCard("saying-no", card(), NO_NAMES);
     assert.ok(parsed);
     for (const leak of [
       "Backed by wiki/cases",
@@ -125,6 +138,7 @@ void describe("interview card content", () => {
           ["Salary Expectations", "a number Jack would not publish"],
         ],
       }),
+      NO_NAMES,
     );
     assert.ok(parsed);
     assert.doesNotMatch(parsed.answer, /a number Jack would not publish/);
@@ -135,6 +149,7 @@ void describe("interview card content", () => {
     const parsed = parseInterviewCard(
       "x",
       card({ sections: [["Answer Draft", "only the draft"]] }),
+      NO_NAMES,
     );
     assert.ok(parsed);
     assert.match(parsed.answer, /only the draft/);
@@ -152,7 +167,7 @@ void describe("interview card document", () => {
   void it("uses the sweep-scoped source url", () => {
     // sweepUnvisitedDocuments is scoped by this prefix, so it can only retire interview
     // cards — never a Notion page or an ingested URL.
-    const parsed = parseInterviewCard("saying-no", card());
+    const parsed = parseInterviewCard("saying-no", card(), NO_NAMES);
     assert.ok(parsed);
     const doc = prepareInterviewCardDocument(parsed);
     assert.ok(doc.sourceUrl.startsWith(INTERVIEW_BANK_SOURCE_URL_PREFIX));
@@ -165,7 +180,7 @@ void describe("interview card document", () => {
   });
 
   void it("classifies the document for retrieval", () => {
-    const parsed = parseInterviewCard("saying-no", card());
+    const parsed = parseInterviewCard("saying-no", card(), NO_NAMES);
     assert.ok(parsed);
     const metadata = prepareInterviewCardDocument(parsed).buildMetadata(null);
     assert.ok(metadata && !(metadata instanceof Promise));
