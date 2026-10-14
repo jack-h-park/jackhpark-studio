@@ -21,9 +21,18 @@ import {
 
 import type { SectionId } from "@/content/pm-intelligence-world/types";
 import {
+  projectSceneLabel,
+  resolveLabelLayout,
+  type SceneLabelElements,
+  type SceneLeaderElements,
+  spatialLabels,
+} from "@/lib/pm-intelligence-world/scene-labels";
+import {
   sceneLayout,
   type SceneSelection,
 } from "@/lib/pm-intelligence-world/scene-layout";
+
+import { createStation, resolveStationId } from "./stations";
 
 export interface WorldHandle {
   setSelection: (selection: SceneSelection) => void;
@@ -35,10 +44,14 @@ export function createWorld({
   container,
   onFocus,
   onFailure,
+  labels = {},
+  leaders = {},
 }: {
   container: HTMLElement;
   onFocus: (section: SectionId) => void;
   onFailure: () => void;
+  labels?: SceneLabelElements;
+  leaders?: SceneLeaderElements;
 }): WorldHandle {
   const style = getComputedStyle(container);
   const brand = (token: string) =>
@@ -76,7 +89,7 @@ export function createWorld({
     return m;
   };
   const neutral = material(surface);
-  const ground = material(ink.clone().multiplyScalar(0.035));
+  const ground = material(ink.clone().multiplyScalar(0.018));
   const line = material(blue.clone().multiplyScalar(0.45));
   const mesh = (
     geometry: BoxGeometry | CylinderGeometry | TorusGeometry,
@@ -91,7 +104,7 @@ export function createWorld({
     parent.add(object);
     return object;
   };
-  mesh(new CylinderGeometry(12, 12, 0.18, 80), ground, scene, 0, -0.35, 0);
+  mesh(new CylinderGeometry(10.3, 10.3, 0.15, 80), ground, scene, 0, -0.35, 0);
   const addNode = (id: SectionId, color: Color) => {
     const node = new Group();
     node.position.set(...sceneLayout[id].position);
@@ -100,7 +113,7 @@ export function createWorld({
     const m = material(color.clone().multiplyScalar(0.48));
     const base = mesh(new CylinderGeometry(1.55, 1.7, 0.3, 48), neutral, node);
     base.userData.section = id;
-    pickable.push(base);
+    pickable.push(node);
     const ring = mesh(
       new TorusGeometry(1.55, 0.026, 8, 80),
       material(color),
@@ -112,74 +125,17 @@ export function createWorld({
     ring.rotation.x = Math.PI / 2;
     return { node, m };
   };
-  const commons = addNode("knowledge", cyan);
-  for (let i = 0; i < 4; i++) {
-    mesh(
-      new BoxGeometry(2.1, 0.1, 1.5),
-      commons.m,
-      commons.node,
-      0,
-      0.5 + i * 0.48,
-      0,
-    );
-    for (let j = 0; j < 5; j++)
-      mesh(
-        new BoxGeometry(0.15, 0.3, 0.8),
-        material(cyan.clone().multiplyScalar(0.25 + j * 0.08)),
-        commons.node,
-        -0.8 + j * 0.4,
-        0.7 + i * 0.48,
-        0,
-      );
-  }
-  const core = mesh(
-    new TorusGeometry(0.65, 0.045, 10, 64),
-    material(cyan),
-    commons.node,
-    0,
-    3.1,
-    0,
-  );
-  core.rotation.x = Math.PI / 2;
-  const input = addNode("inputs", pink);
-  for (let i = 0; i < 3; i++) {
-    const x = (i - 1) * 0.65;
-    mesh(
-      new BoxGeometry(0.4, 0.9 + i * 0.35, 0.65),
-      input.m,
-      input.node,
-      x,
-      0.6 + i * 0.17,
-      0,
-    );
-    mesh(
-      new BoxGeometry(0.42, 0.025, 0.67),
-      material(pink),
-      input.node,
-      x,
-      1.1 + i * 0.35,
-      0,
-    );
-  }
   for (const [id, color] of [
+    ["knowledge", cyan],
+    ["inputs", pink],
     ["writing", blue],
     ["questions", purple],
     ["learning", cyan],
     ["decisions", blue],
   ] as const) {
-    const { node, m } = addNode(id, color);
-    mesh(new BoxGeometry(1.7, 0.16, 1.15), m, node, 0, 0.6, 0);
-    for (let i = 0; i < 3; i++) {
-      const block = mesh(
-        new BoxGeometry(1.2, 0.1, 0.75),
-        material(color.clone().multiplyScalar(0.4 + i * 0.15)),
-        node,
-        (i - 1) * 0.12,
-        0.85 + i * 0.23,
-        (i - 1) * 0.08,
-      );
-      block.rotation.y = -0.16;
-    }
+    const { node } = addNode(id, color);
+    node.userData.section = id;
+    node.add(createStation(id, color));
   }
   for (const id of [
     "inputs",
@@ -224,6 +180,47 @@ export function createWorld({
     if (disposed || !visible) return;
     camera.lookAt(target);
     renderer.render(scene, camera);
+    const size = {
+      width: container.clientWidth,
+      height: container.clientHeight,
+    };
+    const boxes = spatialLabels.map((label) => {
+      const element = labels[label.id];
+      const position = sceneLayout[label.id].position;
+      const projected = projectSceneLabel(
+        [position[0], label.height, position[2]],
+        camera,
+        size,
+      );
+      return {
+        id: label.id,
+        ...projected,
+        width: element?.offsetWidth || 110,
+        height: element?.offsetHeight || 48,
+      };
+    });
+    for (const layout of resolveLabelLayout(boxes, size)) {
+      const id = layout.id as SectionId,
+        element = labels[id];
+      if (!element) continue;
+      element.hidden = !layout.visible;
+      element.style.left = `${layout.x}px`;
+      element.style.top = `${layout.y}px`;
+      const leader = leaders[id];
+      if (leader) {
+        const position = sceneLayout[id].position;
+        const anchor = projectSceneLabel(
+          [position[0], 1, position[2]],
+          camera,
+          size,
+        );
+        leader.style.display = layout.visible ? "" : "none";
+        leader.setAttribute("x1", String(anchor.x));
+        leader.setAttribute("y1", String(anchor.y));
+        leader.setAttribute("x2", String(layout.x));
+        leader.setAttribute("y2", String(layout.y));
+      }
+    }
   };
   const invalidate = () => {
     if (!frame && !disposed && visible) frame = requestAnimationFrame(draw);
@@ -249,8 +246,9 @@ export function createWorld({
       (-(event.clientY - rect.top) / rect.height) * 2 + 1,
     );
     raycaster.setFromCamera(pointer, camera);
-    const hit = raycaster.intersectObjects(pickable)[0];
-    if (hit) onFocus(hit.object.userData.section as SectionId);
+    const hit = raycaster.intersectObjects(pickable, true)[0];
+    const id = hit ? resolveStationId(hit.object) : null;
+    if (id) onFocus(id);
   };
   renderer.domElement.addEventListener("pointerup", pick);
   const lost = (event: Event) => {
@@ -311,10 +309,17 @@ export function createWorld({
       observer.disconnect();
       renderer.domElement.removeEventListener("pointerup", pick);
       renderer.domElement.removeEventListener("webglcontextlost", lost);
+      const usedMaterials = new Set<Material>(materials);
       scene.traverse((object) => {
-        if (object instanceof Mesh) object.geometry.dispose();
+        if (object instanceof Mesh) {
+          object.geometry.dispose();
+          for (const m of Array.isArray(object.material)
+            ? object.material
+            : [object.material])
+            usedMaterials.add(m);
+        }
       });
-      for (const m of new Set<Material>(materials)) m.dispose();
+      for (const m of usedMaterials) m.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     },

@@ -463,7 +463,7 @@
   font: inherit;
 }
 .scene {
-  height: 370px;
+  height: 430px;
   position: relative;
   margin: 15px 0;
   border: 1px solid var(--ai-role-border-base);
@@ -587,4 +587,72 @@
   .page * {
     scroll-behavior: auto !important;
   }
+}
+
+.canvasMount {
+  position: absolute;
+  inset: 0;
+}
+.spatialLabels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.spatialLabel {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 44px;
+  max-width: 132px;
+  padding: 8px 10px;
+  border: 1px solid var(--ai-role-border-base);
+  border-radius: 7px;
+  background: var(--ai-role-surface-0);
+  color: var(--ai-text);
+  box-shadow: var(--ai-shadow-soft);
+  font: inherit;
+}
+.spatialLabel strong {
+  font-size: 11px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+.spatialLabel span {
+  font-size: 8px;
+  color: var(--ai-text-muted);
+  white-space: nowrap;
+}
+.spatialLabel[aria-pressed="true"] {
+  border-color: var(--brand-cyan);
+  color: var(--brand-cyan);
+}
+@media (max-width: 768px) {
+  .spatialLabel {
+    padding: 5px 7px;
+    max-width: 114px;
+  }
+  .spatialLabel strong {
+    font-size: 10px;
+  }
+  .spatialLabel span {
+    font-size: 7px;
+  }
+}
+
+.spatialLeaders {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.spatialLeaders line {
+  stroke: var(--ai-text-muted);
+  stroke-width: 1;
+  opacity: 0.45;
 }

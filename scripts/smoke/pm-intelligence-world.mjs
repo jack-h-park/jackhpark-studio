@@ -8,6 +8,7 @@ const { values } = parseArgs({
     "base-url": { type: "string", default: "http://localhost:3037" },
     out: { type: "string" },
     case: { type: "string", default: "all" },
+    "build-kind": { type: "string", default: "development" },
   },
 });
 const base = new URL(values["base-url"]);
@@ -314,6 +315,207 @@ await check("content", async (context) => {
   assert.deepEqual(operations, []);
   for (const href of ["/decks/pm-intelligence-system", "/studio", "/#contact"])
     assert.ok(await page.locator(`a[href="${href}"]`).count());
+});
+await check("labels", async (context) => {
+  const page = await context.newPage();
+  await page.goto(url);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page
+    .getByRole("button", { name: "Open 3D world", exact: true })
+    .click();
+  await page.locator("canvas").waitFor();
+  const labels = page.locator('[aria-label="Spatial workspaces"] button');
+  await page.waitForFunction(() =>
+    [
+      ...document.querySelectorAll('[aria-label="Spatial workspaces"] button'),
+    ].every((el) => el.style.left),
+  );
+  for (const viewport of [
+    { width: 1440, height: 1000 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.waitForFunction(() => {
+      const c = document.querySelector("canvas");
+      return c && c.width / c.height > 0;
+    });
+    await page
+      .getByRole("button", { name: "Quick overview", exact: true })
+      .click();
+    await page.evaluate(
+      () =>
+        new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        ),
+    );
+    const boxes = await labels.evaluateAll((elements) =>
+      elements
+        .filter((el) => !el.hidden)
+        .map((el) => {
+          const r = el.getBoundingClientRect();
+          return { x: r.x, y: r.y, right: r.right, bottom: r.bottom };
+        }),
+    );
+    assert.equal(boxes.length, 6, "Overview must name every spatial workspace");
+    for (let i = 0; i < boxes.length; i++)
+      for (let j = i + 1; j < boxes.length; j++) {
+        const a = boxes[i],
+          b = boxes[j];
+        assert.ok(
+          a.right <= b.x ||
+            b.right <= a.x ||
+            a.bottom <= b.y ||
+            b.bottom <= a.y,
+          "Spatial labels must not cover each other",
+        );
+      }
+  }
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page
+    .locator('[aria-label="Spatial workspaces"]')
+    .getByRole("button", { name: "Product decisions On request", exact: true })
+    .click();
+  await page
+    .getByRole("heading", {
+      name: "Learning can stop here. Decisions start on request.",
+    })
+    .waitFor();
+  assert.ok(
+    await page
+      .getByRole("button", { name: "Enter the simulation →" })
+      .isVisible(),
+  );
+});
+await check("reflow", async (context) => {
+  const page = await context.newPage();
+  await page.goto(url);
+  await page
+    .locator(
+      'nav[aria-label="Introduction sections"] a[href="#quick/overview"]',
+    )
+    .waitFor();
+  await page.evaluate(() => (document.documentElement.style.zoom = "200%"));
+  assert.ok(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+    "200% CSS zoom must not cause horizontal page overflow",
+  );
+  await page
+    .locator('nav[aria-label="Introduction sections"] a[href$="/learning"]')
+    .click();
+  await page
+    .getByRole("heading", { name: "Demand informs what to study." })
+    .waitFor();
+});
+await check("performance", async (context) => {
+  const page = await context.newPage();
+  await page.goto(url);
+  await page
+    .locator(
+      'nav[aria-label="Introduction sections"] a[href="#quick/overview"]',
+    )
+    .waitFor();
+  const before = await page.evaluate(
+    () => performance.getEntriesByType("resource").length,
+  );
+  await page
+    .getByRole("button", { name: "Open 3D world", exact: true })
+    .click();
+  await page.locator("canvas").waitFor();
+  const cdp = await context.newCDPSession(page);
+  const completion = new Promise((resolve) =>
+    cdp.once("Tracing.tracingComplete", resolve),
+  );
+  await cdp.send("Tracing.start", {
+    categories:
+      "devtools.timeline,disabled-by-default-devtools.timeline.frame,cc",
+    transferMode: "ReturnAsStream",
+  });
+  const start = Date.now();
+  let i = 0;
+  const sections = [
+    "knowledge",
+    "inputs",
+    "writing",
+    "questions",
+    "learning",
+    "decisions",
+  ];
+  while (Date.now() - start < 10000) {
+    await page
+      .locator(
+        `nav[aria-label="Introduction sections"] a[href$="/${sections[i++ % sections.length]}"]`,
+      )
+      .click();
+    await new Promise((resolve) => setTimeout(resolve, 650));
+  }
+  await cdp.send("Tracing.end");
+  const { stream } = await completion;
+  let raw = "";
+  while (true) {
+    const part = await cdp.send("IO.read", { handle: stream });
+    raw += part.base64Encoded
+      ? Buffer.from(part.data, "base64").toString()
+      : part.data;
+    if (part.eof) break;
+  }
+  await cdp.send("IO.close", { handle: stream });
+  const events = JSON.parse(raw).traceEvents;
+  const groups = new Map();
+  for (const event of events.filter((e) => e.name === "DrawFrame")) {
+    const key = `${event.pid}/${event.tid}`;
+    const frames = groups.get(key) || [];
+    frames.push(event.ts / 1000);
+    groups.set(key, frames);
+  }
+  const frames =
+    [...groups.values()].sort((a, b) => b.length - a.length)[0] || [];
+  const intervals = frames
+    .slice(1)
+    .map((t, i) => t - frames[i])
+    .filter((t) => t > 0)
+    .sort((a, b) => a - b);
+  const resources = await page.evaluate(
+    (before) =>
+      performance
+        .getEntriesByType("resource")
+        .slice(before)
+        .map((entry) => ({
+          name: new URL(entry.name).pathname,
+          transferSize: entry.transferSize,
+          decodedBodySize: entry.decodedBodySize,
+        })),
+    before,
+  );
+  const gpu = await page.locator("canvas").evaluate((canvas) => {
+    const gl = canvas.getContext("webgl2");
+    const ext = gl?.getExtension("WEBGL_debug_renderer_info");
+    return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : "unavailable";
+  });
+  const report = {
+    buildKind: values["build-kind"],
+    environment: "Local headless Chromium; not real iOS hardware",
+    userAgent: await page.evaluate(() => navigator.userAgent),
+    gpu,
+    viewport: page.viewportSize(),
+    durationMs: Date.now() - start,
+    drawFrameEvents: frames.length,
+    frameIntervalP95Ms: intervals.length
+      ? intervals[Math.floor((intervals.length - 1) * 0.95)]
+      : null,
+    onDemandResources: resources,
+    onDemandTransferBytes: resources.reduce((n, r) => n + r.transferSize, 0),
+  };
+  await writeFile(path.join(output, "performance-trace.json"), raw);
+  await writeFile(
+    path.join(output, "performance-summary.json"),
+    JSON.stringify(report, null, 2),
+  );
+  assert.ok(
+    frames.length > 0,
+    "Chromium must expose actual compositor frame events",
+  );
 });
 await browser.close();
 await writeFile(
