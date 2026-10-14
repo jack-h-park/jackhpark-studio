@@ -35,6 +35,7 @@ export interface WorkCard {
   description: string;
   stats: readonly CountUpStat[];
   href: string;
+  experienceHref?: string;
 }
 
 // The landing owns `/`; the Notion studio home lives at /studio
@@ -230,6 +231,7 @@ export const selectedWork = {
         },
       ],
       href: "/chat",
+      experienceHref: "/experiences/pm-intelligence",
     },
   ],
 } as const satisfies {

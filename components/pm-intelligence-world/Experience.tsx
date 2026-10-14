@@ -1,30 +1,253 @@
-import {useCallback,useEffect,useReducer,useRef,useState} from 'react';
-import type {WorldContent,Mode,SectionId} from '@/content/pm-intelligence-world/types';
-import {experienceReducer,initialState,getSequence,type ExperienceAction} from '@/lib/pm-intelligence-world/state';
-import {parseFragment,formatFragment} from '@/lib/pm-intelligence-world/navigation';
-import {ReadingView} from './ReadingView';
-import styles from './experience.module.css';
-export function Experience({content}:{content:WorldContent}){
- const [state,reduce]=useReducer(experienceReducer,initialState);
- const [interactive,setInteractive]=useState(false);
- const [sceneRequested,setSceneRequested]=useState(false);
- const stateRef=useRef(state);stateRef.current=state;
- useEffect(()=>{const restore=()=>{const parsed=parseFragment(location.hash);reduce({type:'SET_MODE',mode:parsed.mode});reduce({type:'FOCUS_SECTION',section:parsed.section});};restore();setInteractive(true);window.addEventListener('popstate',restore);window.addEventListener('hashchange',restore);return()=>{window.removeEventListener('popstate',restore);window.removeEventListener('hashchange',restore);};},[]);
- const dispatch=useCallback((action:ExperienceAction)=>{const next=experienceReducer(stateRef.current,action);stateRef.current=next;reduce(action);const hash=formatFragment(next.mode,next.section);if(location.hash!==hash)history.pushState(null,'',hash);},[]);
- const focus=(section:SectionId)=>dispatch({type:'FOCUS_SECTION',section});
- const sequence=getSequence(state.mode);const step=sequence.indexOf(state.section);
- return <div className="dark"><div data-theme="jp" className={styles.page}>
- <a className={styles.skip} href="#chapter">Skip to content</a>
- <header className={styles.header}><a href="/" className={styles.brand}>J·P <span>STUDIO</span></a><span className={styles.label}>PM INTELLIGENCE WORLD</span><a href={content.links.deck}>View the deck ↗</a></header>
- <main><div className={styles.intro}><div><p className={styles.label}>AN INTERACTIVE SYSTEM INTRODUCTION</p><h1>Product work.<br/><em>Connected.</em></h1></div><div className={styles.introAside}><p>{content.purpose}</p><div className={styles.modes} aria-label="Experience mode">{(['quick','guide','explore'] as Mode[]).map(mode=><button key={mode} aria-pressed={state.mode===mode} onClick={()=>dispatch({type:'SET_MODE',mode})}>{mode==='quick'?'Quick overview':mode==='guide'?'Guided introduction':'Explore'}</button>)}</div><span className={styles.label}>{state.mode==='quick'?'60–90 SECONDS':state.mode==='guide'?'3–5 MINUTES':'YOUR OWN PATH'} / NO GAME COMPLETION REQUIRED</span></div></div>
- <div className={styles.workspace}>
- <div className={styles.world} aria-label="Whole-system map"><div className={styles.worldTop}><span className={styles.label}>THREE INPUTS · ONE CONNECTED RECORD LANDSCAPE</span><button className="ai-button" onClick={()=>setSceneRequested(!sceneRequested)}>{sceneRequested?'Close 3D world':'Open 3D world'}</button></div>
- {sceneRequested&&<p role="status">Spatial view is being prepared. The system map remains available.</p>}
- <div className={styles.map}><svg viewBox="0 0 600 340" aria-hidden="true"><path d="M100 70 C230 70 200 170 290 170 M100 170 H290 M100 270 C230 270 200 170 290 170 M310 170 C420 170 390 45 500 45 M310 170 C410 170 390 130 500 130 M310 170 C410 170 390 215 500 215 M310 170 C420 170 390 300 500 300"/></svg><div className={styles.mapInputs}>{content.inputs.map((x,i)=><button key={x.id} aria-pressed={state.selectedInput===x.id} onClick={()=>{dispatch({type:'SELECT_INPUT',input:x.id});focus('inputs');}}><span className={styles.label}>INPUT 0{i+1}</span><strong>{x.title}</strong></button>)}</div><button className={styles.commons} onClick={()=>focus('knowledge')}><span className={styles.orbit}>◎</span><span className={styles.label}>RECORD · REVIEW · REUSE</span><strong>Knowledge<br/>& experience</strong></button><div className={styles.mapUses}>{content.uses.map((x,i)=><button key={x.id} data-active={state.section===x.section} onClick={()=>focus(x.section)}><span className={styles.label}>USE 0{i+1}{x.section==='decisions'?' / ON REQUEST':''}</span><strong>{x.title} ↗</strong></button>)}</div></div>
- <div className={styles.mapFooter}><span>Connections show purpose, not a live pipeline.</span><button onClick={()=>focus('roles')}>Agent preparation + human judgment ↗</button></div>
- </div>
- <div className={styles.chapter} id="chapter"><nav className={styles.sectionNav} aria-label="Introduction sections">{content.sections.map((s,i)=><a key={s.id} href={`#${s.id}`} aria-current={state.section===s.id?'step':undefined} title={s.title} onClick={event=>{event.preventDefault();focus(s.id);}}>{String(i+1).padStart(2,'0')}<span>{s.id}</span></a>)}</nav><ReadingView content={content} state={state} dispatch={dispatch} interactive={interactive}/>
- {state.mode!=='explore'&&<div className={styles.pager}><button className="ai-button" disabled={step<=0} onClick={()=>dispatch({type:'PREVIOUS'})}>← Previous</button><span className={styles.label}>{step>=0?`${step+1} / ${sequence.length}`:'OPTIONAL DETAIL'}</span><button className="ai-button" disabled={step===sequence.length-1} onClick={()=>dispatch({type:'NEXT'})}>Next →</button></div>}</div>
- </div></main><footer className={styles.footer}><span>Jack H. Park / PM Intelligence System</span><div><a href={content.links.project}>Project context ↗</a><a href={content.links.contact}>Get in touch ↗</a></div></footer>
- </div></div>;
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
+
+import type {
+  Mode,
+  SectionId,
+  WorldContent,
+} from "@/content/pm-intelligence-world/types";
+import {
+  formatFragment,
+  parseFragment,
+} from "@/lib/pm-intelligence-world/navigation";
+import {
+  type ExperienceAction,
+  experienceReducer,
+  getSequence,
+  initialState,
+} from "@/lib/pm-intelligence-world/state";
+
+import styles from "./experience.module.css";
+import { ReadingView } from "./ReadingView";
+import { SceneBoundary } from "./SceneBoundary";
+
+export function Experience({ content }: { content: WorldContent }) {
+  const [state, reduce] = useReducer(experienceReducer, initialState);
+  const [interactive, setInteractive] = useState(false);
+  const [sceneRequested, setSceneRequested] = useState(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  useEffect(() => {
+    const restore = () => {
+      const parsed = parseFragment(location.hash);
+      reduce({ type: "SET_MODE", mode: parsed.mode });
+      reduce({ type: "FOCUS_SECTION", section: parsed.section });
+    };
+    restore();
+    setInteractive(true);
+    window.addEventListener("popstate", restore);
+    window.addEventListener("hashchange", restore);
+    return () => {
+      window.removeEventListener("popstate", restore);
+      window.removeEventListener("hashchange", restore);
+    };
+  }, []);
+  const dispatch = useCallback((action: ExperienceAction) => {
+    const next = experienceReducer(stateRef.current, action);
+    stateRef.current = next;
+    reduce(action);
+    const fragment = formatFragment(next.mode, next.section);
+    const currentFragment = location.hash;
+    if (currentFragment !== fragment) history.pushState(null, "", fragment);
+  }, []);
+  const focus = (section: SectionId) =>
+    dispatch({ type: "FOCUS_SECTION", section });
+  const selection = useMemo(
+    () => ({
+      section: state.section,
+      selectedInput: state.selectedInput,
+      selectedRecord: state.selectedRecord,
+    }),
+    [state.section, state.selectedInput, state.selectedRecord],
+  );
+  const sequence = getSequence(state.mode);
+  const step = sequence.indexOf(state.section);
+  return (
+    <div className="dark">
+      <div data-theme="jp" className={`${styles.page} dark`}>
+        <a className={styles.skip} href="#chapter">
+          Skip to content
+        </a>
+        <header className={styles.header}>
+          <a href="/" className={styles.brand}>
+            J·P <span>STUDIO</span>
+          </a>
+          <span className={styles.label}>PM INTELLIGENCE WORLD</span>
+          <a href={content.links.deck}>View the deck ↗</a>
+        </header>
+        <main>
+          <div className={styles.intro}>
+            <div>
+              <p className={styles.label}>AN INTERACTIVE SYSTEM INTRODUCTION</p>
+              <h1>
+                Product work.
+                <br />
+                <em>Connected.</em>
+              </h1>
+            </div>
+            <div className={styles.introAside}>
+              <p>{content.purpose}</p>
+              <div className={styles.modes} aria-label="Experience mode">
+                {(["quick", "guide", "explore"] as Mode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    aria-pressed={state.mode === mode}
+                    onClick={() => dispatch({ type: "SET_MODE", mode })}
+                  >
+                    {mode === "quick"
+                      ? "Quick overview"
+                      : mode === "guide"
+                        ? "Guided introduction"
+                        : "Explore"}
+                  </button>
+                ))}
+              </div>
+              <span className={styles.label}>
+                {state.mode === "quick"
+                  ? "60–90 SECONDS"
+                  : state.mode === "guide"
+                    ? "3–5 MINUTES"
+                    : "YOUR OWN PATH"}{" "}
+                / NO GAME COMPLETION REQUIRED
+              </span>
+            </div>
+          </div>
+          <div className={styles.workspace}>
+            <div className={styles.world} aria-label="Whole-system map">
+              <div className={styles.worldTop}>
+                <span className={styles.label}>
+                  THREE INPUTS · ONE CONNECTED RECORD LANDSCAPE
+                </span>
+                <button
+                  className="ai-button ai-button-outline ai-button-size-default"
+                  onClick={() => setSceneRequested(!sceneRequested)}
+                >
+                  {sceneRequested ? "Close 3D world" : "Open 3D world"}
+                </button>
+              </div>
+              {sceneRequested && (
+                <SceneBoundary selection={selection} onFocus={focus} />
+              )}
+              <div className={styles.map}>
+                <svg viewBox="0 0 600 340" aria-hidden="true">
+                  <path d="M100 70 C230 70 200 170 290 170 M100 170 H290 M100 270 C230 270 200 170 290 170 M310 170 C420 170 390 45 500 45 M310 170 C410 170 390 130 500 130 M310 170 C410 170 390 215 500 215 M310 170 C420 170 390 300 500 300" />
+                </svg>
+                <div className={styles.mapInputs}>
+                  {content.inputs.map((x, i) => (
+                    <button
+                      key={x.id}
+                      aria-pressed={state.selectedInput === x.id}
+                      onClick={() => {
+                        dispatch({ type: "SELECT_INPUT", input: x.id });
+                        focus("inputs");
+                      }}
+                    >
+                      <span className={styles.label}>INPUT 0{i + 1}</span>
+                      <strong>{x.title}</strong>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className={styles.commons}
+                  onClick={() => focus("knowledge")}
+                >
+                  <span className={styles.orbit}>◎</span>
+                  <span className={styles.label}>RECORD · REVIEW · REUSE</span>
+                  <strong>
+                    Knowledge
+                    <br />& experience
+                  </strong>
+                </button>
+                <div className={styles.mapUses}>
+                  {content.uses.map((x, i) => (
+                    <button
+                      key={x.id}
+                      data-active={state.section === x.section}
+                      onClick={() => focus(x.section)}
+                    >
+                      <span className={styles.label}>
+                        USE 0{i + 1}
+                        {x.section === "decisions" ? " / ON REQUEST" : ""}
+                      </span>
+                      <strong>{x.title} ↗</strong>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className={styles.mapFooter}>
+                <span>Connections show purpose, not a live pipeline.</span>
+                <button onClick={() => focus("roles")}>
+                  Agent preparation + human judgment ↗
+                </button>
+              </div>
+            </div>
+            <div className={styles.chapter} id="chapter">
+              <nav
+                className={styles.sectionNav}
+                aria-label="Introduction sections"
+              >
+                {content.sections.map((s, i) => (
+                  <a
+                    key={s.id}
+                    href={`#${s.id}`}
+                    aria-current={state.section === s.id ? "step" : undefined}
+                    title={s.title}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      focus(s.id);
+                    }}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                    <span>{s.id}</span>
+                  </a>
+                ))}
+              </nav>
+              <ReadingView
+                content={content}
+                state={state}
+                dispatch={dispatch}
+                interactive={interactive}
+              />
+              {state.mode !== "explore" && (
+                <div className={styles.pager}>
+                  <button
+                    className="ai-button ai-button-outline ai-button-size-default"
+                    disabled={step <= 0}
+                    onClick={() => dispatch({ type: "PREVIOUS" })}
+                  >
+                    ← Previous
+                  </button>
+                  <span className={styles.label}>
+                    {step >= 0
+                      ? `${step + 1} / ${sequence.length}`
+                      : "OPTIONAL DETAIL"}
+                  </span>
+                  <button
+                    className="ai-button ai-button-outline ai-button-size-default"
+                    disabled={step === sequence.length - 1}
+                    onClick={() => dispatch({ type: "NEXT" })}
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+        <footer className={styles.footer}>
+          <span>Jack H. Park / PM Intelligence System</span>
+          <div>
+            <a href={content.links.project}>Project context ↗</a>
+            <a href={content.links.contact}>Get in touch ↗</a>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
 }
