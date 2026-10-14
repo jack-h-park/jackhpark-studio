@@ -103,6 +103,92 @@ void describe("Vercel deployment policy", () => {
   });
 
   for (const file of [
+    "scripts/local-llm-bakeoff/README.md",
+    "scripts/local-llm-bakeoff/fixture.mjs",
+    "scripts/local-llm-bakeoff/host-memory.mjs",
+    "scripts/local-llm-bakeoff/judge.ts",
+    "scripts/local-llm-bakeoff/lmstudio-admin.mjs",
+    "scripts/local-llm-bakeoff/manifest.json",
+    "scripts/local-llm-bakeoff/preload-hold.mjs",
+    "scripts/local-llm-bakeoff/private-path.mjs",
+    "scripts/local-llm-bakeoff/record-fixture.ts",
+    "scripts/local-llm-bakeoff/recorder.mjs",
+    "scripts/local-llm-bakeoff/report.ts",
+    "scripts/local-llm-bakeoff/results-store.mjs",
+    "scripts/local-llm-bakeoff/run-bakeoff.mjs",
+    "scripts/local-llm-bakeoff/sample-questions.json",
+    "scripts/local-llm-bakeoff/score.ts",
+    "scripts/local-llm-bakeoff/stream-metrics.mjs",
+    "scripts/local-llm-bakeoff/summarize.ts",
+    "test/local-llm-bakeoff-judge.test.ts",
+    "test/local-llm-bakeoff-lmstudio-admin.test.ts",
+    "test/local-llm-bakeoff-recording.test.ts",
+    "test/local-llm-bakeoff-restore-config.test.ts",
+    "test/local-llm-bakeoff-runner.test.ts",
+    "test/local-llm-bakeoff-store-memory.test.ts",
+    "test/local-llm-bakeoff-stream-metrics.test.ts",
+    "test/local-llm-bakeoff-summarize.test.ts",
+  ]) {
+    void it(`skips a verified local-only tooling change to ${file}`, (t) => {
+      const fixture = createRepository(t);
+      fixture.write(file, "before\n");
+      const previous = fixture.commit();
+      fixture.write(file, "after\n");
+      fixture.commit();
+      assert.equal(fixture.run(previous), 0);
+    });
+  }
+
+  void it("skips cumulative local tooling and documentation changes", (t) => {
+    const fixture = createRepository(t);
+    fixture.write("scripts/local-llm-bakeoff/run-bakeoff.mjs");
+    fixture.commit();
+    fixture.write("test/local-llm-bakeoff-runner.test.ts");
+    fixture.write("README.md");
+    fixture.commit();
+    assert.equal(fixture.run(), 0);
+  });
+
+  void it("builds local tooling changes mixed with a runtime change", (t) => {
+    const fixture = createRepository(t);
+    fixture.write("scripts/local-llm-bakeoff/run-bakeoff.mjs");
+    fixture.write("pages/index.tsx", "runtime change\n");
+    fixture.commit();
+    assert.equal(fixture.run(), 1);
+  });
+
+  void it("builds an unreleased runtime change followed by local tooling", (t) => {
+    const fixture = createRepository(t);
+    fixture.write("pages/index.tsx", "unreleased runtime change\n");
+    fixture.commit();
+    fixture.write("scripts/local-llm-bakeoff/run-bakeoff.mjs");
+    fixture.commit();
+    assert.equal(fixture.run(), 1);
+  });
+
+  void it("builds when a runtime file is moved into the local tooling allowlist", (t) => {
+    const fixture = createRepository(t);
+    fixture.write("scripts/local-llm-bakeoff/README.md");
+    const previous = fixture.commit();
+    fixture.git(
+      "mv",
+      "pages/index.tsx",
+      "scripts/local-llm-bakeoff/run-bakeoff.mjs",
+    );
+    fixture.commit();
+    assert.equal(fixture.run(previous), 1);
+  });
+
+  void it("skips deletion of an explicitly verified local-only tool", (t) => {
+    const fixture = createRepository(t);
+    fixture.write("scripts/local-llm-bakeoff/run-bakeoff.mjs");
+    const previous = fixture.commit();
+    fixture.git("rm", "scripts/local-llm-bakeoff/run-bakeoff.mjs");
+    fixture.commit();
+    assert.equal(fixture.run(previous), 0);
+  });
+
+  for (const file of [
     "pages/index.tsx",
     "public/guide.html",
     "package.json",
@@ -113,6 +199,10 @@ void describe("Vercel deployment policy", () => {
     "docs/runtime.json",
     "scripts/build.mjs",
     ".github/workflows/ci.yml",
+    "scripts/local-llm-bakeoff/new-runtime-helper.mjs",
+    "scripts/local-llm-bakeoff-extra/run-bakeoff.mjs",
+    "test/local-llm-bakeoff-new.test.ts",
+    "test/production-monitoring-budget.test.ts",
   ]) {
     void it(`builds when ${file} changes`, (t) => {
       const fixture = createRepository(t);
@@ -121,6 +211,17 @@ void describe("Vercel deployment policy", () => {
       assert.equal(fixture.run(), 1);
     });
   }
+
+  void it("builds when the deployment policy itself changes", (t) => {
+    const fixture = createRepository(t);
+    const policy = "scripts/vercel-ignore-build.mjs";
+    fixture.write(
+      policy,
+      `${readFileSync(path.join(fixture.directory, policy), "utf8")}\n// Policy maintenance.\n`,
+    );
+    fixture.commit();
+    assert.equal(fixture.run(), 1);
+  });
 
   void it("builds mixed documentation and runtime changes", (t) => {
     const fixture = createRepository(t);

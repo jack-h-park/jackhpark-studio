@@ -4,6 +4,41 @@ import { execFileSync } from "node:child_process";
 // Keep this dependency-free: it runs before package installation.
 if (process.env.VERCEL_ENV === "preview") process.exit(0);
 
+// These existing local experiments do not ship as application runtime code.
+// CI still validates them, including TypeScript's repository-wide checks.
+// Keep exact paths: new helpers and unrelated scripts/tests must still build.
+const localToolingFiles = new Set([
+  ...[
+    "README.md",
+    "fixture.mjs",
+    "host-memory.mjs",
+    "judge.ts",
+    "lmstudio-admin.mjs",
+    "manifest.json",
+    "preload-hold.mjs",
+    "private-path.mjs",
+    "record-fixture.ts",
+    "recorder.mjs",
+    "report.ts",
+    "results-store.mjs",
+    "run-bakeoff.mjs",
+    "sample-questions.json",
+    "score.ts",
+    "stream-metrics.mjs",
+    "summarize.ts",
+  ].map((file) => `scripts/local-llm-bakeoff/${file}`),
+  ...[
+    "judge",
+    "lmstudio-admin",
+    "recording",
+    "restore-config",
+    "runner",
+    "store-memory",
+    "stream-metrics",
+    "summarize",
+  ].map((name) => `test/local-llm-bakeoff-${name}.test.ts`),
+]);
+
 function canSkipProductionBuild() {
   if (process.env.VERCEL_ENV !== "production") return false;
 
@@ -41,7 +76,8 @@ function canSkipProductionBuild() {
   return changed.every(
     (file) =>
       ["README.md", "CLAUDE.md", "AGENTS.md"].includes(file) ||
-      (file.startsWith("docs/") && file.endsWith(".md")),
+      (file.startsWith("docs/") && file.endsWith(".md")) ||
+      localToolingFiles.has(file),
   );
 }
 
