@@ -10,11 +10,26 @@ const failureMessage =
   "The 3D view is unavailable. The complete introduction remains below.";
 const Scene = dynamic(() => import("./WorldScene").then((m) => m.WorldScene), {
   ssr: false,
-  loading: () => (
-    <p className={styles.sceneStatus} role="status">
-      Opening the spatial view… The introduction is ready below.
-    </p>
-  ),
+  loading: ({ error, retry }) =>
+    error ? (
+      <div>
+        <p className={styles.sceneStatus} role="status">
+          {failureMessage}
+        </p>
+        {retry && (
+          <button
+            className="ai-button ai-button-outline ai-button-size-default"
+            onClick={retry}
+          >
+            Retry 3D view
+          </button>
+        )}
+      </div>
+    ) : (
+      <p className={styles.sceneStatus} role="status">
+        Opening the spatial view… The introduction is ready below.
+      </p>
+    ),
 });
 class RenderBoundary extends Component<
   { children: ReactNode },

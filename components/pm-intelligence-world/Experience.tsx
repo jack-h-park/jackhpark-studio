@@ -71,7 +71,17 @@ export function Experience({ content }: { content: WorldContent }) {
   return (
     <div className="dark">
       <div data-theme="jp" className={`${styles.page} dark`}>
-        <a className={styles.skip} href="#chapter">
+        <a
+          className={styles.skip}
+          href="#chapter"
+          onClick={(event) => {
+            event.preventDefault();
+            document.getElementById(`heading-${state.section}`)?.focus();
+            document
+              .getElementById("chapter")
+              ?.scrollIntoView({ block: "start" });
+          }}
+        >
           Skip to content
         </a>
         <header className={styles.header}>
@@ -195,10 +205,22 @@ export function Experience({ content }: { content: WorldContent }) {
                 {content.sections.map((s, i) => (
                   <a
                     key={s.id}
-                    href={`#${s.id}`}
+                    href={
+                      interactive
+                        ? formatFragment(state.mode, s.id)
+                        : `#${s.id}`
+                    }
                     aria-current={state.section === s.id ? "step" : undefined}
                     title={s.title}
                     onClick={(event) => {
+                      if (
+                        event.button !== 0 ||
+                        event.metaKey ||
+                        event.ctrlKey ||
+                        event.shiftKey ||
+                        event.altKey
+                      )
+                        return;
                       event.preventDefault();
                       focus(s.id);
                     }}

@@ -24,6 +24,7 @@ async function check(name, fn) {
   if (values.case !== "all" && values.case !== name) return;
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
+    hasTouch: name === "accessibility",
   });
   context.setDefaultTimeout(15000);
   try {
@@ -55,7 +56,7 @@ await check("navigation", async (context) => {
     false,
   );
   await page
-    .locator('nav[aria-label="Introduction sections"] a[href="#decisions"]')
+    .locator('nav[aria-label="Introduction sections"] a[href$="/decisions"]')
     .click();
   await page.getByRole("button", { name: "Enter the simulation →" }).click();
   await page.getByLabel("Collect more evidence").check();
@@ -92,7 +93,7 @@ await check("fallback", async (context) => {
     )
     .waitFor({ timeout: 15000 });
   await page
-    .locator('nav[aria-label="Introduction sections"] a[href="#decisions"]')
+    .locator('nav[aria-label="Introduction sections"] a[href$="/decisions"]')
     .click();
   await page.getByRole("button", { name: "Enter the simulation →" }).waitFor();
 });
@@ -115,9 +116,34 @@ await check("accessibility", async (context) => {
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   );
-  await page.keyboard.press("Tab");
+  await page
+    .locator(
+      'nav[aria-label="Introduction sections"] a[href="#quick/overview"]',
+    )
+    .waitFor();
+  await page
+    .getByRole("link", { name: "Skip to content", exact: true })
+    .focus();
   await page.keyboard.press("Enter");
-  assert.equal(new URL(page.url()).hash, "#chapter");
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.id),
+    "heading-overview",
+  );
+  await page
+    .getByRole("button", { name: "Guided introduction", exact: true })
+    .click();
+  await page
+    .locator('nav[aria-label="Introduction sections"] a[href$="/questions"]')
+    .click();
+  await page
+    .getByRole("link", { name: "Skip to content", exact: true })
+    .focus();
+  await page.keyboard.press("Enter");
+  assert.equal(new URL(page.url()).hash, "#guide/questions");
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.id),
+    "heading-questions",
+  );
   await page.screenshot({
     path: path.join(output, "mobile.png"),
     fullPage: true,
@@ -147,16 +173,147 @@ await check("scene", async (context) => {
     path: path.join(output, "desktop-world.png"),
     fullPage: true,
   });
-  await page
-    .locator("canvas")
-    .evaluate((canvas) =>
-      canvas.dispatchEvent(new Event("webglcontextlost", { cancelable: true })),
-    );
+  await page.locator("canvas").evaluate((canvas) => {
+    const gl = canvas.getContext("webgl2");
+    const loss = gl?.getExtension("WEBGL_lose_context");
+    if (!loss) throw new Error("Context-loss extension unavailable");
+    loss.loseContext();
+  });
   await page
     .getByText(
       "The 3D view is unavailable. The complete introduction remains below.",
     )
     .waitFor();
+});
+await check("import-failure", async (context) => {
+  const page = await context.newPage();
+  await page.goto(url);
+  await page.getByRole("button", { name: "Explore", exact: true }).click();
+  await page.route("**/_next/static/chunks/**", (route) => route.abort());
+  await page
+    .getByRole("button", { name: "Open 3D world", exact: true })
+    .click();
+  await page
+    .getByText(
+      "The 3D view is unavailable. The complete introduction remains below.",
+    )
+    .waitFor();
+  await page
+    .locator('nav[aria-label="Introduction sections"] a[href$="/learning"]')
+    .click();
+  await page
+    .getByRole("heading", { name: "Demand informs what to study." })
+    .waitFor();
+});
+await check("keyboard", async (context) => {
+  const page = await context.newPage();
+  await page.goto(url);
+  await page
+    .locator('nav[aria-label="Introduction sections"] a[href$="/decisions"]')
+    .focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "Enter the simulation →" }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByLabel("Proceed with a bounded proposal").focus();
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowDown");
+  assert.ok(await page.getByLabel("Collect more evidence").isChecked());
+  await page.keyboard.press("Tab");
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.id),
+    "decision-reason",
+  );
+  await page.keyboard.type("More evidence is needed.");
+  await page.getByRole("heading", { name: "Your decision record" }).waitFor();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "Enter the simulation →" }).waitFor();
+});
+await check("motion", async (context) => {
+  const page = await context.newPage();
+  await page.goto(url);
+  await page
+    .getByRole("button", { name: "Open 3D world", exact: true })
+    .click();
+  await page.locator("canvas").waitFor();
+  const nav = page.locator('nav[aria-label="Introduction sections"]');
+  await nav.locator('a[href$="/inputs"]').click();
+  await nav.locator('a[href$="/questions"]').click();
+  await page.goBack();
+  await page
+    .getByRole("heading", { name: "Different work. A shared foundation." })
+    .waitFor();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  );
+  const before = await page.locator("canvas").screenshot();
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  const after = await page.locator("canvas").screenshot();
+  assert.ok(before.equals(after), "Reduced motion must stop camera travel");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await nav.locator('a[href$="/learning"]').click();
+  await page
+    .getByRole("heading", { name: "Demand informs what to study." })
+    .waitFor();
+});
+await check("share-link", async (context) => {
+  const page = await context.newPage();
+  await page.goto(url);
+  await page
+    .getByRole("button", { name: "Guided introduction", exact: true })
+    .click();
+  const href = await page
+    .locator('nav[aria-label="Introduction sections"] a[href$="learning"]')
+    .getAttribute("href");
+  assert.equal(href, "#guide/learning");
+  const shared = await context.newPage();
+  await shared.goto(url + href);
+  await shared
+    .getByRole("heading", { name: "Demand informs what to study." })
+    .waitFor();
+});
+await check("content", async (context) => {
+  const page = await context.newPage();
+  const operations = [];
+  page.on("request", (request) => {
+    if (
+      /\/api\/(chat|langchain_chat)|localhost:8000|127\.0\.0\.1:8000/.test(
+        request.url(),
+      )
+    )
+      operations.push(request.url());
+  });
+  await page.goto(url);
+  await page
+    .locator('nav[aria-label="Introduction sections"] a[href$="/questions"]')
+    .click();
+  await page
+    .getByRole("button", { name: /A source-linked answer draft/ })
+    .click();
+  await page
+    .getByRole("heading", { name: "A source-linked answer draft", exact: true })
+    .waitFor();
+  await page.screenshot({
+    path: path.join(output, "record-review.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Close record", exact: true }).click();
+  await page
+    .locator('nav[aria-label="Introduction sections"] a[href$="/learning"]')
+    .click();
+  await page
+    .getByRole("button", { name: /A recorded practice response/ })
+    .click();
+  await page
+    .getByRole("heading", { name: "A recorded practice response", exact: true })
+    .waitFor();
+  assert.deepEqual(operations, []);
+  for (const href of ["/decks/pm-intelligence-system", "/studio", "/#contact"])
+    assert.ok(await page.locator(`a[href="${href}"]`).count());
 });
 await browser.close();
 await writeFile(
