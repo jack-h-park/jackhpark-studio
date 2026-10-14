@@ -317,7 +317,12 @@ await check("content", async (context) => {
 });
 await browser.close();
 await writeFile(
-  path.join(output, "browser-report.json"),
+  path.join(
+    output,
+    values.case === "all"
+      ? "browser-report.json"
+      : `browser-report-${values.case}.json`,
+  ),
   JSON.stringify(results, null, 2),
 );
 for (const result of results)
