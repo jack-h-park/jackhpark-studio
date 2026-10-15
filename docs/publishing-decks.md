@@ -23,7 +23,7 @@ The Marp workflow below remains the legacy track and appendix workflow.
 
 ```bash
 # In the control-plane checkout:
-node docs/deck/design-pilot/build-studio-preview.mjs /absolute/output/v2 overview-pilot-v2.json
+node docs/deck/design-pilot/build-studio-preview.mjs /absolute/output/v2 overview-pilot-v2.json --publish
 
 # In this Studio checkout, use explicit source and facts paths:
 DECK_FACTS=/path/to/hermes-control-plane/docs/deck/deck-facts.json \
