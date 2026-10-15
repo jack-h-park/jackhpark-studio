@@ -6,7 +6,16 @@ import type {
   SectionId,
 } from "@/content/pm-intelligence-world/types";
 
+import {
+  appendUnique,
+  type DiscoveryAction,
+  discoveryReducer,
+  type DiscoveryState,
+  emptyDiscovery,
+} from "./discovery";
+
 export interface ExperienceState {
+  discovery: DiscoveryState;
   mode: Mode;
   section: SectionId;
   selectedInput: InputId | null;
@@ -14,6 +23,7 @@ export interface ExperienceState {
   decision: { entered: boolean; choice: DecisionChoice | null; reason: string };
 }
 export type ExperienceAction =
+  | DiscoveryAction
   | { type: "SET_MODE"; mode: Mode }
   | { type: "FOCUS_SECTION"; section: SectionId }
   | { type: "SELECT_INPUT"; input: InputId | null }
@@ -26,6 +36,7 @@ export type ExperienceAction =
   | { type: "SET_REASON"; reason: string }
   | { type: "RESET_DECISION" };
 export const initialState: ExperienceState = {
+  discovery: emptyDiscovery,
   mode: "quick",
   section: "overview",
   selectedInput: null,
@@ -53,10 +64,48 @@ const guide: readonly SectionId[] = [
 export function getSequence(mode: Mode): readonly SectionId[] {
   return mode === "guide" ? guide : quick;
 }
-export function experienceReducer(
+function reduceExperience(
   s: ExperienceState,
   a: ExperienceAction,
 ): ExperienceState {
+  switch (a.type) {
+    case "START_DISCOVERY":
+    case "RESET_DISCOVERY":
+    case "CONNECT_RECORDS":
+    case "INSPECT_TRAIL_RECORD":
+    case "REVEAL_USE":
+    case "INSPECT_ROLE":
+    case "ACKNOWLEDGE_REVIEW": {
+      const discovery = discoveryReducer(s.discovery, a);
+      return a.type === "START_DISCOVERY"
+        ? {
+            ...s,
+            discovery,
+            mode: "explore",
+            section: "inputs",
+            selectedRecord: null,
+          }
+        : { ...s, discovery };
+    }
+  }
+  if (s.discovery.started) {
+    const d = s.discovery;
+    if (a.type === "SELECT_INPUT" && a.input)
+      s = {
+        ...s,
+        discovery: { ...d, inputs: appendUnique(d.inputs, a.input) },
+      };
+    if (a.type === "OPEN_RECORD")
+      s = {
+        ...s,
+        discovery: { ...d, records: appendUnique(d.records, a.record) },
+      };
+    if (a.type === "FOCUS_SECTION")
+      s = {
+        ...s,
+        discovery: { ...d, visited: appendUnique(d.visited, a.section) },
+      };
+  }
   switch (a.type) {
     case "SET_MODE":
       return {
@@ -107,4 +156,20 @@ export function experienceReducer(
       };
     }
   }
+  return s;
+}
+
+export function experienceReducer(
+  state: ExperienceState,
+  action: ExperienceAction,
+): ExperienceState {
+  const next = reduceExperience(state, action);
+  if (!next.discovery.started) return next;
+  return {
+    ...next,
+    discovery: {
+      ...next.discovery,
+      visited: appendUnique(next.discovery.visited, next.section),
+    },
+  };
 }

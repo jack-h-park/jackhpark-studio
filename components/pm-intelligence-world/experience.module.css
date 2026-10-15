@@ -656,3 +656,217 @@
   stroke-width: 1;
   opacity: 0.45;
 }
+
+.discovery {
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid var(--ai-role-border-base);
+  border-radius: 16px;
+  background: var(--ai-role-surface-1);
+}
+.discovery h2 {
+  font-size: 26px;
+  font-weight: 450;
+  letter-spacing: -0.8px;
+  margin: 6px 0 14px;
+}
+.discovery h3 {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 20px 0 10px;
+}
+.discovery h4 {
+  font-weight: 550;
+  margin: 6px 0;
+}
+.discovery p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ai-text-soft);
+  margin-bottom: 14px;
+}
+.discovery .label {
+  font-size: 10px;
+  margin-bottom: 0;
+}
+.discovery button {
+  min-height: 44px;
+}
+.discovery button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+.discoveryHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.discoveryHeader > button,
+.discoveryFooter > button {
+  flex-shrink: 0;
+  background: transparent;
+  color: var(--ai-text);
+  border: 0;
+  font-size: 12px;
+  text-decoration: underline;
+}
+.discoveryStatus {
+  padding: 10px 0;
+  border-block: 1px solid var(--ai-role-border-base);
+}
+.discoverySteps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.discoverySteps button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 8px;
+  text-align: left;
+  background: transparent;
+  color: var(--ai-text-soft);
+  border: 1px solid var(--ai-role-border-base);
+  border-radius: 8px;
+  font-size: 11px;
+  gap: 4px;
+}
+.discoverySteps button[aria-current="step"] {
+  color: var(--brand-cyan);
+  border-color: var(--brand-cyan);
+}
+.discoverySteps span {
+  font-family: var(--font-geist-mono), monospace;
+}
+.discoveryCards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0;
+}
+.discoveryCards button {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  text-align: left;
+  border: 1px solid var(--ai-role-border-base);
+  border-radius: 10px;
+  background: var(--ai-role-surface-0);
+  color: var(--ai-text);
+  padding: 14px;
+}
+.discoveryCards strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.discoveryCards span:not(.label) {
+  color: var(--ai-text-soft);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.discoveryCards button[aria-pressed="true"] {
+  border-color: var(--brand-cyan);
+}
+.roleCards {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.roleReveal {
+  border-left: 2px solid var(--brand-cyan);
+  padding: 12px 16px;
+  margin: 16px 0;
+}
+.discoveryFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--ai-role-border-base);
+  margin-top: 20px;
+  padding-top: 12px;
+}
+.receipts {
+  padding: 0;
+  list-style: none;
+  margin: 16px 0;
+}
+.receipts li {
+  font-size: 13px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--ai-role-border-base);
+}
+.receipts span {
+  display: block;
+  color: var(--ai-text-muted);
+  font-size: 11px;
+  margin: 4px 0 0 16px;
+}
+.receipts li[data-earned="true"] {
+  color: var(--brand-cyan);
+}
+.visitedPlaces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+.visitedPlaces button {
+  text-align: left;
+  font-size: 11px;
+  background: transparent;
+  color: var(--ai-text-soft);
+  border: 1px solid var(--ai-role-border-base);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.visitedPlaces button[data-earned="true"],
+.map button[data-discovered="true"] strong {
+  color: var(--brand-cyan);
+}
+.spatialLabel[data-discovered="true"] {
+  border-color: var(--brand-cyan);
+}
+@media (max-width: 600px) {
+  .discovery {
+    padding: 16px;
+  }
+  .discoveryCards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .roleCards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .discoveryHeader {
+    align-items: flex-start;
+  }
+  .discoverySteps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.playTrail {
+  display: block;
+  margin: 4px 0 14px;
+}
+.map path[data-lit="true"] {
+  stroke: var(--brand-cyan);
+  stroke-width: 2;
+  stroke-dasharray: 8 5;
+  animation: discoveryFlow 0.8s ease-out;
+}
+@keyframes discoveryFlow {
+  from {
+    stroke-dashoffset: 40;
+    opacity: 0.3;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map path[data-lit="true"] {
+    animation: none;
+  }
+}

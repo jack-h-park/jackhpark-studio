@@ -6,6 +6,7 @@ import type {
 
 export interface SceneSelection {
   section: SectionId;
+  illuminated?: readonly SectionId[];
   selectedInput: InputId | null;
   selectedRecord: RecordId | null;
 }

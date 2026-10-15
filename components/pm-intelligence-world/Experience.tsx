@@ -12,6 +12,7 @@ import type {
   SectionId,
   WorldContent,
 } from "@/content/pm-intelligence-world/types";
+import { illuminatedSections } from "@/lib/pm-intelligence-world/discovery";
 import {
   formatFragment,
   parseFragment,
@@ -23,6 +24,7 @@ import {
   initialState,
 } from "@/lib/pm-intelligence-world/state";
 
+import { DiscoveryTrail } from "./DiscoveryTrail";
 import styles from "./experience.module.css";
 import { ReadingView } from "./ReadingView";
 import { SceneBoundary } from "./SceneBoundary";
@@ -63,8 +65,9 @@ export function Experience({ content }: { content: WorldContent }) {
       section: state.section,
       selectedInput: state.selectedInput,
       selectedRecord: state.selectedRecord,
+      illuminated: illuminatedSections(state.discovery),
     }),
-    [state.section, state.selectedInput, state.selectedRecord],
+    [state.section, state.selectedInput, state.selectedRecord, state.discovery],
   );
   const sequence = getSequence(state.mode);
   const step = sequence.indexOf(state.section);
@@ -118,6 +121,17 @@ export function Experience({ content }: { content: WorldContent }) {
                   </button>
                 ))}
               </div>
+              {interactive && !state.discovery.started && (
+                <button
+                  className={`${styles.playTrail} ai-button ai-button-outline ai-button-size-default`}
+                  onClick={() => {
+                    dispatch({ type: "START_DISCOVERY" });
+                    setSceneRequested(true);
+                  }}
+                >
+                  Play the discovery trail →
+                </button>
+              )}
               <span className={styles.label}>
                 {state.mode === "quick"
                   ? "60–90 SECONDS"
@@ -146,25 +160,51 @@ export function Experience({ content }: { content: WorldContent }) {
               )}
               <div className={styles.map}>
                 <svg viewBox="0 0 600 340" aria-hidden="true">
-                  <path d="M100 70 C230 70 200 170 290 170 M100 170 H290 M100 270 C230 270 200 170 290 170 M310 170 C420 170 390 45 500 45 M310 170 C410 170 390 130 500 130 M310 170 C410 170 390 215 500 215 M310 170 C420 170 390 300 500 300" />
+                  {[
+                    ["external-signals", "M100 70 C230 70 200 170 290 170"],
+                    ["hands-on-projects", "M100 170 H290"],
+                    ["market-study", "M100 270 C230 270 200 170 290 170"],
+                  ].map(([id, path]) => (
+                    <path
+                      key={id}
+                      d={path}
+                      data-lit={state.discovery.inputs.includes(
+                        id,
+                      )}
+                    />
+                  ))}
+                  {content.uses.map((use, i) => (
+                    <path
+                      key={use.id}
+                      d={`M310 170 C420 170 390 ${45 + i * 85} 500 ${45 + i * 85}`}
+                      data-lit={state.discovery.uses.includes(use.id)}
+                    />
+                  ))}
                 </svg>
                 <div className={styles.mapInputs}>
                   {content.inputs.map((x, i) => (
                     <button
                       key={x.id}
                       aria-pressed={state.selectedInput === x.id}
+                      data-discovered={state.discovery.inputs.includes(x.id)}
                       onClick={() => {
                         dispatch({ type: "SELECT_INPUT", input: x.id });
                         focus("inputs");
                       }}
                     >
-                      <span className={styles.label}>INPUT 0{i + 1}</span>
+                      <span className={styles.label}>
+                        INPUT 0{i + 1}
+                        {state.discovery.inputs.includes(x.id)
+                          ? " / ✓ FOUND"
+                          : ""}
+                      </span>
                       <strong>{x.title}</strong>
                     </button>
                   ))}
                 </div>
                 <button
                   className={styles.commons}
+                  data-discovered={state.discovery.connected}
                   onClick={() => focus("knowledge")}
                 >
                   <span className={styles.orbit}>◎</span>
@@ -179,10 +219,14 @@ export function Experience({ content }: { content: WorldContent }) {
                     <button
                       key={x.id}
                       data-active={state.section === x.section}
+                      data-discovered={state.discovery.uses.includes(x.id)}
                       onClick={() => focus(x.section)}
                     >
                       <span className={styles.label}>
                         USE 0{i + 1}
+                        {state.discovery.uses.includes(x.id)
+                          ? " / ✓ REVEALED"
+                          : ""}
                         {x.section === "decisions" ? " / ON REQUEST" : ""}
                       </span>
                       <strong>{x.title} ↗</strong>
@@ -196,6 +240,18 @@ export function Experience({ content }: { content: WorldContent }) {
                   Agent preparation + human judgment ↗
                 </button>
               </div>
+              {interactive &&
+                (state.mode === "explore" || state.discovery.started) && (
+                  <DiscoveryTrail
+                    content={content}
+                    state={state}
+                    dispatch={dispatch}
+                    onStart={() => {
+                      dispatch({ type: "START_DISCOVERY" });
+                      setSceneRequested(true);
+                    }}
+                  />
+                )}
             </div>
             <div className={styles.chapter} id="chapter">
               <nav

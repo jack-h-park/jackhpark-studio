@@ -517,6 +517,230 @@ await check("performance", async (context) => {
     "Chromium must expose actual compositor frame events",
   );
 });
+
+await check("discovery", async (context) => {
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(String(error)));
+  await page.goto(url);
+  await page
+    .getByRole("button", { name: "Play the discovery trail →", exact: true })
+    .click();
+  const trail = page.getByRole("region", {
+    name: "Discovery trail",
+    exact: true,
+  });
+  const stages = trail.getByRole("navigation", {
+    name: "Discovery trail stages",
+  });
+  await stages.getByRole("button", { name: "Connect & reuse" }).click();
+  assert.equal(
+    await trail
+      .getByRole("button", { name: "Connect note → draft", exact: true })
+      .isDisabled(),
+    true,
+  );
+  assert.equal(
+    await trail
+      .getByRole("button", { name: /Reveal Product decisions/ })
+      .isDisabled(),
+    true,
+  );
+  await stages.getByRole("button", { name: "Discover inputs" }).click();
+  for (const name of [
+    "External signals",
+    "Hands-on projects",
+    "Market sensing",
+  ]) {
+    const input = trail.getByRole("button", { name: new RegExp(name) });
+    await input.focus();
+    await page.keyboard.press("Enter");
+  }
+  assert.equal(await page.locator('svg path[data-lit="true"]').count(), 3);
+  await trail
+    .getByRole("button", { name: "Follow the knowledge connection →" })
+    .focus();
+  await page.keyboard.press("Enter");
+  await trail.locator("h3:focus").waitFor();
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.textContent),
+    "02 / Keep the source attached.",
+  );
+  for (const name of ["Inspect source note", "Inspect linked draft"]) {
+    await trail.getByRole("button", { name: new RegExp(name) }).click();
+    await trail
+      .getByRole("complementary", { name: "Record details" })
+      .getByText("What remains unknown")
+      .waitFor();
+    await trail
+      .getByRole("button", { name: "Close record", exact: true })
+      .click();
+  }
+  await trail
+    .getByRole("button", { name: "Connect note → draft", exact: true })
+    .click();
+  for (const name of [
+    "Strategic viewpoints",
+    "PM questions",
+    "New opportunities",
+    "Product decisions",
+  ])
+    await trail
+      .getByRole("button", { name: new RegExp(`Reveal ${name}`, "i") })
+      .click();
+  assert.equal(await page.locator('svg path[data-lit="true"]').count(), 7);
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Enter the simulation →" })
+      .isVisible(),
+    true,
+  );
+  assert.equal(
+    await page.getByRole("heading", { name: "Your decision record" }).count(),
+    0,
+  );
+  await trail
+    .getByRole("button", { name: "Meet the preparation roles →" })
+    .click();
+  const ack = trail.getByRole("button", {
+    name: "Acknowledge human review",
+    exact: true,
+  });
+  assert.equal(await ack.isDisabled(), true);
+  await trail.getByRole("button", { name: /Inspect Cleo/ }).click();
+  await trail
+    .getByRole("article", { name: "Cleo preparation" })
+    .getByText("Source-linked answer drafts", { exact: true })
+    .waitFor();
+  assert.equal(await ack.isDisabled(), true);
+  await trail.getByRole("button", { name: /Inspect Orin/ }).click();
+  await ack.focus();
+  await page.keyboard.press("Enter");
+  await trail
+    .getByRole("status")
+    .getByText("Trail complete. Your exploration passport is ready.")
+    .waitFor();
+  await trail
+    .getByRole("button", { name: "View exploration passport →" })
+    .click();
+  assert.equal(await trail.locator('li[data-earned="true"]').count(), 4);
+  await page
+    .getByRole("button", { name: "Quick overview", exact: true })
+    .click();
+  await page.goBack();
+  assert.equal(await trail.locator('li[data-earned="true"]').count(), 4);
+  await trail.getByRole("button", { name: "Pause trail" }).click();
+  assert.equal(
+    await trail
+      .getByRole("heading", { name: "Your exploration passport" })
+      .isVisible(),
+    false,
+  );
+  await trail.getByRole("button", { name: "Resume trail" }).click();
+  await page.getByTestId("world-scene").waitFor();
+  assert.match(
+    await page.getByTestId("world-scene").getAttribute("data-illuminated"),
+    /knowledge writing questions learning decisions roles/,
+  );
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
+    path: path.join(output, "discovery-passport-desktop.png"),
+    fullPage: true,
+  });
+  await trail.getByRole("button", { name: "Reset trail", exact: true }).click();
+  assert.equal(await page.locator('svg path[data-lit="true"]').count(), 0);
+  await page
+    .getByRole("button", { name: "Start discovery trail →", exact: true })
+    .click();
+  assert.match(
+    await page
+      .getByRole("region", { name: "Discovery trail", exact: true })
+      .getByRole("status")
+      .innerText(),
+    /0\/3 inputs/,
+  );
+  await page.reload();
+  assert.equal(
+    await page
+      .getByRole("region", { name: "Discovery trail", exact: true })
+      .count(),
+    0,
+  );
+  assert.deepEqual(errors, []);
+});
+await check("discovery-fallback", async (context) => {
+  await context.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (type, ...args) {
+      return String(type).includes("webgl")
+        ? null
+        : original.call(this, type, ...args);
+    };
+  });
+  const page = await context.newPage();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto(url);
+  await page
+    .getByRole("button", { name: "Play the discovery trail →", exact: true })
+    .click();
+  await page
+    .getByText(
+      "The 3D view is unavailable. The complete introduction remains below.",
+      { exact: true },
+    )
+    .waitFor();
+  const trail = page.getByRole("region", {
+    name: "Discovery trail",
+    exact: true,
+  });
+  await trail.getByRole("button", { name: /External signals/ }).click();
+  await trail.getByRole("button", { name: /Hands-on projects/ }).click();
+  await trail.getByRole("button", { name: /Market sensing/ }).click();
+  await trail
+    .getByRole("button", { name: "Follow the knowledge connection →" })
+    .click();
+  await trail.getByRole("button", { name: /Inspect source note/ }).click();
+  await trail.getByRole("button", { name: "Close record" }).click();
+  await trail.getByRole("button", { name: /Inspect linked draft/ }).click();
+  await trail.getByRole("button", { name: "Close record" }).click();
+  await trail
+    .getByRole("button", { name: "Connect note → draft", exact: true })
+    .click();
+  for (const name of [
+    "Strategic viewpoints",
+    "PM questions",
+    "New opportunities",
+    "Product decisions",
+  ])
+    await trail
+      .getByRole("button", { name: new RegExp(`Reveal ${name}`, "i") })
+      .click();
+  await trail
+    .getByRole("button", { name: "Meet the preparation roles →" })
+    .click();
+  await trail.getByRole("button", { name: /Inspect Iris/ }).click();
+  await trail.getByRole("button", { name: /Inspect Quill/ }).click();
+  await trail
+    .getByRole("button", { name: "Acknowledge human review", exact: true })
+    .click();
+  await trail
+    .getByRole("button", { name: "View exploration passport →" })
+    .click();
+  assert.equal(await trail.locator('li[data-earned="true"]').count(), 4);
+  assert.equal(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+    true,
+  );
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({
+    path: path.join(output, "discovery-passport-mobile.png"),
+    fullPage: true,
+  });
+});
+
 await browser.close();
 await writeFile(
   path.join(

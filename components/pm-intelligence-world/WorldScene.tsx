@@ -62,7 +62,11 @@ export function WorldScene({
     handle.current?.setSelection(selection);
   }, [selection]);
   return (
-    <div className={styles.scene} data-testid="world-scene">
+    <div
+      className={styles.scene}
+      data-testid="world-scene"
+      data-illuminated={selection.illuminated?.join(" ")}
+    >
       <div className={styles.canvasMount} ref={container} />
       <div className={styles.spatialLabels} aria-label="Spatial workspaces">
         <svg className={styles.spatialLeaders} aria-hidden="true">
@@ -85,6 +89,7 @@ export function WorldScene({
             }}
             className={styles.spatialLabel}
             aria-pressed={selection.section === label.id}
+            data-discovered={selection.illuminated?.includes(label.id)}
             onClick={() => onFocus(label.id)}
           >
             <strong>{label.label}</strong>

@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { SelectedWork } from "@/components/landing/SelectedWork";
 import { DecisionExample } from "@/components/pm-intelligence-world/DecisionExample";
+import { DiscoveryTrail } from "@/components/pm-intelligence-world/DiscoveryTrail";
 import { Experience } from "@/components/pm-intelligence-world/Experience";
 import { worldContent } from "@/content/pm-intelligence-world/content";
 import { initialState } from "@/lib/pm-intelligence-world/state";
@@ -60,4 +61,32 @@ void test("landing retains the existing PM Intelligence destination and offers a
   const html = renderToStaticMarkup(<SelectedWork />);
   assert.match(html, /href="\/experiences\/pm-intelligence"/);
   assert.match(html, /href="\/chat"/);
+});
+
+void test("trail invitation is optional and initial trail shows inputs without certifying completion", () => {
+  const html = renderToStaticMarkup(
+    <DiscoveryTrail
+      content={worldContent}
+      state={initialState}
+      dispatch={() => {}}
+      onStart={() => {}}
+    />,
+  );
+  assert.match(html, /Start discovery trail/);
+  assert.doesNotMatch(html, /Your exploration passport/);
+  const state = {
+    ...initialState,
+    discovery: { ...initialState.discovery, started: true },
+  };
+  const active = renderToStaticMarkup(
+    <DiscoveryTrail
+      content={worldContent}
+      state={state}
+      dispatch={() => {}}
+      onStart={() => {}}
+    />,
+  );
+  assert.match(active, /EXPLORATION RECEIPTS \/ 0 OF 4/);
+  assert.match(active, /DISCOVER INPUT/);
+  assert.doesNotMatch(active, /Trail complete/);
 });

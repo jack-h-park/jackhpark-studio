@@ -82,6 +82,7 @@ export function createWorld({
   scene.add(light);
   const pickable: Object3D[] = [];
   const nodes = new Map<SectionId, Group>();
+  const discoveryMaterials = new Map<SectionId, MeshStandardMaterial[]>();
   const materials: MeshStandardMaterial[] = [];
   const material = (color: Color, metalness = 0.2) => {
     const m = new MeshStandardMaterial({ color, metalness, roughness: 0.55 });
@@ -90,7 +91,7 @@ export function createWorld({
   };
   const neutral = material(surface);
   const ground = material(ink.clone().multiplyScalar(0.018));
-  const line = material(blue.clone().multiplyScalar(0.45));
+
   const mesh = (
     geometry: BoxGeometry | CylinderGeometry | TorusGeometry,
     m: MeshStandardMaterial,
@@ -122,6 +123,9 @@ export function createWorld({
       0.2,
       0,
     );
+    discoveryMaterials.set(id, [ring.material]);
+    ring.material.emissive.copy(color);
+    ring.material.emissiveIntensity = 0;
     ring.rotation.x = Math.PI / 2;
     return { node, m };
   };
@@ -146,9 +150,12 @@ export function createWorld({
   ] as SectionId[]) {
     const p = new Vector3(...sceneLayout[id].position);
     const length = p.length() - 3;
+    const pathMaterial = material(blue.clone().multiplyScalar(0.45));
+    pathMaterial.emissive.copy(cyan);
+    discoveryMaterials.get(id)?.push(pathMaterial);
     const strip = mesh(
       new BoxGeometry(0.035, 0.025, length),
-      line,
+      pathMaterial,
       scene,
       p.x / 2,
       -0.2,
@@ -260,6 +267,20 @@ export function createWorld({
     current = selection;
     for (const t of tweens) t.kill();
     tweens = [];
+    for (const [id, nodeMaterials] of discoveryMaterials) {
+      const intensity = selection.illuminated?.includes(id) ? 1.3 : 0;
+      for (const m of nodeMaterials) {
+        if (motion)
+          tweens.push(
+            gsap.to(m, {
+              emissiveIntensity: intensity,
+              duration: 0.65,
+              onUpdate: invalidate,
+            }),
+          );
+        else m.emissiveIntensity = intensity;
+      }
+    }
     const pose = sceneLayout[selection.section];
     for (const [id, node] of nodes)
       node.scale.setScalar(id === selection.section ? 1.12 : 1);
@@ -269,7 +290,7 @@ export function createWorld({
       invalidate();
       return;
     }
-    tweens = [
+    tweens.push(
       gsap.to(camera.position, {
         x: pose.camera[0],
         y: pose.camera[1],
@@ -286,7 +307,7 @@ export function createWorld({
         ease: "power2.inOut",
         onUpdate: invalidate,
       }),
-    ];
+    );
   };
   return {
     setSelection,
