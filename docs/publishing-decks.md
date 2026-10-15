@@ -17,18 +17,18 @@ real subpath, and refuses to publish if any load-bearing fact has drifted.
 ## Current Overview release
 
 The fifteen-slide Studio Overview now owns `/decks/pm-intelligence-system`.
-Its content source is `hermes-control-plane/docs/deck/design-pilot/source/overview-pilot.json`;
+Its content source is `hermes-control-plane/docs/deck/design-pilot/source/overview-pilot-v2.json`;
 `docs/deck/design-pilot/build-studio-preview.mjs` generates the self-contained HTML.
 The Marp workflow below remains the legacy track and appendix workflow.
 
 ```bash
 # In the control-plane checkout:
-node docs/deck/design-pilot/build-studio-preview.mjs
+node docs/deck/design-pilot/build-studio-preview.mjs /absolute/output/v2 overview-pilot-v2.json
 
 # In this Studio checkout, use explicit source and facts paths:
 DECK_FACTS=/path/to/hermes-control-plane/docs/deck/deck-facts.json \
   scripts/publish-deck.sh \
-  /path/to/hermes-control-plane/docs/deck/design-pilot/output/studio-creative-review.html \
+  /absolute/output/v2/studio-creative-review-v2.html \
   pm-intelligence-system
 ```
 
