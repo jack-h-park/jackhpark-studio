@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { chromium } from "playwright";
+import { chromium, webkit } from "playwright";
 const { values } = parseArgs({
   options: {
+    browser: { type: "string", default: "chromium" },
     "base-url": { type: "string", default: "http://localhost:3037" },
     out: { type: "string" },
     case: { type: "string", default: "all" },
@@ -18,11 +19,25 @@ if (!values.out)
   throw new Error("--out must name a session artifact directory.");
 const output = path.resolve(values.out);
 await mkdir(output, { recursive: true });
-const browser = await chromium.launch({ headless: true });
+if (!["chromium", "webkit"].includes(values.browser))
+  throw new Error("--browser must be chromium or webkit.");
+const browserType = values.browser === "webkit" ? webkit : chromium;
+const browser = await browserType.launch({ headless: true });
 const results = [];
 const url = new URL("/experiences/pm-intelligence", base).href;
 async function check(name, fn) {
   if (values.case !== "all" && values.case !== name) return;
+  if (name === "performance" && values.browser !== "chromium") {
+    results.push({
+      name,
+      browser: values.browser,
+      status: "skipped",
+      reason:
+        "CDP compositor tracing requires Chromium; no WebKit performance claim.",
+    });
+    process.stdout.write(`${name}: skipped (Chromium-only CDP trace)\n`);
+    return;
+  }
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     hasTouch: name === "accessibility",
@@ -30,9 +45,14 @@ async function check(name, fn) {
   context.setDefaultTimeout(15000);
   try {
     await fn(context);
-    results.push({ name, status: "passed" });
+    results.push({ name, browser: values.browser, status: "passed" });
   } catch (error) {
-    results.push({ name, status: "failed", error: String(error) });
+    results.push({
+      name,
+      browser: values.browser,
+      status: "failed",
+      error: String(error),
+    });
     process.exitCode = 1;
   } finally {
     process.stdout.write(`${name}: ${results.at(-1).status}\n`);
@@ -226,7 +246,18 @@ await check("keyboard", async (context) => {
   );
   await page.keyboard.type("More evidence is needed.");
   await page.getByRole("heading", { name: "Your decision record" }).waitFor();
-  await page.keyboard.press("Tab");
+  // macOS WebKit uses Option-Tab to include buttons in keyboard traversal.
+  await page.keyboard.press(
+    values.browser === "webkit" && process.platform === "darwin"
+      ? "Alt+Tab"
+      : "Tab",
+  );
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Reset simulation", exact: true })
+      .evaluate((button) => button === document.activeElement),
+    true,
+  );
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Enter the simulation →" }).waitFor();
 });
