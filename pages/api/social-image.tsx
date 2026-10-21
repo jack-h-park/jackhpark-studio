@@ -2,12 +2,7 @@ import ky from "ky";
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { ImageResponse } from "next/og";
 import { type PageBlock } from "notion-types";
-import {
-  getBlockIcon,
-  getPageProperty,
-  isUrl,
-  parsePageId,
-} from "notion-utils";
+import { getPageProperty, parsePageId } from "notion-utils";
 
 import * as libConfig from "@/lib/config";
 import interSemiBoldFont from "@/lib/fonts/inter-semibold";
@@ -320,16 +315,7 @@ export async function getNotionPageInfo({
   );
   const imageFallbackUrl = mapImageUrl(libConfig.defaultPageCover, block);
 
-  const blockIcon = getBlockIcon(block, recordMap);
-  const authorImageBlockUrl = mapImageUrl(
-    blockIcon && isUrl(blockIcon) ? blockIcon : undefined,
-    block,
-  );
-  const authorImageFallbackUrl = mapImageUrl(libConfig.defaultPageIcon, block);
-  const [authorImage, image] = await Promise.all([
-    getCompatibleImageUrl(authorImageBlockUrl, authorImageFallbackUrl),
-    getCompatibleImageUrl(imageBlockUrl, imageFallbackUrl),
-  ]);
+  const image = await getCompatibleImageUrl(imageBlockUrl, imageFallbackUrl);
 
   const author =
     getPageProperty<string>("Author", block, recordMap) || libConfig.author;
@@ -364,7 +350,6 @@ export async function getNotionPageInfo({
     image,
     imageObjectPosition,
     author,
-    authorImage,
     detail,
   };
 

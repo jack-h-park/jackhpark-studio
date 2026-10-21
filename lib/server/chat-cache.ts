@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 
 export type CacheKey = string;
 
-type CacheEntry<T> = {
-  value: T;
+type CacheEntry = {
+  serialized: string;
+  bytes: number;
   expiresAt: number;
 };
 
@@ -12,28 +13,97 @@ export interface CacheClient {
   set<T>(key: CacheKey, value: T, ttlSeconds: number): Promise<void>;
 }
 
-const memoryStore = new Map<CacheKey, CacheEntry<unknown>>();
+// These bound retained serialized payloads, not total process memory or temporary copies.
+const MAX_MEMORY_ENTRIES = 256;
+const MAX_MEMORY_BYTES = 8 * 1024 * 1024;
+const MAX_ENTRY_BYTES = 1024 * 1024;
+const memoryStore = new Map<CacheKey, CacheEntry>();
+let memoryBytes = 0;
+
+function removeMemoryEntry(key: CacheKey): void {
+  const entry = memoryStore.get(key);
+  if (entry) {
+    memoryBytes -= entry.bytes;
+    memoryStore.delete(key);
+  }
+}
+
+function expireMemoryEntries(now: number): void {
+  for (const [key, entry] of memoryStore) {
+    if (now >= entry.expiresAt) removeMemoryEntry(key);
+  }
+}
+
+function serializeCacheValue(value: unknown): string | undefined {
+  try {
+    return JSON.stringify(value, (_key, item: unknown) => {
+      const kind = typeof item;
+      if (
+        kind === "function" ||
+        kind === "symbol" ||
+        kind === "bigint" ||
+        (kind === "number" && !Number.isFinite(item))
+      ) {
+        throw new TypeError("Unsupported cache value");
+      }
+      if (item !== null && kind === "object" && !Array.isArray(item)) {
+        const prototype: unknown = Object.getPrototypeOf(item);
+        if (prototype !== Object.prototype && prototype !== null) {
+          throw new TypeError("Unsupported cache object");
+        }
+      }
+      return item;
+    });
+  } catch {
+    // Caching is optional: circular values, throwing getters and non-JSON objects miss.
+    return undefined;
+  }
+}
 
 export const memoryCacheClient: CacheClient = {
   async get<T>(key: CacheKey): Promise<T | null> {
+    expireMemoryEntries(Date.now());
     const entry = memoryStore.get(key);
     if (!entry) {
       return null;
     }
-    if (Date.now() > entry.expiresAt) {
-      memoryStore.delete(key);
-      return null;
-    }
-    return entry.value as T;
+    memoryStore.delete(key);
+    memoryStore.set(key, entry);
+    return JSON.parse(entry.serialized) as T;
   },
   async set<T>(key: CacheKey, value: T, ttlSeconds: number): Promise<void> {
-    const expiresAt = Date.now() + ttlSeconds * 1000;
-    memoryStore.set(key, { value, expiresAt });
+    const now = Date.now();
+    expireMemoryEntries(now);
+    removeMemoryEntry(key);
+    const expiresAt = now + ttlSeconds * 1000;
+    if (
+      !Number.isFinite(ttlSeconds) ||
+      ttlSeconds <= 0 ||
+      !Number.isFinite(expiresAt)
+    ) {
+      return;
+    }
+    const serialized = serializeCacheValue(value);
+    if (serialized === undefined) return;
+    const bytes = Buffer.byteLength(serialized, "utf8");
+    if (bytes > MAX_ENTRY_BYTES) return;
+
+    while (
+      memoryStore.size >= MAX_MEMORY_ENTRIES ||
+      memoryBytes + bytes > MAX_MEMORY_BYTES
+    ) {
+      const oldestKey = memoryStore.keys().next().value;
+      if (oldestKey === undefined) break;
+      removeMemoryEntry(oldestKey);
+    }
+    memoryStore.set(key, { serialized, bytes, expiresAt });
+    memoryBytes += bytes;
   },
 };
 
 export function clearMemoryCache(): void {
   memoryStore.clear();
+  memoryBytes = 0;
 }
 
 function stableStringify(value: unknown): string {
