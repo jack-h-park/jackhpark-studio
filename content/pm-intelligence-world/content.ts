@@ -2,10 +2,11 @@ import type { WorldContent } from "./types";
 
 export const worldContent: WorldContent = {
   purpose:
-    "A personal system for keeping product knowledge, experience and decisions available for the next question.",
+    "Product knowledge is scattered across signals, projects and study. Jack’s personal AI system connects it for writing, PM questions, learning and decisions.",
   sections: [
     {
       id: "overview",
+      navLabel: "Overview",
       eyebrow: "01 / THE WHOLE SYSTEM",
       title: "Product work has a longer memory.",
       summary:
@@ -13,13 +14,15 @@ export const worldContent: WorldContent = {
     },
     {
       id: "inputs",
+      navLabel: "Inputs",
       eyebrow: "02 / THREE INPUTS",
       title: "Different work. A shared foundation.",
       summary:
-        "External signals, hands-on experience and market-informed study bring different kinds of evidence. None belongs to only one use.",
+        "External signals, hands-on experience and market-informed study contribute different kinds of evidence. Each can support more than one use.",
     },
     {
       id: "knowledge",
+      navLabel: "Knowledge",
       eyebrow: "03 / RECORD · REVIEW · REUSE",
       title: "Keep the source. Keep the correction.",
       summary:
@@ -27,6 +30,7 @@ export const worldContent: WorldContent = {
     },
     {
       id: "writing",
+      navLabel: "Viewpoints",
       eyebrow: "04 / STRATEGIC VIEWPOINTS",
       title: "From evidence to a point of view.",
       summary:
@@ -34,6 +38,7 @@ export const worldContent: WorldContent = {
     },
     {
       id: "questions",
+      navLabel: "PM questions",
       eyebrow: "05 / PM QUESTIONS",
       title: "A viewpoint becomes an answer draft.",
       summary:
@@ -41,6 +46,7 @@ export const worldContent: WorldContent = {
     },
     {
       id: "learning",
+      navLabel: "Learning",
       eyebrow: "06 / LEARNING & NEW OPPORTUNITIES",
       title: "Demand informs what to study.",
       summary:
@@ -48,24 +54,27 @@ export const worldContent: WorldContent = {
     },
     {
       id: "decisions",
+      navLabel: "Decisions",
       eyebrow: "OPTIONAL / PRODUCT DECISION",
-      title: "Learning can stop here. Decisions start on request.",
+      title: "A product decision starts with a question.",
       summary:
-        "An insight need not become a decision run. When a product question needs judgment, evidence and evaluation can support an explicit request.",
+        "Knowledge can support writing, questions and learning on its own. When a product decision is needed, the system helps prepare evidence and alternatives for Jack to review.",
     },
     {
       id: "roles",
+      navLabel: "People & agents",
       eyebrow: "07 / PREPARATION & RESPONSIBILITY",
       title: "Agents prepare. A person decides.",
       summary:
-        "Different agents prepare different material. The execution engine owns workflow state; Jack supplies product context, reviews evidence and makes the judgment.",
+        "Agents prepare research, drafts, study material and evaluation context. The workflow engine coordinates execution; Jack supplies product context, reviews the evidence and owns the judgment.",
     },
     {
       id: "limits",
+      navLabel: "Evidence",
       eyebrow: "08 / EVIDENCE & DIRECTION",
       title: "Show what is known. Leave room to learn.",
       summary:
-        "Linked artifacts show connections and retained work. They do not, by themselves, prove better decisions, faster work or improved learning.",
+        "The examples show how sources, drafts and practice records stay connected. Decision quality, time saved and learning gains still need separate evaluation.",
     },
   ],
   inputs: [

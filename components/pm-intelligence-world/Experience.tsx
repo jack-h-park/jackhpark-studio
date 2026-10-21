@@ -97,7 +97,7 @@ export function Experience({ content }: { content: WorldContent }) {
         <main>
           <div className={styles.intro}>
             <div>
-              <p className={styles.label}>AN INTERACTIVE SYSTEM INTRODUCTION</p>
+              <p className={styles.label}>PM INTELLIGENCE SYSTEM</p>
               <h1>
                 Product work.
                 <br />
@@ -134,10 +134,10 @@ export function Experience({ content }: { content: WorldContent }) {
               )}
               <span className={styles.label}>
                 {state.mode === "quick"
-                  ? "60–90 SECONDS"
+                  ? "6 STOPS / THE WHOLE SYSTEM"
                   : state.mode === "guide"
-                    ? "3–5 MINUTES"
-                    : "YOUR OWN PATH"}{" "}
+                    ? "8 STOPS / TWO REUSE EXAMPLES"
+                    : "CHOOSE ANY AREA OR FOLLOW THE TRAIL"}{" "}
                 / NO GAME COMPLETION REQUIRED
               </span>
             </div>
@@ -146,7 +146,7 @@ export function Experience({ content }: { content: WorldContent }) {
             <div className={styles.world} aria-label="Whole-system map">
               <div className={styles.worldTop}>
                 <span className={styles.label}>
-                  THREE INPUTS · ONE CONNECTED RECORD LANDSCAPE
+                  THREE INPUTS · SHARED KNOWLEDGE · FOUR USES
                 </span>
                 <button
                   className="ai-button ai-button-outline ai-button-size-default"
@@ -168,9 +168,7 @@ export function Experience({ content }: { content: WorldContent }) {
                     <path
                       key={id}
                       d={path}
-                      data-lit={state.discovery.inputs.includes(
-                        id,
-                      )}
+                      data-lit={state.discovery.inputs.includes(id)}
                     />
                   ))}
                   {content.uses.map((use, i) => (
@@ -253,7 +251,11 @@ export function Experience({ content }: { content: WorldContent }) {
                   />
                 )}
             </div>
-            <div className={styles.chapter} id="chapter">
+            <div
+              className={styles.chapter}
+              id="chapter"
+              data-interactive={interactive}
+            >
               <nav
                 className={styles.sectionNav}
                 aria-label="Introduction sections"
@@ -282,7 +284,7 @@ export function Experience({ content }: { content: WorldContent }) {
                     }}
                   >
                     {String(i + 1).padStart(2, "0")}
-                    <span>{s.id}</span>
+                    <span>{s.navLabel}</span>
                   </a>
                 ))}
               </nav>

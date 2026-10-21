@@ -9,13 +9,15 @@ export default function PmIntelligencePage() {
   return (
     <>
       <Head>
-        <title>PM Intelligence World — Jack H. Park</title>
+        <title>
+          PM Intelligence System — Interactive introduction | Jack H. Park
+        </title>
         <meta name="description" content={worldContent.purpose} />
         <meta name="robots" content="noindex,nofollow" />
         <link rel="canonical" href={`${host}/experiences/pm-intelligence`} />
         <meta
           property="og:title"
-          content="PM Intelligence World — Jack H. Park"
+          content="PM Intelligence System — Interactive introduction | Jack H. Park"
         />
         <meta property="og:description" content={worldContent.purpose} />
       </Head>

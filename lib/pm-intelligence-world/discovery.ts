@@ -84,3 +84,15 @@ export function discoveryReducer(
         : d;
   }
 }
+
+export function nextDiscoveryAction(d: DiscoveryState): {
+  stage: number;
+  label: string;
+} {
+  if (d.inputs.length < 3) return { stage: 0, label: "Find the three inputs" };
+  if (!d.connected) return { stage: 1, label: "Connect the source and draft" };
+  if (d.uses.length < 4) return { stage: 1, label: "Explore all four uses" };
+  if (d.roles.length < 2) return { stage: 2, label: "Inspect two Agent roles" };
+  if (!d.reviewed) return { stage: 2, label: "Review human responsibility" };
+  return { stage: 3, label: "Open your exploration passport" };
+}

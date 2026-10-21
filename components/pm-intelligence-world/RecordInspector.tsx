@@ -24,7 +24,7 @@ export function RecordInspector({
     <aside className={styles.inspector} aria-label="Record details">
       <div className={styles.label}>
         {record.status.replaceAll("-", " ")}{" "}
-        {record.observedOn && ` / observed ${record.observedOn}`}
+        {record.observedOn && ` / ${record.observedOn}`}
       </div>
       <h3 ref={heading} tabIndex={-1}>
         {record.title}

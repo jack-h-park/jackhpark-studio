@@ -870,3 +870,67 @@
     animation: none;
   }
 }
+
+/* Keep the explanation alongside the longer discovery trail without nested scrolling. */
+@media (min-width: 769px) {
+  .chapter[data-interactive="true"] {
+    position: sticky;
+    top: 24px;
+    align-self: start;
+  }
+}
+.sectionNav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  overflow: visible;
+}
+.sectionNav a {
+  flex-direction: row;
+  gap: 8px;
+  justify-content: flex-start;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 10px;
+}
+.sectionNav a span {
+  font-family: var(--font-geist-sans), sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.nextDiscoveryAction {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 16px;
+  text-align: left;
+  color: var(--ai-text);
+  border: 1px solid var(--brand-cyan);
+  border-radius: 10px;
+  background: var(--ai-role-surface-0);
+}
+.nextDiscoveryAction strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+@media (max-width: 1000px) {
+  .sectionNav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 768px) {
+  .sectionNav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .map .label {
+    font-size: 9px;
+    letter-spacing: 0.3px;
+  }
+  .commons .label {
+    font-size: 8px;
+    line-height: 1.3;
+  }
+}

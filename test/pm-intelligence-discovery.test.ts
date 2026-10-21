@@ -98,3 +98,22 @@ void test("opening a source outside the trail cannot earn milestones retroactive
   assert.ok(s.discovery.visited.includes("learning"));
   assert.equal(new Set(s.discovery.visited).size, s.discovery.visited.length);
 });
+
+void test("next action returns visitors to missing prerequisites without gating section access", async () => {
+  const { nextDiscoveryAction, emptyDiscovery } =
+    await import("@/lib/pm-intelligence-world/discovery");
+  let d = { ...emptyDiscovery, started: true };
+  assert.equal(nextDiscoveryAction(d).stage, 0);
+  d = { ...d, inputs: worldContent.inputs.map((i) => i.id) };
+  assert.equal(nextDiscoveryAction(d).stage, 1);
+  assert.match(nextDiscoveryAction(d).label, /source and draft/);
+  d = { ...d, connected: true };
+  assert.match(nextDiscoveryAction(d).label, /four uses/);
+  d = { ...d, uses: worldContent.uses.map((u) => u.id) };
+  assert.equal(nextDiscoveryAction(d).stage, 2);
+  assert.match(nextDiscoveryAction(d).label, /two Agent roles/);
+  d = { ...d, roles: ["Cleo", "Orin"] };
+  assert.match(nextDiscoveryAction(d).label, /human responsibility/);
+  d = { ...d, reviewed: true };
+  assert.equal(nextDiscoveryAction(d).stage, 3);
+});

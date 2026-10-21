@@ -12,6 +12,7 @@ import type {
 import {
   canConnect,
   discoveryMilestones,
+  nextDiscoveryAction,
 } from "@/lib/pm-intelligence-world/discovery";
 
 import styles from "./experience.module.css";
@@ -43,6 +44,13 @@ export function DiscoveryTrail({
 }) {
   const stageHeading = useRef<HTMLHeadingElement>(null);
   const wasStarted = useRef(false);
+  const reuseHeading = useRef<HTMLHeadingElement>(null);
+  const nextButton = useRef<HTMLButtonElement>(null);
+  const previousProgress = useRef({
+    connected: state.discovery.connected,
+    reviewed: state.discovery.reviewed,
+  });
+  const [focusRequest, setFocusRequest] = useState(0);
   const [recordId, setRecordId] = useState<RecordId | null>(null);
   const [step, setStep] = useState(0);
   const [expanded, setExpanded] = useState(true);
@@ -51,12 +59,21 @@ export function DiscoveryTrail({
   useEffect(() => {
     if (d.started || wasStarted.current) stageHeading.current?.focus();
     wasStarted.current = d.started;
-  }, [step, d.started]);
+  }, [step, d.started, focusRequest]);
+  useEffect(() => {
+    if (d.connected && !previousProgress.current.connected && step === 1)
+      reuseHeading.current?.focus();
+    if (d.reviewed && !previousProgress.current.reviewed && step === 2)
+      nextButton.current?.focus();
+    previousProgress.current = { connected: d.connected, reviewed: d.reviewed };
+  }, [d.connected, d.reviewed, step]);
   const milestones = discoveryMilestones(d);
   const count = milestones.filter(Boolean).length;
+  const nextAction = nextDiscoveryAction(d);
   const go = (next: number) => {
     setStep(next);
     setRecordId(null);
+    setFocusRequest((request) => request + 1);
     dispatch({ type: "FOCUS_SECTION", section: destinations[next] });
   };
   const record = content.records.find((r) => r.id === recordId);
@@ -113,6 +130,16 @@ export function DiscoveryTrail({
           : `${d.inputs.length}/3 inputs · ${d.connected ? "records connected" : "connection pending"} · ${d.uses.length}/4 uses · ${d.roles.length}/8 roles inspected`}
       </p>
       <div id="discovery-body" hidden={!expanded}>
+        <button
+          ref={nextButton}
+          className={styles.nextDiscoveryAction}
+          onClick={() => go(nextAction.stage)}
+        >
+          <span className={styles.label}>
+            {count === 4 ? "YOUR EXPLORATION" : "NEXT CONNECTION"}
+          </span>
+          <strong>{nextAction.label} →</strong>
+        </button>
         <nav
           className={styles.discoverySteps}
           aria-label="Discovery trail stages"
@@ -212,13 +239,15 @@ export function DiscoveryTrail({
             <p className={styles.note}>
               {d.connected
                 ? "The recorded connection is visible. Better answer quality and publication readiness are not established."
-                : "Find all three inputs and inspect both records to connect them."}
+                : "Find the three inputs and inspect both records. The next-connection button takes you to the first unfinished step."}
             </p>
-            <h3>One foundation. Four purposes.</h3>
+            <h3 ref={reuseHeading} tabIndex={-1}>
+              One foundation. Four purposes.
+            </h3>
             <p>
               Reveal each use to see how knowledge and experience can support
-              different product work. These are purposes, not four proven
-              outputs of this note.
+              different product work. Each path shows a documented purpose; the
+              note-to-draft connection is the observed example.
             </p>
             <div className={styles.discoveryCards}>
               {content.uses.map((use) => (
@@ -238,7 +267,7 @@ export function DiscoveryTrail({
                   </span>
                   <strong>Reveal {use.title}</strong>
                   <span>
-                    {d.uses.includes(use.id)
+                    {d.connected
                       ? use.description
                       : "Connect the source record, then reveal this path."}
                   </span>
@@ -263,8 +292,8 @@ export function DiscoveryTrail({
               03 / Agents prepare. People review.
             </h3>
             <p>
-              Inspect at least two roles to reveal their preparation remit. No
-              agent is executing here.
+              Inspect at least two roles to reveal their contribution. No agent
+              is executing here.
             </p>
             <div className={`${styles.discoveryCards} ${styles.roleCards}`}>
               {content.roles.map((item) => (
@@ -277,7 +306,8 @@ export function DiscoveryTrail({
                   }}
                 >
                   <span className={styles.label}>
-                    {d.roles.includes(item.name) ? "✓ INSPECTED" : item.role}
+                    {item.role}
+                    {d.roles.includes(item.name) ? " / ✓ VIEWED" : ""}
                   </span>
                   <strong>Inspect {item.name}</strong>
                 </button>
@@ -288,7 +318,7 @@ export function DiscoveryTrail({
                 className={styles.roleReveal}
                 aria-label={`${role.name} preparation`}
               >
-                <p className={styles.label}>DECK-DEFINED ROLE / {role.role}</p>
+                <p className={styles.label}>PREPARATION ROLE / {role.role}</p>
                 <h4>{role.name} prepares</h4>
                 <p>{role.prepares}</p>
                 <p>
@@ -362,7 +392,7 @@ export function DiscoveryTrail({
                   }
                 >
                   {d.visited.includes(section.id) ? "✓ " : "○ "}
-                  {section.title}
+                  {section.navLabel}
                 </button>
               ))}
             </div>

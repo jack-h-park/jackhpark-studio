@@ -123,9 +123,9 @@ export function ReadingView({
                 <span>Reuse with judgment</span>
               </div>
               <p className={styles.note}>
-                Execution history and curated knowledge have different
-                lifecycles. A completed run is retained first; reusable
-                knowledge is reviewed separately.
+                A workflow leaves a record of what happened. Sources and
+                interpretations are reviewed separately before they become
+                material for another question.
               </p>
               <button
                 className="ai-button ai-button-outline ai-button-size-default"
@@ -166,8 +166,8 @@ export function ReadingView({
               </div>
               <p className={styles.note}>
                 These are the preparation roles described in the portfolio deck.
-                They are not a live fleet status display or the engine’s
-                evaluation perspectives.
+                This page illustrates their contributions rather than showing
+                live agent activity.
               </p>
             </>
           )}

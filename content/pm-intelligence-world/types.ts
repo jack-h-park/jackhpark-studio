@@ -43,6 +43,7 @@ export interface WorldContent {
   purpose: string;
   sections: Array<{
     id: SectionId;
+    navLabel: string;
     title: string;
     eyebrow: string;
     summary: string;

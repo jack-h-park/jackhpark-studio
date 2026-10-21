@@ -408,7 +408,7 @@ await check("labels", async (context) => {
     .click();
   await page
     .getByRole("heading", {
-      name: "Learning can stop here. Decisions start on request.",
+      name: "A product decision starts with a question.",
     })
     .waitFor();
   assert.ok(
@@ -610,6 +610,11 @@ await check("discovery", async (context) => {
   await trail
     .getByRole("button", { name: "Connect note → draft", exact: true })
     .click();
+  await trail.locator("h3:focus").waitFor();
+  assert.equal(
+    await trail.locator("h3:focus").innerText(),
+    "One foundation. Four purposes.",
+  );
   for (const name of [
     "Strategic viewpoints",
     "PM questions",
@@ -647,6 +652,11 @@ await check("discovery", async (context) => {
   await trail.getByRole("button", { name: /Inspect Orin/ }).click();
   await ack.focus();
   await page.keyboard.press("Enter");
+  await trail.locator("button:focus").waitFor();
+  assert.match(
+    await trail.locator("button:focus").innerText(),
+    /Open your exploration passport/,
+  );
   await trail
     .getByRole("status")
     .getByText("Trail complete. Your exploration passport is ready.")
