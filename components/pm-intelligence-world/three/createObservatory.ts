@@ -8,10 +8,10 @@ import {
   Float32BufferAttribute,
   Group,
   HemisphereLight,
-  IcosahedronGeometry,
+  type Material,
   Mesh,
   MeshBasicMaterial,
-  MeshStandardMaterial,
+  type Object3D,
   OrthographicCamera,
   PCFShadowMap,
   PointLight,
@@ -21,8 +21,8 @@ import {
   Scene,
   SphereGeometry,
   SRGBColorSpace,
+  Texture,
   TextureLoader,
-  TorusGeometry,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -40,6 +40,8 @@ import {
   observatoryLocations,
   type ObservatoryState,
 } from "@/lib/pm-intelligence-world/observatory-state";
+
+import { createSourceCapsule, createVisitor } from "./observatoryProps";
 
 export interface ObservatoryHandle {
   setState(state: ObservatoryState): void;
@@ -174,41 +176,12 @@ export function createObservatory({
     "market-study",
   ];
   const colors = ["#65dcf4", "#ffc577", "#c19aff"];
-  const capsules: Group[] = [];
+  const capsules = ids.map((id, i) => createSourceCapsule(id, colors[i]));
   const targets: Mesh[] = [];
-  for (const [i, id] of ids.entries()) {
-    const g = new Group();
-    g.position.set(-2.2 + i * 2, 1.9, 7.6);
-    g.userData.input = id;
-    const core = new Mesh(
-      new IcosahedronGeometry(0.28, 0),
-      new MeshStandardMaterial({
-        color: colors[i],
-        emissive: colors[i],
-        emissiveIntensity: 1.2,
-        metalness: 0.25,
-        roughness: 0.25,
-      }),
-    );
-    const cage = new Mesh(
-      new IcosahedronGeometry(0.44, 0),
-      new MeshBasicMaterial({ color: colors[i], wireframe: true }),
-    );
-    const ring = new Mesh(
-      new TorusGeometry(0.35, 0.015, 6, 32),
-      new MeshStandardMaterial({
-        color: "#e6c897",
-        metalness: 0.7,
-        roughness: 0.3,
-      }),
-    );
-    ring.rotation.x = Math.PI / 2;
-    g.add(core, cage, ring);
-    core.userData.input = id;
-    cage.userData.input = id;
-    targets.push(core, cage);
-    scene.add(g);
-    capsules.push(g);
+  for (const [i, capsule] of capsules.entries()) {
+    capsule.group.position.set(-2.2 + i * 2, 1.9, 7.6);
+    scene.add(capsule.group);
+    targets.push(...capsule.pickables);
   }
   const interactionMaterial = new MeshBasicMaterial({ visible: false });
   for (const location of observatoryLocations) {
@@ -231,60 +204,9 @@ export function createObservatory({
     scene.add(volume);
     targets.push(volume);
   }
-  const actor = new Group();
+  const { actor, legs, arms } = createVisitor();
   scene.add(actor);
   actor.position.set(-1, 0.5, 9.4);
-  const cloth = new MeshStandardMaterial({ color: "#d3c6a2", roughness: 0.85 });
-  const dark = new MeshStandardMaterial({ color: "#39334a", roughness: 0.85 });
-  const brass = new MeshStandardMaterial({
-    color: "#d3a066",
-    metalness: 0.5,
-    roughness: 0.4,
-  });
-  const part = (
-    geom: BufferGeometry,
-    mat: MeshStandardMaterial,
-    x: number,
-    y: number,
-    z: number,
-  ) => {
-    const m = new Mesh(geom, mat);
-    m.position.set(x, y, z);
-    m.castShadow = true;
-    actor.add(m);
-    return m;
-  };
-  part(new CylinderGeometry(0.18, 0.22, 0.38, 8), cloth, 0, 0.65, 0);
-  part(new SphereGeometry(0.18, 12, 8), cloth, 0, 0.99, 0);
-  part(new CylinderGeometry(0.26, 0.26, 0.05, 12), brass, 0, 1.04, 0);
-  part(
-    new SphereGeometry(0.2, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-    brass,
-    0,
-    1.08,
-    0,
-  );
-  part(new CylinderGeometry(0.15, 0.17, 0.3, 6), dark, 0, 0.7, -0.22);
-  const legs = [
-    part(new CylinderGeometry(0.07, 0.08, 0.35, 6), dark, -0.1, 0.27, 0),
-    part(new CylinderGeometry(0.07, 0.08, 0.35, 6), dark, 0.1, 0.27, 0),
-  ];
-  const arms = [
-    part(new CylinderGeometry(0.055, 0.06, 0.32, 6), cloth, -0.26, 0.64, 0),
-    part(new CylinderGeometry(0.055, 0.06, 0.32, 6), cloth, 0.26, 0.64, 0),
-  ];
-  const lantern = part(
-    new CylinderGeometry(0.07, 0.07, 0.16, 6),
-    new MeshStandardMaterial({
-      color: "#ffcf7f",
-      emissive: "#ffac43",
-      emissiveIntensity: 3,
-    }),
-    0.29,
-    0.44,
-    0.08,
-  );
-  lantern.name = "Visitor lantern";
   // Navigation follows authored walkways, not a straight line through cliffs.
   const hub = new Vector3(-1, 0.5, 7);
   const stairs = new Vector3(-1, 3.8, 1);
@@ -386,26 +308,63 @@ export function createObservatory({
   const ray = new Raycaster(),
     pointer = new Vector2();
   let down: [number, number] | null = null;
-  const pointerDown = (e: PointerEvent) => {
-    down = [e.clientX, e.clientY];
-  };
-  const pointerUp = (e: PointerEvent) => {
-    if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 6)
-      return;
+  let hoveredInput: InputId | null = null;
+  const pickAt = (event: PointerEvent) => {
     const rect = renderer.domElement.getBoundingClientRect();
     pointer.set(
-      ((e.clientX - rect.left) / rect.width) * 2 - 1,
-      (-(e.clientY - rect.top) / rect.height) * 2 + 1,
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      (-(event.clientY - rect.top) / rect.height) * 2 + 1,
     );
     ray.setFromCamera(pointer, camera);
-    const hit = ray.intersectObjects(targets)[0];
+    return ray.intersectObjects(targets)[0];
+  };
+  const updateHover = (event?: PointerEvent) => {
+    const hit = event && !down ? pickAt(event) : undefined;
+    hoveredInput = (hit?.object.userData.input as InputId | undefined) || null;
+    const place = hit?.object.userData.location as
+      | ObservatoryLocation
+      | undefined;
+    for (const location of observatoryLocations) {
+      const label = labels[location.id];
+      if (label) label.dataset.hovered = String(place === location.id);
+    }
+    renderer.domElement.style.cursor = down
+      ? "grabbing"
+      : hit
+        ? "pointer"
+        : "grab";
+    renderer.domElement.dataset.hovered = hoveredInput || place || "";
+  };
+  const pointerDown = (event: PointerEvent) => {
+    if (event.button !== 0 && event.pointerType === "mouse") return;
+    down = [event.clientX, event.clientY];
+    updateHover();
+  };
+  const pointerMove = (event: PointerEvent) => updateHover(event);
+  const pointerUp = (event: PointerEvent) => {
+    const start = down;
+    down = null;
+    updateHover(event);
+    if (
+      !start ||
+      Math.hypot(event.clientX - start[0], event.clientY - start[1]) > 6
+    )
+      return;
+    const hit = pickAt(event);
     if (hit?.object.userData.input)
       onSelect(hit.object.userData.input as InputId);
     else if (hit?.object.userData.location)
       onMove(hit.object.userData.location as ObservatoryLocation);
   };
+  const pointerCancel = () => {
+    down = null;
+    updateHover();
+  };
   renderer.domElement.addEventListener("pointerdown", pointerDown);
+  renderer.domElement.addEventListener("pointermove", pointerMove);
   renderer.domElement.addEventListener("pointerup", pointerUp);
+  renderer.domElement.addEventListener("pointercancel", pointerCancel);
+  renderer.domElement.addEventListener("pointerleave", pointerCancel);
   const contextLost = (e: Event) => {
     e.preventDefault();
     onError();
@@ -444,7 +403,7 @@ export function createObservatory({
       target: new Vector3(...l.position).add(
         new Vector3(0, id === "knowledge" ? 2.3 : 1.5, 0),
       ),
-      zoom: id === "signals" ? 1.4 : id === "knowledge" ? 1.3 : 1.45,
+      zoom: id === "signals" ? 1.6 : id === "knowledge" ? 1.3 : 1.45,
     };
     if (!motion) {
       const shift = cameraTour.target.clone().sub(controls.target);
@@ -523,7 +482,8 @@ export function createObservatory({
           ? -Math.sin(elapsed * 12 + i * Math.PI) * 0.3
           : 0;
     }
-    for (const [i, g] of capsules.entries()) {
+    for (const [i, capsule] of capsules.entries()) {
+      const g = capsule.group;
       const stored = state.connected.includes(ids[i]);
       const carried =
         state.selected === ids[i] &&
@@ -539,9 +499,19 @@ export function createObservatory({
               7.6,
             );
       g.position.lerp(destination, motion ? 1 - Math.exp(-delta * 3) : 1);
-      g.rotation.y = elapsed * 0.35;
+      g.rotation.y = elapsed * 0.22;
+      capsule.frameMaterial.emissiveIntensity =
+        state.selected === ids[i] || hoveredInput === ids[i] ? 0.28 : 0.04;
       g.scale.setScalar(
-        stored ? 0.55 : carried ? 0.45 : state.selected === ids[i] ? 1.15 : 1,
+        stored
+          ? 0.55
+          : carried
+            ? 0.45
+            : state.selected === ids[i]
+              ? 1.15
+              : hoveredInput === ids[i]
+                ? 1.1
+                : 1,
       );
     }
     for (const location of observatoryLocations) {
@@ -559,14 +529,34 @@ export function createObservatory({
     }
     composer.render();
   });
-  function disposeGroup(group: Group) {
-    group.traverse((o) => {
-      if (o instanceof Mesh) {
-        o.geometry.dispose();
-        for (const m of Array.isArray(o.material) ? o.material : [o.material])
-          m.dispose();
+  function disposeGroup(group: Object3D) {
+    const geometries = new Set<BufferGeometry>();
+    const materials = new Set<Material>();
+    const textures = new Set<Texture>();
+    const bitmaps = new Set<ImageBitmap>();
+    group.traverse((object) => {
+      if (!(object instanceof Mesh || object instanceof Points)) return;
+      geometries.add(object.geometry);
+      for (const material of Array.isArray(object.material)
+        ? object.material
+        : [object.material]) {
+        materials.add(material);
+        for (const value of Object.values(material)) {
+          if (!(value instanceof Texture)) continue;
+          textures.add(value);
+          const image: unknown = value.source.data;
+          if (
+            typeof ImageBitmap !== "undefined" &&
+            image instanceof ImageBitmap
+          )
+            bitmaps.add(image);
+        }
       }
     });
+    for (const geometry of geometries) geometry.dispose();
+    for (const material of materials) material.dispose();
+    for (const texture of textures) texture.dispose();
+    for (const bitmap of bitmaps) bitmap.close();
   }
   return {
     setState(next) {
@@ -600,21 +590,14 @@ export function createObservatory({
       media.removeEventListener("change", changeMotion);
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);
+      renderer.domElement.removeEventListener("pointermove", pointerMove);
+      renderer.domElement.removeEventListener("pointercancel", pointerCancel);
+      renderer.domElement.removeEventListener("pointerleave", pointerCancel);
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       controls.removeEventListener("start", stopTour);
       controls.dispose();
       if (loadedModel) scene.remove(loadedModel);
-      scene.traverse((o) => {
-        if (o instanceof Mesh) {
-          o.geometry.dispose();
-          for (const m of Array.isArray(o.material) ? o.material : [o.material])
-            m.dispose();
-        }
-        if (o instanceof Points) {
-          o.geometry.dispose();
-          (o.material as PointsMaterial).dispose();
-        }
-      });
+      disposeGroup(scene);
       if (loadedModel) disposeGroup(loadedModel);
       texture.dispose();
       for (const pass of composer.passes) pass.dispose();

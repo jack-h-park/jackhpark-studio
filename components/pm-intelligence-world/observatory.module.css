@@ -667,3 +667,8 @@
     min-height: 420px;
   }
 }
+
+.landmark[data-hovered="true"] {
+  border-color: var(--brand-cyan);
+  color: var(--brand-cyan);
+}

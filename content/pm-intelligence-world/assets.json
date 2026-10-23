@@ -6,9 +6,9 @@
       "url": "/experiences/pm-intelligence/observatory/campus.glb",
       "kind": "model",
       "reviewStatus": "accepted",
-      "bytes": 3395584,
-      "sha256": "9903b37ad1fb9290e12144e8696ed71369740d82628b81b468a624decab74b26",
-      "provenance": "Original geometry authored with scripts/assets/build-observatory.py; exported with Blender 5.2.1.",
+      "bytes": 4099316,
+      "sha256": "8da883fba9de62f9129da29d85808f9afbc5c31336c010ab92fa272dab3e7089",
+      "provenance": "Original geometry authored with scripts/assets/build-observatory.py; exported with Blender 5.2.1. Includes an AI-generated limestone albedo from scripts/assets/observatory/limestone-albedo.jpg, embedded into the model.",
       "reviewScope": "Reviewed for local implementation; owner acceptance and publication remain separate."
     },
     {

@@ -45,6 +45,14 @@ cyan = material('Source light', (.12,.75,.89), emission=2)
 paper = material('Archive paper', (.80,.73,.54))
 glass = material('Greenhouse blue glass', (.13,.30,.39), .45)
 petal = material('Wildflowers', (.62,.54,.77))
+soil = material('Garden soil', (.12,.13,.16))
+flower_gold = material('Golden alpine flowers', (.78,.58,.24))
+# A small authored material swatch supplies detail; scene lighting supplies the night palette.
+image=bpy.data.images.load(str(ROOT / 'scripts/assets/observatory/limestone-albedo.jpg'))
+image.colorspace_settings.name='sRGB'
+texture=pathmat.node_tree.nodes.new('ShaderNodeTexImage');texture.image=image;texture.extension='REPEAT'
+pathmat.node_tree.links.new(texture.outputs['Color'],pathmat.node_tree.nodes.get('Principled BSDF').inputs['Base Color'])
+
 
 
 def coord(x,d,h):
@@ -284,6 +292,35 @@ for cx,cd,top,r in [(0,-3.5,3.8,4.9),(-2,7.8,.5,4.3),(-8,3.5,1.6,3.1),(6.7,6.5,.
         else:
             sphere('Shrub',xx,dd,top+.22,.38,leaves[1],(1,1,.8))
             for k in range(3): sphere('Alpine flower',xx+random.uniform(-.3,.3),dd+random.uniform(-.3,.3),top+.45,.07,petal)
+# Tactile details in the first playable segment.
+for i,(xx,dd) in enumerate([(-2.2,7.6),(-.2,7.7),(1.8,7.6)]):
+    cyl('Source pedestal foot',xx,dd,.61,.65,.09,trim,vertices=12)
+    torus('Engraved source band',xx,dd,.79,.585,.018,gold)
+    torus('Engraved source band',xx,dd,.96,.585,.018,gold)
+    box('Source brass plate',xx,dd+.57,.85,.24,.04,.15,gold,bevel=.015)
+# Open reference book, page edges, writing instruments and a physically modelled review sign.
+box('Review book cover',6.35,6.7,2.28,1.05,.70,.055,roof,angle=.15)
+for direction in [-1,1]:
+    book=box('Open reference pages',6.35+direction*.23,6.7,2.35,.47,.63,.07,paper,angle=.15)
+    book.rotation_euler[1]=direction*.07
+    for k in range(4): box('Page edge',6.35+direction*.23,6.7,2.31+k*.012,.47,.63,.006,trim,angle=.15)
+beam('Review pencil',(6.9,6.95,2.26),(7.35,6.83,2.26),.018,gold)
+cyl('Ink bottle',5.8,6.4,2.36,.07,.17,roof,vertices=8)
+cyl('Ink bottle cap',5.8,6.4,2.47,.055,.05,gold,vertices=8)
+bpy.ops.object.text_add(location=coord(6.6,7.115,1.3),rotation=(math.pi/2,0,0))
+label=bpy.context.object;label.name='Review desk inscription';label.data.body='HUMAN REVIEW';label.data.align_x='CENTER';label.data.size=.23;label.data.extrude=.002;label.data.materials.append(gold)
+bpy.ops.object.convert(target='MESH')
+for xx,dd,h in [(-4.0,8.0,.5),(-3.7,9.6,.5),(2.5,9.2,.5),(4.5,7.5,.8),(7.8,5.5,.8)]:
+    sphere('Raised alpine bed',xx,dd,h+.07,.52,soil,(1,.7,.25))
+    for k in range(7):
+        px=xx+random.uniform(-.4,.4);pd=dd+random.uniform(-.28,.28);ht=random.uniform(.25,.48)
+        beam('Alpine stem',(px,pd,h+.08),(px,pd,h+ht),.012,leaves[1])
+        sphere('Alpine bloom',px,pd,h+ht,.055,petal if k%2 else flower_gold)
+        sphere('Alpine leaves',px+.04,pd,h+ht*.6,.07,leaves[1],(1,.5,.5))
+for xx,dd,h in [(-3.1,8.6,.5),(5.0,7.5,.8)]:
+    box('Reference crate',xx,dd,h+.28,.55,.48,.52,wood,bevel=.025)
+    for k in [-1,1]: box('Crate reinforcement',xx+k*.2,dd+.25,h+.28,.035,.03,.52,gold)
+
 # Continuous mountain ridges and conifer groves break the circular terrace outlines.
 for x,d,h,r in [(-5,-4,1.2,3),(-3,-8,1.8,3),(4,-7,1.5,2.8),(6,-2,0,3),(4,3,-.5,2.8),(-5,4,-1,2.7),(2,5,-2,3),(-7,-1,-.5,3)]:
     sphere('Mountain bedrock',x,d,h-1.5,r,random.choice(rock),(1,.85,1.6))
@@ -343,6 +380,15 @@ for o in bpy.context.selected_objects:
 for xx,dd,hh,size in [(-6,11,-.3,1.7),(-4,12,-1,1.5),(3,11,-.8,1.8),(6,10,-.4,1.4)]:
     sphere('Foreground crag',xx,dd,hh-.8,size,rock[1],(1,1,1.1))
     pine(xx,dd,hh+.3,1.25)
+
+# World-scale planar UVs keep paving density consistent across terraces and steps.
+for o in bpy.context.scene.objects:
+    if o.type!='MESH' or not o.data.materials or o.data.materials[0]!=pathmat: continue
+    uv=o.data.uv_layers.active or o.data.uv_layers.new(name='Paving UV')
+    for polygon in o.data.polygons:
+        for loop in polygon.loop_indices:
+            position=o.matrix_world @ o.data.vertices[o.data.loops[loop].vertex_index].co
+            uv.data[loop].uv=(position.x/4.5,position.y/4.5)
 
 # Collapse static meshes into one object per material, preserving flat facets.
 objects=[o for o in bpy.context.scene.objects if o.type=='MESH']

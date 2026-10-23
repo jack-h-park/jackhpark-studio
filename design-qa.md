@@ -48,3 +48,19 @@ Real-device frame pacing, thermal behavior, VoiceOver, uncoached visitor compreh
 final result: passed
 
 This result applies to the first playable segment's directional composition, essential interactions and local responsive usability. It is not a claim of pixel parity, final art-production quality, real-device performance or owner acceptance. All identified P2 interaction/layout issues were corrected and recaptured. Remaining art-density and minimap differences are explicitly recorded above as follow-up work.
+
+## First-segment material and interaction refinement
+
+Status: local refinement review; owner acceptance and publication pending.
+
+The source terrace now has world-scaled limestone paving, engraved capsule plinths, alpine plants and reference crates. The human review desk has an open book, pencil, ink bottle and physical label. Source capsules use brass frames, glass shells and emissive cores. The visitor has a face, hat, backpack, pivoted arms/legs and a carried lantern. Pointer hover highlights actionable scene objects; dragging remains orbit input.
+
+The albedo is an AI-generated source image embedded into the GLB. Local night-scene review found its paving readable at the first-segment camera distance; this does not certify seamless tiling at every possible zoom. The original generated image remains a draft artifact. The canonical compressed source is `scripts/assets/observatory/limestone-albedo.jpg`.
+
+A code review identified texture and ImageBitmap retention when leaving the world. Scene cleanup now deduplicates geometry, materials and textures, disposes them and closes owned ImageBitmaps, including models that finish loading after teardown. The foreground props share materials and merge frame beams to limit extra draw calls.
+
+The 320px completed state has no horizontal overflow. Keyboard review and knowledge connection passed, and returning from the complete HTML introduction preserves the expedition and restores action focus. Refinement captures are `refinement/01-source-closeup.png` and `refinement/02-mobile-completed.png`; production captures are recorded in the local artifact manifest.
+
+The model contains 54,552 static triangles, 21 materials and one embedded albedo. Optional model and sky assets total 4,116,370 bytes, below the 8 MiB asset budget. These are asset statistics, not measured real-device frame-pacing results. The earlier remaining gates and fidelity limits still apply.
+
+Refinement verification: all 21 targeted PM Intelligence tests passed, along with TypeScript, scoped ESLint, CSS/path guards, asset hashes and the production build with sitemap trace checks. The build logged existing Notion collection 403 responses and an unrelated `/studio` payload warning. The production route returned HTTP 200 and retained noindex. Actual capsule picking reported the external-signal target and pointer cursor; orbit dragging did not change selection.
