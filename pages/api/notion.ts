@@ -15,7 +15,7 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
   const id = req.query.id;
-  if (!isSupportedNotionRoute(id) || id.length > 256) {
+  if (typeof id !== "string" || !isSupportedNotionRoute(id) || id.length > 256) {
     return res.status(400).json({ error: "Invalid or missing id parameter" });
   }
 
