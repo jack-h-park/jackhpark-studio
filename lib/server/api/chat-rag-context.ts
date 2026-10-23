@@ -55,6 +55,7 @@ import {
   selectBetterRetrieval,
   shouldSuppressAuto,
 } from "@/lib/server/rag/auto-rag-decision";
+import { runOptionalPass } from "@/lib/server/rag/optional-pass";
 import { logDebugRag } from "@/lib/server/rag-logger";
 import { computeRetrievalUsed } from "@/lib/server/telemetry/langfuse-metadata";
 import { emitRagScores } from "@/lib/server/telemetry/langfuse-scores";
@@ -159,24 +160,8 @@ type RetrievalPassFlags = {
 type RunRetrievalPass = (
   flags: RetrievalPassFlags,
   stageLabel: string,
+  signal?: AbortSignal,
 ) => Promise<RagChainOutput>;
-
-async function raceWithAutoTimeout(
-  run: () => Promise<RagChainOutput>,
-  timeoutMs: number,
-): Promise<RagChainOutput> {
-  let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  try {
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      timeoutId = setTimeout(() => reject(new AutoPassTimeoutError()), timeoutMs);
-    });
-    return await Promise.race([run(), timeoutPromise]);
-  } finally {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-  }
-}
 
 type BaseAndAutoPassesResult = {
   baseResult: RagChainOutput;
@@ -224,7 +209,13 @@ async function runBaseAndAutoPasses({
     hydeEnabled: forcedFlags?.hyde ?? false,
   };
   const baseStart = Date.now();
-  const baseResult = await runRetrieval(baseFlags, "before-rag-retrieve");
+  abortSignal?.throwIfAborted();
+  const baseResult = await runRetrieval(
+    baseFlags,
+    "before-rag-retrieve",
+    abortSignal ?? undefined,
+  );
+  abortSignal?.throwIfAborted();
   const baseMetrics = buildPassMetrics(
     "base",
     baseResult.contextResult,
@@ -270,10 +261,12 @@ async function runBaseAndAutoPasses({
     autoDecisionMetrics.autoTriggered = true;
     const autoStart = Date.now();
     try {
-      autoResult = await raceWithAutoTimeout(
-        () => runRetrieval(autoFlags, "auto-rag-retrieve"),
+      autoResult = await runOptionalPass(
+        (signal) => runRetrieval(autoFlags, "auto-rag-retrieve", signal),
         autoPassTimeoutMs,
+        abortSignal,
       );
+      abortSignal?.throwIfAborted();
       autoDecisionMetrics.auto = buildPassMetrics(
         "auto",
         autoResult.contextResult,
@@ -287,10 +280,9 @@ async function runBaseAndAutoPasses({
       );
       selectedResult = autoWinner === "auto" ? autoResult : baseResult;
     } catch (err) {
+      abortSignal?.throwIfAborted();
       if (err instanceof AutoPassTimeoutError) {
         autoFailureReason = "timeout";
-      } else if (abortSignal?.aborted) {
-        throw err;
       } else {
         autoFailureReason = "error";
       }
@@ -342,7 +334,8 @@ function applyMultiQuery({
   includeSelectionTelemetry: boolean;
   abortSignal?: AbortSignal | null;
 }): MultiQueryOutcome {
-  const { baseResult, autoResult, selectedResult, autoDecisionMetrics } = passes;
+  const { baseResult, autoResult, selectedResult, autoDecisionMetrics } =
+    passes;
   const altQueryType = pickAltQueryType({
     firedRewrite: passes.firedRewrite,
     firedHyde: passes.firedHyde,
@@ -610,7 +603,11 @@ export async function computeRagContextAndCitations({
       const ragRootStartMs = Date.now();
       let ragRootMetadata: Record<string, unknown> | null = null;
       try {
-        const runRetrieval: RunRetrievalPass = async (flags, stageLabel) => {
+        const runRetrieval: RunRetrievalPass = async (
+          flags,
+          stageLabel,
+          signal,
+        ) => {
           markStage?.(stageLabel);
           return runRagRetrieval(
             {
@@ -641,7 +638,7 @@ export async function computeRagContextAndCitations({
               candidateK,
               updateTrace: updateTrace ?? undefined,
             },
-            { signal: abortSignal },
+            { signal },
           );
         };
 
@@ -690,7 +687,8 @@ export async function computeRagContextAndCitations({
           );
         }
 
-        enhancementSummary = passes.selectedResult.preRetrieval.enhancementSummary;
+        enhancementSummary =
+          passes.selectedResult.preRetrieval.enhancementSummary;
         const droppedCount = contextResult.dropped ?? 0;
         const retrievedCount = contextResult.included.length + droppedCount;
         const retrievalUsed =
