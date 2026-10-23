@@ -23,6 +23,7 @@ const featureCssFiles = [
   "components/chat/settings/SettingsSectionPresets.module.css",
   "components/landing/landing.module.css",
   "components/pm-intelligence-world/experience.module.css",
+  "components/pm-intelligence-world/observatory.module.css",
   "styles/notion-mermaid.css",
 ];
 

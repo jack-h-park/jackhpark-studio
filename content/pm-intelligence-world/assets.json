@@ -1,4 +1,25 @@
 {
   "version": 1,
-  "assets": []
+  "assets": [
+    {
+      "id": "signal-observatory-campus",
+      "url": "/experiences/pm-intelligence/observatory/campus.glb",
+      "kind": "model",
+      "reviewStatus": "accepted",
+      "bytes": 3395584,
+      "sha256": "9903b37ad1fb9290e12144e8696ed71369740d82628b81b468a624decab74b26",
+      "provenance": "Original geometry authored with scripts/assets/build-observatory.py; exported with Blender 5.2.1.",
+      "reviewScope": "Reviewed for local implementation; owner acceptance and publication remain separate."
+    },
+    {
+      "id": "signal-observatory-sky",
+      "url": "/experiences/pm-intelligence/observatory/sky.webp",
+      "kind": "image",
+      "reviewStatus": "accepted",
+      "bytes": 17054,
+      "sha256": "354000559fcd73829232cc7f66ed4b4e5499a00693101a6cb5290ba2c6cacd9b",
+      "provenance": "AI-generated distant sky matte, converted to WebP; background only, no world geometry or UI.",
+      "reviewScope": "Reviewed for local implementation; owner acceptance and publication remain separate."
+    }
+  ]
 }
