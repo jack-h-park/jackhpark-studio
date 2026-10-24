@@ -1,7 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import type { ChatRuntimeRequest } from "@/lib/server/chat-runtime-request";
+import type { SessionChatConfig } from "@/types/chat-config";
 import { llmLogger } from "@/lib/logging/logger";
+import { validateChatRequest } from "@/lib/server/chat-request-validation";
 import { loadChatModelSettings } from "@/lib/server/chat-settings";
 
 import langchainChat from "./langchain_chat";
@@ -10,17 +12,24 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
+  const validation = validateChatRequest(req.method, req.body);
+  if (!validation.ok) {
+    if (validation.status === 405) res.setHeader("Allow", "POST");
+    res.status(validation.status).json({ error: validation.error });
+    return;
+  }
+  req.body = validation.body;
+
   llmLogger.debug("[api/chat] entering", {
     method: req.method,
     url: req.url,
   });
 
-  // Basic CORS or method check could go here if needed...
   let engine: string | undefined;
 
   try {
     const runtime = await loadChatModelSettings({
-      sessionConfig: req.body?.config,
+      sessionConfig: validation.body.config as SessionChatConfig | undefined,
     });
     (req as ChatRuntimeRequest).chatRuntime = runtime;
     engine = runtime.engine;
