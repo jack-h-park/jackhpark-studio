@@ -812,20 +812,30 @@ async function runNotionPageIngestion({
 
       // Full workspace runs only: deleted pages vanish from the traversal
       // without a 404, so sweep still-"active" docs the run never visited.
-      // Selected/partial runs and incomplete traversals must never sweep.
+      // Selected/partial runs and incomplete discovery or processing must never sweep.
       if (isFull && isWorkspace && workspaceTraversalComplete) {
-        const sweep = await sweepUnvisitedDocuments(supabaseClient, {
-          runStartedAt: new Date(started).toISOString(),
-        });
-        appendSweepRunLogs(sweep, stats, errorLogs);
-        await emit({
-          type: "log",
-          level: sweep.failures.length > 0 ? "warn" : "info",
-          message: formatSweepSummary(sweep),
-        });
+        if (pagesNotReached === 0) {
+          const sweep = await sweepUnvisitedDocuments(supabaseClient, {
+            runStartedAt: new Date(started).toISOString(),
+          });
+          appendSweepRunLogs(sweep, stats, errorLogs);
+          await emit({
+            type: "log",
+            level: sweep.failures.length > 0 ? "warn" : "info",
+            message: formatSweepSummary(sweep),
+          });
+        } else {
+          await emit({
+            type: "log",
+            level: "warn",
+            message:
+              `Missing-document sweep skipped: the processing deadline left ${pagesNotReached} page(s) not visited, so ` +
+              "unprocessed documents cannot be distinguished from deleted ones.",
+          });
+        }
       } else if (isFull && isWorkspace) {
         // The sweep is the only thing that retires a deleted page. Skipping it is correct on
-        // an incomplete traversal and must still be visible, or "full run, no errors" reads as
+        // an incomplete run and must still be visible, or "full run, no errors" reads as
         // "the corpus is now exactly the workspace" when it is not.
         await emit({
           type: "log",

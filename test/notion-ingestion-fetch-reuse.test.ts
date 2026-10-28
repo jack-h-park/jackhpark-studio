@@ -11,6 +11,8 @@ const CHILD = "28299029-c0b4-81ce-8999-d425287d3d02";
 const ROW = "28299029-c0b4-81ce-8999-d425287d3d03";
 const COLLECTION = "28299029-c0b4-81ce-8999-d425287d3d04";
 const VIEW = "28299029-c0b4-81ce-8999-d425287d3d05";
+const LEAF = "28299029-c0b4-81ce-8999-d425287d3d06";
+const OLD_ATTEMPT = "2000-01-01T00:00:00.000Z";
 
 function page(
   id = ROOT,
@@ -161,6 +163,8 @@ const testEnv = {
   LOG_DB_LEVEL: "off",
   LOG_INGESTION_LEVEL: "off",
   TELEMETRY_ENABLED: "false",
+  INGEST_CONCURRENCY: "1",
+  IMAGE_CHUNKS_ENABLED: "false",
 };
 const previousEnv = Object.fromEntries(
   Object.keys(testEnv).map((key) => [key, process.env[key]]),
@@ -228,12 +232,35 @@ function databaseBoundary() {
             url.searchParams.get("select") === "doc_id,last_sync_attempt_at"
           ) {
             sweeps++;
-            return reply([]);
+            assert.equal(url.searchParams.get("status"), "eq.active");
+            assert.equal(
+              url.searchParams.get("source_url"),
+              "like.https://www.notion.so/%",
+            );
+            return reply(
+              [...documents.values()]
+                .filter(
+                  (row) =>
+                    row.status === "active" &&
+                    String(row.source_url).startsWith("https://www.notion.so/"),
+                )
+                .map(({ doc_id, last_sync_attempt_at }) => ({
+                  doc_id,
+                  last_sync_attempt_at: last_sync_attempt_at ?? null,
+                })),
+            );
           }
           return reply(documents.get(id) ?? null);
         }
         const payload = (await request.json()) as StoredRow;
-        if (method === "POST") documents.set(String(payload.doc_id), payload);
+        if (method === "POST") {
+          const docId = String(payload.doc_id);
+          documents.set(docId, {
+            status: "active",
+            ...documents.get(docId),
+            ...payload,
+          });
+        }
         if (method === "PATCH") {
           if (payload.last_sync_attempt_at) attempts.push(id);
           if (documents.has(id))
@@ -291,6 +318,19 @@ function databaseBoundary() {
       return sweeps;
     },
   };
+}
+
+function seedActiveDocuments(documents: Map<string, StoredRow>, ids: string[]) {
+  for (const id of ids) {
+    const canonicalId = id.replaceAll("-", "");
+    documents.set(canonicalId, {
+      doc_id: canonicalId,
+      raw_doc_id: id,
+      source_url: `https://www.notion.so/${canonicalId}`,
+      status: "active",
+      last_sync_attempt_at: OLD_ATTEMPT,
+    });
+  }
 }
 
 async function ingest(
@@ -359,6 +399,12 @@ void describe("real manual ingestion discovery reuse", () => {
       completion?.type === "complete" && completion.stats.documentsSkipped,
       2,
     );
+    assert.equal(db.attempts.length, 4);
+    assert.equal(db.sweeps, 0);
+    for (const row of db.documents.values()) {
+      assert.equal(row.status, "active");
+      assert.notEqual(row.last_sync_attempt_at, OLD_ATTEMPT);
+    }
     assert.deepEqual(db.unexpected, []);
   });
 
@@ -375,6 +421,7 @@ void describe("real manual ingestion discovery reuse", () => {
         scope: "selected",
         pageId: ROOT,
         includeLinkedPages: true,
+        ingestionType: "full",
         embeddingProvider: "openai",
         embeddingModel: "text-embedding-3-small",
       },
@@ -402,6 +449,17 @@ void describe("real manual ingestion discovery reuse", () => {
     assert.ok(
       events.some(
         (event) => event.type === "complete" && event.status === "success",
+      ),
+    );
+    assert.ok(
+      events.some(
+        (event) => event.type === "complete" && event.pagesNotReached === 0,
+      ),
+    );
+    assert.ok(
+      !events.some(
+        (event) =>
+          event.type === "log" && event.message.includes("processing deadline"),
       ),
     );
     assert.deepEqual(db.unexpected, []);
@@ -446,8 +504,147 @@ void describe("real manual ingestion discovery reuse", () => {
           e.type === "log" && e.message.includes("traversal did not complete"),
       ),
     );
+    assert.ok(
+      events.some(
+        (event) => event.type === "complete" && event.pagesNotReached === 0,
+      ),
+    );
+    assert.ok(
+      !events.some(
+        (event) =>
+          event.type === "log" && event.message.includes("processing deadline"),
+      ),
+    );
     assert.deepEqual(db.unexpected, []);
   });
+
+  void it("never sweeps a deadline-skipped active page at the 25% retirement threshold", async (t) => {
+    const db = databaseBoundary();
+    seedActiveDocuments(db.documents, [ROOT, CHILD, ROW, LEAF]);
+    const reads: string[] = [];
+    t.mock.method(notion, "getPage", async (id: string) => {
+      reads.push(id);
+      return page(id, id, id === ROOT ? [CHILD, ROW, LEAF] : []);
+    });
+    let now = Date.parse("2025-01-01T00:00:00.000Z");
+    const deadlineAt = now + 1000;
+    t.mock.method(Date, "now", () => now);
+    const events: Event[] = [];
+    await ingest(events, {
+      full: true,
+      deadlineAt,
+      emit: (event) => {
+        if (event.type === "queue" && event.current === 3) now = deadlineAt;
+      },
+    });
+
+    assert.deepEqual(reads, [ROOT, CHILD, ROW, LEAF]);
+    const skipped = db.documents.get(LEAF.replaceAll("-", ""));
+    assert.equal(
+      skipped?.status,
+      "active",
+      "a discovered but unprocessed page must not retire",
+    );
+    assert.equal(skipped?.last_sync_attempt_at, OLD_ATTEMPT);
+    assert.equal(skipped?.missing_detected_at, undefined);
+    assert.equal(
+      db.sweeps,
+      0,
+      "incomplete processing must not query sweep candidates",
+    );
+    assert.deepEqual(
+      db.attempts,
+      [ROOT, CHILD, ROW].map((id) => id.replaceAll("-", "")),
+    );
+    const complete = events.findLast((event) => event.type === "complete");
+    assert.ok(complete?.type === "complete");
+    assert.equal(complete.pagesNotReached, 1);
+    assert.equal(complete.stats.documentsProcessed, 3);
+    assert.equal(complete.stats.errorCount, 0);
+    assert.equal(complete.status, "success");
+    assert.match(complete.message ?? "", /1 page\(s\) not visited/);
+    assert.ok(
+      events.some(
+        (event) =>
+          event.type === "log" &&
+          event.level === "warn" &&
+          event.message.includes("processing deadline"),
+      ),
+    );
+    assert.ok(
+      !events.some(
+        (event) =>
+          event.type === "log" &&
+          event.message.includes("traversal did not complete"),
+      ),
+    );
+    assert.deepEqual(db.unexpected, []);
+  });
+
+  void it("never queries the sweep or stamps attempts when every discovered page misses the deadline", async (t) => {
+    const db = databaseBoundary();
+    seedActiveDocuments(db.documents, [ROOT, CHILD]);
+    t.mock.method(notion, "getPage", async (id: string) =>
+      page(id, id, id === ROOT ? [CHILD] : []),
+    );
+    t.mock.method(Date, "now", () => Date.parse("2025-01-01T00:00:00.000Z"));
+    const events: Event[] = [];
+    await ingest(events, { full: true, deadlineAt: 0 });
+    assert.equal(db.sweeps, 0);
+    assert.deepEqual(db.attempts, []);
+    for (const row of db.documents.values()) {
+      assert.equal(row.status, "active");
+      assert.equal(row.last_sync_attempt_at, OLD_ATTEMPT);
+    }
+    const complete = events.findLast((event) => event.type === "complete");
+    assert.ok(complete?.type === "complete");
+    assert.equal(complete.pagesNotReached, 2);
+    assert.equal(complete.stats.documentsProcessed, 0);
+    assert.equal(complete.stats.documentsSkipped, 0);
+    assert.equal(complete.stats.errorCount, 0);
+    assert.equal(complete.status, "success");
+    assert.deepEqual(db.unexpected, []);
+  });
+
+  for (const elapsed of [false, true]) {
+    void it(`retires a truly missing page after complete processing with a ${elapsed ? "now-elapsed" : "future"} deadline`, async (t) => {
+      const db = databaseBoundary();
+      seedActiveDocuments(db.documents, [ROOT, CHILD, ROW, LEAF]);
+      t.mock.method(notion, "getPage", async (id: string) =>
+        page(id, id, id === ROOT ? [CHILD, ROW] : []),
+      );
+      let now = Date.parse("2025-01-01T00:00:00.000Z");
+      const deadlineAt = now + 1000;
+      t.mock.method(Date, "now", () => now);
+      const events: Event[] = [];
+      await ingest(events, {
+        full: true,
+        deadlineAt,
+        emit: (event) => {
+          if (elapsed && event.type === "queue" && event.current === 3)
+            now = deadlineAt;
+        },
+      });
+      assert.equal(db.sweeps, 1);
+      assert.equal(
+        db.documents.get(LEAF.replaceAll("-", ""))?.status,
+        "missing",
+      );
+      for (const id of [ROOT, CHILD, ROW])
+        assert.equal(
+          db.documents.get(id.replaceAll("-", ""))?.status,
+          "active",
+        );
+      const complete = events.findLast((event) => event.type === "complete");
+      assert.ok(complete?.type === "complete");
+      assert.equal(complete.pagesNotReached, 0);
+      assert.equal(complete.stats.documentsProcessed, 3);
+      assert.equal(complete.stats.errorCount, 0);
+      assert.equal(complete.status, "success");
+      assert.doesNotMatch(complete.message ?? "", /Deadline reached/);
+      assert.deepEqual(db.unexpected, []);
+    });
+  }
 
   void it("falls back to fetching oversized and FIFO-evicted discovery maps without disabling a complete sweep", async (t) => {
     const db = databaseBoundary();
