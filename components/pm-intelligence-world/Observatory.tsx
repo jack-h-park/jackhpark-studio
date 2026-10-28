@@ -13,6 +13,7 @@ import type {
   SectionId,
   WorldContent,
 } from "@/content/pm-intelligence-world/types";
+import { isPlayDestination } from "@/content/pm-intelligence-world/activities";
 import {
   initialObservatoryState,
   type ObservatoryLocation,
@@ -21,6 +22,7 @@ import {
 } from "@/lib/pm-intelligence-world/observatory-state";
 
 import styles from "./observatory.module.css";
+import { ObservatoryActivity } from "./ObservatoryActivity";
 
 const Scene = dynamic(
   () => import("./ObservatoryScene").then((m) => m.ObservatoryScene),
@@ -83,6 +85,7 @@ export function Observatory({
   const [ready, setReady] = useState(false),
     [failed, setFailed] = useState(false),
     [home, setHome] = useState(0),
+    [restart, setRestart] = useState(0),
     [panel, setPanel] = useState(false),
     [map, setMap] = useState(false);
   const panelTitle = useRef<HTMLHeadingElement>(null);
@@ -165,6 +168,8 @@ export function Observatory({
         <Scene
           state={state}
           home={home}
+          paused={panel || map}
+          restart={restart}
           onSelect={select}
           onMove={(id) => {
             move(id);
@@ -416,14 +421,26 @@ export function Observatory({
           {reuse && (
             <>
               <p>{reuse.description}</p>
-              <p>
-                {content.sections.find((s) => s.id === reuse.section)?.summary}
-              </p>
               {reuse.section === "decisions" && (
                 <p className={styles.caveat}>
                   Optional and on request. Knowledge also supports writing,
                   questions and learning without a product decision.
                 </p>
+              )}
+              {isPlayDestination(state.location) && (
+                <ObservatoryActivity
+                  key={`${state.location}:${selected}`}
+                  destination={state.location}
+                  source={selected}
+                  connected={connected}
+                  progress={
+                    selected
+                      ? state.activities[selected]?.[state.location]
+                      : undefined
+                  }
+                  dispatch={dispatch}
+                  onConnect={action}
+                />
               )}
               <button
                 className={styles.primary}
@@ -458,7 +475,13 @@ export function Observatory({
                 }}
               >
                 {l.label}
-                <FiArrowRight />
+                {selected &&
+                isPlayDestination(l.id) &&
+                state.activities[selected]?.[l.id]?.completed ? (
+                  <FiCheck aria-label="Activity completed" />
+                ) : (
+                  <FiArrowRight />
+                )}
               </button>
             ))}
           </nav>
@@ -484,7 +507,7 @@ export function Observatory({
                 ? "Carry the source to the review desk."
                 : step === 2
                   ? "Connect the reviewed source at the observatory."
-                  : "Explore writing, PM questions, learning or decisions."}
+                  : `${["writing", "questions", "learning"].filter((id) => selected && state.activities[selected]?.[id as "writing" | "questions" | "learning"]?.completed).length}/3 reuse activities · decisions optional`}
           </span>
         </div>
         <button
@@ -507,7 +530,9 @@ export function Observatory({
           onClick={() => {
             dispatch({ type: "RESET" });
             setPanel(false);
+            setMap(false);
             setHome((n) => n + 1);
+            setRestart((n) => n + 1);
           }}
         >
           <FiRotateCcw />
@@ -515,7 +540,7 @@ export function Observatory({
       </footer>
       <div className={styles.footnote}>
         <span>Illustrative world · no live agents</span>
-        <span>Drag to orbit · scroll to zoom · click a landmark</span>
+        <span>Click to travel · or choose Walk freely</span>
       </div>
     </section>
   );

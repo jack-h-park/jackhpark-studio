@@ -39,7 +39,7 @@ The production route was opened in the in-app browser. A source was selected, in
 
 ## Follow-up polish and separate gates
 
-P3: the selected artwork has denser vegetation, more varied surface textures and more detailed character animation than this authored real-time scene. Those remain art-production work; this first-segment review must not be represented as parity with the reference artwork or Bruno Simon's released portfolio. The compass currently provides a destination list rather than the concept's illustrated minimap. Audio and free movement are not part of this segment.
+P3: the selected artwork has denser vegetation, more varied surface textures and more detailed character animation than this authored real-time scene. Those remain art-production work; this first-segment review must not be represented as parity with the reference artwork or Bruno Simon's released portfolio. The compass currently provides a destination list rather than the concept's illustrated minimap. Audio remains outside the implemented segment. Free movement was added in the local expansion recorded below.
 
 Real-device frame pacing, thermal behavior, VoiceOver, uncoached visitor comprehension and owner visual acceptance remain unmeasured. Local browser review does not pass those gates. No publication, merge or remote update was performed.
 
@@ -64,3 +64,21 @@ The 320px completed state has no horizontal overflow. Keyboard review and knowle
 The model contains 54,552 static triangles, 21 materials and one embedded albedo. Optional model and sky assets total 4,116,370 bytes, below the 8 MiB asset budget. These are asset statistics, not measured real-device frame-pacing results. The earlier remaining gates and fidelity limits still apply.
 
 Refinement verification: all 21 targeted PM Intelligence tests passed, along with TypeScript, scoped ESLint, CSS/path guards, asset hashes and the production build with sitemap trace checks. The build logged existing Notion collection 403 responses and an unrelated `/studio` payload warning. The production route returned HTTP 200 and retained noindex. Actual capsule picking reported the external-signal target and pointer cursor; orbit dragging did not change selection.
+
+## Free exploration and destination activities
+
+Status: locally implemented; owner acceptance, real-device testing and publication pending.
+
+The explorer now walks with WASD/arrows or a touch direction pad on a bounded graph of terraces, stairs and bridges. Input is camera-relative, diagonal speed is normalized and elapsed time is capped. A proximity hint and E/native interaction open the nearest destination. Existing click travel and destination menus remain available. Movement pauses while inspecting a panel/menu; input is cleared on blur, hidden documents, pointer cancellation and reset. Reduced motion preserves direct walking while disabling camera follow and decorative animation. The world can be refocused with a native control.
+
+Writing assembles observation, interpretation and a bounded claim. PM questions reconstruct a source-to-answer preparation chain. Learning orders demand, study and reviewed practice. Optional decisions accept several judgments but require a reason and acknowledgment of the remaining uncertainty before completion. Each activity has explanatory feedback, retry and a local record; completion is represented by a warm destination beacon. The main progress counts three reuse activities and explicitly keeps decisions optional.
+
+Activities are fixed illustrative teaching examples, not artifacts generated from the selected source. They unlock only for the current inspected/reviewed/connected input and keep independent source-specific receipts. This browser session completed all four, rejected an unsupported claim, preserved progress through the complete HTML introduction, rejected a different unconnected source and reset the expedition. A 320px browser viewport showed the activity panel and touch controls without horizontal overflow. Touch-style held direction input moved the explorer and released; WASD and E were also exercised. This is browser viewport testing, not a physical mobile-device result.
+
+Fresh code review found a same-location travel request bug after free walking. A travel revision now makes repeated destination/source requests route from the actual current position. The Review approach avoids the crate; a bounded-step test reaches every destination. Activity prompt/result focus and sticky dismissal remain available inside long scrolling panels.
+
+Evidence lives in the local free-exploration artifact package: `01-three-uses-completed.jpg`, `02-mobile-decision.jpg` and `03-mobile-walking.jpg`. The complete system reading path, all three input classes, four uses, Agent preparation, human judgment and evidence limits remain intact. No new dependencies, runtime asset downloads, platform writes or telemetry were added.
+
+Final expansion validation: 640 unit tests and two telemetry golden tests passed. TypeScript, scoped ESLint, CSS/path guards, unchanged asset hashes and the production build/sitemap trace checks passed. Independent final code review found no remaining P1/P2. Browser verification and local preview are separate from real-device performance, owner acceptance and publication.
+
+Final play-panel polish places the prompt and choices before the expandable activity brief. The greenhouse connector is two merged meshes with raycast-tested footing; pavilion wall blockers and arrival points keep walking outside the building interiors.

@@ -1,4 +1,9 @@
 import type { InputId, SectionId } from "@/content/pm-intelligence-world/types";
+import {
+  activityDefinitions,
+  isPlayDestination,
+  type PlayDestination,
+} from "@/content/pm-intelligence-world/activities";
 
 export const observatoryLocations = [
   {
@@ -14,7 +19,7 @@ export const observatoryLocations = [
     label: "Human review",
     short: "Review",
     section: "roles",
-    position: [5.1, 0.8, 7.2],
+    position: [5.5, 0.8, 7.4],
     anchor: [6.6, 2.9, 6.5],
   },
   {
@@ -30,7 +35,7 @@ export const observatoryLocations = [
     label: "Writing pavilion",
     short: "Writing",
     section: "writing",
-    position: [-7.5, 5, -6.5],
+    position: [-7.25, 5, -6.5],
     anchor: [-9, 8.5, -6.5],
   },
   {
@@ -38,7 +43,7 @@ export const observatoryLocations = [
     label: "PM question library",
     short: "Questions",
     section: "questions",
-    position: [5.5, 5, -7],
+    position: [5.25, 5, -7],
     anchor: [7, 8.5, -7],
   },
   {
@@ -66,7 +71,27 @@ export const observatoryLocations = [
   anchor: readonly [number, number, number];
 }>;
 export type ObservatoryLocation = (typeof observatoryLocations)[number]["id"];
+export interface ActivityProgress {
+  step: number;
+  choices: string[];
+  feedback: string;
+  reason: string;
+  acknowledged: boolean;
+  completed: boolean;
+}
+export const emptyActivity: ActivityProgress = {
+  step: 0,
+  choices: [],
+  feedback: "",
+  reason: "",
+  acknowledged: false,
+  completed: false,
+};
 export interface ObservatoryState {
+  travel: number;
+  activities: Partial<
+    Record<InputId, Partial<Record<PlayDestination, ActivityProgress>>>
+  >;
   location: ObservatoryLocation;
   selected: InputId | null;
   inspected: InputId[];
@@ -74,6 +99,8 @@ export interface ObservatoryState {
   connected: InputId[];
 }
 export const initialObservatoryState: ObservatoryState = {
+  travel: 0,
+  activities: {},
   location: "signals",
   selected: null,
   inspected: [],
@@ -81,6 +108,10 @@ export const initialObservatoryState: ObservatoryState = {
   connected: [],
 };
 export type ObservatoryAction =
+  | { type: "PLAY"; choice: string }
+  | { type: "ACTIVITY_REASON"; reason: string }
+  | { type: "ACTIVITY_ACK"; acknowledged: boolean }
+  | { type: "FINISH_ACTIVITY" | "RETRY_ACTIVITY" }
   | { type: "MOVE"; location: ObservatoryLocation }
   | { type: "SELECT"; input: InputId }
   | { type: "INSPECT" | "REVIEW" | "CONNECT" | "RESET" };
@@ -89,10 +120,68 @@ export function observatoryReducer(
   a: ObservatoryAction,
 ): ObservatoryState {
   if (a.type === "RESET") return initialObservatoryState;
-  if (a.type === "MOVE") return { ...s, location: a.location };
+  if (a.type === "MOVE")
+    return { ...s, location: a.location, travel: s.travel + 1 };
   if (a.type === "SELECT")
-    return { ...s, selected: a.input, location: "signals" };
+    return {
+      ...s,
+      selected: a.input,
+      location: "signals",
+      travel: s.travel + 1,
+    };
   if (!s.selected) return s;
+  if (
+    [
+      "PLAY",
+      "ACTIVITY_REASON",
+      "ACTIVITY_ACK",
+      "FINISH_ACTIVITY",
+      "RETRY_ACTIVITY",
+    ].includes(a.type)
+  ) {
+    if (!isPlayDestination(s.location) || !s.connected.includes(s.selected))
+      return s;
+    const location = s.location,
+      definition = activityDefinitions[location];
+    const old = s.activities[s.selected]?.[location] ?? emptyActivity;
+    let progress = old;
+    if (a.type === "RETRY_ACTIVITY") progress = { ...emptyActivity };
+    else if (old.completed) return s;
+    else if (a.type === "PLAY") {
+      const option = definition.stages[old.step]?.options.find(
+        (o) => o.id === a.choice,
+      );
+      if (!option) return s;
+      const step = option.accepted ? old.step + 1 : old.step;
+      progress = {
+        ...old,
+        step,
+        feedback: option.feedback,
+        choices: option.accepted ? [...old.choices, option.id] : old.choices,
+        completed:
+          location !== "decisions" && step === definition.stages.length,
+      };
+    } else if (a.type === "ACTIVITY_REASON")
+      progress = { ...old, reason: a.reason.slice(0, 600) };
+    else if (a.type === "ACTIVITY_ACK")
+      progress = { ...old, acknowledged: a.acknowledged };
+    else if (
+      a.type === "FINISH_ACTIVITY" &&
+      location === "decisions" &&
+      old.step === definition.stages.length &&
+      old.reason.trim().length >= 12 &&
+      old.acknowledged
+    )
+      progress = { ...old, completed: true };
+    if (progress === old) return s;
+    return {
+      ...s,
+      activities: {
+        ...s.activities,
+        [s.selected]: { ...s.activities[s.selected], [location]: progress },
+      },
+    };
+  }
   const add = (list: InputId[]) =>
     list.includes(s.selected!) ? list : [...list, s.selected!];
   if (a.type === "INSPECT" && s.location === "signals")

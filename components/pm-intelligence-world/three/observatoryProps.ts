@@ -202,3 +202,40 @@ export function createVisitor() {
   lantern.add(new PointLight(new Color("#ffbc6a"), 0.7, 2.5, 2));
   return { actor, legs, arms };
 }
+
+/** Complete the greenhouse-to-lookout walkway where the original cliff falls away. */
+export function createGreenhouseBridge() {
+  const group = new Group();
+  const planks: BufferGeometry[] = [];
+  for (let i = 0; i < 10; i++) {
+    const plank = new BoxGeometry(1.15, 0.14, 0.25);
+    plank.translate(8, 3.23, -1.375 + i * 0.25);
+    planks.push(plank);
+  }
+  const floor = new Mesh(
+    mergeGeometries(planks)!,
+    new MeshStandardMaterial({ color: "#54516b", roughness: 0.85 }),
+  );
+  for (const plank of planks) plank.dispose();
+  floor.receiveShadow = true;
+  floor.castShadow = true;
+  group.add(floor);
+  const rails: BufferGeometry[] = [];
+  for (const x of [7.36, 8.64]) {
+    rails.push(bar(new Vector3(x, 4, -1.5), new Vector3(x, 4, 1), 0.035));
+    for (const z of [-1.5, -0.25, 1])
+      rails.push(bar(new Vector3(x, 3.3, z), new Vector3(x, 4, z), 0.035));
+  }
+  const railing = new Mesh(
+    mergeGeometries(rails)!,
+    new MeshStandardMaterial({
+      color: "#a88d65",
+      roughness: 0.6,
+      metalness: 0.25,
+    }),
+  );
+  for (const rail of rails) rail.dispose();
+  railing.castShadow = true;
+  group.add(railing);
+  return group;
+}

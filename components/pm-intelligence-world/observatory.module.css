@@ -672,3 +672,204 @@
   border-color: var(--brand-cyan);
   color: var(--brand-cyan);
 }
+
+.walkControls {
+  position: absolute;
+  top: 108px;
+  left: 36px;
+  z-index: 3;
+  max-width: 250px;
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+.walkControls p {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-page) 85%, transparent);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.walkControls button:disabled,
+.activity button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.directionPad {
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  gap: 4px;
+}
+.directionPad button {
+  width: 44px;
+  height: 44px;
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  touch-action: none;
+  user-select: none;
+}
+.directionPad button[data-direction="up"] {
+  grid-column: 2;
+}
+.directionPad button[data-direction="left"] {
+  grid-column: 1;
+  grid-row: 2;
+}
+.directionPad button[data-direction="down"] {
+  grid-column: 2;
+  grid-row: 2;
+}
+.directionPad button[data-direction="right"] {
+  grid-column: 3;
+  grid-row: 2;
+}
+.directionPad button:active {
+  color: var(--brand-cyan);
+  border-color: var(--brand-cyan);
+}
+.focusWorld {
+  background: var(--bg-page);
+  color: var(--text-secondary);
+  border: 0;
+  padding: 8px;
+  font-size: 11px !important;
+  text-decoration: underline;
+  border-radius: 4px;
+}
+.mount:focus-visible {
+  outline: 2px solid var(--brand-cyan);
+  outline-offset: -5px;
+}
+.activity {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-default);
+}
+.activity h4 {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--text-primary);
+  margin: 18px 0 10px;
+}
+.activity h4:focus {
+  outline: none;
+}
+.stageCount {
+  color: var(--brand-cyan);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10px;
+}
+.activityOptions {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.activityOptions button {
+  padding: 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: left;
+  min-height: 48px;
+}
+.activityOptions button:hover {
+  border-color: var(--brand-cyan);
+}
+.activity .activityFeedback {
+  border-left: 2px solid var(--brand-cyan);
+  padding-left: 12px;
+  color: var(--text-primary);
+}
+.reasonLabel,
+.acknowledgment {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin: 12px 0;
+}
+.activity textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 12px;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+}
+.activity textarea:focus-visible,
+.activity input:focus-visible {
+  outline: 2px solid var(--brand-cyan);
+  outline-offset: 3px;
+}
+.acknowledgment input {
+  accent-color: var(--brand-cyan);
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+.receipt {
+  padding-left: 20px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+.receipt li {
+  margin: 8px 0;
+}
+@media (max-width: 600px) {
+  .walkControls {
+    left: 20px;
+    top: 100px;
+    max-width: calc(100% - 40px);
+    gap: 5px;
+  }
+  .walkControls p {
+    max-width: 230px;
+    margin: 0;
+  }
+}
+@media (max-height: 650px) and (min-width: 601px) {
+  .walkControls {
+    top: 85px;
+    gap: 4px;
+  }
+  .walkControls p,
+  .focusWorld {
+    display: none;
+  }
+  .sourcePicker {
+    display: none;
+  }
+}
+.activityNote {
+  margin-top: 20px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.activityNote summary {
+  cursor: pointer;
+  padding: 10px 0;
+}
+/* Keep dismissal reachable while an activity record scrolls. */
+.panel .close {
+  position: sticky;
+  top: 0;
+  float: right;
+  margin-top: -10px;
+  margin-right: -10px;
+  background: var(--bg-page);
+  border-radius: 50%;
+  z-index: 2;
+}

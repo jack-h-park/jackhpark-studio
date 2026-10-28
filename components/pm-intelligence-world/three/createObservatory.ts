@@ -23,6 +23,7 @@ import {
   SRGBColorSpace,
   Texture,
   TextureLoader,
+  TorusGeometry,
   Vector2,
   Vector3,
   WebGLRenderer,
@@ -35,17 +36,32 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
 import type { InputId } from "@/content/pm-intelligence-world/types";
+import { isPlayDestination } from "@/content/pm-intelligence-world/activities";
+import {
+  nearestDestination,
+  planWalk,
+  stepWalker,
+} from "@/lib/pm-intelligence-world/observatory-navigation";
 import {
   type ObservatoryLocation,
   observatoryLocations,
   type ObservatoryState,
 } from "@/lib/pm-intelligence-world/observatory-state";
 
-import { createSourceCapsule, createVisitor } from "./observatoryProps";
+import {
+  createGreenhouseBridge,
+  createSourceCapsule,
+  createVisitor,
+} from "./observatoryProps";
 
 export interface ObservatoryHandle {
   setState(state: ObservatoryState): void;
   home(): void;
+  reset(): void;
+  setWalking(enabled: boolean, paused: boolean): void;
+  walk(input: readonly [number, number]): void;
+  nudge(input: readonly [number, number]): void;
+  interact(): void;
   dispose(): void;
 }
 export function createObservatory({
@@ -55,6 +71,7 @@ export function createObservatory({
   onMove,
   onReady,
   onError,
+  onNearby,
 }: {
   mount: HTMLDivElement;
   labels: Partial<Record<ObservatoryLocation, HTMLElement>>;
@@ -62,6 +79,7 @@ export function createObservatory({
   onMove: (id: ObservatoryLocation) => void;
   onReady: () => void;
   onError: () => void;
+  onNearby: (location: ObservatoryLocation | null) => void;
 }): ObservatoryHandle {
   const scene = new Scene();
   scene.background = new Color("#101a3b");
@@ -127,6 +145,8 @@ export function createObservatory({
   let motion = !matchMedia("(prefers-reduced-motion: reduce)").matches;
   controls.enableDamping = motion;
   let state: ObservatoryState = {
+    travel: 0,
+    activities: {},
     location: "signals",
     selected: null,
     inspected: [],
@@ -206,45 +226,133 @@ export function createObservatory({
   }
   const { actor, legs, arms } = createVisitor();
   scene.add(actor);
+  scene.add(createGreenhouseBridge());
   actor.position.set(-1, 0.5, 9.4);
-  // Navigation follows authored walkways, not a straight line through cliffs.
-  const hub = new Vector3(-1, 0.5, 7);
-  const stairs = new Vector3(-1, 3.8, 1);
-  const upper = new Vector3(0, 3.8, -3.5);
-  const route = (id: ObservatoryLocation) => {
-    const dest = new Vector3(
-      ...observatoryLocations.find((l) => l.id === id)!.position,
-    );
-    if (id === "signals") return [hub, dest];
-    if (id === "review") return [hub, new Vector3(1.2, 0.5, 7), dest];
-    if (id === "knowledge") return [hub, stairs];
-    if (id === "writing")
-      return [hub, stairs, upper, new Vector3(-3, 3.8, -5.8), dest];
-    if (id === "questions")
-      return [hub, stairs, upper, new Vector3(3, 3.8, -5.8), dest];
-    if (id === "learning")
-      return [hub, stairs, upper, new Vector3(3, 3.8, -2), dest];
-    return [
-      hub,
-      stairs,
-      upper,
-      new Vector3(3, 3.8, -2),
-      new Vector3(8, 3.3, -1.5),
-      new Vector3(8, 3.3, 1),
-      dest,
-    ];
-  };
   let remaining: Vector3[] = [];
-  let previousLocation: ObservatoryLocation = "signals";
+  let walking = false,
+    paused = false,
+    following = false;
+  let virtualInput: readonly [number, number] = [0, 0];
+  const keys = new Set<string>();
+  let nearby: ObservatoryLocation | null = null;
+  const announceNearby = () => {
+    const next = nearestDestination([
+      actor.position.x,
+      actor.position.y,
+      actor.position.z,
+    ]);
+    if (next !== nearby) {
+      nearby = next;
+      onNearby(next);
+    }
+  };
+  const clearInput = () => {
+    keys.clear();
+    virtualInput = [0, 0];
+  };
+  const interact = () => {
+    if (walking && !paused && nearby) onMove(nearby);
+  };
+  const keyDown = (event: KeyboardEvent) => {
+    if (
+      !walking ||
+      paused ||
+      document.activeElement !== mount ||
+      event.altKey ||
+      event.ctrlKey ||
+      event.metaKey
+    )
+      return;
+    const key = event.key.toLowerCase();
+    if (
+      [
+        "w",
+        "a",
+        "s",
+        "d",
+        "arrowup",
+        "arrowdown",
+        "arrowleft",
+        "arrowright",
+      ].includes(key)
+    ) {
+      event.preventDefault();
+      keys.add(key);
+    } else if (key === "e" && !event.repeat) {
+      event.preventDefault();
+      interact();
+    }
+  };
+  const keyUp = (event: KeyboardEvent) => {
+    keys.delete(event.key.toLowerCase());
+  };
+  mount.addEventListener("keydown", keyDown);
+  document.addEventListener("keyup", keyUp);
+  mount.addEventListener("blur", clearInput);
+  window.addEventListener("blur", clearInput);
+  const walkStep = (input: readonly [number, number], delta: number) => {
+    if (!walking || paused || !ready) return false;
+    const before = actor.position.clone();
+    const forward: [number, number] = [
+      controls.target.x - camera.position.x,
+      controls.target.z - camera.position.z,
+    ];
+    const next = stepWalker(
+      [before.x, before.y, before.z],
+      input,
+      delta,
+      forward,
+    );
+    actor.position.set(...next);
+    const diff = actor.position.clone().sub(before);
+    if (diff.lengthSq() < 0.000_001) return false;
+    actor.rotation.y = Math.atan2(diff.x, diff.z);
+    remaining = [];
+    cameraTour = null;
+    following = true;
+    return true;
+  };
+  const route = (id: ObservatoryLocation) =>
+    planWalk([-1, 0.5, 9.4], id).map((p) => new Vector3(...p));
   const visit = (id: ObservatoryLocation) => {
-    const reverse = route(previousLocation).slice(0, -1).toReversed();
-    remaining = [...reverse, ...route(id)];
-    previousLocation = id;
+    clearInput();
+    following = false;
+    if (
+      nearestDestination([
+        actor.position.x,
+        actor.position.y,
+        actor.position.z,
+      ]) === id
+    ) {
+      remaining = [];
+      return;
+    }
+    remaining = planWalk(
+      [actor.position.x, actor.position.y, actor.position.z],
+      id,
+    ).map((p) => new Vector3(...p));
     if (!motion) {
       actor.position.copy(remaining.at(-1)!);
       remaining = [];
+      announceNearby();
     }
   };
+  const beacons = observatoryLocations
+    .filter((l) => isPlayDestination(l.id))
+    .map((l) => {
+      const ring = new Mesh(
+        new TorusGeometry(0.65, 0.035, 6, 24),
+        new MeshBasicMaterial({
+          color: "#69cddd",
+          transparent: true,
+          opacity: 0.4,
+        }),
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.set(l.position[0], l.position[1] + 0.08, l.position[2]);
+      scene.add(ring);
+      return { location: l.id, ring };
+    });
   const lineMaterial = new MeshBasicMaterial({
     color: "#67e6e2",
     transparent: true,
@@ -390,11 +498,13 @@ export function createObservatory({
   media.addEventListener("change", changeMotion);
   const changeVisible = () => {
     visible = !document.hidden;
+    if (!visible) clearInput();
   };
   document.addEventListener("visibilitychange", changeVisible);
   let cameraTour: { target: Vector3; zoom: number } | null = null;
   const stopTour = () => {
     cameraTour = null;
+    following = false;
   };
   controls.addEventListener("start", stopTour);
   const framePlace = (id: ObservatoryLocation) => {
@@ -457,6 +567,25 @@ export function createObservatory({
         cameraTour = null;
     }
     controls.update();
+    const input: [number, number] = [
+      virtualInput[0] +
+        Number(keys.has("d") || keys.has("arrowright")) -
+        Number(keys.has("a") || keys.has("arrowleft")),
+      virtualInput[1] +
+        Number(keys.has("w") || keys.has("arrowup")) -
+        Number(keys.has("s") || keys.has("arrowdown")),
+    ];
+    const manuallyMoving = Math.hypot(...input) > 0 && walkStep(input, delta);
+    if (walking && following && motion) {
+      const target = actor.position.clone().add(new Vector3(0, 1.2, 0));
+      const shift = target
+        .sub(controls.target)
+        .multiplyScalar(1 - Math.exp(-delta * 4));
+      controls.target.add(shift);
+      camera.position.add(shift);
+      camera.zoom += (1.7 - camera.zoom) * (1 - Math.exp(-delta * 3));
+      camera.updateProjectionMatrix();
+    }
     if (motion && remaining.length) {
       const target = remaining[0];
       const diff = target.clone().sub(actor.position);
@@ -472,15 +601,31 @@ export function createObservatory({
     }
     for (const [i, leg] of legs.entries()) {
       leg.rotation.x =
-        remaining.length && motion
+        (remaining.length || manuallyMoving) && motion
           ? Math.sin(elapsed * 12 + i * Math.PI) * 0.45
           : 0;
     }
     for (const [i, arm] of arms.entries()) {
       arm.rotation.x =
-        remaining.length && motion
+        (remaining.length || manuallyMoving) && motion
           ? -Math.sin(elapsed * 12 + i * Math.PI) * 0.3
           : 0;
+    }
+    announceNearby();
+    for (const { location, ring } of beacons) {
+      const completed =
+        state.selected &&
+        isPlayDestination(location) &&
+        state.activities[state.selected]?.[location]?.completed;
+      ring.material.color.set(completed ? "#ffc577" : "#69cddd");
+      ring.material.opacity = completed
+        ? 0.95
+        : state.connected.length
+          ? 0.5
+          : 0.15;
+      ring.scale.setScalar(
+        completed && motion ? 1 + Math.sin(elapsed * 2) * 0.08 : 1,
+      );
     }
     for (const [i, capsule] of capsules.entries()) {
       const g = capsule.group;
@@ -563,10 +708,12 @@ export function createObservatory({
       if (!next.selected && state.selected) {
         remaining = [];
         actor.position.set(-1, 0.5, 9.4);
-        previousLocation = "signals";
+        clearInput();
+        following = false;
+        announceNearby();
       }
 
-      if (next.location !== state.location) {
+      if (next.travel !== state.travel || next.location !== state.location) {
         visit(next.location);
         framePlace(next.location);
       } else if (next.selected && next.selected !== state.selected)
@@ -574,7 +721,32 @@ export function createObservatory({
       state = next;
       connections.visible = next.connected.length > 0;
     },
+    setWalking(enabled, blocked) {
+      walking = enabled;
+      paused = blocked;
+      if (!enabled || blocked) {
+        clearInput();
+        following = false;
+      }
+      if (enabled && !blocked) remaining = [];
+    },
+    walk(input) {
+      virtualInput = input;
+    },
+    nudge(input) {
+      walkStep(input, 0.05);
+      announceNearby();
+    },
+    interact,
+    reset() {
+      clearInput();
+      remaining = [];
+      following = false;
+      actor.position.set(-1, 0.5, 9.4);
+      announceNearby();
+    },
     home() {
+      following = false;
       cameraTour = null;
       camera.position.set(23, 25, 36);
       controls.target.set(0, 2.6, 1.2);
@@ -587,6 +759,10 @@ export function createObservatory({
       renderer.setAnimationLoop(null);
       observer.disconnect();
       document.removeEventListener("visibilitychange", changeVisible);
+      mount.removeEventListener("keydown", keyDown);
+      document.removeEventListener("keyup", keyUp);
+      mount.removeEventListener("blur", clearInput);
+      window.removeEventListener("blur", clearInput);
       media.removeEventListener("change", changeMotion);
       renderer.domElement.removeEventListener("pointerdown", pointerDown);
       renderer.domElement.removeEventListener("pointerup", pointerUp);

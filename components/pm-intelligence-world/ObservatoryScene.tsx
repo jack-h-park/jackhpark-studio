@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { InputId } from "@/content/pm-intelligence-world/types";
 import {
@@ -20,6 +20,8 @@ export function ObservatoryScene({
   onReady,
   onError,
   home,
+  paused,
+  restart,
 }: {
   state: ObservatoryState;
   onSelect: (id: InputId) => void;
@@ -27,7 +29,11 @@ export function ObservatoryScene({
   onReady: () => void;
   onError: () => void;
   home: number;
+  paused: boolean;
+  restart: number;
 }) {
+  const [walking, setWalking] = useState(false);
+  const [nearby, setNearby] = useState<ObservatoryLocation | null>("signals");
   const mount = useRef<HTMLDivElement>(null);
   const labels = useRef<Partial<Record<ObservatoryLocation, HTMLElement>>>({});
   const handle = useRef<ObservatoryHandle | null>(null);
@@ -43,6 +49,7 @@ export function ObservatoryScene({
         onMove: (id) => callbacks.current.onMove(id),
         onReady: () => callbacks.current.onReady(),
         onError: () => callbacks.current.onError(),
+        onNearby: setNearby,
       });
     } catch {
       callbacks.current.onError();
@@ -58,9 +65,90 @@ export function ObservatoryScene({
   useEffect(() => {
     handle.current?.home();
   }, [home]);
+  useEffect(() => {
+    handle.current?.setWalking(walking, paused);
+  }, [walking, paused]);
+  useEffect(() => {
+    handle.current?.reset();
+    setWalking(false);
+  }, [restart]);
+  const nearbyLabel = observatoryLocations.find((l) => l.id === nearby)?.label;
+  const directions = [
+    { label: "up", symbol: "↑", input: [0, 1] },
+    { label: "left", symbol: "←", input: [-1, 0] },
+    { label: "down", symbol: "↓", input: [0, -1] },
+    { label: "right", symbol: "→", input: [1, 0] },
+  ] as const;
   return (
     <div className={styles.scene}>
-      <div ref={mount} className={styles.mount} />
+      <div
+        ref={mount}
+        className={styles.mount}
+        tabIndex={walking && !paused ? 0 : -1}
+        role="group"
+        aria-label="Walk the observatory with WASD or arrow keys; E to interact"
+      />
+      <div className={styles.walkControls}>
+        <button
+          className={styles.textButton}
+          aria-pressed={walking}
+          onClick={() => {
+            const next = !walking;
+            setWalking(next);
+            if (next && !paused) mount.current?.focus();
+          }}
+        >
+          {walking ? "Walking on · switch to click travel" : "Walk freely"}
+        </button>
+        {walking && !paused && (
+          <>
+            <p id="walk-instructions">
+              Focus the world · WASD / arrows · E to interact
+            </p>
+            <div
+              className={styles.directionPad}
+              aria-label="Walking directions"
+            >
+              {directions.map((d) => (
+                <button
+                  key={d.label}
+                  aria-label={`Walk ${d.label}`}
+                  data-direction={d.label}
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    event.currentTarget.setPointerCapture(event.pointerId);
+                    handle.current?.walk(d.input);
+                  }}
+                  onPointerUp={() => handle.current?.walk([0, 0])}
+                  onPointerCancel={() => handle.current?.walk([0, 0])}
+                  onLostPointerCapture={() => handle.current?.walk([0, 0])}
+                  onBlur={() => handle.current?.walk([0, 0])}
+                  onClick={(event) => {
+                    if (event.detail === 0) handle.current?.nudge(d.input);
+                  }}
+                >
+                  {d.symbol}
+                </button>
+              ))}
+            </div>
+            <button
+              className={styles.textButton}
+              disabled={!nearby}
+              onClick={() => handle.current?.interact()}
+            >
+              {nearbyLabel
+                ? `Interact · ${nearbyLabel}`
+                : "Follow a path to a destination"}
+            </button>
+            <button
+              className={styles.focusWorld}
+              onClick={() => mount.current?.focus()}
+            >
+              Focus world controls
+            </button>
+          </>
+        )}
+      </div>
       <div className={styles.landmarks} aria-label="Visit a place">
         {observatoryLocations.map((l) => (
           <button

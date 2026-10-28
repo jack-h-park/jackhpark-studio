@@ -65,3 +65,21 @@ void test("all three inputs retain independent source-review-connection receipts
   });
   assert.deepEqual(visited.connected, s.connected);
 });
+
+void test("revisiting the same place or source issues a new travel request after free walking", () => {
+  const a = observatoryReducer(initialObservatoryState, {
+    type: "MOVE",
+    location: "signals",
+  });
+  const b = observatoryReducer(a, { type: "MOVE", location: "signals" });
+  assert.ok(b.travel > a.travel);
+  const c = observatoryReducer(b, {
+    type: "SELECT",
+    input: "external-signals",
+  });
+  const d = observatoryReducer(c, {
+    type: "SELECT",
+    input: "external-signals",
+  });
+  assert.ok(d.travel > c.travel);
+});
