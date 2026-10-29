@@ -50,6 +50,11 @@ import {
 } from "@/lib/pm-intelligence-world/observatory-state";
 
 import {
+  createDestinationExhibits,
+  isWorldTargetVisible,
+} from "./observatoryExhibits";
+import { createObservatoryGarden } from "./observatoryGarden";
+import {
   createGreenhouseBridge,
   createSourceCapsule,
   createVisitor,
@@ -132,9 +137,9 @@ export function createObservatory({
     [5.3, 3.4, 6.1],
     [0, 5.5, -0.4],
     [-8, 6.6, -5.4],
-    [7, 6.6, -5.5],
+    [7, 7.8, -4.3],
   ]) {
-    const lamp = new PointLight("#ffc27d", 7, 5, 2);
+    const lamp = new PointLight("#ffc27d", Math.abs(x) > 6 ? 3.8 : 7, 5, 2);
     lamp.position.set(x, y, z);
     scene.add(lamp);
   }
@@ -206,6 +211,12 @@ export function createObservatory({
     scene.add(capsule.group);
     targets.push(...capsule.pickables);
   }
+  const exhibits = createDestinationExhibits();
+  scene.add(exhibits.group, createObservatoryGarden());
+  exhibits.update(state);
+  exhibits.group.traverse((object) => {
+    if (object instanceof Mesh) targets.push(object);
+  });
   const interactionMaterial = new MeshBasicMaterial({ visible: false });
   for (const location of observatoryLocations) {
     const volume = new Mesh(
@@ -428,7 +439,9 @@ export function createObservatory({
       (-(event.clientY - rect.top) / rect.height) * 2 + 1,
     );
     ray.setFromCamera(pointer, camera);
-    return ray.intersectObjects(targets)[0];
+    return ray
+      .intersectObjects(targets)
+      .find((hit) => isWorldTargetVisible(hit.object));
   };
   const updateHover = (event?: PointerEvent) => {
     const hit = event && !down ? pickAt(event) : undefined;
@@ -616,6 +629,7 @@ export function createObservatory({
           : 0;
     }
     announceNearby();
+    exhibits.animate(elapsed, motion);
     for (const { location, ring } of beacons) {
       const completed =
         state.selected &&
@@ -723,6 +737,7 @@ export function createObservatory({
       } else if (next.selected && next.selected !== state.selected)
         framePlace("signals");
       state = next;
+      exhibits.update(next);
       connections.visible = next.connected.length > 0;
     },
     setWalking(enabled, blocked) {

@@ -5,6 +5,7 @@ import {
   activityDefinitions,
   type PlayDestination,
 } from "@/content/pm-intelligence-world/activities";
+import { decisionTradeoffs } from "@/content/pm-intelligence-world/exhibits";
 import {
   type ActivityProgress,
   emptyActivity,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/pm-intelligence-world/observatory-state";
 
 import styles from "./observatory.module.css";
+import { ObservatoryWorkbench } from "./ObservatoryWorkbench";
 
 export function ObservatoryActivity({
   destination,
@@ -93,6 +95,12 @@ export function ObservatoryActivity({
           {progress.feedback}
         </p>
       )}
+      {destination === "decisions" && progress.choices[0] && (
+        <p className={styles.tradeoff}>
+          <strong>Trade-off to consider</strong>
+          {decisionTradeoffs[progress.choices[0]]}
+        </p>
+      )}
       {!stage && destination === "decisions" && !progress.completed && (
         <>
           <label className={styles.reasonLabel} htmlFor="observatory-judgment">
@@ -132,19 +140,14 @@ export function ObservatoryActivity({
           </button>
         </>
       )}
+      <ObservatoryWorkbench
+        destination={destination}
+        source={source}
+        progress={progress}
+      />
       {progress.completed && (
         <>
           <p className={styles.success}>✓ {definition.result}</p>
-          <ol className={styles.receipt}>
-            {progress.choices.map((choice, i) => (
-              <li key={choice}>
-                {
-                  definition.stages[i].options.find((o) => o.id === choice)
-                    ?.label
-                }
-              </li>
-            ))}
-          </ol>
           {destination === "decisions" && (
             <>
               <p>{progress.reason}</p>

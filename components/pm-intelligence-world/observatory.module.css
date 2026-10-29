@@ -1018,3 +1018,111 @@
     bottom: 185px;
   }
 }
+
+/* The assembled artifact mirrors the physical exhibit without hiding the next move. */
+.workbench {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--brand-cyan) 30%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brand-cyan) 4%, var(--bg-page));
+}
+.workbench[data-kind="writing"] {
+  border-color: color-mix(in srgb, var(--brand-pink) 35%, transparent);
+}
+.workbench[data-kind="learning"] {
+  border-color: color-mix(in srgb, var(--brand-blue) 35%, transparent);
+}
+.workbench[data-kind="decisions"] {
+  border-color: color-mix(in srgb, var(--brand-purple) 35%, transparent);
+}
+.workbench figcaption {
+  display: grid;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 450;
+}
+.workbench figcaption > span {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 9px;
+  letter-spacing: 0.7px;
+  color: var(--text-secondary);
+}
+.artifactSlots {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  display: grid;
+  gap: 6px;
+}
+.artifactSlots li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 7px 0;
+  border-bottom: 1px dashed
+    color-mix(in srgb, var(--text-secondary) 25%, transparent);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.artifactSlots [data-filled="true"] {
+  color: var(--text-primary);
+  border-bottom-style: solid;
+}
+.artifactGlyph {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 40%, transparent);
+  border-radius: 50%;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 9px;
+}
+[data-filled="true"] .artifactGlyph {
+  border-color: var(--brand-cyan);
+  color: var(--brand-cyan);
+}
+.workbench .slotValue,
+.workbench .workbenchCaption,
+.workbench .inputContext,
+.workbench .tradeoff {
+  font-size: 10px;
+  line-height: 1.6;
+  margin: 6px 0 0;
+}
+.workbench:not([data-complete="true"]) .slotValue {
+  display: none;
+}
+.workbench .inputContext {
+  font-size: 9px;
+  border-top: 1px solid
+    color-mix(in srgb, var(--text-secondary) 20%, transparent);
+  padding-top: 8px;
+}
+.activity .tradeoff {
+  border-left: 2px solid var(--brand-purple);
+  padding-left: 10px;
+  margin-top: 12px;
+}
+.tradeoff strong {
+  display: block;
+  color: var(--text-primary);
+}
+.workbench:not([data-complete="true"]) .artifactSlots {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.workbench:not([data-complete="true"])[data-kind="questions"] .artifactSlots {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.workbench:not([data-complete="true"]) .artifactSlots li {
+  display: grid;
+  gap: 8px;
+  font-size: 9px;
+  line-height: 1.5;
+}
+.workbench:not([data-complete="true"]) .workbenchCaption {
+  display: none;
+}

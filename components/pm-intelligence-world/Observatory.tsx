@@ -13,6 +13,7 @@ import type {
   WorldContent,
 } from "@/content/pm-intelligence-world/types";
 import { isPlayDestination } from "@/content/pm-intelligence-world/activities";
+import { nextMainUse } from "@/lib/pm-intelligence-world/observatory-exhibits";
 import {
   initialObservatoryState,
   type ObservatoryLocation,
@@ -148,6 +149,11 @@ export function Observatory({
     setPanel(true);
   };
   const location = observatoryLocations.find((l) => l.id === state.location)!;
+  const nextUse = nextMainUse(state);
+  const activityComplete =
+    !!selected &&
+    isPlayDestination(state.location) &&
+    state.activities[selected]?.[state.location]?.completed;
   const reuse = content.uses.find((u) => u.section === location.section);
   return (
     <section
@@ -429,7 +435,6 @@ export function Observatory({
           )}
           {reuse && (
             <>
-              <p>{reuse.description}</p>
               {reuse.section === "decisions" && (
                 <p className={styles.caveat}>
                   Optional and on request. Knowledge also supports writing,
@@ -451,6 +456,24 @@ export function Observatory({
                   onConnect={action}
                 />
               )}
+              {activityComplete && (
+                <button
+                  className={styles.primary}
+                  onClick={() => {
+                    move(nextUse || "knowledge");
+                    setPanel(true);
+                  }}
+                >
+                  {nextUse
+                    ? `Continue to ${observatoryLocations.find((l) => l.id === nextUse)!.label}`
+                    : "Return to the shared foundation"}{" "}
+                  <FiArrowRight />
+                </button>
+              )}
+              <details className={styles.activityNote}>
+                <summary>Where this fits in the system</summary>
+                <p>{reuse.description}</p>
+              </details>
               <button
                 className={styles.primary}
                 onClick={() => onRead(reuse.section)}
