@@ -82,3 +82,15 @@ Evidence lives in the local free-exploration artifact package: `01-three-uses-co
 Final expansion validation: 640 unit tests and two telemetry golden tests passed. TypeScript, scoped ESLint, CSS/path guards, unchanged asset hashes and the production build/sitemap trace checks passed. Independent final code review found no remaining P1/P2. Browser verification and local preview are separate from real-device performance, owner acceptance and publication.
 
 Final play-panel polish places the prompt and choices before the expandable activity brief. The greenhouse connector is two merged meshes with raycast-tested footing; pavilion wall blockers and arrival points keep walking outside the building interiors.
+
+## Campus wayfinding
+
+Status: locally implemented; real-device performance, visitor comprehension, owner acceptance and publication remain separate gates.
+
+The compass now opens a north-up schematic of the actual walking graph, with seven native destination buttons, explicit numbered labels, a separate live explorer ring and source-specific activity checks. The open map samples a position ref at five updates per second; its timer stops when closed or the document is hidden. The selected destination is not presented as the explorer's position. This replaces the earlier destination-only list; it is a schematic rather than the concept's illustrated minimap.
+
+The map heading receives focus on opening. Its native sticky close button returns focus to the compass, and keyboard destination selection opens the matching context heading. Bounded scrolling placement keeps the heading, dismissal and all destinations reachable on narrow and short screens. Browser checks covered 320×844, 390×600, 390×700, 1000×600 and 844×414. All map buttons have 44×44 CSS-pixel targets. These checks do not establish physical-device or assistive-technology acceptance.
+
+Closing a panel no longer clears a click-travel route merely because walking mode becomes unpaused. Entering manual walking or actual directional movement can still interrupt travel. The full HTML introduction and all system uses remain available; Product Decision remains optional. No new assets, dependencies, telemetry or platform writes were introduced.
+
+Validation: 643 unit tests, two telemetry golden tests and 35 focused PM Intelligence tests passed, with TypeScript, scoped ESLint, CSS/path guards and unchanged asset hashes. Independent review identified short/narrow clipping; both placement cases were corrected and checked in the browser. Production build and final local capture are recorded in the wayfinding artifact manifest.

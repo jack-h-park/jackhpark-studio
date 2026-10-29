@@ -28,7 +28,7 @@ export const walkNodes: Record<string, WalkPoint> = {
   greenhouseSide: [8, 3.3, 1],
   decisions: [10, 1.65, 3],
 };
-const edges: Array<[string, string, number]> = [
+export const walkEdges: Array<[string, string, number]> = [
   ["start", "signals", 0.7],
   ["signals", "terraceLane", 0.6],
   ["terraceLane", "hub", 0.6],
@@ -93,7 +93,7 @@ function floorAt(p: WalkPoint): number | null {
   if (blockers.some(([x, z, r]) => Math.hypot(p[0] - x, p[2] - z) < r))
     return null;
   const candidates: Array<[number, number]> = [];
-  for (const [a, b, radius] of edges) {
+  for (const [a, b, radius] of walkEdges) {
     const foot = project(p, walkNodes[a], walkNodes[b]);
     if (
       horizontalDistance(p, foot) <= radius &&
@@ -157,7 +157,7 @@ export function planWalk(
       (a, b) => (distances[a] ?? Infinity) - (distances[b] ?? Infinity),
     )[0];
     pending.delete(node);
-    for (const [a, b] of edges) {
+    for (const [a, b] of walkEdges) {
       const other = a === node ? b : b === node ? a : null;
       if (!other || !pending.has(other)) continue;
       const cost =
@@ -168,7 +168,7 @@ export function planWalk(
       }
     }
   }
-  const attached = edges
+  const attached = walkEdges
     .map(([a, b]) => {
       const point = project(p, walkNodes[a], walkNodes[b]);
       const start =

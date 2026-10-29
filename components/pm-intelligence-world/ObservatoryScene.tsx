@@ -1,6 +1,8 @@
+import { FiCompass } from "@react-icons/all-files/fi/FiCompass";
 import { useEffect, useRef, useState } from "react";
 
 import type { InputId } from "@/content/pm-intelligence-world/types";
+import type { WalkPoint } from "@/lib/pm-intelligence-world/observatory-navigation";
 import {
   type ObservatoryLocation,
   observatoryLocations,
@@ -8,6 +10,7 @@ import {
 } from "@/lib/pm-intelligence-world/observatory-state";
 
 import styles from "./observatory.module.css";
+import { ObservatoryMap } from "./ObservatoryMap";
 import {
   createObservatory,
   type ObservatoryHandle,
@@ -22,6 +25,9 @@ export function ObservatoryScene({
   home,
   paused,
   restart,
+  mapOpen,
+  onMapToggle,
+  onMapTravel,
 }: {
   state: ObservatoryState;
   onSelect: (id: InputId) => void;
@@ -31,9 +37,14 @@ export function ObservatoryScene({
   home: number;
   paused: boolean;
   restart: number;
+  mapOpen: boolean;
+  onMapToggle: () => void;
+  onMapTravel: (location: ObservatoryLocation) => void;
 }) {
   const [walking, setWalking] = useState(false);
   const [nearby, setNearby] = useState<ObservatoryLocation | null>("signals");
+  const mapButton = useRef<HTMLButtonElement>(null);
+  const position = useRef<WalkPoint>([-1, 0.5, 9.4]);
   const mount = useRef<HTMLDivElement>(null);
   const labels = useRef<Partial<Record<ObservatoryLocation, HTMLElement>>>({});
   const handle = useRef<ObservatoryHandle | null>(null);
@@ -50,6 +61,9 @@ export function ObservatoryScene({
         onReady: () => callbacks.current.onReady(),
         onError: () => callbacks.current.onError(),
         onNearby: setNearby,
+        onPosition: (point) => {
+          position.current = point;
+        },
       });
     } catch {
       callbacks.current.onError();
@@ -147,6 +161,30 @@ export function ObservatoryScene({
               Focus world controls
             </button>
           </>
+        )}
+      </div>
+      <div className={styles.mapControls}>
+        <button
+          ref={mapButton}
+          className={styles.mapToggle}
+          aria-label="Explore the system"
+          aria-expanded={mapOpen}
+          aria-controls="observatory-campus-map"
+          onClick={onMapToggle}
+        >
+          <FiCompass />
+          <span>Explore the system</span>
+        </button>
+        {mapOpen && (
+          <ObservatoryMap
+            state={state}
+            position={position}
+            onTravel={onMapTravel}
+            onClose={() => {
+              onMapToggle();
+              mapButton.current?.focus();
+            }}
+          />
         )}
       </div>
       <div className={styles.landmarks} aria-label="Visit a place">

@@ -41,6 +41,7 @@ import {
   nearestDestination,
   planWalk,
   stepWalker,
+  type WalkPoint,
 } from "@/lib/pm-intelligence-world/observatory-navigation";
 import {
   type ObservatoryLocation,
@@ -72,6 +73,7 @@ export function createObservatory({
   onReady,
   onError,
   onNearby,
+  onPosition,
 }: {
   mount: HTMLDivElement;
   labels: Partial<Record<ObservatoryLocation, HTMLElement>>;
@@ -80,6 +82,7 @@ export function createObservatory({
   onReady: () => void;
   onError: () => void;
   onNearby: (location: ObservatoryLocation | null) => void;
+  onPosition: (position: WalkPoint) => void;
 }): ObservatoryHandle {
   const scene = new Scene();
   scene.background = new Color("#101a3b");
@@ -236,6 +239,7 @@ export function createObservatory({
   const keys = new Set<string>();
   let nearby: ObservatoryLocation | null = null;
   const announceNearby = () => {
+    onPosition([actor.position.x, actor.position.y, actor.position.z]);
     const next = nearestDestination([
       actor.position.x,
       actor.position.y,
@@ -722,13 +726,14 @@ export function createObservatory({
       connections.visible = next.connected.length > 0;
     },
     setWalking(enabled, blocked) {
+      const enteringWalkMode = enabled && !walking;
       walking = enabled;
       paused = blocked;
       if (!enabled || blocked) {
         clearInput();
         following = false;
       }
-      if (enabled && !blocked) remaining = [];
+      if (enteringWalkMode) remaining = [];
     },
     walk(input) {
       virtualInput = input;

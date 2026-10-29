@@ -1,7 +1,6 @@
 import { FiArrowRight } from "@react-icons/all-files/fi/FiArrowRight";
 import { FiBookOpen } from "@react-icons/all-files/fi/FiBookOpen";
 import { FiCheck } from "@react-icons/all-files/fi/FiCheck";
-import { FiCompass } from "@react-icons/all-files/fi/FiCompass";
 import { FiMaximize2 } from "@react-icons/all-files/fi/FiMaximize2";
 import { FiRotateCcw } from "@react-icons/all-files/fi/FiRotateCcw";
 import { FiX } from "@react-icons/all-files/fi/FiX";
@@ -170,6 +169,16 @@ export function Observatory({
           home={home}
           paused={panel || map}
           restart={restart}
+          mapOpen={map}
+          onMapToggle={() => {
+            setPanel(false);
+            setMap(!map);
+          }}
+          onMapTravel={(id) => {
+            move(id);
+            setPanel(true);
+            setMap(false);
+          }}
           onSelect={select}
           onMove={(id) => {
             move(id);
@@ -452,41 +461,6 @@ export function Observatory({
           )}
         </aside>
       )}
-      <div className={styles.mapControls}>
-        <button
-          className={styles.mapToggle}
-          aria-label="Explore the system"
-          aria-expanded={map}
-          onClick={() => setMap(!map)}
-        >
-          <FiCompass />
-          <span>Explore the system</span>
-        </button>
-        {map && (
-          <nav className={styles.mapList} aria-label="System destinations">
-            {observatoryLocations.map((l) => (
-              <button
-                key={l.id}
-                aria-current={state.location === l.id ? "location" : undefined}
-                onClick={() => {
-                  move(l.id);
-                  setPanel(true);
-                  setMap(false);
-                }}
-              >
-                {l.label}
-                {selected &&
-                isPlayDestination(l.id) &&
-                state.activities[selected]?.[l.id]?.completed ? (
-                  <FiCheck aria-label="Activity completed" />
-                ) : (
-                  <FiArrowRight />
-                )}
-              </button>
-            ))}
-          </nav>
-        )}
-      </div>
       <footer className={styles.quest}>
         <div className={styles.questNumber}>
           {String(step + 1).padStart(2, "0")}
