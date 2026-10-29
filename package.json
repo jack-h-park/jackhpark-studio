@@ -10,6 +10,15 @@
   "bugs": "https://github.com/jack-h-park/jackhpark-studio/issues",
   "packageManager": "pnpm@10.29.3",
   "pnpm": {
+    "packageExtensions": {
+      "@browserbasehq/stagehand@1.14.0": {
+        "peerDependenciesMeta": {
+          "deepmerge": {
+            "optional": true
+          }
+        }
+      }
+    },
     "onlyBuiltDependencies": [
       "canvas",
       "core-js",
