@@ -12,9 +12,13 @@ import type {
   SectionId,
   WorldContent,
 } from "@/content/pm-intelligence-world/types";
-import { isPlayDestination } from "@/content/pm-intelligence-world/activities";
+import {
+  isPlayDestination,
+  type PlayDestination,
+} from "@/content/pm-intelligence-world/activities";
 import { nextMainUse } from "@/lib/pm-intelligence-world/observatory-exhibits";
 import {
+  emptyActivity,
   initialObservatoryState,
   type ObservatoryLocation,
   observatoryLocations,
@@ -23,6 +27,7 @@ import {
 
 import styles from "./observatory.module.css";
 import { ObservatoryActivity } from "./ObservatoryActivity";
+import { ObservatoryInstrument } from "./ObservatoryInstrument";
 
 const Scene = dynamic(
   () => import("./ObservatoryScene").then((m) => m.ObservatoryScene),
@@ -82,6 +87,7 @@ export function Observatory({
     observatoryReducer,
     initialObservatoryState,
   );
+  const [operating, setOperating] = useState(false);
   const [ready, setReady] = useState(false),
     [failed, setFailed] = useState(false),
     [home, setHome] = useState(0),
@@ -96,6 +102,7 @@ export function Observatory({
       if (event.key === "Escape") {
         setPanel(false);
         setMap(false);
+        setOperating(false);
         statusRef.current?.focus();
       }
     };
@@ -108,10 +115,12 @@ export function Observatory({
   const connected = !!selected && state.connected.includes(selected);
   const note = selected ? sourceNotes[selected] : null;
   const move = (location: ObservatoryLocation) => {
+    setOperating(false);
     dispatch({ type: "MOVE", location });
     setPanel(false);
   };
   const select = (input: InputId) => {
+    setOperating(false);
     dispatch({ type: "SELECT", input });
     setPanel(true);
   };
@@ -173,11 +182,32 @@ export function Observatory({
         <Scene
           state={state}
           home={home}
-          paused={panel || map}
+          paused={panel || map || operating}
+          instrument={
+            operating && connected && isPlayDestination(state.location)
+              ? state.location
+              : null
+          }
+          onOperate={(id: PlayDestination) => {
+            if (!connected) {
+              move(id);
+              setPanel(true);
+              return;
+            }
+            if (operating && state.location === id)
+              dispatch({ type: "OPERATE_ACTIVITY" });
+            else {
+              move(id);
+              setOperating(true);
+            }
+            setPanel(false);
+            setMap(false);
+          }}
           restart={restart}
           mapOpen={map}
           onMapToggle={() => {
             setPanel(false);
+            setOperating(false);
             setMap(!map);
           }}
           onMapTravel={(id) => {
@@ -454,6 +484,11 @@ export function Observatory({
                   }
                   dispatch={dispatch}
                   onConnect={action}
+                  onOperate={() => {
+                    setPanel(false);
+                    setMap(false);
+                    setOperating(true);
+                  }}
                 />
               )}
               {activityComplete && (
@@ -484,6 +519,27 @@ export function Observatory({
           )}
         </aside>
       )}
+      {operating &&
+        connected &&
+        selected &&
+        isPlayDestination(state.location) && (
+          <ObservatoryInstrument
+            destination={state.location}
+            source={selected}
+            progress={
+              state.activities[selected]?.[state.location] ?? emptyActivity
+            }
+            dispatch={dispatch}
+            onClose={() => {
+              setOperating(false);
+              statusRef.current?.focus();
+            }}
+            onRecord={() => {
+              setOperating(false);
+              setPanel(true);
+            }}
+          />
+        )}
       <footer className={styles.quest}>
         <div className={styles.questNumber}>
           {String(step + 1).padStart(2, "0")}
@@ -525,6 +581,7 @@ export function Observatory({
           className={styles.reset}
           aria-label="Restart first expedition"
           onClick={() => {
+            setOperating(false);
             dispatch({ type: "RESET" });
             setPanel(false);
             setMap(false);

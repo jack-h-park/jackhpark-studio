@@ -22,6 +22,7 @@ export function ObservatoryActivity({
   progress = emptyActivity,
   dispatch,
   onConnect,
+  onOperate,
 }: {
   destination: PlayDestination;
   source: InputId | null;
@@ -29,6 +30,7 @@ export function ObservatoryActivity({
   progress?: ActivityProgress;
   dispatch: (action: ObservatoryAction) => void;
   onConnect: () => void;
+  onOperate: () => void;
 }) {
   const definition = activityDefinitions[destination];
   const stage = definition.stages[progress.step];
@@ -67,6 +69,11 @@ export function ObservatoryActivity({
         Illustrative activity · not a real output
       </span>
       <h3>{definition.title}</h3>
+      {!progress.completed && (
+        <button className={styles.primary} onClick={onOperate}>
+          Operate the 3D instrument
+        </button>
+      )}
       {destination === "decisions" && <p>{definition.instruction}</p>}
       <h4 ref={prompt} tabIndex={-1}>
         {progress.completed

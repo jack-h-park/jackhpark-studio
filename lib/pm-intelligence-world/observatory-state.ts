@@ -72,6 +72,8 @@ export const observatoryLocations = [
 }>;
 export type ObservatoryLocation = (typeof observatoryLocations)[number]["id"];
 export interface ActivityProgress {
+  armedChoice?: string;
+  operations?: number;
   step: number;
   choices: string[];
   feedback: string;
@@ -108,7 +110,8 @@ export const initialObservatoryState: ObservatoryState = {
   connected: [],
 };
 export type ObservatoryAction =
-  | { type: "PLAY"; choice: string }
+  | { type: "PLAY" | "ARM_ACTIVITY"; choice: string }
+  | { type: "OPERATE_ACTIVITY" }
   | { type: "ACTIVITY_REASON"; reason: string }
   | { type: "ACTIVITY_ACK"; acknowledged: boolean }
   | { type: "FINISH_ACTIVITY" | "RETRY_ACTIVITY" }
@@ -133,6 +136,8 @@ export function observatoryReducer(
   if (
     [
       "PLAY",
+      "ARM_ACTIVITY",
+      "OPERATE_ACTIVITY",
       "ACTIVITY_REASON",
       "ACTIVITY_ACK",
       "FINISH_ACTIVITY",
@@ -147,15 +152,24 @@ export function observatoryReducer(
     let progress = old;
     if (a.type === "RETRY_ACTIVITY") progress = { ...emptyActivity };
     else if (old.completed) return s;
-    else if (a.type === "PLAY") {
+    else if (a.type === "ARM_ACTIVITY") {
+      if (!definition.stages[old.step]?.options.some((o) => o.id === a.choice))
+        return s;
+      progress = { ...old, armedChoice: a.choice, feedback: "" };
+    } else if (a.type === "PLAY" || a.type === "OPERATE_ACTIVITY") {
+      const choice = a.type === "PLAY" ? a.choice : old.armedChoice;
       const option = definition.stages[old.step]?.options.find(
-        (o) => o.id === a.choice,
+        (o) => o.id === choice,
       );
       if (!option) return s;
       const step = option.accepted ? old.step + 1 : old.step;
       progress = {
         ...old,
         step,
+        armedChoice: option.accepted ? undefined : old.armedChoice,
+        ...(a.type === "OPERATE_ACTIVITY"
+          ? { operations: (old.operations ?? 0) + 1 }
+          : {}),
         feedback: option.feedback,
         choices: option.accepted ? [...old.choices, option.id] : old.choices,
         completed:

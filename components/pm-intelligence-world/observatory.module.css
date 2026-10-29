@@ -1126,3 +1126,102 @@
 .workbench:not([data-complete="true"]) .workbenchCaption {
   display: none;
 }
+.instrumentPanel {
+  position: absolute;
+  z-index: 5;
+  top: 106px;
+  right: 36px;
+  bottom: 152px;
+  width: 340px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 22px;
+  border: 1px solid color-mix(in srgb, var(--brand-cyan) 40%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-page) 94%, transparent);
+  backdrop-filter: blur(24px);
+}
+.instrumentPanel h2 {
+  font-size: 22px;
+  font-weight: 450;
+  line-height: 1.25;
+  margin: 14px 0;
+}
+.instrumentPanel h2:focus {
+  outline: none;
+}
+.instrumentPanel h3 {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 16px 0 10px;
+}
+.instrumentPanel p {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+.instrumentPanel .instrumentHint {
+  font-size: 10px;
+}
+.instrumentPanel .instrumentStep {
+  font-size: 10px;
+  font-family: var(--font-geist-mono), monospace;
+  color: var(--brand-cyan);
+}
+.instrumentClose {
+  position: sticky;
+  top: 0;
+  float: right;
+  z-index: 1;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.instrumentCards {
+  display: grid;
+  gap: 8px;
+}
+.instrumentCards button {
+  text-align: left;
+  min-height: 44px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--text-secondary) 30%, transparent);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  font-size: 12px !important;
+  line-height: 1.55;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.instrumentCards [aria-pressed="true"] {
+  border-color: var(--brand-cyan);
+  background: color-mix(in srgb, var(--brand-cyan) 10%, var(--bg-surface));
+}
+.instrumentPanel button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.instrumentPanel .instrumentContext {
+  font-size: 9px;
+  margin-top: 16px;
+}
+@media (max-width: 600px) {
+  .instrumentPanel {
+    top: auto;
+    bottom: 185px;
+    right: 20px;
+    width: calc(100% - 40px);
+    max-height: 42svh;
+    padding: 16px;
+  }
+}
+@media (max-height: 650px) and (min-width: 601px) {
+  .instrumentPanel {
+    top: 90px;
+    bottom: 140px;
+  }
+}

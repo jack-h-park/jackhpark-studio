@@ -1,6 +1,7 @@
 import { FiCompass } from "@react-icons/all-files/fi/FiCompass";
 import { useEffect, useRef, useState } from "react";
 
+import type { PlayDestination } from "@/content/pm-intelligence-world/activities";
 import type { InputId } from "@/content/pm-intelligence-world/types";
 import type { WalkPoint } from "@/lib/pm-intelligence-world/observatory-navigation";
 import {
@@ -19,6 +20,8 @@ import {
 export function ObservatoryScene({
   state,
   onSelect,
+  onOperate,
+  instrument,
   onMove,
   onReady,
   onError,
@@ -30,6 +33,8 @@ export function ObservatoryScene({
   onMapTravel,
 }: {
   state: ObservatoryState;
+  onOperate: (id: PlayDestination) => void;
+  instrument: PlayDestination | null;
   onSelect: (id: InputId) => void;
   onMove: (id: ObservatoryLocation) => void;
   onReady: () => void;
@@ -48,14 +53,15 @@ export function ObservatoryScene({
   const mount = useRef<HTMLDivElement>(null);
   const labels = useRef<Partial<Record<ObservatoryLocation, HTMLElement>>>({});
   const handle = useRef<ObservatoryHandle | null>(null);
-  const callbacks = useRef({ onSelect, onMove, onReady, onError });
-  callbacks.current = { onSelect, onMove, onReady, onError };
+  const callbacks = useRef({ onSelect, onMove, onReady, onError, onOperate });
+  callbacks.current = { onSelect, onMove, onReady, onError, onOperate };
   useEffect(() => {
     if (!mount.current) return;
     try {
       handle.current = createObservatory({
         mount: mount.current,
         labels: labels.current,
+        onOperate: (id) => callbacks.current.onOperate(id),
         onSelect: (id) => callbacks.current.onSelect(id),
         onMove: (id) => callbacks.current.onMove(id),
         onReady: () => callbacks.current.onReady(),
@@ -86,6 +92,9 @@ export function ObservatoryScene({
     handle.current?.reset();
     setWalking(false);
   }, [restart]);
+  useEffect(() => {
+    handle.current?.focusInstrument(instrument);
+  }, [instrument, home, restart]);
   const nearbyLabel = observatoryLocations.find((l) => l.id === nearby)?.label;
   const directions = [
     { label: "up", symbol: "↑", input: [0, 1] },

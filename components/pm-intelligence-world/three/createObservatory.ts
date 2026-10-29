@@ -36,7 +36,14 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 
 import type { InputId } from "@/content/pm-intelligence-world/types";
-import { isPlayDestination } from "@/content/pm-intelligence-world/activities";
+import {
+  isPlayDestination,
+  type PlayDestination,
+} from "@/content/pm-intelligence-world/activities";
+import {
+  ownsInstrumentPointer,
+  shouldOperateInstrument,
+} from "@/lib/pm-intelligence-world/instrument-input";
 import {
   nearestDestination,
   planWalk,
@@ -51,7 +58,7 @@ import {
 
 import {
   createDestinationExhibits,
-  isWorldTargetVisible,
+  pickWorldTarget,
 } from "./observatoryExhibits";
 import { createObservatoryGarden } from "./observatoryGarden";
 import {
@@ -62,6 +69,7 @@ import {
 
 export interface ObservatoryHandle {
   setState(state: ObservatoryState): void;
+  focusInstrument(id: PlayDestination | null): void;
   home(): void;
   reset(): void;
   setWalking(enabled: boolean, paused: boolean): void;
@@ -79,6 +87,7 @@ export function createObservatory({
   onError,
   onNearby,
   onPosition,
+  onOperate,
 }: {
   mount: HTMLDivElement;
   labels: Partial<Record<ObservatoryLocation, HTMLElement>>;
@@ -88,6 +97,7 @@ export function createObservatory({
   onError: () => void;
   onNearby: (location: ObservatoryLocation | null) => void;
   onPosition: (position: WalkPoint) => void;
+  onOperate: (id: PlayDestination) => void;
 }): ObservatoryHandle {
   const scene = new Scene();
   scene.background = new Color("#101a3b");
@@ -112,7 +122,7 @@ export function createObservatory({
   controls.minPolarAngle = 0.35;
   controls.maxPolarAngle = 1.28;
   controls.minZoom = 0.75;
-  controls.maxZoom = 1.8;
+  controls.maxZoom = 4.2;
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.mouseButtons.LEFT = 0;
@@ -143,6 +153,9 @@ export function createObservatory({
     lamp.position.set(x, y, z);
     scene.add(lamp);
   }
+  const inspectionLight = new PointLight("#c4deff", 4, 5, 2);
+  inspectionLight.visible = false;
+  scene.add(inspectionLight);
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(new UnrealBloomPass(new Vector2(800, 600), 0.23, 0.4, 1.1));
@@ -430,6 +443,15 @@ export function createObservatory({
   );
   const ray = new Raycaster(),
     pointer = new Vector2();
+  let gesture: { id: PlayDestination; pointerId: number } | null = null;
+  const endGesture = () => {
+    if (!gesture) return;
+    exhibits.preview(gesture.id, null);
+    if (renderer.domElement.hasPointerCapture(gesture.pointerId))
+      renderer.domElement.releasePointerCapture(gesture.pointerId);
+    gesture = null;
+    controls.enabled = true;
+  };
   let down: [number, number] | null = null;
   let hoveredInput: InputId | null = null;
   const pickAt = (event: PointerEvent) => {
@@ -439,9 +461,7 @@ export function createObservatory({
       (-(event.clientY - rect.top) / rect.height) * 2 + 1,
     );
     ray.setFromCamera(pointer, camera);
-    return ray
-      .intersectObjects(targets)
-      .find((hit) => isWorldTargetVisible(hit.object));
+    return pickWorldTarget(ray.intersectObjects(targets));
   };
   const updateHover = (event?: PointerEvent) => {
     const hit = event && !down ? pickAt(event) : undefined;
@@ -449,6 +469,10 @@ export function createObservatory({
     const place = hit?.object.userData.location as
       | ObservatoryLocation
       | undefined;
+    const operation = hit?.object.userData.operation as
+      | PlayDestination
+      | undefined;
+    exhibits.hover(operation ?? null);
     for (const location of observatoryLocations) {
       const label = labels[location.id];
       if (label) label.dataset.hovered = String(place === location.id);
@@ -459,15 +483,53 @@ export function createObservatory({
         ? "pointer"
         : "grab";
     renderer.domElement.dataset.hovered = hoveredInput || place || "";
+    renderer.domElement.dataset.operation = operation || "";
   };
   const pointerDown = (event: PointerEvent) => {
+    if (
+      !event.isPrimary ||
+      !ownsInstrumentPointer(gesture?.pointerId, event.pointerId)
+    )
+      return;
     if (event.button !== 0 && event.pointerType === "mouse") return;
     down = [event.clientX, event.clientY];
+    const hit = pickAt(event),
+      id = hit?.object.userData.operation as PlayDestination | undefined;
+    if (id && activeInstrument === id) {
+      gesture = { id, pointerId: event.pointerId };
+      controls.enabled = false;
+      cameraTour = null;
+      renderer.domElement.setPointerCapture(event.pointerId);
+      exhibits.preview(id, id === "questions" || id === "decisions" ? 0 : 1);
+    }
     updateHover();
   };
-  const pointerMove = (event: PointerEvent) => updateHover(event);
+  const pointerMove = (event: PointerEvent) => {
+    if (!ownsInstrumentPointer(gesture?.pointerId, event.pointerId)) return;
+    if (gesture && down) {
+      if (gesture.id === "questions" || gesture.id === "decisions")
+        exhibits.preview(gesture.id, (event.clientX - down[0]) / 70);
+      return;
+    }
+    updateHover(event);
+  };
   const pointerUp = (event: PointerEvent) => {
+    if (!ownsInstrumentPointer(gesture?.pointerId, event.pointerId)) return;
     const start = down;
+    if (gesture && start) {
+      const id = gesture.id;
+      endGesture();
+      down = null;
+      updateHover(event);
+      if (
+        shouldOperateInstrument(id, [
+          event.clientX - start[0],
+          event.clientY - start[1],
+        ])
+      )
+        onOperate(id);
+      return;
+    }
     down = null;
     updateHover(event);
     if (
@@ -476,20 +538,30 @@ export function createObservatory({
     )
       return;
     const hit = pickAt(event);
-    if (hit?.object.userData.input)
+    if (hit?.object.userData.operation)
+      onOperate(hit.object.userData.operation as PlayDestination);
+    else if (hit?.object.userData.input)
       onSelect(hit.object.userData.input as InputId);
     else if (hit?.object.userData.location)
       onMove(hit.object.userData.location as ObservatoryLocation);
   };
-  const pointerCancel = () => {
+  const pointerCancel = (event?: Event) => {
+    if (
+      event instanceof PointerEvent &&
+      !ownsInstrumentPointer(gesture?.pointerId, event.pointerId)
+    )
+      return;
+    endGesture();
     down = null;
     updateHover();
   };
-  renderer.domElement.addEventListener("pointerdown", pointerDown);
+  renderer.domElement.addEventListener("pointerdown", pointerDown, true);
   renderer.domElement.addEventListener("pointermove", pointerMove);
   renderer.domElement.addEventListener("pointerup", pointerUp);
   renderer.domElement.addEventListener("pointercancel", pointerCancel);
   renderer.domElement.addEventListener("pointerleave", pointerCancel);
+  renderer.domElement.addEventListener("lostpointercapture", pointerCancel);
+  window.addEventListener("blur", pointerCancel);
   const contextLost = (e: Event) => {
     e.preventDefault();
     onError();
@@ -515,7 +587,10 @@ export function createObservatory({
   media.addEventListener("change", changeMotion);
   const changeVisible = () => {
     visible = !document.hidden;
-    if (!visible) clearInput();
+    if (!visible) {
+      clearInput();
+      endGesture();
+    }
   };
   document.addEventListener("visibilitychange", changeVisible);
   let cameraTour: { target: Vector3; zoom: number } | null = null;
@@ -541,6 +616,34 @@ export function createObservatory({
       cameraTour = null;
     }
   };
+  let activeInstrument: PlayDestination | null = null;
+  const frameInstrument = (id: PlayDestination) => {
+    const view = exhibits.views.find((v) => v.destination === id)!;
+    const offset = new Vector3().subVectors(camera.position, controls.target);
+    const right = new Vector3(offset.z, 0, -offset.x).normalize();
+    const target = view.root.position.clone().add(new Vector3(0, 1.1, 0));
+    if (width > 600) target.addScaledVector(right, 0.9);
+    else {
+      const up = new Vector3()
+        .crossVectors(offset.clone().normalize(), right)
+        .normalize();
+      const playfieldEnd = Math.max(130, height - 185 - height * 0.42);
+      const screenY = (90 + playfieldEnd) / 2;
+      const shift =
+        ((height * 0.5 - screenY) * (camera.top - camera.bottom)) /
+        (height * 4.2);
+      target.addScaledVector(up, -shift);
+    }
+    cameraTour = { target, zoom: 4.2 };
+    if (!motion) {
+      const shift = target.clone().sub(controls.target);
+      camera.position.add(shift);
+      controls.target.copy(target);
+      camera.zoom = cameraTour.zoom;
+      camera.updateProjectionMatrix();
+      cameraTour = null;
+    }
+  };
   const projected = new Vector3();
   let width = 1,
     height = 1;
@@ -556,6 +659,7 @@ export function createObservatory({
     camera.updateProjectionMatrix();
     renderer.setSize(width, height);
     composer.setSize(width, height);
+    if (activeInstrument) frameInstrument(activeInstrument);
   };
   const observer = new ResizeObserver(resize);
   observer.observe(mount);
@@ -722,7 +826,36 @@ export function createObservatory({
     for (const bitmap of bitmaps) bitmap.close();
   }
   return {
+    focusInstrument(id) {
+      const previous = activeInstrument;
+      endGesture();
+      activeInstrument = id;
+      inspectionLight.visible = !!id;
+      if (id) {
+        const view = exhibits.views.find((v) => v.destination === id)!;
+        inspectionLight.position
+          .copy(view.root.position)
+          .add(new Vector3(1.3, 2.3, 2));
+      }
+      clearInput();
+      following = false;
+      if (id) {
+        remaining = [];
+        frameInstrument(id);
+      } else if (previous && ready) framePlace(state.location);
+    },
     setState(next) {
+      if (next.selected !== state.selected) {
+        endGesture();
+        exhibits.resetMotion();
+      } else if (next.selected && isPlayDestination(next.location)) {
+        const before =
+          state.activities[next.selected]?.[next.location]?.operations ?? 0;
+        const after =
+          next.activities[next.selected]?.[next.location]?.operations ?? 0;
+        if (after > before) exhibits.trigger(next.location);
+        else if (after < before) exhibits.resetMotion();
+      }
       if (!next.selected && state.selected) {
         remaining = [];
         actor.position.set(-1, 0.5, 9.4);
@@ -775,6 +908,7 @@ export function createObservatory({
       controls.update();
     },
     dispose() {
+      endGesture();
       disposed = true;
       renderer.setAnimationLoop(null);
       observer.disconnect();
@@ -784,11 +918,16 @@ export function createObservatory({
       mount.removeEventListener("blur", clearInput);
       window.removeEventListener("blur", clearInput);
       media.removeEventListener("change", changeMotion);
-      renderer.domElement.removeEventListener("pointerdown", pointerDown);
+      renderer.domElement.removeEventListener("pointerdown", pointerDown, true);
       renderer.domElement.removeEventListener("pointerup", pointerUp);
       renderer.domElement.removeEventListener("pointermove", pointerMove);
       renderer.domElement.removeEventListener("pointercancel", pointerCancel);
       renderer.domElement.removeEventListener("pointerleave", pointerCancel);
+      renderer.domElement.removeEventListener(
+        "lostpointercapture",
+        pointerCancel,
+      );
+      window.removeEventListener("blur", pointerCancel);
       renderer.domElement.removeEventListener("webglcontextlost", contextLost);
       controls.removeEventListener("start", stopTour);
       controls.dispose();

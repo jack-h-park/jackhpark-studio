@@ -38,3 +38,25 @@ export const decisionTradeoffs: Record<string, string> = {
   proceed:
     "A bounded pilot can create learning; someone must own its limits and review trigger.",
 };
+
+export const instrumentActions: Record<
+  PlayDestination,
+  { label: string; hint: string }
+> = {
+  writing: {
+    label: "Press the argument",
+    hint: "Choose a card, then tap the brass press to set this layer.",
+  },
+  questions: {
+    label: "Turn the provenance dial",
+    hint: "Choose an anchor, then drag the dial sideways or tap to connect it.",
+  },
+  learning: {
+    label: "Water this learning step",
+    hint: "Choose a step, then hold and release the watering can to grow the record.",
+  },
+  decisions: {
+    label: "Turn the judgment dial",
+    hint: "Choose a next step, then turn the dial sideways or tap. A reason and review trigger still need your review.",
+  },
+};
