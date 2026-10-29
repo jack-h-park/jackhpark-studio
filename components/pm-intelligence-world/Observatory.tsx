@@ -18,6 +18,10 @@ import {
 } from "@/content/pm-intelligence-world/activities";
 import { nextMainUse } from "@/lib/pm-intelligence-world/observatory-exhibits";
 import {
+  expeditionIntent,
+  expeditionMission,
+} from "@/lib/pm-intelligence-world/observatory-mission";
+import {
   emptyActivity,
   initialObservatoryState,
   type ObservatoryLocation,
@@ -88,6 +92,7 @@ export function Observatory({
     initialObservatoryState,
   );
   const [operating, setOperating] = useState(false);
+  const [nearby, setNearby] = useState<ObservatoryLocation | null>("signals");
   const [ready, setReady] = useState(false),
     [failed, setFailed] = useState(false),
     [home, setHome] = useState(0),
@@ -127,35 +132,21 @@ export function Observatory({
   useEffect(() => {
     if (panel) panelTitle.current?.focus();
   }, [panel, selected, state.location, inspected, reviewed, connected]);
-  const step = !selected || !inspected ? 0 : !reviewed ? 1 : !connected ? 2 : 3;
-  const objectives = [
-    "Find a signal. Keep its source.",
-    "Agents prepare. You review.",
-    "Give knowledge a longer memory.",
-    "One foundation. Several ways to use it.",
-  ];
-  const action = () => {
-    if (!selected) {
+  const mission = expeditionMission(state);
+  const targetLabel = observatoryLocations.find(
+    (l) => l.id === mission.destination,
+  )!.label;
+  const followMission = () => {
+    const intent = expeditionIntent(state, nearby);
+    if (intent === "choose-source") {
       select("external-signals");
       return;
     }
-    if (!inspected) {
-      move("signals");
-      setPanel(true);
-      return;
-    }
-    if (!reviewed) {
-      move("review");
-      setPanel(true);
-      return;
-    }
-    if (!connected) {
-      move("knowledge");
-      setPanel(true);
-      return;
-    }
-    move("writing");
-    setPanel(true);
+    setMap(false);
+    move(mission.destination);
+    statusRef.current?.focus();
+    if (intent === "instrument") setOperating(true);
+    else if (intent === "context") setPanel(true);
   };
   const location = observatoryLocations.find((l) => l.id === state.location)!;
   const nextUse = nextMainUse(state);
@@ -168,6 +159,7 @@ export function Observatory({
     <section
       className={`${styles.observatory} dark`}
       data-theme="jp"
+      data-operating={operating || undefined}
       aria-label="Signal Observatory — PM Intelligence System"
       hidden={!active}
     >
@@ -181,6 +173,7 @@ export function Observatory({
       {active && !failed && (
         <Scene
           state={state}
+          onNearby={setNearby}
           home={home}
           paused={panel || map || operating}
           instrument={
@@ -358,7 +351,7 @@ export function Observatory({
                     className={styles.primary}
                     onClick={() => {
                       move("review");
-                      setPanel(true);
+                      statusRef.current?.focus();
                     }}
                   >
                     Carry it to human review <FiArrowRight />
@@ -385,7 +378,7 @@ export function Observatory({
                     onClick={() => {
                       dispatch({ type: "REVIEW" });
                       move("knowledge");
-                      setPanel(true);
+                      statusRef.current?.focus();
                     }}
                   >
                     Acknowledge the limits & continue <FiArrowRight />
@@ -435,6 +428,34 @@ export function Observatory({
                     The four illuminated routes show documented uses, not four
                     proven outputs of this particular note.
                   </p>
+                  {mission.complete ? (
+                    <div
+                      className={styles.expeditionRecord}
+                      aria-label="Expedition field record"
+                    >
+                      <h3>Your expedition, traced back to its source</h3>
+                      <p>
+                        Source → human review → retained knowledge → writing,
+                        questions and learning.
+                      </p>
+                      <p>
+                        You assembled three fixed teaching examples. These
+                        receipts describe your visit; they do not establish
+                        output quality, learning gain or real system
+                        performance.
+                      </p>
+                      <button
+                        className={styles.primary}
+                        onClick={() => onRead("overview")}
+                      >
+                        Read the complete system <FiArrowRight />
+                      </button>
+                    </div>
+                  ) : (
+                    <button className={styles.primary} onClick={followMission}>
+                      Follow the expedition · {targetLabel} <FiArrowRight />
+                    </button>
+                  )}
                   <div className={styles.reuseList}>
                     {content.uses.map((u) => (
                       <button
@@ -483,7 +504,7 @@ export function Observatory({
                       : undefined
                   }
                   dispatch={dispatch}
-                  onConnect={action}
+                  onConnect={followMission}
                   onOperate={() => {
                     setPanel(false);
                     setMap(false);
@@ -534,6 +555,12 @@ export function Observatory({
               setOperating(false);
               statusRef.current?.focus();
             }}
+            nextLabel={
+              mission.complete
+                ? "Return to the observatory"
+                : `Continue · ${targetLabel}`
+            }
+            onContinue={followMission}
             onRecord={() => {
               setOperating(false);
               setPanel(true);
@@ -542,8 +569,14 @@ export function Observatory({
         )}
       <footer className={styles.quest}>
         <div className={styles.questNumber}>
-          {String(step + 1).padStart(2, "0")}
-          <span>/ 04</span>
+          {String(mission.completed).padStart(2, "0")}
+          <span>/ 06</span>
+          <progress
+            className={styles.missionProgress}
+            max={6}
+            value={mission.completed}
+            aria-label="Completed expedition milestones"
+          />
         </div>
         <div
           className={styles.questCopy}
@@ -552,29 +585,27 @@ export function Observatory({
           role="status"
           aria-live="polite"
         >
-          <strong>{objectives[step]}</strong>
+          <strong>{mission.title}</strong>
           <span>
-            {step === 0
-              ? "Choose a source capsule to begin."
-              : step === 1
-                ? "Carry the source to the review desk."
-                : step === 2
-                  ? "Connect the reviewed source at the observatory."
-                  : `${["writing", "questions", "learning"].filter((id) => selected && state.activities[selected]?.[id as "writing" | "questions" | "learning"]?.completed).length}/3 reuse activities · decisions optional`}
+            {nearby === mission.destination
+              ? `At ${targetLabel}. ${mission.complete ? "Retrace the whole system or take the optional judgment branch." : "Ready when you are — open the next interaction."}`
+              : mission.clue}
+          </span>
+          <span>
+            {selected
+              ? content.inputs.find((i) => i.id === selected)?.title
+              : "Three input families · one shared foundation"}{" "}
+            · {mission.completed}/6 milestones · decisions optional
           </span>
         </div>
         <button
           data-observatory-start
           className={styles.questAction}
-          onClick={action}
+          onClick={followMission}
         >
-          {step === 0
-            ? "Inspect a signal"
-            : step === 1
-              ? "Visit review"
-              : step === 2
-                ? "Connect knowledge"
-                : "Explore the routes"}
+          {nearby === mission.destination
+            ? mission.action
+            : `Follow trail · ${targetLabel}`}
           <FiArrowRight />
         </button>
         <button

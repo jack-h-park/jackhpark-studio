@@ -24,6 +24,8 @@ export function ObservatoryInstrument({
   dispatch,
   onClose,
   onRecord,
+  onContinue,
+  nextLabel,
 }: {
   destination: PlayDestination;
   source: InputId;
@@ -31,6 +33,8 @@ export function ObservatoryInstrument({
   dispatch: (action: ObservatoryAction) => void;
   onClose: () => void;
   onRecord: () => void;
+  onContinue?: () => void;
+  nextLabel?: string;
 }) {
   const definition = activityDefinitions[destination],
     action = instrumentActions[destination],
@@ -101,7 +105,15 @@ export function ObservatoryInstrument({
           {destination === "decisions" && progress.choices[0] && (
             <p>{decisionTradeoffs[progress.choices[0]]}</p>
           )}
-          <button className={styles.primary} onClick={onRecord}>
+          {progress.completed && onContinue && (
+            <button className={styles.primary} onClick={onContinue}>
+              {nextLabel}
+            </button>
+          )}
+          <button
+            className={progress.completed ? styles.textButton : styles.primary}
+            onClick={onRecord}
+          >
             {destination === "decisions" && !progress.completed
               ? "Add a reason & review trigger"
               : "Open the activity record"}

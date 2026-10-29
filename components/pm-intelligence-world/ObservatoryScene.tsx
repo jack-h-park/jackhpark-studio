@@ -20,6 +20,7 @@ import {
 export function ObservatoryScene({
   state,
   onSelect,
+  onNearby,
   onOperate,
   instrument,
   onMove,
@@ -33,6 +34,7 @@ export function ObservatoryScene({
   onMapTravel,
 }: {
   state: ObservatoryState;
+  onNearby: (location: ObservatoryLocation | null) => void;
   onOperate: (id: PlayDestination) => void;
   instrument: PlayDestination | null;
   onSelect: (id: InputId) => void;
@@ -53,8 +55,22 @@ export function ObservatoryScene({
   const mount = useRef<HTMLDivElement>(null);
   const labels = useRef<Partial<Record<ObservatoryLocation, HTMLElement>>>({});
   const handle = useRef<ObservatoryHandle | null>(null);
-  const callbacks = useRef({ onSelect, onMove, onReady, onError, onOperate });
-  callbacks.current = { onSelect, onMove, onReady, onError, onOperate };
+  const callbacks = useRef({
+    onSelect,
+    onMove,
+    onReady,
+    onError,
+    onOperate,
+    onNearby,
+  });
+  callbacks.current = {
+    onSelect,
+    onMove,
+    onReady,
+    onError,
+    onOperate,
+    onNearby,
+  };
   useEffect(() => {
     if (!mount.current) return;
     try {
@@ -66,7 +82,10 @@ export function ObservatoryScene({
         onMove: (id) => callbacks.current.onMove(id),
         onReady: () => callbacks.current.onReady(),
         onError: () => callbacks.current.onError(),
-        onNearby: setNearby,
+        onNearby: (id) => {
+          setNearby(id);
+          callbacks.current.onNearby(id);
+        },
         onPosition: (point) => {
           position.current = point;
         },

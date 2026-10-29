@@ -8,6 +8,7 @@ import {
   Float32BufferAttribute,
   Group,
   HemisphereLight,
+  InstancedMesh,
   type Material,
   Mesh,
   MeshBasicMaterial,
@@ -44,6 +45,7 @@ import {
   ownsInstrumentPointer,
   shouldOperateInstrument,
 } from "@/lib/pm-intelligence-world/instrument-input";
+import { expeditionMission } from "@/lib/pm-intelligence-world/observatory-mission";
 import {
   nearestDestination,
   planWalk,
@@ -56,6 +58,7 @@ import {
   type ObservatoryState,
 } from "@/lib/pm-intelligence-world/observatory-state";
 
+import { createExpeditionTrail } from "./expeditionTrail";
 import {
   createDestinationExhibits,
   pickWorldTarget,
@@ -365,6 +368,9 @@ export function createObservatory({
       announceNearby();
     }
   };
+  const expeditionTrail = createExpeditionTrail();
+  scene.add(expeditionTrail.group);
+  expeditionTrail.update([-1, 0.5, 9.4], "signals");
   const beacons = observatoryLocations
     .filter((l) => isPlayDestination(l.id))
     .map((l) => {
@@ -734,6 +740,7 @@ export function createObservatory({
     }
     announceNearby();
     exhibits.animate(elapsed, motion);
+    expeditionTrail.animate(elapsed, motion);
     for (const { location, ring } of beacons) {
       const completed =
         state.selected &&
@@ -803,6 +810,7 @@ export function createObservatory({
     const bitmaps = new Set<ImageBitmap>();
     group.traverse((object) => {
       if (!(object instanceof Mesh || object instanceof Points)) return;
+      if (object instanceof InstancedMesh) object.dispose();
       geometries.add(object.geometry);
       for (const material of Array.isArray(object.material)
         ? object.material
@@ -869,6 +877,20 @@ export function createObservatory({
         framePlace(next.location);
       } else if (next.selected && next.selected !== state.selected)
         framePlace("signals");
+      const beforeMission = expeditionMission(state);
+      const afterMission = expeditionMission(next);
+      if (
+        next.selected !== state.selected ||
+        next.travel !== state.travel ||
+        beforeMission.destination !== afterMission.destination ||
+        beforeMission.complete !== afterMission.complete
+      ) {
+        expeditionTrail.update(
+          [actor.position.x, actor.position.y, actor.position.z],
+          afterMission.destination,
+        );
+      }
+      expeditionTrail.updateReceipts(next);
       state = next;
       exhibits.update(next);
       connections.visible = next.connected.length > 0;

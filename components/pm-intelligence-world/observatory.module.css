@@ -1225,3 +1225,26 @@
     bottom: 140px;
   }
 }
+
+/* Expedition receipts remain source-specific and describe the visit only. */
+.missionProgress {
+  display: block;
+  width: 32px;
+  height: 3px;
+  margin-top: 8px;
+  accent-color: var(--brand-cyan);
+}
+.expeditionRecord {
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--brand-cyan) 35%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--brand-cyan) 6%, transparent);
+}
+
+@media (max-width: 600px) {
+  /* The instrument carries the detailed source context while it is open. */
+  .observatory[data-operating="true"] .questCopy span {
+    display: none;
+  }
+}
