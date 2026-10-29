@@ -17,6 +17,7 @@ overrides:
   '@humanfs/node': 0.16.8
   ip-address@10: 10.7.4
   js-cookie@2: 3.0.7
+  katex: 0.18.2
   langsmith@0: 0.6.0
   '@opentelemetry/core': 2.10.0
   picomatch@2: 2.3.2
@@ -144,6 +145,9 @@ importers:
       jsdom:
         specifier: ^26.1.0
         version: 26.1.0(canvas@3.2.2)
+      katex:
+        specifier: 0.18.2
+        version: 0.18.2
       ky:
         specifier: ^1.8.1
         version: 1.14.3
@@ -1437,7 +1441,7 @@ packages:
     resolution: {integrity: sha512-rBp7mJ9An7ktNoU653BWOYdO4FoR4YNwofHZi+vaytX/nWbIlmHVIF+X8VFOn6c3WYmrLT5FFBjKqCZ1sjR5uQ==}
     engines: {node: '>=12', yarn: '>=1.1'}
     peerDependencies:
-      katex: '>=0.9'
+      katex: 0.18.2
       react: '>=16'
 
   '@mozilla/readability@0.6.0':
@@ -3996,8 +4000,8 @@ packages:
     resolution: {integrity: sha512-+KJGIyHgkGuIq3IEBNftfhW/LfWhXUIY6OmyVWjliu5KH1y0fw7VQ8YndE2O4qZdMSd9SqbnC8GOcZEy0Om7sA==}
     engines: {node: '>=18'}
 
-  katex@0.16.47:
-    resolution: {integrity: sha512-Eeo8Ys1doU1z+x8AZsPpQu+p/QcZBI5PeOo7QGQdy2x2m0MU/hYagBbGOmXwr5KVbEfVuWv9LpnQWeehogurjg==}
+  katex@0.18.2:
+    resolution: {integrity: sha512-3snve4y0SXTMequLim1FMiPvLGElySam0blN5xQZBqEY3lOJz1TnuaaiugnBZBqHzlSAGmFTYL7MCQkORuLKCA==}
     hasBin: true
 
   keyv@4.5.4:
@@ -6540,9 +6544,9 @@ snapshots:
       '@langfuse/core': 5.11.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/api': 1.9.0
 
-  '@matejmazur/react-katex@3.1.3(katex@0.16.47)(react@19.2.4)':
+  '@matejmazur/react-katex@3.1.3(katex@0.18.2)(react@19.2.4)':
     dependencies:
-      katex: 0.16.47
+      katex: 0.18.2
       react: 19.2.4
 
   '@mozilla/readability@0.6.0': {}
@@ -9292,7 +9296,7 @@ snapshots:
 
   jwt-decode@4.0.0: {}
 
-  katex@0.16.47:
+  katex@0.18.2:
     dependencies:
       commander: 8.3.0
 
@@ -10097,8 +10101,8 @@ snapshots:
   react-notion-x@https://codeload.github.com/jack-h-park/react-notion-x/tar.gz/215de1ca11631887cc0d9b1b3d94c4a99dd96d3d(@babel/runtime@7.29.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
     dependencies:
       '@fisch0920/medium-zoom': 1.0.7
-      '@matejmazur/react-katex': 3.1.3(katex@0.16.47)(react@19.2.4)
-      katex: 0.16.47
+      '@matejmazur/react-katex': 3.1.3(katex@0.18.2)(react@19.2.4)
+      katex: 0.18.2
       notion-types: 7.7.1
       notion-utils: 7.7.1
       prismjs: 1.30.0
