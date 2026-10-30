@@ -76,7 +76,19 @@ export function expeditionMission(state: ObservatoryState) {
       complete: true,
       index: 6,
     };
-  return { ...milestones[index], completed, receipts, complete: false, index };
+  return {
+    ...milestones[index],
+    ...(!source
+      ? {
+          title: "Explore the PM Intelligence System.",
+          clue: "Sources → human review → knowledge → writing, questions & learning.",
+        }
+      : {}),
+    completed,
+    receipts,
+    complete: false,
+    index,
+  };
 }
 
 export function expeditionIntent(

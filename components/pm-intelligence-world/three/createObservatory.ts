@@ -6,7 +6,7 @@ import {
   CylinderGeometry,
   DirectionalLight,
   Float32BufferAttribute,
-  Group,
+  type Group,
   HemisphereLight,
   InstancedMesh,
   type Material,
@@ -20,7 +20,6 @@ import {
   PointsMaterial,
   Raycaster,
   Scene,
-  SphereGeometry,
   SRGBColorSpace,
   Texture,
   TextureLoader,
@@ -59,6 +58,7 @@ import {
 } from "@/lib/pm-intelligence-world/observatory-state";
 
 import { createExpeditionTrail } from "./expeditionTrail";
+import { createKnowledgeConnections } from "./knowledgeConnections";
 import {
   createDestinationExhibits,
   pickWorldTarget,
@@ -343,8 +343,6 @@ export function createObservatory({
     following = true;
     return true;
   };
-  const route = (id: ObservatoryLocation) =>
-    planWalk([-1, 0.5, 9.4], id).map((p) => new Vector3(...p));
   const visit = (id: ObservatoryLocation) => {
     clearInput();
     following = false;
@@ -387,37 +385,8 @@ export function createObservatory({
       scene.add(ring);
       return { location: l.id, ring };
     });
-  const lineMaterial = new MeshBasicMaterial({
-    color: "#67e6e2",
-    transparent: true,
-    opacity: 0.65,
-  });
-  const connections = new Group();
+  const connections = createKnowledgeConnections();
   scene.add(connections);
-  const connectionNodes: Vector3[] = [];
-  for (const l of observatoryLocations.filter((l) =>
-    ["writing", "questions", "learning", "decisions"].includes(l.id),
-  )) {
-    const pts = route(l.id).slice(2);
-    for (let j = 0; j < pts.length - 1; j++) {
-      const start = pts[j].clone();
-      const end = pts[j + 1].clone();
-      const n = Math.ceil(start.distanceTo(end) / 0.45);
-      for (let k = 0; k < n; k++)
-        connectionNodes.push(
-          start
-            .clone()
-            .lerp(end, k / n)
-            .add(new Vector3(0.25, 0.18, 0)),
-        );
-    }
-  }
-  for (const pos of connectionNodes) {
-    const dot = new Mesh(new SphereGeometry(0.045, 5, 4), lineMaterial);
-    dot.position.copy(pos);
-    connections.add(dot);
-  }
-  connections.visible = false;
   const starGeometry = new BufferGeometry();
   const starData: number[] = [];
   let seed = 9;

@@ -587,9 +587,11 @@ export function Observatory({
         >
           <strong>{mission.title}</strong>
           <span>
-            {nearby === mission.destination
-              ? `At ${targetLabel}. ${mission.complete ? "Retrace the whole system or take the optional judgment branch." : "Ready when you are — open the next interaction."}`
-              : mission.clue}
+            {!selected
+              ? mission.clue
+              : nearby === mission.destination
+                ? `At ${targetLabel}. ${mission.complete ? "Retrace the whole system or take the optional judgment branch." : "Ready when you are — open the next interaction."}`
+                : mission.clue}
           </span>
           <span>
             {selected

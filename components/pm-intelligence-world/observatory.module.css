@@ -1248,3 +1248,20 @@
     display: none;
   }
 }
+
+@media (max-width: 600px) {
+  /* Reserve room for the native mission action and source selection. */
+  .questAction {
+    min-height: 44px;
+  }
+  .sourcePicker {
+    bottom: 240px;
+  }
+  .mapControls {
+    bottom: 312px;
+  }
+  .panel {
+    bottom: 230px;
+    max-height: max(180px, min(56%, calc(100% - 330px)));
+  }
+}

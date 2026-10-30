@@ -1,0 +1,2 @@
+candidate_commit,session_id,test_kind,hardware,os,browser,viewport,network,cache_condition,motion_setting,usable_world_seconds,median_fps,p95_frame_ms,comprehension_score,outcome,evidence_reference,observations
+,TEMPLATE,device_or_visitor,,,,,,,,,,,,not_run,,Blank template; no participant or device was tested
