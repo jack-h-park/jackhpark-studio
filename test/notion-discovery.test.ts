@@ -81,6 +81,24 @@ function recorder() {
 // to reach looks identical to something that was deleted — which is why the
 // caller may only sweep after a traversal that reached everything.
 void describe("workspace discovery completeness", () => {
+  void it("offers only successfully fetched nonempty pages to the optional consumer", async () => {
+    const fetched = pageWithChild(CHILD_ID);
+    notion.getPage = (async (id: string) => {
+      if (id === ROOT_ID) return fetched;
+      if (id === CHILD_ID) throw new Error("discovery unavailable");
+      return { block: {} } as ExtendedRecordMap;
+    }) as typeof notion.getPage;
+    const retained: Array<[string, ExtendedRecordMap]> = [];
+    const { emit } = recorder();
+    const result = await collectLinkedPagesFromSeeds([ROOT_ID, ROW_ID], emit, {
+      onPage: (id, recordMap) => {
+        retained.push([id, recordMap]);
+      },
+    });
+    assert.deepEqual(retained, [[ROOT_ID, fetched]]);
+    assert.equal(result.complete, false);
+  });
+
   void it("reports complete when every fetch succeeds", async () => {
     notion.getPage = (async (id: string) =>
       id === ROOT_ID ? pageWithChild(CHILD_ID) : leaf) as typeof notion.getPage;
