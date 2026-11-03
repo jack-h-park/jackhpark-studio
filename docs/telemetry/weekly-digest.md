@@ -18,6 +18,12 @@ environment in its heading. Without that filter local dev requests are counted a
 production — dev traffic outnumbers prod here, so a single failed dev run used to
 surface as a 100% production error rate.
 
+The same section also drops synthetic traffic (`properties.traffic = 'synthetic'`:
+smoke tests and agent probes, see [Synthetic traffic](implementation/telemetry-logging.md#synthetic-traffic)),
+whatever `--env` says. The Langfuse sections are not filtered: retrieval scores and
+cost still include probe traces, which matters only when probes are a large share of
+a quiet week.
+
 ## What it reports
 
 | Section | Source | Why it matters |

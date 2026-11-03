@@ -36,6 +36,22 @@ void describe("Langfuse tag helpers", () => {
     assert.ok(tags.includes("intent:knowledge"));
     assert.ok(tags.includes("preset:default"));
     assert.ok(tags.includes("env:prod"));
+    assert.ok(!tags.some((tag) => tag.startsWith("traffic:")));
+  });
+
+  void it("adds a traffic tag when the source is known", () => {
+    const tags = buildLangfuseTraceTags({
+      intent: "knowledge",
+      presetKey: "default",
+      environment: "prod",
+      traffic: "synthetic",
+    });
+    assert.deepEqual(tags, [
+      "intent:knowledge",
+      "preset:default",
+      "env:prod",
+      "traffic:synthetic",
+    ]);
   });
 
   void it("attaches tags when trace exists", () => {

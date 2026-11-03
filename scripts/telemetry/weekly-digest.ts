@@ -11,6 +11,9 @@
  *   --out <path>   also write the markdown to a file
  *   --env <name>   PostHog env to report on (default "prod"; "all" for no filter)
  *
+ * The PostHog section always excludes synthetic traffic (`traffic: "synthetic"`,
+ * see lib/server/api/chat-traffic.ts), whatever --env says.
+ *
  * `.env.local` is loaded with --env-file-if-exists, and an env var already set in
  * the process wins over the file. That is what lets the same command run unattended
  * on a host that has no .env.local and supplies the credentials some other way (the
@@ -238,6 +241,10 @@ async function fetchPostHogMetrics(
   // as prod error/abort rates. `--env all` opts out.
   const envPredicate =
     env === "all" ? "" : ` AND properties.env = '${assertSafeEnv(env)}'`;
+  // Smoke tests and agent probes are not visitors. Events captured before the
+  // `traffic` property existed have it null, so compare through ifNull — a bare
+  // `!=` against null is null and would drop every older event.
+  const visitorPredicate = ` AND ifNull(properties.traffic, 'visitor') != 'synthetic'`;
 
   const query = `
     SELECT
@@ -251,7 +258,7 @@ async function fetchPostHogMetrics(
       round(avg(if(properties.aborted, 1, 0)), 4) AS abort_rate,
       round(avg(toFloat(properties.total_tokens)), 0) AS avg_tokens
     FROM events
-    WHERE event = 'chat_completion' AND timestamp > now() - toIntervalDay(${days})${envPredicate}
+    WHERE event = 'chat_completion' AND timestamp > now() - toIntervalDay(${days})${envPredicate}${visitorPredicate}
   `;
 
   const res = await fetch(`${host}/api/projects/${projectId}/query/`, {
