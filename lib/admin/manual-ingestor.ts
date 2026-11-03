@@ -50,6 +50,7 @@ import {
   prepareNotionPageDocument,
 } from "../rag/sources/notion";
 import { fetchUrlDocument } from "../rag/sources/url";
+import { createNotionRunCache } from "./notion-run-cache";
 
 type ManualNotionScope = "workspace" | "selected";
 
@@ -242,6 +243,7 @@ export interface LinkedPageDiscovery {
 export async function collectLinkedPagesFromSeeds(
   seedPageIds: string[],
   emit: EmitFn,
+  options?: { onPage?: (pageId: string, recordMap: ExtendedRecordMap) => void },
 ): Promise<LinkedPageDiscovery> {
   const seen = new Set<string>();
   const queue: Array<{ pageId: string; depth: number }> = [];
@@ -278,6 +280,9 @@ export async function collectLinkedPagesFromSeeds(
     if (!recordMap) {
       complete = false;
       continue;
+    }
+    if (Object.keys(recordMap.block ?? {}).length > 0) {
+      options?.onPage?.(pageId, recordMap);
     }
 
     // Collect collection_view blocks to fetch in parallel after sync block scan
@@ -575,348 +580,370 @@ async function runNotionPageIngestion({
     seedCollector.add(rootPageId);
   }
 
-  if (isWorkspace) {
-    await emit({
-      type: "log",
-      level: "info",
-      message: `Collecting all pages in the workspace starting from ${rootPageId}...`,
-    });
-
-    let workspacePageIds: string[] = [];
-    try {
-      const discovery = await collectLinkedPagesFromSeeds([rootPageId], emit);
-      workspacePageIds = discovery.pageIds;
-      if (workspacePageIds.length === 0) {
-        workspacePageIds = [rootPageId];
-      }
-      // Only a traversal that reached everything can tell "deleted" from
-      // "not visited", and only it may drive the sweep below.
-      workspaceTraversalComplete = discovery.complete;
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to enumerate workspace pages.";
-      await emit({
-        type: "log",
-        level: "warn",
-        message: `Could not enumerate workspace pages: ${message}. Falling back to the root page only.`,
-      });
-      workspacePageIds = [rootPageId];
-    }
-    await emit({ type: "progress", step: "collected", percent: 15 });
-
-    for (const pageId of workspacePageIds) {
-      pushCandidate(pageId);
-    }
-  } else if (includeLinkedPages) {
-    const seedList = Array.from(seedCollector);
-    await emit({
-      type: "log",
-      level: "info",
-      message: `Discovering linked Notion pages starting from ${rootPageId}...`,
-    });
-
-    let linkedPageIds: string[] = [];
-    try {
-      ({ pageIds: linkedPageIds } = await collectLinkedPagesFromSeeds(
-        seedList.length > 0 ? seedList : [rootPageId],
-        emit,
-      ));
-      if (linkedPageIds.length === 0) {
-        linkedPageIds = seedList.length > 0 ? seedList : [rootPageId];
-      }
+  const runCache = createNotionRunCache();
+  try {
+    if (isWorkspace) {
       await emit({
         type: "log",
         level: "info",
-        message: `Identified ${linkedPageIds.length} page(s) for ingestion.`,
+        message: `Collecting all pages in the workspace starting from ${rootPageId}...`,
       });
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Failed to enumerate linked pages.";
-      await emit({
-        type: "log",
-        level: "warn",
-        message: `Could not enumerate linked pages: ${message}. Falling back to the selected page(s) only.`,
-      });
-      linkedPageIds = seedList.length > 0 ? seedList : [rootPageId];
-    }
 
-    for (const linkedId of linkedPageIds) {
-      pushCandidate(linkedId);
-    }
-  } else {
-    const seedList = Array.from(seedCollector);
-    if (seedList.length === 0) {
-      seedList.push(rootPageId);
-    }
-    for (const seedId of seedList) {
-      pushCandidate(seedId);
-    }
-  }
-
-  if (candidatePages.length === 0) {
-    pushCandidate(rootPageId);
-  }
-
-  if (isWorkspace) {
-    await emit({
-      type: "log",
-      level: "info",
-      message: `Identified ${candidatePages.length} page(s) for workspace ingestion.`,
-    });
-  } else if (!includeLinkedPages) {
-    await emit({
-      type: "log",
-      level: "info",
-      message: `Identified ${candidatePages.length} selected page(s) for ingestion.`,
-    });
-  }
-
-  // Deduplicate up front: the traversal can surface the same page by more than one route,
-  // and with pages in flight concurrently a running "have I seen this" list would race.
-  const seenPageIds = new Set<string>();
-  const uniquePages = candidatePages.filter((candidate) => {
-    if (seenPageIds.has(candidate.pageId)) return false;
-    seenPageIds.add(candidate.pageId);
-    return true;
-  });
-
-  // `queue.current` reports how many pages have been picked up, not an index, because
-  // completion order is no longer the traversal order.
-  let queuePosition = 0;
-  let pagesNotReached = 0;
-
-  try {
-    await pMap(
-      uniquePages,
-      async (candidate) => {
-        const currentPageId = candidate.pageId;
-
-        // Checked per page rather than cancelling the pool: a page already fetched should
-        // finish and be recorded, and stopping cleanly is what keeps the run row honest.
-        if (deadlineAt !== undefined && Date.now() >= deadlineAt) {
-          pagesNotReached += 1;
-          return;
+      let workspacePageIds: string[] = [];
+      try {
+        const discovery = await collectLinkedPagesFromSeeds(
+          [rootPageId],
+          emit,
+          {
+            onPage: runCache.remember,
+          },
+        );
+        workspacePageIds = discovery.pageIds;
+        if (workspacePageIds.length === 0) {
+          workspacePageIds = [rootPageId];
         }
-
-        let recordMap: ExtendedRecordMap | null = null;
-
-        const { canonicalId } = deriveNotionDocIdentifiers(currentPageId);
-
-        try {
-          await markAttempt(supabaseClient, canonicalId);
-          await emit({
-            type: "log",
-            level: "info",
-            message: `Fetching Notion page ${currentPageId}...`,
-          });
-
-          // Retry 429s rather than dropping the page: a page skipped here leaves the corpus
-          // silently short, which is exactly the failure this job exists to prevent.
-          recordMap = await withRateLimitRetry(() =>
-            notion.getPage(currentPageId),
-          );
-        } catch (err) {
-          stats.errorCount += 1;
-          const message = err instanceof Error ? err.message : String(err);
-          errorLogs.push({
-            context: "fatal",
-            doc_id: currentPageId,
-            message,
-          });
-          await markFetchFailure(supabaseClient, canonicalId, err);
-          await emit({
-            type: "log",
-            level: "error",
-            message: `Failed to load Notion page ${currentPageId}: ${message}`,
-          });
-          return;
-        }
-
-        if (!recordMap) {
-          stats.documentsSkipped += 1;
-          await emit({
-            type: "log",
-            level: "warn",
-            message: `Unable to load Notion page ${currentPageId}; skipping.`,
-          });
-          return;
-        }
-
-        if (Object.keys(recordMap.block ?? {}).length === 0) {
-          stats.errorCount += 1;
-          const apiBaseUrl =
-            process.env.NOTION_API_BASE_URL ?? "https://www.notion.so/api/v3";
-          await emit({
-            type: "log",
-            level: "error",
-            message: `Notion API returned no data for page ${currentPageId}. Check that NOTION_API_BASE_URL is correct (currently: ${apiBaseUrl}). The page may be private or the endpoint may be unreachable.`,
-          });
-          return;
-        }
-
-        const title = getPageTitle(recordMap, currentPageId);
-
-        queuePosition += 1;
-        await emit({
-          type: "queue",
-          current: queuePosition,
-          total: uniquePages.length,
-          pageId: currentPageId,
-          title: title ?? null,
-        });
-
-        try {
-          await ingestNotionPage({
-            pageId: currentPageId,
-            recordMap,
-            ingestionType,
-            stats,
-            emit,
-            embeddingOptions,
-          });
-        } catch (err) {
-          stats.errorCount += 1;
-          const message = err instanceof Error ? err.message : String(err);
-          errorLogs.push({
-            context: "fatal",
-            doc_id: currentPageId,
-            message,
-          });
-          await emit({
-            type: "log",
-            level: "error",
-            message: `Failed to ingest Notion page ${currentPageId}: ${message}`,
-          });
-        }
-      },
-      { concurrency: INGEST_CONCURRENCY },
-    );
-
-    // Full workspace runs only: deleted pages vanish from the traversal
-    // without a 404, so sweep still-"active" docs the run never visited.
-    // Selected/partial runs and incomplete traversals must never sweep.
-    if (isFull && isWorkspace && workspaceTraversalComplete) {
-      const sweep = await sweepUnvisitedDocuments(supabaseClient, {
-        runStartedAt: new Date(started).toISOString(),
-      });
-      appendSweepRunLogs(sweep, stats, errorLogs);
-      await emit({
-        type: "log",
-        level: sweep.failures.length > 0 ? "warn" : "info",
-        message: formatSweepSummary(sweep),
-      });
-    } else if (isFull && isWorkspace) {
-      // The sweep is the only thing that retires a deleted page. Skipping it is correct on
-      // an incomplete traversal and must still be visible, or "full run, no errors" reads as
-      // "the corpus is now exactly the workspace" when it is not.
-      await emit({
-        type: "log",
-        level: "warn",
-        message:
-          "Missing-document sweep skipped: the workspace traversal did not complete, so " +
-          "documents it never reached cannot be distinguished from deleted ones.",
-      });
-    }
-
-    const updatedPages = stats.documentsAdded + stats.documentsUpdated;
-    const skippedPages = stats.documentsSkipped;
-
-    if (status === "success") {
-      if (requestedScope === "workspace") {
-        finalMessage =
-          uniquePages.length === 0
-            ? "No Notion pages were available to ingest."
-            : stats.errorCount > 0
-              ? `Manual Notion ingestion completed with failures (${stats.errorCount}).`
-              : `Processed ${uniquePages.length} Notion page(s) workspace-wide; updated ${updatedPages}, skipped ${skippedPages}.`;
-      } else if (includeLinkedPages) {
-        finalMessage =
-          uniquePages.length === 0
-            ? "No Notion pages were available to ingest."
-            : stats.errorCount > 0
-              ? `Manual Notion ingestion completed with failures (${stats.errorCount}).`
-              : `Processed ${uniquePages.length} Notion page(s); updated ${updatedPages}, skipped ${skippedPages}.`;
-      } else {
-        finalMessage =
-          updatedPages > 0
-            ? "Manual Notion page ingestion finished."
-            : "Manual Notion page ingestion found no changes.";
-      }
-
-      // A run cut short must not read as a clean sweep of the workspace.
-      if (pagesNotReached > 0) {
-        finalMessage = `${finalMessage} Deadline reached with ${pagesNotReached} page(s) not visited; the next run covers them.`;
+        // Only a traversal that reached everything can tell "deleted" from
+        // "not visited", and only it may drive the sweep below.
+        workspaceTraversalComplete = discovery.complete;
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to enumerate workspace pages.";
         await emit({
           type: "log",
           level: "warn",
-          message: `Deadline reached: ${pagesNotReached} of ${uniquePages.length} page(s) were not visited. This run is incomplete.`,
+          message: `Could not enumerate workspace pages: ${message}. Falling back to the root page only.`,
         });
+        workspacePageIds = [rootPageId];
+      }
+      await emit({ type: "progress", step: "collected", percent: 15 });
+
+      for (const pageId of workspacePageIds) {
+        pushCandidate(pageId);
+      }
+    } else if (includeLinkedPages) {
+      const seedList = Array.from(seedCollector);
+      await emit({
+        type: "log",
+        level: "info",
+        message: `Discovering linked Notion pages starting from ${rootPageId}...`,
+      });
+
+      let linkedPageIds: string[] = [];
+      try {
+        ({ pageIds: linkedPageIds } = await collectLinkedPagesFromSeeds(
+          seedList.length > 0 ? seedList : [rootPageId],
+          emit,
+          { onPage: runCache.remember },
+        ));
+        if (linkedPageIds.length === 0) {
+          linkedPageIds = seedList.length > 0 ? seedList : [rootPageId];
+        }
+        await emit({
+          type: "log",
+          level: "info",
+          message: `Identified ${linkedPageIds.length} page(s) for ingestion.`,
+        });
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : "Failed to enumerate linked pages.";
+        await emit({
+          type: "log",
+          level: "warn",
+          message: `Could not enumerate linked pages: ${message}. Falling back to the selected page(s) only.`,
+        });
+        linkedPageIds = seedList.length > 0 ? seedList : [rootPageId];
+      }
+
+      for (const linkedId of linkedPageIds) {
+        pushCandidate(linkedId);
+      }
+    } else {
+      const seedList = Array.from(seedCollector);
+      if (seedList.length === 0) {
+        seedList.push(rootPageId);
+      }
+      for (const seedId of seedList) {
+        pushCandidate(seedId);
       }
     }
-  } catch (err) {
-    status = "failed";
-    stats.errorCount += 1;
-    const message = err instanceof Error ? err.message : String(err);
-    const failingPageId =
-      (err as { ingestionPageId?: string | null })?.ingestionPageId ??
-      rootPageId;
-    const scopeLabel =
-      requestedScope === "workspace"
-        ? isFull
-          ? "Manual Notion full workspace ingestion failed"
-          : "Manual Notion workspace ingestion failed"
-        : includeLinkedPages
+
+    if (candidatePages.length === 0) {
+      pushCandidate(rootPageId);
+    }
+
+    if (isWorkspace) {
+      await emit({
+        type: "log",
+        level: "info",
+        message: `Identified ${candidatePages.length} page(s) for workspace ingestion.`,
+      });
+    } else if (!includeLinkedPages) {
+      await emit({
+        type: "log",
+        level: "info",
+        message: `Identified ${candidatePages.length} selected page(s) for ingestion.`,
+      });
+    }
+
+    // Deduplicate up front: the traversal can surface the same page by more than one route,
+    // and with pages in flight concurrently a running "have I seen this" list would race.
+    const seenPageIds = new Set<string>();
+    const uniquePages = candidatePages.filter((candidate) => {
+      if (seenPageIds.has(candidate.pageId)) return false;
+      seenPageIds.add(candidate.pageId);
+      return true;
+    });
+
+    // `queue.current` reports how many pages have been picked up, not an index, because
+    // completion order is no longer the traversal order.
+    let queuePosition = 0;
+    let pagesNotReached = 0;
+
+    try {
+      await pMap(
+        uniquePages,
+        async (candidate) => {
+          const currentPageId = candidate.pageId;
+
+          // Checked per page rather than cancelling the pool: a page already fetched should
+          // finish and be recorded, and stopping cleanly is what keeps the run row honest.
+          if (deadlineAt !== undefined && Date.now() >= deadlineAt) {
+            pagesNotReached += 1;
+            return;
+          }
+
+          let recordMap: ExtendedRecordMap | null = null;
+
+          const { canonicalId } = deriveNotionDocIdentifiers(currentPageId);
+
+          try {
+            await markAttempt(supabaseClient, canonicalId);
+            await emit({
+              type: "log",
+              level: "info",
+              message: `Fetching Notion page ${currentPageId}...`,
+            });
+
+            // Retry 429s rather than dropping the page: a page skipped here leaves the corpus
+            // silently short, which is exactly the failure this job exists to prevent.
+            recordMap =
+              runCache.take(currentPageId) ??
+              (await withRateLimitRetry(() => notion.getPage(currentPageId)));
+          } catch (err) {
+            stats.errorCount += 1;
+            const message = err instanceof Error ? err.message : String(err);
+            errorLogs.push({
+              context: "fatal",
+              doc_id: currentPageId,
+              message,
+            });
+            await markFetchFailure(supabaseClient, canonicalId, err);
+            await emit({
+              type: "log",
+              level: "error",
+              message: `Failed to load Notion page ${currentPageId}: ${message}`,
+            });
+            return;
+          }
+
+          if (!recordMap) {
+            stats.documentsSkipped += 1;
+            await emit({
+              type: "log",
+              level: "warn",
+              message: `Unable to load Notion page ${currentPageId}; skipping.`,
+            });
+            return;
+          }
+
+          if (Object.keys(recordMap.block ?? {}).length === 0) {
+            stats.errorCount += 1;
+            const apiBaseUrl =
+              process.env.NOTION_API_BASE_URL ?? "https://www.notion.so/api/v3";
+            await emit({
+              type: "log",
+              level: "error",
+              message: `Notion API returned no data for page ${currentPageId}. Check that NOTION_API_BASE_URL is correct (currently: ${apiBaseUrl}). The page may be private or the endpoint may be unreachable.`,
+            });
+            return;
+          }
+
+          const title = getPageTitle(recordMap, currentPageId);
+
+          queuePosition += 1;
+          await emit({
+            type: "queue",
+            current: queuePosition,
+            total: uniquePages.length,
+            pageId: currentPageId,
+            title: title ?? null,
+          });
+
+          try {
+            await ingestNotionPage({
+              pageId: currentPageId,
+              recordMap,
+              ingestionType,
+              stats,
+              emit,
+              embeddingOptions,
+            });
+          } catch (err) {
+            stats.errorCount += 1;
+            const message = err instanceof Error ? err.message : String(err);
+            errorLogs.push({
+              context: "fatal",
+              doc_id: currentPageId,
+              message,
+            });
+            await emit({
+              type: "log",
+              level: "error",
+              message: `Failed to ingest Notion page ${currentPageId}: ${message}`,
+            });
+          }
+        },
+        { concurrency: INGEST_CONCURRENCY },
+      );
+
+      // Full workspace runs only: deleted pages vanish from the traversal
+      // without a 404, so sweep still-"active" docs the run never visited.
+      // Selected/partial runs and incomplete discovery or processing must never sweep.
+      if (isFull && isWorkspace && workspaceTraversalComplete) {
+        if (pagesNotReached === 0) {
+          const sweep = await sweepUnvisitedDocuments(supabaseClient, {
+            runStartedAt: new Date(started).toISOString(),
+          });
+          appendSweepRunLogs(sweep, stats, errorLogs);
+          await emit({
+            type: "log",
+            level: sweep.failures.length > 0 ? "warn" : "info",
+            message: formatSweepSummary(sweep),
+          });
+        } else {
+          await emit({
+            type: "log",
+            level: "warn",
+            message:
+              `Missing-document sweep skipped: the processing deadline left ${pagesNotReached} page(s) not visited, so ` +
+              "unprocessed documents cannot be distinguished from deleted ones.",
+          });
+        }
+      } else if (isFull && isWorkspace) {
+        // The sweep is the only thing that retires a deleted page. Skipping it is correct on
+        // an incomplete run and must still be visible, or "full run, no errors" reads as
+        // "the corpus is now exactly the workspace" when it is not.
+        await emit({
+          type: "log",
+          level: "warn",
+          message:
+            "Missing-document sweep skipped: the workspace traversal did not complete, so " +
+            "documents it never reached cannot be distinguished from deleted ones.",
+        });
+      }
+
+      const updatedPages = stats.documentsAdded + stats.documentsUpdated;
+      const skippedPages = stats.documentsSkipped;
+
+      if (status === "success") {
+        if (requestedScope === "workspace") {
+          finalMessage =
+            uniquePages.length === 0
+              ? "No Notion pages were available to ingest."
+              : stats.errorCount > 0
+                ? `Manual Notion ingestion completed with failures (${stats.errorCount}).`
+                : `Processed ${uniquePages.length} Notion page(s) workspace-wide; updated ${updatedPages}, skipped ${skippedPages}.`;
+        } else if (includeLinkedPages) {
+          finalMessage =
+            uniquePages.length === 0
+              ? "No Notion pages were available to ingest."
+              : stats.errorCount > 0
+                ? `Manual Notion ingestion completed with failures (${stats.errorCount}).`
+                : `Processed ${uniquePages.length} Notion page(s); updated ${updatedPages}, skipped ${skippedPages}.`;
+        } else {
+          finalMessage =
+            updatedPages > 0
+              ? "Manual Notion page ingestion finished."
+              : "Manual Notion page ingestion found no changes.";
+        }
+
+        // A run cut short must not read as a clean sweep of the workspace.
+        if (pagesNotReached > 0) {
+          finalMessage = `${finalMessage} Deadline reached with ${pagesNotReached} page(s) not visited; the next run covers them.`;
+          await emit({
+            type: "log",
+            level: "warn",
+            message: `Deadline reached: ${pagesNotReached} of ${uniquePages.length} page(s) were not visited. This run is incomplete.`,
+          });
+        }
+      }
+    } catch (err) {
+      status = "failed";
+      stats.errorCount += 1;
+      const message = err instanceof Error ? err.message : String(err);
+      const failingPageId =
+        (err as { ingestionPageId?: string | null })?.ingestionPageId ??
+        rootPageId;
+      const scopeLabel =
+        requestedScope === "workspace"
           ? isFull
-            ? "Manual Notion full ingestion (linked pages) failed"
-            : "Manual Notion ingestion (linked pages) failed"
-          : isFull
-            ? "Manual Notion page full ingestion failed"
-            : "Manual Notion ingestion failed";
-    finalMessage = `${scopeLabel}: ${message}`;
-    errorLogs.push({
-      context: "fatal",
-      doc_id: failingPageId,
-      message,
-    });
-    await emit({
-      type: "log",
-      level: "error",
-      message: finalMessage,
-    });
+            ? "Manual Notion full workspace ingestion failed"
+            : "Manual Notion workspace ingestion failed"
+          : includeLinkedPages
+            ? isFull
+              ? "Manual Notion full ingestion (linked pages) failed"
+              : "Manual Notion ingestion (linked pages) failed"
+            : isFull
+              ? "Manual Notion page full ingestion failed"
+              : "Manual Notion ingestion failed";
+      finalMessage = `${scopeLabel}: ${message}`;
+      errorLogs.push({
+        context: "fatal",
+        doc_id: failingPageId,
+        message,
+      });
+      await emit({
+        type: "log",
+        level: "error",
+        message: finalMessage,
+      });
+    } finally {
+      const durationMs = Date.now() - started;
+      if (status === "failed" && stats.errorCount === 0) {
+        stats.errorCount = 1;
+      }
+
+      if (stats.errorCount > 0 && status === "success") {
+        status = "completed_with_errors";
+      }
+
+      await finishIngestRun(runHandle, {
+        status,
+        durationMs,
+        totals: stats,
+        errorLogs,
+      });
+
+      await emit({
+        type: "progress",
+        step: "finished",
+        percent: 100,
+      });
+      await emit({
+        type: "complete",
+        status,
+        message: finalMessage,
+        runId: runHandle?.id ?? null,
+        stats,
+        pagesNotReached,
+      });
+    }
   } finally {
-    const durationMs = Date.now() - started;
-    if (status === "failed" && stats.errorCount === 0) {
-      stats.errorCount = 1;
-    }
-
-    if (stats.errorCount > 0 && status === "success") {
-      status = "completed_with_errors";
-    }
-
-    await finishIngestRun(runHandle, {
-      status,
-      durationMs,
-      totals: stats,
-      errorLogs,
-    });
-
-    await emit({
-      type: "progress",
-      step: "finished",
-      percent: 100,
-    });
-    await emit({
-      type: "complete",
-      status,
-      message: finalMessage,
-      runId: runHandle?.id ?? null,
-      stats,
-      pagesNotReached,
-    });
+    runCache.clear();
   }
 }
 

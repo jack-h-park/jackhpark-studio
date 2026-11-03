@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
-import type { ChatRequestBody } from "../../lib/server/chat-common";
+import { validateChatRequest } from "../../lib/server/chat-request-validation";
 
 export const config = {
   api: {
@@ -8,44 +8,22 @@ export const config = {
   },
 };
 
-function parseRequestBody(req: NextApiRequest): ChatRequestBody | null {
-  if (typeof req.body === "string") {
-    try {
-      return JSON.parse(req.body) as ChatRequestBody;
-    } catch {
-      return null;
-    }
-  }
-
-  if (req.body && typeof req.body === "object") {
-    return req.body as ChatRequestBody;
-  }
-
-  return null;
-}
-
 const WATCHDOG_MS = 10_000;
-
-const hasMessages = (body: ChatRequestBody | null) =>
-  Boolean(body && Array.isArray(body.messages) && body.messages.length > 0);
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    console.log("[langchain_chat] method-not-allowed", req.method);
-    res.status(405).json({ error: "Method Not Allowed" });
+  const validation = validateChatRequest(req.method, req.body);
+  if (!validation.ok) {
+    if (validation.status === 405) {
+      res.setHeader("Allow", "POST");
+      console.log("[langchain_chat] method-not-allowed", req.method);
+    }
+    res.status(validation.status).json({ error: validation.error });
     return;
   }
-
-  if (!hasMessages(parseRequestBody(req))) {
-    res.status(400).json({
-      error: "messages array with at least one entry is required",
-    });
-    return;
-  }
+  req.body = validation.body;
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

@@ -30,15 +30,15 @@ function buildCount(event: "push" | "pull_request", branch: string): number {
     : 0;
 }
 
-void test("one PR revision schedules two builds rather than duplicate push and PR builds", () => {
+void test("one PR revision schedules three builds rather than duplicate push and PR builds", () => {
   assert.equal(
     buildCount("push", "codex/example") + buildCount("pull_request", "main"),
-    2,
+    3,
   );
 });
 
-void test("main updates retain both required runtime build checks", () => {
-  assert.equal(buildCount("push", "main"), 2);
+void test("main updates retain all three required runtime build checks", () => {
+  assert.equal(buildCount("push", "main"), 3);
   const versions = workflow.jobs.test.strategy.matrix["node-version"];
   assert.deepEqual(
     versions.map((version) =>
@@ -47,7 +47,7 @@ void test("main updates retain both required runtime build checks", () => {
         String(version),
       ),
     ),
-    ["Test Node.js 20", "Test Node.js 22"],
+    ["Test Node.js 20", "Test Node.js 22", "Test Node.js 24"],
   );
   const commands = new Set(
     workflow.jobs.test.steps.flatMap((step) => (step.run ? [step.run] : [])),
