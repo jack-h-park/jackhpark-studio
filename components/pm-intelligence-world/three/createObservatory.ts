@@ -56,6 +56,10 @@ import {
   observatoryLocations,
   type ObservatoryState,
 } from "@/lib/pm-intelligence-world/observatory-state";
+import {
+  clearsSpatialFeedback,
+  feedbackTransition,
+} from "@/lib/pm-intelligence-world/spatial-feedback";
 
 import { createExpeditionTrail } from "./expeditionTrail";
 import { createKnowledgeConnections } from "./knowledgeConnections";
@@ -69,6 +73,7 @@ import {
   createSourceCapsule,
   createVisitor,
 } from "./observatoryProps";
+import { createSpatialFeedback } from "./spatialFeedback";
 
 export interface ObservatoryHandle {
   setState(state: ObservatoryState): void;
@@ -254,6 +259,8 @@ export function createObservatory({
     scene.add(volume);
     targets.push(volume);
   }
+  const spatialFeedback = createSpatialFeedback();
+  scene.add(spatialFeedback.group);
   const { actor, legs, arms } = createVisitor();
   scene.add(actor);
   scene.add(createGreenhouseBridge());
@@ -275,6 +282,7 @@ export function createObservatory({
     if (next !== nearby) {
       nearby = next;
       onNearby(next);
+      if (next) spatialFeedback.arrive(next);
     }
   };
   const clearInput = () => {
@@ -709,6 +717,7 @@ export function createObservatory({
     }
     announceNearby();
     exhibits.animate(elapsed, motion);
+    spatialFeedback.animate(delta, motion);
     expeditionTrail.animate(elapsed, motion);
     for (const { location, ring } of beacons) {
       const completed =
@@ -822,6 +831,22 @@ export function createObservatory({
       } else if (previous && ready) framePlace(state.location);
     },
     setState(next) {
+      const feedback = feedbackTransition(state, next);
+      if (clearsSpatialFeedback(state, next)) spatialFeedback.reset();
+      if (feedback) {
+        const root = exhibits.views.find(
+          (view) => view.destination === feedback.location,
+        )?.root.position;
+        const source = capsules[ids.indexOf(feedback.source)].group.position;
+        spatialFeedback.emit(
+          feedback,
+          feedback.kind === "inspected"
+            ? [source.x, 0.5, source.z]
+            : root
+              ? [root.x, root.y, root.z]
+              : undefined,
+        );
+      }
       if (next.selected !== state.selected) {
         endGesture();
         exhibits.resetMotion();
@@ -860,6 +885,7 @@ export function createObservatory({
         );
       }
       expeditionTrail.updateReceipts(next);
+      if (!next.selected) spatialFeedback.reset();
       state = next;
       exhibits.update(next);
       connections.visible = next.connected.length > 0;
@@ -888,6 +914,7 @@ export function createObservatory({
       following = false;
       actor.position.set(-1, 0.5, 9.4);
       announceNearby();
+      spatialFeedback.reset();
     },
     home() {
       following = false;
