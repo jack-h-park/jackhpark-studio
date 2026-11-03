@@ -172,7 +172,7 @@ Set `POSTHOG_API_KEY` (and optionally `POSTHOG_HOST`) to forward a small `chat_c
   - `POSTHOG_API_KEY`
   - `POSTHOG_HOST` (optional, defaults to `https://app.posthog.com`)
 - Captured properties:
-  - `env`, `trace_id`, `chat_session_id`, `preset_key`, `chat_engine`, `rag_enabled`, `prompt_version`, `guardrail_route`
+  - `env`, `traffic` (`"visitor"` / `"synthetic"`, see [Synthetic traffic](#synthetic-traffic)), `trace_id`, `chat_session_id`, `preset_key`, `chat_engine`, `rag_enabled`, `prompt_version`, `guardrail_route`
   - `provider`, `model`, `embedding_model`
   - `latency_ms`, `latency_llm_ms`, `latency_retrieval_ms`
   - `retrieval_attempted`, `retrieval_used`, `aborted`
@@ -182,6 +182,42 @@ Set `POSTHOG_API_KEY` (and optionally `POSTHOG_HOST`) to forward a small `chat_c
 - Distinct IDs prefer user ID, then anonymous/session IDs, trace ID, then `x-request-id`
 - Privacy: no prompts, messages, chunk text, URLs, headers, cookies, IPs, or emails are transmitted.
 - The events are fire-and-forget, nonblocking, and include `trace_id` so you can join them with Langfuse traces for richer dashboards.
+
+## Synthetic traffic
+
+Smoke tests and agent probes that call the production chat API are not visitors.
+A request is **synthetic** only when it sends `x-jackgpt-synthetic: <token>` and the
+token equals the server's `SYNTHETIC_TRAFFIC_TOKEN`
+([`lib/server/api/chat-traffic.ts`](../../../lib/server/api/chat-traffic.ts)). Any
+other request, including one with a wrong token, is a **visitor**: a bare marker would
+let anyone hide their own conversation from the owner, and a wrong token is
+over-reported rather than rejected so a misconfigured probe never breaks real chat.
+
+Synthetic requests are labelled, never dropped, because a probe usually exists to check
+that telemetry still arrives:
+
+| Surface  | What changes                                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------------ |
+| Response | `X-Chat-Traffic: visitor \| synthetic` on every chat response, so a probe can confirm its token was accepted |
+| Langfuse | Tag `traffic:<source>` and metadata `traffic` on the root observation                                        |
+| PostHog  | `traffic` property on `chat_completion`; the weekly digest excludes `synthetic`                              |
+| Telegram | Still sent, headed `🧪 JackGPT probe (synthetic, not a visitor)` instead of `💬 New JackGPT chat`            |
+
+Anything that sends a chat request to production on purpose (a smoke run, a migration
+probe, an ad hoc `curl`) must send the header. `pnpm smoke:chat`,
+`pnpm smoke:langchain-chat` and the bakeoff recorder add it whenever
+`SYNTHETIC_TRAFFIC_TOKEN` is set in their environment, and the two smoke scripts print
+the classification the server returned. A one-off request adds it by hand:
+
+```bash
+curl -sS -D - -X POST https://www.jackhpark.com/api/chat \
+  -H "Content-Type: application/json" \
+  -H "x-jackgpt-synthetic: $SYNTHETIC_TRAFFIC_TOKEN" \
+  -d '{"messages":[{"role":"user","content":"probe"}]}'
+```
+
+Requests sent before `traffic` existed have no value; queries treat a missing value as
+`visitor`.
 
 ## Environment Variables
 

@@ -1,5 +1,33 @@
 import { setTimeout as wait } from "node:timers/promises";
 
+import {
+  CHAT_TRAFFIC_RESPONSE_HEADER,
+  SYNTHETIC_TRAFFIC_HEADER,
+} from "@/lib/server/api/chat-traffic";
+
+/**
+ * Marks a chat request as synthetic when SYNTHETIC_TRAFFIC_TOKEN is set, so
+ * the server labels the owner notice and leaves the request out of visitor
+ * metrics. Without the token the request counts as a visitor.
+ */
+export function syntheticTrafficHeaders(): Record<string, string> {
+  const token = process.env.SYNTHETIC_TRAFFIC_TOKEN?.trim();
+  return token ? { [SYNTHETIC_TRAFFIC_HEADER]: token } : {};
+}
+
+/** Prints how the server classified the request (see X-Chat-Traffic). */
+export function logChatTraffic(prefix: string, response: Response): void {
+  const traffic = response.headers.get(CHAT_TRAFFIC_RESPONSE_HEADER);
+  const sentToken = Object.keys(syntheticTrafficHeaders()).length > 0;
+  if (sentToken && traffic !== "synthetic") {
+    console.warn(
+      `${prefix} WARNING: sent SYNTHETIC_TRAFFIC_TOKEN but the server classified the request as ${traffic ?? "unknown"}; the token does not match the server's.`,
+    );
+    return;
+  }
+  console.log(`${prefix} traffic=${traffic ?? "unknown"}`);
+}
+
 export function parseEnvFlag(name: string, fallback: boolean): boolean {
   const rawValue = process.env[name];
   if (rawValue == null) {

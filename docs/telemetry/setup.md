@@ -67,6 +67,7 @@ optional — silently disabled when unset.
 | `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | App-server | Required for notifications |
 | `TELEGRAM_CHAT_ID` | Your chat id (e.g. via @userinfobot) | App-server | Required for notifications |
 | `CHAT_NOTIFY_ENV` | Only notify in this env | App-server | Optional (default `prod`) |
+| `SYNTHETIC_TRAFFIC_TOKEN` | Requests sending it in `x-jackgpt-synthetic` are labelled as probes, not visitors ([Synthetic traffic](implementation/telemetry-logging.md#synthetic-traffic)) | App-server + wherever probes run | Optional (unset = all requests are visitors) |
 
 > The trace deep link may show "still being processed" if clicked immediately —
 > the notification fires at chat start, while Langfuse UI ingestion takes

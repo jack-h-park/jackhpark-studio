@@ -1,4 +1,5 @@
 import type { GuardrailRoute } from "@/lib/rag/types";
+import type { ChatTrafficSource } from "@/lib/server/api/chat-traffic";
 import { type LangfuseTrace } from "@/lib/langfuse";
 import { telemetryLogger } from "@/lib/logging/logger";
 
@@ -13,18 +14,24 @@ export type BuildLangfuseTraceTagsOptions = {
   intent?: TagValue;
   presetKey?: TagValue;
   environment?: TagValue;
+  traffic?: ChatTrafficSource;
 };
 
 export function buildLangfuseTraceTags({
   intent,
   presetKey,
   environment,
+  traffic,
 }: BuildLangfuseTraceTagsOptions): string[] {
-  return [
+  const tags = [
     `intent:${normalizeTagValue(intent, "unknown")}`,
     `preset:${normalizeTagValue(presetKey, "unknown")}`,
     `env:${normalizeTagValue(environment, "unknown")}`,
   ];
+  if (traffic) {
+    tags.push(`traffic:${traffic}`);
+  }
+  return tags;
 }
 
 function mergeLangfuseTags(
@@ -78,11 +85,17 @@ export function attachLangfuseTraceTags({
   intent,
   presetKey,
   environment,
+  traffic,
 }: AttachLangfuseTraceTagsOptions): void {
   if (!trace) {
     return;
   }
-  const tags = buildLangfuseTraceTags({ intent, presetKey, environment });
+  const tags = buildLangfuseTraceTags({
+    intent,
+    presetKey,
+    environment,
+    traffic,
+  });
   void trace.update({ tags }).catch((err) =>
     telemetryLogger.debug("unable to attach Langfuse tags", {
       tags,

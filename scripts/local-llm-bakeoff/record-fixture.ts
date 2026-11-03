@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 import { readChatResponseBody } from "../smoke/lib/chat-response";
+import { syntheticTrafficHeaders } from "../smoke/lib/smoke-core";
 import { buildFixture } from "./fixture.mjs";
 import { assertOutsideRepo } from "./private-path.mjs";
 import { STUB_ANSWER } from "./recorder.mjs";
@@ -48,7 +49,10 @@ async function askApp(
   // other key, so a misnamed one silently answers with the default preset.
   const response = await fetch(`${values.app}/api/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...syntheticTrafficHeaders(),
+    },
     body: JSON.stringify(
       sessionConfig
         ? { messages: turns, config: sessionConfig }

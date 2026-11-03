@@ -54,6 +54,7 @@ void describe("notifyChatCompleted", () => {
       sessionId: "session-123",
       traceId: "trace-456",
       environment: "prod",
+      traffic: "visitor",
     });
 
     assert.equal(sentMessages.length, 1);
@@ -64,6 +65,7 @@ void describe("notifyChatCompleted", () => {
       /A: He led the enterprise deployment work\./,
     );
     assert.match(sentMessages[0]?.text ?? "", /Session: session-123/);
+    assert.match(sentMessages[0]?.text ?? "", /^💬 New JackGPT chat\n/);
     assert.match(
       sentMessages[0]?.text ?? "",
       /https:\/\/langfuse\.example\.test\/project\/project-test-id\/traces\/trace-456\?/,
@@ -79,6 +81,7 @@ void describe("notifyChatCompleted", () => {
       sessionId: "session-long",
       traceId: "trace-long",
       environment: "prod",
+      traffic: "visitor",
     });
 
     const text = sentMessages[0]?.text ?? "";
@@ -97,5 +100,22 @@ void describe("notifyChatCompleted", () => {
     assert.match(text, /…/);
     assert.doesNotMatch(text, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
     assert.doesNotMatch(text, /(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/);
+  });
+
+  void it("labels synthetic traffic instead of skipping it", async () => {
+    await notifyChatCompleted({
+      question: "What kinds of projects has Jack worked on?",
+      answer: "Enterprise SaaS and platform work.",
+      sessionId: "session-probe",
+      traceId: "trace-probe",
+      environment: "prod",
+      traffic: "synthetic",
+    });
+
+    const text = sentMessages[0]?.text ?? "";
+    assert.equal(sentMessages.length, 1);
+    assert.match(text, /^🧪 JackGPT probe \(synthetic, not a visitor\)\n/);
+    assert.doesNotMatch(text, /New JackGPT chat/);
+    assert.match(text, /Q: What kinds of projects has Jack worked on\?/);
   });
 });
