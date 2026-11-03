@@ -11,6 +11,7 @@ import {
 } from "notion-utils";
 
 import { startDbQuery } from "@/lib/logging/db-logger";
+import { isMermaidCodeBlock } from "@/lib/notion/code-block";
 
 import {
   type EmbeddingModelSelectionInput,
@@ -633,6 +634,11 @@ export function extractPlainText(
     const block = getBlockValue(recordMap.block[blockId]);
 
     if (!block?.properties?.title) {
+      continue;
+    }
+    // A Mermaid block is shown as a diagram; its source is syntax, not prose, and would
+    // reach retrieval as noise. Its meaning belongs in the surrounding text or caption.
+    if (isMermaidCodeBlock(block)) {
       continue;
     }
 
