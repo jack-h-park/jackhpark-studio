@@ -24,6 +24,7 @@ jobs:
           - 20
           - 22
           - 24
+          - 26
 
     steps:
       - uses: actions/checkout@v5
@@ -39,6 +40,6 @@ jobs:
       - run: pnpm lint
       - run: pnpm check:server-only-pages
       - name: Build
-        # Deterministic builds retain both runtime checks without crawling
-        # live Notion twice per PR and again on main beside Vercel's build.
+        # Deterministic builds retain runtime checks without crawling
+        # live Notion for each CI build beside Vercel's build.
         run: node scripts/ci/build-with-notion-fixture.mjs
