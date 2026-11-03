@@ -1,3 +1,4 @@
+import type { ChatTrafficSource } from "@/lib/server/api/chat-traffic";
 import { telemetryLogger } from "@/lib/logging/logger";
 
 export type ChatCompletedNotice = {
@@ -6,6 +7,7 @@ export type ChatCompletedNotice = {
   sessionId: string | null;
   traceId: string | null;
   environment: string;
+  traffic: ChatTrafficSource;
 };
 
 const TELEGRAM_MESSAGE_LIMIT = 4096;
@@ -164,8 +166,14 @@ export function notifyChatCompleted(
         ? `${baseUrl.replace(/\/$/, "")}/project/${projectId}/traces/${notice.traceId}?timestamp=${encodeURIComponent(new Date().toISOString())}`
         : null;
 
+    // Synthetic requests still notify, so a probe's arrival stays visible, but
+    // are labelled so they are not mistaken for a visitor.
+    const heading =
+      notice.traffic === "synthetic"
+        ? "🧪 JackGPT probe (synthetic, not a visitor)"
+        : "💬 New JackGPT chat";
     const sections = [
-      "💬 New JackGPT chat",
+      heading,
       "Q: ",
       "A: ",
       notice.sessionId ? `Session: ${notice.sessionId}` : null,
@@ -179,7 +187,7 @@ export function notifyChatCompleted(
       availableUnits,
     );
     const text = [
-      "💬 New JackGPT chat",
+      heading,
       `Q: ${truncateUtf16(notice.question, questionBudget)}`,
       `A: ${truncateUtf16(notice.answer, answerBudget)}`,
       notice.sessionId ? `Session: ${notice.sessionId}` : null,

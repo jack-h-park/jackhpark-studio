@@ -107,3 +107,4 @@ Repo-specific vocabulary, vendor surfaces, invariants, and control knobs live in
 
 - Default current-path target is `/api/chat`; use the legacy endpoint only when the adapter says legacy or debug-surface coverage is part of the requested smoke scope.
 - Stop at smoke failure localization and hand off deeper retrieval or telemetry analysis to the corresponding skill.
+- Every chat request sent to production, including a one-off `curl`, carries `x-jackgpt-synthetic: $SYNTHETIC_TRAFFIC_TOKEN`; otherwise it is notified and counted as a visitor. Confirm `X-Chat-Traffic: synthetic` in the response.
