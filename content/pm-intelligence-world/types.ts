@@ -62,6 +62,7 @@ export interface WorldContent {
     explanation: string;
   }>;
   records: KnowledgeRecord[];
+  workflowReviews: Array<{ task: string; review: string }>;
   roles: Array<{ name: string; role: string; prepares: string }>;
   decisionExample: {
     title: string;

@@ -40,7 +40,7 @@ export const observatoryLocations = [
   },
   {
     id: "questions",
-    label: "PM question library",
+    label: "Explanation library",
     short: "Questions",
     section: "questions",
     position: [5.25, 5, -7],

@@ -368,8 +368,17 @@ export function Observatory({
               </p>
               <p className={styles.caveat}>
                 In this illustrative exercise, you take the reviewer’s place.
-                This does not approve or change a real record.
+                This does not approve or change a real record. The route is a
+                teaching sequence, not a mandatory chain through every Agent.
               </p>
+              <details className={styles.activityNote}>
+                <summary>What needs review in each workflow?</summary>
+                {content.workflowReviews.map((item) => (
+                  <p key={item.task}>
+                    <strong>{item.task}:</strong> {item.review}
+                  </p>
+                ))}
+              </details>
               {inspected ? (
                 <>
                   <p>{note?.limit}</p>
@@ -398,7 +407,7 @@ export function Observatory({
                 className={styles.textButton}
                 onClick={() => onRead("roles")}
               >
-                Meet the eight Agent roles <FiArrowRight />
+                Meet the Agent roles <FiArrowRight />
               </button>
             </>
           )}
@@ -426,7 +435,10 @@ export function Observatory({
                   </span>
                   <p>
                     The four illuminated routes show documented uses, not four
-                    proven outputs of this particular note.
+                    proven outputs of this particular note. The central
+                    observatory represents the maintained LLM Wiki. Reviewed
+                    curation is separate: completing this exercise does not
+                    automatically update the Wiki or authorize publication.
                   </p>
                   {mission.complete ? (
                     <div
@@ -436,7 +448,7 @@ export function Observatory({
                       <h3>Your expedition, traced back to its source</h3>
                       <p>
                         Source → human review → retained knowledge → writing,
-                        questions and learning.
+                        explanations and learning.
                       </p>
                       <p>
                         You assembled three fixed teaching examples. These
@@ -489,7 +501,7 @@ export function Observatory({
               {reuse.section === "decisions" && (
                 <p className={styles.caveat}>
                   Optional and on request. Knowledge also supports writing,
-                  questions and learning without a product decision.
+                  explanations and learning without a product decision.
                 </p>
               )}
               {isPlayDestination(state.location) && (
@@ -537,6 +549,12 @@ export function Observatory({
                 Explore the documented example <FiArrowRight />
               </button>
             </>
+          )}
+          {state.location !== "signals" && (
+            <a className={styles.sourceLink} href={content.links.deck}>
+              Read the system deck: purpose, responsibilities &amp; evidence{" "}
+              <FiArrowRight />
+            </a>
           )}
         </aside>
       )}

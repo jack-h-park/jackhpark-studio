@@ -81,7 +81,7 @@ export function expeditionMission(state: ObservatoryState) {
     ...(!source
       ? {
           title: "Explore the PM Intelligence System.",
-          clue: "Sources → human review → knowledge → writing, questions & learning.",
+          clue: "Sources → human review → knowledge → writing, explanations & learning.",
         }
       : {}),
     completed,

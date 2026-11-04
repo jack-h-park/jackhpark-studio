@@ -2,7 +2,7 @@ import type { WorldContent } from "./types";
 
 export const worldContent: WorldContent = {
   purpose:
-    "Product knowledge is scattered across signals, projects and study. Jack’s personal AI system connects it for writing, PM questions, learning and decisions.",
+    "Product knowledge is scattered across signals, projects and study. Jack’s personal AI system connects it for writing, explanations, career preparation, learning and decisions.",
   sections: [
     {
       id: "overview",
@@ -24,9 +24,9 @@ export const worldContent: WorldContent = {
       id: "knowledge",
       navLabel: "Knowledge",
       eyebrow: "03 / RECORD · REVIEW · REUSE",
-      title: "Keep the source. Keep the correction.",
+      title: "LLM Wiki: knowledge that carries forward.",
       summary:
-        "Knowledge combines external facts, direct experience and interpretation. Records remain available; deciding how to reuse them still takes judgment.",
+        "The LLM Wiki is the maintained knowledge base for principles, frameworks, experience and evidence. Reviewed curation connects sources and corrections so later work can draw on them.",
     },
     {
       id: "writing",
@@ -38,19 +38,19 @@ export const worldContent: WorldContent = {
     },
     {
       id: "questions",
-      navLabel: "PM questions",
+      navLabel: "Explanations",
       eyebrow: "05 / PM QUESTIONS",
-      title: "A viewpoint becomes an answer draft.",
+      title: "Keep project explanations and answers accurate.",
       summary:
-        "One observed connection links a strategy note to a PM interview question and a source-linked draft. The useful endpoint is inspectable reasoning.",
+        "Project changes can call for updated public explanations; relevant reasoning and experience can also support an answer draft. Quill compares project sources with public pages, while Cleo helps prepare source-linked answers.",
     },
     {
       id: "learning",
-      navLabel: "Learning",
+      navLabel: "Opportunities & learning",
       eyebrow: "06 / LEARNING & NEW OPPORTUNITIES",
       title: "Demand informs what to study.",
       summary:
-        "Requirements can inform a competency, a sourced study note and practice. Learning supports new challenges beyond a job change.",
+        "Career requirements and experience can inform fit and learning priorities. Sourced study and reviewed practice support preparation for unfamiliar challenges; learning extends beyond a job change.",
     },
     {
       id: "decisions",
@@ -58,7 +58,7 @@ export const worldContent: WorldContent = {
       eyebrow: "OPTIONAL / PRODUCT DECISION",
       title: "A product decision starts with a question.",
       summary:
-        "Knowledge can support writing, questions and learning on its own. When a product decision is needed, the system helps prepare evidence and alternatives for Jack to review.",
+        "Knowledge can support writing, explanations and learning on its own. When a product decision is needed, the system helps prepare evidence and alternatives for Jack to review.",
     },
     {
       id: "roles",
@@ -103,13 +103,14 @@ export const worldContent: WorldContent = {
     },
     {
       id: "pm-questions",
-      title: "PM questions",
-      description: "Explain ideas with the reasoning still attached.",
+      title: "Explanations",
+      description:
+        "Keep project descriptions and answers grounded in evidence.",
       section: "questions",
     },
     {
       id: "new-opportunities",
-      title: "New opportunities",
+      title: "Career opportunities",
       description:
         "Prepare for unfamiliar challenges through study and practice.",
       section: "learning",
@@ -174,7 +175,7 @@ export const worldContent: WorldContent = {
         "A product viewpoint can become material for a later PM question.",
       uncertainty: "The connection does not establish improved answer quality.",
       status: "observed",
-      observedOn: "2026-09-11",
+      observedOn: "2026-09-10",
     },
     {
       id: "answer-draft",
@@ -186,7 +187,7 @@ export const worldContent: WorldContent = {
       uncertainty:
         "Observed endpoint: linked draft. Rehearsal and improved readiness are not established.",
       status: "observed",
-      observedOn: "2026-09-11",
+      observedOn: "2026-09-10",
     },
     {
       id: "demand",
@@ -221,15 +222,48 @@ export const worldContent: WorldContent = {
       status: "illustrative",
     },
   ],
+  workflowReviews: [
+    {
+      task: "Writing",
+      review:
+        "Review the argument and approve publication; drafting does not authorize sharing.",
+    },
+    {
+      task: "Project explanations",
+      review:
+        "Review the source-to-page comparison and approve a specific public section update.",
+    },
+    {
+      task: "Answers & study",
+      review:
+        "Review, rehearse or respond to practice prompts; a linked draft does not establish readiness.",
+    },
+    {
+      task: "Product Decision",
+      review:
+        "On explicit request, choose with evidence at the relevant gate; available knowledge does not authorize action.",
+    },
+  ],
   roles: [
     {
+      name: "Nora",
+      role: "Research",
+      prepares: "Researches external changes, implications and uncertainty",
+    },
+    {
+      name: "Sera",
+      role: "Meeting context",
+      prepares: "Supports preparation and context for meetings",
+    },
+    {
       name: "Iris",
-      role: "Operations",
-      prepares: "Workflow and operational context",
+      role: "Authorized coordination",
+      prepares:
+        "Relays authorized work and gate actions; workflow state belongs to the engine",
     },
     {
       name: "Jax",
-      role: "Jack Proxy",
+      role: "Advisory support",
       prepares: "Bounded retrieval and recommendation",
     },
     {
@@ -239,19 +273,26 @@ export const worldContent: WorldContent = {
     },
     {
       name: "Quill",
-      role: "Editorial",
-      prepares: "Review and staging context",
+      role: "Project explanations",
+      prepares:
+        "Compares project sources with public explanations and proposes updates for owner review",
     },
-    { name: "Wren", role: "Narrative", prepares: "Source-backed notes" },
+    {
+      name: "Wren",
+      role: "Writing",
+      prepares:
+        "Draft arguments grounded in relevant knowledge for author review",
+    },
     {
       name: "Vega",
-      role: "Evaluation",
-      prepares: "Criteria and score-grid context",
+      role: "Operational health",
+      prepares: "Observes operational health; does not own product judgment",
     },
     {
       name: "Juno",
-      role: "Career strategy",
-      prepares: "Demand-informed learning topics",
+      role: "Career opportunities",
+      prepares:
+        "Compares requirements with experience and context to inform fit and learning priorities",
     },
     {
       name: "Orin",
@@ -279,7 +320,7 @@ export const worldContent: WorldContent = {
     "Quality, speed and learning gains need separate evaluation.",
   ],
   links: {
-    deck: "/decks/pm-intelligence-system",
+    deck: "https://www.jackhpark.com/decks/pm-intelligence-system",
     project: "/studio",
     contact: "/#contact",
   },

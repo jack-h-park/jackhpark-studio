@@ -37,7 +37,7 @@ export const spatialLabels: ReadonlyArray<{
   },
   {
     id: "questions",
-    label: "PM questions",
+    label: "Explanations",
     qualifier: "Source-linked drafts",
     height: 2.6,
   },

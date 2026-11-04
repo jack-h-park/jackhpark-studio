@@ -65,6 +65,11 @@ export function ReadingView({
             {section.title}
           </h2>
           <p className={styles.summary}>{section.summary}</p>
+          <p className={styles.note}>
+            <a href={content.links.deck}>
+              Read the system deck: purpose, responsibilities &amp; evidence ↗
+            </a>
+          </p>
           {section.id === "overview" && (
             <>
               <div className={styles.uses}>
@@ -123,9 +128,11 @@ export function ReadingView({
                 <span>Reuse with judgment</span>
               </div>
               <p className={styles.note}>
-                A workflow leaves a record of what happened. Sources and
-                interpretations are reviewed separately before they become
-                material for another question.
+                The LLM Wiki keeps maintained knowledge available for later
+                work. Reviewed curation selects reusable lessons, connects
+                related pages and preserves sources. Completing a task does not
+                automatically update the Wiki, publish a draft or revise
+                decision criteria.
               </p>
               <button
                 className="ai-button ai-button-outline ai-button-size-default"
@@ -137,6 +144,21 @@ export function ReadingView({
           )}
           {(section.id === "writing" || section.id === "questions") &&
             records(["strategy-note", "answer-draft"])}
+          {section.id === "questions" && (
+            <article className={styles.horizon}>
+              <span className={styles.label}>
+                Illustrative project explanation
+              </span>
+              <h3>When the project changes, check its public description.</h3>
+              <p>
+                Quill compares a changed project source with the public
+                explanation and proposes a section correction. The owner reviews
+                the proposed update before publication. This illustrates a
+                separate use from answer preparation; no recent page publication
+                is claimed.
+              </p>
+            </article>
+          )}
           {section.id === "learning" && (
             <>
               <p className={styles.note}>
@@ -155,6 +177,15 @@ export function ReadingView({
           )}
           {section.id === "roles" && (
             <>
+              <h3>Different work has different review points.</h3>
+              <ul className={styles.limitList}>
+                {content.workflowReviews.map((item) => (
+                  <li key={item.task}>
+                    <strong>{item.task}</strong>
+                    <p>{item.review}</p>
+                  </li>
+                ))}
+              </ul>
               <div className={styles.roles}>
                 {content.roles.map((role) => (
                   <article key={role.name}>
@@ -165,9 +196,9 @@ export function ReadingView({
                 ))}
               </div>
               <p className={styles.note}>
-                These are the preparation roles described in the portfolio deck.
-                This page illustrates their contributions rather than showing
-                live agent activity.
+                These roles describe preparation and responsibility, not a
+                mandatory chain through every Agent. This page illustrates their
+                contributions rather than showing live agent activity.
               </p>
             </>
           )}
@@ -184,9 +215,10 @@ export function ReadingView({
                 </span>
                 <h3>A virtual counterpart.</h3>
                 <p>
-                  Jax explores how memory and computation might represent Jack’s
-                  viewpoints and support bounded work. Retrieval fidelity,
-                  uncertainty and appropriate handback still need evaluation.
+                  Jax is advisory today. A complete delegated counterpart is a
+                  longer-term direction, not a demonstrated capability. Relevant
+                  context, faithful reasoning and appropriate handback still
+                  need evaluation in real tasks.
                 </p>
               </div>
             </>
