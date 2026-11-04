@@ -39,6 +39,12 @@ export function getExhibitState(
       : undefined;
   return {
     available,
+    ready:
+      !!progress &&
+      !progress.completed &&
+      !!activityDefinitions[destination].stages[progress.step]?.options.some(
+        (option) => option.id === progress.armedChoice,
+      ),
     slots: artifactSlots(destination, progress),
     completed: !!progress?.completed,
   };

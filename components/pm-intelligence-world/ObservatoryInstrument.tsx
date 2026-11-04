@@ -64,7 +64,15 @@ export function ObservatoryInstrument({
       </h2>
       {stage ? (
         <>
-          <p className={styles.instrumentHint}>{action.hint}</p>
+          <p className={styles.instrumentHint}>
+            {progress.armedChoice
+              ? destination === "learning"
+                ? "Ready · hold and release the highlighted watering can."
+                : destination === "writing"
+                  ? "Ready · tap the highlighted handle to set this layer."
+                  : "Ready · drag the highlighted dial sideways or tap it."
+              : action.hint}
+          </p>
           <h3 ref={prompt} tabIndex={-1}>
             {stage.prompt}
           </h3>

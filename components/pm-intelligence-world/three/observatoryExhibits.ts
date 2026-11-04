@@ -8,6 +8,7 @@ import {
   MeshBasicMaterial,
   MeshStandardMaterial,
   type Object3D,
+  type Quaternion,
   SphereGeometry,
   TorusGeometry,
 } from "three";
@@ -47,6 +48,22 @@ export function createDestinationExhibits() {
   const previews = new Map<PlayDestination, number>();
   const impulses = new Map<PlayDestination, number>();
   let hovered: PlayDestination | null = null;
+  let focused: PlayDestination | null = null;
+  const markerMaterial = new MeshBasicMaterial({
+    color: "#85deed",
+    depthTest: false,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const handlePositions: Record<
+    PlayDestination,
+    readonly [number, number, number]
+  > = {
+    writing: [0.7, 1.73, 0],
+    questions: [0, 1.65, 0],
+    learning: [0.83, 1.58, 0.16],
+    decisions: [0, 1.7, 0],
+  };
   const views = (Object.keys(positions) as PlayDestination[]).map(
     (destination) => {
       const root = new Group();
@@ -261,6 +278,22 @@ export function createDestinationExhibits() {
       control.userData.location = destination;
       control.userData.operation = destination;
       root.add(control);
+      // A static overlay identifies the physical control even against foreground foliage.
+      const marker = new Group();
+      marker.name = `Ready control / ${destination}`;
+      marker.position.set(...handlePositions[destination]);
+      marker.visible = false;
+      for (const geometry of [
+        new TorusGeometry(0.32, 0.018, 4, 32),
+        new SphereGeometry(0.035, 8, 6),
+      ]) {
+        const cue = new Mesh(geometry, markerMaterial);
+        cue.userData.operation = destination;
+        cue.userData.location = destination;
+        cue.renderOrder = 20;
+        marker.add(cue);
+      }
+      root.add(marker);
       const seal = part(
         root,
         new SphereGeometry(0.105, 10, 8),
@@ -273,6 +306,8 @@ export function createDestinationExhibits() {
       return {
         destination,
         control,
+        marker,
+        ready: false,
         root,
         slots,
         rotor,
@@ -287,6 +322,11 @@ export function createDestinationExhibits() {
   return {
     group,
     views,
+    focus(destination: PlayDestination | null) {
+      focused = destination;
+      for (const view of views)
+        view.marker.visible = view.ready && view.destination === focused;
+    },
     preview(destination: PlayDestination, amount: number | null) {
       if (amount === null) previews.delete(destination);
       else previews.set(destination, Math.max(-2, Math.min(2, amount)));
@@ -308,6 +348,8 @@ export function createDestinationExhibits() {
           s.visible = value.slots[i];
         }
         view.available = value.available;
+        view.ready = value.ready;
+        view.marker.visible = view.ready && view.destination === focused;
         view.completed = value.completed;
         view.seal.visible = value.completed;
         view.glow.emissiveIntensity = value.completed
@@ -317,9 +359,11 @@ export function createDestinationExhibits() {
             : 0.08;
       }
     },
-    animate(elapsed: number, motion: boolean) {
+    animate(elapsed: number, motion: boolean, orientation?: Quaternion) {
       clock = elapsed;
       for (const view of views) {
+        if (view.marker.visible && orientation)
+          view.marker.quaternion.copy(orientation);
         const start = impulses.get(view.destination);
         const t =
           start === undefined

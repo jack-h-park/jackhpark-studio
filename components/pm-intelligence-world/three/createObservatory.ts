@@ -716,7 +716,7 @@ export function createObservatory({
           : 0;
     }
     announceNearby();
-    exhibits.animate(elapsed, motion);
+    exhibits.animate(elapsed, motion, camera.quaternion);
     spatialFeedback.animate(delta, motion);
     expeditionTrail.animate(elapsed, motion);
     for (const { location, ring } of beacons) {
@@ -816,6 +816,7 @@ export function createObservatory({
       const previous = activeInstrument;
       endGesture();
       activeInstrument = id;
+      exhibits.focus(id);
       inspectionLight.visible = !!id;
       if (id) {
         const view = exhibits.views.find((v) => v.destination === id)!;
