@@ -1,6 +1,6 @@
 # PM Intelligence deck companion alignment
 
-Status: local observatory alignment and automated verification complete. Reciprocal deck navigation blocked; no publication.
+Status: local alignment, reciprocal deck navigation and browser verification complete. No publication; physical-device and owner acceptance remain open.
 
 **Goal:** Position the observatory as an experiential companion to the public Story v2 deck, with consistent concepts and reciprocal context links.
 
@@ -17,8 +17,8 @@ Status: local observatory alignment and automated verification complete. Recipro
 
 - [x] Add regression checks for current concepts, Agent roles, review distinctions and deck context links.
 - [x] Align reading and observatory wording, include project explanations alongside answer preparation, and make curation independence explicit.
-- [ ] Add source-owned deck companion navigation and verified scene links; regenerate the local public deck from the current source.
-- [ ] Run unit/type/lint/guards and relevant deck checks; independent review, build and restore preview. Record browser verification separately if tool settings still block it.
+- [x] Add source-owned deck companion navigation and regenerate the local public deck. Per-scene deep links remain outside this route-level connection.
+- [x] Run unit/type/lint/guards, source checks, independent review, build and browser route/control verification.
 
 ## Execution ledger
 
@@ -30,3 +30,11 @@ Status: local observatory alignment and automated verification complete. Recipro
 - Browser control was unavailable in the preceding verification session. No new UI, physical-device performance, uncoached comprehension, owner acceptance or publication is claimed for these edits.
 
 - Optimized production build and sitemap trace verification pass. Local HTTP response is 200 with Wiki, Explanations, Nora/Sera, corrected Vega role, canonical deck links and noindex intact. Preview restored on loopback port 3037. HTTP checks do not establish browser visual acceptance.
+
+## Connection recovery and final verification
+
+The subsequent source-owned return-navigation pass supersedes the earlier blocked state and absolute-link workaround. The canonical Story v2 publication renderer now adds "Explore in 3D ↗" from source metadata. The local deck is regenerated from that source; observatory links use the same-origin clean deck route again. An exact Next.js beforeFiles rewrite resolves that clean route to the generated index locally.
+
+Source documentation checks pass (1,205 passed, 11 skipped); Studio passes 675 unit tests and two telemetry golden tests, scoped lint/types and optimized build. Browser checks verified both directions, keyboard Enter and existing Next slide navigation at 1280×720, plus route controls at 320×844 and 568×320. Link height is 44px. Source/generated/copied/HTTP-served bytes were checked. No public deployment.
+
+The deck retains a fixed 16:9 presentation on phones, where body text is small; the observatory's Read overview is the responsive reading alternative. Browser viewport checks do not establish physical-device FPS, real touch interruption, comprehension or owner acceptance. Per-scene deck deep links have not been added.

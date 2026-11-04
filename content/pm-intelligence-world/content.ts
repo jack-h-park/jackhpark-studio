@@ -320,7 +320,7 @@ export const worldContent: WorldContent = {
     "Quality, speed and learning gains need separate evaluation.",
   ],
   links: {
-    deck: "https://www.jackhpark.com/decks/pm-intelligence-system",
+    deck: "/decks/pm-intelligence-system",
     project: "/studio",
     contact: "/#contact",
   },

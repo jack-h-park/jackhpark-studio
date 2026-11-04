@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { renderToStaticMarkup } from "react-dom/server";
@@ -30,15 +31,40 @@ void test("the companion names the maintained Wiki, explanations and role-specif
       dispatch={() => {}}
     />,
   );
-  assert.ok(
-    html.includes(
-      'href="https://www.jackhpark.com/decks/pm-intelligence-system"',
-    ),
-  );
+  assert.ok(html.includes('href="/decks/pm-intelligence-system"'));
   assert.match(html, /purpose, responsibilities/);
   assert.match(html, /curation/);
   assert.match(html, /does not automatically/);
   assert.match(html, /publication/);
   assert.match(html, /rehears/);
   assert.match(html, /not a mandatory chain/i);
+});
+
+void test("the local deck and observatory use reciprocal same-origin links", () => {
+  assert.equal(worldContent.links.deck, "/decks/pm-intelligence-system");
+  const deck = readFileSync(
+    new URL(
+      "../public/decks/pm-intelligence-system/index.html",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.match(deck, /href="\/experiences\/pm-intelligence#observatory"/);
+  assert.match(deck, /Explore in 3D ↗/);
+  assert.equal((deck.match(/data-slide="S\d+"/g) ?? []).length, 15);
+  assert.ok(!deck.includes("V2 · REVIEW DRAFT"));
+});
+
+void test("the clean deck URL resolves its generated index before page routing", async () => {
+  const { default: config } = await import("../next.config.js");
+  assert.equal(typeof config.rewrites, "function");
+  assert.ok(config.rewrites);
+  const rules = await config.rewrites();
+  assert.ok(!Array.isArray(rules));
+  assert.deepEqual(rules.beforeFiles, [
+    {
+      source: "/decks/pm-intelligence-system",
+      destination: "/decks/pm-intelligence-system/index.html",
+    },
+  ]);
 });

@@ -10,6 +10,16 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 export default withBundleAnalyzer({
   compress: false,
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: "/decks/pm-intelligence-system",
+          destination: "/decks/pm-intelligence-system/index.html",
+        },
+      ],
+    };
+  },
   staticPageGenerationTimeout: 300,
   devIndicators: false,
   experimental: {
@@ -79,10 +89,7 @@ export default withBundleAnalyzer({
   // canvas is an optional jsdom dep we no longer use (see lib/rag/fetch-favicon.ts).
   // webpack cache files should never ship to Lambda.
   outputFileTracingExcludes: {
-    "*": [
-      "node_modules/canvas/**",
-      ".next/cache/webpack/**",
-    ],
+    "*": ["node_modules/canvas/**", ".next/cache/webpack/**"],
   },
 
   // lib/get-site-map.ts reads this at runtime via a computed path, which file
