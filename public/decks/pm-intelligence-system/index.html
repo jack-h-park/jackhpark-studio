@@ -467,6 +467,52 @@ body[data-deck-style] .deck-status{display:none}
 .narrative-items article:focus-visible{outline:2px solid #7bd9d1}
 /* Keep renderer chrome above the heading, independent of inherited padding. */
 .narrative-scene>header{position:absolute;left:96px;right:96px;top:0;height:122px;margin:0;padding:0;display:flex;align-items:center;justify-content:space-between}
+/* Reading uses the existing narrative DOM; the authored slide and print canvases stay intact. */
+@media screen {
+  .reading-toggle{min-height:44px;padding:8px 12px!important;font:14px/1.3 Geist,sans-serif!important;white-space:nowrap}
+  .deck-controls:has(.reading-toggle){left:auto;right:16px;transform:none;opacity:1}
+  .deck-controls button:disabled{opacity:.35;cursor:default}
+  body[data-deck-reading=true] .deck-viewport{bottom:calc(132px + env(safe-area-inset-bottom));overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-gutter:stable;background:#101114}
+  body[data-deck-reading=true] .deck-stage{position:relative;width:min(100%,760px);height:auto;min-height:100%;margin:0 auto;overflow:visible;transform:none!important;background:#101114}
+  body[data-deck-reading=true] .slide{display:none}
+  body[data-deck-reading=true] .slide.active{display:block;position:relative;inset:auto;width:100%;height:auto;min-height:100%;overflow:visible;padding:24px 24px 36px;overflow-wrap:anywhere}
+  body[data-deck-reading=true] .slide::after{display:none}
+  body[data-deck-reading=true] .slide>header{position:static;width:auto;height:auto;min-height:44px;margin:0 0 32px;padding:0 0 16px;gap:16px;font-size:11px;line-height:1.4}
+  body[data-deck-reading=true] .slide>header::after{display:none}
+  body[data-deck-reading=true] .brand{gap:8px;font-size:15px;white-space:nowrap}
+  body[data-deck-reading=true] .brand img{width:24px;height:24px}
+  body[data-deck-reading=true] .brand small{font-size:9px}
+  body[data-deck-reading=true] .eyebrow{font-size:10px;line-height:1.5;text-align:right;letter-spacing:.03em}
+  body[data-deck-reading=true] .narrative-heading{position:static;display:block;margin:0 0 32px}
+  body[data-deck-reading=true] .slide.narrative-scene .narrative-heading h2{max-width:none;margin:0 0 20px;font:500 clamp(30px,6vw,44px)/1.12 Geist,sans-serif;letter-spacing:-.035em;text-transform:none;animation:none}
+  body[data-deck-reading=true] .slide.narrative-scene .narrative-heading>p{max-width:none;font:400 18px/1.6 Geist,sans-serif;color:#bfc1c9}
+  body[data-deck-reading=true] .narrative-content{position:static;height:auto;display:block;margin-bottom:36px}
+  body[data-deck-reading=true] .narrative-content .narrative-anchor{max-width:none;margin:0 0 28px;padding:18px 0;font:500 22px/1.4 Geist,sans-serif}
+  body[data-deck-reading=true] .narrative-content .narrative-items{display:grid;grid-template-columns:minmax(0,1fr);gap:28px}
+  body[data-deck-reading=true] .narrative-items article{display:block;min-width:0;padding:20px 0 0;outline-offset:4px}
+  body[data-deck-reading=true] .narrative-items article::before{font-size:28px;margin-bottom:16px}
+  body[data-deck-reading=true] .narrative-items .narrative-label{margin:0 0 12px;font:400 13px/1.5 'Geist Mono',monospace}
+  body[data-deck-reading=true] .slide .narrative-items h3{margin:0 0 12px;font:500 23px/1.25 Geist,sans-serif;text-transform:none}
+  body[data-deck-reading=true] .narrative-items article>p{margin:0;font:400 17px/1.65 Geist,sans-serif}
+  body[data-deck-reading=true] .narrative-context{position:static;display:flex;flex-direction:column;align-items:start;gap:20px;margin:0 0 28px;min-height:0}
+  body[data-deck-reading=true] .narrative-context>p{max-width:none;font:400 14px/1.65 Geist,sans-serif;color:#9ba1ab}
+  body[data-deck-reading=true] .narrative-roles{flex-wrap:wrap;gap:16px}
+  body[data-deck-reading=true] .narrative-roles>span{font-size:14px}
+  body[data-deck-reading=true] .narrative-roles img{width:36px;height:36px}
+  body[data-deck-reading=true] .narrative-bridge{position:static;margin:0!important;padding:20px 0 0;font:400 18px/1.5 Geist,sans-serif}
+  body[data-deck-reading=true] .slide>footer,body[data-deck-reading=true] .slide>.evidence{position:static;width:auto;height:auto;display:flex;justify-content:space-between;gap:20px;margin:28px 0 0;padding:16px 0 0;font:400 12px/1.5 Geist,sans-serif;color:#9ba1ab}
+  body[data-deck-reading=true] .slide>footer>span:first-child{font-size:12px}
+  body[data-deck-reading=true] .studio-pet{display:none}
+  body[data-deck-reading=true] .motion-toggle{display:none}
+  body[data-deck-reading=true] .deck-controls{left:50%;right:auto;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));max-width:calc(100% - 24px)}
+  body[data-deck-reading=true] .exploration-tools{left:50%;transform:translateX(-50%);bottom:calc(74px + env(safe-area-inset-bottom));width:max-content;max-width:calc(100% - 24px)}
+  body[data-deck-reading=true] .edition-nav{display:none}
+  @media(max-width:800px){
+    .deck-controls:has(.reading-toggle){left:50%;right:auto;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));gap:8px;max-width:calc(100% - 24px)}
+    .deck-controls:has(.reading-toggle) .motion-toggle{display:none}
+    .exploration-tools:has(.companion-link){bottom:calc(74px + env(safe-area-inset-bottom))}
+  }
+}
 </style></head><body><div class="deck-viewport"><main id="deckStage" class="deck-stage"><section class="slide narrative-scene" data-slide="S01" aria-label="S01"><header><div class="brand"><img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzYwIiBoZWlnaHQ9IjQ0MCIgdmlld0JveD0iMCAwIDM2MCA0NDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJKYWNrIEguIFBhcmsgU3R1ZGlvIj4KICA8dGl0bGU+SmFjayBILiBQYXJrIFN0dWRpbzwvdGl0bGU+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9InNpZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjAiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZjA2MjkyIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMzAlIiBzdG9wLWNvbG9yPSIjYjQzOWRmIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iNjAlIiBzdG9wLWNvbG9yPSIjNWI4ZGVmIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzRkZDBlMSIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICA8L2RlZnM+CiAgPHJlY3QgeD0iNjAiIHk9IjIwIiB3aWR0aD0iMjQwIiBoZWlnaHQ9IjI0MCIgcng9IjQ4IiBmaWxsPSJ1cmwoI3NpZykiLz4KICA8dGV4dCB4PSIxODAiIHk9IjE0MCIgZm9udC1mYW1pbHk9InN5c3RlbS11aSwgLWFwcGxlLXN5c3RlbSwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMjAiIGZvbnQtd2VpZ2h0PSI2MDAiIGZpbGw9IiNGRkZGRkYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGRvbWluYW50LWJhc2VsaW5lPSJjZW50cmFsIj5KSFA8L3RleHQ+CiAgPHJlY3QgeD0iMCIgeT0iMzIwIiB3aWR0aD0iMzYwIiBoZWlnaHQ9IjYiIHJ4PSIzIiBmaWxsPSJ1cmwoI3NpZykiLz4KICA8dGV4dCB4PSIxODAiIHk9IjM4MCIgZm9udC1mYW1pbHk9InVpLW1vbm9zcGFjZSwgU0ZNb25vLVJlZ3VsYXIsIE1lbmxvLCBtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMjQiIGZvbnQtd2VpZ2h0PSI0MDAiIGZpbGw9IiM5QjlBOTciIHRleHQtYW5jaG9yPSJtaWRkbGUiIGxldHRlci1zcGFjaW5nPSIxMCI+U1RVRElPPC90ZXh0Pgo8L3N2Zz4K" alt="Jack H. Park Studio"><span>Jack H. Park <small>STUDIO</small></span></div><span class="eyebrow">THE PURPOSE</span></header><div class="narrative-heading"><h2>PM Intelligence<br>System</h2><p>Knowledge and experience that<br>carry into the next task.</p></div>
     <div class="narrative-content narrative-cover">
       <p class="narrative-anchor">The LLM Wiki keeps knowledge connected across PM work.</p>
@@ -596,10 +642,12 @@ class SlidePresentation {
     let start = 0, last = 0;
     addEventListener('touchstart', e => start = e.changedTouches[0].clientX, {passive:true});
     addEventListener('touchend', e => {
+      if (document.body.dataset.deckReading === 'true') return;
       const d = e.changedTouches[0].clientX - start;
       if (Math.abs(d) > 60) this.show(this.i + (d < 0 ? 1 : -1));
     }, {passive:true});
     addEventListener('wheel', e => {
+      if (document.body.dataset.deckReading === 'true') return;
       if (Date.now() - last > 600 && Math.abs(e.deltaY) > 35) {
         this.show(this.i + (e.deltaY > 0 ? 1 : -1)); last = Date.now();
       }
@@ -959,5 +1007,55 @@ window.presentation = new SlidePresentation();
   if(id!=='O06' && scene.caption)set(document.getElementById('exploration-caption'),scene.caption);
  };
  new MutationObserver(refresh).observe(dialog,{subtree:true,childList:true,attributes:true,attributeFilter:['open','aria-pressed']});
+})();
+/* The same canonical scene has a reading layout and a fixed presentation layout. */
+(() => {
+  const presentation = window.presentation;
+  const viewport = document.querySelector('.deck-viewport');
+  const compact = matchMedia('(max-width: 800px)');
+  const controls = document.querySelector('.deck-controls');
+  const slides = [...document.querySelectorAll('.slide')];
+  const toggle = document.createElement('button');
+  toggle.className = 'reading-toggle';
+  toggle.type = 'button';
+  controls.insertBefore(toggle, controls.querySelector('[aria-label="Next slide"]'));
+  const counter = document.querySelector('#count, #deckStatus');
+  counter.setAttribute('role', 'status');
+  counter.setAttribute('aria-live', 'polite');
+  let chosen = false;
+  const reading = () => document.body.dataset.deckReading === 'true';
+  const updateControls = () => {
+    const index = slides.findIndex(slide => slide.classList.contains('active'));
+    controls.querySelector('[aria-label="Previous slide"]').disabled = index === 0;
+    controls.querySelector('[aria-label="Next slide"]').disabled = index === slides.length - 1;
+  };
+  const setReading = enabled => {
+    document.body.dataset.deckReading = String(enabled);
+    toggle.textContent = enabled ? 'Slide view' : 'Read view';
+    toggle.setAttribute('aria-label', enabled ? 'Switch to slide view' : 'Switch to reading view');
+    toggle.setAttribute('aria-pressed', String(enabled));
+    viewport.scrollTop = 0;
+    presentation.scale();
+  };
+  toggle.onclick = () => { chosen = true; setReading(!reading()); };
+  compact.addEventListener('change', () => { if (!chosen) setReading(compact.matches); });
+  // Page/space/vertical keys scroll prose. Horizontal arrows still change scenes.
+  addEventListener('keydown', event => {
+    const editable = event.target.closest('input,select,textarea,[contenteditable]');
+    const activation = event.key === ' ' && event.target.closest('button,[role=button],a');
+    if (reading() && !document.querySelector('#exploration-dialog').open && !editable && !activation &&
+        [' ', 'PageDown', 'PageUp', 'Home', 'End', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+      event.stopImmediatePropagation();
+    }
+  }, true);
+  const show = presentation.show.bind(presentation);
+  presentation.show = index => {
+    const previous = slides.find(slide => slide.classList.contains('active'));
+    show(index);
+    if (reading() && previous !== slides.find(slide => slide.classList.contains('active'))) viewport.scrollTop = 0;
+    updateControls();
+  };
+  setReading(compact.matches);
+  updateControls();
 })();
 </script></body></html>
