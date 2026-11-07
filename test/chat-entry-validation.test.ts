@@ -17,6 +17,8 @@ type Bundle = {
     fail: boolean;
     configs: unknown[];
     dispatches: number;
+    settingsImports: number;
+    failImport: boolean;
   };
 };
 
@@ -34,17 +36,23 @@ async function handlers(): Promise<Bundle> {
     packages: "external",
     format: "cjs",
     banner: {
-      js: "const fixture = {reads: 0, fail: false, configs: [], dispatches: 0};",
+      js: "const fixture = {reads: 0, fail: false, configs: [], dispatches: 0, settingsImports: 0, failImport: false};",
     },
     footer: { js: "module.exports.fixture = fixture;" },
     plugins: [
       {
         name: "chat-external-boundaries",
         setup(b) {
-          b.onResolve({ filter: /^@\/lib\/server\/chat-settings$/ }, () => ({
-            path: "settings",
-            namespace: "fixture",
-          }));
+          b.onResolve(
+            {
+              filter:
+                /^@\/lib\/server\/(?:chat-settings|settings\/model-settings)$/,
+            },
+            () => ({
+              path: "settings",
+              namespace: "fixture",
+            }),
+          );
           b.onResolve({ filter: /langchain_chat_entry$/ }, () => ({
             path: "entry",
             namespace: "fixture",
@@ -53,7 +61,9 @@ async function handlers(): Promise<Bundle> {
             loader: "js",
             contents:
               path === "settings"
-                ? `export async function loadChatModelSettings(options) {
+                ? `fixture.settingsImports++;
+                if (fixture.failImport) throw new Error('Settings import unavailable');
+                export async function loadChatModelSettings(options) {
                 fixture.reads++; fixture.configs.push(options.sessionConfig);
                 if (fixture.fail) throw new Error('Settings unavailable');
                 return {
@@ -129,6 +139,11 @@ void test("both chat routes reject unsupported methods before unavailable settin
   }
   assert.equal(module.fixture.reads, 0);
   assert.equal(module.fixture.dispatches, 0);
+  assert.equal(
+    module.fixture.settingsImports,
+    0,
+    "invalid requests must not initialize settings dependencies",
+  );
 });
 
 void test("both chat routes reject malformed or empty messages before unavailable settings", async () => {
@@ -155,6 +170,19 @@ void test("both chat routes reject malformed or empty messages before unavailabl
       });
     }
   }
+  assert.equal(module.fixture.reads, 0);
+  assert.equal(module.fixture.dispatches, 0);
+  assert.equal(module.fixture.settingsImports, 0);
+});
+
+void test("a settings module initialization failure stays inside the chat HTTP error boundary", async () => {
+  const module = await handlers();
+  module.fixture.failImport = true;
+  const r = response("POST", { messages: [{ role: "user", content: "Hi" }] });
+  await module.chat(r.req, r.res);
+  assert.equal(r.res.statusCode, 500);
+  assert.deepEqual(r.body(), { error: "Internal Server Error" });
+  assert.equal(module.fixture.settingsImports, 1);
   assert.equal(module.fixture.reads, 0);
   assert.equal(module.fixture.dispatches, 0);
 });

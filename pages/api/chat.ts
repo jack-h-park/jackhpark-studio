@@ -4,7 +4,6 @@ import type { ChatRuntimeRequest } from "@/lib/server/chat-runtime-request";
 import type { SessionChatConfig } from "@/types/chat-config";
 import { llmLogger } from "@/lib/logging/logger";
 import { validateChatRequest } from "@/lib/server/chat-request-validation";
-import { loadChatModelSettings } from "@/lib/server/chat-settings";
 
 import langchainChat from "./langchain_chat";
 
@@ -28,6 +27,8 @@ export default async function handler(
   let engine: string | undefined;
 
   try {
+    const { loadChatModelSettings } =
+      await import("@/lib/server/settings/model-settings");
     const runtime = await loadChatModelSettings({
       sessionConfig: validation.body.config as SessionChatConfig | undefined,
     });
