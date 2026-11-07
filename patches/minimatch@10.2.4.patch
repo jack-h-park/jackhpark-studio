@@ -1,0 +1,68 @@
+diff --git a/dist/commonjs/index.js b/dist/commonjs/index.js
+index c176ffce042b015b8cc5d29ba93ef301c885a237..ea00e8f1ab13bc8d64ad44652c60e4ed6c535882 100644
+--- a/dist/commonjs/index.js
++++ b/dist/commonjs/index.js
+@@ -448,6 +448,9 @@ class Minimatch {
+     // **/*/<rest> -> */**/<rest> <== not valid because ** doesn't follow
+     // this WOULD be allowed if ** did follow symlinks, or * didn't
+     firstPhasePreProcess(globParts) {
++        // GHSA-g3hv-75wg-m249: backport isaacs/minimatch commit 77a0f5c4b80bdc641c3c930a1d9edf5ad2db57f8.
++        // Each **/.. split doubles the patterns, so stop at the brace max.
++        const { braceExpandMax = 100_000 } = this.options;
+         let didSomething = false;
+         do {
+             didSomething = false;
+@@ -475,7 +478,8 @@ class Minimatch {
+                         p === '..' ||
+                         !p2 ||
+                         p2 === '.' ||
+-                        p2 === '..') {
++                        p2 === '..' ||
++                        globParts.length >= braceExpandMax) {
+                         continue;
+                     }
+                     didSomething = true;
+@@ -532,6 +536,9 @@ class Minimatch {
+     // {<pre>/**/<rest>,<pre>/**/<p>/<rest>} -> <pre>/**/<rest>
+     // ^-- not valid because ** doens't follow symlinks
+     secondPhasePreProcess(globParts) {
++        // Skip quadratic deduplication for large sets; matching is unchanged.
++        if (globParts.length > 1000)
++            return globParts;
+         for (let i = 0; i < globParts.length - 1; i++) {
+             for (let j = i + 1; j < globParts.length; j++) {
+                 const matched = this.partsMatch(globParts[i], globParts[j], !this.preserveMultipleSlashes);
+diff --git a/dist/esm/index.js b/dist/esm/index.js
+index a9e0602187c7fd057de9a92951aeb4840febb0be..c3d9d357c213d328c4047c014a1062a3a45e2c3b 100644
+--- a/dist/esm/index.js
++++ b/dist/esm/index.js
+@@ -439,6 +439,9 @@ export class Minimatch {
+     // **/*/<rest> -> */**/<rest> <== not valid because ** doesn't follow
+     // this WOULD be allowed if ** did follow symlinks, or * didn't
+     firstPhasePreProcess(globParts) {
++        // GHSA-g3hv-75wg-m249: backport isaacs/minimatch commit 77a0f5c4b80bdc641c3c930a1d9edf5ad2db57f8.
++        // Each **/.. split doubles the patterns, so stop at the brace max.
++        const { braceExpandMax = 100_000 } = this.options;
+         let didSomething = false;
+         do {
+             didSomething = false;
+@@ -466,7 +469,8 @@ export class Minimatch {
+                         p === '..' ||
+                         !p2 ||
+                         p2 === '.' ||
+-                        p2 === '..') {
++                        p2 === '..' ||
++                        globParts.length >= braceExpandMax) {
+                         continue;
+                     }
+                     didSomething = true;
+@@ -523,6 +527,9 @@ export class Minimatch {
+     // {<pre>/**/<rest>,<pre>/**/<p>/<rest>} -> <pre>/**/<rest>
+     // ^-- not valid because ** doens't follow symlinks
+     secondPhasePreProcess(globParts) {
++        // Skip quadratic deduplication for large sets; matching is unchanged.
++        if (globParts.length > 1000)
++            return globParts;
+         for (let i = 0; i < globParts.length - 1; i++) {
+             for (let j = i + 1; j < globParts.length; j++) {
+                 const matched = this.partsMatch(globParts[i], globParts[j], !this.preserveMultipleSlashes);

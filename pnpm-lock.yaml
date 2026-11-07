@@ -11,7 +11,7 @@ overrides:
   dompurify: 3.4.17
   esbuild: 0.28.1
   fast-uri@3: 3.1.9
-  follow-redirects: 1.16.1
+  follow-redirects: 1.16.2
   form-data@4: 4.0.6
   handlebars: 4.7.10
   '@humanfs/node': 0.16.8
@@ -34,6 +34,14 @@ overrides:
   zod@4: 4.6.6
 
 packageExtensionsChecksum: sha256-ddKJFz+IVo3Qy9Eswv4eo5l7t4zK22Gztq1RiuOJ2Ss=
+
+patchedDependencies:
+  minimatch@10.2.4:
+    hash: 9e074239383e46edea55eeefd7a7eb0214dcc325e21199a2a76ead2a9268dae6
+    path: patches/minimatch@10.2.4.patch
+  minimatch@10.2.6:
+    hash: 7650504a2a7c7f5b5e1724378c2da8266e8f83a2dcef1a01f69ffba5fe5b8009
+    path: patches/minimatch@10.2.6.patch
 
 importers:
 
@@ -447,6 +455,7 @@ packages:
 
   '@browserbasehq/stagehand@1.14.0':
     resolution: {integrity: sha512-Hi/EzgMFWz+FKyepxHTrqfTPjpsuBS4zRy3e9sbMpBgLPv+9c0R+YZEvS7Bw4mTS66QtvvURRT6zgDGFotthVQ==}
+    deprecated: This version is no longer maintained. Please upgrade to the latest version of @browserbasehq/stagehand.
     peerDependencies:
       '@playwright/test': ^1.42.1
       deepmerge: ^4.3.1
@@ -3391,8 +3400,8 @@ packages:
   flatted@3.4.2:
     resolution: {integrity: sha512-PjDse7RzhcPkIJwy5t7KPWQSZ9cAbzQXcafsetQoD7sOJRQlGikNbx7yZp2OotDnJyrDcbyRq3Ttb18iYOqkxA==}
 
-  follow-redirects@1.16.1:
-    resolution: {integrity: sha512-FNvFGzoMLWmE6Yj9spb/zjd7yiNCHiAW9/Tg9CXrQ8wuu32HtlJOwWO11OJafl5FfY3DxTdQ0vj42zU1kvv5jg==}
+  follow-redirects@1.16.2:
+    resolution: {integrity: sha512-/kVP2U8z596Ia0gwFrwyIeo74ta5aVmSeU1FfAUMAmcEP5EP7zydmag3SLiN64NaRKef3lxsq7i/g7ltJQDGow==}
     engines: {node: '>=4.0'}
     peerDependencies:
       debug: '*'
@@ -6620,7 +6629,7 @@ snapshots:
       get-package-type: 0.1.0
       indent-string: 4.0.0
       lilconfig: 3.1.3
-      minimatch: 10.2.6
+      minimatch: 10.2.6(patch_hash=7650504a2a7c7f5b5e1724378c2da8266e8f83a2dcef1a01f69ffba5fe5b8009)
       semver: 7.8.5
       string-width: 4.2.3
       supports-color: 8.1.1
@@ -7278,7 +7287,7 @@ snapshots:
       '@typescript-eslint/types': 8.57.1
       '@typescript-eslint/visitor-keys': 8.57.1
       debug: 4.4.3(supports-color@8.1.1)
-      minimatch: 10.2.4
+      minimatch: 10.2.4(patch_hash=9e074239383e46edea55eeefd7a7eb0214dcc325e21199a2a76ead2a9268dae6)
       semver: 7.8.5
       tinyglobby: 0.2.15
       ts-api-utils: 2.5.0(typescript@5.9.3)
@@ -7293,7 +7302,7 @@ snapshots:
       '@typescript-eslint/types': 8.69.0
       '@typescript-eslint/visitor-keys': 8.69.0
       debug: 4.4.3(supports-color@8.1.1)
-      minimatch: 10.2.6
+      minimatch: 10.2.6(patch_hash=7650504a2a7c7f5b5e1724378c2da8266e8f83a2dcef1a01f69ffba5fe5b8009)
       semver: 7.8.5
       tinyglobby: 0.2.15
       ts-api-utils: 2.5.0(typescript@5.9.3)
@@ -7615,7 +7624,7 @@ snapshots:
 
   axios@1.20.0(debug@4.4.3):
     dependencies:
-      follow-redirects: 1.16.1(debug@4.4.3)
+      follow-redirects: 1.16.2(debug@4.4.3)
       form-data: 4.0.6
       https-proxy-agent: 5.0.1
       proxy-from-env: 2.1.0
@@ -7801,7 +7810,7 @@ snapshots:
       jwt-decode: 4.0.0
       log-symbols: 7.0.1
       luxon: 3.7.2
-      minimatch: 10.2.6
+      minimatch: 10.2.6(patch_hash=7650504a2a7c7f5b5e1724378c2da8266e8f83a2dcef1a01f69ffba5fe5b8009)
       mqtt: 5.15.2
       open: 11.0.2
       p-queue: 9.3.3
@@ -8678,7 +8687,7 @@ snapshots:
 
   flatted@3.4.2: {}
 
-  follow-redirects@1.16.1(debug@4.4.3):
+  follow-redirects@1.16.2(debug@4.4.3):
     optionalDependencies:
       debug: 4.4.3(supports-color@8.1.1)
 
@@ -8796,7 +8805,7 @@ snapshots:
 
   glob@13.0.6:
     dependencies:
-      minimatch: 10.2.6
+      minimatch: 10.2.6(patch_hash=7650504a2a7c7f5b5e1724378c2da8266e8f83a2dcef1a01f69ffba5fe5b8009)
       minipass: 7.1.3
       path-scurry: 2.0.2
 
@@ -9454,11 +9463,11 @@ snapshots:
   mimic-response@3.1.0:
     optional: true
 
-  minimatch@10.2.4:
+  minimatch@10.2.4(patch_hash=9e074239383e46edea55eeefd7a7eb0214dcc325e21199a2a76ead2a9268dae6):
     dependencies:
       brace-expansion: 5.0.12
 
-  minimatch@10.2.6:
+  minimatch@10.2.6(patch_hash=7650504a2a7c7f5b5e1724378c2da8266e8f83a2dcef1a01f69ffba5fe5b8009):
     dependencies:
       brace-expansion: 5.0.12
 
@@ -10203,7 +10212,7 @@ snapshots:
 
   readdir-glob@3.0.0:
     dependencies:
-      minimatch: 10.2.6
+      minimatch: 10.2.6(patch_hash=7650504a2a7c7f5b5e1724378c2da8266e8f83a2dcef1a01f69ffba5fe5b8009)
 
   readdirp@3.6.0:
     dependencies:
