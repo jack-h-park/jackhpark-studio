@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
-import { loadChatModelSettings } from "./chat-settings";
 import { PUBLIC_CHAT_CACHE_TAG } from "./public-chat-cache";
+import { loadChatModelSettings } from "./settings/model-settings";
 
 let pending: ReturnType<typeof loadChatModelSettings> | null = null;
 
