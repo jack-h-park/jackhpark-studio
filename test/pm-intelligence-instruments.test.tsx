@@ -196,3 +196,19 @@ void test("a visible source in front of an instrument wins over broad landmark h
   instrument.visible = false;
   assert.equal(pickWorldTarget(hits)?.object, landmark);
 });
+
+void test("a source capsule can be selected through its plinth area without drawing a blocking overlay", async () => {
+  const { createSourceCapsule } =
+    await import("../components/pm-intelligence-world/three/observatoryProps");
+  for (const input of [
+    "external-signals",
+    "hands-on-projects",
+    "market-study",
+  ] as const) {
+    const capsule = createSourceCapsule(input, "#65dcf4");
+    capsule.group.updateMatrixWorld(true);
+    const ray = new Raycaster(new Vector3(0.5, -1.1, 3), new Vector3(0, 0, -1));
+    const hit = pickWorldTarget(ray.intersectObjects(capsule.pickables));
+    assert.equal(hit?.object.userData.input, input);
+  }
+});

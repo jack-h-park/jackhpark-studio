@@ -253,7 +253,7 @@ export function Observatory({
           onError={() => setFailed(true)}
         />
       )}
-      <header className={styles.header}>
+      <header data-observatory-header className={styles.header}>
         <a href="/" className={styles.identity}>
           <span className={styles.wordmark}>JP</span>
           <span>
@@ -309,6 +309,7 @@ export function Observatory({
       )}
       {guide && (
         <aside
+          data-observatory-panel
           className={`${styles.panel} ${styles.guidePanel}`}
           aria-label="Expedition guide"
         >
@@ -391,7 +392,11 @@ export function Observatory({
         </aside>
       )}
       {panel && (
-        <aside className={styles.panel} aria-label="Context at current place">
+        <aside
+          data-observatory-panel
+          className={styles.panel}
+          aria-label="Context at current place"
+        >
           <button
             className={styles.close}
             aria-label="Close inspection"

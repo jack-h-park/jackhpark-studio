@@ -5,6 +5,7 @@ import {
   CylinderGeometry,
   Group,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   OctahedronGeometry,
   PointLight,
@@ -79,7 +80,14 @@ export function createSourceCapsule(id: InputId, color: string) {
   const crown = new Mesh(new SphereGeometry(0.055, 8, 6), frameMaterial);
   crown.position.y = 0.53;
   group.add(frame, shell, core, crown);
-  const pickables = [frame, shell, core];
+  // The capsule and its lit plinth read as one object, including on a touch screen.
+  const touchVolume = new Mesh(
+    new CylinderGeometry(0.8, 0.8, 1.8, 12),
+    new MeshBasicMaterial({ visible: false }),
+  );
+  touchVolume.position.y = -0.5;
+  group.add(touchVolume);
+  const pickables = [frame, shell, core, touchVolume];
   for (const mesh of pickables) {
     mesh.userData.input = id;
     mesh.castShadow = true;

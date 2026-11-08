@@ -1457,3 +1457,23 @@
 .observatory [hidden] {
   display: none;
 }
+
+/* In short landscape, preserve a full-height play area beside the context. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .observatory .panel,
+  .observatory .instrumentPanel {
+    top: 86px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    left: auto;
+    right: 12px;
+    width: min(300px, 44vw);
+    max-height: none;
+    padding: 12px;
+  }
+  .observatory .mapList {
+    max-height: calc(100svh - 100px);
+  }
+}
+.observatory .mapToggle {
+  min-width: 44px;
+}

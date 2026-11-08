@@ -68,6 +68,7 @@ export function ObservatoryInstrument({
   }, [destination, progress.step, progress.completed]);
   return (
     <aside
+      data-observatory-panel
       className={styles.instrumentPanel}
       aria-label={`Operate ${exhibitDefinitions[destination].title}`}
     >
