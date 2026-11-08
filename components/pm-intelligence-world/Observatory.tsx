@@ -48,7 +48,7 @@ const sourceNotes: Record<
   }
 > = {
   "external-signals": {
-    title: "AI Quality Is Not Accuracy. It’s Trust Recovery.",
+    title: "From a signal to reusable knowledge",
     kind: "Documented example",
     source:
       "The introduction documents a source-backed strategy note and its connection to an answer draft.",
@@ -98,14 +98,41 @@ export function Observatory({
     [home, setHome] = useState(0),
     [restart, setRestart] = useState(0),
     [panel, setPanel] = useState(false),
+    [guide, setGuide] = useState(false),
     [map, setMap] = useState(false);
   const panelTitle = useRef<HTMLHeadingElement>(null);
   const statusRef = useRef<HTMLDivElement>(null);
+  const actionRef = useRef<HTMLButtonElement>(null);
+  const guideRef = useRef<HTMLButtonElement>(null);
+  const previousOverlay = useRef<string | null>(null);
+  const overlay = panel
+    ? "inspection"
+    : map
+      ? "map"
+      : operating
+        ? "instrument"
+        : guide
+          ? "guide"
+          : null;
+  useEffect(() => {
+    if (
+      !overlay &&
+      previousOverlay.current &&
+      previousOverlay.current !== "map"
+    ) {
+      (previousOverlay.current === "guide"
+        ? guideRef
+        : actionRef
+      ).current?.focus();
+    }
+    previousOverlay.current = overlay;
+  }, [overlay]);
   useEffect(() => {
     if (!active) return;
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setPanel(false);
+        setGuide(false);
         setMap(false);
         setOperating(false);
         statusRef.current?.focus();
@@ -121,17 +148,21 @@ export function Observatory({
   const note = selected ? sourceNotes[selected] : null;
   const move = (location: ObservatoryLocation) => {
     setOperating(false);
+    setGuide(false);
+    setMap(false);
     dispatch({ type: "MOVE", location });
     setPanel(false);
   };
   const select = (input: InputId) => {
     setOperating(false);
+    setGuide(false);
+    setMap(false);
     dispatch({ type: "SELECT", input });
     setPanel(true);
   };
   useEffect(() => {
-    if (panel) panelTitle.current?.focus();
-  }, [panel, selected, state.location, inspected, reviewed, connected]);
+    if (panel || guide) panelTitle.current?.focus();
+  }, [panel, guide, selected, state.location, inspected, reviewed, connected]);
   const mission = expeditionMission(state);
   const targetLabel = observatoryLocations.find(
     (l) => l.id === mission.destination,
@@ -139,7 +170,10 @@ export function Observatory({
   const followMission = () => {
     const intent = expeditionIntent(state, nearby);
     if (intent === "choose-source") {
-      select("external-signals");
+      setPanel(false);
+      setMap(false);
+      setOperating(false);
+      setGuide(true);
       return;
     }
     setMap(false);
@@ -160,6 +194,7 @@ export function Observatory({
       className={`${styles.observatory} dark`}
       data-theme="jp"
       data-operating={operating || undefined}
+      data-overlay={overlay || undefined}
       aria-label="Signal Observatory — PM Intelligence System"
       hidden={!active}
     >
@@ -175,7 +210,7 @@ export function Observatory({
           state={state}
           onNearby={setNearby}
           home={home}
-          paused={panel || map || operating}
+          paused={panel || map || operating || guide}
           instrument={
             operating && connected && isPlayDestination(state.location)
               ? state.location
@@ -201,6 +236,7 @@ export function Observatory({
           onMapToggle={() => {
             setPanel(false);
             setOperating(false);
+            setGuide(false);
             setMap(!map);
           }}
           onMapTravel={(id) => {
@@ -271,26 +307,89 @@ export function Observatory({
           </button>
         </div>
       )}
-      <div
-        className={styles.sourcePicker}
-        aria-label="Three sources of knowledge"
-      >
-        <span className={styles.eyebrow}>THREE WAYS IN</span>
-        {content.inputs.map((input, i) => (
+      {guide && (
+        <aside
+          className={`${styles.panel} ${styles.guidePanel}`}
+          aria-label="Expedition guide"
+        >
           <button
-            key={input.id}
-            className={styles.sourceButton}
-            aria-pressed={selected === input.id}
-            onClick={() => select(input.id)}
+            className={styles.close}
+            aria-label="Close guide"
+            onClick={() => setGuide(false)}
           >
-            <span className={styles.sourceIndex}>
-              {state.connected.includes(input.id) ? <FiCheck /> : `0${i + 1}`}
-            </span>
-            <span>{input.title}</span>
-            <FiArrowRight />
+            <FiX />
           </button>
-        ))}
-      </div>
+          <span className={styles.eyebrow}>
+            SIGNAL OBSERVATORY · {mission.completed} / 6
+          </span>
+          <h2 ref={panelTitle} tabIndex={-1}>
+            Explore the whole system
+          </h2>
+          <p>
+            {mission.title} {mission.clue}
+          </p>
+          <div
+            className={styles.sourcePicker}
+            aria-label="Three sources of knowledge"
+          >
+            <span className={styles.eyebrow}>THREE WAYS IN</span>
+            {content.inputs.map((input, i) => (
+              <button
+                key={input.id}
+                className={styles.sourceButton}
+                aria-pressed={selected === input.id}
+                onClick={() => select(input.id)}
+              >
+                <span className={styles.sourceIndex}>
+                  {state.connected.includes(input.id) ? (
+                    <FiCheck />
+                  ) : (
+                    `0${i + 1}`
+                  )}
+                </span>
+                <span>{input.title}</span>
+                <FiArrowRight />
+              </button>
+            ))}
+          </div>
+
+          <details className={styles.activityNote}>
+            <summary>Progress, controls &amp; reset</summary>
+            <p>
+              Sources → human review → knowledge → writing, explanations and
+              learning. Product decisions are optional.
+            </p>
+            <p>
+              Click an object to visit it. Drag the world to orbit. Choose Walk
+              freely for WASD or touch movement.
+            </p>
+            <progress
+              max={6}
+              value={mission.completed}
+              aria-label="Completed expedition milestones"
+            />
+            <button
+              className={styles.textButton}
+              onClick={() => setHome((n) => n + 1)}
+            >
+              Restore camera
+            </button>
+            <button
+              className={styles.textButton}
+              aria-label="Restart first expedition"
+              onClick={() => {
+                setGuide(false);
+                setOperating(false);
+                dispatch({ type: "RESET" });
+                setHome((n) => n + 1);
+                setRestart((n) => n + 1);
+              }}
+            >
+              <FiRotateCcw /> Restart expedition
+            </button>
+          </details>
+        </aside>
+      )}
       {panel && (
         <aside className={styles.panel} aria-label="Context at current place">
           <button
@@ -330,10 +429,35 @@ export function Observatory({
           {state.location === "signals" && note && (
             <>
               <span className={styles.evidence}>{note.kind}</span>
-              <p>{note.source}</p>
-              <a className={styles.sourceLink} href={content.links.deck}>
-                View the source introduction <FiArrowRight />
-              </a>
+              <p>
+                {selected === "external-signals"
+                  ? "Follow how an external signal can inform a viewpoint and a later PM answer."
+                  : note.source}
+              </p>
+              {selected === "external-signals" ? (
+                <details className={styles.activityNote}>
+                  <summary>See the documented example</summary>
+                  <p>
+                    {
+                      content.records.find(
+                        (record) => record.id === "strategy-note",
+                      )?.title
+                    }
+                  </p>
+                  <p>{note.source}</p>
+                  <p>
+                    This is the title of one historical strategy note, not the
+                    purpose of the system.
+                  </p>
+                  <a className={styles.sourceLink} href={content.links.deck}>
+                    View the source introduction <FiArrowRight />
+                  </a>
+                </details>
+              ) : (
+                <a className={styles.sourceLink} href={content.links.deck}>
+                  View the source introduction <FiArrowRight />
+                </a>
+              )}
               {!inspected ? (
                 <button
                   className={styles.primary}
@@ -585,40 +709,23 @@ export function Observatory({
             }}
           />
         )}
-      <footer className={styles.quest}>
-        <div className={styles.questNumber}>
-          {String(mission.completed).padStart(2, "0")}
-          <span>/ 06</span>
-          <progress
-            className={styles.missionProgress}
-            max={6}
-            value={mission.completed}
-            aria-label="Completed expedition milestones"
-          />
-        </div>
-        <div
-          className={styles.questCopy}
-          ref={statusRef}
-          tabIndex={-1}
-          role="status"
-          aria-live="polite"
-        >
-          <strong>{mission.title}</strong>
-          <span>
-            {!selected
-              ? mission.clue
-              : nearby === mission.destination
-                ? `At ${targetLabel}. ${mission.complete ? "Retrace the whole system or take the optional judgment branch." : "Ready when you are — open the next interaction."}`
-                : mission.clue}
-          </span>
-          <span>
-            {selected
-              ? content.inputs.find((i) => i.id === selected)?.title
-              : "Three input families · one shared foundation"}{" "}
-            · {mission.completed}/6 milestones · decisions optional
-          </span>
-        </div>
+      <div
+        className={styles.stageStatus}
+        ref={statusRef}
+        tabIndex={-1}
+        role="status"
+        aria-live="polite"
+      >
+        {mission.title} {mission.clue} {mission.completed} / 6 milestones ·
+        decisions optional
+      </div>
+      <footer
+        className={styles.stageDock}
+        aria-label="Expedition navigation"
+        hidden={!!overlay}
+      >
         <button
+          ref={actionRef}
           data-observatory-start
           className={styles.questAction}
           onClick={followMission}
@@ -629,18 +736,12 @@ export function Observatory({
           <FiArrowRight />
         </button>
         <button
-          className={styles.reset}
-          aria-label="Restart first expedition"
-          onClick={() => {
-            setOperating(false);
-            dispatch({ type: "RESET" });
-            setPanel(false);
-            setMap(false);
-            setHome((n) => n + 1);
-            setRestart((n) => n + 1);
-          }}
+          ref={guideRef}
+          className={styles.guideToggle}
+          aria-label="Open expedition guide"
+          onClick={() => setGuide(true)}
         >
-          <FiRotateCcw />
+          Guide <span>{mission.completed}/6</span>
         </button>
       </footer>
       <div className={styles.footnote}>

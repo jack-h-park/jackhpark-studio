@@ -1265,3 +1265,195 @@
     max-height: max(180px, min(56%, calc(100% - 330px)));
   }
 }
+
+/* One contextual surface at a time; exploration keeps the center of the stage clear. */
+.observatory {
+  height: 100svh;
+  min-height: 0;
+}
+.stageStatus {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.stageDock {
+  position: absolute;
+  left: 24px;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100% - 130px);
+  padding: 6px 8px 6px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-page) 80%, transparent);
+  backdrop-filter: blur(16px);
+}
+.stageDock .questAction {
+  max-width: none;
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  font-size: 12px !important;
+  line-height: 1.4;
+  text-align: left;
+}
+.stageDock .questAction svg {
+  flex-shrink: 0;
+}
+.guideToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-left: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px !important;
+  white-space: nowrap;
+}
+.guideToggle span {
+  color: var(--brand-cyan);
+  font-size: 10px;
+}
+.guidePanel .sourcePicker {
+  position: static;
+  display: grid;
+  width: auto;
+  margin: 20px 0;
+}
+.guidePanel .sourcePicker > span {
+  display: none;
+}
+.guidePanel .sourceButton {
+  font-size: 12px !important;
+  min-height: 44px;
+}
+.guidePanel progress {
+  width: 100%;
+  accent-color: var(--brand-cyan);
+}
+.observatory .panel,
+.observatory .instrumentPanel {
+  top: auto;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+  max-height: min(440px, 55svh);
+  overscroll-behavior: contain;
+}
+.observatory .panel .close {
+  width: 44px;
+  height: 44px;
+}
+.observatory[data-overlay] .walkControls,
+.observatory[data-overlay] .landmarks,
+.observatory[data-overlay="inspection"] .mapToggle,
+.observatory[data-overlay="guide"] .mapToggle,
+.observatory[data-overlay="instrument"] .mapToggle {
+  display: none;
+}
+.observatory .mapControls {
+  right: 24px;
+  bottom: calc(28px + env(safe-area-inset-bottom));
+}
+.observatory .mapList {
+  bottom: 0;
+  max-height: min(520px, calc(100svh - 120px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.observatory .instrumentPanel h2 {
+  font-size: 17px;
+  margin: 8px 44px 10px 0;
+}
+.observatory .instrumentPanel h3 {
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 10px 0;
+}
+.instrumentPanel .instrumentStep {
+  margin: 8px 0;
+}
+.instrumentPanel .primary {
+  margin-top: 12px;
+}
+.instrumentHelp {
+  margin-top: 16px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.instrumentHelp summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.selectedCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.selectedCard .textButton {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  font-size: 11px !important;
+}
+@media (max-width: 600px) {
+  .stageDock {
+    left: 16px;
+    gap: 4px;
+    max-width: calc(100% - 90px);
+    padding-left: 12px;
+  }
+  .guideToggle {
+    gap: 5px;
+    padding-inline: 8px;
+    font-size: 11px !important;
+  }
+  .observatory .mapControls {
+    right: 16px;
+  }
+  .observatory .panel,
+  .observatory .instrumentPanel {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    max-height: 38svh;
+    padding: 16px;
+  }
+  .observatory .panel h2 {
+    font-size: 19px;
+  }
+  .observatory .mapList {
+    max-height: 40svh;
+  }
+  .instrumentPanel .instrumentCards {
+    gap: 6px;
+  }
+  .instrumentPanel .instrumentCards button {
+    padding: 8px 10px;
+    font-size: 11px !important;
+  }
+}
+@media (max-height: 500px) and (min-width: 601px) {
+  .observatory .panel,
+  .observatory .instrumentPanel,
+  .observatory .mapList {
+    max-height: calc(100svh - 100px);
+  }
+}
+.observatory [hidden] {
+  display: none;
+}

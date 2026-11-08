@@ -140,7 +140,7 @@ export function ObservatoryScene({
             if (next && !paused) mount.current?.focus();
           }}
         >
-          {walking ? "Walking on · switch to click travel" : "Walk freely"}
+          {walking ? "Stop walking" : "Walk freely"}
         </button>
         {walking && !paused && (
           <>
