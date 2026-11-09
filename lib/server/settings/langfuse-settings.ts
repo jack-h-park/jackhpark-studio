@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { getAppEnv } from "@/lib/langfuse";
+import { getAppEnv } from "@/lib/app-env";
 
 import { TtlCache } from "./ttl-cache";
 

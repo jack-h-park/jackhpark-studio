@@ -32,7 +32,10 @@ async function handlers(): Promise<Bundle> {
         name: "external-settings-boundary",
         setup(b) {
           b.onResolve(
-            { filter: /^(?:@\/lib\/server\/|\.\/)chat-settings$/ },
+            {
+              filter:
+                /^(?:@\/lib\/server\/|\.\/)(?:chat-settings|settings\/model-settings)$/,
+            },
             () => ({ path: "settings", namespace: "fixture" }),
           );
           b.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({
