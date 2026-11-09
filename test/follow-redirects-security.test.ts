@@ -8,6 +8,7 @@ import {
 } from "node:http";
 import { createRequire } from "node:module";
 import { test } from "node:test";
+import { runInNewContext } from "node:vm";
 
 const require = createRequire(import.meta.url);
 const communityRequire = createRequire(
@@ -64,131 +65,137 @@ function protectedHeaders(headers: IncomingHttpHeaders) {
 
 for (const format of ["object", "array"] as const) {
   for (const crossHost of [true, false]) {
-    void test(
-      `${format} headers ${crossHost ? "strip credentials across hosts" : "retain credentials on the same origin"}`,
-      { timeout: 5000 },
-      async (t) => {
-        const received: IncomingHttpHeaders[] = [];
-        const server = createServer((request, response) => {
-          request.resume();
-          received.push({ ...request.headers });
-          if (request.url === "/start") {
-            const host = crossHost ? "localhost" : "127.0.0.1";
-            response.writeHead(302, {
-              Location: `http://${host}:${port}/target`,
+    for (const crossRealm of [false, true]) {
+      void test(
+        `${format} headers with ${crossRealm ? "cross-realm" : "same-realm"} sensitive names ${crossHost ? "strip credentials across hosts" : "retain credentials on the same origin"}`,
+        { timeout: 5000 },
+        async (t) => {
+          const received: IncomingHttpHeaders[] = [];
+          const server = createServer((request, response) => {
+            request.resume();
+            received.push({ ...request.headers });
+            if (request.url === "/start") {
+              const host = crossHost ? "localhost" : "127.0.0.1";
+              response.writeHead(302, {
+                Location: `http://${host}:${port}/target`,
+              });
+            }
+            response.end("ok");
+          });
+          t.after(async () => {
+            server.closeAllConnections();
+            await new Promise<void>((resolve, reject) => {
+              server.close((error) => (error ? reject(error) : resolve()));
             });
-          }
-          response.end("ok");
-        });
-        t.after(async () => {
-          server.closeAllConnections();
-          await new Promise<void>((resolve, reject) => {
-            server.close((error) => (error ? reject(error) : resolve()));
           });
-        });
-        await new Promise<void>((resolve, reject) => {
-          server.once("error", reject);
-          server.listen(0, "127.0.0.1", resolve);
-        });
-        const address = server.address();
-        assert.ok(address && typeof address === "object");
-        const port = address.port;
-
-        let request:
-          | ReturnType<typeof followRedirects.http.request>
-          | undefined;
-        let timer: ReturnType<typeof setTimeout> | undefined;
-        try {
           await new Promise<void>((resolve, reject) => {
-            timer = setTimeout(() => {
-              const error = new Error("Loopback redirect request timed out");
-              request?.destroy(error);
-              reject(error);
-            }, 2000);
-            request = followRedirects.http.request(
-              {
-                hostname: "127.0.0.1",
-                port,
-                path: "/start",
-                method: "GET",
-                headers: requestHeaders(format, port),
-                sensitiveHeaders: [
-                  "X-Api^Key",
-                  "X-Token|Secret",
-                  "X-Control-Key",
-                ],
-                maxRedirects: 1,
-                agent: false,
-                family: 4,
-                // Different hostnames trigger stripping; DNS stays on loopback.
-                lookup(hostname, _options, callback) {
-                  if (hostname !== "localhost") {
-                    callback(
-                      new Error("Only loopback hostnames are allowed"),
-                      "",
-                      4,
-                    );
-                    return;
-                  }
-                  callback(null, "127.0.0.1", 4);
+            server.once("error", reject);
+            server.listen(0, "127.0.0.1", resolve);
+          });
+          const address = server.address();
+          assert.ok(address && typeof address === "object");
+          const port = address.port;
+
+          let request:
+            | ReturnType<typeof followRedirects.http.request>
+            | undefined;
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          const sensitiveNames = [
+            "X-Api^Key",
+            "X-Token|Secret",
+            "X-Control-Key",
+          ];
+          const sensitiveHeaders = crossRealm
+            ? (runInNewContext(JSON.stringify(sensitiveNames)) as string[])
+            : sensitiveNames;
+          try {
+            await new Promise<void>((resolve, reject) => {
+              timer = setTimeout(() => {
+                const error = new Error("Loopback redirect request timed out");
+                request?.destroy(error);
+                reject(error);
+              }, 2000);
+              request = followRedirects.http.request(
+                {
+                  hostname: "127.0.0.1",
+                  port,
+                  path: "/start",
+                  method: "GET",
+                  headers: requestHeaders(format, port),
+                  sensitiveHeaders,
+                  maxRedirects: 1,
+                  agent: false,
+                  family: 4,
+                  // Different hostnames trigger stripping; DNS stays on loopback.
+                  lookup(hostname, _options, callback) {
+                    if (hostname !== "localhost") {
+                      callback(
+                        new Error("Only loopback hostnames are allowed"),
+                        "",
+                        4,
+                      );
+                      return;
+                    }
+                    callback(null, "127.0.0.1", 4);
+                  },
                 },
-              },
-              (response) => {
-                response.once("error", reject);
-                response.once("end", () => {
-                  try {
-                    assert.equal(response.statusCode, 200);
-                    resolve();
-                  } catch (err) {
-                    reject(err);
-                  }
-                });
-                response.resume();
-              },
-            );
-            request.once("error", reject);
-            request.end();
-          });
-        } finally {
-          clearTimeout(timer);
-          request?.destroy();
-        }
+                (response) => {
+                  response.once("error", reject);
+                  response.once("end", () => {
+                    try {
+                      assert.equal(response.statusCode, 200);
+                      resolve();
+                    } catch (err) {
+                      reject(err);
+                    }
+                  });
+                  response.resume();
+                },
+              );
+              request.once("error", reject);
+              request.end();
+            });
+          } finally {
+            clearTimeout(timer);
+            request?.destroy();
+          }
 
-        assert.equal(
-          received.length,
-          2,
-          "exactly one redirect must be followed",
-        );
-        const expectedCredentials = {
-          authorization: "Bearer synthetic-authorization",
-          cookie: "session=synthetic-cookie",
-          "proxy-authorization": "Basic synthetic-proxy",
-          "x-api^key": "synthetic-caret",
-          "x-token|secret": "synthetic-pipe",
-          "x-control-key": "synthetic-control",
-        };
-        assert.deepEqual(protectedHeaders(received[0]), expectedCredentials);
-        assert.deepEqual(
-          protectedHeaders(received[1]),
-          crossHost
-            ? {
-                authorization: undefined,
-                cookie: undefined,
-                "proxy-authorization": undefined,
-                "x-api^key": undefined,
-                "x-token|secret": undefined,
-                "x-control-key": undefined,
-              }
-            : expectedCredentials,
-        );
-        assert.equal(received[1]["x-harmless"], "keep-me");
-        assert.equal(received[1]["x-token"], "keep-token");
-        assert.equal(received[1].secret, "keep-secret");
-        assert.equal(
-          received[1].host,
-          `${crossHost ? "localhost" : "127.0.0.1"}:${port}`,
-        );
-      },
-    );
+          assert.equal(
+            received.length,
+            2,
+            "exactly one redirect must be followed",
+          );
+          const expectedCredentials = {
+            authorization: "Bearer synthetic-authorization",
+            cookie: "session=synthetic-cookie",
+            "proxy-authorization": "Basic synthetic-proxy",
+            "x-api^key": "synthetic-caret",
+            "x-token|secret": "synthetic-pipe",
+            "x-control-key": "synthetic-control",
+          };
+          assert.deepEqual(protectedHeaders(received[0]), expectedCredentials);
+          assert.deepEqual(
+            protectedHeaders(received[1]),
+            crossHost
+              ? {
+                  authorization: undefined,
+                  cookie: undefined,
+                  "proxy-authorization": undefined,
+                  "x-api^key": undefined,
+                  "x-token|secret": undefined,
+                  "x-control-key": undefined,
+                }
+              : expectedCredentials,
+          );
+          assert.equal(received[1]["x-harmless"], "keep-me");
+          assert.equal(received[1]["x-token"], "keep-token");
+          assert.equal(received[1].secret, "keep-secret");
+          assert.equal(
+            received[1].host,
+            `${crossHost ? "localhost" : "127.0.0.1"}:${port}`,
+          );
+        },
+      );
+    }
   }
 }
