@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { copyFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -28,6 +30,7 @@ let port = 0;
 let behaviour: Behaviour = {};
 let sitemapHits = 0;
 const flakyHits = new Map<string, number>();
+const requestedPaths: string[] = [];
 
 function sitemapXml(paths: string[]): string {
   const locs = paths
@@ -39,6 +42,7 @@ function sitemapXml(paths: string[]): string {
 before(async () => {
   server = createServer((req, res) => {
     const url = req.url ?? "/";
+    requestedPaths.push(url);
 
     if (url === "/sitemap.xml") {
       sitemapHits += 1;
@@ -87,13 +91,17 @@ after(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
-async function runSweep(next: Behaviour) {
+async function runSweep(next: Behaviour, plan?: unknown, scriptPath = script) {
   behaviour = next;
   sitemapHits = 0;
   flakyHits.clear();
+  requestedPaths.length = 0;
+  const temp = await mkdtemp(path.join(tmpdir(), "sweep-plan-"));
+  const planPath = path.join(temp, "plan.json");
+  if (plan !== undefined) await writeFile(planPath, JSON.stringify(plan));
 
   try {
-    const { stdout } = await execFileAsync(process.execPath, [script], {
+    const { stdout } = await execFileAsync(process.execPath, [scriptPath], {
       env: {
         ...process.env,
         PROD_BASE_URL: `http://127.0.0.1:${port}`,
@@ -101,12 +109,15 @@ async function runSweep(next: Behaviour) {
         // depends on, so the tests drive them at a few ms.
         SITEMAP_RETRY_DELAY_MS: "5",
         SITEMAP_INDEX_RETRY_DELAY_MS: "5",
+        SWEEP_PLAN_PATH: plan === undefined ? "" : planPath,
       },
     });
     return { code: 0, stdout };
   } catch (err) {
     const e = err as { code?: number; stdout?: string };
     return { code: e.code ?? 1, stdout: e.stdout ?? "" };
+  } finally {
+    await rm(temp, { recursive: true, force: true });
   }
 }
 
@@ -152,4 +163,86 @@ void describe("sitemap availability sweep", () => {
     await runSweep({});
     assert.equal(sitemapHits, 1);
   });
+});
+
+const representativePaths = [
+  "/",
+  "/chat",
+  "/studio",
+  "/experience-background",
+  "/aws",
+  "/beluga",
+  "/decks/example/index.html",
+];
+
+void describe("representative deployment verification", () => {
+  void it("retains full coverage if the optional scope validator cannot load", async () => {
+    const temp = await mkdtemp(path.join(tmpdir(), "sweep-startup-"));
+    try {
+      const isolatedScript = path.join(temp, "sitemap-availability.mjs");
+      await copyFile(script, isolatedScript);
+      const result = await runSweep(
+        { dead: ["/cold-leaf"] },
+        {
+          scope: "representative",
+          paths: representativePaths,
+        },
+        isolatedScript,
+      );
+      assert.equal(result.code, 1);
+      assert.ok(requestedPaths.includes("/cold-leaf"));
+      assert.ok(requestedPaths.includes("/sitemap.xml"));
+    } finally {
+      await rm(temp, { recursive: true, force: true });
+    }
+  });
+
+  void it("checks canaries and the changed deck without enumerating cold sitemap pages", async () => {
+    const result = await runSweep(
+      {},
+      { scope: "representative", paths: representativePaths },
+    );
+    assert.equal(result.code, 0);
+    assert.deepEqual(requestedPaths.toSorted(), representativePaths.toSorted());
+    assert.equal(sitemapHits, 0);
+  });
+
+  for (const deadPath of ["/aws", "/decks/example/index.html"]) {
+    void it(`fails when a representative target stays broken: ${deadPath}`, async () => {
+      const result = await runSweep(
+        { dead: [deadPath] },
+        {
+          scope: "representative",
+          paths: representativePaths,
+        },
+      );
+      assert.equal(result.code, 1);
+      assert.match(result.stdout, /FAIL /);
+      assert.ok(!requestedPaths.includes("/sitemap.xml"));
+    });
+  }
+
+  for (const invalid of [
+    { scope: "representative", paths: ["/decks/example/index.html"] },
+    {
+      scope: "representative",
+      paths: [...representativePaths, "/api/internal/rag/ingest"],
+    },
+    {
+      scope: "representative",
+      paths: [...representativePaths, "//other.example/path"],
+    },
+    {
+      scope: "representative",
+      paths: [...representativePaths, "/decks/../index.html"],
+    },
+    { scope: "other", paths: representativePaths },
+  ]) {
+    void it(`retains full coverage for invalid plan ${JSON.stringify(invalid)}`, async () => {
+      const result = await runSweep({ dead: ["/cold-leaf"] }, invalid);
+      assert.equal(result.code, 1);
+      assert.ok(requestedPaths.includes("/cold-leaf"));
+      assert.ok(requestedPaths.includes("/sitemap.xml"));
+    });
+  }
 });
