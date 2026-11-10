@@ -11,6 +11,20 @@
 .observatory[hidden] {
   display: none;
 }
+.skipToOverview {
+  position: absolute;
+  z-index: 20;
+  top: 12px;
+  left: 12px;
+  transform: translateY(-200%);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  padding: 12px 16px;
+  min-height: 44px;
+}
+.skipToOverview:focus {
+  transform: none;
+}
 .observatory button,
 .observatory a {
   touch-action: manipulation;

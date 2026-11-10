@@ -88,6 +88,7 @@ export function Observatory({
 }) {
   const [state, dispatch] = useObservatorySession();
   const [operating, setOperating] = useState(false);
+  const [motionPaused, setMotionPaused] = useState(false);
   const [nearby, setNearby] = useState<ObservatoryLocation | null>("signals");
   const [ready, setReady] = useState(false),
     [failed, setFailed] = useState(false),
@@ -194,6 +195,12 @@ export function Observatory({
       aria-label="Signal Observatory — PM Intelligence System"
       hidden={!active}
     >
+      <button
+        className={styles.skipToOverview}
+        onClick={() => onRead("overview")}
+      >
+        Skip to system overview
+      </button>
       <div className={styles.backdrop} />
       <noscript>
         <p>
@@ -203,6 +210,7 @@ export function Observatory({
       </noscript>
       {active && !failed && (
         <Scene
+          motionPaused={motionPaused}
           state={state}
           onNearby={setNearby}
           home={home}
@@ -370,6 +378,13 @@ export function Observatory({
               value={mission.completed}
               aria-label="Completed expedition milestones"
             />
+            <button
+              className={styles.textButton}
+              aria-pressed={motionPaused}
+              onClick={() => setMotionPaused((value) => !value)}
+            >
+              {motionPaused ? "Resume motion" : "Pause motion"}
+            </button>
             <button
               className={styles.textButton}
               onClick={() => setHome((n) => n + 1)}
@@ -744,7 +759,7 @@ export function Observatory({
         <button
           ref={guideRef}
           className={styles.guideToggle}
-          aria-label="Open expedition guide"
+          aria-label={`Guide ${mission.completed}/6 · Open expedition guide`}
           onClick={() => setGuide(true)}
         >
           Guide <span>{mission.completed}/6</span>

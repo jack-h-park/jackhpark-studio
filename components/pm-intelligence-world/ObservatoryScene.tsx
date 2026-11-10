@@ -30,6 +30,7 @@ export function ObservatoryScene({
   paused,
   restart,
   mapOpen,
+  motionPaused,
   onMapToggle,
   onMapTravel,
 }: {
@@ -45,6 +46,7 @@ export function ObservatoryScene({
   paused: boolean;
   restart: number;
   mapOpen: boolean;
+  motionPaused: boolean;
   onMapToggle: () => void;
   onMapTravel: (location: ObservatoryLocation) => void;
 }) {
@@ -107,6 +109,9 @@ export function ObservatoryScene({
   useEffect(() => {
     handle.current?.setWalking(walking, paused);
   }, [walking, paused]);
+  useEffect(() => {
+    handle.current?.setMotionPaused(motionPaused);
+  }, [motionPaused]);
   useEffect(() => {
     handle.current?.reset();
     setWalking(false);

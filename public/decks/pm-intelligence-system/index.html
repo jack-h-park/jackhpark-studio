@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"><title>PM Intelligence System</title><meta name="description" content="How the LLM Wiki organizes knowledge and experience for writing, explanations, preparation and product judgment."><link rel="canonical" href="https://www.jackhpark.com/decks/pm-intelligence-system"><meta property="og:type" content="website"><meta property="og:title" content="PM Intelligence System"><meta property="og:description" content="How the LLM Wiki organizes knowledge and experience for writing, explanations, preparation and product judgment."><meta property="og:url" content="https://www.jackhpark.com/decks/pm-intelligence-system"><link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"><style>/* ===========================================
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:,"><title>PM Intelligence System</title><meta name="description" content="How the LLM Wiki organizes knowledge and experience for writing, explanations, preparation and product judgment."><link rel="canonical" href="https://www.jackhpark.com/decks/pm-intelligence-system"><meta property="og:type" content="website"><meta property="og:title" content="PM Intelligence System"><meta property="og:description" content="How the LLM Wiki organizes knowledge and experience for writing, explanations, preparation and product judgment."><meta property="og:url" content="https://www.jackhpark.com/decks/pm-intelligence-system"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap"></noscript><style>/* ===========================================
    FIXED 16:9 STAGE: MANDATORY BASE STYLES
    Include this ENTIRE file in every presentation.
    Slides are authored at 1920×1080 and scaled as a whole.
@@ -937,7 +937,8 @@ window.presentation = new SlidePresentation();
         if(n.dataset.exploreIndex!==undefined || n.hasAttribute('data-inline-index'))return;
         n.dataset.exploreIndex=i;
         if(n.tagName!=='BUTTON'){n.tabIndex=0;n.setAttribute('role','button');}
-        n.setAttribute('aria-label','Explore '+entry.label);
+        // Let the visible card content supply its full accessible name.
+        n.removeAttribute('aria-label');
         n.addEventListener('click',()=>open(i));
         if(n.tagName!=='BUTTON')n.addEventListener('keydown',e=>{if(['Enter',' '].includes(e.key)){e.preventDefault();e.stopPropagation();open(i);}});
       });
@@ -1032,7 +1033,7 @@ window.presentation = new SlidePresentation();
   const setReading = enabled => {
     document.body.dataset.deckReading = String(enabled);
     toggle.textContent = enabled ? 'Slide view' : 'Read view';
-    toggle.setAttribute('aria-label', enabled ? 'Switch to slide view' : 'Switch to reading view');
+    toggle.setAttribute('aria-label', toggle.textContent);
     toggle.setAttribute('aria-pressed', String(enabled));
     viewport.scrollTop = 0;
     presentation.scale();

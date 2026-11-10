@@ -39,6 +39,28 @@ function openDeck(width: number) {
   return { dom, window, document: window.document };
 }
 
+void test("interactive deck cards preserve the visible wording in their accessible names", async () => {
+  const { dom, document } = openDeck(390);
+  try {
+    const normalize = (value: string) =>
+      value.replaceAll(/\s+/g, "").toLowerCase();
+    const cards = document.querySelectorAll<HTMLElement>(
+      "[data-explore-index]",
+    );
+    assert.ok(cards.length > 15);
+    for (const card of cards) {
+      const visible = normalize(card.textContent || "");
+      const name = normalize(
+        card.getAttribute("aria-label") || card.textContent || "",
+      );
+      assert.ok(name.includes(visible), card.outerHTML.slice(0, 300));
+    }
+  } finally {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    dom.window.close();
+  }
+});
+
 void test("phones read the full canonical scene and switch views without losing position", async () => {
   const { dom, window, document } = openDeck(390);
   try {
@@ -142,6 +164,14 @@ void test("reading scroll keys do not change scenes while a toolbar button has f
 void test("desktop retains slide defaults and reading scroll keys do not navigate", async () => {
   const { dom, window, document } = openDeck(1280);
   try {
+    const readingToggle =
+      document.querySelector<HTMLButtonElement>(".reading-toggle")!;
+    assert.ok(
+      readingToggle
+        .getAttribute("aria-label")!
+        .toLowerCase()
+        .includes(readingToggle.textContent!.toLowerCase()),
+    );
     assert.equal(document.body.dataset.deckReading, "false");
     document.body.dispatchEvent(
       new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),

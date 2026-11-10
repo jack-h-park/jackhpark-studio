@@ -27,7 +27,10 @@ void test("a page remount restores source inspection, and restart clears that se
   const click = async (name: string) => {
     const button = [...document.querySelectorAll("button")].find(
       (b) =>
-        b.getAttribute("aria-label") === name || b.textContent?.trim() === name,
+        b.getAttribute("aria-label") === name ||
+        (name === "Open expedition guide" &&
+          b.getAttribute("aria-label")?.endsWith(name)) ||
+        b.textContent?.trim() === name,
     );
     assert.ok(button, name);
     await act(async () => button.click());

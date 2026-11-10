@@ -85,6 +85,7 @@ import {
 import { createSpatialFeedback } from "./spatialFeedback";
 
 export interface ObservatoryHandle {
+  setMotionPaused(paused: boolean): void;
   setState(state: ObservatoryState): void;
   focusInstrument(id: PlayDestination | null): void;
   home(): void;
@@ -181,6 +182,12 @@ export function createObservatory({
     ready = false,
     visible = !document.hidden;
   let motion = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let motionAllowed = true;
+  let needsRender = true;
+  const invalidate = () => {
+    needsRender = true;
+  };
+  controls.addEventListener("change", invalidate);
   controls.enableDamping = motion;
   let state: ObservatoryState = {
     travel: 0,
@@ -201,6 +208,7 @@ export function createObservatory({
       }
       t.colorSpace = SRGBColorSpace;
       scene.background = t;
+      invalidate();
     },
   );
   new GLTFLoader().load(
@@ -218,8 +226,18 @@ export function createObservatory({
         }
       });
       scene.add(g.scene);
-      ready = true;
-      onReady();
+      // KHR_parallel_shader_compile avoids blocking input on first material use.
+      void renderer.compileAsync(scene, camera).then(
+        () => {
+          if (disposed) return;
+          ready = true;
+          invalidate();
+          onReady();
+        },
+        () => {
+          if (!disposed) onError();
+        },
+      );
     },
     undefined,
     () => {
@@ -438,6 +456,7 @@ export function createObservatory({
   let gesture: { id: PlayDestination; pointerId: number } | null = null;
   const frameGate = new CameraFramingGate();
   const endGesture = () => {
+    invalidate();
     const resumeFraming = frameGate.end();
     if (resumeFraming)
       queueMicrotask(() => {
@@ -463,6 +482,7 @@ export function createObservatory({
     return pickWorldTarget(ray.intersectObjects(targets));
   };
   const updateHover = (event?: PointerEvent) => {
+    invalidate();
     const hit = event && !down ? pickAt(event) : undefined;
     hoveredInput = (hit?.object.userData.input as InputId | undefined) || null;
     const place = hit?.object.userData.location as
@@ -485,6 +505,7 @@ export function createObservatory({
     renderer.domElement.dataset.operation = operation || "";
   };
   const pointerDown = (event: PointerEvent) => {
+    invalidate();
     if (
       !event.isPrimary ||
       !ownsInstrumentPointer(gesture?.pointerId, event.pointerId)
@@ -505,6 +526,7 @@ export function createObservatory({
     updateHover();
   };
   const pointerMove = (event: PointerEvent) => {
+    invalidate();
     if (!ownsInstrumentPointer(gesture?.pointerId, event.pointerId)) return;
     if (gesture && down) {
       if (gesture.id === "questions" || gesture.id === "decisions")
@@ -569,7 +591,8 @@ export function createObservatory({
   renderer.domElement.addEventListener("webglcontextlost", contextLost);
   const media = matchMedia("(prefers-reduced-motion: reduce)");
   const changeMotion = () => {
-    motion = !media.matches;
+    motion = motionAllowed && !media.matches;
+    invalidate();
     controls.enableDamping = motion;
     if (!motion && cameraTour) {
       const shift = cameraTour.target.clone().sub(controls.target);
@@ -586,6 +609,7 @@ export function createObservatory({
   };
   media.addEventListener("change", changeMotion);
   const changeVisible = () => {
+    invalidate();
     visible = !document.hidden;
     if (!visible) {
       clearInput();
@@ -620,6 +644,7 @@ export function createObservatory({
       }));
   };
   const framePlace = (id: ObservatoryLocation) => {
+    invalidate();
     const l = observatoryLocations.find((place) => place.id === id)!;
     framedPlace = id;
     const zoom =
@@ -653,6 +678,7 @@ export function createObservatory({
   };
   let activeInstrument: PlayDestination | null = null;
   const frameInstrument = (id: PlayDestination) => {
+    invalidate();
     const view = exhibits.views.find((v) => v.destination === id)!;
     const bounds = new Box3().setFromObject(view.root).expandByScalar(0.08);
     const frame = fitObjectFrame(
@@ -676,6 +702,7 @@ export function createObservatory({
   let width = 1,
     height = 1;
   const resize = () => {
+    invalidate();
     width = mount.clientWidth;
     height = mount.clientHeight;
     const aspect = width / height;
@@ -725,7 +752,15 @@ export function createObservatory({
   let elapsed = 0,
     last = 0;
   renderer.setAnimationLoop((ms) => {
-    if (disposed || !visible) return;
+    if (disposed || !visible || !ready) return;
+    if (
+      !motion &&
+      !needsRender &&
+      !keys.size &&
+      virtualInput.every((v) => v === 0)
+    )
+      return;
+    needsRender = false;
     const delta = Math.min((ms - last) / 1000, 0.05);
     last = ms;
     if (motion) elapsed += delta;
@@ -887,7 +922,12 @@ export function createObservatory({
     for (const bitmap of bitmaps) bitmap.close();
   }
   return {
+    setMotionPaused(paused) {
+      motionAllowed = !paused;
+      changeMotion();
+    },
     focusInstrument(id) {
+      invalidate();
       const previous = activeInstrument;
       endGesture();
       activeInstrument = id;
@@ -908,6 +948,7 @@ export function createObservatory({
       } else if (previous && ready) framePlace(state.location);
     },
     setState(next) {
+      invalidate();
       const feedback = feedbackTransition(state, next);
       if (clearsSpatialFeedback(state, next)) spatialFeedback.reset();
       if (feedback) {
@@ -981,11 +1022,13 @@ export function createObservatory({
       virtualInput = input;
     },
     nudge(input) {
+      invalidate();
       walkStep(input, 0.05);
       announceNearby();
     },
     interact,
     reset() {
+      invalidate();
       clearInput();
       remaining = [];
       following = false;
@@ -994,6 +1037,7 @@ export function createObservatory({
       spatialFeedback.reset();
     },
     home() {
+      invalidate();
       framedPlace = null;
       following = false;
       cameraTour = null;
@@ -1007,6 +1051,7 @@ export function createObservatory({
       endGesture();
       disposed = true;
       renderer.setAnimationLoop(null);
+      controls.removeEventListener("change", invalidate);
       observer.disconnect();
       panelObserver.disconnect();
       document.removeEventListener("visibilitychange", changeVisible);

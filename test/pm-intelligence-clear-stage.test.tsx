@@ -15,6 +15,8 @@ import {
   observatoryReducer,
 } from "../lib/pm-intelligence-world/observatory-state";
 
+const normalize = (value: string) => value.replaceAll(/\s+/g, "").toLowerCase();
+
 async function withDOM(
   run: (
     document: Document,
@@ -55,7 +57,10 @@ async function withDOM(
   const click = async (name: string) => {
     const button = [...document.querySelectorAll("button")].find(
       (b) =>
-        b.getAttribute("aria-label") === name || b.textContent?.trim() === name,
+        b.getAttribute("aria-label") === name ||
+        (name === "Open expedition guide" &&
+          b.getAttribute("aria-label")?.endsWith(name)) ||
+        b.textContent?.trim() === name,
     );
     assert.ok(button, `Missing button: ${name}`);
     button.focus();
@@ -137,6 +142,29 @@ void test("exploration keeps sources and historical titles behind one explicit g
     assert.equal(
       document.activeElement?.hasAttribute("data-observatory-start"),
       true,
+    );
+  });
+});
+
+void test("the guide name includes its visible progress and motion can be paused without losing the overview", async () => {
+  await withDOM(async (document, click) => {
+    const guide = [...document.querySelectorAll("button")].find((b) =>
+      b.textContent?.trim().startsWith("Guide"),
+    )!;
+    assert.ok(
+      normalize(guide.getAttribute("aria-label")!).includes(
+        normalize(guide.textContent!),
+      ),
+    );
+    const first = document.querySelector("button, a[href]")!;
+    assert.equal(first.textContent, "Skip to system overview");
+    await click(guide.getAttribute("aria-label")!);
+    await click("Pause motion");
+    assert.equal(
+      [...document.querySelectorAll("button")]
+        .find((b) => b.textContent === "Resume motion")
+        ?.getAttribute("aria-pressed"),
+      "true",
     );
   });
 });
