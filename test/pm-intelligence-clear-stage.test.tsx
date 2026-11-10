@@ -196,3 +196,27 @@ void test("a selected teaching card folds away while the 3D instrument remains a
     );
   }, true);
 });
+
+void test("each new instrument question keeps focus after its choice cards reopen", async () => {
+  await withDOM(async (document, click) => {
+    const stages = activityDefinitions.writing.stages;
+    for (const [index, stage] of stages.entries()) {
+      assert.equal(document.activeElement?.textContent, stage.prompt);
+      const rejected = stage.options.find((option) => !option.accepted);
+      if (rejected) {
+        await click(rejected.label);
+        await click("Press the argument");
+        assert.equal(document.activeElement?.textContent, "Press the argument");
+        assert.ok(document.querySelector('[role="status"]')?.textContent);
+        await click("Change card");
+        assert.equal(document.activeElement?.textContent, rejected.label);
+      }
+      await click(stage.options.find((option) => option.accepted)!.label);
+      await click("Press the argument");
+      assert.equal(
+        document.activeElement?.textContent,
+        stages[index + 1]?.prompt ?? "The argument press",
+      );
+    }
+  }, true);
+});

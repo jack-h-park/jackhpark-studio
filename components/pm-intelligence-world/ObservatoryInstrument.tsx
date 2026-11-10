@@ -51,16 +51,17 @@ export function ObservatoryInstrument({
   const previousChoosing = useRef(choosing);
   useEffect(() => {
     if (previousChoosing.current !== choosing) {
-      if (choosing)
+      // Stage changes focus the new question; only Change card reopens a selection.
+      if (choosing && progress.armedChoice)
         (
           cards.current?.querySelector<HTMLButtonElement>(
             '[aria-pressed="true"]',
           ) ?? cards.current?.querySelector("button")
         )?.focus();
-      else applyButton.current?.focus();
+      else if (!choosing) applyButton.current?.focus();
     }
     previousChoosing.current = choosing;
-  }, [choosing]);
+  }, [choosing, progress.armedChoice]);
   const title = useRef<HTMLHeadingElement>(null);
   const prompt = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
