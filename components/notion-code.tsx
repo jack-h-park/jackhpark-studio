@@ -4,22 +4,15 @@ import { getTextContent } from "notion-utils";
 import * as React from "react";
 import { Code as DefaultCode } from "react-notion-x/build/third-party/code";
 
+import { isMermaidCodeBlock } from "@/lib/notion/code-block";
+
 import { MermaidDiagram } from "./notion-mermaid";
 
 type NotionCodeProps = React.ComponentProps<typeof DefaultCode>;
 
-const MERMAID_LANGUAGES = new Set(["mermaid"]);
-
-function getLanguage(block: NotionCodeProps["block"]) {
-  const languageToken = block?.properties?.language?.[0]?.[0];
-  return typeof languageToken === "string"
-    ? languageToken.trim().toLowerCase()
-    : "";
-}
-
 export function NotionCode(props: NotionCodeProps) {
   const { block } = props;
-  const language = React.useMemo(() => getLanguage(block), [block]);
+  const isMermaid = React.useMemo(() => isMermaidCodeBlock(block), [block]);
   const code = React.useMemo(
     () => getTextContent(block?.properties?.title ?? []),
     [block],
@@ -27,7 +20,7 @@ export function NotionCode(props: NotionCodeProps) {
   const [isSourceOpen, setIsSourceOpen] = React.useState(false);
   const sourceId = React.useId();
 
-  if (MERMAID_LANGUAGES.has(language)) {
+  if (isMermaid) {
     return (
       <div className="notion-mermaid-block">
         <MermaidDiagram blockId={block.id} code={code} />

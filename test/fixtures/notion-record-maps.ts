@@ -103,8 +103,7 @@ export const fixtureImagePageId = "28299029-c0b4-81ce-8999-d425287d3dc0";
 export const fixtureHeadingBlockId = "28299029-c0b4-81ce-8999-d425287d3dc1";
 export const fixtureParagraphBlockId = "28299029-c0b4-81ce-8999-d425287d3dc2";
 export const fixtureImageBlockId = "28299029-c0b4-81ce-8999-d425287d3dc3";
-export const fixtureSecondImageBlockId =
-  "28299029-c0b4-81ce-8999-d425287d3dc4";
+export const fixtureSecondImageBlockId = "28299029-c0b4-81ce-8999-d425287d3dc4";
 
 // A page with: heading -> paragraph -> captioned image -> plain image.
 // Exercises document-order context tracking in extractNotionPageImages.
@@ -185,4 +184,48 @@ export function buildDoublyNestedNotionRecordMap(): ExtendedRecordMap {
     ]),
   );
   return { ...base, block } as unknown as ExtendedRecordMap;
+}
+
+export const fixtureMermaidBlockId = "28299029-c0b4-81ce-8999-d425287d3dc1";
+export const fixtureCodeBlockId = "28299029-c0b4-81ce-8999-d425287d3dc2";
+
+/**
+ * The contract page plus two code blocks: a Mermaid diagram, which the site renders as a
+ * picture, and an ordinary code sample, which it shows as code.
+ */
+export function buildCodeBlockRecordMap(
+  mermaidLanguage = "Mermaid",
+): ExtendedRecordMap {
+  const recordMap = buildNotionContractRecordMap();
+  const page = recordMap.block[fixturePageId]!.value;
+  page.content = [
+    ...(page.content ?? []),
+    fixtureMermaidBlockId,
+    fixtureCodeBlockId,
+  ];
+  recordMap.block[fixtureMermaidBlockId] = {
+    value: {
+      id: fixtureMermaidBlockId,
+      type: "code",
+      parent_id: fixturePageId,
+      parent_table: "block",
+      properties: {
+        title: text("flowchart LR\n  A[Signal] --> B[Gate 1]"),
+        language: text(mermaidLanguage),
+      },
+    },
+  } as ExtendedRecordMap["block"][string];
+  recordMap.block[fixtureCodeBlockId] = {
+    value: {
+      id: fixtureCodeBlockId,
+      type: "code",
+      parent_id: fixturePageId,
+      parent_table: "block",
+      properties: {
+        title: text("const answer = 42;"),
+        language: text("TypeScript"),
+      },
+    },
+  } as ExtendedRecordMap["block"][string];
+  return recordMap;
 }
