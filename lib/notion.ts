@@ -768,6 +768,10 @@ const getNavigationLinkPages = pMemoize(
 );
 
 const inFlightPageFetches = new Map<string, Promise<ExtendedRecordMap>>();
+const inFlightPersistentReads = new Map<
+  string,
+  Promise<ExtendedRecordMap | null>
+>();
 const pageFetchOwners = new Map<string, symbol>();
 const pageCacheWrites = new Map<string, Promise<void>>();
 const enableGroupedCollectionHydration =
@@ -821,7 +825,7 @@ const setCachedRecordMapInMemory = (
   memoryPageCache.set(cacheKey, { recordMap, expiresAt });
 };
 
-const readCachedRecordMap = async (
+const readCachedRecordMapFromStore = async (
   cacheKey: string,
 ): Promise<ExtendedRecordMap | null> => {
   if (!isNotionPageCacheEnabled) {
@@ -848,6 +852,25 @@ const readCachedRecordMap = async (
   }
 
   return null;
+};
+
+const readCachedRecordMap = async (
+  cacheKey: string,
+): Promise<ExtendedRecordMap | null> => {
+  const existing = inFlightPersistentReads.get(cacheKey);
+  if (existing) return existing;
+
+  // Share Keyv's read/decode before the later hydration/origin boundary. Keep
+  // this separate: the store helper may join an active manual page refresh.
+  const read = readCachedRecordMapFromStore(cacheKey);
+  inFlightPersistentReads.set(cacheKey, read);
+  try {
+    return await read;
+  } finally {
+    if (inFlightPersistentReads.get(cacheKey) === read) {
+      inFlightPersistentReads.delete(cacheKey);
+    }
+  }
 };
 
 const writeCachedRecordMap = async (
