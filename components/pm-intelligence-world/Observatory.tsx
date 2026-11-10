@@ -5,7 +5,7 @@ import { FiMaximize2 } from "@react-icons/all-files/fi/FiMaximize2";
 import { FiRotateCcw } from "@react-icons/all-files/fi/FiRotateCcw";
 import { FiX } from "@react-icons/all-files/fi/FiX";
 import dynamic from "next/dynamic";
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type {
   InputId,
@@ -23,15 +23,14 @@ import {
 } from "@/lib/pm-intelligence-world/observatory-mission";
 import {
   emptyActivity,
-  initialObservatoryState,
   type ObservatoryLocation,
   observatoryLocations,
-  observatoryReducer,
 } from "@/lib/pm-intelligence-world/observatory-state";
 
 import styles from "./observatory.module.css";
 import { ObservatoryActivity } from "./ObservatoryActivity";
 import { ObservatoryInstrument } from "./ObservatoryInstrument";
+import { useObservatorySession } from "./useObservatorySession";
 
 const Scene = dynamic(
   () => import("./ObservatoryScene").then((m) => m.ObservatoryScene),
@@ -87,10 +86,7 @@ export function Observatory({
   onRead: (section: SectionId) => void;
   active: boolean;
 }) {
-  const [state, dispatch] = useReducer(
-    observatoryReducer,
-    initialObservatoryState,
-  );
+  const [state, dispatch] = useObservatorySession();
   const [operating, setOperating] = useState(false);
   const [nearby, setNearby] = useState<ObservatoryLocation | null>("signals");
   const [ready, setReady] = useState(false),
@@ -359,6 +355,11 @@ export function Observatory({
             <p>
               Sources → human review → knowledge → writing, explanations and
               learning. Product decisions are optional.
+            </p>
+            <p>
+              Progress and exercise answers stay in this tab’s session,
+              including when you read the deck or reload. Restart expedition
+              clears them. Nothing is sent to the PM system.
             </p>
             <p>
               Click an object to visit it. Drag the world to orbit. Choose Walk
