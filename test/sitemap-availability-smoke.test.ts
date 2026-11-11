@@ -176,6 +176,23 @@ const representativePaths = [
 ];
 
 void describe("representative deployment verification", () => {
+  void it("checks the changed static page and canaries without warming the sitemap", async () => {
+    const paths = [...representativePaths.slice(0, -1), "/privacy"];
+    const result = await runSweep(
+      {},
+      { scope: "representative", paths, staticRoutes: ["/privacy"] },
+    );
+    assert.equal(result.code, 0);
+    assert.deepEqual(requestedPaths.toSorted(), paths.toSorted());
+    assert.equal(sitemapHits, 0);
+    const broken = await runSweep(
+      { dead: ["/privacy"] },
+      { scope: "representative", paths, staticRoutes: ["/privacy"] },
+    );
+    assert.equal(broken.code, 1);
+    assert.match(broken.stdout, /FAIL \/privacy 404/);
+  });
+
   void it("retains full coverage if the optional scope validator cannot load", async () => {
     const temp = await mkdtemp(path.join(tmpdir(), "sweep-startup-"));
     try {
@@ -223,6 +240,27 @@ void describe("representative deployment verification", () => {
   }
 
   for (const invalid of [
+    { scope: "representative", paths: [...representativePaths, "/privacy"] },
+    {
+      scope: "representative",
+      paths: [...representativePaths, "/api"],
+      staticRoutes: ["/api"],
+    },
+    {
+      scope: "representative",
+      paths: [...representativePaths, "/admin"],
+      staticRoutes: ["/admin"],
+    },
+    {
+      scope: "representative",
+      paths: [...representativePaths, "//outside"],
+      staticRoutes: ["//outside"],
+    },
+    {
+      scope: "representative",
+      paths: [...representativePaths, "/privacy"],
+      staticRoutes: ["/privacy", "/privacy"],
+    },
     { scope: "representative", paths: ["/decks/example/index.html"] },
     {
       scope: "representative",

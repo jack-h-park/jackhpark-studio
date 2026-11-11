@@ -1,7 +1,7 @@
 name: Sitemap Availability
 
 # Runs after a production deployment goes live, when the ISR cache is cold.
-# A verified deck-only diff uses representative paths; unknown or runtime changes
+# A verified deck-only or independent static-page diff uses representative paths; unknown or runtime changes
 # retain the full sitemap sweep. Manual runs always use full coverage. A build that quietly dropped pages is
 # invisible to Prod Availability — that watches nine top-level routes, and the
 # 2026-09-03 incident killed 48 leaf pages while all nine stayed green.
@@ -48,11 +48,18 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
+      - name: Prepare static page analyzer
+        # A failed/missing analyzer retains full coverage in the scope selector.
+        continue-on-error: true
+        timeout-minutes: 2
+        run: npm ci --prefix scripts/smoke/static-page-analyzer --ignore-scripts --no-audit --no-fund
+
       - name: Select verification scope
         # A historical redeploy may not contain the optional scope tool.
         continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          STATIC_PAGE_TYPESCRIPT_PATH: ${{ github.workspace }}/scripts/smoke/static-page-analyzer/node_modules/typescript/lib/typescript.js
         run: node scripts/smoke/deployment-sweep-scope.mjs
 
       - name: Verify deployment

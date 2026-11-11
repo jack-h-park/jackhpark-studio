@@ -3,6 +3,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { staticRoute, verifyStaticPages } from "./static-page-scope.mjs";
+
 const commitSha = /^[a-f0-9]{40}$/i;
 const deckFile = /^public\/decks\/[a-z0-9]+(?:-[a-z0-9]+)*\/index\.html$/;
 const deckPath = /^\/decks\/[a-z0-9]+(?:-[a-z0-9]+)*\/index\.html$/;
@@ -49,24 +51,44 @@ export function classifyChanges(cwd, baselineSha, currentSha) {
     if (!entries.length || entries.length % 2)
       return full("empty or invalid diff");
     const paths = [];
+    const staticFiles = [];
     for (let i = 0; i < entries.length; i += 2) {
       const [status, file] = entries.slice(i, i + 2);
-      if (!["A", "M"].includes(status) || !deckFile.test(file))
+      if (!["A", "M"].includes(status))
         return full("change can affect content rendering");
+      if (!deckFile.test(file)) {
+        if (!staticRoute(file))
+          return full("change can affect content rendering");
+        staticFiles.push(file);
+        continue;
+      }
       // A .html symlink can point outside the static deck; extensions alone are insufficient.
       const tree = git(cwd, "ls-tree", currentSha, "--", file);
       if (!tree.startsWith("100644 blob "))
         return full("deck is not a regular static file");
       paths.push(file.slice("public".length));
     }
-    if (paths.length > 20)
-      return full("too many changed decks for representative coverage");
+    const staticRoutes = staticFiles.length
+      ? verifyStaticPages(
+          (...args) => git(cwd, ...args),
+          baselineSha,
+          currentSha,
+          staticFiles,
+        )
+      : [];
+    if (!staticRoutes)
+      return full("static page isolation could not be verified");
+    if (paths.length + staticRoutes.length > 20)
+      return full("too many changed routes for representative coverage");
     return {
       scope: "representative",
-      reason: "verified deck-only change",
+      reason: staticRoutes.length
+        ? "verified independent static page change"
+        : "verified deck-only change",
       baselineSha,
       currentSha,
-      paths: [...canaries, ...paths],
+      paths: [...canaries, ...paths, ...staticRoutes],
+      ...(staticRoutes.length ? { staticRoutes } : {}),
     };
   } catch {
     return full("Git history unavailable or deployment is a rollback");
@@ -85,6 +107,19 @@ export function representativePaths(plan) {
   )
     return null;
   const paths = plan.paths;
+  const staticRoutes = "staticRoutes" in plan ? plan.staticRoutes : [];
+  if (
+    !Array.isArray(staticRoutes) ||
+    staticRoutes.length > 20 ||
+    new Set(staticRoutes).size !== staticRoutes.length ||
+    !staticRoutes.every(
+      (route) =>
+        typeof route === "string" &&
+        staticRoute(`pages/${route.slice(1)}.tsx`) === route &&
+        paths.includes(route),
+    )
+  )
+    return null;
   if (
     paths.length <= canaries.length ||
     paths.length > canaries.length + 20 ||
@@ -95,7 +130,8 @@ export function representativePaths(plan) {
   if (
     !paths.every(
       (p) =>
-        typeof p === "string" && (canaries.includes(p) || deckPath.test(p)),
+        typeof p === "string" &&
+        (canaries.includes(p) || deckPath.test(p) || staticRoutes.includes(p)),
     )
   )
     return null;
