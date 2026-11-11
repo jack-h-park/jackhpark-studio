@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -13,6 +14,7 @@ import { describe, it } from "node:test";
 
 import {
   classifyChanges,
+  representativePaths,
   resolveSweepPlan,
 } from "../scripts/smoke/deployment-sweep-scope.mjs";
 
@@ -99,6 +101,285 @@ void describe("deployment scope Git boundary", () => {
         "../../../lib/notion.ts",
         path.join(r.cwd, "public/decks/example/index.html"),
       );
+      r.git("add", "--all");
+      r.git("commit", "-qm", "symlink");
+      assert.equal(
+        classifyChanges(r.cwd, r.baseline, r.git("rev-parse", "HEAD")).scope,
+        "full",
+      );
+    } finally {
+      r.clean();
+    }
+  });
+});
+
+const staticPage = `import Head from "next/head";
+import * as config from "@/lib/config";
+import styles from "./privacy.module.css";
+const TITLE = "Privacy";
+export default function Privacy() {
+  return <main className={styles.page}><Head><title>{TITLE}</title></Head><p>{config.author}</p></main>;
+}`;
+
+function staticFixture() {
+  const r = repository();
+  r.commit("pages/privacy.module.css", ".page { color: red; }");
+  const baseline = r.commit("pages/privacy.tsx", staticPage);
+  return { ...r, baseline };
+}
+
+void describe("independent static pages", () => {
+  void it("checks the actual new privacy route and its CSS without sweeping all Notion pages", () => {
+    const r = repository();
+    try {
+      r.commit(
+        "pages/privacy.module.css",
+        readFileSync(
+          new URL("../pages/privacy.module.css", import.meta.url),
+          "utf8",
+        ),
+      );
+      const current = r.commit(
+        "pages/privacy.tsx",
+        readFileSync(new URL("../pages/privacy.tsx", import.meta.url), "utf8"),
+      );
+      const plan = classifyChanges(r.cwd, r.baseline, current);
+      assert.equal(plan.scope, "representative");
+      assert.deepEqual(representativePaths(plan)?.slice(-1), ["/privacy"]);
+    } finally {
+      r.clean();
+    }
+  });
+
+  for (const file of ["pages/privacy.tsx", "pages/privacy.module.css"]) {
+    void it(`reduces an isolated change to ${file}`, () => {
+      const r = staticFixture();
+      try {
+        const current = r.commit(
+          file,
+          file.endsWith(".tsx")
+            ? staticPage.replace("Privacy", "Privacy policy")
+            : ".page { color: blue; }",
+        );
+        assert.equal(
+          classifyChanges(r.cwd, r.baseline, current).scope,
+          "representative",
+        );
+      } finally {
+        r.clean();
+      }
+    });
+  }
+
+  for (const unsafe of [
+    staticPage +
+      "\nexport const getStaticProps = async () => ({ props: {}, revalidate: 1 });",
+    staticPage +
+      "\nexport const getServerSideProps = async () => ({ props: {} });",
+    staticPage.replace("function Privacy()", "async function Privacy()"),
+    staticPage.replace("return <main", "fetch('/api/data'); return <main"),
+    staticPage.replace("{config.author}", "{Date.now()}"),
+    staticPage.replace("{config.author}", "{import('./runtime')}"),
+    staticPage.replace(
+      'import Head from "next/head";',
+      'import Head from "@/components/Shared";',
+    ),
+    staticPage.replace(
+      "<main className",
+      "<main onClick={config.author} className",
+    ),
+    staticPage.replace("<main className", "<main {...config} className"),
+    staticPage.replace("function Privacy()", "function Privacy(props)"),
+  ]) {
+    void it(`keeps full coverage for unsafe page syntax ${unsafe.slice(-65)}`, () => {
+      const r = staticFixture();
+      try {
+        const current = r.commit("pages/privacy.tsx", unsafe);
+        assert.equal(classifyChanges(r.cwd, r.baseline, current).scope, "full");
+      } finally {
+        r.clean();
+      }
+    });
+  }
+
+  void it("validates the old page as well as the new one", () => {
+    const r = staticFixture();
+    try {
+      const baseline = r.commit(
+        "pages/privacy.tsx",
+        staticPage + "\nexport const getStaticProps = () => ({props:{}});",
+      );
+      const current = r.commit("pages/privacy.tsx", staticPage);
+      assert.equal(classifyChanges(r.cwd, baseline, current).scope, "full");
+    } finally {
+      r.clean();
+    }
+  });
+
+  for (const file of [
+    "lib/notion.ts",
+    "lib/server/studio-static-props.ts",
+    "components/Header.tsx",
+    "site.config.ts",
+    "pages/_app.tsx",
+    "pages/[id].tsx",
+    "pages/api/example.tsx",
+    "pages/admin.tsx",
+  ]) {
+    void it(`retains full coverage when ${file} also changes`, () => {
+      const r = staticFixture();
+      try {
+        r.commit(
+          "pages/privacy.tsx",
+          staticPage.replace('"Privacy"', '"Updated"'),
+        );
+        const current = r.commit(file, staticPage);
+        assert.equal(classifyChanges(r.cwd, r.baseline, current).scope, "full");
+      } finally {
+        r.clean();
+      }
+    });
+  }
+
+  for (const css of [
+    ":global(body) { color: red; }",
+    "body { color: red; }",
+    ".page, body { color: red; }",
+    ".page + main { color: red; }",
+    '@import "other.css";',
+    ".page { composes: shared from './other.module.css'; }",
+  ]) {
+    void it("retains full coverage for CSS that can escape the page", () => {
+      const r = staticFixture();
+      try {
+        const current = r.commit("pages/privacy.module.css", css);
+        assert.equal(classifyChanges(r.cwd, r.baseline, current).scope, "full");
+      } finally {
+        r.clean();
+      }
+    });
+  }
+
+  void it("retains full coverage for a shared CSS module", () => {
+    const r = staticFixture();
+    try {
+      const baseline = r.commit(
+        "components/Other.tsx",
+        'import styles from "../pages/privacy.module.css";',
+      );
+      const current = r.commit(
+        "pages/privacy.module.css",
+        ".page { color: blue; }",
+      );
+      assert.equal(classifyChanges(r.cwd, baseline, current).scope, "full");
+    } finally {
+      r.clean();
+    }
+  });
+
+  void it("retains full coverage if the analyzer is unavailable", () => {
+    const r = staticFixture();
+    const original = process.env.STATIC_PAGE_TYPESCRIPT_PATH;
+    try {
+      const current = r.commit(
+        "pages/privacy.module.css",
+        ".page { color: blue; }",
+      );
+      process.env.STATIC_PAGE_TYPESCRIPT_PATH = path.join(
+        r.cwd,
+        "missing-compiler.cjs",
+      );
+      assert.equal(classifyChanges(r.cwd, r.baseline, current).scope, "full");
+    } finally {
+      if (original === undefined)
+        delete process.env.STATIC_PAGE_TYPESCRIPT_PATH;
+      else process.env.STATIC_PAGE_TYPESCRIPT_PATH = original;
+      r.clean();
+    }
+  });
+
+  for (const consumer of [
+    'import Privacy from "@/pages/privacy";',
+    'import Privacy from "pages/privacy";',
+    'export {default} from "../pages/privacy.js";',
+    'const page = import("../pages/privacy");',
+    'const page = require("../pages/privacy");',
+    'const page = (require)("../pages/privacy");',
+    'const page = module.require("../pages/privacy");',
+    'const load = require; const page = load("../pages/privacy");',
+    'import {createRequire as factory} from "node:module"; const load = factory(import.meta.url); const page = load("../pages/privacy");',
+    'const load = Function("return require")(); const page = load("../pages/privacy");',
+    'const page = import("../pages/" + route);',
+    'const target = "../pages/privacy"; const page = import(target);',
+    'const target = "https://example.test/module.js"; function load(target: string) { return import(target); }',
+    'const pages = import.meta.glob("../pages/*.tsx");',
+  ]) {
+    void it(`retains full coverage for inbound or unresolved runtime dependency: ${consumer}`, () => {
+      const r = staticFixture();
+      try {
+        const baseline = r.commit("components/Consumer.tsx", consumer);
+        const current = r.commit(
+          "pages/privacy.tsx",
+          staticPage.replace('"Privacy"', '"Updated"'),
+        );
+        assert.equal(classifyChanges(r.cwd, baseline, current).scope, "full");
+      } finally {
+        r.clean();
+      }
+    });
+  }
+
+  void it("follows runtime imports into otherwise excluded tooling directories", () => {
+    const r = staticFixture();
+    try {
+      r.commit(
+        "scripts/shared.ts",
+        'export {default} from "../pages/privacy";',
+      );
+      const baseline = r.commit(
+        "components/Consumer.tsx",
+        'import Privacy from "../scripts/shared";',
+      );
+      const current = r.commit(
+        "pages/privacy.module.css",
+        ".page { color: blue; }",
+      );
+      assert.equal(classifyChanges(r.cwd, baseline, current).scope, "full");
+    } finally {
+      r.clean();
+    }
+  });
+
+  void it("accepts an immutable external module URL without mistaking a shadowed variable for it", () => {
+    const r = staticFixture();
+    try {
+      const baseline = r.commit(
+        "components/External.tsx",
+        'const target = "https://example.test/module.js"; export function load() { return import(target); }',
+      );
+      const current = r.commit(
+        "pages/privacy.module.css",
+        ".page { color: blue; }",
+      );
+      assert.equal(
+        classifyChanges(r.cwd, baseline, current).scope,
+        "representative",
+      );
+    } finally {
+      r.clean();
+    }
+  });
+
+  void it("retains full coverage for a static-page deletion or symlink", () => {
+    const r = staticFixture();
+    try {
+      r.git("rm", "pages/privacy.tsx");
+      r.git("commit", "-qm", "delete");
+      assert.equal(
+        classifyChanges(r.cwd, r.baseline, r.git("rev-parse", "HEAD")).scope,
+        "full",
+      );
+      symlinkSync("../shared.tsx", path.join(r.cwd, "pages/privacy.tsx"));
       r.git("add", "--all");
       r.git("commit", "-qm", "symlink");
       assert.equal(
