@@ -18,6 +18,29 @@ const tags = new Set(
   ),
 );
 
+const sourceExtensions = [
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".mts",
+  ".cts",
+];
+
+// Graph traversal and ownership checks must identify the same committed path,
+// including equivalent alias/baseUrl paths with dot segments.
+function modulePath(importer, specifier) {
+  const clean = specifier.split(/[?#]/)[0];
+  const local = clean.startsWith("@/")
+    ? clean.slice(2)
+    : clean.startsWith(".")
+      ? path.posix.join(path.posix.dirname(importer), clean)
+      : clean;
+  return path.posix.normalize(local).replace(/\/$/, "");
+}
+
 export function staticRoute(file) {
   const match = pageFile.exec(file) ?? cssFile.exec(file);
   return match && !reserved.has(match[1]) ? `/${match[1]}` : null;
@@ -492,29 +515,28 @@ function runtimeImports(git, revision, ts) {
             throw new Error("unsupported runtime module facility");
         }
         imports.push({ file, specifier: value });
-        const local = value.startsWith("@/")
-          ? value.slice(2)
-          : value.startsWith(".")
-            ? path.posix.normalize(
-                path.posix.join(path.posix.dirname(file), value),
-              )
-            : value;
+        const local = modulePath(file, value);
+        // A package main/exports entry can win over an otherwise valid index
+        // candidate. Unsupported package metadata must not hide that edge.
+        if (allNames.includes(`${local}/package.json`))
+          throw new Error("unsupported local package entry");
         const candidates = [
           local,
-          ...[
-            ".ts",
-            ".tsx",
-            ".js",
-            ".jsx",
-            ".mjs",
-            ".cjs",
-            ".mts",
-            ".cts",
-            "/index.ts",
-            "/index.tsx",
-            "/index.js",
-          ].map((suffix) => local + suffix),
+          ...sourceExtensions.flatMap((extension) => [
+            local + extension,
+            `${local}/index${extension}`,
+          ]),
         ];
+        const explicitLocal = value.startsWith(".") || value.startsWith("@/");
+        const projectRoot = local.split("/")[0];
+        const baseUrlLocal = allNames.some((name) =>
+          name.startsWith(`${projectRoot}/`),
+        );
+        if (
+          (explicitLocal || baseUrlLocal) &&
+          !candidates.some((candidate) => allNames.includes(candidate))
+        )
+          throw new Error("unresolved local runtime import");
         for (const candidate of candidates) {
           if (
             allNames.includes(candidate) &&
@@ -540,14 +562,7 @@ function exclusiveOwner(imports, owner, css) {
   return imports.every(({ file, specifier, raw }) => {
     if (raw)
       return !raw.includes("\\") && !raw.includes(path.posix.basename(css));
-    const normalized = specifier.split(/[?#]/)[0];
-    const resolved = normalized.startsWith("@/")
-      ? normalized.slice(2)
-      : normalized.startsWith(".")
-        ? path.posix.normalize(
-            path.posix.join(path.posix.dirname(file), normalized),
-          )
-        : normalized;
+    const resolved = modulePath(file, specifier);
     if (resolved.replace(/\.[cm]?[jt]sx?$/, "") === pageBase) return false;
     return resolved !== css || file === owner;
   });

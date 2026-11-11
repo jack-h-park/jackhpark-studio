@@ -33,4 +33,14 @@
 - [x] Install the pinned analyzer in the deployment job with a full-sweep fallback if unavailable.
 - [x] Add loopback-only HTTP tests proving changed routes/canaries are checked without requesting the sitemap, and unsafe plans retain full coverage.
 - [x] Run focused tests, relevant lint/type checks and supported Node runtime checks; review the full diff and verify the real #249 diff offline.
-- [ ] Commit and prepare a reviewable Draft PR if checks pass; do not merge, deploy or change monitors.
+- [x] Commit and prepare a reviewable Draft PR if checks pass; do not merge, deploy or change monitors. Draft PR #250 is open; release remains held.
+
+## Task 2: Pre-merge resolver and setup hardening
+
+- [x] Reproduce equivalent alias/baseUrl page and CSS consumers in both revisions and unsupported directory-index formats before fixing them.
+- [x] Share normalized module paths between graph traversal and ownership checks, including dot segments and trailing directory separators.
+- [x] Derive directory candidates from the same extension list as direct files; retain full coverage for unresolved local imports or unsupported package entry metadata, even when an unused index file exists.
+- [x] Bound optional analyzer installation to two minutes, retaining continue-on-error and full-verification fallback.
+- [x] Pass 40 resolver regressions and all 116 focused tests locally, plus targeted lint and typecheck; re-review the scoped fixes independently.
+
+Validation on the updated commit is recorded in the Draft PR checks. Merge, deployment and monitor cadence changes remain held. No Production URL requests are part of this validation.

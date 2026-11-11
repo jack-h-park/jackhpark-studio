@@ -32,6 +32,13 @@ function repository() {
     git("commit", "-qm", "fixture");
     return git("rev-parse", "HEAD");
   };
+  // Static-page fixtures need the same local dependency as the real page.
+  // A missing local module deliberately prevents an independence proof.
+  mkdirSync(path.join(cwd, "lib"), { recursive: true });
+  writeFileSync(
+    path.join(cwd, "lib/config.ts"),
+    'export const author = "Fixture";',
+  );
   const baseline = commit("public/decks/example/index.html");
   return {
     cwd,
