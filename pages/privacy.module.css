@@ -1,0 +1,37 @@
+.page {
+  display: flex;
+  justify-content: center;
+  padding: 48px 20px 80px;
+  background: var(--ai-bg);
+  color: var(--ai-text);
+}
+
+.article {
+  width: min(100%, 720px);
+  line-height: 1.65;
+}
+
+.article h1 {
+  margin: 0 0 8px;
+  font-size: clamp(28px, 5vw, 40px);
+  line-height: 1.15;
+}
+
+.article h2 {
+  margin: 32px 0 8px;
+  font-size: 20px;
+}
+
+.article ul {
+  padding-left: 1.25rem;
+}
+
+.meta {
+  margin: 0 0 24px;
+  color: var(--ai-text-muted);
+}
+
+.article a {
+  color: var(--ai-text);
+  text-decoration: underline;
+}
