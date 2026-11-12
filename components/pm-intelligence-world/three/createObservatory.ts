@@ -82,6 +82,7 @@ import {
   createSourceCapsule,
   createVisitor,
 } from "./observatoryProps";
+import { prepareObservatoryFrame } from "./prepareObservatoryFrame";
 import { createSpatialFeedback } from "./spatialFeedback";
 
 export interface ObservatoryHandle {
@@ -176,7 +177,8 @@ export function createObservatory({
   scene.add(inspectionLight);
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  composer.addPass(new UnrealBloomPass(new Vector2(800, 600), 0.23, 0.4, 1.1));
+  const bloom = new UnrealBloomPass(new Vector2(800, 600), 0.23, 0.4, 1.1);
+  composer.addPass(bloom);
   composer.addPass(new OutputPass());
   let disposed = false,
     ready = false,
@@ -226,8 +228,13 @@ export function createObservatory({
         }
       });
       scene.add(g.scene);
-      // KHR_parallel_shader_compile avoids blocking input on first material use.
-      void renderer.compileAsync(scene, camera).then(
+      void prepareObservatoryFrame(
+        renderer,
+        scene,
+        camera,
+        composer.readBuffer,
+        bloom,
+      ).then(
         () => {
           if (disposed) return;
           ready = true;
