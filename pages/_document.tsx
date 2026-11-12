@@ -1,6 +1,7 @@
 import { IconContext } from "@react-icons/all-files";
 import Document, { Head, Html, Main, NextScript } from "next/document";
 
+import { GoogleAnalyticsBootstrap } from "@/components/analytics/GoogleAnalyticsBootstrap";
 import { name } from "@/lib/config";
 import { THEME_NOFLASH_SCRIPT } from "@/lib/theme";
 
@@ -35,27 +36,7 @@ export default class MyDocument extends Document {
 
             <link rel="manifest" href="/manifest.json" />
 
-            {process.env.NEXT_PUBLIC_GA_ID && (
-              <>
-                {/* gtag.js is loaded from _app on the first user interaction.
-                    Evaluating it here cost ~150ms of script evaluation plus a
-                    ~110ms timer callback inside the hydration window. The
-                    dataLayer shim below stays inline and is cheap, so queued
-                    hits (including the initial pageview) are not lost. */}
-                <script
-                  dangerouslySetInnerHTML={{
-                    __html: `
-                      window.dataLayer = window.dataLayer || [];
-                      function gtag(){dataLayer.push(arguments);}
-                      gtag('js', new Date());
-                      gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}', {
-                        page_path: window.location.pathname,
-                      });
-                    `,
-                  }}
-                />
-              </>
-            )}
+            <GoogleAnalyticsBootstrap />
           </Head>
 
           <body>

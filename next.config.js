@@ -24,6 +24,9 @@ export default withBundleAnalyzer({
   devIndicators: false,
   experimental: {
     externalDir: true,
+    // Only the isolated experience uses App page rendering. Keep its bounded
+    // styles in the initial response instead of blocking first paint on CSS.
+    inlineCss: true,
     // Save and restore scroll position on back/forward navigation (Pages Router).
     // Without this, Next.js always scrolls to the top on every navigation,
     // including browser back — making it feel like a hard refresh.
@@ -57,20 +60,19 @@ export default withBundleAnalyzer({
     // when using a locally-linked version of `react-notion-x`.
     // @see https://github.com/vercel/next.js/issues/50391
     //
-    // Also aliasing `react/jsx-runtime` and `react/jsx-dev-runtime` to prevent
-    // the Next.js 15 DevTools from picking up a separate React instance, which
-    // manifests as: "Cannot read properties of null (reading 'useContext')".
+    // Match exact modules so Next can still select its App Router React and
+    // server renderer subpaths. Broad aliases break hybrid-router prerendering.
     const dirname = path.dirname(fileURLToPath(import.meta.url));
-    config.resolve.alias.react = path.resolve(dirname, "node_modules/react");
-    config.resolve.alias["react-dom"] = path.resolve(
+    config.resolve.alias.react$ = path.resolve(dirname, "node_modules/react");
+    config.resolve.alias["react-dom$"] = path.resolve(
       dirname,
       "node_modules/react-dom",
     );
-    config.resolve.alias["react/jsx-runtime"] = path.resolve(
+    config.resolve.alias["react/jsx-runtime$"] = path.resolve(
       dirname,
       "node_modules/react/jsx-runtime",
     );
-    config.resolve.alias["react/jsx-dev-runtime"] = path.resolve(
+    config.resolve.alias["react/jsx-dev-runtime$"] = path.resolve(
       dirname,
       "node_modules/react/jsx-dev-runtime",
     );

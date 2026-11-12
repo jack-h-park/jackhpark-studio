@@ -23,6 +23,7 @@ const featureCssFiles = [
   "components/chat/settings/SettingsSectionPresets.module.css",
   "components/landing/landing.module.css",
   "components/pm-intelligence-world/experience.module.css",
+  "components/pm-intelligence-world/reset.css",
   "components/pm-intelligence-world/observatory.module.css",
   "styles/notion-mermaid.css",
 ];
@@ -33,6 +34,7 @@ const featureCssFiles = [
 // the same as in the :root token block of ai-design-system.css.
 // Do not add feature-specific component rules to these files.
 const themeFiles = new Set([
+  "styles/site-tokens.css", // Shared site foundation values for both router shells.
   "styles/jp-theme.css", // [data-theme="jp"] — JHP Studio v1.1 Lab surface
 ]);
 
