@@ -4,6 +4,16 @@ import {
   sectionIds,
 } from "@/content/pm-intelligence-world/types";
 
+export function isReadingFragment(hash: string): boolean {
+  return hash.length > 1 && hash !== "#observatory";
+}
+
+// The fragment is unavailable to SSR. Run before either view is parsed, then
+// let React take ownership once client routing has initialized. Keep this literal
+// stable across server/client minifiers; the executable test checks agreement.
+export const initialViewScript =
+  'document.documentElement.setAttribute("data-pm-initial-view", location.hash.length > 1 && location.hash !== "#observatory" ? "reading" : "observatory");';
+
 export function parseFragment(hash: string): {
   mode: Mode;
   section: SectionId;

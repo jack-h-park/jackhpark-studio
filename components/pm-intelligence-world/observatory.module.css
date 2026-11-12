@@ -8,7 +8,8 @@
   background: var(--bg-page);
   font-family: var(--font-geist-sans), sans-serif;
 }
-.observatory[hidden] {
+.observatory[hidden],
+:global(html[data-pm-initial-view="reading"]) .observatory {
   display: none;
 }
 .skipToOverview {

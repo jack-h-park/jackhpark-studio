@@ -81,10 +81,12 @@ export function Observatory({
   content,
   onRead,
   active,
+  initialized = true,
 }: {
   content: WorldContent;
   onRead: (section: SectionId) => void;
   active: boolean;
+  initialized?: boolean;
 }) {
   const [state, dispatch] = useObservatorySession();
   const [operating, setOperating] = useState(false);
@@ -208,7 +210,7 @@ export function Observatory({
           <a href="#chapter">Read the complete introduction below.</a>
         </p>
       </noscript>
-      {active && !failed && (
+      {active && initialized && !failed && (
         <Scene
           motionPaused={motionPaused}
           state={state}

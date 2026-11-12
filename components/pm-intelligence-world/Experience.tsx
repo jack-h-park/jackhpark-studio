@@ -15,6 +15,8 @@ import type {
 import { illuminatedSections } from "@/lib/pm-intelligence-world/discovery";
 import {
   formatFragment,
+  initialViewScript,
+  isReadingFragment,
   parseFragment,
 } from "@/lib/pm-intelligence-world/navigation";
 import {
@@ -39,7 +41,7 @@ export function Experience({ content }: { content: WorldContent }) {
   stateRef.current = state;
   useEffect(() => {
     const restore = () => {
-      setReading(location.hash.length > 1 && location.hash !== "#observatory");
+      setReading(isReadingFragment(location.hash));
       const parsed = parseFragment(location.hash);
       reduce({ type: "SET_MODE", mode: parsed.mode });
       reduce({ type: "FOCUS_SECTION", section: parsed.section });
@@ -53,6 +55,9 @@ export function Experience({ content }: { content: WorldContent }) {
       window.removeEventListener("hashchange", restore);
     };
   }, []);
+  useEffect(() => {
+    if (interactive) delete document.documentElement.dataset.pmInitialView;
+  }, [interactive]);
   const dispatch = useCallback((action: ExperienceAction) => {
     const next = experienceReducer(stateRef.current, action);
     stateRef.current = next;
@@ -85,9 +90,11 @@ export function Experience({ content }: { content: WorldContent }) {
   const step = sequence.indexOf(state.section);
   return (
     <>
+      <script dangerouslySetInnerHTML={{ __html: initialViewScript }} />
       <Observatory
         content={content}
         active={!reading}
+        initialized={interactive}
         onRead={(section) => {
           setReading(true);
           focus(section);
