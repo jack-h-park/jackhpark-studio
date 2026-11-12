@@ -392,6 +392,11 @@ for o in bpy.context.scene.objects:
 
 # Collapse static meshes into one object per material, preserving flat facets.
 objects=[o for o in bpy.context.scene.objects if o.type=='MESH']
+# Only the paving material samples a texture. Exporting UVs on the other
+# materials adds vertex data without changing the rendered surface.
+for o in objects:
+    if o.data.materials and o.data.materials[0]==pathmat: continue
+    for uv in list(o.data.uv_layers): o.data.uv_layers.remove(uv)
 for mat in list(bpy.data.materials):
     group=[o for o in bpy.context.scene.objects if o.type=='MESH' and o.data.materials and o.data.materials[0]==mat]
     if not group: continue

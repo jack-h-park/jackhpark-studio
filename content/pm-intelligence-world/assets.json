@@ -6,9 +6,9 @@
       "url": "/experiences/pm-intelligence/observatory/campus.glb",
       "kind": "model",
       "reviewStatus": "accepted",
-      "bytes": 4099316,
-      "sha256": "8da883fba9de62f9129da29d85808f9afbc5c31336c010ab92fa272dab3e7089",
-      "provenance": "Original geometry authored with scripts/assets/build-observatory.py; exported with Blender 5.2.1. Includes an AI-generated limestone albedo from scripts/assets/observatory/limestone-albedo.jpg, embedded into the model.",
+      "bytes": 3265520,
+      "sha256": "d8bb7d9078eff1aedbe402796ed491be19e9107911abd9337e2401cdf6a38016",
+      "provenance": "Original geometry authored with scripts/assets/build-observatory.py; exported with Blender 5.2.1. Includes an AI-generated limestone albedo from scripts/assets/observatory/limestone-albedo.jpg, embedded into the model. Unused UV attributes on solid-color materials removed with glTF Transform CLI 4.5.1 prune; retained geometry, materials and texture verified unchanged. The source builder now omits those UVs.",
       "reviewScope": "Reviewed for local implementation; owner acceptance and publication remain separate."
     },
     {
