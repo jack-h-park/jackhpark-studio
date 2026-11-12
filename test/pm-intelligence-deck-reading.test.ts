@@ -9,7 +9,7 @@ const html = readFileSync(
   "utf8",
 );
 
-function openDeck(width: number) {
+function openDeck(width: number, height = 900) {
   // The repository's minimal jsdom declaration covers server parsing only.
   const RuntimeDOM = JSDOM as unknown as new (
     source: string,
@@ -22,8 +22,22 @@ function openDeck(width: number) {
   });
   const { window } = dom;
   Object.defineProperty(window, "innerWidth", { value: width, writable: true });
+  Object.defineProperty(window, "innerHeight", {
+    value: height,
+    writable: true,
+  });
   window.matchMedia = ((query: string) => ({
-    matches: query.includes("max-width") && window.innerWidth <= 800,
+    matches: query.split(",").some((part) => {
+      const bounds = [...part.matchAll(/\(max-(width|height):\s*(\d+)px\)/g)];
+      return (
+        bounds.length > 0 &&
+        bounds.every(
+          ([, axis, limit]) =>
+            (axis === "width" ? window.innerWidth : window.innerHeight) <=
+            Number(limit),
+        )
+      );
+    }),
     addEventListener() {},
     removeEventListener() {},
   })) as unknown as typeof window.matchMedia;
@@ -210,5 +224,26 @@ void test("desktop retains slide defaults and reading scroll keys do not navigat
     // Let the real scene observers settle before jsdom tears down its document.
     await new Promise<void>((resolve) => setImmediate(resolve));
     dom.window.close();
+  }
+});
+
+void test("wide landscape phones start in readable prose while desktop keeps slides", async () => {
+  for (const [width, height, expected] of [
+    [844, 390, "true"],
+    [932, 430, "true"],
+    [1280, 390, "false"],
+    [1024, 768, "false"],
+  ] as const) {
+    const { dom, document } = openDeck(width, height);
+    try {
+      assert.equal(
+        document.body.dataset.deckReading,
+        expected,
+        `${width}x${height}`,
+      );
+    } finally {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      dom.window.close();
+    }
   }
 });
