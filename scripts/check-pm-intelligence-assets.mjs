@@ -22,7 +22,7 @@ export async function validateAssets(bundle, publicRoot) {
     );
     assert.ok(asset.kind === "image" || asset.kind === "model");
     assert.ok(
-      /^\/experiences\/pm-intelligence\/[a-z0-9/_-]+\.(?:glb|webp|png|jpg)$/.test(
+      /^\/experiences\/pm-intelligence\/[a-z0-9/_-]+\.(?:glb(?:\.gz)?|webp|png|jpg)$/.test(
         asset.url,
       ),
       "Invalid public asset path",

@@ -5,6 +5,7 @@ Coordinates in helpers are (east, south, elevation); glTF exports Y-up.
 Static geometry is joined by material to avoid a draw call per prop.
 """
 import bpy
+import gzip
 import math
 import random
 from pathlib import Path
@@ -408,3 +409,6 @@ for mat in list(bpy.data.materials):
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.export_scene.gltf(filepath=str(OUT),export_format='GLB',use_selection=True,export_yup=True,export_materials='EXPORT',export_cameras=False,export_lights=False)
 print('EXPORTED',OUT,OUT.stat().st_size)
+compressed = OUT.with_suffix('.glb.gz')
+compressed.write_bytes(gzip.compress(OUT.read_bytes(), compresslevel=9, mtime=0))
+print('COMPRESSED',compressed,compressed.stat().st_size)

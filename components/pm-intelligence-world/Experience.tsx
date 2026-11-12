@@ -78,14 +78,21 @@ export function Experience({ content }: { content: WorldContent }) {
     [state.section, state.selectedInput, state.selectedRecord, state.discovery],
   );
   const wasReading = useRef(false);
+  const focusInitialized = useRef(false);
   useEffect(() => {
-    if (reading) document.getElementById(`heading-${state.section}`)?.focus();
-    else if (wasReading.current)
-      document
-        .querySelector<HTMLButtonElement>("[data-observatory-start]")
-        ?.focus();
+    if (!interactive) return;
+    // Preserve the initial viewport and browser focus. Subsequent, intentional
+    // chapter/world navigation keeps its existing focus-and-scroll behavior.
+    if (focusInitialized.current) {
+      if (reading) document.getElementById(`heading-${state.section}`)?.focus();
+      else if (wasReading.current)
+        document
+          .querySelector<HTMLButtonElement>("[data-observatory-start]")
+          ?.focus();
+    }
+    focusInitialized.current = true;
     wasReading.current = reading;
-  }, [reading, state.section]);
+  }, [interactive, reading, state.section]);
   const sequence = getSequence(state.mode);
   const step = sequence.indexOf(state.section);
   return (

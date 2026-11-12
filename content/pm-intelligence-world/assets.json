@@ -20,6 +20,16 @@
       "sha256": "354000559fcd73829232cc7f66ed4b4e5499a00693101a6cb5290ba2c6cacd9b",
       "provenance": "AI-generated distant sky matte, converted to WebP; background only, no world geometry or UI.",
       "reviewScope": "Reviewed for local implementation; owner acceptance and publication remain separate."
+    },
+    {
+      "id": "signal-observatory-campus-gzip",
+      "url": "/experiences/pm-intelligence/observatory/campus.glb.gz",
+      "kind": "model",
+      "reviewStatus": "accepted",
+      "bytes": 991956,
+      "sha256": "bc2cef14c7e0c122c83b766f12a2903b4dfdd11907318da2175f1522a493ff8d",
+      "provenance": "Deterministic gzip derivative of campus.glb, generated with gzip level 9 and mtime 0. Decompressed bytes are verified identical to the canonical model.",
+      "reviewScope": "Reviewed for local implementation; hosted content headers, owner acceptance and publication remain separate."
     }
   ]
 }

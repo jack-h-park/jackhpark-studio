@@ -83,6 +83,7 @@ import {
   createVisitor,
 } from "./observatoryProps";
 import { prepareObservatoryFrame } from "./prepareObservatoryFrame";
+import { readCampus } from "./readCampus";
 import { createSpatialFeedback } from "./spatialFeedback";
 
 export interface ObservatoryHandle {
@@ -213,44 +214,50 @@ export function createObservatory({
       invalidate();
     },
   );
-  new GLTFLoader().load(
-    "/experiences/pm-intelligence/observatory/campus.glb",
-    (g) => {
-      if (disposed) {
-        disposeGroup(g.scene);
-        return;
-      }
-      loadedModel = g.scene;
-      g.scene.traverse((o) => {
-        if (o instanceof Mesh) {
-          o.castShadow = true;
-          o.receiveShadow = true;
+  const modelRequest = new AbortController();
+  void readCampus(modelRequest.signal)
+    .then((data) =>
+      new GLTFLoader().parseAsync(
+        data,
+        "/experiences/pm-intelligence/observatory/",
+      ),
+    )
+    .then(
+      (g) => {
+        if (disposed) {
+          disposeGroup(g.scene);
+          return;
         }
-      });
-      scene.add(g.scene);
-      void prepareObservatoryFrame(
-        renderer,
-        scene,
-        camera,
-        composer.readBuffer,
-        bloom,
-      ).then(
-        () => {
-          if (disposed) return;
-          ready = true;
-          invalidate();
-          onReady();
-        },
-        () => {
-          if (!disposed) onError();
-        },
-      );
-    },
-    undefined,
-    () => {
-      if (!disposed) onError();
-    },
-  );
+        loadedModel = g.scene;
+        g.scene.traverse((o) => {
+          if (o instanceof Mesh) {
+            o.castShadow = true;
+            o.receiveShadow = true;
+          }
+        });
+        scene.add(g.scene);
+        void prepareObservatoryFrame(
+          renderer,
+          scene,
+          camera,
+          composer.readBuffer,
+          bloom,
+        ).then(
+          () => {
+            if (disposed) return;
+            ready = true;
+            invalidate();
+            onReady();
+          },
+          () => {
+            if (!disposed) onError();
+          },
+        );
+      },
+      () => {
+        if (!disposed) onError();
+      },
+    );
 
   // Interactive source capsules and the visitor are actual animated geometry.
   const ids: InputId[] = [
@@ -1057,6 +1064,7 @@ export function createObservatory({
     dispose() {
       endGesture();
       disposed = true;
+      modelRequest.abort();
       renderer.setAnimationLoop(null);
       controls.removeEventListener("change", invalidate);
       observer.disconnect();

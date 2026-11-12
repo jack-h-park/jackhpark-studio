@@ -48,7 +48,8 @@ void test("client routing releases first-paint visibility and can return to the 
   const dom = new JSDOM(`<div id="root">${html}</div>`, {
     url: "http://localhost/experiences/pm-intelligence#quick/overview",
   });
-  const document = dom.window.document;
+  const runtimeWindow = dom.window as unknown as Window & typeof globalThis;
+  const document = runtimeWindow.document;
   runInNewContext(initialViewScript, {
     document,
     location: dom.window.location,
@@ -72,6 +73,18 @@ void test("client routing releases first-paint visibility and can return to the 
     IS_REACT_ACT_ENVIRONMENT: true,
   });
   dom.window.scrollTo = () => {};
+  const focuses: { id: string; preventScroll?: boolean }[] = [];
+  const originalFocus = runtimeWindow.HTMLElement.prototype.focus;
+  runtimeWindow.HTMLElement.prototype.focus = function (
+    this: HTMLElement,
+    options?: FocusOptions,
+  ) {
+    focuses.push({
+      id: this.id,
+      preventScroll: options?.preventScroll ?? false,
+    });
+    originalFocus.call(this, options);
+  };
   let root: Root | undefined;
   try {
     await act(async () => {
@@ -88,6 +101,21 @@ void test("client routing releases first-paint visibility and can return to the 
       'section[aria-label="Signal Observatory — PM Intelligence System"]',
     );
     assert.ok(world?.hasAttribute("hidden"));
+    assert.equal(document.querySelector('link[as="fetch"]'), null);
+    assert.equal(
+      focuses.find((f) => f.id === "heading-overview"),
+      undefined,
+      "Hydration must not steal focus or scroll away from the introduction",
+    );
+    const chapter = document.querySelector<HTMLAnchorElement>(
+      'a[href="#quick/writing"]',
+    );
+    assert.ok(chapter);
+    await act(async () => chapter.click());
+    assert.deepEqual(
+      focuses.find((f) => f.id === "heading-writing"),
+      { id: "heading-writing", preventScroll: false },
+    );
     const back = [...document.querySelectorAll("button")].find(
       (b) => b.textContent === "Back to observatory",
     );
