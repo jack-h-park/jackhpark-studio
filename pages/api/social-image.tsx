@@ -9,6 +9,7 @@ import interSemiBoldFont from "@/lib/fonts/inter-semibold";
 import { getPageTitle } from "@/lib/get-page-title";
 import { mapImageUrl } from "@/lib/map-image-url";
 import { notion } from "@/lib/notion-api";
+import { normalizeNotionRecordMap } from "@/lib/rag/notion-record-value";
 import { type NotionPageInfo, type PageError } from "@/lib/types";
 
 // Brand palette, sourced from public/assets/brand-design-system-guide.html.
@@ -270,10 +271,25 @@ export async function getNotionPageInfo({
   | { type: "success"; data: NotionPageInfo }
   | { type: "error"; error: PageError }
 > {
-  const recordMap = await notion.getPage(pageId);
-
-  const keys = Object.keys(recordMap?.block || {});
-  const block = recordMap?.block?.[keys[0]!]?.value;
+  const normalized = normalizeNotionRecordMap(
+    await notion.getPage(pageId, {
+      chunkLimit: 1,
+      fetchCollections: false,
+      fetchMissingBlocks: false,
+      fetchRelationPages: false,
+      signFileUrls: false,
+    }),
+  );
+  const rootId = parsePageId(pageId, { uuid: true }) ?? pageId;
+  const rootEntry =
+    normalized.block[rootId] ?? normalized.block[rootId.replaceAll("-", "")];
+  // Metadata helpers select the first block; unrelated chunk records must not
+  // become the card's title or author. Collection schemas/users stay available.
+  const recordMap = {
+    ...normalized,
+    block: rootEntry ? { [rootId]: rootEntry } : {},
+  };
+  const block = rootEntry?.value;
 
   if (!block) {
     throw new Error("Invalid recordMap for page");

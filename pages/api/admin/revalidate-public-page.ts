@@ -6,6 +6,8 @@ import {
   requireAdminApiAccess,
   requireSameOriginMutation,
 } from "@/lib/server/admin-auth";
+import { invalidateNotionNavigationHeader } from "@/lib/server/notion-header";
+import { invalidatePublicChatShell } from "@/lib/server/public-chat-cache";
 import {
   type PublicPageRevalidationTarget,
   resolvePublicPageRevalidationTarget,
@@ -64,6 +66,10 @@ export default async function handler(
     }
 
     await res.revalidate(target.path);
+    if (target.path === "/studio") {
+      await invalidateNotionNavigationHeader();
+      await invalidatePublicChatShell();
+    }
     const revalidatedAt = new Date().toISOString();
     auditAdminMutation({
       ...admin,

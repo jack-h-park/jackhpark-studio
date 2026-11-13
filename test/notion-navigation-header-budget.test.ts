@@ -316,3 +316,285 @@ void test("the executable header dependency graph excludes full page, tweet, and
     );
   }
 });
+
+function sharedStore() {
+  const values = new Map<string, unknown>();
+  return {
+    values,
+    async get(key: string) {
+      return values.get(key);
+    },
+    async set(key: string, value: unknown) {
+      values.set(key, structuredClone(value));
+      return true;
+    },
+  };
+}
+
+void test("independent instances share a successful header without sliding its deadline", async () => {
+  const store = sharedStore();
+  let clock = 100;
+  let reads = 0;
+  const options = {
+    store,
+    cacheKey: "fixture",
+    now: () => clock,
+    fetchRoot: async () => {
+      reads++;
+      return {
+        ...rootMap,
+        block: {
+          [rootId]: {
+            role: "reader" as const,
+            value: { ...rootBlock, version: reads },
+          },
+        },
+      };
+    },
+  };
+  const first = createLoader(options);
+  await first();
+  clock = 3_600_099;
+  const second = createLoader(options);
+  assert.equal(
+    (await second()).headerRecordMap?.block[rootId].value.version,
+    1,
+  );
+  assert.equal(reads, 1);
+  clock = 3_600_100;
+  assert.equal(
+    (await second()).headerRecordMap?.block[rootId].value.version,
+    2,
+  );
+  assert.equal(reads, 2);
+});
+
+void test("manual invalidation is observed by an already warm independent instance", async () => {
+  const store = sharedStore();
+  let revision = 1;
+  const options = {
+    store,
+    cacheKey: "fixture",
+    now: () => 100,
+    fetchRoot: async () => ({
+      ...rootMap,
+      block: {
+        [rootId]: {
+          role: "reader" as const,
+          value: { ...rootBlock, version: revision },
+        },
+      },
+    }),
+  };
+  const first = createLoader(options);
+  const second = createLoader(options);
+  await first();
+  await second();
+  revision = 2;
+  await first.invalidate();
+  assert.equal(
+    (await second()).headerRecordMap?.block[rootId].value.version,
+    2,
+  );
+});
+
+void test("a fill started before invalidation cannot poison the new shared generation", async () => {
+  const store = sharedStore();
+  let complete!: (map: ExtendedRecordMap) => void;
+  let started!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const old = createLoader({
+    store,
+    cacheKey: "fixture",
+    now: () => 0,
+    fetchRoot: async () => {
+      started();
+      return new Promise<ExtendedRecordMap>((resolve) => {
+        complete = resolve;
+      });
+    },
+  });
+  const pending = old();
+  await ready;
+  const freshMap = {
+    ...rootMap,
+    block: {
+      [rootId]: {
+        role: "reader" as const,
+        value: { ...rootBlock, version: 2 },
+      },
+    },
+  };
+  const fresh = createLoader({
+    store,
+    cacheKey: "fixture",
+    now: () => 0,
+    fetchRoot: async () => freshMap,
+  });
+  await fresh.invalidate();
+  await fresh();
+  complete(rootMap);
+  await pending;
+  const third = createLoader({
+    store,
+    cacheKey: "fixture",
+    now: () => 0,
+    fetchRoot: async () => {
+      throw new Error("must reuse revision 2");
+    },
+  });
+  assert.equal((await third()).headerRecordMap?.block[rootId].value.version, 2);
+});
+
+void test("unavailable shared storage falls back to fresh origin and failed invalidation is explicit", async () => {
+  const store = {
+    async get() {
+      throw new Error("store down");
+    },
+    async set() {
+      throw new Error("store down");
+    },
+  };
+  const load = createLoader({
+    store,
+    cacheKey: "fixture",
+    now: () => 0,
+    fetchRoot: async () => rootMap,
+  });
+  assert.equal((await load()).headerRecordMap?.block[rootId].value.id, rootId);
+  await assert.rejects(load.invalidate(), /store down/);
+});
+
+void test("shared cache byte limits reject oversized Unicode metadata before reuse", async () => {
+  const store = sharedStore();
+  const largeMap = {
+    ...rootMap,
+    block: {
+      [rootId]: {
+        role: "reader" as const,
+        value: {
+          ...rootBlock,
+          properties: { title: [["한".repeat(30_000)]] },
+        },
+      },
+    },
+  };
+  store.values.set("fixture:revision", "fixture-generation");
+  store.values.set("fixture:fixture-generation", {
+    expiresAt: 3_600_000,
+    header: { headerRecordMap: largeMap, headerBlockId: rootId },
+  });
+  const freshMap = {
+    ...rootMap,
+    block: {
+      [rootId]: {
+        role: "reader" as const,
+        value: { ...rootBlock, version: 2 },
+      },
+    },
+  };
+  const load = createLoader({
+    store,
+    cacheKey: "fixture",
+    now: () => 0,
+    fetchRoot: async () => freshMap,
+  });
+  assert.equal((await load()).headerRecordMap?.block[rootId].value.version, 2);
+});
+
+void test("malformed persisted headers are replaced by a fresh successful origin result", async () => {
+  const store = sharedStore();
+  store.values.set("fixture:revision", "fixture-generation");
+  store.values.set("fixture:fixture-generation", {
+    expiresAt: 3_600_000,
+    header: { headerBlockId: rootId, headerRecordMap: { block: {} } },
+  });
+  const load = createLoader({
+    store,
+    cacheKey: "fixture",
+    now: () => 0,
+    fetchRoot: async () => rootMap,
+  });
+  assert.equal((await load()).headerRecordMap?.block[rootId].value.id, rootId);
+});
+
+void test("failure to verify the revision after a shared read suppresses cacheable header data", async () => {
+  let reads = 0;
+  const store = {
+    async get() {
+      if (++reads === 3) throw new Error("revision unavailable");
+      return reads === 2 ? undefined : "existing";
+    },
+    async set() {
+      return true;
+    },
+  };
+  const load = createLoader({
+    store,
+    cacheKey: "fixture",
+    now: () => 0,
+    fetchRoot: async () => rootMap,
+  });
+  assert.deepEqual(await load(), {
+    headerRecordMap: null,
+    headerBlockId: rootId,
+  });
+});
+
+void test("evicting a revision marker cannot resurrect an older cached header", async () => {
+  const store = sharedStore();
+  const first = createLoader({
+    store,
+    cacheKey: "fixture",
+    now: () => 0,
+    fetchRoot: async () => rootMap,
+  });
+  await first();
+  store.values.delete("fixture:revision");
+  const fresh = createLoader({
+    store,
+    cacheKey: "fixture",
+    now: () => 0,
+    fetchRoot: async () => ({
+      ...rootMap,
+      block: {
+        [rootId]: {
+          role: "reader" as const,
+          value: { ...rootBlock, version: 2 },
+        },
+      },
+    }),
+  });
+  assert.equal((await fresh()).headerRecordMap?.block[rootId].value.version, 2);
+});
+
+void test("a cache that silently drops writes still returns a fresh header", async () => {
+  const store = {
+    async get() {
+      return null;
+    },
+    async set() {},
+  };
+  const load = createLoader({
+    store,
+    cacheKey: "fixture",
+    now: () => 0,
+    fetchRoot: async () => rootMap,
+  });
+  assert.equal((await load()).headerRecordMap?.block[rootId].value.id, rootId);
+});
+
+void test("manual invalidation rejects a silently dropped replacement marker", async () => {
+  const store = sharedStore();
+  const load = createLoader({
+    store,
+    cacheKey: "fixture",
+    now: () => 0,
+    fetchRoot: async () => rootMap,
+  });
+  await load();
+  store.set = async () => true;
+  await assert.rejects(load.invalidate(), /not retained/);
+});
