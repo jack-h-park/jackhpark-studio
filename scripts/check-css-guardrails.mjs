@@ -1,9 +1,15 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 const projectRoot = process.cwd();
 const aiDesignSystem = "styles/ai-design-system.css";
+const primitiveCssFiles = (
+  await readdir(path.join(projectRoot, "styles/primitives"))
+)
+  .filter((file) => file.endsWith(".css"))
+  .map((file) => `styles/primitives/${file}`);
 const featureCssFiles = [
+  ...primitiveCssFiles,
   aiDesignSystem,
   "styles/admin-doc-preview.css",
   "styles/meta-card.css",
@@ -24,6 +30,7 @@ const featureCssFiles = [
   "components/landing/landing.module.css",
   "components/pm-intelligence-world/experience.module.css",
   "components/pm-intelligence-world/reset.css",
+  "styles/pm-intelligence.css",
   "components/pm-intelligence-world/observatory.module.css",
   "styles/notion-mermaid.css",
 ];
@@ -97,7 +104,8 @@ async function checkFile(relativePath) {
   const content = await readFile(filePath, "utf8");
   const lines = content.split(/\r?\n/);
 
-  const isAiFile = relativePath === aiDesignSystem;
+  const isAiFile =
+    relativePath === aiDesignSystem || primitiveCssFiles.includes(relativePath);
   let tokenStart = -1;
   let tokenEnd = -1;
 

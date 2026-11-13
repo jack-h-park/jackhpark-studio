@@ -24,9 +24,6 @@ export default withBundleAnalyzer({
   devIndicators: false,
   experimental: {
     externalDir: true,
-    // Only the isolated experience uses App page rendering. Keep its bounded
-    // styles in the initial response instead of blocking first paint on CSS.
-    inlineCss: true,
     // Save and restore scroll position on back/forward navigation (Pages Router).
     // Without this, Next.js always scrolls to the top on every navigation,
     // including browser back — making it feel like a hard refresh.

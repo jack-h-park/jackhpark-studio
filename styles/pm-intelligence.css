@@ -1,0 +1,6 @@
+/* The experience uses canonical tokens/buttons and the shared browser reset.
+   Full Tailwind utilities and unrelated controls remain in the Pages entry. */
+@import "./primitives/ai-tokens.css";
+@import "./primitives/ai-buttons.css";
+
+@tailwind base;

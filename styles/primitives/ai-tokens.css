@@ -1,0 +1,265 @@
+/* Canonical primitive tokens, shared by the full and minimal entries. */
+
+/* ------------------------------------------------ */
+/* Design Tokens                                    */
+/* ------------------------------------------------ */
+:root {
+  /* ── JHP Studio Shared Brand Tokens (v1.1) ────────────────────────────
+     These are global — available to both Notion and J-P theme surfaces.
+     The full J-P token set lives in [data-theme="jp"] below.
+     ─────────────────────────────────────────────────────────────────── */
+  --brand-pink: #f06292;
+  --brand-purple: #b439df;
+  --brand-blue: #5b8def;
+  --brand-cyan: #4dd0e1;
+
+  --gradient-full: linear-gradient(
+    90deg,
+    #f06292 0%,
+    #b439df 30%,
+    #5b8def 60%,
+    #4dd0e1 100%
+  );
+  --gradient-full-diagonal: linear-gradient(
+    135deg,
+    #f06292 0%,
+    #b439df 30%,
+    #5b8def 60%,
+    #4dd0e1 100%
+  );
+  --gradient-mini: linear-gradient(
+    90deg,
+    #b439df 0%,
+    #5b8def 50%,
+    #4dd0e1 100%
+  );
+
+  /* Motion — shared by both surfaces */
+  --ease-std: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-1: 80ms;
+  --dur-2: 150ms;
+  --dur-3: 250ms;
+  --dur-4: 400ms;
+
+  /* ── Existing ai-* tokens follow ─────────────────────────────────── */
+  --ai-bg: 0 0% 100%;
+  --ai-bg-muted: 45 20% 96%;
+  --ai-fg: 45 8% 20%;
+  --ai-fg-muted: 42 7% 46%;
+  --ai-border: 41 25% 85%;
+  --ai-radius-md: 0.75rem;
+  --ai-radius-lg: 1.5rem;
+  --ai-radius-sm: 0.5rem;
+  --ai-radius-pill: 999px;
+  --ai-shadow-soft: 0 18px 35px rgba(15, 15, 15, 0.08);
+  --ai-shadow-elevated: 0 10px 20px rgba(15, 15, 15, 0.05);
+  --ai-shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --ai-shadow-overlay-panel:
+    0 20px 40px -8px rgba(0, 0, 0, 0.18), 0 8px 16px -4px rgba(0, 0, 0, 0.1);
+  --ai-surface: hsl(var(--ai-bg));
+  --ai-surface-muted: hsl(var(--ai-bg-muted));
+  --ai-bg-subtle: hsl(var(--ai-bg-muted));
+  --ai-surface-tint: color-mix(in srgb, var(--ai-surface) 90%, transparent);
+  --ai-text: hsl(var(--ai-fg));
+  --ai-text-muted: hsl(var(--ai-fg-muted));
+  --ai-text-strong: color-mix(in srgb, var(--ai-text) 96%, transparent);
+  --ai-text-soft: color-mix(in srgb, var(--ai-text) 72%, transparent);
+  --ai-tooltip-bg: rgba(255, 255, 255, 0.9);
+  --ai-text-faint: color-mix(in srgb, var(--ai-text) 50%, transparent);
+  --ai-pill-bg: color-mix(in srgb, var(--ai-text) 6%, var(--ai-surface));
+  --ai-pill-border: color-mix(in srgb, var(--ai-text) 12%, transparent);
+  --ai-border-color: hsl(var(--ai-border));
+  --ai-border-strong: color-mix(in srgb, var(--ai-text) 18%, transparent);
+  --ai-border-muted: color-mix(in srgb, var(--ai-text) 10%, transparent);
+  --ai-border-soft: color-mix(in srgb, var(--ai-text) 6%, transparent);
+  --ai-tab-border-color: color-mix(in srgb, var(--ai-border) 80%, transparent);
+  --ai-border-accent: color-mix(in srgb, var(--ai-text) 25%, transparent);
+  --ai-divider: color-mix(in srgb, hsl(var(--ai-border)) 90%, transparent 10%);
+  --ai-border-subtle: hsl(var(--ai-border));
+  --ai-accent: var(--notion-blue);
+  --ai-accent-strong: color-mix(in srgb, var(--ai-accent) 90%, transparent);
+  --ai-accent-soft: color-mix(in srgb, var(--ai-accent) 25%, transparent);
+  --ai-accent-bg: color-mix(in srgb, var(--ai-accent) 15%, transparent);
+  --ai-accent-contrast: var(--ai-role-surface-1);
+  --ai-success: #16a34a;
+  --ai-success-muted: color-mix(in srgb, var(--ai-success) 20%, transparent);
+  --ai-warning: #f97316;
+  --ai-warning-muted: color-mix(in srgb, var(--ai-warning) 20%, transparent);
+  --ai-error: #ef4444;
+  --ai-error-muted: color-mix(in srgb, var(--ai-error) 20%, transparent);
+  --ai-ring: var(--select-color-0);
+  --ai-space-1: 0.25rem;
+  --ai-space-2: 0.5rem;
+  --ai-space-3: 0.75rem;
+  --ai-space-4: 1rem;
+  --ai-space-5: 1.25rem;
+  --ai-space-6: 1.5rem;
+  --ai-space-7: 2rem;
+  --ai-space-8: 2.5rem;
+
+  /* Typography — shared mono stack for data/code surfaces.
+     Geist Mono is only loaded on some surfaces; others use the fallbacks. */
+  --ai-font-mono:
+    var(--font-geist-mono, "JetBrains Mono"), "SFMono-Regular", ui-monospace,
+    Menlo, Consolas, monospace;
+
+  /* Overlay scrim — drawer/modal backdrops */
+  --ai-overlay-scrim: rgba(15, 15, 15, 0.3);
+
+  /* Session preset accents — shared by every surface that renders preset
+     tiles so they all stay in sync. */
+  --ai-preset-accent-precision: oklch(58% 0.19 250);
+  --ai-preset-accent-default: var(--ai-text-muted);
+  --ai-preset-accent-recall: oklch(56% 0.2 295);
+  --ai-preset-accent-fast: oklch(62% 0.18 55);
+
+  /* Role aliases */
+  --ai-role-surface-default: var(--ai-surface);
+  --ai-role-surface-muted: var(--ai-surface-muted);
+  --ai-role-surface-overlay: var(--ai-surface-tint);
+  --ai-role-surface-highlight: var(--ai-accent-bg);
+  --ai-role-surface-0: var(--ai-role-surface-muted);
+  --ai-role-surface-1: var(--ai-role-surface-default);
+  --ai-role-surface-1-overlay: color-mix(
+    in srgb,
+    var(--ai-role-surface-1) 92%,
+    var(--ai-role-border-muted) 8%
+  );
+  --ai-role-surface-2: var(--ai-role-surface-1-overlay);
+  --ai-role-surface-hover: color-mix(
+    in srgb,
+    var(--ai-role-surface-highlight) 40%,
+    var(--ai-role-surface-1) 60%
+  );
+  --ai-role-surface-selected: color-mix(
+    in srgb,
+    var(--ai-role-interaction-active) 52%,
+    var(--ai-role-surface-1) 48%
+  );
+  --ai-role-surface-active: color-mix(
+    in srgb,
+    var(--ai-role-interaction-active) 64%,
+    var(--ai-role-surface-1) 36%
+  );
+  --ai-role-border-base: var(--ai-border-subtle);
+  --ai-role-border-subtle: var(--ai-border-subtle);
+  --ai-role-border-muted: var(--ai-border-muted);
+  --ai-role-border-strong: var(--ai-border-strong);
+  --ai-role-border-selected: color-mix(
+    in srgb,
+    var(--ai-role-interaction-active) 80%,
+    transparent
+  );
+  --ai-role-divider-base: var(--ai-divider);
+  --ai-role-divider-muted: color-mix(
+    in srgb,
+    var(--ai-divider) 70%,
+    transparent
+  );
+  --ai-role-interaction-base: var(--ai-accent);
+  --ai-role-interaction-hover: var(--ai-accent-strong);
+  --ai-role-interaction-active: var(--ai-accent-soft);
+  --ai-role-interaction-focus: var(--ai-ring);
+  --ai-role-interaction-muted: var(--ai-text-muted);
+}
+
+:root:has(body.dark),
+:root:has(body.dark-mode),
+.dark,
+.dark-mode,
+html.dark,
+html.dark-mode,
+body.dark,
+body.dark-mode {
+  --ai-bg: 0 0% 10%;
+  --ai-bg-muted: 0 0% 15%;
+  --ai-bg-subtle: hsl(var(--ai-bg-muted));
+  --ai-fg: 60 4% 90%;
+  --ai-fg-muted: 0 0% 70%;
+  --ai-border: 204 3% 36%;
+  --ai-shadow-soft: 0 18px 35px rgba(0, 0, 0, 0.45);
+  --ai-shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --ai-shadow-overlay-panel:
+    0 20px 40px -8px rgba(0, 0, 0, 0.5), 0 8px 16px -4px rgba(0, 0, 0, 0.35);
+  --ai-accent: var(--notion-blue);
+  --ai-success: #34d399;
+  --ai-success-muted: color-mix(in srgb, var(--ai-success) 20%, transparent);
+  --ai-warning: #fb923c;
+  --ai-warning-muted: color-mix(in srgb, var(--ai-warning) 20%, transparent);
+  --ai-error: #f87171;
+  --ai-error-muted: color-mix(in srgb, var(--ai-error) 20%, transparent);
+  --ai-overlay-scrim: rgba(0, 0, 0, 0.5);
+  --ai-text: hsl(var(--ai-fg));
+  --ai-text-strong: color-mix(in srgb, var(--ai-text) 96%, transparent);
+  --ai-text-soft: color-mix(in srgb, var(--ai-text) 72%, transparent);
+  --ai-text-faint: color-mix(in srgb, var(--ai-text) 50%, transparent);
+  --ai-text-muted: hsl(var(--ai-fg-muted));
+  --ai-ring: var(--notion-blue);
+  --ai-accent-contrast: var(--ai-text);
+  --ai-pill-bg: color-mix(in srgb, var(--ai-text) 14%, var(--ai-surface));
+  --ai-pill-border: color-mix(in srgb, var(--ai-text) 20%, transparent);
+  --ai-divider: color-mix(
+    in srgb,
+    hsl(var(--ai-border)) 70%,
+    var(--ai-text) 30%
+  );
+  --ai-border-subtle: color-mix(
+    in srgb,
+    hsl(var(--ai-border)) 80%,
+    var(--ai-text) 20%
+  );
+  --ai-border-strong: color-mix(
+    in srgb,
+    hsl(var(--ai-border)) 90%,
+    var(--ai-text) 10%
+  );
+
+  /* Solid accent mappings for high-contrast active states */
+  --ai-accent-soft: color-mix(in srgb, var(--ai-accent) 25%, var(--ai-surface));
+  --ai-accent-bg: color-mix(in srgb, var(--ai-accent) 15%, var(--ai-surface));
+
+  /* Dark mode surface elevation depth roles */
+  --ai-role-surface-default: var(--ai-surface-muted); /* 15% */
+  --ai-role-surface-muted: var(--ai-surface); /* 10% */
+  --ai-role-surface-0: var(--ai-surface); /* 10% (Inset) */
+  --ai-role-surface-1: var(--ai-surface-muted); /* 15% (Card) */
+
+  --ai-role-surface-1-overlay: color-mix(
+    in srgb,
+    var(--ai-role-surface-1) 96%,
+    var(--ai-role-border-muted) 4%
+  );
+  --ai-role-surface-2: var(--ai-role-surface-1-overlay);
+  --ai-role-surface-hover: color-mix(
+    in srgb,
+    var(--ai-role-surface-highlight) 32%,
+    var(--ai-role-surface-1) 68%
+  );
+  --ai-role-surface-selected: color-mix(
+    in srgb,
+    var(--ai-role-interaction-active) 48%,
+    var(--ai-role-surface-1) 52%
+  );
+  --ai-role-surface-active: color-mix(
+    in srgb,
+    var(--ai-role-interaction-active) 55%,
+    var(--ai-role-surface-1) 45%
+  );
+  --ai-role-border-selected: color-mix(
+    in srgb,
+    var(--ai-role-interaction-active) 76%,
+    transparent
+  );
+  --ai-tooltip-bg: rgba(14, 19, 25, 0.95);
+}
+
+/*
+  ai-role-surface mapping references:
+  - Base values are defined above in :root.
+  - Dark-mode overrides follow the root scope in this file so they win.
+  No other sections reassign these tokens.
+*/
+
+/* ------------------------------------------------ */
+/* Utilities (text/border helpers)                  */
+/* ------------------------------------------------ */

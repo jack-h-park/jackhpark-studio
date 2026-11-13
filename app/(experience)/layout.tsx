@@ -1,5 +1,5 @@
 import "@/styles/site-tokens.css";
-import "@/styles/ai-design-system.css";
+import "@/styles/pm-intelligence.css";
 import "@/styles/jp-theme.css";
 import "@/components/pm-intelligence-world/reset.css";
 
