@@ -65,6 +65,7 @@ import {
   observatoryLocations,
   type ObservatoryState,
 } from "@/lib/pm-intelligence-world/observatory-state";
+import { createReadinessTiming } from "@/lib/pm-intelligence-world/readiness-timing";
 import {
   clearsSpatialFeedback,
   feedbackTransition,
@@ -119,6 +120,7 @@ export function createObservatory({
   onPosition: (position: WalkPoint) => void;
   onOperate: (id: PlayDestination) => void;
 }): ObservatoryHandle {
+  const timing = createReadinessTiming();
   const scene = new Scene();
   scene.background = new Color("#101a3b");
   const camera = new OrthographicCamera(-20, 20, 12, -12, 0.1, 180);
@@ -216,12 +218,13 @@ export function createObservatory({
   );
   const modelRequest = new AbortController();
   void readCampus(modelRequest.signal)
-    .then((data) =>
-      new GLTFLoader().parseAsync(
+    .then((data) => {
+      timing.record("model-loaded");
+      return new GLTFLoader().parseAsync(
         data,
         "/experiences/pm-intelligence/observatory/",
-      ),
-    )
+      );
+    })
     .then(
       (g) => {
         if (disposed) {
@@ -229,6 +232,7 @@ export function createObservatory({
           return;
         }
         loadedModel = g.scene;
+        timing.record("model-parsed");
         g.scene.traverse((o) => {
           if (o instanceof Mesh) {
             o.castShadow = true;
@@ -246,6 +250,7 @@ export function createObservatory({
           () => {
             if (disposed) return;
             ready = true;
+            timing.record("shaders-ready");
             invalidate();
             onReady();
           },
@@ -765,6 +770,7 @@ export function createObservatory({
   observePanels();
   let elapsed = 0,
     last = 0;
+  let firstFrameRecorded = false;
   renderer.setAnimationLoop((ms) => {
     if (disposed || !visible || !ready) return;
     if (
@@ -904,6 +910,13 @@ export function createObservatory({
           : "hidden";
     }
     composer.render();
+    if (!firstFrameRecorded) {
+      firstFrameRecorded = true;
+      timing.record("first-frame");
+      // Input handlers are installed synchronously before this loop starts.
+      // This is a readiness proxy after CPU submission, not GPU presentation or INP.
+      timing.record("interactive");
+    }
   });
   function disposeGroup(group: Object3D) {
     const geometries = new Set<BufferGeometry>();
@@ -1062,6 +1075,7 @@ export function createObservatory({
       controls.update();
     },
     dispose() {
+      timing.dispose();
       endGesture();
       disposed = true;
       modelRequest.abort();

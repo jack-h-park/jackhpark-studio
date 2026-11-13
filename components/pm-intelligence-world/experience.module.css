@@ -301,6 +301,11 @@
   color: var(--ai-text-muted);
   margin-top: 20px;
 }
+.note a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
 .pager {
   display: flex;
   justify-content: space-between;
