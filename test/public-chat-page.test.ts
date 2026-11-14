@@ -183,3 +183,17 @@ void test("each miss reads fresh configuration rather than retaining another ins
   assert.equal(firstProps.adminConfig.baseSystemPromptSummary, "Revision 1");
   assert.equal(secondProps.adminConfig.baseSystemPromptSummary, "Revision 2");
 });
+
+void test("an unverified fallback header stays visible but is never CDN-cached or serialized with its policy hint", async () => {
+  const ctx = context();
+  ctx.res.setHeader("Vercel-Cache-Tag", "old-tag");
+  const result = await loader({
+    loadHeader: async () => ({ ...header, cacheable: false as const }),
+  })(ctx);
+  assert.equal(ctx.res.getHeader("Cache-Control"), "private, no-store");
+  assert.equal(ctx.res.getHeader("Vercel-Cache-Tag"), undefined);
+  assert.ok("props" in result);
+  const props = await result.props;
+  assert.deepEqual(props.headerRecordMap, header.headerRecordMap);
+  assert.equal(Object.hasOwn(props, "cacheable"), false);
+});

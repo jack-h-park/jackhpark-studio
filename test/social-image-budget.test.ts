@@ -21,6 +21,7 @@ type Bundle = {
   fixture: {
     recordMap: ReturnType<typeof recordMap>;
     reads: string[];
+    readOptions: unknown[];
     heads: string[];
     rejected: string[];
     renderOptions: { width: number; height: number } | null;
@@ -84,7 +85,7 @@ async function route(): Promise<Bundle> {
       ),
     },
     banner: {
-      js: "import {createRequire} from 'node:module'; const require = createRequire(process.cwd() + '/package.json'); const fixture = {recordMap: null, reads: [], heads: [], rejected: [], renderOptions: null};",
+      js: "import {createRequire} from 'node:module'; const require = createRequire(process.cwd() + '/package.json'); const fixture = {recordMap: null, reads: [], readOptions: [], heads: [], rejected: [], renderOptions: null};",
     },
     footer: { js: "export {fixture};" },
     plugins: [
@@ -107,8 +108,8 @@ async function route(): Promise<Bundle> {
                     return new Response(null);
                   }};`
                 : path === "@/lib/notion-api"
-                  ? `export const notion = {async getPage(id) {
-                      fixture.reads.push(id); return fixture.recordMap;
+                  ? `export const notion = {async getPage(id, options) {
+                      fixture.readOptions.push(options); fixture.reads.push(id); return fixture.recordMap;
                     }};`
                   : path === "next/og"
                     ? `import {renderToStaticMarkup} from 'react-dom/server';
@@ -184,4 +185,45 @@ void test("the social route renders the selected cover, title and author at the 
   assert.equal(module.fixture.renderOptions?.width, 1200);
   assert.equal(module.fixture.renderOptions?.height, 630);
   assert.deepEqual(module.fixture.heads, [cover]);
+});
+
+void test("social metadata disables body enrichment while retaining collection properties", async () => {
+  const module = await route();
+  const result = await module.getNotionPageInfo({ pageId });
+  assert.equal(result.type, "success");
+  if (result.type !== "success") return;
+  assert.equal(result.data.author, "Fixture Author");
+  assert.deepEqual(module.fixture.readOptions, [
+    {
+      chunkLimit: 1,
+      fetchCollections: false,
+      fetchMissingBlocks: false,
+      fetchRelationPages: false,
+      signFileUrls: false,
+    },
+  ]);
+});
+
+void test("metadata uses the requested wrapped root even when an unrelated block comes first", async () => {
+  const module = await route();
+  const root = module.fixture.recordMap.block[pageId];
+  module.fixture.recordMap.block = {
+    unrelated: {
+      ...root,
+      value: {
+        ...root.value,
+        id: "unrelated",
+        properties: { title: [["Wrong title"]] },
+      },
+    },
+    [pageId]: {
+      ...root,
+      value: { role: "reader", value: root.value },
+    } as unknown as typeof root,
+  } as typeof module.fixture.recordMap.block;
+  const result = await module.getNotionPageInfo({ pageId });
+  assert.equal(result.type, "success");
+  if (result.type !== "success") return;
+  assert.equal(result.data.title, "An observable card");
+  assert.equal(result.data.author, "Fixture Author");
 });
