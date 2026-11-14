@@ -72,6 +72,14 @@ void test("missing platform purge context cannot silently report a successful in
     await import("../lib/server/notion-header-store");
   await assert.rejects(
     createRuntimeHeaderStore().invalidate!(),
-    /purge context unavailable/,
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /purge context unavailable/);
+      assert.equal(
+        (error as Error & { code?: string }).code,
+        "purge_context_unavailable",
+      );
+      return true;
+    },
   );
 });

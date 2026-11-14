@@ -11,6 +11,7 @@ import {
 } from "@/lib/config";
 import { withRateLimitRetry } from "@/lib/notion-rate-limit";
 import { unwrapRecordValue } from "@/lib/rag/notion-record-value";
+import { NotionHeaderCacheError } from "@/lib/server/notion-header-error";
 import { createRuntimeHeaderStore } from "@/lib/server/notion-header-store";
 
 export type NotionNavigationHeader = {
@@ -163,12 +164,12 @@ export function createNotionNavigationHeaderLoader(options: {
       const fresh = randomUUID();
       await store!.set(revisionKey, fresh);
       if ((await store!.get(revisionKey)) !== fresh) {
-        throw new Error("Header cache revision was not retained");
+        throw new NotionHeaderCacheError("revision_not_retained");
       }
       return fresh;
     }
     if (typeof value !== "string" || value.length > 128)
-      throw new Error("Invalid header revision");
+      throw new NotionHeaderCacheError("invalid_revision");
     return value;
   }
 
@@ -282,7 +283,7 @@ export function createNotionNavigationHeaderLoader(options: {
         const fresh = randomUUID();
         await store.set(revisionKey, fresh);
         if ((await store.get(revisionKey)) !== fresh) {
-          throw new Error("Header cache revision was not retained");
+          throw new NotionHeaderCacheError("revision_not_retained");
         }
       }
     },
