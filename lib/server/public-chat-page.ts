@@ -22,7 +22,7 @@ import {
 export type PublicChatPageProps = {
   adminConfig: PublicChatConfig;
   runtimeMeta: PublicChatRuntimeMeta;
-} & NotionNavigationHeader;
+} & Pick<NotionNavigationHeader, "headerRecordMap" | "headerBlockId">;
 
 export function createPublicChatPageLoader({
   loadConfig,
@@ -57,11 +57,13 @@ export function createPublicChatPageLoader({
     const props: PublicChatPageProps = {
       adminConfig: toPublicChatConfig(config),
       runtimeMeta: toPublicChatRuntimeMeta(buildRuntimeMeta(config)),
-      ...header,
+      headerRecordMap: header.headerRecordMap,
+      headerBlockId: header.headerBlockId,
     };
 
     if (
       !bypassCache &&
+      header.cacheable !== false &&
       header.headerRecordMap &&
       res.statusCode === 200 &&
       !res.hasHeader("Set-Cookie")
