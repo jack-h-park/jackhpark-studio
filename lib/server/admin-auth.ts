@@ -3,7 +3,10 @@ import { randomUUID } from "node:crypto";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 
-import type { NotionHeaderCacheErrorCode } from "@/lib/server/notion-header-error";
+import type {
+  HeaderRevisionVerification,
+  NotionHeaderCacheErrorCode,
+} from "@/lib/server/notion-header-error";
 import { isAllowedAdminEmail } from "@/lib/admin/auth";
 import { dbLogger } from "@/lib/logging/logger";
 import { authOptions } from "@/lib/server/auth";
@@ -68,6 +71,7 @@ export function auditAdminMutation(input: {
   target: string;
   result: AdminMutationResult;
   failure?: PublicPageRefreshFailure;
+  cacheVerification?: HeaderRevisionVerification;
 }): void {
   dbLogger.info("admin:mutation", {
     actor: input.actorEmail,
@@ -75,6 +79,18 @@ export function auditAdminMutation(input: {
     target: input.target,
     result: input.result,
     requestId: input.requestId,
+    ...(input.cacheVerification
+      ? {
+          cacheVerification: {
+            attempts: input.cacheVerification.attempts,
+            missing: input.cacheVerification.missing,
+            previous: input.cacheVerification.previous,
+            different: input.cacheVerification.different,
+            invalid: input.cacheVerification.invalid,
+            waitedMs: input.cacheVerification.waitedMs,
+          },
+        }
+      : {}),
     ...(input.failure
       ? {
           failure: {

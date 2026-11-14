@@ -8,7 +8,10 @@ import {
   requireSameOriginMutation,
 } from "@/lib/server/admin-auth";
 import { invalidateNotionNavigationHeader } from "@/lib/server/notion-header";
-import { NotionHeaderCacheError } from "@/lib/server/notion-header-error";
+import {
+  type HeaderRevisionVerification,
+  NotionHeaderCacheError,
+} from "@/lib/server/notion-header-error";
 import { invalidatePublicChatShell } from "@/lib/server/public-chat-cache";
 import {
   type PublicPageRevalidationTarget,
@@ -50,6 +53,7 @@ export default async function handler(
   let target: PublicPageRevalidationTarget | null = null;
   let stage: PublicPageRefreshFailure["stage"] = "resolve_target";
   let pageRevalidated = false;
+  let cacheVerification: HeaderRevisionVerification | undefined;
 
   try {
     const siteMap = await getSiteMap();
@@ -74,7 +78,7 @@ export default async function handler(
     pageRevalidated = true;
     if (target.path === "/studio") {
       stage = "header_invalidation";
-      await invalidateNotionNavigationHeader();
+      cacheVerification = await invalidateNotionNavigationHeader();
       stage = "chat_invalidation";
       await invalidatePublicChatShell();
     }
@@ -84,6 +88,7 @@ export default async function handler(
       action: "revalidate",
       target: target.path,
       result: "success",
+      cacheVerification,
     });
     res.status(200).json({ revalidatedPath: target.path, revalidatedAt });
   } catch (err) {
@@ -92,12 +97,14 @@ export default async function handler(
       action: "revalidate",
       target: target?.path ?? "public-page",
       result: "failure",
+      cacheVerification:
+        err instanceof NotionHeaderCacheError
+          ? (err.verification ?? cacheVerification)
+          : cacheVerification,
       failure: {
         stage,
         code:
-          err instanceof NotionHeaderCacheError
-            ? err.code
-            : "operation_failed",
+          err instanceof NotionHeaderCacheError ? err.code : "operation_failed",
         pageRevalidated,
       },
     });

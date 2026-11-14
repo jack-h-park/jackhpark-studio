@@ -26,8 +26,8 @@ async function refresh(
             "@/lib/server/admin-auth":
               "export async function requireAdminApiAccess(){return {actorEmail:'admin@example.test',requestId:'fixture-request'};} export function requireSameOriginMutation(){return true;} export function auditAdminMutation(input){audits.push(input);}",
             "@/lib/server/notion-header-error":
-              "export class NotionHeaderCacheError extends Error{constructor(code){super(code);this.code=code;}}",
-            "@/lib/server/notion-header": `import {NotionHeaderCacheError} from '@/lib/server/notion-header-error'; export async function invalidateNotionNavigationHeader(){ events.push('header'); ${failure === "header" ? "throw Error('SECRET_SENTINEL');" : failure.startsWith("header:") ? `throw new NotionHeaderCacheError('${failure.slice(7)}');` : ""} }`,
+              "export class NotionHeaderCacheError extends Error{constructor(code){super(code);this.code=code;if(code==='revision_not_retained')this.verification={attempts:3,missing:3,previous:0,different:0,invalid:0,waitedMs:350};}}",
+            "@/lib/server/notion-header": `import {NotionHeaderCacheError} from '@/lib/server/notion-header-error'; export async function invalidateNotionNavigationHeader(){ events.push('header'); ${failure === "header" ? "throw Error('SECRET_SENTINEL');" : failure.startsWith("header:") ? `throw new NotionHeaderCacheError('${failure.slice(7)}');` : ""} return ${failure === "delayed_success" ? "{attempts:2,missing:1,previous:0,different:0,invalid:0,waitedMs:100}" : "undefined"}; }`,
             "@/lib/server/public-chat-cache": `export async function invalidatePublicChatShell(){events.push('chat');${failure === "chat" ? "throw Error('SECRET_SENTINEL');" : ""}return 'invalidated';}`,
           };
           b.onResolve({ filter: /.*/ }, (a) =>
@@ -79,6 +79,44 @@ void test("successful root refresh invalidates the shared header and public chat
   });
 });
 
+void test("a recovered delayed write records bounded verification evidence on successful refresh", async () => {
+  const result = await refresh("/studio", "delayed_success", ({ audits }) => {
+    assert.deepEqual(
+      (audits[0] as { cacheVerification?: unknown }).cacheVerification,
+      {
+        attempts: 2,
+        missing: 1,
+        previous: 0,
+        different: 0,
+        invalid: 0,
+        waitedMs: 100,
+      },
+    );
+  });
+  assert.equal(result.status, 200);
+});
+
+void test("unverified missing reads remain an explicitly ambiguous failure in audit evidence", async () => {
+  const result = await refresh(
+    "/studio",
+    "header:revision_not_retained",
+    ({ audits }) => {
+      assert.deepEqual(
+        (audits[0] as { cacheVerification?: unknown }).cacheVerification,
+        {
+          attempts: 3,
+          missing: 3,
+          previous: 0,
+          different: 0,
+          invalid: 0,
+          waitedMs: 350,
+        },
+      );
+    },
+  );
+  assert.equal(result.status, 500);
+});
+
 for (const [failure, stage, pageRevalidated] of [
   ["resolve_target", "resolve_target", false],
   ["page", "page_revalidation", false],
@@ -110,6 +148,7 @@ for (const code of [
   "purge_failed",
   "revision_write_failed",
   "revision_read_failed",
+  "revision_changed",
   "revision_not_retained",
   "invalid_revision",
 ] as const) {
