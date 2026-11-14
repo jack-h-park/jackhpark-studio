@@ -107,6 +107,9 @@ for (const [failure, stage, pageRevalidated] of [
 
 for (const code of [
   "purge_context_unavailable",
+  "purge_failed",
+  "revision_write_failed",
+  "revision_read_failed",
   "revision_not_retained",
   "invalid_revision",
 ] as const) {

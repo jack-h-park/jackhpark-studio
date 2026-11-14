@@ -464,7 +464,7 @@ void test("unavailable shared storage falls back to fresh origin and failed inva
     fetchRoot: async () => rootMap,
   });
   assert.equal((await load()).headerRecordMap?.block[rootId].value.id, rootId);
-  await assert.rejects(load.invalidate(), /store down/);
+  await assert.rejects(load.invalidate(), { code: "revision_write_failed" });
 });
 
 void test("shared cache byte limits reject oversized Unicode metadata before reuse", async () => {
@@ -598,6 +598,32 @@ void test("manual invalidation rejects a silently dropped replacement marker", a
   store.set = async () => true;
   await assert.rejects(load.invalidate(), /not retained/);
 });
+
+for (const [operation, code] of [
+  ["invalidate", "purge_failed"],
+  ["set", "revision_write_failed"],
+  ["get", "revision_read_failed"],
+] as const) {
+  void test(`manual invalidation classifies ${operation} failures without exposing dependency errors`, async () => {
+    const store = { ...sharedStore(), invalidate: async () => {} };
+    const load = createLoader({
+      store,
+      cacheKey: "fixture",
+      now: () => 0,
+      fetchRoot: async () => rootMap,
+    });
+    await load();
+    store[operation] = async () => {
+      throw new Error("PRIVATE_DEPENDENCY_SENTINEL");
+    };
+    await assert.rejects(load.invalidate(), (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal((error as Error & { code?: string }).code, code);
+      assert.ok(!error.message.includes("PRIVATE_DEPENDENCY_SENTINEL"));
+      return true;
+    });
+  });
+}
 
 function versionMap(version: number): ExtendedRecordMap {
   return {
@@ -741,7 +767,7 @@ void test("failed local invalidation fences old fallback completion from a newer
   });
   const old = load();
   await readyFirst;
-  await assert.rejects(load.invalidate(), /store down/);
+  await assert.rejects(load.invalidate(), { code: "revision_write_failed" });
   const current = load();
   await readySecond;
   first.resolve(versionMap(1));
@@ -843,7 +869,7 @@ void test("a delayed pre-invalidation revision failure cannot replace a newer fa
   });
   const old = load();
   await revisionReady;
-  await assert.rejects(load.invalidate(), /store down/);
+  await assert.rejects(load.invalidate(), { code: "revision_write_failed" });
   const current = load();
   await originReady;
   rejectRevision(new Error("delayed store failure"));
