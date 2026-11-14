@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth/next";
 
+import type { NotionHeaderCacheErrorCode } from "@/lib/server/notion-header-error";
 import { isAllowedAdminEmail } from "@/lib/admin/auth";
 import { dbLogger } from "@/lib/logging/logger";
 import { authOptions } from "@/lib/server/auth";
@@ -13,6 +14,16 @@ export type AdminAuthContext = {
 };
 
 export type AdminMutationResult = "success" | "failure";
+
+export type PublicPageRefreshFailure = {
+  stage:
+    | "resolve_target"
+    | "page_revalidation"
+    | "header_invalidation"
+    | "chat_invalidation";
+  code: NotionHeaderCacheErrorCode | "operation_failed";
+  pageRevalidated: boolean;
+};
 
 function getRequestId(req: NextApiRequest): string {
   const header = req.headers["x-request-id"];
@@ -56,6 +67,7 @@ export function auditAdminMutation(input: {
   action: string;
   target: string;
   result: AdminMutationResult;
+  failure?: PublicPageRefreshFailure;
 }): void {
   dbLogger.info("admin:mutation", {
     actor: input.actorEmail,
@@ -63,6 +75,15 @@ export function auditAdminMutation(input: {
     target: input.target,
     result: input.result,
     requestId: input.requestId,
+    ...(input.failure
+      ? {
+          failure: {
+            stage: input.failure.stage,
+            code: input.failure.code,
+            pageRevalidated: input.failure.pageRevalidated,
+          },
+        }
+      : {}),
   });
 }
 

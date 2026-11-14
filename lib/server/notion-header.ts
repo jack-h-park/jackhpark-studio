@@ -11,6 +11,7 @@ import {
 } from "@/lib/config";
 import { withRateLimitRetry } from "@/lib/notion-rate-limit";
 import { unwrapRecordValue } from "@/lib/rag/notion-record-value";
+import { NotionHeaderCacheError } from "@/lib/server/notion-header-error";
 import { createRuntimeHeaderStore } from "@/lib/server/notion-header-store";
 
 export type NotionNavigationHeader = {
@@ -163,12 +164,12 @@ export function createNotionNavigationHeaderLoader(options: {
       const fresh = randomUUID();
       await store!.set(revisionKey, fresh);
       if ((await store!.get(revisionKey)) !== fresh) {
-        throw new Error("Header cache revision was not retained");
+        throw new NotionHeaderCacheError("revision_not_retained");
       }
       return fresh;
     }
     if (typeof value !== "string" || value.length > 128)
-      throw new Error("Invalid header revision");
+      throw new NotionHeaderCacheError("invalid_revision");
     return value;
   }
 
@@ -278,11 +279,26 @@ export function createNotionNavigationHeaderLoader(options: {
       fallbackPending = null;
       // The revision has no TTL: expiration must never resurrect an old generation.
       if (store) {
-        await store.invalidate?.();
+        try {
+          await store.invalidate?.();
+        } catch (err) {
+          if (err instanceof NotionHeaderCacheError) throw err;
+          throw new NotionHeaderCacheError("purge_failed");
+        }
         const fresh = randomUUID();
-        await store.set(revisionKey, fresh);
-        if ((await store.get(revisionKey)) !== fresh) {
-          throw new Error("Header cache revision was not retained");
+        try {
+          await store.set(revisionKey, fresh);
+        } catch {
+          throw new NotionHeaderCacheError("revision_write_failed");
+        }
+        let retained: unknown;
+        try {
+          retained = await store.get(revisionKey);
+        } catch {
+          throw new NotionHeaderCacheError("revision_read_failed");
+        }
+        if (retained !== fresh) {
+          throw new NotionHeaderCacheError("revision_not_retained");
         }
       }
     },

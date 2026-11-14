@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { NotionHeaderStore } from "@/lib/server/notion-header";
 import { domain, environment } from "@/lib/config";
+import { NotionHeaderCacheError } from "@/lib/server/notion-header-error";
 
 const headerTag = `${domain}:${process.env.VERCEL_ENV ?? environment}:notion-header:v1`;
 
@@ -30,7 +31,7 @@ export function createRuntimeHeaderStore(): NotionHeaderStore {
         Symbol.for("@vercel/request-context")
       ] as { get?: () => { purge?: unknown } } | undefined;
       if (!context?.get?.()?.purge)
-        throw new Error("Vercel purge context unavailable");
+        throw new NotionHeaderCacheError("purge_context_unavailable");
       await (await import("@vercel/functions")).invalidateByTag(headerTag);
     },
   };

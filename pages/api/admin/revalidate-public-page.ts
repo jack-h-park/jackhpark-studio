@@ -3,10 +3,12 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getSiteMap } from "@/lib/get-site-map";
 import {
   auditAdminMutation,
+  type PublicPageRefreshFailure,
   requireAdminApiAccess,
   requireSameOriginMutation,
 } from "@/lib/server/admin-auth";
 import { invalidateNotionNavigationHeader } from "@/lib/server/notion-header";
+import { NotionHeaderCacheError } from "@/lib/server/notion-header-error";
 import { invalidatePublicChatShell } from "@/lib/server/public-chat-cache";
 import {
   type PublicPageRevalidationTarget,
@@ -15,7 +17,7 @@ import {
 
 type RevalidationResponse =
   | { revalidatedPath: string; revalidatedAt: string }
-  | { error: string };
+  | { error: string; requestId?: string };
 
 export default async function handler(
   req: NextApiRequest,
@@ -46,6 +48,8 @@ export default async function handler(
       ? (body as Record<string, unknown>).path
       : undefined;
   let target: PublicPageRevalidationTarget | null = null;
+  let stage: PublicPageRefreshFailure["stage"] = "resolve_target";
+  let pageRevalidated = false;
 
   try {
     const siteMap = await getSiteMap();
@@ -65,9 +69,13 @@ export default async function handler(
       return;
     }
 
+    stage = "page_revalidation";
     await res.revalidate(target.path);
+    pageRevalidated = true;
     if (target.path === "/studio") {
+      stage = "header_invalidation";
       await invalidateNotionNavigationHeader();
+      stage = "chat_invalidation";
       await invalidatePublicChatShell();
     }
     const revalidatedAt = new Date().toISOString();
@@ -78,13 +86,24 @@ export default async function handler(
       result: "success",
     });
     res.status(200).json({ revalidatedPath: target.path, revalidatedAt });
-  } catch {
+  } catch (err) {
     auditAdminMutation({
       ...admin,
       action: "revalidate",
       target: target?.path ?? "public-page",
       result: "failure",
+      failure: {
+        stage,
+        code:
+          err instanceof NotionHeaderCacheError
+            ? err.code
+            : "operation_failed",
+        pageRevalidated,
+      },
     });
-    res.status(500).json({ error: "Unable to refresh the public page." });
+    res.status(500).json({
+      error: "Unable to refresh the public page.",
+      requestId: admin.requestId,
+    });
   }
 }
