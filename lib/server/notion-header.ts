@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { setTimeout } from "node:timers/promises";
 
 import type { ExtendedRecordMap } from "notion-types";
 import { parsePageId } from "notion-utils";
@@ -11,7 +12,11 @@ import {
 } from "@/lib/config";
 import { withRateLimitRetry } from "@/lib/notion-rate-limit";
 import { unwrapRecordValue } from "@/lib/rag/notion-record-value";
-import { NotionHeaderCacheError } from "@/lib/server/notion-header-error";
+import { verifyHeaderRevision } from "@/lib/server/header-revision-verification";
+import {
+  type HeaderRevisionVerification,
+  NotionHeaderCacheError,
+} from "@/lib/server/notion-header-error";
 import { createRuntimeHeaderStore } from "@/lib/server/notion-header-store";
 
 export type NotionNavigationHeader = {
@@ -107,15 +112,22 @@ export interface NotionHeaderStore {
 }
 
 type HeaderLoader = (() => Promise<NotionNavigationHeader>) & {
-  invalidate(): Promise<void>;
+  invalidate(): Promise<HeaderRevisionVerification | undefined>;
 };
 const MAX_HEADER_BYTES = 65_536;
+
+function validateRevision(value: unknown): string {
+  if (typeof value !== "string" || value.length > 128)
+    throw new NotionHeaderCacheError("invalid_revision");
+  return value;
+}
 
 export function createNotionNavigationHeaderLoader(options: {
   fetchRoot(pageId: string): Promise<ExtendedRecordMap>;
   now(): number;
   store?: NotionHeaderStore;
   cacheKey?: string;
+  wait?(ms: number): Promise<void>;
 }): HeaderLoader {
   let local = createMemoryHeaderLoader(options);
   const { store } = options;
@@ -138,6 +150,15 @@ export function createNotionNavigationHeaderLoader(options: {
     epoch: number;
     read: Promise<NotionNavigationHeader>;
   } | null = null;
+  let mutation: Promise<void> = Promise.resolve();
+  function mutateRevision<T>(operation: () => Promise<T>): Promise<T> {
+    const result = mutation.then(operation);
+    mutation = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
 
   async function readFallback(epoch: number): Promise<NotionNavigationHeader> {
     if (!fallbackPending || fallbackPending.epoch !== epoch) {
@@ -159,18 +180,23 @@ export function createNotionNavigationHeaderLoader(options: {
   async function revision(): Promise<string> {
     const value = await store!.get(revisionKey);
     if (value === undefined || value === null) {
-      // Runtime Cache may evict markers independently of entries. A new random
-      // generation prevents a surviving older entry from becoming current again.
-      const fresh = randomUUID();
-      await store!.set(revisionKey, fresh);
-      if ((await store!.get(revisionKey)) !== fresh) {
-        throw new NotionHeaderCacheError("revision_not_retained");
-      }
-      return fresh;
+      return mutateRevision(async () => {
+        // Recheck under the local write queue: a missing read can predate a
+        // completed invalidation or another initialization on this instance.
+        const latest = await store!.get(revisionKey);
+        if (latest !== undefined && latest !== null)
+          return validateRevision(latest);
+        // Runtime Cache may evict markers independently of entries. A new random
+        // generation prevents a surviving older entry from becoming current again.
+        const fresh = randomUUID();
+        await store!.set(revisionKey, fresh);
+        if ((await store!.get(revisionKey)) !== fresh) {
+          throw new NotionHeaderCacheError("revision_not_retained");
+        }
+        return fresh;
+      });
     }
-    if (typeof value !== "string" || value.length > 128)
-      throw new NotionHeaderCacheError("invalid_revision");
-    return value;
+    return validateRevision(value);
   }
 
   async function readRevision(
@@ -279,28 +305,36 @@ export function createNotionNavigationHeaderLoader(options: {
       fallbackPending = null;
       // The revision has no TTL: expiration must never resurrect an old generation.
       if (store) {
-        try {
-          await store.invalidate?.();
-        } catch (err) {
-          if (err instanceof NotionHeaderCacheError) throw err;
-          throw new NotionHeaderCacheError("purge_failed");
-        }
-        const fresh = randomUUID();
-        try {
-          await store.set(revisionKey, fresh);
-        } catch {
-          throw new NotionHeaderCacheError("revision_write_failed");
-        }
-        let retained: unknown;
-        try {
-          retained = await store.get(revisionKey);
-        } catch {
-          throw new NotionHeaderCacheError("revision_read_failed");
-        }
-        if (retained !== fresh) {
-          throw new NotionHeaderCacheError("revision_not_retained");
-        }
+        return mutateRevision(async () => {
+          let previous: unknown;
+          try {
+            previous = await store.get(revisionKey);
+          } catch {
+            // Baseline is diagnostic only. The post-write read must still prove
+            // retention even when this optional earlier read was unavailable.
+            previous = undefined;
+          }
+          try {
+            await store.invalidate?.();
+          } catch (err) {
+            if (err instanceof NotionHeaderCacheError) throw err;
+            throw new NotionHeaderCacheError("purge_failed");
+          }
+          const fresh = randomUUID();
+          try {
+            await store.set(revisionKey, fresh);
+          } catch {
+            throw new NotionHeaderCacheError("revision_write_failed");
+          }
+          return verifyHeaderRevision({
+            read: () => store.get(revisionKey),
+            expected: fresh,
+            previous,
+            wait: options.wait ?? ((ms) => setTimeout(ms)),
+          });
+        });
       }
+      return undefined;
     },
   });
 }
@@ -332,6 +366,8 @@ export async function loadNotionNavigationHeader(): Promise<NotionNavigationHead
   return defaultLoader();
 }
 
-export async function invalidateNotionNavigationHeader(): Promise<void> {
-  await defaultLoader.invalidate();
+export async function invalidateNotionNavigationHeader(): Promise<
+  HeaderRevisionVerification | undefined
+> {
+  return defaultLoader.invalidate();
 }
