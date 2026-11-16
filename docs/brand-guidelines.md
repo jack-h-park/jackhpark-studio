@@ -26,6 +26,12 @@ separates slide dimensions from the website type scale. The old section 7.2 size
 mockup example, not projection-ready slide coordinates. Current application and contrast
 corrections take precedence over the original examples below.
 
+Section 7.5 still applies to the Studio itself. Separate product apps that run on their own
+host use per-app icons instead: the JHP mark's gradient tile with a white glyph, and the
+mark itself in the app's header. The construction and the don'ts are in
+[`canonical/design-system/ai-design-system.md`](canonical/design-system/ai-design-system.md)
+§0-I. The cartoon avatar is for people and is never an app icon.
+
 Agent portraits follow the existing
 agent visual identity guide in the `hermes-control-plane` repo
 (`docs/hermes/agent-visual-identity.md`).
