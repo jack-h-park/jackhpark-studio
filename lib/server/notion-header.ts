@@ -15,6 +15,7 @@ import { unwrapRecordValue } from "@/lib/rag/notion-record-value";
 import { verifyHeaderRevision } from "@/lib/server/header-revision-verification";
 import {
   type HeaderRevisionVerification,
+  type HeaderStoreDiagnostics,
   NotionHeaderCacheError,
 } from "@/lib/server/notion-header-error";
 import { createRuntimeHeaderStore } from "@/lib/server/notion-header-store";
@@ -106,6 +107,7 @@ function createMemoryHeaderLoader({
 }
 
 export interface NotionHeaderStore {
+  diagnostics?(): HeaderStoreDiagnostics;
   get(key: string): Promise<unknown>;
   invalidate?(): Promise<void>;
   set(key: string, value: unknown, ttl?: number): Promise<unknown>;
@@ -330,6 +332,7 @@ export function createNotionNavigationHeaderLoader(options: {
             read: () => store.get(revisionKey),
             expected: fresh,
             previous,
+            store: store.diagnostics?.(),
             wait: options.wait ?? ((ms) => setTimeout(ms)),
           });
         });

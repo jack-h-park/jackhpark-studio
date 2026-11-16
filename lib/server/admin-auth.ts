@@ -88,6 +88,14 @@ export function auditAdminMutation(input: {
             different: input.cacheVerification.different,
             invalid: input.cacheVerification.invalid,
             waitedMs: input.cacheVerification.waitedMs,
+            ...(input.cacheVerification.store
+              ? {
+                  store: {
+                    backend: input.cacheVerification.store.backend,
+                    invalidation: input.cacheVerification.store.invalidation,
+                  },
+                }
+              : {}),
           },
         }
       : {}),

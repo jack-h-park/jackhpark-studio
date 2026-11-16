@@ -1,5 +1,6 @@
 import {
   type HeaderRevisionVerification,
+  type HeaderStoreDiagnostics,
   NotionHeaderCacheError,
 } from "@/lib/server/notion-header-error";
 
@@ -8,13 +9,16 @@ export async function verifyHeaderRevision({
   expected,
   previous,
   wait,
+  store,
 }: {
   read(): Promise<unknown>;
   expected: string;
   previous: unknown;
+  store?: HeaderStoreDiagnostics;
   wait(ms: number): Promise<void>;
 }): Promise<HeaderRevisionVerification> {
   const verification: HeaderRevisionVerification = {
+    ...(store ? { store } : {}),
     attempts: 0,
     missing: 0,
     previous: 0,

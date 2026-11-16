@@ -7,7 +7,9 @@ void test("the runtime header adapter uses second-based TTL and invalidates its 
   const symbol = Symbol.for("@vercel/request-context");
   const globals = globalThis as Record<symbol, unknown>;
   const previous = globals[symbol];
-  globals[symbol] = { get: () => ({ purge: {} }) };
+  globals[symbol] = {
+    get: () => ({ cache: { get() {}, set() {}, expireTag() {} } }),
+  };
   t.after(() => {
     if (previous === undefined) delete globals[symbol];
     else globals[symbol] = previous;
@@ -33,8 +35,8 @@ void test("the runtime header adapter uses second-based TTL and invalidates its 
           b.onLoad({ filter: /.*/, namespace: "fixture" }, () => ({
             loader: "js",
             contents: `
-        export function getCache(){return {async get(){return fixture.value;},async set(key,value,options){fixture.value=value;fixture.options=options;}};}
-        export async function invalidateByTag(tag){if(fixture.fail)throw new Error('purge failed');fixture.tags.push(tag);fixture.value=null;}
+        export function getCache(){return {async get(){return fixture.value;},async set(key,value,options){fixture.value=value;fixture.options=options;},async expireTag(tag){if(fixture.fail)throw new Error('purge failed');fixture.tags.push(tag);fixture.value=null;}};}
+        export async function invalidateByTag(){throw new Error('unexpected CDN purge');}
       `,
           }));
         },
@@ -67,17 +69,17 @@ void test("the runtime header adapter uses second-based TTL and invalidates its 
   await assert.rejects(store.invalidate(), /purge failed/);
 });
 
-void test("missing platform purge context cannot silently report a successful invalidation", async () => {
+void test("missing platform cache context cannot silently report a successful invalidation", async () => {
   const { createRuntimeHeaderStore } =
     await import("../lib/server/notion-header-store");
   await assert.rejects(
     createRuntimeHeaderStore().invalidate!(),
     (error: unknown) => {
       assert.ok(error instanceof Error);
-      assert.match(error.message, /purge context unavailable/);
+      assert.match(error.message, /runtime cache context unavailable/);
       assert.equal(
         (error as Error & { code?: string }).code,
-        "purge_context_unavailable",
+        "runtime_cache_context_unavailable",
       );
       return true;
     },
