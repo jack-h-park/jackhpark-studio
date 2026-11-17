@@ -1,6 +1,7 @@
 """Author the original, deterministic Signal Observatory environment.
 
 Run: blender --background --python scripts/assets/build-observatory.py
+Then: node scripts/assets/compress-observatory.mjs (lossless delivery derivative).
 Coordinates in helpers are (east, south, elevation); glTF exports Y-up.
 Static geometry is joined by material to avoid a draw call per prop.
 """

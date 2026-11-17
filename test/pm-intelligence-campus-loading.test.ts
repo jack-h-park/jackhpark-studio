@@ -16,7 +16,7 @@ void test("native gzip decoding returns exact original model bytes with one requ
   });
   assert.deepEqual(new Uint8Array(await readCampus()), raw);
   assert.deepEqual(requests, [
-    "/experiences/pm-intelligence/observatory/campus.glb.gz",
+    "/experiences/pm-intelligence/observatory/campus.meshopt.glb.gz",
   ]);
 });
 

@@ -61,7 +61,7 @@ void test("the world starts its model before the lazy scene is available and own
     );
     assert.equal(
       requests[0].url,
-      "/experiences/pm-intelligence/observatory/campus.glb.gz",
+      "/experiences/pm-intelligence/observatory/campus.meshopt.glb.gz",
     );
     await render(true);
     assert.equal(

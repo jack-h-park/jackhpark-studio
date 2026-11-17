@@ -1,3 +1,4 @@
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 export async function loadCampusScene(
@@ -10,8 +11,7 @@ export async function loadCampusScene(
   if (isDisposed())
     throw new DOMException("Observatory disposed", "AbortError");
   onLoaded();
-  return new GLTFLoader().parseAsync(
-    data,
-    "/experiences/pm-intelligence/observatory/",
-  );
+  return new GLTFLoader()
+    .setMeshoptDecoder(MeshoptDecoder)
+    .parseAsync(data, "/experiences/pm-intelligence/observatory/");
 }

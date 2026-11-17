@@ -3,10 +3,13 @@ const campusModelPath = "/experiences/pm-intelligence/observatory/campus.glb";
 export async function readCampus(signal?: AbortSignal): Promise<ArrayBuffer> {
   if (typeof DecompressionStream !== "undefined") {
     try {
-      const response = await fetch(`${campusModelPath}.gz`, {
-        signal,
-        priority: "low",
-      });
+      const response = await fetch(
+        "/experiences/pm-intelligence/observatory/campus.meshopt.glb.gz",
+        {
+          signal,
+          priority: "low",
+        },
+      );
       if (!response.ok || !response.body)
         throw new Error(`Compressed model unavailable: ${response.status}`);
       return await new Response(
