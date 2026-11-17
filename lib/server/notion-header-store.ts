@@ -16,6 +16,19 @@ async function runtimeHeaderCache() {
   });
 }
 
+function requestContext() {
+  const context = (globalThis as Record<symbol, unknown>)[
+    Symbol.for("@vercel/request-context")
+  ] as
+    | {
+        get?: () => {
+          cache?: Partial<Record<"get" | "set" | "expireTag", unknown>>;
+        };
+      }
+    | undefined;
+  return context?.get?.();
+}
+
 export function createRuntimeHeaderStore(): NotionHeaderStore {
   return {
     get: async (key) => (await runtimeHeaderCache()).get(key),
@@ -25,14 +38,23 @@ export function createRuntimeHeaderStore(): NotionHeaderStore {
         tags: [headerTag],
       }),
     invalidate: async () => {
-      // The installed SDK resolves silently without a platform purge context.
-      // Guard its request-context capability before reporting a manual refresh.
-      const context = (globalThis as Record<symbol, unknown>)[
-        Symbol.for("@vercel/request-context")
-      ] as { get?: () => { purge?: unknown } } | undefined;
-      if (!context?.get?.()?.purge)
-        throw new NotionHeaderCacheError("purge_context_unavailable");
-      await (await import("@vercel/functions")).invalidateByTag(headerTag);
+      // Keep the header KV invalidation on the Runtime Cache API. CDN chat
+      // invalidation is a separate operation after marker retention is verified.
+      // A purge-only context can still use a process-local SDK fallback, whose
+      // read-after-write is not proof of shared invalidation. Fail closed.
+      const context = requestContext();
+      if (
+        typeof context?.cache?.get !== "function" ||
+        typeof context.cache.set !== "function" ||
+        typeof context.cache.expireTag !== "function"
+      )
+        throw new NotionHeaderCacheError("runtime_cache_context_unavailable");
+      await (await runtimeHeaderCache()).expireTag(headerTag);
     },
+    diagnostics: () => ({
+      // Read in the active request scope; never inspect cache endpoints/headers.
+      backend: requestContext()?.cache ? "request-context" : "sdk-fallback",
+      invalidation: "runtime-expire-tag",
+    }),
   };
 }

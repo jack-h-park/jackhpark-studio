@@ -1,5 +1,6 @@
 export type NotionHeaderCacheErrorCode =
   | "purge_context_unavailable"
+  | "runtime_cache_context_unavailable"
   | "purge_failed"
   | "revision_write_failed"
   | "revision_read_failed"
@@ -8,6 +9,7 @@ export type NotionHeaderCacheErrorCode =
   | "invalid_revision";
 
 const messages: Record<NotionHeaderCacheErrorCode, string> = {
+  runtime_cache_context_unavailable: "Header runtime cache context unavailable",
   purge_context_unavailable: "Vercel purge context unavailable",
   purge_failed: "Header cache purge failed",
   revision_write_failed: "Header cache revision write failed",
@@ -18,7 +20,13 @@ const messages: Record<NotionHeaderCacheErrorCode, string> = {
   invalid_revision: "Invalid header revision",
 };
 
+export type HeaderStoreDiagnostics = {
+  backend: "request-context" | "sdk-fallback";
+  invalidation: "runtime-expire-tag";
+};
+
 export type HeaderRevisionVerification = {
+  store?: HeaderStoreDiagnostics;
   attempts: number;
   missing: number;
   previous: number;

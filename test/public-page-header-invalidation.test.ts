@@ -26,8 +26,8 @@ async function refresh(
             "@/lib/server/admin-auth":
               "export async function requireAdminApiAccess(){return {actorEmail:'admin@example.test',requestId:'fixture-request'};} export function requireSameOriginMutation(){return true;} export function auditAdminMutation(input){audits.push(input);}",
             "@/lib/server/notion-header-error":
-              "export class NotionHeaderCacheError extends Error{constructor(code){super(code);this.code=code;if(code==='revision_not_retained')this.verification={attempts:3,missing:3,previous:0,different:0,invalid:0,waitedMs:350};}}",
-            "@/lib/server/notion-header": `import {NotionHeaderCacheError} from '@/lib/server/notion-header-error'; export async function invalidateNotionNavigationHeader(){ events.push('header'); ${failure === "header" ? "throw Error('SECRET_SENTINEL');" : failure.startsWith("header:") ? `throw new NotionHeaderCacheError('${failure.slice(7)}');` : ""} return ${failure === "delayed_success" ? "{attempts:2,missing:1,previous:0,different:0,invalid:0,waitedMs:100}" : "undefined"}; }`,
+              "export class NotionHeaderCacheError extends Error{constructor(code){super(code);this.code=code;if(code==='revision_not_retained')this.verification={attempts:3,missing:3,previous:0,different:0,invalid:0,waitedMs:350,store:{backend:'request-context',invalidation:'runtime-expire-tag'}};}}",
+            "@/lib/server/notion-header": `import {NotionHeaderCacheError} from '@/lib/server/notion-header-error'; export async function invalidateNotionNavigationHeader(){ events.push('header'); ${failure === "header" ? "throw Error('SECRET_SENTINEL');" : failure.startsWith("header:") ? `throw new NotionHeaderCacheError('${failure.slice(7)}');` : ""} return ${failure === "delayed_success" ? "{attempts:2,missing:1,previous:0,different:0,invalid:0,waitedMs:100,store:{backend:'request-context',invalidation:'runtime-expire-tag'}}" : "undefined"}; }`,
             "@/lib/server/public-chat-cache": `export async function invalidatePublicChatShell(){events.push('chat');${failure === "chat" ? "throw Error('SECRET_SENTINEL');" : ""}return 'invalidated';}`,
           };
           b.onResolve({ filter: /.*/ }, (a) =>
@@ -90,6 +90,10 @@ void test("a recovered delayed write records bounded verification evidence on su
         different: 0,
         invalid: 0,
         waitedMs: 100,
+        store: {
+          backend: "request-context",
+          invalidation: "runtime-expire-tag",
+        },
       },
     );
   });
@@ -110,6 +114,10 @@ void test("unverified missing reads remain an explicitly ambiguous failure in au
           different: 0,
           invalid: 0,
           waitedMs: 350,
+          store: {
+            backend: "request-context",
+            invalidation: "runtime-expire-tag",
+          },
         },
       );
     },
@@ -145,6 +153,7 @@ for (const [failure, stage, pageRevalidated] of [
 
 for (const code of [
   "purge_context_unavailable",
+  "runtime_cache_context_unavailable",
   "purge_failed",
   "revision_write_failed",
   "revision_read_failed",
