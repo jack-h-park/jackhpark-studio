@@ -1,3 +1,7 @@
+.readingShell[hidden],
+:global(html[data-pm-initial-view="observatory"]) .readingShell {
+  display: none;
+}
 .page {
   --ai-role-surface-0: var(--bg-page);
   --ai-role-surface-1: var(--bg-surface);

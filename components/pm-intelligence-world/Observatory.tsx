@@ -30,6 +30,7 @@ import {
 import styles from "./observatory.module.css";
 import { ObservatoryActivity } from "./ObservatoryActivity";
 import { ObservatoryInstrument } from "./ObservatoryInstrument";
+import { useCampusDownload } from "./useCampusDownload";
 import { useObservatorySession } from "./useObservatorySession";
 
 const Scene = dynamic(
@@ -99,6 +100,7 @@ export function Observatory({
     [panel, setPanel] = useState(false),
     [guide, setGuide] = useState(false),
     [map, setMap] = useState(false);
+  const modelData = useCampusDownload(active && initialized && !failed);
   const panelTitle = useRef<HTMLHeadingElement>(null);
   const statusRef = useRef<HTMLDivElement>(null);
   const actionRef = useRef<HTMLButtonElement>(null);
@@ -210,8 +212,9 @@ export function Observatory({
           <a href="#chapter">Read the complete introduction below.</a>
         </p>
       </noscript>
-      {active && initialized && !failed && (
+      {active && initialized && !failed && modelData && (
         <Scene
+          modelData={modelData}
           motionPaused={motionPaused}
           state={state}
           onNearby={setNearby}
@@ -297,14 +300,15 @@ export function Observatory({
           See where knowledge can take you.
         </p>
       </div>
-      {!ready && !failed && (
-        <div className={styles.loading} role="status">
-          Opening the observatory…
-          <small>
-            The complete introduction is available in Read overview.
-          </small>
-        </div>
-      )}
+      <div
+        className={styles.loading}
+        role="status"
+        aria-hidden={ready || failed}
+        style={{ visibility: ready || failed ? "hidden" : undefined }}
+      >
+        Opening the observatory…
+        <small>The complete introduction is available in Read overview.</small>
+      </div>
       {failed && (
         <div className={styles.loading} role="status">
           The 3D world could not open.

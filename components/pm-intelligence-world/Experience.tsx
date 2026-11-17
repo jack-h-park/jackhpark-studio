@@ -110,7 +110,10 @@ export function Experience({ content }: { content: WorldContent }) {
           window.scrollTo(0, 0);
         }}
       />
-      <div className="dark" hidden={interactive && !reading}>
+      <div
+        className={`dark ${styles.readingShell}`}
+        hidden={interactive && !reading}
+      >
         <div data-theme="jp" className={`${styles.page} dark`}>
           <a
             className={styles.skip}

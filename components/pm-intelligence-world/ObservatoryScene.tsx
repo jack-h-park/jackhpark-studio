@@ -18,6 +18,7 @@ import {
 } from "./three/createObservatory";
 
 export function ObservatoryScene({
+  modelData,
   state,
   onSelect,
   onNearby,
@@ -34,6 +35,7 @@ export function ObservatoryScene({
   onMapToggle,
   onMapTravel,
 }: {
+  modelData: Promise<ArrayBuffer>;
   state: ObservatoryState;
   onNearby: (location: ObservatoryLocation | null) => void;
   onOperate: (id: PlayDestination) => void;
@@ -77,6 +79,7 @@ export function ObservatoryScene({
     if (!mount.current) return;
     try {
       handle.current = createObservatory({
+        modelData,
         mount: mount.current,
         labels: labels.current,
         onOperate: (id) => callbacks.current.onOperate(id),
@@ -99,7 +102,7 @@ export function ObservatoryScene({
       handle.current?.dispose();
       handle.current = null;
     };
-  }, []);
+  }, [modelData]);
   useEffect(() => {
     handle.current?.setState(state);
   }, [state]);

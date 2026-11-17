@@ -152,6 +152,8 @@
 }
 .landmark {
   position: absolute;
+  left: 0;
+  top: 0;
   visibility: hidden;
   transform: translate(-50%, -100%);
   pointer-events: auto;

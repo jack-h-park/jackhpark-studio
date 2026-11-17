@@ -30,7 +30,6 @@ import {
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
@@ -73,6 +72,7 @@ import {
 
 import { createExpeditionTrail } from "./expeditionTrail";
 import { createKnowledgeConnections } from "./knowledgeConnections";
+import { loadCampusScene } from "./loadCampusScene";
 import {
   createDestinationExhibits,
   pickWorldTarget,
@@ -100,6 +100,7 @@ export interface ObservatoryHandle {
   dispose(): void;
 }
 export function createObservatory({
+  modelData,
   mount,
   labels,
   onSelect,
@@ -110,6 +111,7 @@ export function createObservatory({
   onPosition,
   onOperate,
 }: {
+  modelData?: Promise<ArrayBuffer>;
   mount: HTMLDivElement;
   labels: Partial<Record<ObservatoryLocation, HTMLElement>>;
   onSelect: (id: InputId) => void;
@@ -217,52 +219,48 @@ export function createObservatory({
     },
   );
   const modelRequest = new AbortController();
-  void readCampus(modelRequest.signal)
-    .then((data) => {
-      timing.record("model-loaded");
-      return new GLTFLoader().parseAsync(
-        data,
-        "/experiences/pm-intelligence/observatory/",
-      );
-    })
-    .then(
-      (g) => {
-        if (disposed) {
-          disposeGroup(g.scene);
-          return;
+  void loadCampusScene(
+    modelData ?? readCampus(modelRequest.signal),
+    () => disposed,
+    () => timing.record("model-loaded"),
+  ).then(
+    (g) => {
+      if (disposed) {
+        disposeGroup(g.scene);
+        return;
+      }
+      loadedModel = g.scene;
+      timing.record("model-parsed");
+      g.scene.traverse((o) => {
+        if (o instanceof Mesh) {
+          o.castShadow = true;
+          o.receiveShadow = true;
         }
-        loadedModel = g.scene;
-        timing.record("model-parsed");
-        g.scene.traverse((o) => {
-          if (o instanceof Mesh) {
-            o.castShadow = true;
-            o.receiveShadow = true;
-          }
-        });
-        scene.add(g.scene);
-        void prepareObservatoryFrame(
-          renderer,
-          scene,
-          camera,
-          composer.readBuffer,
-          bloom,
-        ).then(
-          () => {
-            if (disposed) return;
-            ready = true;
-            timing.record("shaders-ready");
-            invalidate();
-            onReady();
-          },
-          () => {
-            if (!disposed) onError();
-          },
-        );
-      },
-      () => {
-        if (!disposed) onError();
-      },
-    );
+      });
+      scene.add(g.scene);
+      void prepareObservatoryFrame(
+        renderer,
+        scene,
+        camera,
+        composer.readBuffer,
+        bloom,
+      ).then(
+        () => {
+          if (disposed) return;
+          ready = true;
+          timing.record("shaders-ready");
+          invalidate();
+          onReady();
+        },
+        () => {
+          if (!disposed) onError();
+        },
+      );
+    },
+    () => {
+      if (!disposed) onError();
+    },
+  );
 
   // Interactive source capsules and the visitor are actual animated geometry.
   const ids: InputId[] = [
@@ -666,6 +664,7 @@ export function createObservatory({
     invalidate();
     const l = observatoryLocations.find((place) => place.id === id)!;
     framedPlace = id;
+    if (!width || !height) return;
     const zoom =
       id === "signals"
         ? width <= 900
@@ -698,6 +697,7 @@ export function createObservatory({
   let activeInstrument: PlayDestination | null = null;
   const frameInstrument = (id: PlayDestination) => {
     invalidate();
+    if (!width || !height) return;
     const view = exhibits.views.find((v) => v.destination === id)!;
     const bounds = new Box3().setFromObject(view.root).expandByScalar(0.08);
     const frame = fitObjectFrame(
@@ -718,12 +718,16 @@ export function createObservatory({
     }
   };
   const projected = new Vector3();
-  let width = 1,
-    height = 1;
-  const resize = () => {
+  let width = 0,
+    height = 0;
+  const resize = (entries: ResizeObserverEntry[]) => {
+    const bounds = entries.find((entry) => entry.target === mount)?.contentRect;
+    if (bounds) {
+      width = Math.round(bounds.width);
+      height = Math.round(bounds.height);
+    }
+    if (!width || !height) return;
     invalidate();
-    width = mount.clientWidth;
-    height = mount.clientHeight;
     const aspect = width / height;
     const span = aspect < 1 ? 28 : Math.max(36, aspect * 24.5);
     camera.left = -span / 2;
@@ -731,7 +735,7 @@ export function createObservatory({
     camera.top = span / aspect / 2;
     camera.bottom = -span / aspect / 2;
     camera.updateProjectionMatrix();
-    renderer.setSize(width, height);
+    renderer.setSize(width, height, false);
     composer.setSize(width, height);
     if (activeInstrument) {
       if (frameGate.request()) frameInstrument(activeInstrument);
@@ -739,7 +743,6 @@ export function createObservatory({
   };
   const observer = new ResizeObserver(resize);
   observer.observe(mount);
-  resize();
   const observedPanels = new Set<Element>();
   const observePanels = () => {
     for (const old of observedPanels)
@@ -772,7 +775,7 @@ export function createObservatory({
     last = 0;
   let firstFrameRecorded = false;
   renderer.setAnimationLoop((ms) => {
-    if (disposed || !visible || !ready) return;
+    if (disposed || !visible || !ready || !width || !height) return;
     if (
       !motion &&
       !needsRender &&
@@ -902,8 +905,7 @@ export function createObservatory({
       projected
         .set(location.anchor[0], location.anchor[1], location.anchor[2])
         .project(camera);
-      el.style.left = `${(projected.x * 0.5 + 0.5) * width}px`;
-      el.style.top = `${(-projected.y * 0.5 + 0.5) * height}px`;
+      el.style.transform = `translate3d(${(projected.x * 0.5 + 0.5) * width}px, ${(-projected.y * 0.5 + 0.5) * height}px, 0) translate(-50%, -100%)`;
       el.style.visibility =
         ready && Math.abs(projected.x) < 1 && Math.abs(projected.y) < 1
           ? "visible"
