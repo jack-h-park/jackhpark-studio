@@ -26,7 +26,11 @@ export type SaveStatus = "idle" | "saving" | "success" | "error";
 type SaveConfigResponse = {
   updatedAt?: string | null;
   error?: string;
-  cacheRefresh?: "invalidated" | "skipped-local" | "failed";
+  cacheRefresh?:
+    | "invalidation-requested"
+    | "invalidated"
+    | "skipped-local"
+    | "failed";
   warning?: string;
 };
 

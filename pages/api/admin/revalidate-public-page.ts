@@ -12,7 +12,10 @@ import {
   type HeaderRevisionVerification,
   NotionHeaderCacheError,
 } from "@/lib/server/notion-header-error";
-import { invalidatePublicChatShell } from "@/lib/server/public-chat-cache";
+import {
+  invalidatePublicChatShell,
+  type PublicChatCacheInvalidation,
+} from "@/lib/server/public-chat-cache";
 import {
   type PublicPageRevalidationTarget,
   resolvePublicPageRevalidationTarget,
@@ -54,6 +57,7 @@ export default async function handler(
   let stage: PublicPageRefreshFailure["stage"] = "resolve_target";
   let pageRevalidated = false;
   let cacheVerification: HeaderRevisionVerification | undefined;
+  let cacheInvalidation: PublicChatCacheInvalidation | undefined;
 
   try {
     const siteMap = await getSiteMap();
@@ -80,7 +84,7 @@ export default async function handler(
       stage = "header_invalidation";
       cacheVerification = await invalidateNotionNavigationHeader();
       stage = "chat_invalidation";
-      await invalidatePublicChatShell();
+      cacheInvalidation = await invalidatePublicChatShell();
     }
     const revalidatedAt = new Date().toISOString();
     auditAdminMutation({
@@ -89,6 +93,7 @@ export default async function handler(
       target: target.path,
       result: "success",
       cacheVerification,
+      cacheInvalidation,
     });
     res.status(200).json({ revalidatedPath: target.path, revalidatedAt });
   } catch (err) {

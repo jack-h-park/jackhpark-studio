@@ -1,16 +1,37 @@
 import { invalidateByTag } from "@vercel/functions";
 
+import { NotionHeaderCacheError } from "@/lib/server/notion-header-error";
+
 export const PUBLIC_CHAT_CACHE_TAG = "public-chat-shell-v1";
 export const PUBLIC_CHAT_CDN_TTL_SECONDS = 900;
 export const PUBLIC_CHAT_SWR_SECONDS = 60;
 
-export async function invalidatePublicChatShell(): Promise<
-  "invalidated" | "skipped-local"
-> {
+export type PublicChatCacheInvalidation =
+  | "invalidation-requested"
+  | "skipped-local";
+
+export async function invalidatePublicChatShell(): Promise<PublicChatCacheInvalidation> {
   if (process.env.VERCEL !== "1") return "skipped-local";
 
-  // SWR invalidation can serve one stale response before refreshing. The SDK
-  // can also resolve without purge context; effectiveness needs live proof.
-  await invalidateByTag(PUBLIC_CHAT_CACHE_TAG);
-  return "invalidated";
+  let available = false;
+  try {
+    const context = (globalThis as Record<symbol, unknown>)[
+      Symbol.for("@vercel/request-context")
+    ] as { get?: () => { purge?: { invalidateByTag?: unknown } } } | undefined;
+    available =
+      typeof context?.get === "function" &&
+      typeof context.get()?.purge?.invalidateByTag === "function";
+  } catch {
+    // Context lookup failures are capability failures, not provider diagnostics.
+  }
+  if (!available) throw new NotionHeaderCacheError("purge_context_unavailable");
+
+  try {
+    // The installed SDK silently succeeds without this request capability.
+    // Acknowledgement requests SWR; it does not prove completed CDN propagation.
+    await invalidateByTag(PUBLIC_CHAT_CACHE_TAG);
+  } catch {
+    throw new NotionHeaderCacheError("purge_failed");
+  }
+  return "invalidation-requested";
 }

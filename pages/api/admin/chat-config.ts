@@ -7,12 +7,13 @@ import {
   requireSameOriginMutation,
 } from "@/lib/server/admin-auth";
 import { saveAdminChatConfig } from "@/lib/server/admin-chat-config";
+import { NotionHeaderCacheError } from "@/lib/server/notion-header-error";
 import { invalidatePublicChatShell } from "@/lib/server/public-chat-cache";
 
 type ApiResponse = {
   updatedAt?: string | null;
   error?: string;
-  cacheRefresh?: "invalidated" | "skipped-local" | "failed";
+  cacheRefresh?: "invalidation-requested" | "skipped-local" | "failed";
   warning?: string;
 };
 
@@ -64,13 +65,25 @@ export default async function handler(
     });
     try {
       const cacheRefresh = await invalidatePublicChatShell();
+      auditAdminMutation({
+        ...admin,
+        action: "invalidate",
+        target: "public-chat-shell-cache",
+        result: "success",
+        cacheInvalidation: cacheRefresh,
+      });
       return res.status(200).json({ updatedAt, cacheRefresh });
-    } catch {
+    } catch (err) {
       auditAdminMutation({
         ...admin,
         action: "invalidate",
         target: "public-chat-shell-cache",
         result: "failure",
+        cacheInvalidation:
+          err instanceof NotionHeaderCacheError &&
+          err.code === "purge_context_unavailable"
+            ? "unavailable"
+            : "failed",
       });
       return res.status(200).json({
         updatedAt,

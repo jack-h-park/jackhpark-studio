@@ -47,3 +47,13 @@ A normal verified header load makes two primary row reads, in addition to a best
 This trades database queries and network latency for a control-state contract the disposable cache cannot provide. It is not a measured CPU reduction or a guarantee of unused Supabase allowance. One-hour payload expiry, origin request coalescing, and the existing CDN TTL remain unchanged. Review actual query latency and free-tier usage after a separately approved rollout.
 
 Before a release, verify exact-head CI, primary table access and the scope of the new row. After authorization, verify the deployed commit, one refresh, its durable-revision audit, the body, and CDN behavior. Do not infer freshness from HTTP 200 or HIT alone. No rollout, refresh retry, or monitoring cadence change is implied by this document.
+
+## Chat CDN invalidation acknowledgement
+
+The CDN correction requires a callable request-context `purge.invalidateByTag` before invoking the SDK. The installed SDK otherwise resolves without making an invalidation request. Missing or malformed capability fails with `purge_context_unavailable`; a rejected call becomes a sanitized `purge_failed`. Neither path retries or falls back to another cache operation.
+
+The successful result is `invalidation-requested`, not proof of completed edge propagation. It is recorded in the existing admin mutation audit. The settings API exposes that result; the browser hook accepts both the new response and legacy `invalidated` responses. A committed settings save remains successful when cache invalidation fails, with a separate cache warning and failure audit. A public page refresh instead records the failed `chat_invalidation` stage and preserves evidence that page revalidation and durable revision rotation already completed.
+
+The response tag, 15-minute CDN TTL, SWR interval and durable header protocol are unchanged. A normal CDN HIT performs no authority query. No new database request, scheduled probe or broader invalidation is introduced by this correction.
+
+The prior Production audit did not record purge capability or the tags attached to the cached response. The SDK no-op is a reproduced application failure mode, not a retrospective diagnosis of that platform request. After a separately authorized release, distinguish a capability failure from a dispatched invalidation and verify actual tagged-response revalidation; a successful acknowledgement or unchanged content hash alone is insufficient.

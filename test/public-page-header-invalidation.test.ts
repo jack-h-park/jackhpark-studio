@@ -28,7 +28,7 @@ async function refresh(
             "@/lib/server/notion-header-error":
               "export class NotionHeaderCacheError extends Error{constructor(code){super(code);this.code=code;if(code==='revision_not_retained')this.verification={attempts:3,missing:3,previous:0,different:0,invalid:0,waitedMs:350,store:{backend:'request-context',invalidation:'runtime-expire-tag'}};}}",
             "@/lib/server/notion-header": `import {NotionHeaderCacheError} from '@/lib/server/notion-header-error'; export async function invalidateNotionNavigationHeader(){ events.push('header'); ${failure === "header" ? "throw Error('SECRET_SENTINEL');" : failure.startsWith("header:") ? `throw new NotionHeaderCacheError('${failure.slice(7)}');` : ""} return ${failure === "delayed_success" ? "{attempts:2,missing:1,previous:0,different:0,invalid:0,waitedMs:100,store:{backend:'request-context',invalidation:'runtime-expire-tag'}}" : "undefined"}; }`,
-            "@/lib/server/public-chat-cache": `export async function invalidatePublicChatShell(){events.push('chat');${failure === "chat" ? "throw Error('SECRET_SENTINEL');" : ""}return 'invalidated';}`,
+            "@/lib/server/public-chat-cache": `import {NotionHeaderCacheError} from '@/lib/server/notion-header-error'; export async function invalidatePublicChatShell(){events.push('chat');${failure === "chat" ? "throw Error('SECRET_SENTINEL');" : failure === "chat-context" ? "throw new NotionHeaderCacheError('purge_context_unavailable');" : ""}return 'invalidation-requested';}`,
           };
           b.onResolve({ filter: /.*/ }, (a) =>
             modules[a.path]
@@ -77,6 +77,32 @@ void test("successful root refresh invalidates the shared header and public chat
     status: 200,
     events: ["/studio", "header", "chat"],
   });
+});
+
+void test("root refresh records a requested CDN operation rather than completed propagation", async () => {
+  await refresh("/studio", "", ({ audits }) => {
+    assert.equal(
+      (audits[0] as { cacheInvalidation?: unknown }).cacheInvalidation,
+      "invalidation-requested",
+    );
+  });
+});
+
+void test("unavailable CDN purge preserves partial completion and never retries", async () => {
+  const result = await refresh(
+    "/studio",
+    "chat-context",
+    ({ audits, payload }) => {
+      assert.deepEqual((audits[0] as { failure?: unknown }).failure, {
+        stage: "chat_invalidation",
+        code: "purge_context_unavailable",
+        pageRevalidated: true,
+      });
+      assert.equal(JSON.stringify(payload).includes("purge_context"), false);
+    },
+  );
+  assert.equal(result.status, 500);
+  assert.deepEqual(result.events, ["/studio", "header", "chat"]);
 });
 
 void test("a recovered delayed write records bounded verification evidence on successful refresh", async () => {
