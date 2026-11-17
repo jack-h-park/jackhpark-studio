@@ -95,7 +95,12 @@ export default async function handler(
       cacheVerification,
       cacheInvalidation,
     });
-    res.status(200).json({ revalidatedPath: target.path, revalidatedAt });
+    res.status(200).json({
+      revalidatedPath: target.path,
+      revalidatedAt,
+      requestId: admin.requestId,
+      ...(cacheInvalidation ? { chatCacheRefresh: cacheInvalidation } : {}),
+    });
   } catch (err) {
     auditAdminMutation({
       ...admin,

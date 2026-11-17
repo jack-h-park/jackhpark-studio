@@ -86,11 +86,14 @@ void test("successful root refresh invalidates the shared header and public chat
 });
 
 void test("root refresh records a requested CDN operation rather than completed propagation", async () => {
-  await refresh("/studio", "", ({ audits }) => {
+  await refresh("/studio", "", ({ audits, payload }) => {
     assert.equal(
       (audits[0] as { cacheInvalidation?: unknown }).cacheInvalidation,
       "invalidation-requested",
     );
+    const response = payload as Record<string, unknown>;
+    assert.equal(response.chatCacheRefresh, "invalidation-requested");
+    assert.equal(response.requestId, "fixture-request");
   });
 });
 
@@ -109,6 +112,53 @@ void test("unavailable CDN purge preserves partial completion and never retries"
   );
   assert.equal(result.status, 500);
   assert.deepEqual(result.events, ["/studio", "header", "chat"]);
+});
+
+void test("successful refresh distinguishes page completion from requested CDN propagation in the real panel", async () => {
+  let payload: unknown;
+  const result = await refresh("/studio", "", (evidence) => {
+    payload = evidence.payload;
+  });
+  assert.equal(result.status, 200);
+  const dom = new JSDOM("<div id='root'></div>");
+  const globals = Object.getOwnPropertyDescriptors(globalThis);
+  const originalFetch = globalThis.fetch;
+  Object.defineProperties(globalThis, {
+    window: { configurable: true, value: dom.window },
+    document: { configurable: true, value: dom.window.document },
+    IS_REACT_ACT_ENVIRONMENT: { configurable: true, value: true },
+  });
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return Response.json(payload);
+  };
+  const host = dom.window.document.getElementById("root")!;
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(createElement(PublicSiteRefreshPanel)));
+    await act(async () => {
+      host.querySelector("button")!.click();
+      await setImmediate();
+    });
+    const message = host.querySelector('[role="status"]')?.textContent ?? "";
+    assert.match(message, /Refreshed \/studio\./);
+    assert.match(message, /chat cache refresh requested/i);
+    assert.match(message, /propagation is not verified/i);
+    assert.match(message, /do not repeat/i);
+    await act(async () => {
+      await setImmediate();
+    });
+    assert.equal(calls, 1);
+  } finally {
+    await act(async () => root.unmount());
+    globalThis.fetch = originalFetch;
+    for (const name of ["window", "document", "IS_REACT_ACT_ENVIRONMENT"]) {
+      if (globals[name]) Object.defineProperty(globalThis, name, globals[name]);
+      else Reflect.deleteProperty(globalThis, name);
+    }
+    dom.window.close();
+  }
 });
 
 for (const failure of ["header", "chat-context"] as const) {
@@ -309,10 +359,17 @@ for (const code of [
   });
 }
 void test("refreshing another page leaves the unrelated header and chat cache intact", async () => {
-  assert.deepEqual(await refresh("/beluga"), {
-    status: 200,
-    events: ["/beluga"],
-  });
+  assert.deepEqual(
+    await refresh("/beluga", "", ({ payload }) => {
+      const response = payload as Record<string, unknown>;
+      assert.equal(Object.hasOwn(response, "chatCacheRefresh"), false);
+      assert.equal(response.requestId, "fixture-request");
+    }),
+    {
+      status: 200,
+      events: ["/beluga"],
+    },
+  );
 });
 void test("page failure does not invalidate caches and header invalidation failure is not reported as success", async () => {
   assert.deepEqual(await refresh("/studio", "page"), {

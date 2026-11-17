@@ -78,7 +78,19 @@ export function usePublicSiteRefresh(): PublicSiteRefreshState {
       }
 
       setStatus("success");
-      setMessage(`Refreshed ${revalidatedPath}.`);
+      const chatCacheRefresh =
+        typeof payload === "object" &&
+        payload !== null &&
+        "chatCacheRefresh" in payload
+          ? payload.chatCacheRefresh
+          : undefined;
+      const chatNotice =
+        chatCacheRefresh === "invalidation-requested"
+          ? " Chat cache refresh requested; propagation is not verified. Do not repeat this action to check it."
+          : revalidatedPath === "/studio"
+            ? " Chat cache propagation is not verified. Do not repeat this action to check it."
+            : "";
+      setMessage(`Refreshed ${revalidatedPath}.${chatNotice}`);
     } catch {
       setStatus("error");
       setMessage("Unable to refresh this page.");
