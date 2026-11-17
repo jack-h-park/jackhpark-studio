@@ -20,10 +20,12 @@ const messages: Record<NotionHeaderCacheErrorCode, string> = {
   invalid_revision: "Invalid header revision",
 };
 
-export type HeaderStoreDiagnostics = {
-  backend: "request-context" | "sdk-fallback";
-  invalidation: "runtime-expire-tag";
-};
+export type HeaderStoreDiagnostics =
+  | {
+      backend: "request-context" | "sdk-fallback";
+      invalidation: "runtime-expire-tag";
+    }
+  | { backend: "supabase-primary"; invalidation: "durable-revision" };
 
 export type HeaderRevisionVerification = {
   store?: HeaderStoreDiagnostics;
