@@ -12,7 +12,10 @@ import {
   type HeaderRevisionVerification,
   NotionHeaderCacheError,
 } from "@/lib/server/notion-header-error";
-import { invalidatePublicChatShell } from "@/lib/server/public-chat-cache";
+import {
+  invalidatePublicChatShell,
+  type PublicChatCacheInvalidation,
+} from "@/lib/server/public-chat-cache";
 import {
   type PublicPageRevalidationTarget,
   resolvePublicPageRevalidationTarget,
@@ -54,6 +57,7 @@ export default async function handler(
   let stage: PublicPageRefreshFailure["stage"] = "resolve_target";
   let pageRevalidated = false;
   let cacheVerification: HeaderRevisionVerification | undefined;
+  let cacheInvalidation: PublicChatCacheInvalidation | undefined;
 
   try {
     const siteMap = await getSiteMap();
@@ -80,7 +84,7 @@ export default async function handler(
       stage = "header_invalidation";
       cacheVerification = await invalidateNotionNavigationHeader();
       stage = "chat_invalidation";
-      await invalidatePublicChatShell();
+      cacheInvalidation = await invalidatePublicChatShell();
     }
     const revalidatedAt = new Date().toISOString();
     auditAdminMutation({
@@ -89,6 +93,7 @@ export default async function handler(
       target: target.path,
       result: "success",
       cacheVerification,
+      cacheInvalidation,
     });
     res.status(200).json({ revalidatedPath: target.path, revalidatedAt });
   } catch (err) {
@@ -108,8 +113,15 @@ export default async function handler(
         pageRevalidated,
       },
     });
+    // A late failure must not invite repeating already completed mutations.
+    const message =
+      pageRevalidated && stage === "chat_invalidation"
+        ? "The page and shared navigation refresh completed, but the public chat cache refresh was not confirmed. Check the refresh diagnostics before trying again."
+        : pageRevalidated && stage === "header_invalidation"
+          ? "The page refresh completed, but the shared navigation and public chat cache refresh were not confirmed. Check the refresh diagnostics before trying again."
+          : "Unable to refresh the public page.";
     res.status(500).json({
-      error: "Unable to refresh the public page.",
+      error: message,
       requestId: admin.requestId,
     });
   }

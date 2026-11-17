@@ -72,6 +72,11 @@ export function auditAdminMutation(input: {
   result: AdminMutationResult;
   failure?: PublicPageRefreshFailure;
   cacheVerification?: HeaderRevisionVerification;
+  cacheInvalidation?:
+    | "invalidation-requested"
+    | "skipped-local"
+    | "unavailable"
+    | "failed";
 }): void {
   dbLogger.info("admin:mutation", {
     actor: input.actorEmail,
@@ -79,6 +84,9 @@ export function auditAdminMutation(input: {
     target: input.target,
     result: input.result,
     requestId: input.requestId,
+    ...(input.cacheInvalidation
+      ? { cacheInvalidation: input.cacheInvalidation }
+      : {}),
     ...(input.cacheVerification
       ? {
           cacheVerification: {

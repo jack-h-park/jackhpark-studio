@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { setImmediate } from "node:timers/promises";
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { build } from "esbuild";
+import { JSDOM } from "jsdom";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
+
+import { PublicSiteRefreshPanel } from "@/components/admin/ingestion/PublicSiteRefreshPanel";
 
 async function refresh(
   path: string,
@@ -28,7 +34,7 @@ async function refresh(
             "@/lib/server/notion-header-error":
               "export class NotionHeaderCacheError extends Error{constructor(code){super(code);this.code=code;if(code==='revision_not_retained')this.verification={attempts:3,missing:3,previous:0,different:0,invalid:0,waitedMs:350,store:{backend:'request-context',invalidation:'runtime-expire-tag'}};}}",
             "@/lib/server/notion-header": `import {NotionHeaderCacheError} from '@/lib/server/notion-header-error'; export async function invalidateNotionNavigationHeader(){ events.push('header'); ${failure === "header" ? "throw Error('SECRET_SENTINEL');" : failure.startsWith("header:") ? `throw new NotionHeaderCacheError('${failure.slice(7)}');` : ""} return ${failure === "delayed_success" ? "{attempts:2,missing:1,previous:0,different:0,invalid:0,waitedMs:100,store:{backend:'request-context',invalidation:'runtime-expire-tag'}}" : "undefined"}; }`,
-            "@/lib/server/public-chat-cache": `export async function invalidatePublicChatShell(){events.push('chat');${failure === "chat" ? "throw Error('SECRET_SENTINEL');" : ""}return 'invalidated';}`,
+            "@/lib/server/public-chat-cache": `import {NotionHeaderCacheError} from '@/lib/server/notion-header-error'; export async function invalidatePublicChatShell(){events.push('chat');${failure === "chat" ? "throw Error('SECRET_SENTINEL');" : failure === "chat-context" ? "throw new NotionHeaderCacheError('purge_context_unavailable');" : ""}return 'invalidation-requested';}`,
           };
           b.onResolve({ filter: /.*/ }, (a) =>
             modules[a.path]
@@ -78,6 +84,133 @@ void test("successful root refresh invalidates the shared header and public chat
     events: ["/studio", "header", "chat"],
   });
 });
+
+void test("root refresh records a requested CDN operation rather than completed propagation", async () => {
+  await refresh("/studio", "", ({ audits }) => {
+    assert.equal(
+      (audits[0] as { cacheInvalidation?: unknown }).cacheInvalidation,
+      "invalidation-requested",
+    );
+  });
+});
+
+void test("unavailable CDN purge preserves partial completion and never retries", async () => {
+  const result = await refresh(
+    "/studio",
+    "chat-context",
+    ({ audits, payload }) => {
+      assert.deepEqual((audits[0] as { failure?: unknown }).failure, {
+        stage: "chat_invalidation",
+        code: "purge_context_unavailable",
+        pageRevalidated: true,
+      });
+      assert.equal(JSON.stringify(payload).includes("purge_context"), false);
+    },
+  );
+  assert.equal(result.status, 500);
+  assert.deepEqual(result.events, ["/studio", "header", "chat"]);
+});
+
+for (const failure of ["header", "chat-context"] as const) {
+  void test(`${failure} failure reports only confirmed completed work and a retry caution`, async () => {
+    const result = await refresh("/studio", failure, ({ payload }) => {
+      const response = payload as { error: string; requestId: string };
+      assert.match(response.error, /page.*refresh completed/i);
+      assert.match(response.error, /not confirmed/i);
+      assert.match(response.error, /check.*diagnostics before trying again/i);
+      if (failure === "chat-context") {
+        assert.match(response.error, /shared navigation refresh completed/i);
+        assert.match(
+          response.error,
+          /public chat cache refresh was not confirmed/i,
+        );
+      } else {
+        assert.match(response.error, /shared navigation.*not confirmed/i);
+        assert.doesNotMatch(
+          response.error,
+          /shared navigation refresh completed/i,
+        );
+      }
+      assert.equal(response.requestId, "fixture-request");
+      assert.equal(JSON.stringify(payload).includes("SECRET_SENTINEL"), false);
+    });
+    assert.equal(result.status, 500);
+  });
+
+  void test(`${failure} partial completion reaches the real panel after one click without an automatic retry`, async () => {
+    const dom = new JSDOM("<div id='root'></div>", {
+      url: "https://example.test/admin/ingestion",
+    });
+    const globals = Object.getOwnPropertyDescriptors(globalThis);
+    const originalFetch = globalThis.fetch;
+    Object.defineProperties(globalThis, {
+      window: { configurable: true, value: dom.window },
+      document: { configurable: true, value: dom.window.document },
+      IS_REACT_ACT_ENVIRONMENT: { configurable: true, value: true },
+    });
+    let calls = 0;
+    let respond!: (response: Response) => void;
+    globalThis.fetch = async (input, init) => {
+      calls++;
+      assert.equal(input, "/api/admin/revalidate-public-page");
+      assert.equal(init?.method, "POST");
+      assert.deepEqual(JSON.parse(String(init?.body)), { path: "/studio" });
+      return new Promise<Response>((resolve) => {
+        respond = resolve;
+      });
+    };
+    const host = dom.window.document.getElementById("root")!;
+    const root = createRoot(host);
+    try {
+      await act(async () => root.render(createElement(PublicSiteRefreshPanel)));
+      const button = host.querySelector("button")!;
+      await act(async () => {
+        button.click();
+        await setImmediate();
+      });
+      assert.equal(calls, 1);
+      assert.equal(button.disabled, true);
+      button.click();
+      assert.equal(calls, 1);
+
+      let payload: unknown;
+      const result = await refresh("/studio", failure, (evidence) => {
+        payload = evidence.payload;
+      });
+      await act(async () => {
+        respond(Response.json(payload, { status: result.status }));
+        await setImmediate();
+      });
+      const message = host.querySelector('[role="status"]')?.textContent ?? "";
+      assert.match(message, /page.*refresh completed/i);
+      assert.match(message, /diagnostics before trying again/i);
+      assert.doesNotMatch(
+        host.textContent ?? "",
+        /SECRET_SENTINEL|purge_context_unavailable/,
+      );
+      assert.deepEqual(
+        result.events,
+        failure === "header"
+          ? ["/studio", "header"]
+          : ["/studio", "header", "chat"],
+      );
+      assert.equal(button.disabled, false);
+      await act(async () => {
+        await setImmediate();
+      });
+      assert.equal(calls, 1);
+    } finally {
+      await act(async () => root.unmount());
+      globalThis.fetch = originalFetch;
+      for (const name of ["window", "document", "IS_REACT_ACT_ENVIRONMENT"]) {
+        if (globals[name])
+          Object.defineProperty(globalThis, name, globals[name]);
+        else Reflect.deleteProperty(globalThis, name);
+      }
+      dom.window.close();
+    }
+  });
+}
 
 void test("a recovered delayed write records bounded verification evidence on successful refresh", async () => {
   const result = await refresh("/studio", "delayed_success", ({ audits }) => {
@@ -139,10 +272,14 @@ for (const [failure, stage, pageRevalidated] of [
         code: "operation_failed",
         pageRevalidated,
       });
-      assert.deepEqual(payload, {
-        error: "Unable to refresh the public page.",
-        requestId: "fixture-request",
-      });
+      const response = payload as { error: string; requestId: string };
+      assert.equal(response.requestId, "fixture-request");
+      if (pageRevalidated)
+        assert.match(
+          response.error,
+          /refresh completed.*not confirmed.*diagnostics before trying again/i,
+        );
+      else assert.equal(response.error, "Unable to refresh the public page.");
       assert.ok(
         !JSON.stringify({ audits, payload }).includes("SECRET_SENTINEL"),
       );
