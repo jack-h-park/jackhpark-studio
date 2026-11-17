@@ -1,8 +1,10 @@
 .page {
   display: flex;
   justify-content: center;
+  min-height: 100vh;
   padding: 48px 20px 80px;
-  background: var(--ai-bg);
+  /* --ai-bg is a bare HSL triplet; the surface role token is the usable color. */
+  background: var(--ai-surface);
   color: var(--ai-text);
 }
 
@@ -24,6 +26,7 @@
 
 .article ul {
   padding-left: 1.25rem;
+  list-style: disc;
 }
 
 .meta {
