@@ -104,7 +104,8 @@ async function bundled(entry: string, mode = "success") {
       if (${JSON.stringify(mode)} === 'db-failed') throw new Error('DB save failed');
       fixture.events.push('committed'); return {updatedAt:'2026-10-02T12:00:00.000Z'};
     }`,
-    "@vercel/functions": `export async function invalidateByTag(tag) {
+    "@vercel/functions": `export async function addCacheTag() { throw new Error('Unexpected tag registration in admin save'); }
+    export async function invalidateByTag(tag) {
       fixture.events.push('invalidate:'+tag);
       if (${JSON.stringify(mode)} === 'purge-failed') throw new Error('PRIVATE_PROVIDER_TOKEN');
     }`,

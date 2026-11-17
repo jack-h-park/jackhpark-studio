@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { IncomingMessage, ServerResponse } from "node:http";
+import { createRequire } from "node:module";
 import { Socket } from "node:net";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import { pathToFileURL } from "node:url";
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { build } from "esbuild";
@@ -49,12 +51,10 @@ async function handlers(): Promise<Bundle> {
         }`,
           }));
           b.onResolve({ filter: /^@vercel\/functions$/ }, () => ({
-            path: "vercel",
-            namespace: "sdk",
-          }));
-          b.onLoad({ filter: /.*/, namespace: "sdk" }, () => ({
-            contents: "export async function invalidateByTag() {}",
-            loader: "js",
+            path: pathToFileURL(
+              createRequire(import.meta.url).resolve("@vercel/functions"),
+            ).href,
+            external: true,
           }));
         },
       },
@@ -63,6 +63,75 @@ async function handlers(): Promise<Bundle> {
   return import(
     `data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text + `\n//${Math.random()}`).toString("base64")}`
   ) as Promise<Bundle>;
+}
+
+function installTagContext(t: TestContext, value: unknown) {
+  const symbol = Symbol.for("@vercel/request-context");
+  const previous = Object.getOwnPropertyDescriptor(globalThis, symbol);
+  const vercel = process.env.VERCEL;
+  process.env.VERCEL = "1";
+  Object.defineProperty(globalThis, symbol, {
+    configurable: true,
+    value: { get: () => value },
+  });
+  t.after(() => {
+    if (previous) Object.defineProperty(globalThis, symbol, previous);
+    else Reflect.deleteProperty(globalThis, symbol);
+    if (vercel === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = vercel;
+  });
+}
+
+for (const name of ["config", "runtime"] as const) {
+  void test(`${name} awaits actual SDK tag registration before allowing CDN caching`, async (t) => {
+    const module = await handlers();
+    const handler = module[name];
+    let started!: () => void;
+    const called = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let finish!: () => void;
+    const pendingTag = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    installTagContext(t, {
+      addCacheTag(tag: string) {
+        assert.equal(tag, "public-chat-shell-v1");
+        started();
+        return pendingTag;
+      },
+    });
+    const r = response();
+    const pending = handler(r.req, r.res);
+    await called;
+    assert.equal(r.res.getHeader("Cache-Control"), "private, no-store");
+    finish();
+    await pending;
+    assert.equal(r.res.getHeader("Vercel-Cache-Tag"), "public-chat-shell-v1");
+  });
+}
+
+for (const capability of [
+  undefined,
+  { addCacheTag: true },
+  {
+    async addCacheTag() {
+      throw new Error("PRIVATE_PLATFORM_FAILURE");
+    },
+  },
+]) {
+  void test("unconfirmed production API tagging returns visible settings without a shared cache entry", async (t) => {
+    installTagContext(t, capability);
+    const module = await handlers();
+    for (const handler of [module.config, module.runtime]) {
+      const r = response();
+      await handler(r.req, r.res);
+      assert.equal(r.res.statusCode, 200);
+      assert.ok(r.body());
+      assert.equal(r.res.getHeader("Cache-Control"), "private, no-store");
+      assert.equal(r.res.getHeader("Vercel-Cache-Tag"), undefined);
+    }
+  });
 }
 
 function response(method = "GET", headers: Record<string, string> = {}) {

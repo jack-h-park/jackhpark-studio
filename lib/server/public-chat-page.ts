@@ -13,6 +13,7 @@ import {
   PUBLIC_CHAT_CACHE_TAG,
   PUBLIC_CHAT_CDN_TTL_SECONDS,
   PUBLIC_CHAT_SWR_SECONDS,
+  registerPublicChatCacheTag,
 } from "@/lib/server/public-chat-cache";
 import {
   toPublicChatConfig,
@@ -65,6 +66,9 @@ export function createPublicChatPageLoader({
       !bypassCache &&
       header.cacheable !== false &&
       header.headerRecordMap &&
+      res.statusCode === 200 &&
+      !res.hasHeader("Set-Cookie") &&
+      (await registerPublicChatCacheTag()) &&
       res.statusCode === 200 &&
       !res.hasHeader("Set-Cookie")
     ) {

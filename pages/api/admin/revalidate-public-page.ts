@@ -22,7 +22,12 @@ import {
 } from "@/lib/server/public-page-revalidation";
 
 type RevalidationResponse =
-  | { revalidatedPath: string; revalidatedAt: string }
+  | {
+      revalidatedPath: string;
+      revalidatedAt: string;
+      requestId: string;
+      chatCacheRefresh?: PublicChatCacheInvalidation;
+    }
   | { error: string; requestId?: string };
 
 export default async function handler(

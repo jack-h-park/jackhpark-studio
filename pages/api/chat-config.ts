@@ -18,7 +18,7 @@ export default async function handler(
 
   try {
     const models = await loadPublicSettings();
-    cachePublicSettingsResponse(req, res);
+    await cachePublicSettingsResponse(req, res);
     return res.status(200).json({ models });
   } catch (err: unknown) {
     console.error("[api/chat-config] failed to load chat model settings", err);

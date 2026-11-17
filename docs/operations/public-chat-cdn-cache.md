@@ -136,6 +136,27 @@ mutation; leave propagation pending when evidence is unavailable. See
 
 ## Tag Association and Scope
 
+The Production request log for `4h567-1794952777132-7a356d67c625`
+(`2026-11-17T21:59:37.132Z`, `/chat`, deployment
+`dpl_9pnp9n6AEHgKXqpD9vmHHD3MUk6k`) displayed only the navigation dependency
+tag `www.jackhpark.com:production:notion-header:v1`, not the shell tag below.
+This identifies a missing association in the displayed entry; it does not
+explain Vercel's internal header/metadata precedence or prove every variant
+has the same problem.
+
+Cacheable shell and public settings responses now also await `addCacheTag()`
+through the installed SDK, using the request-context tag-registration capability
+alongside the existing response header. This appends the shell tag without
+replacing navigation dependency tags. If the capability is missing or rejects,
+the origin still serves its normal content with `private, no-store` and no shell
+tag header. Private/query/error responses do not request registration. Local
+execution retains the header-only origin checks without claiming CDN behavior.
+
+The private fallback can increase origin CPU/invocations if tag registration is
+unavailable in Production. Verify capability, the displayed shell tag, cache
+hits, and one separately authorized invalidation before claiming rollout success.
+No production rollout or repeat refresh is implied by these local regressions.
+
 The shared `public-chat-shell-v1` tag intentionally covers these cacheable
 responses, not just the HTML page:
 

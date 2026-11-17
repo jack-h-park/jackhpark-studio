@@ -1,4 +1,4 @@
-import { invalidateByTag } from "@vercel/functions";
+import { addCacheTag, invalidateByTag } from "@vercel/functions";
 
 import { NotionHeaderCacheError } from "@/lib/server/notion-header-error";
 
@@ -9,6 +9,27 @@ export const PUBLIC_CHAT_SWR_SECONDS = 60;
 export type PublicChatCacheInvalidation =
   | "invalidation-requested"
   | "skipped-local";
+
+export async function registerPublicChatCacheTag(): Promise<boolean> {
+  if (process.env.VERCEL !== "1") return true;
+  try {
+    const context = (globalThis as Record<symbol, unknown>)[
+      Symbol.for("@vercel/request-context")
+    ] as { get?: () => { addCacheTag?: unknown } } | undefined;
+    // The SDK silently resolves without this capability. Observed Production
+    // request metadata lacked the shell tag despite its response-header setup.
+    if (
+      typeof context?.get !== "function" ||
+      typeof context.get()?.addCacheTag !== "function"
+    )
+      return false;
+    await addCacheTag(PUBLIC_CHAT_CACHE_TAG);
+    return true;
+  } catch {
+    // Keep serving the page, but never publish an unconfirmed shared entry.
+    return false;
+  }
+}
 
 export async function invalidatePublicChatShell(): Promise<PublicChatCacheInvalidation> {
   if (process.env.VERCEL !== "1") return "skipped-local";
