@@ -18,6 +18,7 @@ import {
   type HeaderStoreDiagnostics,
   NotionHeaderCacheError,
 } from "@/lib/server/notion-header-error";
+import { createDurableHeaderRevisionStore } from "@/lib/server/notion-header-revision-store";
 import { createRuntimeHeaderStore } from "@/lib/server/notion-header-store";
 
 export type NotionNavigationHeader = {
@@ -113,6 +114,13 @@ export interface NotionHeaderStore {
   set(key: string, value: unknown, ttl?: number): Promise<unknown>;
 }
 
+export interface NotionHeaderRevisionStore {
+  get(key: string): Promise<unknown>;
+  set(key: string, value: string): Promise<unknown>;
+  initialize(key: string, value: string): Promise<unknown>;
+  diagnostics(): HeaderStoreDiagnostics;
+}
+
 type HeaderLoader = (() => Promise<NotionNavigationHeader>) & {
   invalidate(): Promise<HeaderRevisionVerification | undefined>;
 };
@@ -128,14 +136,18 @@ export function createNotionNavigationHeaderLoader(options: {
   fetchRoot(pageId: string): Promise<ExtendedRecordMap>;
   now(): number;
   store?: NotionHeaderStore;
+  revisionStore?: NotionHeaderRevisionStore;
   cacheKey?: string;
   wait?(ms: number): Promise<void>;
 }): HeaderLoader {
   let local = createMemoryHeaderLoader(options);
-  const { store } = options;
+  const { store, revisionStore } = options;
+  if (revisionStore && !store)
+    throw new Error("A revision store requires a payload store");
+  const markers = revisionStore ?? store;
   const key =
     options.cacheKey ??
-    `notion-header:v1:${domain}:${process.env.VERCEL_ENV ?? environment}:${rootNotionPageId}`;
+    `notion-header:${revisionStore ? "v2" : "v1"}:${domain}:${process.env.VERCEL_ENV ?? environment}:${rootNotionPageId}`;
   const revisionKey = `${key}:revision`;
   const rootId =
     parsePageId(rootNotionPageId, { uuid: true }) ?? rootNotionPageId;
@@ -180,19 +192,23 @@ export function createNotionNavigationHeaderLoader(options: {
   }
 
   async function revision(): Promise<string> {
-    const value = await store!.get(revisionKey);
+    const value = await markers!.get(revisionKey);
     if (value === undefined || value === null) {
       return mutateRevision(async () => {
         // Recheck under the local write queue: a missing read can predate a
         // completed invalidation or another initialization on this instance.
-        const latest = await store!.get(revisionKey);
+        const latest = await markers!.get(revisionKey);
         if (latest !== undefined && latest !== null)
           return validateRevision(latest);
         // Runtime Cache may evict markers independently of entries. A new random
         // generation prevents a surviving older entry from becoming current again.
         const fresh = randomUUID();
-        await store!.set(revisionKey, fresh);
-        if ((await store!.get(revisionKey)) !== fresh) {
+        if (revisionStore)
+          return validateRevision(
+            await revisionStore.initialize(revisionKey, fresh),
+          );
+        await markers!.set(revisionKey, fresh);
+        if ((await markers!.get(revisionKey)) !== fresh) {
           throw new NotionHeaderCacheError("revision_not_retained");
         }
         return fresh;
@@ -310,29 +326,32 @@ export function createNotionNavigationHeaderLoader(options: {
         return mutateRevision(async () => {
           let previous: unknown;
           try {
-            previous = await store.get(revisionKey);
+            previous = await markers!.get(revisionKey);
           } catch {
             // Baseline is diagnostic only. The post-write read must still prove
             // retention even when this optional earlier read was unavailable.
             previous = undefined;
           }
           try {
-            await store.invalidate?.();
+            // Durable generation rotation makes old regional payloads unreachable.
+            // Do not invalidate the authority through the disposable payload cache.
+            if (!revisionStore) await store.invalidate?.();
           } catch (err) {
             if (err instanceof NotionHeaderCacheError) throw err;
             throw new NotionHeaderCacheError("purge_failed");
           }
           const fresh = randomUUID();
           try {
-            await store.set(revisionKey, fresh);
-          } catch {
+            await markers!.set(revisionKey, fresh);
+          } catch (err) {
+            if (err instanceof NotionHeaderCacheError) throw err;
             throw new NotionHeaderCacheError("revision_write_failed");
           }
           return verifyHeaderRevision({
-            read: () => store.get(revisionKey),
+            read: () => markers!.get(revisionKey),
             expected: fresh,
             previous,
-            store: store.diagnostics?.(),
+            store: markers!.diagnostics?.(),
             wait: options.wait ?? ((ms) => setTimeout(ms)),
           });
         });
@@ -354,6 +373,10 @@ const defaultLoader = createNotionNavigationHeaderLoader({
     });
   },
   now: () => Date.now(),
+  revisionStore:
+    !isRedisEnabled && process.env.VERCEL === "1"
+      ? createDurableHeaderRevisionStore()
+      : undefined,
   store: isRedisEnabled
     ? {
         get: async (key) => (await import("@/lib/db")).db.get(key),
