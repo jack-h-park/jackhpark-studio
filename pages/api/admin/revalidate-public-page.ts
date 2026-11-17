@@ -113,8 +113,15 @@ export default async function handler(
         pageRevalidated,
       },
     });
+    // A late failure must not invite repeating already completed mutations.
+    const message =
+      pageRevalidated && stage === "chat_invalidation"
+        ? "The page and shared navigation refresh completed, but the public chat cache refresh was not confirmed. Check the refresh diagnostics before trying again."
+        : pageRevalidated && stage === "header_invalidation"
+          ? "The page refresh completed, but the shared navigation and public chat cache refresh were not confirmed. Check the refresh diagnostics before trying again."
+          : "Unable to refresh the public page.";
     res.status(500).json({
-      error: "Unable to refresh the public page.",
+      error: message,
       requestId: admin.requestId,
     });
   }
