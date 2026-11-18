@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { IncomingMessage, ServerResponse } from "node:http";
 import { Socket } from "node:net";
 import test, { type TestContext } from "node:test";
+import { setImmediate } from "node:timers/promises";
 
 import type { GetServerSidePropsContext } from "next";
 import type { ExtendedRecordMap } from "notion-types";
@@ -101,6 +102,35 @@ void test("private HTML and data never register the shared chat tag", async (t) 
     assert.equal(ctx.res.getHeader("Cache-Control"), "private, no-store");
   }
 });
+
+for (const url of ["/chat", "/_next/data/build/chat.json"]) {
+  void test(
+    `${url} returns private content after a tag deadline and ignores late success`,
+    { timeout: 5000 },
+    async (t) => {
+      let finish!: () => void;
+      let calls = 0;
+      platformContext(t, {
+        addCacheTag() {
+          calls++;
+          return new Promise<void>((resolve) => {
+            finish = resolve;
+          });
+        },
+      });
+      const ctx = context(url);
+      const result = await loader()(ctx);
+      assert.ok("props" in result);
+      assert.equal(ctx.res.getHeader("Cache-Control"), "private, no-store");
+      assert.equal(ctx.res.getHeader("Vercel-Cache-Tag"), undefined);
+      finish();
+      await setImmediate();
+      assert.equal(ctx.res.getHeader("Cache-Control"), "private, no-store");
+      assert.equal(ctx.res.getHeader("Vercel-Cache-Tag"), undefined);
+      assert.equal(calls, 1);
+    },
+  );
+}
 
 function context(url = "/chat"): GetServerSidePropsContext {
   const req = new IncomingMessage(

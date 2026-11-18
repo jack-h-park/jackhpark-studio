@@ -152,6 +152,22 @@ the origin still serves its normal content with `private, no-store` and no shell
 tag header. Private/query/error responses do not request registration. Local
 execution retains the header-only origin checks without claiming CDN behavior.
 
+Optional SDK registration has a 500 ms deadline; it does not bound configuration
+or navigation reads, and it cannot cancel the SDK's underlying work. A deadline
+keeps the completed response private even if registration later resolves. Late
+rejections are handled, and no registration retry or cross-request capability
+failure cache is added.
+
+The existing `notionLogger` emits `public_chat_tag_registration_unconfirmed`
+with only an allowlisted `reason` (`capability_unavailable`, `sdk_rejected`, or
+`deadline_exceeded`), `sharedCache: "disabled"`, and `deadlineMs: 500`.
+Diagnostics respect the existing domain log level and are limited to one per
+reason per process per minute; cold starts have independent limits. The limit
+applies only to logging, never tag registration or content freshness. It adds
+no DB configuration read, Langfuse/PostHog event, provider call, or scheduled
+monitor. No raw error, context, credential, request query, or user content is
+logged. Log emission failure cannot prevent the private fallback.
+
 The private fallback can increase origin CPU/invocations if tag registration is
 unavailable in Production. Verify capability, the displayed shell tag, cache
 hits, and one separately authorized invalidation before claiming rollout success.

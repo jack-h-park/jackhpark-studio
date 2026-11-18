@@ -3,6 +3,7 @@ import { IncomingMessage, ServerResponse } from "node:http";
 import { createRequire } from "node:module";
 import { Socket } from "node:net";
 import test, { type TestContext } from "node:test";
+import { setImmediate } from "node:timers/promises";
 import { pathToFileURL } from "node:url";
 
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -109,6 +110,35 @@ for (const name of ["config", "runtime"] as const) {
     await pending;
     assert.equal(r.res.getHeader("Vercel-Cache-Tag"), "public-chat-shell-v1");
   });
+
+  void test(
+    `${name} returns settings privately after the deadline and absorbs a late SDK rejection`,
+    { timeout: 5000 },
+    async (t) => {
+      const module = await handlers();
+      let reject!: (error: Error) => void;
+      let calls = 0;
+      installTagContext(t, {
+        addCacheTag() {
+          calls++;
+          return new Promise<void>((_resolve, no) => {
+            reject = no;
+          });
+        },
+      });
+      const r = response();
+      await module[name](r.req, r.res);
+      assert.equal(r.res.statusCode, 200);
+      assert.ok(r.body());
+      assert.equal(r.res.getHeader("Cache-Control"), "private, no-store");
+      assert.equal(r.res.getHeader("Vercel-Cache-Tag"), undefined);
+      reject(new Error("PRIVATE_PLATFORM_TOKEN"));
+      await setImmediate();
+      assert.equal(r.res.getHeader("Cache-Control"), "private, no-store");
+      assert.equal(r.res.getHeader("Vercel-Cache-Tag"), undefined);
+      assert.equal(calls, 1);
+    },
+  );
 }
 
 for (const capability of [
