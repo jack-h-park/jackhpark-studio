@@ -56,17 +56,26 @@ export async function createChatModel(
       const supportsReasoningEffort =
         resolveLlmModel({ modelId: modelName, model: modelName })
           .supportsReasoningEffort === true;
-      const tokenLimit =
-        modelName === "gpt-6-sol" || modelName === "gpt-6-luna"
-          ? { modelKwargs: { max_completion_tokens: maxTokens } }
+      const isSol62 = modelName === "gpt-6.2-sol";
+      const effort =
+        isSol62 && reasoningEffort === "none" ? "low" : reasoningEffort;
+      // This SDK version does not recognize Sol 6.2 as a reasoning model.
+      const completionOptions =
+        isSol62 || modelName === "gpt-6-luna"
+          ? {
+              modelKwargs: {
+                max_completion_tokens: maxTokens,
+                ...(isSol62 && effort ? { reasoning_effort: effort } : {}),
+              },
+            }
           : { maxTokens };
       return new ChatOpenAI({
         model: modelName,
         apiKey,
         ...(supportsSampling ? { temperature } : {}),
-        ...tokenLimit,
-        ...(supportsReasoningEffort && reasoningEffort
-          ? { reasoning: { effort: reasoningEffort } }
+        ...completionOptions,
+        ...(!isSol62 && supportsReasoningEffort && effort
+          ? { reasoning: { effort } }
           : {}),
         streaming: true,
       });
