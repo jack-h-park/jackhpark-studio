@@ -36,7 +36,7 @@ const IS_DEFAULT_MODEL_EXPLICIT =
   Boolean(ENV_DEFAULT_LLM_MODEL) && ENV_DEFAULT_LLM_MODEL!.length > 0;
 const DEFAULT_LLM_MODEL_ID =
   ENV_DEFAULT_LLM_MODEL && ENV_DEFAULT_LLM_MODEL.length > 0
-    ? ENV_DEFAULT_LLM_MODEL
+    ? normalizeLlmModelId(ENV_DEFAULT_LLM_MODEL) ?? "gpt-4o-mini"
     : "gpt-4o-mini";
 
 /**
@@ -48,6 +48,9 @@ export function normalizeLlmModelId(
   if (!value) return null;
   const trimmed = value.trim();
   if (trimmed.length === 0) return null;
+  if (/^(?:openai )?gpt[ -]6(?:\.1)?[ -]sol$/i.test(trimmed)) {
+    return "gpt-6.2-sol";
+  }
   return trimmed;
 }
 
