@@ -1,8 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
+import { scheduleExperienceAnalytics } from "@/lib/analytics/experience-loader";
 import { installGoogleAnalyticsLoader } from "@/lib/analytics/google-loader";
 
 const SiteAnalytics = dynamic(
@@ -13,9 +14,11 @@ const SiteAnalytics = dynamic(
 );
 
 export function ExperienceAnalytics() {
+  const [loadSdk, setLoadSdk] = useState(false);
+  useEffect(() => scheduleExperienceAnalytics(() => setLoadSdk(true)), []);
   useEffect(
     () => installGoogleAnalyticsLoader(process.env.NEXT_PUBLIC_GA_ID),
     [],
   );
-  return <SiteAnalytics />;
+  return loadSdk ? <SiteAnalytics /> : null;
 }

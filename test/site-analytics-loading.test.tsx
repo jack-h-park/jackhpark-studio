@@ -161,3 +161,43 @@ void test("the experience registers GA before the optional SDK chunk is availabl
     }
   }
 });
+
+void test("experience schedules the optional SDK while keeping the Google loader immediate", async (t) => {
+  const dom = new JSDOM('<div id="root"></div>', {
+    url: "http://localhost/experiences/pm-intelligence#observatory",
+  });
+  const keys = ["window", "document", "IS_REACT_ACT_ENVIRONMENT"] as const;
+  const previous = keys.map((key) =>
+    Object.getOwnPropertyDescriptor(globalThis, key),
+  );
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+  const durations: number[] = [];
+  t.mock.method(
+    dom.window,
+    "setTimeout",
+    (_callback: () => void, duration: number) => {
+      durations.push(duration);
+      return durations.length;
+    },
+  );
+  const root = createRoot(dom.window.document.getElementById("root")!);
+  try {
+    await act(async () => root.render(<ExperienceAnalytics />));
+    assert.ok(
+      durations.includes(15_000),
+      "World entry must schedule a bounded optional-SDK fallback",
+    );
+  } finally {
+    await act(async () => root.unmount());
+    dom.window.close();
+    for (const [index, key] of keys.entries()) {
+      const descriptor = previous[index];
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  }
+});
