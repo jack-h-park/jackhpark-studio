@@ -302,7 +302,8 @@ void test("chat page props never serialize private configuration or unknown fiel
     "@/lib/server/model-resolution": `export const buildPresetModelResolutions = () => (${JSON.stringify(meta.presetResolutions)});`,
     "@/lib/server/notion-header":
       "export const loadNotionNavigationHeader = async () => ({ headerRecordMap: null, headerBlockId: null });",
-    "@vercel/functions": "export const invalidateByTag = async () => {};",
+    "@vercel/functions":
+      "export const invalidateByTag = async () => {}; export const addCacheTag = async () => {};",
   };
   const bundle = await build({
     entryPoints: ["pages/chat.tsx"],

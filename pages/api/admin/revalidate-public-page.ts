@@ -22,7 +22,12 @@ import {
 } from "@/lib/server/public-page-revalidation";
 
 type RevalidationResponse =
-  | { revalidatedPath: string; revalidatedAt: string }
+  | {
+      revalidatedPath: string;
+      revalidatedAt: string;
+      requestId: string;
+      chatCacheRefresh?: PublicChatCacheInvalidation;
+    }
   | { error: string; requestId?: string };
 
 export default async function handler(
@@ -95,7 +100,12 @@ export default async function handler(
       cacheVerification,
       cacheInvalidation,
     });
-    res.status(200).json({ revalidatedPath: target.path, revalidatedAt });
+    res.status(200).json({
+      revalidatedPath: target.path,
+      revalidatedAt,
+      requestId: admin.requestId,
+      ...(cacheInvalidation ? { chatCacheRefresh: cacheInvalidation } : {}),
+    });
   } catch (err) {
     auditAdminMutation({
       ...admin,
