@@ -225,9 +225,11 @@ The neutrals come from Notion's own design language. They are warm, never pure b
 | `--bg-card` | `#FFFFFF` | `#252525` |
 | `--text-primary` | `#37352F` | `#F2F0EA` |
 | `--text-secondary` | `#6B6A65` | `#B4B2A9` |
-| `--text-tertiary` | `#9B9A97` | `#9B9A97` |
+| `--text-tertiary` | `#72716B` | `#9B9A97` |
 | `--border-subtle` | `rgba(55,53,47,0.09)` | `rgba(255,255,255,0.10)` |
 | `--border-default` | `#EFEEEA` | `#2A2A2A` |
+
+`--text-tertiary` is darker in light mode than the neutral it was derived from: the old `#9B9A97` measured 2.81:1 on `--bg-page`, below the 4.5:1 AA minimum for text. `#72716B` measures 4.90:1 on `#FFFFFF` and 4.53:1 on `--bg-surface`, and it matches the shared app kit's decision D4. Dark mode keeps `#9B9A97` (6.25:1 on `#191919`, 5.45:1 on `#252525`).
 
 ### 3.4 Semantic colors
 

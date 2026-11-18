@@ -65,6 +65,10 @@ Lighthouse flagged three distinct issues; only one was a genuine, persistent def
 | B | **Prohibited ARIA attribute** — GSAP `SplitText` adds `aria-label` to the scope-statement `<p>` (no valid role), which axe flags. | **Library behavior** | **Not changed** — `SplitText` adds `aria-label` precisely to preserve the readable string for screen readers while the visible text is split into spans. Removing it would *harm* accessibility. Net effect is positive; the axe rule is overly strict here. |
 | C | **Contrast on `opacity: 0.12` text** — ~20 nodes, all `aria-hidden="true"`, at very low opacity. | **Measurement artifact** | **Not changed** — these are split pieces of the scrubbed scope-statement reveal, captured mid-animation (before scroll) at 0.12 opacity. They are decorative and `aria-hidden`; a reading user never sees low-contrast persistent text. Not a real failure. |
 
+Update (token fix): the light `--text-tertiary` itself is now `#72716B` (4.90:1 on `#FFFFFF`, 4.53:1 on `#F7F6F3`), so the token is AA-compliant for text on its own and the 2.81:1 defect in finding A no longer exists at the source.
+
+Recommendation, not applied here: keep the four classes above on `--text-secondary`. `#72716B` and `#6B6A65` are close (4.90:1 vs 5.42:1 on white), so moving the classes back to `--text-tertiary` would restore almost no visible hierarchy while giving up contrast margin on 11–12px mono text; the tertiary step now reads as "quiet, still legible" for icons, the scope coda and nav dots, which is where it is used. Revisit only if a later pass needs a third text tier on small labels.
+
 Note on capture coverage: card role lines and timeline periods were **not** in the raw
 Lighthouse report because those sections were GSAP-hidden (`opacity: 0`) at capture, so
 axe skipped them. They share token A's identical contrast problem, so they were fixed in
