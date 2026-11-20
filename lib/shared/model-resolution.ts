@@ -102,7 +102,11 @@ export function resolveLlmModelId(
 
   const definition = findModelDefinition(requested);
   const allowlist = ctx.allowedModelIds
-    ? new Set(ctx.allowedModelIds.map((id) => id.toLowerCase()))
+    ? new Set(
+        ctx.allowedModelIds.map((id) =>
+          (normalizeLlmModelId(id) ?? id).toLowerCase(),
+        ),
+      )
     : null;
 
   if (!definition) {

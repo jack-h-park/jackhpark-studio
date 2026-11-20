@@ -12,7 +12,7 @@ function invocationParams(model: unknown): Record<string, unknown> {
 void test("GPT-6 OpenAI requests use max_completion_tokens and omit sampling", async () => {
   process.env.OPENAI_API_KEY = "test-openai-key";
 
-  for (const model of ["gpt-6-sol", "gpt-6-luna"]) {
+  for (const model of ["gpt-6.2-sol", "gpt-6-luna"]) {
     const llm = await createChatModel("openai", model, 0.2, 32, "low");
     const params = invocationParams(llm);
 
@@ -29,4 +29,10 @@ void test("Claude Sonnet 5 omits its unsupported temperature parameter", async (
   const params = invocationParams(llm);
 
   assert.equal(params.temperature, undefined);
+});
+
+void test("Sol 6.2 sends low reasoning effort when the preset requests none", async () => {
+  process.env.OPENAI_API_KEY = "test-openai-key";
+  const model = await createChatModel("openai", "gpt-6.2-sol", 0.2, 32, "none");
+  assert.equal(invocationParams(model).reasoning_effort, "low");
 });

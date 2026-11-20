@@ -8,6 +8,7 @@ import type {
 } from "@/lib/shared/models";
 import { SYSTEM_SETTINGS_TABLE } from "@/lib/chat-prompts";
 import { DEFAULT_EMBEDDING_MODEL_ID } from "@/lib/core/embedding-spaces";
+import { normalizeLlmModelId } from "@/lib/core/llm-registry";
 import { supabaseClient } from "@/lib/core/supabase";
 import { startDbQuery } from "@/lib/logging/db-logger";
 import {
@@ -470,12 +471,11 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
       // Drop an unrecognized stored effort rather than passing it through to the
       // provider. Undefined means "inherit the global setting", which is the
       // right thing to fall back to for a value we cannot interpret.
-      preset.reasoningEffort === undefined
-        ? preset
-        : {
-            ...preset,
-            reasoningEffort: normalizeReasoningEffort(preset.reasoningEffort),
-          },
+      {
+        ...preset,
+        llmModel: normalizeLlmModelId(preset.llmModel) ?? preset.llmModel,
+        reasoningEffort: normalizeReasoningEffort(preset.reasoningEffort),
+      },
     ]),
   ) as AdminChatPresetsConfig;
 
@@ -499,6 +499,16 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
   return {
     ...mergedConfig,
     baseSystemPromptSummary: mergedConfig.baseSystemPromptSummary ?? "",
+    allowlist: {
+      ...mergedConfig.allowlist,
+      llmModels: [
+        ...new Set(
+          mergedConfig.allowlist.llmModels.map(
+            (id) => normalizeLlmModelId(id) ?? id,
+          ),
+        ),
+      ],
+    },
     hydeMode,
     rewriteMode,
     ragMultiQueryMode,
