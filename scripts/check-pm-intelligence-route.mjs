@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 
+import { JSDOM } from "jsdom";
+
 const base = process.argv[2] || "http://127.0.0.1:3037";
 const response = await fetch(`${base}/experiences/pm-intelligence`);
 assert.equal(response.status, 200);
@@ -43,12 +45,17 @@ assert.ok(
   !/src="[^\"]*\/pages\/_app-/.test(html),
   "The experience must not load the Pages App bundle",
 );
-assert.ok(
-  /<h1\b[^>]*>Product work\./.test(
-    html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/g, ""),
-  ),
-  "Full introduction must be server rendered",
-);
+const { window } = new JSDOM(html);
+try {
+  assert.ok(
+    [...window.document.querySelectorAll("h1")].some((heading) =>
+      heading.textContent?.startsWith("Product work."),
+    ),
+    "Full introduction must be server rendered",
+  );
+} finally {
+  window.close();
+}
 assert.ok(html.includes("noindex"));
 assert.ok(html.includes("/decks/pm-intelligence-system"));
 console.log(
