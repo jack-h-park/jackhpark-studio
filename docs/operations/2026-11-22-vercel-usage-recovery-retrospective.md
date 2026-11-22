@@ -7,8 +7,10 @@ check current code, deployments, and measurements.
 
 The strongest verified improvements were fewer scheduled probe requests,
 smaller browser image transfers, and less work in specific local CPU fixtures.
-Production deployment and sitemap verification explained most of the large ISR
-write swings in the measured periods. Ordinary CPU reductions were inconsistent,
+Most of the large ISR write differences were concentrated in hours that included
+Production deployments or sitemap verification. Those hours also included
+ordinary traffic, so the measurements do not isolate the release work.
+Ordinary CPU reductions were inconsistent,
 and the team was still above its 4-hour allowance at the last verified team
 snapshot. The latest settings-computation optimization is local only.
 
@@ -43,6 +45,13 @@ regional cache state, or code changes in intervening releases.
 | #263, November 20 → 21, 22:00–23:00 | 19s → 25s | 18 → 50 | Release and sweep in the 21:00 hour excluded. Invocations 38 → 35 and CDN requests 222 → 128. Neither meter saved usage in this hour. |
 | #263, November 20/21 → November 21/22, 22:00–08:00 | 4m11s → 3m34s | 533 → 180 | Invocations 742 → 310 and CDN requests approximately 2.4K → 1.4K. The first-hour increases did not persist across the longer window. Lower traffic and different cache states prevent causal attribution. |
 | Same #263 comparison, 01:00–08:00 | 3m03s → 2m21s | 433 → 112 | Also excludes the early spike and the 23:00–01:00 clock bands that include daily RAG jobs. Invocations 598 → 218. |
+
+Clock bands removed from **both** windows in each comparison (Pacific time):
+
+| Comparison | Excluded hours |
+| --- | --- |
+| #248/#242, matched 22h | 10:00–11:00 and 20:00–21:00 |
+| #259, matched 19h | 09:00–10:00, 13:00–14:00, 14:00–15:00, 20:00–21:00, and 22:00–23:00 |
 
 Dashboard receipts for #263: [before 10h](https://vercel.com/jack-h-parks-projects/jackhpark-studio/usage?from=1795240800000&to=1795276800000), [after 10h](https://vercel.com/jack-h-parks-projects/jackhpark-studio/usage?from=1795327200000&to=1795363200000). Earlier bounds and diagnoses are in the [recovery design](../superpowers/specs/2026-09-20-vercel-usage-recovery-design.md), [residual-load review](./2026-09-30-vercel-residual-load-review.md), and respective PRs. The dashboard links may require team access and retained data.
 
