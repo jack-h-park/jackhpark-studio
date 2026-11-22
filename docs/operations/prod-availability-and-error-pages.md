@@ -83,8 +83,9 @@ The `/` check validates the rewrite to the chat experience.
   `/assets/avatar-favicon/error.png`.
 - The dependency-free recurring smoke runner checks the core canonical HTML
   routes, chat runtime API, and error asset. The scheduled GitHub workflow can
-  notify Telegram on failure. Production deployments run the API contracts in
-  the existing Sitemap Availability workflow.
+  notify Telegram on failure. Successful Production deployments run API contract
+  checks in the Production API Availability workflow. Its result is independent
+  of the Sitemap Availability result used to select future page sweep scope.
 - The external monitor registration, deduplicated recovery notifications,
   extended sitemap checks, and notification secret configuration remain as
   deployment/operations follow-up.

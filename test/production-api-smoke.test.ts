@@ -1,10 +1,54 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { test } from "node:test";
 import { promisify } from "node:util";
 
+import { load } from "js-yaml";
+
 const exec = promisify(execFile);
+
+function readWorkflow(file: string) {
+  return load(
+    readFileSync(
+      new URL(`../.github/workflows/${file}.yml`, import.meta.url),
+      "utf8",
+    ),
+  ) as {
+    on: Record<string, unknown>;
+    jobs: Record<string, { if?: string; steps: { run?: string }[] }>;
+  };
+}
+
+void test("production API verification has its own workflow and cannot fail the sitemap run", () => {
+  const api = readWorkflow("production-api-availability");
+  const sitemap = readWorkflow("sitemap-availability");
+  assert.deepEqual(Object.keys(api.on), ["deployment_status"]);
+  assert.equal(
+    api.jobs.verify.if,
+    "github.event.deployment_status.state == 'success' && github.event.deployment_status.environment == 'Production'",
+  );
+  assert.ok(
+    api.jobs.verify.steps.some(
+      ({ run }) => run === "node scripts/smoke/deployment-api-availability.mjs",
+    ),
+  );
+  const sitemapCommands = Object.values(sitemap.jobs).flatMap(({ steps }) =>
+    steps.map(({ run }) => run),
+  );
+  assert.ok(
+    sitemapCommands.includes("node scripts/smoke/deployment-sweep-scope.mjs"),
+  );
+  assert.ok(
+    sitemapCommands.includes("node scripts/smoke/sitemap-availability.mjs"),
+  );
+  assert.ok(
+    !sitemapCommands.some((run) =>
+      run?.includes("deployment-api-availability"),
+    ),
+  );
+});
 
 async function withOrigin(
   verify: (

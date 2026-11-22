@@ -1,0 +1,29 @@
+name: Production API Availability
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify public API deployment contracts
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment == 'Production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.deployment.sha }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Check public API contracts
+        # A historical redeploy may predate the script.
+        if: ${{ hashFiles('scripts/smoke/deployment-api-availability.mjs') != '' }}
+        timeout-minutes: 2
+        run: node scripts/smoke/deployment-api-availability.mjs
