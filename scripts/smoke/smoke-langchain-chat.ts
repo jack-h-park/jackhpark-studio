@@ -1,9 +1,11 @@
 import process from "node:process";
 
 import {
+  logChatTraffic,
   normalizeBaseUrl,
   parseEnvFlag,
   parseExpectation,
+  syntheticTrafficHeaders,
   withAbortTimeout,
 } from "./lib/smoke-core";
 
@@ -16,6 +18,7 @@ const JSON_BODY = JSON.stringify({
 
 const HEADERS = {
   "Content-Type": "application/json",
+  ...syntheticTrafficHeaders(),
 };
 
 const GET_TIMEOUT_MS = 3000;
@@ -72,6 +75,7 @@ async function smokePost() {
         `POST expected 200 but received ${response.status} ${response.statusText}`,
       );
     }
+    logChatTraffic("[smoke]", response);
 
     const reader = response.body?.getReader();
     if (!reader) {

@@ -228,7 +228,9 @@ function maybeSpan<T>(
 async function rewriteStage(
   input: RagRetrievalInput,
   allowPii: boolean,
+  signal?: AbortSignal,
 ): Promise<string> {
+  signal?.throwIfAborted();
   const reverseRagMetadata = buildTelemetryMetadata({
     kind: "llm",
     requestId: input.requestId,
@@ -247,6 +249,7 @@ async function rewriteStage(
       mode: input.reverseRagMode,
       provider: input.provider,
       model: input.llmModel,
+      signal,
     });
   const rewrittenQuery = await maybeSpan(
     Boolean(input.trace && input.reverseRagEnabled),
@@ -260,6 +263,7 @@ async function rewriteStage(
     runRewrite,
     (result) => ({ output: allowPii ? result : undefined }),
   );
+  signal?.throwIfAborted();
 
   input.logDebugRag?.("reverse-query", {
     enabled: input.reverseRagEnabled,
@@ -275,11 +279,13 @@ async function hydeStage(
   input: RagRetrievalInput,
   rewrittenQuery: string,
   allowPii: boolean,
+  signal?: AbortSignal,
 ): Promise<{
   hydeDocument: string | null;
   embeddingTarget: string;
   preRetrieval: PreRetrievalResult;
 }> {
+  signal?.throwIfAborted();
   const hydeMetadata = buildTelemetryMetadata({
     kind: "llm",
     requestId: input.requestId,
@@ -296,6 +302,7 @@ async function hydeStage(
       enabled: input.hydeEnabled,
       provider: input.provider,
       model: input.llmModel,
+      signal,
     });
   // Named `hyde:generate`, not `hyde`. The LangGraph node is already a span
   // called `hyde`, and since the two traces merged they sit in one tree — at
@@ -317,6 +324,7 @@ async function hydeStage(
     runHyde,
     (result) => ({ output: allowPii ? result : undefined }),
   );
+  signal?.throwIfAborted();
 
   input.logDebugRag?.("hyde", {
     enabled: input.hydeEnabled,
@@ -365,7 +373,9 @@ async function retrieveStage(
   input: RagRetrievalInput,
   embeddingTarget: string,
   allowPii: boolean,
+  signal?: AbortSignal,
 ): Promise<RetrievalStageResult> {
+  signal?.throwIfAborted();
   const emitRetrievalSpan = Boolean(input.trace && input.includeVerboseDetails);
   const configSnapshot = buildTelemetryConfigSnapshot(
     input.chatConfigSnapshot ?? null,
@@ -398,6 +408,7 @@ async function retrieveStage(
       ragLogger.debug("[embedding] start", basePayload);
       const startMs = Date.now();
       try {
+        signal?.throwIfAborted();
         const embedding = await input.embeddings.embedQuery(embeddingTarget);
         const tookMs = Date.now() - startMs;
         ragLogger.debug("[embedding] done", {
@@ -418,6 +429,7 @@ async function retrieveStage(
       }
     };
     const queryEmbedding = await embedQueryWithLogging();
+    signal?.throwIfAborted();
     // Final K: upper bound on context/citations, from guardrails.ragTopK (>= 1).
     const finalKBase = Math.max(1, input.guardrails.ragTopK);
     // Retrieval stage K: vector search limit (candidate pool), normalized to >= rerank/final K.
@@ -434,11 +446,14 @@ async function retrieveStage(
       tableName: input.tableName,
       queryName: input.queryName,
     });
+    signal?.throwIfAborted();
     const matches = await store.similaritySearchVectorWithScore(
       queryEmbedding,
       retrieveK,
     );
+    signal?.throwIfAborted();
     const canonicalLookup = await loadCanonicalPageLookup();
+    signal?.throwIfAborted();
     const normalizedMatches = matches.map(([doc, score], index) => {
       const rewrittenDoc = rewriteLangchainDocument(
         doc,
@@ -495,7 +510,9 @@ async function retrieveStage(
     }
 
     const docIds = extractDocIdsFromBaseDocs(baseDocs);
+    signal?.throwIfAborted();
     const metadataMap = await fetchRefinedMetadata(docIds, input.supabaseAdmin);
+    signal?.throwIfAborted();
 
     const enrichedDocs = enrichAndFilterDocs(
       baseDocs,
@@ -562,6 +579,7 @@ async function retrieveStage(
       },
     }),
   );
+  signal?.throwIfAborted();
 
   return {
     queryEmbedding: retrievalResult.queryEmbedding,
@@ -581,7 +599,9 @@ async function rankStage(
   input: RagRetrievalInput,
   retrieval: RetrievalStageResult,
   rewrittenQuery: string,
+  signal?: AbortSignal,
 ): Promise<RankStageResult> {
+  signal?.throwIfAborted();
   // Rerank stage K: maxResults controls how many items the reranker outputs.
   const rerankEnabled = input.rankerMode !== "none";
   const { finalK, rerankK } = normalizeRagK({
@@ -603,13 +623,16 @@ async function rankStage(
   });
 
   const runReranker = async () => {
+    signal?.throwIfAborted();
     const rankedDocs = await applyRanker(retrieval.enrichedDocs, {
       mode: input.rankerMode,
       maxResults: rerankEnabled ? (rerankK ?? finalK) : finalK,
       embeddingSelection: input.embeddingSelection,
       queryEmbedding: retrieval.queryEmbedding,
       query: rewrittenQuery ?? input.question,
+      signal,
     });
+    signal?.throwIfAborted();
     const rerankerInputTelemetry = emitRerankerSpan
       ? buildRetrievalTelemetryEntries(
           retrieval.enrichedDocs,
@@ -649,6 +672,7 @@ async function rankStage(
       },
     }),
   );
+  signal?.throwIfAborted();
 
   return { rankedDocs: rerankerResult.rankedDocs, finalK };
 }
@@ -657,7 +681,9 @@ function contextStage(
   input: RagRetrievalInput,
   retrieval: RetrievalStageResult,
   ranking: RankStageResult,
+  signal?: AbortSignal,
 ): ContextWindowResult {
+  signal?.throwIfAborted();
   // Context stage K: upper bound on selected chunks/citations (finalK).
   const spanStartMs = Date.now();
   let contextResult: ContextWindowResult | null = null;
@@ -770,19 +796,24 @@ const RagGraphAnnotation = Annotation.Root({
 
 type RagGraphState = typeof RagGraphAnnotation.State;
 
-function buildRetrievalGraph(input: RagRetrievalInput, allowPii: boolean) {
+function buildRetrievalGraph(
+  input: RagRetrievalInput,
+  allowPii: boolean,
+  signal?: AbortSignal,
+) {
   return new StateGraph(RagGraphAnnotation)
     .addNode("rewrite", async () => ({
-      rewrittenQuery: await rewriteStage(input, allowPii),
+      rewrittenQuery: await rewriteStage(input, allowPii, signal),
     }))
     .addNode("hyde", async (s: RagGraphState) => ({
-      hydeResult: await hydeStage(input, s.rewrittenQuery, allowPii),
+      hydeResult: await hydeStage(input, s.rewrittenQuery, allowPii, signal),
     }))
     .addNode("retrieve", async (s: RagGraphState) => ({
       retrievalResult: await retrieveStage(
         input,
         s.hydeResult!.embeddingTarget,
         allowPii,
+        signal,
       ),
     }))
     .addNode("rerank", async (s: RagGraphState) => ({
@@ -790,10 +821,16 @@ function buildRetrievalGraph(input: RagRetrievalInput, allowPii: boolean) {
         input,
         s.retrievalResult!,
         s.rewrittenQuery,
+        signal,
       ),
     }))
     .addNode("context", (s: RagGraphState) => ({
-      contextResult: contextStage(input, s.retrievalResult!, s.rankingResult!),
+      contextResult: contextStage(
+        input,
+        s.retrievalResult!,
+        s.rankingResult!,
+        signal,
+      ),
     }))
     .addEdge(START, "rewrite")
     .addEdge("rewrite", "hyde")
@@ -819,6 +856,7 @@ export async function runRagRetrieval(
   options?: { signal?: AbortSignal | null },
 ): Promise<RagChainOutput> {
   const signal = options?.signal ?? null;
+  signal?.throwIfAborted();
   const allowPii = process.env.LANGFUSE_INCLUDE_PII === "true";
 
   input.updateTrace?.({ metadata: { rag: { retrieval_attempted: true } } });
@@ -834,7 +872,7 @@ export async function runRagRetrieval(
 
   // runName labels the run in LangSmith (auto-traced via LANGSMITH_* env vars,
   // independent of the Langfuse callback above — both observe the same graph).
-  const graph = buildRetrievalGraph(input, allowPii);
+  const graph = buildRetrievalGraph(input, allowPii, signal ?? undefined);
   // Run inside the request root's OTel context. The handler takes its parent
   // from ambient context, and without this the root is not active, so these
   // spans would open a trace of their own instead of nesting here.
@@ -850,6 +888,7 @@ export async function runRagRetrieval(
   const result = await (input.trace
     ? input.trace.runInContext(invokeGraph)
     : invokeGraph());
+  signal?.throwIfAborted();
 
   const hyde = result.hydeResult!;
   const retrieval = result.retrievalResult!;

@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 
+import { readFileSync } from "node:fs";
+
 /**
- * Sweep every URL the sitemap advertises and fail if any of them is not 200.
+ * Sweep every advertised URL by default; a verified deck-only plan may select
+ * representative paths instead. Fail if any selected URL is not 200.
  *
  * This exists because a build that silently dropped pages is invisible to the
  * canonical smoke: on 2026-09-03, 48 of 162 sitemap URLs were serving 404 while
@@ -63,12 +66,8 @@ async function request(path, { withBody = false } = {}) {
 }
 
 async function readSitemapPaths() {
-  // /sitemap.xml is server-rendered and crawls Notion to build the map, which
-  // makes it both the first request after a deploy and by far the most
-  // expensive — the worst possible thing to give a single attempt. It gets its
-  // own, more patient retry: content URLs recover in seconds, a cold sitemap
-  // crawl does not. Fetched once, body included, because doing it twice meant
-  // two full crawls back to back.
+  // Production serves the bundled sitemap; it does not crawl Notion here.
+  // Keep retries for transient HTTP failures and read the body once per attempt.
   let result;
   for (let attempt = 1; attempt <= sitemapAttempts; attempt++) {
     result = await request("/sitemap.xml", { withBody: true });
@@ -108,9 +107,21 @@ async function readSitemapPaths() {
   return [...paths];
 }
 
-const paths = await readSitemapPaths();
+let selectedPaths = null;
+if (process.env.SWEEP_PLAN_PATH) {
+  try {
+    const { representativePaths } =
+      await import("./deployment-sweep-scope.mjs");
+    selectedPaths = representativePaths(
+      JSON.parse(readFileSync(process.env.SWEEP_PLAN_PATH, "utf8")),
+    );
+  } catch {
+    // Missing or invalid plans retain the original full sweep.
+  }
+}
+const paths = selectedPaths ?? (await readSitemapPaths());
 console.log(
-  `sweeping ${paths.length} sitemap URLs against ${baseUrl} (concurrency ${concurrency})`,
+  `sweeping ${paths.length} ${selectedPaths ? "representative" : "sitemap"} URLs against ${baseUrl} (concurrency ${concurrency})`,
 );
 
 const failures = [];
@@ -153,7 +164,9 @@ await Promise.all(
   Array.from({ length: Math.max(1, concurrency) }, () => worker()),
 );
 
-console.log(`\n${paths.length - failures.length}/${paths.length} URLs served 200`);
+console.log(
+  `\n${paths.length - failures.length}/${paths.length} URLs served 200`,
+);
 
 if (failures.length > 0) {
   console.error(

@@ -768,6 +768,10 @@ const getNavigationLinkPages = pMemoize(
 );
 
 const inFlightPageFetches = new Map<string, Promise<ExtendedRecordMap>>();
+const inFlightPersistentReads = new Map<
+  string,
+  Promise<ExtendedRecordMap | null>
+>();
 const pageFetchOwners = new Map<string, symbol>();
 const pageCacheWrites = new Map<string, Promise<void>>();
 const enableGroupedCollectionHydration =
@@ -821,7 +825,7 @@ const setCachedRecordMapInMemory = (
   memoryPageCache.set(cacheKey, { recordMap, expiresAt });
 };
 
-const readCachedRecordMap = async (
+const readCachedRecordMapFromStore = async (
   cacheKey: string,
 ): Promise<ExtendedRecordMap | null> => {
   if (!isNotionPageCacheEnabled) {
@@ -848,6 +852,25 @@ const readCachedRecordMap = async (
   }
 
   return null;
+};
+
+const readCachedRecordMap = async (
+  cacheKey: string,
+): Promise<ExtendedRecordMap | null> => {
+  const existing = inFlightPersistentReads.get(cacheKey);
+  if (existing) return existing;
+
+  // Share Keyv's read/decode before the later hydration/origin boundary. Keep
+  // this separate: the store helper may join an active manual page refresh.
+  const read = readCachedRecordMapFromStore(cacheKey);
+  inFlightPersistentReads.set(cacheKey, read);
+  try {
+    return await read;
+  } finally {
+    if (inFlightPersistentReads.get(cacheKey) === read) {
+      inFlightPersistentReads.delete(cacheKey);
+    }
+  }
 };
 
 const writeCachedRecordMap = async (
@@ -1339,6 +1362,25 @@ const hydrateGroupedCollectionData = async (
   return recordMap;
 };
 
+function prioritizeRequestedPage(
+  recordMap: ExtendedRecordMap,
+  pageId: string,
+): ExtendedRecordMap {
+  const canonicalId = parsePageId(pageId, { uuid: true }) ?? pageId;
+  const blockId = [canonicalId, canonicalId.replaceAll("-", ""), pageId].find(
+    (id) => recordMap.block[id],
+  );
+  if (blockId && Object.keys(recordMap.block)[0] !== blockId) {
+    // Metadata helpers and react-notion-x select the first block. Navigation
+    // merges may reorder it even when the requested page's values stay fresh.
+    recordMap.block = {
+      [blockId]: recordMap.block[blockId],
+      ...recordMap.block,
+    };
+  }
+  return recordMap;
+}
+
 /**
  * Post-fetch finalization shared by every `getPage` path.
  *
@@ -1355,7 +1397,7 @@ const finalizeRecordMap = async (
 
   // Hydration merges may replace top-level bags. Keep the cached object coherent
   // with its repaired query without a cache write or a new expiry deadline.
-  return Object.assign(recordMap, hydrated);
+  return prioritizeRequestedPage(Object.assign(recordMap, hydrated), pageId);
 };
 
 const finalizeCachedRecordMap = async (
@@ -1363,7 +1405,8 @@ const finalizeCachedRecordMap = async (
   pageId: string,
   cacheKey: string,
 ): Promise<ExtendedRecordMap> => {
-  if (!enableGroupedCollectionHydration) return recordMap;
+  if (!enableGroupedCollectionHydration)
+    return prioritizeRequestedPage(recordMap, pageId);
   const existing = inFlightPageFetches.get(cacheKey);
   if (existing) return existing;
   const repair = finalizeRecordMap(recordMap, pageId);

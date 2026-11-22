@@ -54,6 +54,11 @@ import {
   finalizeChatTrace,
 } from "@/lib/server/api/chat-trace-state";
 import {
+  CHAT_TRAFFIC_RESPONSE_HEADER,
+  classifyChatTraffic,
+  SYNTHETIC_TRAFFIC_HEADER,
+} from "@/lib/server/api/chat-traffic";
+import {
   getGpt6FallbackModel,
   shouldFallbackBeforeStreaming,
 } from "@/lib/server/api/gpt6-fallback-policy";
@@ -177,6 +182,10 @@ export async function handleLangchainChat(
   const requestIdHeader = getHeaderValue("x-request-id");
   const serverRequestId = requestIdHeader ?? randomUUID();
   const telemetrySessionId = getHeaderValue("x-chat-id");
+  const traffic = classifyChatTraffic(getHeaderValue(SYNTHETIC_TRAFFIC_HEADER));
+  // Echoed so a probe can confirm its token was accepted without waiting for
+  // Langfuse ingestion.
+  res.setHeader(CHAT_TRAFFIC_RESPONSE_HEADER, traffic);
   const telemetryContext: TelemetryContext = {
     requestId: serverRequestId,
     sessionId: telemetrySessionId,
@@ -501,6 +510,7 @@ export async function handleLangchainChat(
       intent: routingDecision.intent,
       presetKey: tracePresetForTag,
       environment: env,
+      traffic,
     });
     const isNewConversation = !messages.some(
       (message) => message.role === "assistant",
@@ -516,6 +526,7 @@ export async function handleLangchainChat(
           sessionId: sessionId ?? null,
           traceId: traceState.trace?.traceId ?? null,
           environment: env,
+          traffic,
         }),
       );
     };
@@ -569,6 +580,7 @@ export async function handleLangchainChat(
     });
     traceState.metadata = mergeTraceMetadata(traceState.metadata ?? {}, {
       env,
+      traffic,
       requestId: traceState.requestId ?? null,
       intent: routingDecision.intent,
       presetId,
@@ -787,6 +799,7 @@ export async function handleLangchainChat(
           distinctId,
           properties: {
             env,
+            traffic,
             // Langfuse traceId of this request (null when no trace was
             // emitted), so PostHog events can be joined back to the Langfuse
             // trace for cross-system correlation.

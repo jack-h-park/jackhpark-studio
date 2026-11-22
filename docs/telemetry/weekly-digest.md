@@ -18,6 +18,12 @@ environment in its heading. Without that filter local dev requests are counted a
 production — dev traffic outnumbers prod here, so a single failed dev run used to
 surface as a 100% production error rate.
 
+The same section also drops synthetic traffic (`properties.traffic = 'synthetic'`:
+smoke tests and agent probes, see [Synthetic traffic](implementation/telemetry-logging.md#synthetic-traffic)),
+whatever `--env` says. The Langfuse sections are not filtered: retrieval scores and
+cost still include probe traces, which matters only when probes are a large share of
+a quiet week.
+
 ## What it reports
 
 | Section | Source | Why it matters |
@@ -26,7 +32,7 @@ surface as a 100% production error rate.
 | Retrieval quality | `retrieval_highest_score`, `retrieval_insufficient`, `context_unique_docs` | Proxy signals for how well retrieval did |
 | **Proxy vs. human** | join of `user_feedback` ↔ `retrieval_insufficient` by `traceId` | The payoff of P1: a 2×2 cross-tab showing where the proxy and the human **disagree** |
 | Product metrics (PostHog) | HogQL over `chat_completion` | Volume, latency, error/abort/cache rates (when a PostHog personal key is set) |
-| Engineering metrics (Langfuse) | Langfuse metrics API (`/api/public/metrics`) | Trace/observation volume and — uniquely — model **cost** in $ (PostHog tracks tokens, not cost) |
+| Engineering metrics (Langfuse) | Langfuse metrics API (`/api/public/v2/metrics`) | Trace/observation volume and — uniquely — model **cost** in $ (PostHog tracks tokens, not cost) |
 | Takeaways | deterministic rule-based flags | Reproducible, no LLM, no hallucinated numbers |
 
 The divergence cross-tab is the point. The off-diagonal cells are leads:

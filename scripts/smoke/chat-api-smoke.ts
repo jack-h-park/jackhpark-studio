@@ -4,7 +4,12 @@ import {
   type ChatSmokeResult,
   readChatResponseBody,
 } from "./lib/chat-response";
-import { normalizeBaseUrl, withAbortTimeout } from "./lib/smoke-core";
+import {
+  logChatTraffic,
+  normalizeBaseUrl,
+  syntheticTrafficHeaders,
+  withAbortTimeout,
+} from "./lib/smoke-core";
 
 type SmokeResult = ChatSmokeResult;
 
@@ -23,6 +28,7 @@ const endpoint = "/api/chat";
 
 const baseHeaders = {
   "Content-Type": "application/json",
+  ...syntheticTrafficHeaders(),
 };
 
 async function run() {
@@ -150,6 +156,7 @@ async function sendChatRequest(
         `HTTP ${response.status} ${response.statusText} ${responseText}`.trim(),
       );
     }
+    logChatTraffic("[smoke:chat]", response);
 
     const smokeResult = await readChatResponseBody(response);
     return {

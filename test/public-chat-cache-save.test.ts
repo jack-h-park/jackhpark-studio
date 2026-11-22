@@ -20,7 +20,7 @@ import {
 
 type Fixture = {
   events: string[];
-  audited: { result: string; target: string }[];
+  audited: { result: string; target: string; cacheInvalidation?: string }[];
 };
 
 async function notificationPage() {
@@ -104,7 +104,8 @@ async function bundled(entry: string, mode = "success") {
       if (${JSON.stringify(mode)} === 'db-failed') throw new Error('DB save failed');
       fixture.events.push('committed'); return {updatedAt:'2026-10-02T12:00:00.000Z'};
     }`,
-    "@vercel/functions": `export async function invalidateByTag(tag) {
+    "@vercel/functions": `export async function addCacheTag() { throw new Error('Unexpected tag registration in admin save'); }
+    export async function invalidateByTag(tag) {
       fixture.events.push('invalidate:'+tag);
       if (${JSON.stringify(mode)} === 'purge-failed') throw new Error('PRIVATE_PROVIDER_TOKEN');
     }`,
@@ -167,12 +168,27 @@ async function save(
   };
   const previousVercel = process.env.VERCEL;
   const previousEnv = process.env.VERCEL_ENV;
+  const contextSymbol = Symbol.for("@vercel/request-context");
+  const previousContext = Object.getOwnPropertyDescriptor(
+    globalThis,
+    contextSymbol,
+  );
+  Object.defineProperty(globalThis, contextSymbol, {
+    configurable: true,
+    value: {
+      get: () =>
+        mode === "missing-purge" ? {} : { purge: { invalidateByTag() {} } },
+    },
+  });
   if (mode === "local") delete process.env.VERCEL;
   else process.env.VERCEL = "1";
   process.env.VERCEL_ENV = "production";
   try {
     await module.default(req, res);
   } finally {
+    if (previousContext)
+      Object.defineProperty(globalThis, contextSymbol, previousContext);
+    else Reflect.deleteProperty(globalThis, contextSymbol);
     if (previousVercel === undefined) delete process.env.VERCEL;
     else process.env.VERCEL = previousVercel;
     if (previousEnv === undefined) delete process.env.VERCEL_ENV;
@@ -191,12 +207,28 @@ void test("successful save invalidates only the chat tag after DB commit", async
   ]);
   assert.deepEqual(result.payload, {
     updatedAt: "2026-10-02T12:00:00.000Z",
-    cacheRefresh: "invalidated",
+    cacheRefresh: "invalidation-requested",
   });
   assert.deepEqual(
     result.audited.map(({ result, target }) => ({ result, target })),
-    [{ result: "success", target: "chat-config" }],
+    [
+      { result: "success", target: "chat-config" },
+      { result: "success", target: "public-chat-shell-cache" },
+    ],
   );
+  assert.equal(result.audited[1].cacheInvalidation, "invalidation-requested");
+});
+
+void test("missing runtime purge keeps the committed settings and reports a cache warning", async () => {
+  const result = await save("missing-purge");
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.events, ["save", "committed"]);
+  assert.equal(result.payload.cacheRefresh, "failed");
+  assert.equal(result.payload.updatedAt, "2026-10-02T12:00:00.000Z");
+  assert.match(String(result.payload.warning), /saved.*cache refresh/i);
+  assert.equal(result.audited[1].cacheInvalidation, "unavailable");
+  assert.equal(result.audited[0].result, "success");
+  assert.equal(result.audited[1].result, "failure");
 });
 
 for (const [mode, expectedStatus] of [
@@ -334,9 +366,12 @@ void test("saved-but-refresh-failed fixture keeps form saved and displays warnin
       })),
     );
     globalThis.fetch = async () =>
-      Response.json({ error: "Database save failed" }, {
-        status: 500,
-      });
+      Response.json(
+        { error: "Database save failed" },
+        {
+          status: 500,
+        },
+      );
     await act(async () => state.handleSave());
     assert.equal(state!.hasUnsavedChanges, true);
     assert.equal(state!.cacheRefreshWarning, null);

@@ -137,6 +137,67 @@ Operators can toggle between J·P and Legacy themes from the Admin top nav
 - The gradient never animates (per brand guide §2.8).
 - No bounce, spring, or parallax animations. Motion tokens: `--ease-std`, `--dur-1..4`.
 
+### 0-I. Favicons and Product App Icons
+
+> **Added 2026-11-14.** Brand guide §7.5 says to use the filled JHP mark for favicons and
+> app icons. That still holds for the Studio and its public front door. This section
+> covers the separate product apps that each run on their own host.
+
+**Who uses which icon**
+
+| Surface | Browser tab and home-screen icon | In-page identity |
+|---|---|---|
+| The Studio site and its public front door | The official JHP mark set (`public/favicon.ico`, the 16/32/48 PNGs, `apple-touch-icon.png`, the 192/512 Android icons) | The JHP mark |
+| A separate product app (a dashboard or tool on its own host) | A product app icon, built as described below | The official JHP mark in the app's header or sidebar |
+| A person (profile picture, byline, agent board) | Not used as an icon | The cartoon avatar |
+
+The cartoon avatar is never a favicon or app icon. Several apps sharing one icon cannot be
+told apart in a tab bar, so each product app gets its own icon. All of them are built the
+same way, so they still read as one family.
+
+**How a product app icon is built**
+
+- **Tile:** the JHP mark's own tile, filled with `--gradient-full` at about 113° (the angle
+  sampled from the shipped `android-chrome-512x512.png`, which is flatter than the 135° in
+  brand guide §2.4). Inset about 3% and corner radius about 17% of the canvas. No other
+  gradient, and no flat tiles in a single brand stop: §3.2 keeps the four brand colors for
+  the two gradients.
+- **Glyph:** one white glyph from Phosphor Bold at 70% of the tile, used as published,
+  never redrawn. Bold is used here instead of the 1.5px Regular outline of §6.1 because the
+  JHP letterforms are heavy and Regular looks like a different family next to them at tab
+  size. Each app's glyph must have a different outline from every other app's, because
+  outline is what still reads at 16 px.
+- **Shadow:** one soft shadow straight down, under the glyph only, color `#1a0a33`, sized
+  in screen pixels:
+
+  | Icon size | Offset | Blur | Opacity |
+  |---|---|---|---|
+  | 16 px | 0.7 px | 0.5 px | 55% |
+  | 32 px | 1.0 px | 0.7 px | 55% |
+  | 48 px | 1.2 px | 0.9 px | 40% |
+  | larger | 2.0 px per 180 px | 2.5 px per 180 px | 40% |
+
+- **Apple touch icon:** square and full-bleed. iOS applies its own mask, so a pre-rounded
+  tile would show its transparent corners as black.
+- **Files:** `favicon.ico` (16, 32, 48), `favicon-16x16.png`, `favicon-32x32.png`,
+  `favicon-48x48.png`, `apple-touch-icon.png` (180), `android-chrome-192x192.png`,
+  `android-chrome-512x512.png`, and the source `icon.svg`.
+
+**Do not**
+
+- Put the JHP mark inside an app icon or badge it with a glyph. At 16 px a corner badge
+  shrinks to a dot and breaks the mark's clear space (§2.6). Show the mark in the app's
+  header instead.
+- Thicken the glyph below 48 px, or outline it instead of using the shadow. Both were
+  tried: the first looks overweight, the second looks like a sticker at larger sizes.
+- Use a gradient app icon inside a page that already spends its one `--gradient-full` (for
+  example, a launcher page with a gradient top bar). Show the same glyph from Phosphor
+  Regular in ink there.
+
+The per-app glyph choices and the script that renders the sets live in the private
+infrastructure repository that serves those apps. Each app copies its generated set into
+its own static directory, and nothing links across repositories at runtime.
+
 ---
 
 ## 1. Guiding Principles (The "Why")

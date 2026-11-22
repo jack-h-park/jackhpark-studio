@@ -18,7 +18,7 @@ export default async function handler(
 
   try {
     const runtime = await loadPublicSettings();
-    cachePublicSettingsResponse(req, res);
+    await cachePublicSettingsResponse(req, res);
     return res.status(200).json({ runtime });
   } catch (err: unknown) {
     console.error("[api/chat-runtime] failed to load chat runtime", err);

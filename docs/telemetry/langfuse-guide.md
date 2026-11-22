@@ -107,6 +107,7 @@ Emitted tags:
 - `intent:<intent>` — the request routing intent (`knowledge` / `chitchat` / `command`).
 - `preset:<presetKey>` — the active chat preset used for the request.
 - `env:<environment>` — the runtime environment (`dev` / `preview` / `prod`).
+- `traffic:<source>` — `visitor`, or `synthetic` for smoke tests and agent probes (see [Synthetic traffic](implementation/telemetry-logging.md#synthetic-traffic)).
 
 Notes:
 

@@ -30,17 +30,21 @@ async function generateOnce(opts: {
   userPrompt: string;
   temperature: number;
   maxTokens: number;
+  signal?: AbortSignal;
 }): Promise<string> {
+  opts.signal?.throwIfAborted();
   const llm = await createChatModel(
     opts.provider,
     opts.model,
     opts.temperature,
     opts.maxTokens,
   );
-  const response = await llm.invoke([
-    new SystemMessage(opts.systemPrompt),
-    new HumanMessage(opts.userPrompt),
-  ]);
+  opts.signal?.throwIfAborted();
+  const response = await llm.invoke(
+    [new SystemMessage(opts.systemPrompt), new HumanMessage(opts.userPrompt)],
+    { signal: opts.signal },
+  );
+  opts.signal?.throwIfAborted();
   return messageContentToString(
     (response as { content?: unknown }).content,
   ).trim();
@@ -52,17 +56,26 @@ const HYDE_MAX_TOKENS = 220;
 const HYDE_TEMPERATURE = 0.35;
 const MMR_LAMBDA = 0.5;
 
+function rethrowIfAborted(error: unknown, signal?: AbortSignal): void {
+  signal?.throwIfAborted();
+  if (error instanceof Error && error.name === "AbortError") {
+    throw error;
+  }
+}
+
 export type ReverseRagOptions = {
   enabled: boolean;
   mode?: ReverseRagMode;
   provider: ModelProvider;
   model: string;
+  signal?: AbortSignal;
 };
 
 export async function rewriteQuery(
   originalQuery: string,
   options: ReverseRagOptions,
 ): Promise<string> {
+  options.signal?.throwIfAborted();
   if (!options.enabled) {
     return originalQuery;
   }
@@ -94,9 +107,11 @@ export async function rewriteQuery(
       userPrompt,
       temperature: REVERSE_RAG_TEMPERATURE,
       maxTokens: REVERSE_RAG_MAX_TOKENS,
+      signal: options.signal,
     });
     return rewritten.length > 0 ? rewritten : originalQuery;
   } catch (err) {
+    rethrowIfAborted(err, options.signal);
     console.warn("[rag-enhancements] reverse query rewrite failed", err);
     return originalQuery;
   }
@@ -106,12 +121,14 @@ export type HydeOptions = {
   enabled: boolean;
   provider: ModelProvider;
   model: string;
+  signal?: AbortSignal;
 };
 
 export async function generateHydeDocument(
   query: string,
   options: HydeOptions,
 ): Promise<string | null> {
+  options.signal?.throwIfAborted();
   if (!options.enabled || !query?.trim()) {
     return null;
   }
@@ -128,9 +145,11 @@ export async function generateHydeDocument(
       userPrompt,
       temperature: HYDE_TEMPERATURE,
       maxTokens: HYDE_MAX_TOKENS,
+      signal: options.signal,
     });
     return hyde.length > 0 ? hyde : null;
   } catch (err) {
+    rethrowIfAborted(err, options.signal);
     console.warn("[rag-enhancements] HyDE generation failed", err);
     return null;
   }
@@ -151,6 +170,7 @@ export type RankerOptions = {
   queryEmbedding?: number[];
   mmrLambda?: number;
   query?: string;
+  signal?: AbortSignal;
 };
 
 function getDocumentText(doc: RankerInputDoc): string | null {
@@ -184,6 +204,7 @@ async function runMmr<T extends RankerInputDoc>(
     return docs.slice(0, maxResults);
   }
 
+  options.signal?.throwIfAborted();
   const embeddings = await embedTexts(
     normalizedDocs.map((entry) => entry.text),
     {
@@ -193,6 +214,7 @@ async function runMmr<T extends RankerInputDoc>(
       model: embeddingSelection.model,
     },
   );
+  options.signal?.throwIfAborted();
 
   const mmrLambda = Math.max(0, Math.min(1, options.mmrLambda ?? MMR_LAMBDA));
   const k = Math.min(maxResults, normalizedDocs.length);
@@ -238,12 +260,14 @@ async function runCohereRerank<T extends RankerInputDoc>(
   }
 
   const client = getCohereClient();
+  options.signal?.throwIfAborted();
   const response = await client.v2.rerank({
     model: COHERE_RERANK_MODEL,
     query,
     documents: texts,
     topN: maxResults,
   });
+  options.signal?.throwIfAborted();
 
   return response.results.map((result) => docs[result.index]);
 }
@@ -252,6 +276,7 @@ export async function applyRanker<T extends RankerInputDoc>(
   docs: T[],
   options: RankerOptions,
 ): Promise<T[]> {
+  options.signal?.throwIfAborted();
   if (docs.length === 0) {
     return [];
   }
@@ -263,13 +288,18 @@ export async function applyRanker<T extends RankerInputDoc>(
       try {
         return await runMmr(docs, { ...options, maxResults: trimmedMax });
       } catch (err) {
+        rethrowIfAborted(err, options.signal);
         console.warn("[rag-enhancements] MMR ranking failed", err);
         return docs.slice(0, trimmedMax);
       }
     case "cohere-rerank":
       try {
-        return await runCohereRerank(docs, { ...options, maxResults: trimmedMax });
+        return await runCohereRerank(docs, {
+          ...options,
+          maxResults: trimmedMax,
+        });
       } catch (err) {
+        rethrowIfAborted(err, options.signal);
         console.warn("[rag-enhancements] Cohere rerank failed", err);
         return docs.slice(0, trimmedMax);
       }

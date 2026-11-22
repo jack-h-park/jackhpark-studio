@@ -120,11 +120,94 @@ continues to be authoritative.
 
 `invalidateByTag()` uses stale-while-revalidate: the next request can serve stale
 content while a refresh runs, followed by fresh content. The installed SDK can
-resolve without effective runtime purge context. Thus `cacheRefresh:
-"invalidated"` records a resolved SDK request, not independently proven global
-purge success. Verify deployment-bound HTML and data after a separately approved
-benign save; leave propagation pending when evidence is unavailable. See
+resolve without effective runtime purge context, so the production wrapper
+requires a callable request-context purge API before calling the SDK. It returns
+`invalidation-requested`, not a claim of completed propagation. Missing capability
+and SDK rejection remain explicit failures with no automatic retry.
+
+A successful `/studio` manual refresh exposes `chatCacheRefresh` and `requestId`
+in its response. The panel distinguishes completed page revalidation from a
+requested, unverified chat cache refresh and cautions against repeating the
+mutation just to verify delivery. Other page refreshes do not request chat
+invalidation. Existing API clients can continue reading `revalidatedPath` and
+`revalidatedAt`. Verify deployment-bound HTML and data after a separately approved
+mutation; leave propagation pending when evidence is unavailable. See
 [Vercel's tag invalidation semantics and environment scope](https://vercel.com/docs/caching/cdn-cache/purge).
+
+## Tag Association and Scope
+
+The Production request log for `4h567-1794952777132-7a356d67c625`
+(`2026-11-17T21:59:37.132Z`, `/chat`, deployment
+`dpl_9pnp9n6AEHgKXqpD9vmHHD3MUk6k`) displayed only the navigation dependency
+tag `www.jackhpark.com:production:notion-header:v1`, not the shell tag below.
+This identifies a missing association in the displayed entry; it does not
+explain Vercel's internal header/metadata precedence or prove every variant
+has the same problem.
+
+Cacheable shell and public settings responses now also await `addCacheTag()`
+through the installed SDK, using the request-context tag-registration capability
+alongside the existing response header. This appends the shell tag without
+replacing navigation dependency tags. If the capability is missing or rejects,
+the origin still serves its normal content with `private, no-store` and no shell
+tag header. Private/query/error responses do not request registration. Local
+execution retains the header-only origin checks without claiming CDN behavior.
+
+Optional SDK registration has a 500 ms deadline; it does not bound configuration
+or navigation reads, and it cannot cancel the SDK's underlying work. A deadline
+keeps the completed response private even if registration later resolves. Late
+rejections are handled, and no registration retry or cross-request capability
+failure cache is added.
+
+The existing `notionLogger` emits `public_chat_tag_registration_unconfirmed`
+with only an allowlisted `reason` (`capability_unavailable`, `sdk_rejected`, or
+`deadline_exceeded`), `sharedCache: "disabled"`, and `deadlineMs: 500`.
+Diagnostics respect the existing domain log level and are limited to one per
+reason per process per minute; cold starts have independent limits. The limit
+applies only to logging, never tag registration or content freshness. It adds
+no DB configuration read, Langfuse/PostHog event, provider call, or scheduled
+monitor. No raw error, context, credential, request query, or user content is
+logged. Log emission failure cannot prevent the private fallback.
+
+The private fallback can increase origin CPU/invocations if tag registration is
+unavailable in Production. Verify capability, the displayed shell tag, cache
+hits, and one separately authorized invalidation before claiming rollout success.
+No production rollout or repeat refresh is implied by these local regressions.
+
+The shared `public-chat-shell-v1` tag intentionally covers these cacheable
+responses, not just the HTML page:
+
+| Origin response | TTL | Tag |
+| --- | --- | --- |
+| `/chat` HTML | 900 seconds, 60-second SWR | `public-chat-shell-v1` |
+| `/_next/data/<buildId>/chat.json` | 900 seconds, 60-second SWR | Same |
+| `/api/chat-config` | 60 seconds | Same |
+| `/api/chat-runtime` | 60 seconds | Same |
+
+Query-bearing, authorization, and other private responses are not tagged.
+Notion page ISR, image optimization, conversation responses, and the separately
+tagged navigation payload are outside this tag's declared scope. A tag purge can
+affect all cache layers carrying that tag, so keep it out of unrelated caches.
+
+Cache keys include host and deployment identity. Tags are scoped to project and
+environment, and the SDK uses the invoking function's environment. Different
+hosts in the same project/environment need not be invalidated with separate
+calls. The `chat.jackhpark.com` root is an external rewrite to the canonical
+`www.jackhpark.com/chat`; its parent cache is another delivery boundary to verify,
+not a reason to purge the whole project.
+
+Vercel consumes and strips `Vercel-Cache-Tag` before responding to visitors.
+Its absence in public response headers does not establish missing association.
+Conversely, setting the header locally and receiving SDK acknowledgement do not
+establish that Vercel indexed the tag or propagated its invalidation. Local
+production Next.js checks cover origin HTML, data, and API headers only.
+
+For delivery proof, retain exact deployment, project/environment, host, method,
+query, request IDs, timestamps, cache status, Age, and any available cache reason
+or triggering tag. An unchanged header hash is expected when content was not
+edited and is not a freshness marker. A later MISS from another region or bot
+cannot be attributed to the earlier mutation without matching cache evidence.
+Do not widen purges, switch valid tagging APIs, shorten TTLs, or retry a mutation
+to compensate for unavailable tag-index or provider trace evidence.
 
 ## Production Rollout Gate
 

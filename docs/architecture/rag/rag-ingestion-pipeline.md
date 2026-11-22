@@ -57,6 +57,18 @@ internal repo paths into a public assistant fails silently.
 so a card demoted below `drafted`, or opted out, is retired without touching any other
 document. Requires `INTERVIEW_BANK_GITHUB_TOKEN`; the repo is private.
 
+A third gate reads the words. Before a card is embedded, its embedded text — question
+included — is checked against a list of unannounced product names that lives in the same
+private repo (`wiki/persona/confidential-names.yaml`, overridable with
+`CONFIDENTIAL_NAMES_PATH`) and is fetched with the same token at ingest time. This repo is
+public, so the names are never stored here, in tests or in fixtures. A card that matches is
+refused with the reason `confidential-name`, shown with the matched words on
+`/admin/interview-bank`; if an earlier run published it, its chunks are deleted and its
+document marked `missing` (`lib/rag/interview-bank-withdraw.ts`), because `missing` alone
+changes retrieval only under the v2 match RPCs. Each refusal counts as a run error. If the
+list cannot be read or does not parse, the run and the preview fail rather than publish
+unchecked. Matching rules: `lib/rag/sources/confidential-names.ts`.
+
 ---
 
 ## 2. Ingestion Sources

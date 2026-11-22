@@ -5,8 +5,7 @@ import type {
   TelemetryConfig,
   TelemetryDetailLevel,
 } from "@/lib/logging/types";
-import { getAppEnv } from "@/lib/langfuse";
-import { getAdminChatConfig } from "@/lib/server/admin-chat-config";
+import { getAppEnv } from "@/lib/app-env";
 
 const TELEMETRY_DETAIL_ORDER: TelemetryDetailLevel[] = [
   "minimal",
@@ -218,6 +217,7 @@ export async function buildLoggingConfig(): Promise<LoggingConfig> {
     env === "production" ? "standard" : "verbose",
   );
 
+  const { getAdminChatConfig } = await import("@/lib/server/admin-chat-config");
   const adminConfig = await getAdminChatConfig();
   const baseSample = adminConfig.telemetry.sampleRate ?? sampleDefault;
   const baseDetail = adminConfig.telemetry.detailLevel ?? detailDefault;

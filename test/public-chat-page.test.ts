@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { IncomingMessage, ServerResponse } from "node:http";
 import { Socket } from "node:net";
-import test from "node:test";
+import test, { type TestContext } from "node:test";
+import { setImmediate } from "node:timers/promises";
 
 import type { GetServerSidePropsContext } from "next";
 import type { ExtendedRecordMap } from "notion-types";
@@ -24,6 +25,112 @@ const header = {
     signed_urls: {},
   } as ExtendedRecordMap,
 };
+
+function platformContext(t: TestContext, value: unknown) {
+  const symbol = Symbol.for("@vercel/request-context");
+  const previous = Object.getOwnPropertyDescriptor(globalThis, symbol);
+  const vercel = process.env.VERCEL;
+  process.env.VERCEL = "1";
+  Object.defineProperty(globalThis, symbol, {
+    configurable: true,
+    value: { get: () => value },
+  });
+  t.after(() => {
+    if (previous) Object.defineProperty(globalThis, symbol, previous);
+    else Reflect.deleteProperty(globalThis, symbol);
+    if (vercel === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = vercel;
+  });
+}
+
+void test("cacheable HTML and data register the chat tag alongside runtime dependency tags", async (t) => {
+  const tags = new Set(["www.example.test:production:notion-header:v1"]);
+  const calls: unknown[] = [];
+  platformContext(t, {
+    addCacheTag(tag: string) {
+      calls.push(tag);
+      tags.add(tag);
+    },
+  });
+  for (const url of ["/chat", "/_next/data/build/chat.json"]) {
+    const ctx = context(url);
+    await loader()(ctx);
+    assert.equal(ctx.res.getHeader("Vercel-Cache-Tag"), "public-chat-shell-v1");
+  }
+  assert.deepEqual(calls, ["public-chat-shell-v1", "public-chat-shell-v1"]);
+  assert.deepEqual(
+    [...tags],
+    ["www.example.test:production:notion-header:v1", "public-chat-shell-v1"],
+  );
+});
+
+for (const capability of [
+  undefined,
+  {},
+  { addCacheTag: true },
+  {
+    addCacheTag() {
+      throw new Error("PRIVATE_PLATFORM_FAILURE");
+    },
+  },
+  {
+    async addCacheTag() {
+      throw new Error("PRIVATE_PLATFORM_FAILURE");
+    },
+  },
+]) {
+  void test("unavailable or failed production tag registration keeps the visible page private", async (t) => {
+    platformContext(t, capability);
+    const ctx = context();
+    const result = await loader()(ctx);
+    assert.ok("props" in result);
+    assert.equal(ctx.res.getHeader("Cache-Control"), "private, no-store");
+    assert.equal(ctx.res.getHeader("Vercel-Cache-Tag"), undefined);
+  });
+}
+
+void test("private HTML and data never register the shared chat tag", async (t) => {
+  platformContext(t, {
+    addCacheTag() {
+      assert.fail("private response was tagged");
+    },
+  });
+  for (const url of ["/chat", "/_next/data/build/chat.json"]) {
+    const ctx = context(url);
+    ctx.query = { prompt: "PRIVATE_SENTINEL" };
+    await loader()(ctx);
+    assert.equal(ctx.res.getHeader("Cache-Control"), "private, no-store");
+  }
+});
+
+for (const url of ["/chat", "/_next/data/build/chat.json"]) {
+  void test(
+    `${url} returns private content after a tag deadline and ignores late success`,
+    { timeout: 5000 },
+    async (t) => {
+      let finish!: () => void;
+      let calls = 0;
+      platformContext(t, {
+        addCacheTag() {
+          calls++;
+          return new Promise<void>((resolve) => {
+            finish = resolve;
+          });
+        },
+      });
+      const ctx = context(url);
+      const result = await loader()(ctx);
+      assert.ok("props" in result);
+      assert.equal(ctx.res.getHeader("Cache-Control"), "private, no-store");
+      assert.equal(ctx.res.getHeader("Vercel-Cache-Tag"), undefined);
+      finish();
+      await setImmediate();
+      assert.equal(ctx.res.getHeader("Cache-Control"), "private, no-store");
+      assert.equal(ctx.res.getHeader("Vercel-Cache-Tag"), undefined);
+      assert.equal(calls, 1);
+    },
+  );
+}
 
 function context(url = "/chat"): GetServerSidePropsContext {
   const req = new IncomingMessage(
@@ -182,4 +289,18 @@ void test("each miss reads fresh configuration rather than retaining another ins
   const secondProps = await second.props;
   assert.equal(firstProps.adminConfig.baseSystemPromptSummary, "Revision 1");
   assert.equal(secondProps.adminConfig.baseSystemPromptSummary, "Revision 2");
+});
+
+void test("an unverified fallback header stays visible but is never CDN-cached or serialized with its policy hint", async () => {
+  const ctx = context();
+  ctx.res.setHeader("Vercel-Cache-Tag", "old-tag");
+  const result = await loader({
+    loadHeader: async () => ({ ...header, cacheable: false as const }),
+  })(ctx);
+  assert.equal(ctx.res.getHeader("Cache-Control"), "private, no-store");
+  assert.equal(ctx.res.getHeader("Vercel-Cache-Tag"), undefined);
+  assert.ok("props" in result);
+  const props = await result.props;
+  assert.deepEqual(props.headerRecordMap, header.headerRecordMap);
+  assert.equal(Object.hasOwn(props, "cacheable"), false);
 });

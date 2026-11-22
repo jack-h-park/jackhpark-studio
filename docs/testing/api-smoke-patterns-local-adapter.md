@@ -65,6 +65,8 @@ It intentionally contains only local information needed to apply that method ins
   - Expected on the second request when smoke headers are available.
 - `x-trace-id`
   - Optional local trace correlation header during smoke runs.
+- `X-Chat-Traffic`
+  - `synthetic` when the request carried a token matching the server's `SYNTHETIC_TRAFFIC_TOKEN`, otherwise `visitor`. The smoke scripts print it and warn on a mismatch.
 - citations payload separator
   - Expected on the unified `/api/chat` RAG-ish smoke case when retrieval is enabled.
 
@@ -72,6 +74,8 @@ It intentionally contains only local information needed to apply that method ins
 
 - `SMOKE_CHAT_PRESET=local-required`
   - Forces the smoke run through the local-required preset flow.
+- `SYNTHETIC_TRAFFIC_TOKEN=<token>`
+  - Sends `x-jackgpt-synthetic` so the run is labelled synthetic instead of counted as a visitor. Required whenever the smoke target is production; see [Synthetic traffic](../telemetry/implementation/telemetry-logging.md#synthetic-traffic).
 - `SMOKE_HEADERS=1`
   - Enables smoke headers when they are not already available through non-production behavior.
 - `safeMode=true`

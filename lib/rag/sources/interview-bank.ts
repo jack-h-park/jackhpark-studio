@@ -6,6 +6,11 @@ import pMap from "p-map";
 import type { PreparedDocument } from "../pipeline";
 import { deriveDocIdentifiers } from "../../server/doc-identifiers";
 import { applyDefaultDocMetadata, mergeRagDocumentMetadata } from "../metadata";
+import {
+  type ConfidentialName,
+  findConfidentialNames,
+  parseConfidentialNames,
+} from "./confidential-names";
 
 /**
  * Interview Q&A bank adapter.
@@ -25,6 +30,8 @@ import { applyDefaultDocMetadata, mergeRagDocumentMetadata } from "../metadata";
 const DEFAULT_REPO = "jack-h-park/product-management-wiki";
 const DEFAULT_BRANCH = "main";
 const DEFAULT_PATH = "interview-prep/questions";
+/** Unannounced product names, kept in the same private repo. See ./confidential-names.ts. */
+const DEFAULT_CONFIDENTIAL_NAMES_PATH = "wiki/persona/confidential-names.yaml";
 const INTERVIEW_BANK_FETCH_CONCURRENCY = 8;
 
 /**
@@ -35,11 +42,7 @@ const INTERVIEW_BANK_FETCH_CONCURRENCY = 8;
  * Requiring an explicit field keeps that a decision rather than a side effect of the drill
  * loop advancing a status.
  */
-const PUBLISHABLE_STATUSES = new Set([
-  "drafted",
-  "reviewed",
-  "delivery_ready",
-]);
+const PUBLISHABLE_STATUSES = new Set(["drafted", "reviewed", "delivery_ready"]);
 const OPT_IN_FIELD = "publish_to_jackgpt";
 
 /** Sections that carry the answer. Everything else in a card stays private — see below. */
@@ -83,7 +86,10 @@ function splitFrontmatter(source: string): {
   const frontmatter =
     parsed && typeof parsed === "object" ? (parsed as Frontmatter) : {};
   const bodyStart = source.indexOf("\n", end + 1);
-  return { frontmatter, body: bodyStart === -1 ? "" : source.slice(bodyStart + 1) };
+  return {
+    frontmatter,
+    body: bodyStart === -1 ? "" : source.slice(bodyStart + 1),
+  };
 }
 
 /** Body split into `## Heading` → content. */
@@ -119,16 +125,17 @@ function asString(value: unknown): string | null {
 }
 
 /**
- * Parse one card, returning null when it is not eligible.
- *
- * Ineligibility is ordinary, not an error: most of the bank is mid-drill at any moment.
+ * Why a card is not published. The first four are ordinary states, not errors — most of the
+ * bank is mid-drill. `confidential-name` is not ordinary: the card is opted in and ready, but
+ * its published text names an unannounced product, and the wiki's own commit check should
+ * have stopped it before it got here.
  */
-/** Why a card is not published. Ordinary states, not errors — most of the bank is mid-drill. */
 export type InterviewCardExclusion =
   | "status-not-publishable"
   | "not-opted-in"
   | "no-question"
-  | "no-answer-sections";
+  | "no-answer-sections"
+  | "confidential-name";
 
 export type InterviewCardVerdict =
   | { eligible: true; card: InterviewCard }
@@ -142,6 +149,8 @@ export type InterviewCardVerdict =
       optedIn: boolean;
       category: string | null;
       lastReviewed: string | null;
+      /** The listed names the card's published text carries. Only for `confidential-name`. */
+      confidentialMatches: string[];
     };
 
 /**
@@ -155,6 +164,9 @@ export type InterviewCardVerdict =
 export function inspectInterviewCard(
   slug: string,
   source: string,
+  // Required, not optional: a caller that could leave it out would publish unchecked, and the
+  // type system is the cheapest place to make that impossible.
+  confidentialNames: readonly ConfidentialName[],
 ): InterviewCardVerdict {
   const { frontmatter, body } = splitFrontmatter(source);
 
@@ -168,6 +180,7 @@ export function inspectInterviewCard(
     optedIn,
     category: asString(frontmatter.category),
     lastReviewed: asString(frontmatter.last_reviewed),
+    confidentialMatches: [] as string[],
   };
 
   if (!status || !PUBLISHABLE_STATUSES.has(status)) {
@@ -194,6 +207,23 @@ export function inspectInterviewCard(
     return { eligible: false, reason: "no-answer-sections", ...known };
   }
 
+  // The question is embedded with the answer on purpose: a visitor's phrasing matches the
+  // question far more often than it matches the answer prose.
+  const answer = [`Q: ${question}`, ...answerParts].join("\n\n");
+
+  // Checked against exactly the text that would be embedded, question included. The gates
+  // above never read the words, and on 2026-10-11 an opted-in card's Short Version named an
+  // unannounced employer product.
+  const matches = findConfidentialNames(confidentialNames, answer);
+  if (matches.length > 0) {
+    return {
+      eligible: false,
+      reason: "confidential-name",
+      ...known,
+      confidentialMatches: matches.map((entry) => entry.name),
+    };
+  }
+
   return {
     eligible: true,
     card: {
@@ -202,9 +232,7 @@ export function inspectInterviewCard(
       category: asString(frontmatter.category),
       status,
       lastReviewed: asString(frontmatter.last_reviewed),
-      // The question is embedded with the answer on purpose: a visitor's phrasing matches
-      // the question far more often than it matches the answer prose.
-      answer: [`Q: ${question}`, ...answerParts].join("\n\n"),
+      answer,
     },
   };
 }
@@ -217,8 +245,9 @@ export function inspectInterviewCard(
 export function parseInterviewCard(
   slug: string,
   source: string,
+  confidentialNames: readonly ConfidentialName[],
 ): InterviewCard | null {
-  const verdict = inspectInterviewCard(slug, source);
+  const verdict = inspectInterviewCard(slug, source, confidentialNames);
   return verdict.eligible ? verdict.card : null;
 }
 
@@ -260,9 +289,7 @@ export function prepareInterviewCardDocument(
         source_kind: "interview_bank",
         source_type: "markdown",
         origin_id: card.slug,
-        tags: ["interview-qa", card.category].filter(
-          Boolean,
-        ),
+        tags: ["interview-qa", card.category].filter(Boolean),
         is_public: true,
       });
       return applyDefaultDocMetadata(merged, {
@@ -275,7 +302,11 @@ export function prepareInterviewCardDocument(
   };
 }
 
-type GithubContentEntry = { name: string; type: string; download_url: string | null };
+type GithubContentEntry = {
+  name: string;
+  type: string;
+  download_url: string | null;
+};
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -287,25 +318,53 @@ function requireEnv(name: string): string {
   return value;
 }
 
-/** List and fetch every card file, returning only the eligible ones. */
 /** One card file as fetched, before any eligibility judgement. */
 export type InterviewBankFile = { slug: string; source: string };
+
+function githubSource() {
+  const token = requireEnv("INTERVIEW_BANK_GITHUB_TOKEN");
+  return {
+    repo: process.env.INTERVIEW_BANK_REPO ?? DEFAULT_REPO,
+    branch: process.env.INTERVIEW_BANK_BRANCH ?? DEFAULT_BRANCH,
+    headers: {
+      authorization: `Bearer ${token}`,
+      accept: "application/vnd.github+json",
+      "user-agent": "jackhpark-studio-ingest",
+    },
+  };
+}
+
+/**
+ * Read the unannounced-name list from the wiki, with the token that already reads the bank.
+ *
+ * Fails closed: if the list cannot be read or does not parse, this throws, and the run fails
+ * rather than publishing cards nothing checked. A failed run leaves the corpus as it was —
+ * it neither publishes nor withdraws — and the freshness watch reports it.
+ */
+export async function fetchConfidentialNames(): Promise<ConfidentialName[]> {
+  const { repo, branch, headers } = githubSource();
+  const file =
+    process.env.CONFIDENTIAL_NAMES_PATH ?? DEFAULT_CONFIDENTIAL_NAMES_PATH;
+  const url = `https://api.github.com/repos/${repo}/contents/${file}?ref=${encodeURIComponent(branch)}`;
+  const response = await fetch(url, {
+    headers: { ...headers, accept: "application/vnd.github.raw" },
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Failed to read the confidential-names list ${repo}/${file}@${branch}: ${response.status} ${response.statusText}. ` +
+        "Interview cards are not published unchecked.",
+    );
+  }
+  return parseConfidentialNames(await response.text());
+}
 
 /**
  * Fetch every card file. The ingest and the preview share this so they cannot disagree
  * about which files exist, only about what to do with them.
  */
 export async function fetchInterviewBankFiles(): Promise<InterviewBankFile[]> {
-  const repo = process.env.INTERVIEW_BANK_REPO ?? DEFAULT_REPO;
-  const branch = process.env.INTERVIEW_BANK_BRANCH ?? DEFAULT_BRANCH;
+  const { repo, branch, headers } = githubSource();
   const dir = process.env.INTERVIEW_BANK_PATH ?? DEFAULT_PATH;
-  const token = requireEnv("INTERVIEW_BANK_GITHUB_TOKEN");
-
-  const headers = {
-    authorization: `Bearer ${token}`,
-    accept: "application/vnd.github+json",
-    "user-agent": "jackhpark-studio-ingest",
-  };
 
   const listUrl = `https://api.github.com/repos/${repo}/contents/${dir}?ref=${encodeURIComponent(branch)}`;
   const listResponse = await fetch(listUrl, { headers });
@@ -344,15 +403,48 @@ export async function fetchInterviewBankFiles(): Promise<InterviewBankFile[]> {
   );
 }
 
-/** List and fetch every card file, returning only the eligible ones. */
-export async function fetchInterviewBankCards(): Promise<InterviewCard[]> {
-  const files = await fetchInterviewBankFiles();
+/** A card that would have published but names an unannounced product. */
+export type WithheldInterviewCard = { slug: string; matches: string[] };
+
+/**
+ * Judge every card file. Eligible cards are returned for ingestion; cards refused for a
+ * confidential name are returned separately, because the ingest has to withdraw them if an
+ * earlier run already published them — the other exclusions are left to the sweep.
+ */
+export function judgeInterviewBank(
+  files: readonly InterviewBankFile[],
+  confidentialNames: readonly ConfidentialName[],
+): { cards: InterviewCard[]; withheld: WithheldInterviewCard[] } {
   const cards: InterviewCard[] = [];
+  const withheld: WithheldInterviewCard[] = [];
   for (const file of files) {
-    const card = parseInterviewCard(file.slug, file.source);
-    if (card) cards.push(card);
+    const verdict = inspectInterviewCard(
+      file.slug,
+      file.source,
+      confidentialNames,
+    );
+    if (verdict.eligible) {
+      cards.push(verdict.card);
+    } else if (verdict.reason === "confidential-name") {
+      withheld.push({
+        slug: verdict.slug,
+        matches: verdict.confidentialMatches,
+      });
+    }
   }
-  return cards;
+  return { cards, withheld };
+}
+
+/** List and fetch every card file, and judge each one. */
+export async function fetchInterviewBankCards(): Promise<{
+  cards: InterviewCard[];
+  withheld: WithheldInterviewCard[];
+}> {
+  const [names, files] = await Promise.all([
+    fetchConfidentialNames(),
+    fetchInterviewBankFiles(),
+  ]);
+  return judgeInterviewBank(files, names);
 }
 
 export type InterviewBankPreviewEntry = {
@@ -364,6 +456,11 @@ export type InterviewBankPreviewEntry = {
   optedIn: boolean;
   eligible: boolean;
   reason: InterviewCardExclusion | null;
+  /**
+   * The unannounced product names that held the card back. Shown only here, on the
+   * authenticated admin page, so whoever fixes the card can find the words.
+   */
+  confidentialMatches: string[];
   /** Exactly the text that would be embedded. Only present for eligible cards. */
   text: string | null;
   characters: number | null;
@@ -384,9 +481,12 @@ export type InterviewBankPreview = {
  * being able to read the exact text before it is embedded is the point.
  */
 export async function previewInterviewBank(): Promise<InterviewBankPreview> {
-  const files = await fetchInterviewBankFiles();
+  const [names, files] = await Promise.all([
+    fetchConfidentialNames(),
+    fetchInterviewBankFiles(),
+  ]);
   const entries = files.map((file): InterviewBankPreviewEntry => {
-    const verdict = inspectInterviewCard(file.slug, file.source);
+    const verdict = inspectInterviewCard(file.slug, file.source, names);
     if (verdict.eligible) {
       return {
         slug: verdict.card.slug,
@@ -397,6 +497,7 @@ export async function previewInterviewBank(): Promise<InterviewBankPreview> {
         optedIn: true,
         eligible: true,
         reason: null,
+        confidentialMatches: [],
         text: verdict.card.answer,
         characters: verdict.card.answer.length,
       };
@@ -410,6 +511,7 @@ export async function previewInterviewBank(): Promise<InterviewBankPreview> {
       optedIn: verdict.optedIn,
       eligible: false,
       reason: verdict.reason,
+      confidentialMatches: verdict.confidentialMatches,
       text: null,
       characters: null,
     };

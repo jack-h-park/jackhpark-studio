@@ -1,0 +1,9 @@
+{
+  "name": "static-page-sweep-analyzer",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Isolated syntax analysis for deployment verification; never shipped to the application.",
+  "dependencies": {
+    "typescript": "5.9.3"
+  }
+}
