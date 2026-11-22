@@ -11,11 +11,7 @@ declare module "@mozilla/readability" {
 declare module "jsdom" {
   export class JSDOM {
     constructor(html: string, options?: { url?: string });
-    window: {
-      document: any;
-      Event: typeof Event;
-      close(): void;
-    };
+    window: Window & Pick<typeof globalThis, "Event">;
   }
 }
 

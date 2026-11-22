@@ -10,6 +10,16 @@ const withBundleAnalyzer = bundleAnalyzer({
 
 export default withBundleAnalyzer({
   compress: false,
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: "/decks/pm-intelligence-system",
+          destination: "/decks/pm-intelligence-system/index.html",
+        },
+      ],
+    };
+  },
   staticPageGenerationTimeout: 300,
   devIndicators: false,
   experimental: {
@@ -47,20 +57,19 @@ export default withBundleAnalyzer({
     // when using a locally-linked version of `react-notion-x`.
     // @see https://github.com/vercel/next.js/issues/50391
     //
-    // Also aliasing `react/jsx-runtime` and `react/jsx-dev-runtime` to prevent
-    // the Next.js 15 DevTools from picking up a separate React instance, which
-    // manifests as: "Cannot read properties of null (reading 'useContext')".
+    // Match exact modules so Next can still select its App Router React and
+    // server renderer subpaths. Broad aliases break hybrid-router prerendering.
     const dirname = path.dirname(fileURLToPath(import.meta.url));
-    config.resolve.alias.react = path.resolve(dirname, "node_modules/react");
-    config.resolve.alias["react-dom"] = path.resolve(
+    config.resolve.alias.react$ = path.resolve(dirname, "node_modules/react");
+    config.resolve.alias["react-dom$"] = path.resolve(
       dirname,
       "node_modules/react-dom",
     );
-    config.resolve.alias["react/jsx-runtime"] = path.resolve(
+    config.resolve.alias["react/jsx-runtime$"] = path.resolve(
       dirname,
       "node_modules/react/jsx-runtime",
     );
-    config.resolve.alias["react/jsx-dev-runtime"] = path.resolve(
+    config.resolve.alias["react/jsx-dev-runtime$"] = path.resolve(
       dirname,
       "node_modules/react/jsx-dev-runtime",
     );
@@ -79,10 +88,7 @@ export default withBundleAnalyzer({
   // canvas is an optional jsdom dep we no longer use (see lib/rag/fetch-favicon.ts).
   // webpack cache files should never ship to Lambda.
   outputFileTracingExcludes: {
-    "*": [
-      "node_modules/canvas/**",
-      ".next/cache/webpack/**",
-    ],
+    "*": ["node_modules/canvas/**", ".next/cache/webpack/**"],
   },
 
   // lib/get-site-map.ts reads this at runtime via a computed path, which file

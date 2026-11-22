@@ -64,6 +64,14 @@ export function SelectedWork() {
                 ))}
               </div>
             </Link>
+            {"experienceHref" in card && (
+              <Link
+                href={card.experienceHref}
+                className="ai-button ai-button-outline ai-button-size-default"
+              >
+                Explore the PM Intelligence System ↗
+              </Link>
+            )}
           </li>
         ))}
       </ul>

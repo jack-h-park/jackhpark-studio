@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "id": "signal-observatory-campus",
+      "url": "/experiences/pm-intelligence/observatory/campus.glb",
+      "kind": "model",
+      "reviewStatus": "accepted",
+      "bytes": 3265520,
+      "sha256": "d8bb7d9078eff1aedbe402796ed491be19e9107911abd9337e2401cdf6a38016",
+      "provenance": "Original geometry authored with scripts/assets/build-observatory.py; exported with Blender 5.2.1. Includes an AI-generated limestone albedo from scripts/assets/observatory/limestone-albedo.jpg, embedded into the model. Unused UV attributes on solid-color materials removed with glTF Transform CLI 4.5.1 prune; retained geometry, materials and texture verified unchanged. The source builder now omits those UVs.",
+      "reviewScope": "Reviewed for local implementation; owner acceptance and publication remain separate."
+    },
+    {
+      "id": "signal-observatory-sky",
+      "url": "/experiences/pm-intelligence/observatory/sky.webp",
+      "kind": "image",
+      "reviewStatus": "accepted",
+      "bytes": 17054,
+      "sha256": "354000559fcd73829232cc7f66ed4b4e5499a00693101a6cb5290ba2c6cacd9b",
+      "provenance": "AI-generated distant sky matte, converted to WebP; background only, no world geometry or UI.",
+      "reviewScope": "Reviewed for local implementation; owner acceptance and publication remain separate."
+    },
+    {
+      "id": "signal-observatory-campus-gzip",
+      "url": "/experiences/pm-intelligence/observatory/campus.glb.gz",
+      "kind": "model",
+      "reviewStatus": "accepted",
+      "bytes": 991956,
+      "sha256": "bc2cef14c7e0c122c83b766f12a2903b4dfdd11907318da2175f1522a493ff8d",
+      "provenance": "Deterministic gzip derivative of campus.glb, generated with gzip level 9 and mtime 0. Decompressed bytes are verified identical to the canonical model.",
+      "reviewScope": "Reviewed for local implementation; hosted content headers, owner acceptance and publication remain separate."
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+/* Match the shared shell reset without importing Notion page styles. */
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+body {
+  font-family: var(--notion-font);
+  overflow-x: hidden;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}

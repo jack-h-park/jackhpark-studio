@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 
 const css = readFileSync(
-  path.join(process.cwd(), "styles/ai-design-system.css"),
+  path.join(process.cwd(), "styles/primitives/ai-controls-content.css"),
   "utf8",
 );
 
@@ -53,7 +53,7 @@ void describe("table header and cell share a horizontal edge", () => {
       path.join(process.cwd(), "styles/jp-theme.css"),
       "utf8",
     );
-    const themed = theme.slice(theme.indexOf('.ai-table__header'));
+    const themed = theme.slice(theme.indexOf(".ai-table__header"));
     assert.doesNotMatch(
       themed.slice(0, themed.indexOf("}")),
       /padding/,

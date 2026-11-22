@@ -1,0 +1,112 @@
+import type { Dispatch } from "react";
+
+import type {
+  DecisionChoice,
+  WorldContent,
+} from "@/content/pm-intelligence-world/types";
+import type {
+  ExperienceAction,
+  ExperienceState,
+} from "@/lib/pm-intelligence-world/state";
+
+import styles from "./experience.module.css";
+
+const choices: Record<DecisionChoice, string> = {
+  proceed: "Proceed with a bounded proposal",
+  revise: "Revise the scope",
+  verify: "Collect more evidence",
+  hold: "Hold the decision",
+};
+export function DecisionExample({
+  scenario,
+  decision,
+  dispatch,
+}: {
+  scenario: WorldContent["decisionExample"];
+  decision: ExperienceState["decision"];
+  dispatch: Dispatch<ExperienceAction>;
+}) {
+  return (
+    <div className={styles.decision}>
+      <p className={styles.label}>Illustrative simulation / no live workflow</p>
+      <h3>{scenario.title}</h3>
+      {!decision.entered ? (
+        <>
+          <p className={styles.note}>
+            You can keep this as learning. Entering this example does not start
+            a real decision run.
+          </p>
+          <button
+            className="ai-button ai-button-outline ai-button-size-default"
+            onClick={() => dispatch({ type: "ENTER_DECISION" })}
+          >
+            Enter the simulation →
+          </button>
+        </>
+      ) : (
+        <>
+          <ul className={styles.limitList}>
+            {scenario.evidence.map((x) => (
+              <li key={x}>{x}</li>
+            ))}
+          </ul>
+          <p className={styles.note}>Uncertainty: {scenario.uncertainty}</p>
+          <fieldset>
+            <legend>What should happen next?</legend>
+            {(Object.keys(choices) as DecisionChoice[]).map((choice) => (
+              <label key={choice}>
+                <input
+                  type="radio"
+                  name="decision-choice"
+                  checked={decision.choice === choice}
+                  onChange={() => dispatch({ type: "CHOOSE_DECISION", choice })}
+                />{" "}
+                {choices[choice]}
+              </label>
+            ))}
+          </fieldset>
+          <label htmlFor="decision-reason">What is your reason?</label>
+          <textarea
+            id="decision-reason"
+            className="ph-no-capture ph-mask"
+            maxLength={600}
+            value={decision.reason}
+            placeholder="Name the evidence or uncertainty behind your choice."
+            onChange={(event) =>
+              dispatch({ type: "SET_REASON", reason: event.target.value })
+            }
+          />
+          <p className={styles.note}>
+            Your reason stays in this tab. It is not saved or sent.
+          </p>
+          {decision.choice && decision.reason.trim() && (
+            <article
+              className={`${styles.horizon} ph-no-capture ph-mask`}
+              aria-label="Illustrative decision record"
+              data-ph-mask="true"
+            >
+              <span className={styles.label}>
+                Illustrative / proposed next step
+              </span>
+              <h3>Your decision record</h3>
+              <p>{choices[decision.choice]}</p>
+              <p>{decision.reason}</p>
+              <p>
+                <strong>Uncertainty:</strong> {scenario.uncertainty}
+              </p>
+              <p>
+                <strong>Next review:</strong> {scenario.nextReview}
+              </p>
+            </article>
+          )}
+          <button
+            className="ai-button ai-button-outline ai-button-size-default"
+            onClick={() => dispatch({ type: "RESET_DECISION" })}
+          >
+            Reset simulation
+          </button>
+        </>
+      )}
+    </div>
+  );
+}

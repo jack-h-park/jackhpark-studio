@@ -1,0 +1,400 @@
+.ai-text {
+  color: var(--ai-text);
+}
+
+.ai-text-strong {
+  color: var(--ai-text-strong);
+}
+
+.ai-text-muted {
+  color: var(--ai-text-muted);
+}
+
+.ai-text-soft {
+  color: var(--ai-text-soft);
+}
+
+.ai-text-faint {
+  color: var(--ai-text-faint);
+}
+
+.ai-text-success {
+  color: var(--ai-success);
+}
+
+.ai-text-warning {
+  color: var(--ai-warning);
+}
+
+.ai-text-error {
+  color: var(--ai-error);
+}
+
+.ai-text-info {
+  color: var(--ai-accent);
+}
+
+.bg-ai {
+  background-color: var(--ai-role-surface-1);
+}
+
+.bg-ai-muted {
+  background-color: var(--ai-role-surface-muted);
+}
+
+.text-ai {
+  color: var(--ai-text);
+}
+
+.text-ai-muted {
+  color: var(--ai-text-muted);
+}
+
+.border-ai,
+.ai-border {
+  border-color: var(--ai-role-border-base);
+}
+
+.rounded-ai {
+  border-radius: var(--ai-radius-md);
+}
+
+.rounded-ai-lg {
+  border-radius: var(--ai-radius-lg);
+}
+
+.shadow-ai {
+  box-shadow: var(--ai-shadow-soft);
+}
+
+.ai-meta-text {
+  @apply ai-helper-text;
+}
+
+/* ------------------------------------------------ */
+/* Label Utilities                                  */
+/* ------------------------------------------------ */
+/* Settings text roles:
+   ai-label-overline  → column/field/section-divider headers (uppercase, 12px)
+   ai-label-emphasis  → primary content label for a data row in a settings grid (14px, semi-bold) */
+.ai-label-overline {
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-family: var(--notion-font, system-ui);
+  color: var(--ai-text-strong);
+}
+
+.ai-label-overline--muted {
+  color: var(--ai-text-muted);
+}
+
+.ai-label-overline--small {
+  font-size: 0.65rem;
+}
+
+.ai-label-emphasis {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ai-text-strong);
+}
+
+/* Removed class overrides; managed via tokens above */
+
+/* ------------------------------------------------ */
+/* Surfaces (cards/sections/panels)                */
+/* ------------------------------------------------ */
+
+/* ------------------------------------------------ */
+/* Cards & Surfaces                                 */
+/* ------------------------------------------------ */
+.ai-page-header-card {
+  padding: 0;
+  border-width: 1.5px;
+  border-color: var(--ai-role-border-muted);
+  background: linear-gradient(
+    180deg,
+    color-mix(
+      in srgb,
+      var(--ai-role-surface-1) 94%,
+      var(--ai-role-surface-muted) 6%
+    ),
+    color-mix(
+      in srgb,
+      var(--ai-role-surface-1) 88%,
+      var(--ai-role-surface-muted) 12%
+    )
+  );
+  box-shadow:
+    var(--ai-shadow-soft),
+    inset 0 1px 0 color-mix(in srgb, var(--ai-tooltip-bg) 58%, transparent 42%);
+}
+
+.ai-card {
+  background-color: var(--ai-card-surface, var(--ai-role-surface-1));
+  border: 1px solid var(--ai-role-border-subtle);
+  border-radius: var(--ai-radius-lg);
+  box-shadow: var(--ai-shadow-soft);
+  overflow: hidden;
+  padding: 1rem;
+}
+
+.ai-setting-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 1rem;
+  background-color: var(--ai-section-surface, var(--ai-role-surface-1));
+  border: 1px solid var(--ai-role-border-subtle);
+  border-radius: var(--ai-radius-md);
+}
+
+.ai-setting-section-title {
+  @apply ai-label-emphasis;
+}
+
+.ai-setting-section-description {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--ai-text-muted);
+}
+
+.ai-panel {
+  background-color: var(--ai-panel-surface, var(--ai-role-surface-1));
+  border: 1px solid var(--ai-role-border-subtle);
+  border-radius: var(--ai-radius-md);
+}
+
+.ai-setting-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-setting-section-cascade-start {
+  position: relative;
+  padding-bottom: 28px;
+}
+
+.ai-setting-section-cascade-start::after {
+  content: "";
+  position: absolute;
+  bottom: 2px;
+  left: 12px;
+  width: 1px;
+  height: 30px;
+  background-color: var(--ai-role-divider-muted);
+}
+
+.ai-card-description {
+  color: var(--ai-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.ai-card-title {
+  @apply ai-label-emphasis;
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.5rem;
+}
+
+.ai-card--tab-panel {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: none;
+}
+
+.dark .ai-page-header-card {
+  border-color: var(--ai-role-border-muted);
+  background: linear-gradient(
+    180deg,
+    color-mix(
+      in srgb,
+      var(--ai-role-surface-1) 100%,
+      var(--ai-role-surface-muted) 0%
+    ),
+    color-mix(
+      in srgb,
+      var(--ai-role-surface-1) 95%,
+      var(--ai-role-surface-muted) 5%
+    )
+  );
+  box-shadow:
+    var(--ai-shadow-elevated),
+    inset 0 1px 0 color-mix(in srgb, var(--ai-tooltip-bg) 18%, transparent 82%);
+}
+
+/* Managed via tokens */
+
+/* ------------------------------------------------ */
+/* Callouts & Meta                                  */
+/* ------------------------------------------------ */
+.ai-tip-callout {
+  border-color: color-mix(in srgb, var(--ai-accent) 70%, transparent);
+  background-color: var(--ai-role-surface-highlight);
+  color: var(--ai-text-muted);
+  box-shadow: none;
+  padding: 0.6rem;
+}
+
+.ai-tip-callout__content {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.6rem;
+  gap: 0.5rem;
+  padding: 0.25rem;
+}
+
+.ai-tip-callout__title {
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: var(--ai-accent-strong);
+}
+
+.ai-tip-callout__body {
+  font-size: 0.75rem;
+  color: var(--ai-text-muted);
+  margin: 0;
+}
+
+/* Managed via tokens */
+
+.dark .ai-tip-callout__title {
+  color: var(--ai-accent-strong);
+}
+
+.dark .ai-tip-callout__body {
+  color: var(--ai-text-strong);
+}
+
+.ai-warning-callout {
+  border: 1px solid color-mix(in srgb, var(--ai-warning) 50%, transparent);
+  background-color: var(--ai-warning-muted);
+  color: var(--ai-text-warning);
+  box-shadow: none;
+  padding: 0.75rem;
+  border-radius: var(--ai-radius-md);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.ai-warning-callout .ai-icon {
+  color: var(--ai-warning);
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+
+.dark .ai-warning-callout {
+  background-color: var(--ai-warning-muted);
+  border-color: color-mix(in srgb, var(--ai-warning) 40%, transparent);
+  color: var(--ai-text-strong);
+}
+
+/* ------------------------------------------------ */
+/* Forms (fields, inputs, switches/checkboxes)      */
+/* ------------------------------------------------ */
+
+/* ------------------------------------------------ */
+/* Fields & Form Layout                             */
+/* ------------------------------------------------ */
+.ai-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.ai-choice__label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ai-choice__label-row--stacked {
+  align-items: flex-start;
+}
+
+.ai-choice__label {
+  @apply ai-label-emphasis;
+}
+
+.ai-choice__description {
+  @apply ai-helper-text;
+  margin: 0;
+}
+
+.ai-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-left: 0.6rem;
+}
+
+.ai-field--switch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-auto-rows: auto;
+  column-gap: 0.75rem;
+  row-gap: 0;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.ai-field--switch .ai-field__label {
+  grid-column: 1 / 2;
+  grid-row: 1 / 2;
+  margin-bottom: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ai-text-strong);
+}
+
+.ai-field--switch > :not(.ai-field__label):not(.ai-field__description) {
+  grid-column: 2 / 3;
+  grid-row: 1 / 2;
+}
+
+.ai-field--switch .ai-field__description {
+  grid-column: 1 / 3;
+  grid-row: 2 / 3;
+  margin-top: 0;
+  color: var(--ai-text-muted);
+}
+
+.ai-field--disabled-label .ai-field__label {
+  color: var(--ai-text-muted);
+}
+
+.ai-field--switch.ai-field--disabled-label .ai-field__description {
+  color: var(--ai-text-faint);
+  opacity: 0.9;
+}
+.ai-field__label {
+  @apply ai-label-overline;
+  padding-bottom: 0.2rem;
+}
+
+.ai-field__description {
+  @apply ai-helper-text;
+  margin: 0;
+}
+
+.ai-helper-text {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--ai-text-muted);
+}
+
+/* Duplicate ai-meta-text removed (defined under utilities). */
+
+/* Managed via tokens */
