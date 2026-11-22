@@ -12,15 +12,25 @@ separate from service-availability alerts.
 
 The monitor uses the canonical production origin `https://www.jackhpark.com`.
 
-### Core checks (every 5 minutes)
+### Recurring core checks
 
 - HTML: `/`, `/chat`, `/studio`, `/feed`, `/admin/sign-in`
-- APIs: `/api/ping`, `/api/chat-config`, `/api/chat-runtime`
+- API: `GET /api/chat-runtime` must return 200 and JSON with a runtime engine.
+  This is the public settings endpoint loaded by the chat UI.
 - Asset: `/assets/avatar-favicon/error.png` must return `2xx` and `image/png`
-- `/api/chat` `GET` must return `405` because the endpoint is POST-only
 
 The `/chat` check must validate both HTTP success and the `Ask JackGPT` title.
 The `/` check validates the rewrite to the chat experience.
+
+### API checks after a successful production deployment
+
+- `GET /api/chat` must return 405 with `Allow: POST`. This checks routing and
+  method handling without submitting a chat.
+- `GET /api/chat-config` must return 200 and JSON with a models engine. It uses
+  the same settings loader as `/api/chat-runtime`, so only the response contract
+  needs a separate deployment check.
+- `/api/ping` remains a local CI readiness probe. It returns a constant success
+  response and does not exercise the public chat settings loader.
 
 ### Extended checks (nightly or manual)
 
@@ -71,9 +81,10 @@ The `/` check validates the rewrite to the chat experience.
 - The chat SSR `sharp` failure was fixed and deployed.
 - The broken error illustration reference was fixed to the tracked asset at
   `/assets/avatar-favicon/error.png`.
-- A dependency-free smoke runner now checks the core canonical HTML routes,
-  API contracts, and error asset. The scheduled workflow runs it every five
-  minutes and can notify Telegram on failure.
+- The dependency-free recurring smoke runner checks the core canonical HTML
+  routes, chat runtime API, and error asset. The scheduled GitHub workflow can
+  notify Telegram on failure. Production deployments run the API contracts in
+  the existing Sitemap Availability workflow.
 - The external monitor registration, deduplicated recovery notifications,
   extended sitemap checks, and notification secret configuration remain as
   deployment/operations follow-up.
@@ -87,8 +98,7 @@ The `/` check validates the rewrite to the chat experience.
   failure.
 - The Checkly project is deployed to the `jackpark.kr@gmail.com` Checkly
   account. The existing verified email alert channel is attached to all 9
-  monitors for failure and recovery notifications. Negative HTTP
-  contracts (`/api/chat` = 405 and `/404` = 404) remain in the repository smoke
-  runner because Checkly URL monitors classify non-2xx responses as failed even
-  when a matching status assertion is present. The extended `/landing`,
+  monitors for failure and recovery notifications. The repository checks the
+  negative HTTP contracts during deployment verification (`/api/chat` = 405)
+  or extended smoke (`/404` = 404). The extended `/landing`,
   `/robots.txt`, and `/sitemap.xml` checks remain in that smoke runner as well.

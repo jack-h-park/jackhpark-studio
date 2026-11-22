@@ -53,17 +53,25 @@ const html =
   (title) =>
   ({ body }) =>
     body.includes(`<title`) && body.includes(title);
-const json = ({ contentType }) => contentType.includes("application/json");
+const chatRuntime = ({ body, contentType }) => {
+  if (!contentType.includes("application/json")) return false;
+  try {
+    const payload = JSON.parse(body);
+    return (
+      typeof payload?.runtime?.engine === "string" &&
+      payload.runtime.engine.length > 0
+    );
+  } catch {
+    return false;
+  }
+};
 
 await check("/", [200], html("Ask JackGPT"));
 await check("/chat", [200], html("Ask JackGPT"));
 await check("/studio", [200]);
 await check("/feed", [200]);
 await check("/admin/sign-in", [200]);
-await check("/api/ping", [200], json);
-await check("/api/chat-config", [200], json);
-await check("/api/chat-runtime", [200], json);
-await check("/api/chat", [405]);
+await check("/api/chat-runtime", [200], chatRuntime);
 await check("/assets/avatar-favicon/error.png", [200], ({ contentType }) =>
   contentType.includes("image/png"),
 );
@@ -76,8 +84,8 @@ await check("/assets/avatar-favicon/error.png", [200], ({ contentType }) =>
 // Checkly monitors the same three, and is the one to trust on timing: this
 // workflow's cron says `*/5` but GitHub fires scheduled workflows on a
 // best-effort basis for public repos — measured median interval across 28 runs
-// was 212 minutes. These stay here anyway because the duplication is free and
-// the canaries must not disappear again if Checkly is ever trimmed a second
+// was 212 minutes. These stay here as independent coverage so the canaries
+// do not disappear again if Checkly is ever trimmed a second
 // time. Full coverage is the post-deploy sitemap sweep, not more checks here:
 // these pages are generated on demand, and polling all 162 would rebuild the
 // rate-limit storm that caused the incident.

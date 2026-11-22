@@ -70,3 +70,12 @@ jobs:
           SITEMAP_CONCURRENCY: "4"
           SWEEP_PLAN_PATH: deployment-sweep-plan.json
         run: node scripts/smoke/sitemap-availability.mjs
+
+      - name: Verify public API deployment contracts
+        # Also report API failures if the page sweep failed. Historical revisions
+        # can predate this script, and manual sitemap sweeps accept other origins.
+        if: >-
+          ${{ !cancelled() && github.event_name == 'deployment_status' &&
+              hashFiles('scripts/smoke/deployment-api-availability.mjs') != '' }}
+        timeout-minutes: 2
+        run: node scripts/smoke/deployment-api-availability.mjs
