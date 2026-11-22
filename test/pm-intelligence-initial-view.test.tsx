@@ -100,7 +100,8 @@ void test("client routing releases first-paint visibility and can return to the 
     const world = document.querySelector(
       'section[aria-label="Signal Observatory — PM Intelligence System"]',
     );
-    assert.ok(world?.hasAttribute("hidden"));
+    assert.ok(world);
+    assert.ok(world.hasAttribute("hidden"));
     assert.equal(document.querySelector('link[as="fetch"]'), null);
     assert.equal(
       focuses.find((f) => f.id === "heading-overview"),

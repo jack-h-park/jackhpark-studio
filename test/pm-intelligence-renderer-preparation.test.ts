@@ -29,6 +29,7 @@ void test("preparation warms the offscreen scene and bloom before readiness with
     {
       getRenderTarget: () => current,
       setRenderTarget: (value) => {
+        assert.ok(value === null || value === target);
         current = value;
       },
       compileAsync: (object) => {
@@ -101,6 +102,7 @@ void test("a preparation failure restores the caller target and rejects for fall
         {
           getRenderTarget: () => current,
           setRenderTarget: (value) => {
+            assert.ok(value === target || value === previous);
             current = value;
           },
           compileAsync: () => {
