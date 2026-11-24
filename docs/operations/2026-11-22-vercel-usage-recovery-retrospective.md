@@ -57,6 +57,26 @@ Dashboard receipts for #263: [before 10h](https://vercel.com/jack-h-parks-projec
 
 On November 21 the team dashboard displayed **4h30m over the previous 30 days against a 4h included allowance**. Studio accounted for nearly all of it. Two recent days without a new Production deployment showed 8m51s and 9m45s, above the illustrative 8m/day pace. This is a dated team snapshot. Rolling expiration and newer traffic can move the total independently of code changes. The original storage warnings and a separate 200,000-unit ISR limit alert should be checked against their own current meters.
 
+## Independent read-only audit, November 22, 2026
+
+The authenticated [team Usage dashboard](https://vercel.com/jack-h-parks-projects/~/usage)
+showed **4h30m of Fluid Active CPU against a 4h allowance** and **48,746 ISR
+Write Units against a 200,000-unit allowance** over the preceding 30 days.
+This dated team snapshot does not isolate the effect of #263. The
+[Studio project settings](https://vercel.com/jack-h-parks-projects/jackhpark-studio/settings)
+showed a **14-day Production deployment retention period**. The setting was
+observed during the audit; no retention change or storage savings were measured.
+
+Existing Production request logs contained **20 unique `/api/social-image`
+requests** after deduplication by request ID for 01:00–08:00 PST
+(09:00–16:00 UTC) on November 22. All were HTTP 200 CDN MISS records from
+the same deployment in `iad1`. The available logs did not preserve the
+`id` query parameter. They cannot distinguish omitted IDs, repeated requests
+for the same card, or requests for distinct cards. The records therefore do
+not establish repeated generation of the same card. Establishing that would
+require existing request records with page IDs and matching function execution
+evidence.
+
 ## Remaining cost and how to investigate it
 
 - **Repeated settings origin reads.** In the nine post-#263 hours after the first hour, all 35 recurring smoke requests to `/api/chat-runtime` were CDN MISS. The 60-second TTL is shorter than polling. The held patch avoids repeated computation after rereading the row. Avoid extending the failure freshness window or bypassing persisted settings without validating successful and failed invalidation, concurrent saves, and late cache fills.
