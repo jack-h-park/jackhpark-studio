@@ -5,8 +5,15 @@ import { pathToFileURL } from "node:url";
 
 import type { ExtendedRecordMap } from "notion-types";
 import { build } from "esbuild";
+import { JSDOM } from "jsdom";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
+
+import {
+  PROSE_PAGE_ID,
+  PROSE_TEXT,
+  proseRecordMap,
+} from "./fixtures/notion-prose-record-map";
 
 const require = createRequire(import.meta.url);
 async function renderer() {
@@ -28,7 +35,7 @@ async function renderer() {
           b.onResolve(
             {
               filter:
-                /^(?:react-notion-x\/build\/third-party\/(?:collection|equation|modal)|\.\/notion-code)$/,
+                /^(?:react-notion-x\/build\/third-party\/(?:collection|equation|modal)|\.\/notion-code|react-tweet)$/,
             },
             (a) => ({ path: a.path, namespace: "client" }),
           );
@@ -39,9 +46,11 @@ async function renderer() {
                 ? "Equation"
                 : a.path.endsWith("modal")
                   ? "Modal"
-                  : "NotionCode";
+                  : a.path === "react-tweet"
+                    ? "Tweet"
+                    : "NotionCode";
             return {
-              contents: `fixture.evaluated.push('${name}');export function ${name}(){return null;}`,
+              contents: `fixture.evaluated.push('${name}');export function ${name}(){return null;}${name === "Tweet" ? "export const EmbeddedTweet=Tweet,TweetNotFound=Tweet,TweetSkeleton=Tweet;" : ""}`,
               loader: "js",
             };
           });
@@ -63,50 +72,57 @@ async function renderer() {
     NotionPageRenderer: (props: {
       recordMap: ExtendedRecordMap;
       pageId?: string;
+      rootPageId?: string;
+      fullPage?: boolean;
       showCustomHeader?: boolean;
     }) => ReturnType<typeof createElement>;
     fixture: { evaluated: string[] };
   };
 }
 
-void test("server rendering leaves body sanitization to the browser and preserves both wrapper classes", async () => {
+void test("server HTML carries the article prose outside script tags and keeps both wrapper classes", async () => {
   const module = await renderer();
-  let traversals = 0;
-  const map = {
-    block: new Proxy(
-      {},
-      {
-        ownKeys() {
-          traversals++;
-          return [];
-        },
-      },
-    ),
-    collection: {},
-    collection_view: {},
-    collection_query: {},
-    notion_user: {},
-    signed_urls: {},
-  } as ExtendedRecordMap;
   const html = renderToString(
     createElement(module.NotionPageRenderer, {
-      recordMap: map,
-      pageId: "fixture",
+      recordMap: proseRecordMap(),
+      pageId: PROSE_PAGE_ID,
+      rootPageId: PROSE_PAGE_ID,
+      fullPage: true,
       showCustomHeader: true,
     }),
   );
-  assert.equal(
-    html,
-    '<div class="notion-wrapper has-custom-header-props"><div class="notion-frame"></div></div>',
+  assert.ok(
+    html.startsWith(
+      '<div class="notion-wrapper has-custom-header-props"><div class="notion-frame">',
+    ),
   );
-  assert.equal(
-    traversals,
-    0,
-    "an empty server frame must not traverse the body map",
+  // Crawlers and LLM fetchers read visible markup, not serialized props, so
+  // parse the HTML and drop every script element before reading its text.
+  const { document } = new JSDOM(html).window;
+  for (const script of document.querySelectorAll("script")) script.remove();
+  const text = (document.body.textContent ?? "").replaceAll(/\s+/g, " ");
+  for (const expected of PROSE_TEXT) {
+    assert.ok(text.includes(expected), `server HTML is missing "${expected}"`);
+  }
+  assert.match(
+    document.querySelector("h2")?.textContent ?? "",
+    /Server rendered section heading/,
+  );
+  assert.ok(
+    document.querySelector("pre.notion-code.language-javascript"),
+    "code blocks must reach the server HTML as plain text",
   );
 });
 
-void test("the server frame does not evaluate client math code collection or modal modules", async () => {
+void test("server rendering does not evaluate client math code collection modal or tweet modules", async () => {
   const module = await renderer();
+  renderToString(
+    createElement(module.NotionPageRenderer, {
+      recordMap: proseRecordMap(),
+      pageId: PROSE_PAGE_ID,
+      rootPageId: PROSE_PAGE_ID,
+      fullPage: true,
+    }),
+  );
   assert.deepEqual(module.fixture.evaluated, []);
 });

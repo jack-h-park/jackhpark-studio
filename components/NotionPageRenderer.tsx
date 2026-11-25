@@ -3,7 +3,8 @@
 import type { ExtendedRecordMap } from "notion-types";
 import type * as React from "react";
 import type { MapImageUrlFn, NotionComponents } from "react-notion-x";
-import dynamic from "next/dynamic";
+
+import { NotionPageBody } from "./NotionPageBody";
 
 export interface NotionPageRendererProps {
   recordMap: ExtendedRecordMap;
@@ -21,16 +22,9 @@ export interface NotionPageRendererProps {
   showCustomHeader?: boolean;
 }
 
-const ClientBody = dynamic(
-  () =>
-    import("./NotionPageRendererClient").then(
-      (module) => module.NotionPageRendererClient,
-    ),
-  { ssr: false },
-);
-
-// The renderer already mounts its body only in the browser. Preserve its
-// server frame without loading code/math vendors or sanitizing the body map.
+// The body renders on the server so no-JavaScript readers get the prose; only
+// the vendor block renderers (code, math, collections, modal, PDF) wait for
+// the browser. See NotionPageBody.
 export function NotionPageRenderer(props: NotionPageRendererProps) {
   const hasCustomHeader = Boolean(
     props.recordMap && props.pageId && props.showCustomHeader,
@@ -44,7 +38,7 @@ export function NotionPageRenderer(props: NotionPageRendererProps) {
       }
     >
       <div className="notion-frame">
-        <ClientBody {...props} />
+        <NotionPageBody {...props} />
       </div>
     </div>
   );
