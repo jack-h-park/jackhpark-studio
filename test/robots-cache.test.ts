@@ -26,9 +26,19 @@ void test("robots can be cached at the edge without allowing Preview indexing", 
         res.getHeader("Cache-Control"),
         "public, max-age=0, s-maxage=86400",
       );
-      assert.match(
-        body.join(""),
-        env === "production" ? /Allow: \// : /Disallow: \//,
+      const [rules, sitemap] = body
+        .join("")
+        .trimEnd()
+        .split(/\n\n(?=Sitemap: )/);
+      assert.match(sitemap, /^Sitemap: .+\/sitemap\.xml$/);
+      assert.deepEqual(
+        rules.split("\n\n"),
+        env === "production"
+          ? [
+              "User-agent: meta-externalagent\nDisallow: /",
+              "User-agent: *\nAllow: /\nDisallow: /api/get-tweet-ast/*\nDisallow: /api/search-notion",
+            ]
+          : ["User-agent: *\nDisallow: /"],
       );
     }
   } finally {

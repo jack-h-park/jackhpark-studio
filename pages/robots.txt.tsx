@@ -20,7 +20,11 @@ export const getServerSideProps: GetServerSideProps = async ({ req, res }) => {
 
   // only allow the site to be crawlable on the production deployment
   if (process.env.VERCEL_ENV === "production") {
-    res.write(`User-agent: *
+    // Review and rollback criteria: docs/operations/meta-crawler-policy.md
+    res.write(`User-agent: meta-externalagent
+Disallow: /
+
+User-agent: *
 Allow: /
 Disallow: /api/get-tweet-ast/*
 Disallow: /api/search-notion
