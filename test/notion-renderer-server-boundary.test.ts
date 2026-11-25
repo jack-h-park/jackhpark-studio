@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 
 import type { ExtendedRecordMap } from "notion-types";
 import { build } from "esbuild";
+import { JSDOM } from "jsdom";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 
@@ -95,18 +96,22 @@ void test("server HTML carries the article prose outside script tags and keeps b
       '<div class="notion-wrapper has-custom-header-props"><div class="notion-frame">',
     ),
   );
-  // Crawlers and LLM fetchers read visible markup, not serialized props.
-  const visible = html.replaceAll(/<script[\s\S]*?<\/script>/g, "");
-  const text = visible
-    .replaceAll(/<[^>]+>/g, " ")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#x27;", "'")
-    .replaceAll(/\s+/g, " ");
+  // Crawlers and LLM fetchers read visible markup, not serialized props, so
+  // parse the HTML and drop every script element before reading its text.
+  const { document } = new JSDOM(html).window;
+  for (const script of document.querySelectorAll("script")) script.remove();
+  const text = (document.body.textContent ?? "").replaceAll(/\s+/g, " ");
   for (const expected of PROSE_TEXT) {
     assert.ok(text.includes(expected), `server HTML is missing "${expected}"`);
   }
-  assert.match(visible, /<h2[^>]*>[\s\S]*Server rendered section heading/);
-  assert.match(visible, /<pre class="notion-code language-javascript">/);
+  assert.match(
+    document.querySelector("h2")?.textContent ?? "",
+    /Server rendered section heading/,
+  );
+  assert.ok(
+    document.querySelector("pre.notion-code.language-javascript"),
+    "code blocks must reach the server HTML as plain text",
+  );
 });
 
 void test("server rendering does not evaluate client math code collection modal or tweet modules", async () => {
