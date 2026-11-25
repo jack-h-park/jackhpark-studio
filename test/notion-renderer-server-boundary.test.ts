@@ -15,6 +15,7 @@ async function renderer() {
     bundle: true,
     packages: "external",
     write: false,
+    loader: { ".module.css": "empty" },
     platform: "node",
     format: "esm",
     jsx: "automatic",

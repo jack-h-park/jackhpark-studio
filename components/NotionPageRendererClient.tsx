@@ -14,7 +14,9 @@ import { Text, useNotionContext } from "react-notion-x";
 import { Collection } from "react-notion-x/build/third-party/collection";
 import { Equation } from "react-notion-x/build/third-party/equation";
 import { Modal } from "react-notion-x/build/third-party/modal";
+import { EmbeddedTweet, TweetNotFound, TweetSkeleton } from "react-tweet";
 
+import type { ExtendedTweetRecordMap } from "@/lib/types";
 import { defaultPageIcon, isPreviewImageSupportEnabled } from "@/lib/config";
 import { retryImageThroughProxy } from "@/lib/next-image-proxy";
 import { sanitizeNotionRecordMap } from "@/lib/notion/sanitize-record-map";
@@ -26,6 +28,7 @@ import {
 import type { NotionPageRendererProps } from "./NotionPageRenderer";
 import { NotionCode } from "./notion-code";
 import { NotionCoverBlurFill } from "./NotionCoverBlurFill";
+import { NotionPageHeader } from "./NotionPageHeader";
 
 const NotionRenderer = dynamic(
   async () => (await import("react-notion-x")).NotionRenderer,
@@ -36,6 +39,17 @@ const Pdf = dynamic(
   () => import("react-notion-x/build/third-party/pdf").then((m) => m.Pdf),
   { ssr: false },
 );
+
+function Tweet({ id }: { id: string }) {
+  const { recordMap } = useNotionContext();
+  const tweet = (recordMap as ExtendedTweetRecordMap)?.tweets?.[id];
+
+  return (
+    <React.Suspense fallback={<TweetSkeleton />}>
+      {tweet ? <EmbeddedTweet tweet={tweet} /> : <TweetNotFound />}
+    </React.Suspense>
+  );
+}
 
 let modalInitialized = false;
 
@@ -354,6 +368,8 @@ export function NotionPageRendererClient({
 
   const components = React.useMemo(
     () => ({
+      Header: NotionPageHeader,
+      Tweet,
       ...parentComponents,
       Code: NotionCode,
       Collection: CollectionWithDescription,
