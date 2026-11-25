@@ -13,6 +13,7 @@ async function exerciseRenderer(t: TestContext, hydrate: boolean) {
   );
   const names = [
     "window",
+    "self",
     "document",
     "navigator",
     "HTMLElement",
@@ -135,6 +136,7 @@ async function exerciseRenderer(t: TestContext, hydrate: boolean) {
         pageId: id,
         rootPageId: id,
         fullPage: true,
+        components: hydrate ? undefined : { Header: () => null },
       });
       if (hydrate)
         root = hydrateRoot(container, element, {
@@ -155,6 +157,11 @@ async function exerciseRenderer(t: TestContext, hydrate: boolean) {
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 20));
       });
+    assert.equal(
+      Boolean(container.querySelector("header.notion-header")),
+      hydrate,
+      "the page header mounts by default and the side-peek override hides it",
+    );
     assert.match(container.textContent ?? "", /Deferred prose survives/);
     assert.match(container.textContent ?? "", /const fixtureValue = 7/);
     assert.ok(
