@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import test, { type TestContext } from "node:test";
 
-import type { ExtendedRecordMap } from "notion-types";
 import { JSDOM } from "jsdom";
 import { act, createElement } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
+
+import {
+  PROSE_PAGE_ID,
+  proseRecordMap,
+} from "./fixtures/notion-prose-record-map";
 
 async function exerciseRenderer(t: TestContext, hydrate: boolean) {
   const dom = new JSDOM(
@@ -60,84 +65,24 @@ async function exerciseRenderer(t: TestContext, hydrate: boolean) {
       else Reflect.deleteProperty(globalThis, name);
     }
   });
-  const id = "11111111-1111-4111-8111-111111111111";
-  const common = {
-    alive: true,
-    version: 1,
-    created_time: 0,
-    last_edited_time: 0,
-    parent_id: id,
-    parent_table: "block",
-  };
-  const map = {
-    block: {
-      [id]: {
-        role: "reader",
-        value: {
-          ...common,
-          id,
-          parent_id: "fixture-space",
-          parent_table: "space",
-          type: "page",
-          properties: { title: [["Offline fixture"]] },
-          content: ["text", "code", "math"],
-          format: { page_icon: "🧪" },
-        },
-      },
-      text: {
-        role: "reader",
-        value: {
-          ...common,
-          id: "text",
-          type: "text",
-          properties: { title: [["Deferred prose survives"]] },
-        },
-      },
-      code: {
-        role: "reader",
-        value: {
-          ...common,
-          id: "code",
-          type: "code",
-          properties: {
-            title: [["const fixtureValue = 7;"]],
-            language: [["JavaScript"]],
-          },
-        },
-      },
-      math: {
-        role: "reader",
-        value: {
-          ...common,
-          id: "math",
-          type: "equation",
-          properties: { title: [["x^2 + y^2"]] },
-        },
-      },
-    },
-    collection: {},
-    collection_view: {},
-    collection_query: {},
-    notion_user: {},
-    signed_urls: {},
-  } as unknown as ExtendedRecordMap;
+  const id = PROSE_PAGE_ID;
+  const map = proseRecordMap();
   const { NotionPageRenderer } =
     await import("../components/NotionPageRenderer");
   const container = dom.window.document.getElementById("root")!;
   const errors: unknown[] = [];
   let root: ReturnType<typeof createRoot> | undefined;
-  if (hydrate)
-    container.innerHTML =
-      '<div class="notion-wrapper"><div class="notion-frame"></div></div>';
+  const element = createElement(NotionPageRenderer, {
+    recordMap: map,
+    pageId: id,
+    rootPageId: id,
+    fullPage: true,
+    components: hydrate ? undefined : { Header: () => null },
+  });
+  // Hydrate exactly what the server sends, prose included.
+  if (hydrate) container.innerHTML = renderToString(element);
   try {
     await act(async () => {
-      const element = createElement(NotionPageRenderer, {
-        recordMap: map,
-        pageId: id,
-        rootPageId: id,
-        fullPage: true,
-        components: hydrate ? undefined : { Header: () => null },
-      });
       if (hydrate)
         root = hydrateRoot(container, element, {
           onRecoverableError: (error) => errors.push(error),
@@ -172,10 +117,15 @@ async function exerciseRenderer(t: TestContext, hydrate: boolean) {
       container.querySelector(".notion-code .token"),
       "JavaScript must retain actual syntax highlighting",
     );
+    assert.equal(
+      container.querySelectorAll(".notion-equation .katex").length,
+      2,
+      "block and inline equations must both upgrade to KaTeX",
+    );
     assert.deepEqual(
       errors,
       [],
-      "the preserved frame must hydrate without recovery",
+      "the server HTML must hydrate without recovery",
     );
   } finally {
     await act(async () => root?.unmount());
@@ -185,6 +135,6 @@ async function exerciseRenderer(t: TestContext, hydrate: boolean) {
 void test("the deferred renderer still mounts Notion prose math and syntax-highlighted code", async (t) => {
   await exerciseRenderer(t, false);
 });
-void test("the empty server frame hydrates into the real Notion renderer without recovery", async (t) => {
+void test("the server-rendered prose hydrates and upgrades code and math without recovery", async (t) => {
   await exerciseRenderer(t, true);
 });
