@@ -846,3 +846,39 @@ void test("TTFT leaves out answers to prompts the loaded model had already seen,
   assert.equal(summary?.concurrentTtftP95Ms, 400);
   assert.equal(summary?.requests, 6);
 });
+
+void test("a concurrent pass the memory line ended is marked in the summary and the report", () => {
+  const results: ResultRow[] = [
+    ...speedRows("stopped", 900, 50).filter((r) => r.pass === "baseline"),
+    {
+      variant: "stopped",
+      pass: "concurrent",
+      itemId: "q1",
+      rep: 1,
+      ok: true,
+      ttftMs: 700,
+    },
+    {
+      variant: "stopped",
+      pass: "concurrent-stopped",
+      itemId: "-",
+      rep: 0,
+      reason: "free+inactive 10.8 GiB is under 12 GiB",
+    },
+    ...speedRows("complete", 900, 50),
+  ];
+  const summaries = summarize(results, [], []);
+  const stopped = summaries.find((s) => s.variant === "stopped");
+  const complete = summaries.find((s) => s.variant === "complete");
+  assert.equal(
+    stopped?.concurrentStopped,
+    "free+inactive 10.8 GiB is under 12 GiB after 1 of the pass's items",
+  );
+  assert.equal(complete?.concurrentStopped, null);
+  const report = renderReport(summaries);
+  assert.match(report, /\| 700 \(stopped\) \|/);
+  assert.match(
+    report,
+    /\*\*stopped\*\*: .*concurrent pass stopped: free\+inactive 10\.8 GiB/,
+  );
+});
