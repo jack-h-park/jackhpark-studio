@@ -702,6 +702,91 @@ void test("free+inactive falling under the stop line ends the run and restores t
   }
 });
 
+void test("free+inactive falling under the stop line in the concurrent pass ends only that variant's pass", async () => {
+  const fake = await startFakeLmStudio();
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const lines: string[] = [];
+  let reads = 0;
+  // Reads 1-4: start, after the first load, two baseline items. Read 5 follows
+  // the first concurrent item.
+  const options = baseOptions(fake, dir, {
+    variants: twoVariants,
+    readHeadroom: async () => {
+      reads += 1;
+      return {
+        freeInactiveBytes: reads === 5 ? 11 * GIB : 30 * GIB,
+        swapUsedBytes: 3 * GIB,
+      };
+    },
+    log: (line: string) => lines.push(line),
+  });
+  try {
+    await runBakeoff(options);
+    assert.ok(
+      lines.includes(
+        "[b-4bit] concurrent pass stopped: free+inactive 11.0 GiB is under 12 GiB; moving on to the next variant",
+      ),
+    );
+    assert.equal(lines.at(-1), "incomplete variants: none");
+    const rows = await readJsonl(join(dir, "results.jsonl"));
+    const own = (variant: string, pass: string) =>
+      rows.filter((r) => r.variant === variant && r.pass === pass);
+    assert.equal(own("b-4bit", "concurrent").length, 1);
+    assert.deepEqual(
+      own("b-4bit", "concurrent-stopped").map((r) => r.reason),
+      ["free+inactive 11.0 GiB is under 12 GiB"],
+    );
+    assert.equal(own("b-4bit", "memory").length, 1);
+    assert.equal(own("a-second", "concurrent").length, 2);
+    assert.equal(own("a-second", "memory").length, 1);
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+
+    // A rerun treats the stopped pass as finished and measures nothing again.
+    const before = rows.length;
+    await runBakeoff(options);
+    assert.equal((await readJsonl(join(dir, "results.jsonl"))).length, before);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+void test("swap growth in the concurrent pass still ends the whole run", async () => {
+  const fake = await startFakeLmStudio();
+  const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));
+  const lines: string[] = [];
+  let reads = 0;
+  try {
+    await runBakeoff(
+      baseOptions(fake, dir, {
+        variants: twoVariants,
+        readHeadroom: async () => {
+          reads += 1;
+          return {
+            freeInactiveBytes: 30 * GIB,
+            swapUsedBytes: reads >= 5 ? 4.5 * GIB : 3 * GIB,
+          };
+        },
+        log: (line: string) => lines.push(line),
+      }),
+    );
+    assert.ok(
+      lines.some((line) =>
+        /stop rule tripped: swap grew 1\.5 GiB since the run started/.test(
+          line,
+        ),
+      ),
+    );
+    assert.equal(lines.at(-1), "incomplete variants: b-4bit, a-second");
+    const rows = await readJsonl(join(dir, "results.jsonl"));
+    assert.equal(rows.filter((r) => r.pass === "concurrent-stopped").length, 0);
+    assert.deepEqual([...fake.loaded.entries()], [["model-a", 16_384]]);
+  } finally {
+    await fake.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 void test("swap growing by more than 1 GiB since the start ends the run", async () => {
   const fake = await startFakeLmStudio();
   const dir = await mkdtemp(join(tmpdir(), "bakeoff-run-"));

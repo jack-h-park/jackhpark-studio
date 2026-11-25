@@ -32,7 +32,10 @@ const REQUEST_TIMEOUT_MS = 300_000;
 // items are bad.
 const MAX_CONSECUTIVE_FAILURES = 3;
 // The host's stop rule for experiments: the machine also runs always-on ops
-// work, so a run ends as soon as either line is crossed.
+// work, so a run ends as soon as either line is crossed. The one exception is
+// the free+inactive line during the concurrent pass: that pass alone adds the
+// background streams' working memory, so it ends only that variant's pass and
+// the next variant starts from a freshly unloaded server.
 const GIB = 1024 ** 3;
 const STOP_FREE_INACTIVE_BYTES = 12 * GIB;
 const STOP_SWAP_GROWTH_BYTES = 1 * GIB;
@@ -40,6 +43,9 @@ const STOP_FREE_INACTIVE_LABEL = `${STOP_FREE_INACTIVE_BYTES / GIB} GiB`;
 // Longer than the agreed five-hour window, so the hold outlives a full run;
 // the run releases it after its restore, and the host caps any hold anyway.
 const PRELOAD_HOLD_SECONDS = 6 * 3600;
+// Marks a variant whose concurrent pass the memory line ended, so a resumed
+// run does not retry a pass that will trip again at the same place.
+const CONCURRENT_STOPPED_PASS = "concurrent-stopped";
 export const BACKGROUND_PROMPT =
   "Write a detailed 1,500-word essay on the history of cartography.";
 
@@ -116,13 +122,21 @@ function variantComplete(options, store, variant) {
       });
     }
   }
-  for (const item of options.items) {
-    rows.push({
-      variant: variant.id,
-      pass: "concurrent",
-      itemId: item.id,
-      rep: 1,
-    });
+  const concurrentStopped = store.has({
+    variant: variant.id,
+    pass: CONCURRENT_STOPPED_PASS,
+    itemId: "-",
+    rep: 0,
+  });
+  if (!concurrentStopped) {
+    for (const item of options.items) {
+      rows.push({
+        variant: variant.id,
+        pass: "concurrent",
+        itemId: item.id,
+        rep: 1,
+      });
+    }
   }
   return rows.every((row) => store.has(row));
 }
@@ -362,8 +376,17 @@ async function runBackground(options, variant, extras, stopSignal, stats) {
   }
 }
 
-/** A memory stop-rule trip: ends the whole run, not just one variant. */
-class StopRuleError extends Error {}
+/** A memory stop-rule trip: ends the whole run, except as runVariant notes. */
+class StopRuleError extends Error {
+  /**
+   * @param {string} message
+   * @param {"free-inactive" | "swap"} line which line was crossed
+   */
+  constructor(message, line) {
+    super(message);
+    this.line = line;
+  }
+}
 
 /** @param {number} bytes */
 function formatGib(bytes) {
@@ -381,12 +404,14 @@ function createStopRule(readHeadroom, startSwapBytes) {
     if (freeInactiveBytes < STOP_FREE_INACTIVE_BYTES) {
       throw new StopRuleError(
         `free+inactive ${formatGib(freeInactiveBytes)} is under ${STOP_FREE_INACTIVE_LABEL}`,
+        "free-inactive",
       );
     }
     const growth = swapUsedBytes - startSwapBytes;
     if (growth > STOP_SWAP_GROWTH_BYTES) {
       throw new StopRuleError(
         `swap grew ${formatGib(growth)} since the run started`,
+        "swap",
       );
     }
   };
@@ -501,7 +526,29 @@ async function runVariant(
           log,
         ),
       );
-      await sampleMemory();
+      try {
+        await sampleMemory();
+      } catch (error) {
+        if (
+          !(error instanceof StopRuleError) ||
+          error.line !== "free-inactive"
+        ) {
+          throw error;
+        }
+        log(
+          `[${variant.id}] concurrent pass stopped: ${error.message}; moving on to the next variant`,
+        );
+        await concurrentRecorder.flush();
+        await store.append({
+          variant: variant.id,
+          pass: CONCURRENT_STOPPED_PASS,
+          itemId: "-",
+          rep: 0,
+          key: variant.key,
+          reason: error.message,
+        });
+        break;
+      }
     }
     await concurrentRecorder.flush();
   } finally {

@@ -23,6 +23,8 @@ export type ResultRow = {
   error?: string;
   /** The loaded model had already been sent this prompt (its prompt cache answers it). */
   promptSeen?: boolean;
+  /** Why the run ended this variant's concurrent pass early (`concurrent-stopped` rows). */
+  reason?: string;
 };
 
 export type ScoreRow = {
@@ -54,6 +56,8 @@ export type VariantSummary = {
   ttftP95Ms: number | null;
   decodeP50: number | null;
   concurrentTtftP95Ms: number | null;
+  /** Set when the memory stop line ended the concurrent pass early. */
+  concurrentStopped: string | null;
   memoryDeltaGb: number | null;
   fits40Gb: boolean | null;
   fits20Gb: boolean | null;
@@ -173,6 +177,9 @@ function summarizeLatest(
     const memory = results.find(
       (r) => r.variant === variant && r.pass === "memory",
     );
+    const concurrentStopped = results.find(
+      (r) => r.variant === variant && r.pass === "concurrent-stopped",
+    );
     const own = validScores.filter((s) => s.variant === variant);
     const allOwn = scores.filter((s) => s.variant === variant);
     const outOfScope = own.filter((s) => s.kind === "out_of_scope");
@@ -242,6 +249,9 @@ function summarizeLatest(
         numbers(concurrent.map((r) => r.ttftMs)),
         95,
       ),
+      concurrentStopped: concurrentStopped
+        ? `${concurrentStopped.reason ?? "memory stop line"} after ${concurrent.length} of the pass's items`
+        : null,
       memoryDeltaGb,
       fits40Gb: memoryDeltaGb === null ? null : memoryDeltaGb <= 40,
       fits20Gb: memoryDeltaGb === null ? null : memoryDeltaGb <= 20,
@@ -349,7 +359,9 @@ export function renderReport(summaries: VariantSummary[]): string {
       pct(s.formatRate),
       pct(s.languageMatchRate),
       `${s.confirmedUngrounded}/${s.pendingReview}`,
-      fmt(s.concurrentTtftP95Ms),
+      s.concurrentStopped === null
+        ? fmt(s.concurrentTtftP95Ms)
+        : `${fmt(s.concurrentTtftP95Ms)} (stopped)`,
       fmt(s.memoryDeltaGb, 1),
       s.fits40Gb === null
         ? "—"
@@ -359,11 +371,14 @@ export function renderReport(summaries: VariantSummary[]): string {
   );
   const details = summaries
     .filter(
-      (s) => s.failedCriteria.length > 0 || s.flaggedUngrounded.length > 0,
+      (s) =>
+        s.failedCriteria.length > 0 ||
+        s.flaggedUngrounded.length > 0 ||
+        s.concurrentStopped !== null,
     )
     .map(
       (s) =>
-        `- **${s.variant}**: failed ${s.failedCriteria.join(", ") || "nothing"}; flagged ungrounded items ${s.flaggedUngrounded.join(", ") || "none"}`,
+        `- **${s.variant}**: failed ${s.failedCriteria.join(", ") || "nothing"}; flagged ungrounded items ${s.flaggedUngrounded.join(", ") || "none"}${s.concurrentStopped === null ? "" : `; concurrent pass stopped: ${s.concurrentStopped}`}`,
     );
   return [
     "# Local LLM bake-off report",
