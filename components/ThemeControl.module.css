@@ -1,0 +1,81 @@
+/* Display settings: theme radio group in a small popover under the header
+   button. Colours come from the Notion surface tokens (site-tokens.css), so
+   it follows light and dark with the rest of the header. */
+.root {
+  position: relative;
+  z-index: 10;
+}
+
+.trigger {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.panel {
+  /* Portalled to <body>; top and right come from the button's position. */
+  position: fixed;
+  z-index: 1000;
+  min-width: 168px;
+  padding: 8px;
+  border: 1px solid var(--ai-role-border-muted);
+  border-radius: 10px;
+  background: var(--bg-color);
+  color: var(--fg-color);
+  font-family: var(--notion-font);
+  box-shadow: var(--ai-shadow-soft);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.groupLabel {
+  padding: 4px 8px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ai-text-muted);
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--bg-color-0);
+}
+
+.option:has(.radio:checked) {
+  background: var(--bg-color-0);
+  font-weight: 500;
+}
+
+.option:has(.radio:focus-visible) {
+  outline: 2px solid var(--brand-blue);
+  outline-offset: 1px;
+}
+
+.radio {
+  margin: 0;
+  accent-color: var(--brand-blue);
+}
+
+.optionIcon {
+  display: inline-flex;
+  font-size: 16px;
+}
