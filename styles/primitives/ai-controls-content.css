@@ -500,7 +500,7 @@
   color: var(--ai-success);
 }
 .ai-json-number {
-  color: var(--ai-warning);
+  color: var(--ai-warning-text);
 }
 .ai-json-boolean {
   color: var(--ai-error);

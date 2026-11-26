@@ -23,7 +23,7 @@
 }
 
 .ai-text-warning {
-  color: var(--ai-warning);
+  color: var(--ai-warning-text);
 }
 
 .ai-text-error {

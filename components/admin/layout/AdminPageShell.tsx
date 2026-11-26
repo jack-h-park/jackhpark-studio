@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 
 import { AdminTopNav } from "@/components/admin/navigation/AdminTopNav";
 import { PageHeaderCard } from "@/components/ui/page-header-card";
-import { useAdminTheme } from "@/hooks/use-admin-theme";
 import { geistMono, geistSans } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 
@@ -35,13 +34,9 @@ export function AdminPageShell({
   headerExtension,
   children,
 }: AdminPageShellProps) {
-  const { isJpTheme, toggleTheme, mounted } = useAdminTheme();
-
   return (
     <div
-      // Only attach data-theme after mount to avoid hydration mismatch.
-      // During SSR / first render the default (jp) styles are applied via CSS fallback.
-      data-theme={mounted ? (isJpTheme ? "jp" : undefined) : "jp"}
+      data-theme="jp"
       className={cn(
         geistSans.variable,
         geistMono.variable,
@@ -54,8 +49,6 @@ export function AdminPageShell({
           <div className="pb-1 pt-4">
             <AdminTopNav
               activeSection={section}
-              isJpTheme={isJpTheme}
-              onToggleTheme={toggleTheme}
               className="w-full bg-[color:var(--ai-role-surface-muted)]/80"
             />
           </div>

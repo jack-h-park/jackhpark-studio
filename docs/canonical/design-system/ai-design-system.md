@@ -69,9 +69,28 @@ J·P values without any JSX changes**:
 | Bridge token | J·P value | Effect |
 |---|---|---|
 | `--ai-accent` | `var(--brand-blue)` | Buttons, links, focus rings → brand blue |
-| `--ai-success/warning/error` | Notion-ink palette | Status colors quieter, more editorial |
-| `--ai-radius-sm/md/lg` | 6 / 10 / 14 px | All radii compact (vs 8/12/24 legacy) |
+| `--ai-info/success/warning/error` | Notion-ink palette (`--accent-*`) | Status colors quieter, more editorial |
+| `--ai-warning-text` | `var(--accent-warning-text)` | Warning tone used as text |
+| `--ai-radius-sm/md/lg` | 6 / 10 / 14 px | All radii compact |
 | `--ai-shadow-soft` | `var(--shadow-popover)` | Drawer-level elevation only |
+
+Outside the J·P scope, `styles/primitives/ai-tokens.css` declares the same
+tone and radius values in `:root` (light and dark), taken from the shared app
+kit (workspace-governance `docs/ux/kit/jhp-app-theme.css`). A surface without
+`data-theme="jp"` (the 404 and error pages, `AiPageChrome`) therefore shows the
+same success, warning, danger, info and radii as Admin and the chat.
+`test/brand-token-parity.test.ts` fails if either file drifts from the kit.
+
+| Tone | Light | Dark | As text, light: on white / on its pill tint | As text, dark: on `#252525` / on its pill tint |
+|---|---|---|---|---|
+| info | `#0B6E99` | `#529CCA` | 5.67 / 4.78 | 5.09 / 4.53 |
+| success | `#3B6D11` | `#97C459` | 6.21 / 4.64 | 7.56 / 4.98 |
+| warning (fill, dot, border) | `#BA7517` | `#FFA344` | 3.72 / 2.96 — never text | — |
+| warning text (`--accent-warning-text`) | `#8F5A0E` | `#FFA344` | 5.77 / 4.59 | 7.72 / 5.10 |
+| danger | `#A32D2D` | `#FF7369` | 7.07 / 5.07 | 5.77 / 4.80 |
+
+Pill tints are 20% of the tone (info 12%) in light mode; in dark mode info uses
+8% and danger 12%, which keeps every pill label at or above 4.5:1.
 
 Full J·P token set (neutrals, elevation, type scale, font families) is declared
 inside `[data-theme="jp"]` in `styles/jp-theme.css`.
@@ -105,30 +124,27 @@ Use these classes inside `[data-theme="jp"]` surfaces instead of Tailwind
 ```
 
 `variant="gradient"` maps to `.ai-button-gradient`. Applies `--gradient-full`
-in J·P theme; falls back to default accent button in Legacy theme.
+in the J·P theme; outside it, the default accent button.
 **Use at most once per page** (primary CTA only).
 
-### 0-F. Admin Theme Toggle
+### 0-F. Admin Theme (fixed)
 
-Operators can toggle between J·P and Legacy themes from the Admin top nav
-(right side pill button). Preference is persisted in `localStorage('admin-theme')`.
-
-- **Hook:** `hooks/use-admin-theme.ts` — `useAdminTheme()` returns `{ isJpTheme, toggleTheme, mounted }`
-- **Wired in:** `components/admin/layout/AdminPageShell.tsx`
-- **External users** always see J·P theme (no access to admin, no localStorage key)
-- **Chat UI** is always J·P (hardcoded, no toggle)
+Admin always renders in the J·P theme. The J·P/Legacy toggle and its
+`localStorage('admin-theme')` preference were retired on 2026-11-26, because
+the Legacy theme showed a second set of tones and radii for the same brand.
+The Chat UI is J·P as well.
 
 ### 0-G. Application Scope Boundaries
 
 | Component/Area | Theme | Notes |
 |---|---|---|
-| `AdminPageShell` | J·P (toggleable) | All `/admin/*` pages |
+| `AdminPageShell` | J·P (fixed) | All `/admin/*` pages |
 | `ChatFullPage` | J·P (fixed) | `/chat` route |
 | `ChatFloatingWindow` | J·P (fixed) | Widget on public pages |
 | `NotionPage` body | Notion (fixed) | react-notion-x constraint |
 | `Footer`, `NotionPageHeader` | Notion (fixed) | Shown on Notion pages |
-| `AiPageChrome` chrome | `--ai-*` defaults | Wraps `/chat`; minimal visual impact |
-| `Page404` / `ErrorPage` | `--ai-*` defaults | Low priority |
+| `AiPageChrome` chrome | `--ai-*` defaults | Wraps `/chat`; tones and radii equal J·P |
+| `Page404` / `ErrorPage` | `--ai-*` defaults | Tones and radii equal J·P |
 
 ### 0-H. Invariants Added by JHP Studio System
 
@@ -414,7 +430,8 @@ This section captures the **surface**, **border**, **divider**, and **interactio
 ### D. Interaction Roles
 
 - **Accent colors**: `--ai-accent`, `--ai-accent-strong`, `--ai-accent-soft`, `--ai-accent-bg` power links, primary buttons, and badges.
-- **Status colors**: `--ai-success`, `--ai-warning`, `--ai-error` plus their `*-muted` variants drive success/error/warning states.
+- **Status colors**: `--ai-info`, `--ai-success`, `--ai-warning`, `--ai-error` plus their `*-muted` variants drive the info/success/warning/danger states. Text in the warning tone uses `--ai-warning-text`; `--ai-warning` is for fills, dots and borders only.
+- **Tone names**: `StatusPill` takes the guideline tone names `neutral`, `info`, `success`, `warning`, `danger`. `muted` (= `neutral`) and `error` (= `danger`) remain as aliases for existing call sites; new code uses the guideline names.
 - **Focus/hover rings**: `--ai-ring` and `--ai-pill-*` tokens describe outlines and pill backgrounds.
 - **DO**
   - Tie `hover:bg`, `active:bg`, `focus:ring`, and `text` variants to the tokens above (e.g., `hover:bg-[color-mix(in srgb,var(--ai-accent),var(--ai-bg),15%)]`).

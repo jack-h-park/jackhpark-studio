@@ -47,9 +47,12 @@
   --ai-fg: 45 8% 20%;
   --ai-fg-muted: 42 7% 46%;
   --ai-border: 41 25% 85%;
-  --ai-radius-md: 0.75rem;
-  --ai-radius-lg: 1.5rem;
-  --ai-radius-sm: 0.5rem;
+  /* Radii and tones equal the shared app kit (workspace-governance
+     docs/ux/kit/jhp-app-theme.css), so surfaces outside [data-theme="jp"]
+     resolve to the same values as surfaces inside it. */
+  --ai-radius-md: 10px;
+  --ai-radius-lg: 14px;
+  --ai-radius-sm: 6px;
   --ai-radius-pill: 999px;
   --ai-shadow-soft: 0 18px 35px rgba(15, 15, 15, 0.08);
   --ai-shadow-elevated: 0 10px 20px rgba(15, 15, 15, 0.05);
@@ -81,11 +84,16 @@
   --ai-accent-soft: color-mix(in srgb, var(--ai-accent) 25%, transparent);
   --ai-accent-bg: color-mix(in srgb, var(--ai-accent) 15%, transparent);
   --ai-accent-contrast: var(--ai-role-surface-1);
-  --ai-success: #16a34a;
+  --ai-info: #0b6e99;
+  --ai-info-muted: color-mix(in srgb, var(--ai-info) 12%, transparent);
+  --ai-success: #3b6d11;
   --ai-success-muted: color-mix(in srgb, var(--ai-success) 20%, transparent);
-  --ai-warning: #f97316;
+  /* Warning fill (dots, borders) is 3.72:1 on white: enough for an indicator,
+     not for text. Text in the warning tone uses --ai-warning-text. */
+  --ai-warning: #ba7517;
+  --ai-warning-text: #8f5a0e;
   --ai-warning-muted: color-mix(in srgb, var(--ai-warning) 20%, transparent);
-  --ai-error: #ef4444;
+  --ai-error: #a32d2d;
   --ai-error-muted: color-mix(in srgb, var(--ai-error) 20%, transparent);
   --ai-ring: var(--select-color-0);
   --ai-space-1: 0.25rem;
@@ -182,12 +190,17 @@ body.dark-mode {
   --ai-shadow-overlay-panel:
     0 20px 40px -8px rgba(0, 0, 0, 0.5), 0 8px 16px -4px rgba(0, 0, 0, 0.35);
   --ai-accent: var(--notion-blue);
-  --ai-success: #34d399;
+  /* Lighter tints than in light mode: the dark info and danger tones lose
+     AA contrast on a 16-20% tint of themselves over #252525. */
+  --ai-info: #529cca;
+  --ai-info-muted: color-mix(in srgb, var(--ai-info) 8%, transparent);
+  --ai-success: #97c459;
   --ai-success-muted: color-mix(in srgb, var(--ai-success) 20%, transparent);
-  --ai-warning: #fb923c;
+  --ai-warning: #ffa344;
+  --ai-warning-text: #ffa344;
   --ai-warning-muted: color-mix(in srgb, var(--ai-warning) 20%, transparent);
-  --ai-error: #f87171;
-  --ai-error-muted: color-mix(in srgb, var(--ai-error) 20%, transparent);
+  --ai-error: #ff7369;
+  --ai-error-muted: color-mix(in srgb, var(--ai-error) 12%, transparent);
   --ai-overlay-scrim: rgba(0, 0, 0, 0.5);
   --ai-text: hsl(var(--ai-fg));
   --ai-text-strong: color-mix(in srgb, var(--ai-text) 96%, transparent);
