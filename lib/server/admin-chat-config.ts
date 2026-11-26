@@ -466,17 +466,22 @@ function parseAdminChatConfig(value: unknown): AdminChatConfig {
     Object.entries({
       ...mergedPresets,
       "local-required": localRequiredPreset,
-    }).map(([key, preset]) => [
-      key,
+    }).map(([key, { reasoningEffort: storedEffort, ...preset }]) => {
       // Drop an unrecognized stored effort rather than passing it through to the
-      // provider. Undefined means "inherit the global setting", which is the
+      // provider. A missing key means "inherit the global setting", which is the
       // right thing to fall back to for a value we cannot interpret.
-      {
-        ...preset,
-        llmModel: normalizeLlmModelId(preset.llmModel) ?? preset.llmModel,
-        reasoningEffort: normalizeReasoningEffort(preset.reasoningEffort),
-      },
-    ]),
+      // Omit the key instead of setting it to undefined: this config is returned
+      // from getServerSideProps, which rejects undefined values.
+      const reasoningEffort = normalizeReasoningEffort(storedEffort);
+      return [
+        key,
+        {
+          ...preset,
+          llmModel: normalizeLlmModelId(preset.llmModel) ?? preset.llmModel,
+          ...(reasoningEffort ? { reasoningEffort } : {}),
+        },
+      ];
+    }),
   ) as AdminChatPresetsConfig;
 
   const hydeMode = normalizeRagAutoMode(
