@@ -141,7 +141,7 @@
 }
 
 .metaCardBlockValue.warning {
-  color: var(--ai-warning); /* #b45309 previously */
+  color: var(--ai-warning-text);
 }
 
 .metaCardFooter {
@@ -212,7 +212,7 @@
 
 .metaChip.warning {
   background: color-mix(in srgb, var(--ai-warning) 15%, transparent);
-  color: var(--ai-warning);
+  color: var(--ai-warning-text);
 }
 
 .metaDebug {

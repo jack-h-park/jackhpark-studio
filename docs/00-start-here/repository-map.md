@@ -17,7 +17,7 @@ This document is a current orientation map for the repository. It is not a canon
 - A representative entry point is [`pages/admin/ingestion.tsx`](../../pages/admin/ingestion.tsx), which assembles manual ingestion, snapshot preview, RAG document overview, lifecycle summary, system health, and recent-run surfaces.
 - Chat configuration admin UI is split between [`pages/admin/chat-config.tsx`](../../pages/admin/chat-config.tsx), `components/admin/chat-config/`, and [`lib/server/admin-chat-config.ts`](../../lib/server/admin-chat-config.ts).
 - All admin pages are wrapped by `components/admin/layout/AdminPageShell.tsx`, which applies the J·P design system theme (`data-theme="jp"`) and loads Geist font via `next/font/google`.
-- The admin top nav includes a theme toggle (J·P ↔ Legacy). Theme preference is managed by `hooks/use-admin-theme.ts` and persisted in `localStorage('admin-theme')`.
+- Admin always renders in the J·P theme; the former J·P ↔ Legacy toggle was retired.
 
 ## Chat Settings UX
 
@@ -56,7 +56,6 @@ Key design system files:
 - `styles/jp-theme.css` — `[data-theme="jp"]` token definitions + component overrides (J·P Lab surface). This is a theme token file; color literals are intentional and it is excluded from `featureCssFiles` in `scripts/check-css-guardrails.mjs`.
 - `styles/ai-design-system.css` — shared `--ai-*` primitives and shared brand tokens (`--brand-*`, `--gradient-*`) in `:root`. Primitive-only per `css-guardrails` contract.
 - `styles/notion-brand.css` — Notion page brand overrides (gradient link hover)
-- `hooks/use-admin-theme.ts` — admin theme toggle hook
 
 ## react-notion-x Fork Workflow
 

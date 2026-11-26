@@ -38,7 +38,8 @@
   /* 3.4 · Semantic status */
   --accent-info:    #0B6E99;
   --accent-success: #3B6D11;
-  --accent-warning: #BA7517;
+  --accent-warning: #BA7517;      /* fills, dots, borders (3.72:1) */
+  --accent-warning-text: #8F5A0E; /* warning as text (5.77:1), kit D2 */
   --accent-danger:  #A32D2D;
 
   /* 5.3 · Elevation */
@@ -80,8 +81,10 @@
   --ai-accent-strong:   color-mix(in srgb, var(--brand-blue) 90%, transparent);
   --ai-accent-soft:     color-mix(in srgb, var(--brand-blue) 25%, transparent);
   --ai-accent-bg:       color-mix(in srgb, var(--brand-blue) 15%, transparent);
+  --ai-info:            var(--accent-info);
   --ai-success:         var(--accent-success);
   --ai-warning:         var(--accent-warning);
+  --ai-warning-text:    var(--accent-warning-text);
   --ai-error:           var(--accent-danger);
   --ai-radius-sm:       var(--radius-sm);
   --ai-radius-md:       var(--radius-md);
@@ -112,6 +115,7 @@ body.dark-mode [data-theme="jp"] {
   --accent-info:    #529CCA;
   --accent-success: #97C459;
   --accent-warning: #FFA344;
+  --accent-warning-text: #FFA344;
   --accent-danger:  #FF7369;
 
   --shadow-card: var(--shadow-card-dark);
