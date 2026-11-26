@@ -27,7 +27,7 @@ export function InlineRenderer({ nodes }: { nodes: InlineNode[] }) {
             return (
               <code
                 key={key}
-                className="ai-inline-code rounded bg-ai-bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold"
+                className="ai-inline-code rounded bg-ai-bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-medium"
               >
                 {node.code}
               </code>

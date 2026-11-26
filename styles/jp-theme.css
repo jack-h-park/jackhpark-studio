@@ -65,9 +65,12 @@
   --t-eyebrow: 11px;  --tr-eyebrow: 0.10em;
   --t-mono:    12px;  --lh-mono:    1.50;
 
-  /* Font families — resolved from next/font CSS variables on the root element */
-  --font-sans: var(--font-geist-sans, ui-sans-serif, system-ui, -apple-system, sans-serif);
-  --font-mono: var(--font-geist-mono, ui-monospace, "SFMono-Regular", monospace);
+  /* Font families — the --font-geist-* variables are set on :root by
+     pages/_app.tsx (and by the App Router experience layout), so every
+     surface resolves Geist. Hangul falls back as in the shared app kit. */
+  --font-sans: var(--font-geist-sans, "Geist"), "Pretendard", "Apple SD Gothic Neo",
+    ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono, "Geist Mono"), ui-monospace, "SFMono-Regular", monospace;
 
   /* ── --ai-* bridge ─────────────────────────────────────────────
      Re-maps the existing --ai-* tokens to J-P values so that
