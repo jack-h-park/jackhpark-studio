@@ -85,9 +85,9 @@
   --m-root-border: #b439df; /* --brand-purple */
   --m-root-fg: #191919;     /* --night */
   --m-font-size: 0.8125rem;
-  --m-font-weight: 700;
+  --m-font-weight: 500;
   --m-root-font-size: 0.875rem;
-  --m-root-font-weight: 700;
+  --m-root-font-weight: 500;
   display: block;
   width: 100%;
   margin-top: 0rem;
@@ -110,9 +110,9 @@
   --m-root-border: #b439df; /* --brand-purple — consistent across modes */
   --m-root-fg: #f2f0ea;     /* --text-primary dark */
   --m-font-size: 0.8125rem;
-  --m-font-weight: 700;
+  --m-font-weight: 500;
   --m-root-font-size: 0.875rem;
-  --m-root-font-weight: 700;
+  --m-root-font-weight: 500;
   background: rgba(255, 255, 255, 0.04);
   color: var(--m-fg);
 }
@@ -141,7 +141,7 @@
 
 .notion-mermaid-source summary {
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
   list-style: none;
   display: flex;
   align-items: center;
@@ -520,7 +520,7 @@ svg[data-processed-mermaid] .section-root tspan {
 .notion-collection-card-cover-thesis-eyebrow {
   flex: 0 0 auto;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.3;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -535,7 +535,7 @@ svg[data-processed-mermaid] .section-root tspan {
   flex: 0 0 auto;
   margin: 0;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.4;
   display: -webkit-box;
   overflow: hidden;
@@ -646,7 +646,7 @@ svg[data-processed-mermaid] .section-root tspan {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -723,7 +723,7 @@ svg[data-processed-mermaid] .section-root tspan {
 
 .gallery-image-modal__title {
   font-size: clamp(16px, 2.2vw, 20px);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .gallery-image-modal__link {
@@ -962,7 +962,7 @@ svg[data-processed-mermaid] .section-root tspan {
   .notion-collection-row-value {
   font-size: 0.92rem;
   opacity: 0.95;
-  font-weight: 600;
+  font-weight: 500;
   display: inline-flex;
   align-items: baseline;
   min-width: max-content;
@@ -1035,7 +1035,7 @@ svg[data-processed-mermaid] .section-root tspan {
   .notion-collection-row-property
   .notion-collection-row-value {
   opacity: 0.92;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.9rem;
 }
 
@@ -1471,3 +1471,14 @@ svg[data-processed-mermaid] .section-root tspan {
 
 /* NOTE: Do not globally hide empty row properties.
    It can unintentionally remove grouped/list items in some DB views. */
+
+/* Headings follow the studio weight rule shared with the J·P surfaces and the
+   apps: 400 for body, 500 for headings and labels. react-notion-x ships 600. */
+.notion-title,
+.notion-h,
+.notion-collection-card-cover-teaser-title,
+.notion-link-mention-title,
+.notion-link-mention-preview-title,
+.notion-collection-view-tabs-content-item-active {
+  font-weight: 500;
+}
