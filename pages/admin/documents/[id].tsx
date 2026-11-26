@@ -659,7 +659,7 @@ export default function AdminDocumentDetailPage({
                       are adjusted automatically.
                     </p>
                     {normalizedTagWarnings.length ? (
-                      <p className="text-xs font-semibold text-[var(--ai-warning)]">
+                      <p className="text-xs font-semibold text-[var(--ai-warning-text)]">
                         {normalizedTagWarnings.join(" ")}
                       </p>
                     ) : null}

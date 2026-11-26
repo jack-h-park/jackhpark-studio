@@ -28,7 +28,7 @@ export type DashboardStatTileProps = {
 
 const toneClasses: Record<DashboardStatTone, string> = {
   success: "text-[var(--ai-success)]",
-  warning: "text-[var(--ai-warning)]",
+  warning: "text-[var(--ai-warning-text)]",
   error: "text-[var(--ai-error)]",
   info: "text-[var(--ai-accent)]",
   muted: "text-[var(--ai-text-soft)]",

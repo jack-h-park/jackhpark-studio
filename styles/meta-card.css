@@ -55,7 +55,7 @@
 }
 
 .ai-meta-card-value--warning {
-  color: var(--ai-warning);
+  color: var(--ai-warning-text);
 }
 
 .ai-meta-card-footer {
@@ -75,7 +75,7 @@
 
 .ai-meta-chip--warning {
   background-color: var(--ai-warning-muted);
-  color: var(--ai-warning);
+  color: var(--ai-warning-text);
 }
 
 .ai-meta-collapse-btn {
