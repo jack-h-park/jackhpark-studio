@@ -4,7 +4,8 @@
   left: 0;
   right: 0;
   height: 2px;
-  background: var(--gradient-full);
+  /* Solid brand blue: the full gradient is never animated (brand guide §2.8). */
+  background: var(--brand-blue);
   z-index: 9999;
   transform-origin: left center;
   pointer-events: none;
@@ -27,4 +28,13 @@
   0%   { transform: scaleX(0.85); opacity: 1; }
   40%  { transform: scaleX(1);    opacity: 1; }
   100% { transform: scaleX(1);    opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Near-zero rather than none, so animationend still fires and the bar
+     clears itself after navigation. */
+  .loading,
+  .complete {
+    animation-duration: 0.01ms;
+  }
 }

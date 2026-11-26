@@ -1121,15 +1121,16 @@ svg[data-processed-mermaid] .section-root tspan {
 .notion-link:hover {
   border-bottom-color: transparent;
 
-  background-image: linear-gradient(90.68deg, #b439df 0.26%, #e5337e 102.37%);
+  /* Brand link hover: the mini gradient as a contained underline (brand
+     guide §3.2). It appears on hover and is not animated (§2.8). */
+  background-image: var(--gradient-mini);
   background-repeat: no-repeat;
   background-position: 0 100%;
   background-size: 100% 0.1rem;
-
-  transition-property: background-position, background-size;
-  transition-duration: 300ms;
 }
 
+/* Highlights take Notion's own palette tokens (site-tokens.css), which carry
+   light and dark values, instead of hard-coded pastel gradients. */
 .notion-red_background,
 .notion-pink_background,
 .notion-blue_background,
@@ -1139,141 +1140,11 @@ svg[data-processed-mermaid] .section-root tspan {
 .notion-orange_background,
 .notion-brown_background,
 .notion-gray_background {
-  padding: 0 0.5rem;
-  margin: 0 -0.5rem 0 -0.25rem;
-  border-radius: 0.5rem;
-  border-bottom-left-radius: 0.125rem;
+  padding: 0 0.25rem;
+  margin: 0 -0.25rem;
+  border-radius: 0.25rem;
   box-decoration-break: clone;
-
-  background-color: none;
-
-  /* light yellow */
-  background-image: linear-gradient(
-    119deg,
-    var(--bg-color),
-    #fff697 10.5%,
-    #fdf59d 85.29%,
-    var(--bg-color)
-  );
-}
-
-.notion-purple_background,
-.notion-pink_background {
-  /* light pink */
-  background-image: linear-gradient(
-    119deg,
-    var(--bg-color),
-    #f5b8d1 10.5%,
-    #f9bcd3 85.29%,
-    var(--bg-color)
-  );
-}
-
-.notion-blue_background,
-.notion-gray_background {
-  /* light blue */
-  background-image: linear-gradient(
-    119deg,
-    var(--bg-color),
-    #adedfc 10.5%,
-    #adebfd 85.29%,
-    var(--bg-color)
-  );
-}
-
-.notion-red_background,
-.notion-orange_background {
-  /* light red */
-  background-image: linear-gradient(
-    119deg,
-    var(--bg-color),
-    #f5c4ff 10.5%,
-    #e7a8fc 85.29%,
-    var(--bg-color)
-  );
-}
-
-.notion-teal_background {
-  /* light green */
-  background-image: linear-gradient(
-    119deg,
-    var(--bg-color),
-    #d4eabc 10.5%,
-    #d2eabc 85.29%,
-    var(--bg-color)
-  );
-}
-
-.notion-brown_background {
-  /* dark blue */
-  background-image: linear-gradient(
-    119deg,
-    var(--bg-color),
-    #96b8ec 10.5%,
-    #a6c3f0 85.29%,
-    var(--bg-color)
-  );
-}
-
-/* disable highlighting in dark mode */
-.dark-mode .notion-red_background,
-.dark-mode .notion-pink_background,
-.dark-mode .notion-blue_background,
-.dark-mode .notion-purple_background,
-.dark-mode .notion-teal_background,
-.dark-mode .notion-yellow_background,
-.dark-mode .notion-orange_background,
-.dark-mode .notion-brown_background,
-.dark-mode .notion-gray_background {
-  padding: 0;
-  margin: 0;
-  border-radius: 0;
-  background-image: none !important;
-}
-
-.dark-mode .notion-red_background {
-  background-color: rgba(255, 99, 99, 0.25) !important;
-  color: #ffb3b3 !important;
-}
-
-.dark-mode .notion-pink_background {
-  background-color: rgba(255, 182, 193, 0.25) !important;
-  color: #ffcce0 !important;
-}
-
-.dark-mode .notion-blue_background {
-  background-color: rgba(100, 149, 237, 0.2) !important;
-  color: #a8c9ff !important;
-}
-
-.dark-mode .notion-purple_background {
-  background-color: rgba(186, 85, 211, 0.2) !important;
-  color: #d8a6ff !important;
-}
-
-.dark-mode .notion-teal_background {
-  background-color: rgba(64, 224, 208, 0.2) !important;
-  color: #9ff2eb !important;
-}
-
-.dark-mode .notion-yellow_background {
-  background-color: rgba(255, 255, 100, 0.2) !important;
-  color: #fff6a6 !important;
-}
-
-.dark-mode .notion-orange_background {
-  background-color: rgba(255, 165, 0, 0.2) !important;
-  color: #ffd699 !important;
-}
-
-.dark-mode .notion-brown_background {
-  background-color: rgba(139, 69, 19, 0.2) !important;
-  color: #d2b48c !important;
-}
-
-.dark-mode .notion-gray_background {
-  background-color: rgba(200, 200, 200, 0.1) !important;
-  color: #e0e0e0 !important;
+  -webkit-box-decoration-break: clone;
 }
 
 /* if you don't want rounded page icon images, remove this */
@@ -1320,7 +1191,7 @@ svg[data-processed-mermaid] .section-root tspan {
 }
 
 .notion-bookmark:hover {
-  border-image: linear-gradient(90.68deg, #b439df 0.26%, #e5337e 102.37%);
+  border-image: var(--gradient-mini);
   border-image-slice: 1;
 }
 
