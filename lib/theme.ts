@@ -1,33 +1,39 @@
 /**
- * Theme resolution — "system-follows, smart override".
+ * Theme resolution — one preference: system, light or dark.
  *
- * The browser's `prefers-color-scheme` is the source of truth. A manual toggle
- * writes an *override* that records both the chosen value and the system value
- * at the moment of the toggle. On every load we honor the override only while
- * the system value still matches; the moment the browser/OS scheme changes, the
- * override is considered stale and discarded, so the page resumes following the
- * device.
+ * The shared guidelines (D15) give every surface one theme control offering
+ * System, Light and Dark. "System" is the default and follows
+ * `prefers-color-scheme` live; "light" and "dark" are explicit choices that
+ * stay until the visitor picks another option.
  *
- * This replaces the previous `use-dark-mode` behavior, where a persisted
- * `darkMode` value in localStorage always won over the system preference and
- * never re-synced — which made the page render dark on a light device.
+ * History: a persisted dark-mode boolean once beat the system preference on
+ * every load and never re-synced, so the page rendered dark on a light device.
+ * A binary toggle then wrote an override that expired when the system scheme
+ * changed. Both failed because a toggle cannot express "follow the device".
+ * With System as a visible option, an explicit Light or Dark is a deliberate
+ * choice and no longer needs to expire.
  *
  * The pure logic lives here so the React provider (DarkModeProvider) and the
  * pre-hydration no-flash script (pages/_document.tsx, THEME_NOFLASH_SCRIPT)
  * resolve identically. Keep the two in sync when editing.
  */
 
-export const THEME_OVERRIDE_KEY = "themeOverride";
-/** Legacy key from `use-dark-mode`; removed on load so it can't interfere. */
-export const LEGACY_DARK_MODE_KEY = "darkMode";
+export type ThemePreference = "system" | "light" | "dark";
+
+export const THEME_PREFERENCES: readonly ThemePreference[] = [
+  "system",
+  "light",
+  "dark",
+];
+
+export const THEME_PREFERENCE_KEY = "themePreference";
+/** Keys from the two earlier models; removed on load so they can't interfere. */
+export const LEGACY_THEME_KEYS = ["themeOverride", "darkMode"] as const;
 
 const DARK_CLASSES = ["dark-mode", "dark"] as const;
 
-export interface ThemeOverride {
-  /** The user's explicitly chosen value. */
-  dark: boolean;
-  /** System `prefers-color-scheme: dark` value at the time of the toggle. */
-  sys: boolean;
+export function isThemePreference(value: unknown): value is ThemePreference {
+  return value === "system" || value === "light" || value === "dark";
 }
 
 export function systemPrefersDark(): boolean {
@@ -38,74 +44,44 @@ export function systemPrefersDark(): boolean {
   );
 }
 
-export function readOverride(): ThemeOverride | null {
+export function readPreference(): ThemePreference {
   if (typeof window === "undefined") {
-    return null;
+    return "system";
   }
 
   try {
-    const raw = window.localStorage.getItem(THEME_OVERRIDE_KEY);
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw) as unknown;
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      typeof (parsed as ThemeOverride).dark === "boolean" &&
-      typeof (parsed as ThemeOverride).sys === "boolean"
-    ) {
-      return parsed as ThemeOverride;
-    }
+    const raw = window.localStorage.getItem(THEME_PREFERENCE_KEY);
+    return isThemePreference(raw) ? raw : "system";
   } catch {
-    // Corrupt value — fall through to system preference.
+    // Storage unavailable (private mode, blocked) — follow the device.
+    return "system";
   }
-
-  return null;
 }
 
-export function writeOverride(override: ThemeOverride): void {
+export function writePreference(preference: ThemePreference): void {
   if (typeof window === "undefined") {
     return;
   }
 
   try {
-    window.localStorage.setItem(THEME_OVERRIDE_KEY, JSON.stringify(override));
-  } catch {
-    // Storage unavailable (private mode, quota) — override is best-effort.
-  }
-}
-
-export function clearOverride(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.localStorage.removeItem(THEME_OVERRIDE_KEY);
-  } catch {
-    // Ignore — nothing to clean up if storage is unavailable.
-  }
-}
-
-/**
- * Resolve the effective dark-mode value, discarding a stale override whose
- * captured system value no longer matches the current one.
- */
-export function resolveDarkMode(): boolean {
-  const sys = systemPrefersDark();
-  const override = readOverride();
-
-  if (override) {
-    if (override.sys === sys) {
-      return override.dark;
+    if (preference === "system") {
+      window.localStorage.removeItem(THEME_PREFERENCE_KEY);
+    } else {
+      window.localStorage.setItem(THEME_PREFERENCE_KEY, preference);
     }
-    // System scheme changed since the override was set → resume following it.
-    clearOverride();
+  } catch {
+    // Storage unavailable — the choice still applies for this page view.
   }
+}
 
-  return sys;
+export function resolveDarkMode(
+  preference: ThemePreference,
+  systemDark: boolean,
+): boolean {
+  if (preference === "system") {
+    return systemDark;
+  }
+  return preference === "dark";
 }
 
 export function applyThemeClasses(dark: boolean): void {
@@ -121,45 +97,30 @@ export function applyThemeClasses(dark: boolean): void {
 }
 
 /**
- * Persist a manual toggle: record the new value alongside the current system
- * value so the override auto-expires once the device scheme changes.
- */
-export function setManualDarkMode(dark: boolean): void {
-  writeOverride({ dark, sys: systemPrefersDark() });
-  applyThemeClasses(dark);
-}
-
-/**
- * Pre-hydration, inline no-flash script. Mirrors resolveDarkMode()/
- * applyThemeClasses() with no imports so it can run before the bundle loads.
- * Injected verbatim into a <script> in pages/_document.tsx.
+ * Pre-hydration, inline no-flash script. Mirrors readPreference()/
+ * resolveDarkMode()/applyThemeClasses() with no imports so it can run before
+ * the bundle loads. Injected verbatim into a <script> in pages/_document.tsx.
  */
 export const THEME_NOFLASH_SCRIPT = `
 ;(function () {
   try {
-    var OVERRIDE_KEY = '${THEME_OVERRIDE_KEY}';
-    var LEGACY_KEY = '${LEGACY_DARK_MODE_KEY}';
+    var KEY = '${THEME_PREFERENCE_KEY}';
+    var LEGACY = ${JSON.stringify(LEGACY_THEME_KEYS)};
     var mql = window.matchMedia('(prefers-color-scheme: dark)');
     var sys = mql.media === '(prefers-color-scheme: dark)' ? mql.matches : false;
 
-    // Drop the legacy use-dark-mode key so it can never override the system.
-    try { window.localStorage.removeItem(LEGACY_KEY); } catch (e) {}
-
-    var dark = sys;
+    var pref = 'system';
     try {
-      var raw = window.localStorage.getItem(OVERRIDE_KEY);
-      if (raw) {
-        var ov = JSON.parse(raw);
-        if (ov && typeof ov.dark === 'boolean' && typeof ov.sys === 'boolean') {
-          if (ov.sys === sys) {
-            dark = ov.dark;
-          } else {
-            window.localStorage.removeItem(OVERRIDE_KEY);
-          }
-        }
+      for (var i = 0; i < LEGACY.length; i++) {
+        window.localStorage.removeItem(LEGACY[i]);
+      }
+      var raw = window.localStorage.getItem(KEY);
+      if (raw === 'light' || raw === 'dark') {
+        pref = raw;
       }
     } catch (e) {}
 
+    var dark = pref === 'system' ? sys : pref === 'dark';
     var body = document.body;
     body.classList.toggle('dark-mode', dark);
     body.classList.toggle('dark', dark);

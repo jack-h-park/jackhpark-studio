@@ -92,7 +92,12 @@
   --notion-header-height: 45px;
 }
 
-.dark {
+/* react-notion-x puts its own .dark-mode palette (a blue-grey #2f3437 page)
+   on the Notion root as well as on <body>, and an element's own declaration
+   beats the inherited one. Matching .dark-mode here, later in the cascade,
+   makes the studio palette win on both: page #191919, surface #252525. */
+.dark,
+.dark-mode {
   --fg-color: rgba(255, 255, 255, 0.9);
   --fg-color-0: var(--fg-color);
   --fg-color-1: var(--fg-color);
@@ -105,7 +110,8 @@
 
   --bg-color: #191919;
   --bg-color-0: #252525;
-  --bg-color-1: #202020;
+  /* The dark surface shared with the J·P theme and the app kit (D7). */
+  --bg-color-1: #252525;
   --bg-color-2: rgba(255, 255, 255, 0.05);
 
   --notion-red: rgb(255, 115, 105);

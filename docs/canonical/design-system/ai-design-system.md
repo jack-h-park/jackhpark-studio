@@ -170,6 +170,26 @@ The Chat UI is J·P as well.
 | `AiPageChrome` chrome | `--ai-*` defaults | Wraps `/chat`; tones and radii equal J·P |
 | `Page404` / `ErrorPage` | `--ai-*` defaults | Tones and radii equal J·P |
 
+### 0-G2. Light, Dark and the Theme Control
+
+- **One control.** Public pages carry a single theme control, `ThemeControl`,
+  in the page header (`NotionPageHeader`, and `AiPageChrome` on `/chat`): a
+  Display settings button that opens a System / Light / Dark radio group, as
+  the shared guidelines' D15 describes for the apps. The footer no longer has
+  a toggle. The button shows the icon of the current choice.
+- **Model.** `lib/theme.ts` stores the choice in `localStorage('themePreference')`;
+  System (no stored value) follows `prefers-color-scheme` live, Light and Dark
+  stay until changed. The pre-hydration script in `pages/_document.tsx`
+  resolves the same way, so the first paint is right. The earlier
+  `themeOverride` and `darkMode` keys are removed on load.
+- **Dark surface.** Dark Notion pages use the J·P and app-kit neutrals (D7):
+  page `#191919`, raised surface (`--bg-color-1`) `#252525`. `site-tokens.css`
+  declares them on `.dark` and `.dark-mode`; matching `.dark-mode` matters,
+  because react-notion-x puts its own `.dark-mode` palette (a blue-grey
+  `#2f3437` page) on the Notion root, which otherwise beats the inherited
+  value. The dark header and mobile menu use a translucent page colour instead
+  of a cool zinc tint.
+
 ### 0-H. Invariants Added by JHP Studio System
 
 - `.t-eyebrow` in J·P scope always renders as `--gradient-mini` text. Do not apply an explicit `color:` class alongside it — the CSS specificity will fight.

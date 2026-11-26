@@ -61,7 +61,7 @@
 }
 
 .notion-polish-balanced.dark-mode .notion-header {
-  background: rgba(24, 24, 27, 0.75);
+  background: color-mix(in srgb, var(--bg-color) 75%, transparent);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: none;
   backdrop-filter: blur(14px);

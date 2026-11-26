@@ -15,7 +15,7 @@ import {
 
 import headerStyles from "./NotionPageHeader.module.css";
 import styles from "./styles.module.css";
-import { ToggleThemeButton } from "./ToggleThemeButton";
+import { ThemeControl } from "./ThemeControl";
 
 export function NotionPageHeader({
   block,
@@ -145,7 +145,7 @@ export function NotionPageHeader({
               .filter(Boolean)}
           </div>
 
-          <ToggleThemeButton />
+          <ThemeControl />
 
           {isSearchEnabled && <Search block={block} title={null} />}
 

@@ -33,6 +33,7 @@ const featureCssFiles = [
   "styles/pm-intelligence.css",
   "components/pm-intelligence-world/observatory.module.css",
   "styles/notion-mermaid.css",
+  "components/ThemeControl.module.css",
 ];
 
 // Theme token files — intentionally excluded from featureCssFiles.

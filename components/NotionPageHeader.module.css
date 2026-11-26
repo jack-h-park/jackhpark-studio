@@ -41,7 +41,7 @@
 }
 
 :global(.dark-mode) .mobileMenu {
-  background: rgba(24, 24, 27, 0.97);
+  background: color-mix(in srgb, var(--bg-color) 97%, transparent);
   border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
