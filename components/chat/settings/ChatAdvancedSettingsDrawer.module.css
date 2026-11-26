@@ -128,7 +128,7 @@
 
 .drawerRowLabel {
   font-size: 0.9rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--ai-text-strong);
 }
 
@@ -153,7 +153,7 @@
   margin-left: 0.4rem;
   padding: 0.1rem 0.35rem;
   font-size: 0.6rem;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.06em;
   line-height: 1.4;
   vertical-align: middle;
@@ -180,7 +180,7 @@
   list-style: none;
   color: var(--ai-text-strong);
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
   border-radius: var(--ai-radius-md);
 }
 

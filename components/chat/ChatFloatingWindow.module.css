@@ -80,7 +80,7 @@
   padding: 6px 12px;
   min-height: 34px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -135,7 +135,7 @@
   cursor: pointer;
   user-select: none;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 500;
   color: hsl(var(--ai-fg));
   padding: 6px 8px;
   border-radius: 6px;
@@ -186,7 +186,7 @@
 
 .detailsLabel {
   color: hsl(var(--ai-fg-muted));
-  font-weight: 600;
+  font-weight: 500;
   min-width: 60px;
 }
 
@@ -210,7 +210,7 @@
   margin: 0;
   font-size: 0.95rem;
   line-height: 1.25;
-  font-weight: 600;
+  font-weight: 500;
   color: hsl(var(--ai-fg));
 }
 
