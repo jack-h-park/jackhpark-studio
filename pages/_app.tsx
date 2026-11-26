@@ -14,6 +14,7 @@ import { DarkModeProvider } from "@/components/DarkModeProvider";
 import { NavigationProgress } from "@/components/NavigationProgress";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { notionPolishProfile } from "@/lib/config";
+import { geistMono, geistSans } from "@/lib/fonts";
 
 export {
   event,
@@ -36,6 +37,15 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <DarkModeProvider>
+      {/* Geist on every Pages Router surface: Notion pages, the chat, the
+          landing page and Admin. Declared on :root rather than as a wrapper
+          class so portalled UI (drawers, the floating chat) resolves it too. */}
+      <style jsx global>{`
+        :root {
+          --font-geist-sans: ${geistSans.style.fontFamily};
+          --font-geist-mono: ${geistMono.style.fontFamily};
+        }
+      `}</style>
       <ChatPromotionSessionProvider>
         <TooltipProvider>
           <NavigationProgress />

@@ -92,7 +92,7 @@
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -167,7 +167,7 @@
 
 .gallery-image-modal__title {
   font-size: clamp(16px, 2.2vw, 20px);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .gallery-image-modal__link {

@@ -57,8 +57,17 @@ Notion-rendered content. The floating Chat widget on public pages carries
 ```
 
 **Gradient usage rules (§3.2 of brand guide):**
-- `--gradient-full` — once per surface at first contact: logo, page header stripe, **one** primary CTA button. Never as a card background.
-- `--gradient-mini` — inside interactions only: eyebrow text, active nav pill border, link hover underline, focus rings. May repeat as long as each instance is contained.
+- `--gradient-full` — **at most once per screen**, at first contact: logo, page header stripe, **or one** primary CTA button. Never on a card (background or border), never animated.
+- `--gradient-mini` — inside interactions only: eyebrow text, active nav pill border, link hover underline, focus rings. May repeat as long as each instance is contained. It appears on hover or focus without a transition.
+
+Where each screen spends its one full gradient:
+
+| Screen | Full gradient | Not gradient |
+|---|---|---|
+| Landing page | Closing CTA button | Chain divider (hairline), pillar and work cards (border-first) |
+| Admin pages | Page header stripe | Primary buttons such as Save and Run manually (default accent) |
+| Every route change | — | Route progress bar (solid `--brand-blue`; near-instant under `prefers-reduced-motion`) |
+| Notion pages | — | Link hover and bookmark hover use `--gradient-mini`; highlights use the Notion palette tokens (`--notion-*_background`, light and dark in `styles/site-tokens.css`) |
 
 ### 0-C. J·P Theme Token Overrides (`[data-theme="jp"]`)
 
@@ -115,7 +124,22 @@ Use these classes inside `[data-theme="jp"]` surfaces instead of Tailwind
 | `.t-mono` | 12 px | 400 | Data, numbers (Geist Mono, tabular-nums) |
 
 **Weight rule:** 400 body / 500 headings + buttons + nav / 600 logo only.
-`font-semibold` (700) and `font-bold` are not used in J·P surfaces.
+`font-semibold` (600) and `font-bold` (700) are not used for UI text.
+
+The weight rule and the typeface are shared by every surface, not only the
+J·P scope:
+
+- **Typeface.** `pages/_app.tsx` declares `--font-geist-sans` and
+  `--font-geist-mono` on `:root`, so Notion pages (`--notion-font`), the chat,
+  the landing page and Admin all resolve Geist, with Pretendard and Apple SD
+  Gothic Neo as the Hangul fallbacks the shared app kit uses. The App Router
+  experience route sets the same variables in its own layout.
+- **Notion pages.** Page titles, h1–h3, collection headers and card titles
+  render at 500 (`styles/notion.css`, `styles/notion-parity.css`), overriding
+  react-notion-x's 600 and the earlier 620–700 parity weights.
+- **Exception: emphasis inside reading text.** Inline bold written by an
+  author (Notion `b`, the chat answer's `ai-strong`) keeps 600, because it is
+  content, not interface.
 
 ### 0-E. Gradient Button Variant
 

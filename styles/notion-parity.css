@@ -92,7 +92,7 @@
   text-align: left;
   font-size: var(--np-title-size) !important;
   line-height: 1.2 !important;
-  font-weight: 700 !important;
+  font-weight: 500 !important;
 }
 
 .notion-polish-balanced .notion-page-has-cover {
@@ -452,13 +452,13 @@
 .notion-polish-balanced .notion-page .notion-h2 {
   font-size: var(--np-h2-size) !important;
   line-height: 1.35 !important;
-  font-weight: 650 !important;
+  font-weight: 500 !important;
 }
 
 .notion-polish-balanced .notion-page .notion-h3 {
   font-size: var(--np-h3-size) !important;
   line-height: 1.4 !important;
-  font-weight: 620 !important;
+  font-weight: 500 !important;
 }
 
 .notion-polish-balanced .notion-page .notion-collection-header-title,
@@ -468,7 +468,7 @@
   .notion-collection-header-title {
   font-size: calc(var(--np-h2-size) + 0.08rem) !important;
   line-height: 1.35 !important;
-  font-weight: 650 !important;
+  font-weight: 500 !important;
 }
 
 .notion-polish-balanced .notion-page .notion-quote {

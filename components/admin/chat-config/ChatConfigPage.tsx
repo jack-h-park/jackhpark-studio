@@ -234,7 +234,6 @@ export function ChatConfigPage({
                 Reset
               </Button>
               <Button
-                variant="gradient"
                 type="button"
                 onClick={handleSave}
                 disabled={saveButtonDisabled}

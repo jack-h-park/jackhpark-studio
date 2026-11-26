@@ -10,7 +10,8 @@ export const buttonVariantStyles = {
   default: "ai-button-default",
   outline: "ai-button-outline",
   ghost: "ai-button-ghost",
-  // J-P theme: full gradient fill — use once per surface for the primary CTA
+  // J·P theme: full gradient fill. Admin pages already spend their one full
+  // gradient on the header stripe, so do not use this inside AdminPageShell.
   gradient: "ai-button-gradient",
 } as const;
 
