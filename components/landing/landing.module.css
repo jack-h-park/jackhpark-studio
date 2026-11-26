@@ -59,13 +59,13 @@
   margin: 0 0 64px;
 }
 
-/* Mini-gradient hover underline — the page's signature micro-interaction. */
+/* Mini-gradient hover underline, the same treatment as Notion page links.
+   It appears on hover without a transition: the gradient never animates. */
 .miniUnderline {
   background-image: var(--gradient-mini);
   background-repeat: no-repeat;
   background-position: 0 100%;
   background-size: 0% 2px;
-  transition: background-size 0.25s ease;
   padding-bottom: 2px;
 }
 
@@ -319,12 +319,12 @@ a:focus-visible .miniUnderline {
   margin: 80px 0 0;
 }
 
-/* The page's one structural Full-gradient moment (storyboard §2). */
+/* A plain hairline: the closing CTA is the page's one full gradient. */
 .chainDivider {
-  height: 2px;
+  height: 1px;
   border: none;
   margin: 64px 0 0;
-  background: var(--gradient-full);
+  background: var(--border-default);
 }
 
 /* ── Operating Philosophy ───────────────────────────────────────── */
@@ -985,21 +985,13 @@ a:focus-visible .miniUnderline {
 }
 
 /* ── Card depth ─────────────────────────────────────────────────────
-   Gradient hairline border (dual-background trick), layered brand-tinted
-   shadows, hover lift. `translate` (not transform) so GSAP-owned
-   transforms never conflict. */
+   Border-first card (no gradient on cards, brand guide §3.2), layered
+   brand-tinted shadows, hover lift. `translate` (not transform) so
+   GSAP-owned transforms never conflict. */
 .pillarCard,
 .workCard {
-  border: 1px solid transparent;
-  background:
-    linear-gradient(var(--bg-card), var(--bg-card)) padding-box,
-    linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--brand-purple) 34%, var(--border-subtle)),
-        color-mix(in srgb, var(--brand-blue) 20%, var(--border-subtle)) 45%,
-        color-mix(in srgb, var(--brand-cyan) 30%, var(--border-subtle))
-      )
-      border-box;
+  border: 1px solid var(--border-default);
+  background: var(--bg-card);
   box-shadow:
     0 1px 2px color-mix(in srgb, var(--text-primary) 4%, transparent),
     0 14px 36px -14px color-mix(in srgb, var(--brand-purple) 15%, transparent);

@@ -57,8 +57,17 @@ Notion-rendered content. The floating Chat widget on public pages carries
 ```
 
 **Gradient usage rules (§3.2 of brand guide):**
-- `--gradient-full` — once per surface at first contact: logo, page header stripe, **one** primary CTA button. Never as a card background.
-- `--gradient-mini` — inside interactions only: eyebrow text, active nav pill border, link hover underline, focus rings. May repeat as long as each instance is contained.
+- `--gradient-full` — **at most once per screen**, at first contact: logo, page header stripe, **or one** primary CTA button. Never on a card (background or border), never animated.
+- `--gradient-mini` — inside interactions only: eyebrow text, active nav pill border, link hover underline, focus rings. May repeat as long as each instance is contained. It appears on hover or focus without a transition.
+
+Where each screen spends its one full gradient:
+
+| Screen | Full gradient | Not gradient |
+|---|---|---|
+| Landing page | Closing CTA button | Chain divider (hairline), pillar and work cards (border-first) |
+| Admin pages | Page header stripe | Primary buttons such as Save and Run manually (default accent) |
+| Every route change | — | Route progress bar (solid `--brand-blue`; near-instant under `prefers-reduced-motion`) |
+| Notion pages | — | Link hover and bookmark hover use `--gradient-mini`; highlights use the Notion palette tokens (`--notion-*_background`, light and dark in `styles/site-tokens.css`) |
 
 ### 0-C. J·P Theme Token Overrides (`[data-theme="jp"]`)
 

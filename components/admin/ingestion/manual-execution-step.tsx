@@ -76,7 +76,6 @@ export function ManualExecutionStep({
       <div className={manualStyles.executionStrip}>
         <Button
           type="submit"
-          variant="gradient"
           disabled={ingestion.isRunning}
           className="min-w-[170px]"
           data-rail="execution-button"
